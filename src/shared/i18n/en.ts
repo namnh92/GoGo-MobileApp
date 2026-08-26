@@ -19,9 +19,9 @@ export const enMessages: Record<MessageKey, string> = {
   'onboarding.next': 'Next',
   'onboarding.guest': 'Continue as guest',
   'onboarding.slide1.title': 'Stop wasting half an hour\non "where to?"',
-  'onboarding.slide1.body': 'GoGo finds places and activities that fit you both.',
+  'onboarding.slide1.body': 'GoGo finds places and activities that fit all of you.',
   'onboarding.slide2.title': 'Each of you\npicks separately',
-  'onboarding.slide2.body': 'No debating. GoGo only shows the options you both like.',
+  'onboarding.slide2.body': 'No debating. GoGo only shows the options everyone likes.',
   'onboarding.slide3.title': 'Get a complete\ndate plan instantly',
   'onboarding.slide3.body': 'What to eat, where to go, how long it takes and roughly how much.',
 
@@ -68,7 +68,8 @@ export const enMessages: Record<MessageKey, string> = {
   'createLocation.currentLabel': 'Current location',
   'createLocation.maxDistance': 'Max distance',
 
-  'createTime.title': 'How much time\ndo you two have?',
+  'createTime.title': 'How much time\ndo you all have?',
+  'createTime.title_couple': 'How much time\ndo you two have?',
   'createTime.body': 'GoGo only suggests places still open within this window.',
   'createTime.specificTime': 'Or pick exact times',
   'createTime.start': 'Start',
@@ -134,7 +135,8 @@ export const enMessages: Record<MessageKey, string> = {
   'waiting.partialWarning': '{{n}} people still picking',
 
   'matching.matched': "It's a match!",
-  'matching.matchedBody': 'You two have more in common than you thought.',
+  'matching.matchedBody': 'You have more in common than you thought.',
+  'matching.matchedBody_couple': 'You two have more in common than you thought.',
   'matching.matchedBody_group': 'The group has more in common than you thought.',
 
   'matchResult.whyTitle': 'Why did GoGo pick this?',
@@ -215,8 +217,10 @@ export const enMessages: Record<MessageKey, string> = {
   'dateFinished.checkinTitle': 'Your check-ins',
 
   'dateFinished.title': 'Date complete!',
-  'dateFinished.body': 'Hope you two had a great evening.',
+  'dateFinished.body': 'Hope you all had a great evening.',
+  'dateFinished.body_couple': 'Hope you two had a great evening.',
   'dateFinished.cta': 'How was it? 💬',
+  'dateFinished.cta_couple': 'How was it, you two? 💬',
 
   'review.title': 'How was\nthis date?',
   'review.body': 'Your rating helps GoGo pick better next time.',
@@ -231,7 +235,8 @@ export const enMessages: Record<MessageKey, string> = {
   'review.starAria': '{{n}} stars',
 
   'sharedResult.title': 'Our Date ✨',
-  'sharedResult.common': 'What you two share',
+  'sharedResult.common': 'What you share',
+  'sharedResult.common_couple': 'What you two share',
   'sharedResult.stats': 'Stats',
   'sharedResult.nextDate': 'Plan the next date 🚀',
   'sharedResult.share': 'Share story',
@@ -366,13 +371,13 @@ export const enContent: LocaleContent = {
     { emoji: '🍰', label: 'Dessert' },
   ],
   matchReasons: [
-    'You both like Japanese',
-    'You both picked Creative',
+    'You all like Japanese',
+    'You all picked Creative',
     'Within the 500–800k budget',
     'Everything is still open',
     'Nothing over 5 km away',
   ],
-  matchingMessages: ['Finding what you both like…', 'Assembling the itinerary…', 'Matched 🎉'],
+  matchingMessages: ['Finding what you all like…', 'Assembling the itinerary…', 'Matched 🎉'],
   dateSummaryChips: ['🌙 Tonight', '📍 Thao Dien', '⏱ 2–3 hrs', '💰 500–800k', '❤️ Romantic', '🎨 Creative'],
   dateDetails: [
     ['🌙', 'Tonight'],
