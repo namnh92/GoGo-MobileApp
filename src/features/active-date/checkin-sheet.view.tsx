@@ -101,8 +101,14 @@ export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProp
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={skip}>
       <Pressable style={styles.backdrop} onPress={skip} />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[5] }]}>
+      <View style={[styles.sheet, { maxHeight: '85%' }]}>
         <View style={styles.handle} />
+        <ScrollView
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}
+        >
         <View style={styles.headerRow}>
           <Text style={styles.headerEmoji}>{stop.emoji}</Text>
           <View style={{ flex: 1 }}>
@@ -209,6 +215,7 @@ export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProp
         <Pressable onPress={skip} style={styles.skipBtn}>
           <Text style={styles.skipLabel}>{t('checkin.skip')}</Text>
         </Pressable>
+        </ScrollView>
       </View>
     </Modal>
   )

@@ -54,7 +54,7 @@ export const overlay = {
   scrimMedium: 'rgba(0,0,0,0.25)',
   scrim: 'rgba(0,0,0,0.35)',
   scrimStrong: 'rgba(0,0,0,0.4)',
-  backdrop: 'rgba(33,31,28,0.4)',
+  backdrop: 'rgba(33,31,28,0.55)',
 } as const
 
 export const shadows = {
@@ -70,7 +70,7 @@ export const mapColors = {
 
 /** White-alpha washes for glass surfaces, borders and tints. */
 export const glassFx = {
-  sheet: 'rgba(252,251,248,0.98)',
+  sheet: '#FCFBF8',
   bar: 'rgba(252,251,248,0.97)',
   solid: 'rgba(255,255,255,0.95)',
   pill: 'rgba(255,255,255,0.92)',

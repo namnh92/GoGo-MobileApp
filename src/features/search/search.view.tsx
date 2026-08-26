@@ -248,8 +248,14 @@ export default function SearchScreen() {
       {/* Multi-criteria filter sheet */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setSheetOpen(false)} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[5] }]}>
+        <View style={[styles.sheet, { maxHeight: '85%' }]}>
           <View style={styles.handle} />
+          <ScrollView
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}
+          >
           <Text style={styles.sheetTitle}>{t('search.filters')}</Text>
 
           <Text style={styles.sheetSection}>{t('search.filterDistance')}</Text>
@@ -340,6 +346,7 @@ export default function SearchScreen() {
           <Pressable onPress={clearFilters} style={styles.sheetClear}>
             <Text style={styles.sheetClearLabel}>{t('search.clearFilters')}</Text>
           </Pressable>
+          </ScrollView>
         </View>
       </Modal>
     </Atmosphere>
