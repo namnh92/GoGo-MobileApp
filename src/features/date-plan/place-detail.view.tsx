@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { catalogPlaces, unsplashUrl } from '@/data/mockData'
 import { usePriceFormatter } from '@/shared/pricing'
 import { track } from '@/shared/analytics'
+import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { useRoom } from '@/shared/store/roomStore'
 import { Atmosphere, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
@@ -125,7 +126,7 @@ export default function PlaceDetailScreen() {
         <Pressable style={styles.addBtn}>
           <Text style={styles.addLabel}>{t('placeDetail.addToPlan')}</Text>
         </Pressable>
-        <Pressable style={styles.dirBtn}>
+        <Pressable onPress={() => openGoogleMapsDirections('Sakura Omakase, Thảo Điền, TP.HCM')} style={styles.dirBtn}>
           <IconNavigation color={neutral[0]} />
           <Text style={styles.dirLabel}>{t('common.directions')}</Text>
         </Pressable>

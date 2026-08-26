@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AREAS } from '@/data/mockData'
+import { mockApi, type AreaPrediction } from '@/shared/api/mock'
 import { useRoom } from '@/shared/store/roomStore'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck, IconMapPin, IconSearch } from '@/shared/ui/icons'
@@ -13,10 +14,7 @@ import { styles } from './create-location.style'
 
 const CURRENT_AREA = 'Thảo Điền, TP.HCM'
 const radii = ['2 km', '5 km', '10 km', 'Anywhere']
-
-function normalize(value: string): string {
-  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
-}
+const DEBOUNCE_MS = 250
 
 export default function CreateLocationScreen() {
   const { t } = useTranslation()
@@ -27,6 +25,10 @@ export default function CreateLocationScreen() {
   const [radiusChoice, setRadiusChoice] = useState('5 km')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [areaQuery, setAreaQuery] = useState('')
+  const [predictions, setPredictions] = useState<AreaPrediction[]>(() =>
+    AREAS.map((description, i) => ({ placeId: `seed-${i}`, description })),
+  )
+  const [searching, setSearching] = useState(false)
 
   // Demo/deep-link: ?picker=1 opens the area sheet (delay avoids modal present race).
   useEffect(() => {
@@ -35,10 +37,24 @@ export default function CreateLocationScreen() {
       return () => clearTimeout(timer)
     }
   }, [params.picker])
-  const usingCurrent = area === CURRENT_AREA
 
-  const needle = normalize(areaQuery.trim())
-  const areaResults = AREAS.filter(a => !needle || normalize(a).includes(needle))
+  // Debounced autocomplete against the BFF Places proxy (mocked for now).
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(() => {
+      setSearching(true)
+      mockApi.autocompleteAreas(areaQuery).then(results => {
+        if (cancelled) return
+        setPredictions(results)
+        setSearching(false)
+      })
+    }, DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [areaQuery])
+  const usingCurrent = area === CURRENT_AREA
 
   function pickArea(value: string) {
     setArea(value)
@@ -128,19 +144,25 @@ export default function CreateLocationScreen() {
               placeholder={t('createLocation.searchOther')}
               placeholderTextColor={colors.neutral[300]}
               autoCorrect={false}
+              autoFocus
               style={styles.sheetInput}
             />
+            <Text style={styles.poweredBy}>{t('createLocation.poweredBy')}</Text>
             <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}>
-              {areaResults.map(a => {
-                const active = a === area
+              {searching && <ActivityIndicator color={colors.brand.coral} style={{ marginVertical: spacing[4] }} />}
+              {!searching && predictions.length === 0 && (
+                <Text style={styles.noResults}>{t('createLocation.noResults')}</Text>
+              )}
+              {!searching && predictions.map(p => {
+                const active = p.description === area
                 return (
                   <Pressable
-                    key={a}
-                    onPress={() => pickArea(a)}
+                    key={p.placeId}
+                    onPress={() => pickArea(p.description)}
                     accessibilityState={{ selected: active }}
                     style={styles.areaRow}
                   >
-                    <Text style={[styles.areaLabel, active && { color: colors.brand.coral, fontWeight: '700' }]}>{a}</Text>
+                    <Text style={[styles.areaLabel, active && { color: colors.brand.coral, fontWeight: '700' }]}>{p.description}</Text>
                     {active && <IconCheck />}
                   </Pressable>
                 )

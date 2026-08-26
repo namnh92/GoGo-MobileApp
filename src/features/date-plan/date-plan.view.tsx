@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { timeline, unsplashUrl } from '@/data/mockData'
 import { track } from '@/shared/analytics'
+import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { usePriceFormatter } from '@/shared/pricing'
 import { useRoom } from '@/shared/store/roomStore'
 import { Atmosphere, PrimaryBtn, BackHeader, GlassCard, RemoteImage, TagChip, Toast, glassStyles } from '@/shared/ui/primitives'
@@ -114,7 +115,7 @@ export default function DatePlanScreen() {
                       <Pressable onPress={() => router.push('/places/sakura-omakase')} style={styles.detailBtn}>
                         <Text style={styles.detailLabel}>{t('common.details')}</Text>
                       </Pressable>
-                      <Pressable style={styles.directionBtn}>
+                      <Pressable onPress={() => openGoogleMapsDirections(`${stop.name}, ${stop.area}`)} style={styles.directionBtn}>
                         <IconNavigation />
                         <Text style={styles.directionLabel}>{t('common.directions')}</Text>
                       </Pressable>
