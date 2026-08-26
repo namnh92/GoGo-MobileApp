@@ -21,7 +21,8 @@ function ChipGrid({ options, selected, onToggle, cols = 2 }: {
   onToggle: (label: string) => void
   cols?: number
 }) {
-  const width = cols === 3 ? '31%' : '48%'
+  // cols=3 rows (short labels) auto-size so text never truncates.
+  const sizing = cols === 3 ? styles.chipAuto : { width: '48%' as const }
   return (
     <View style={styles.grid}>
       {options.map(o => {
@@ -31,7 +32,7 @@ function ChipGrid({ options, selected, onToggle, cols = 2 }: {
             key={o.label}
             onPress={() => onToggle(o.label)}
             accessibilityState={{ selected: active }}
-            style={[styles.chip, { width }, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
+            style={[styles.chip, sizing, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
           >
             <Text style={{ fontSize: 20 }}>{o.emoji}</Text>
             <Text style={[styles.chipLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]} numberOfLines={1}>

@@ -83,6 +83,10 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: neutral[900],
   },
+  billRow: { flexDirection: 'row', gap: spacing[2] },
+  billInputTotal: { flex: 1.6 },
+  billInputPeople: { flex: 1 },
+  billPeopleHint: { fontSize: 11, color: neutral[300] },
   billPerPerson: { fontSize: 13, fontWeight: '700', color: brand.coral },
   billPhotoBtn: {
     height: 44,

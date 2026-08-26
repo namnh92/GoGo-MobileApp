@@ -17,6 +17,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
   },
   chipLabel: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  chipAuto: { alignSelf: 'flex-start', paddingHorizontal: spacing[4] },
   seedHint: { fontSize: 13, color: neutral[500], marginBottom: spacing[3], marginTop: -spacing[2] },
   seedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   seedChip: {

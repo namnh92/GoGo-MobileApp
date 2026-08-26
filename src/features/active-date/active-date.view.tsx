@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -23,6 +23,15 @@ export default function ActiveDateScreen() {
   const [step, setStep] = useState(0)
   // `?checkin=1` opens the sheet immediately — demo/deep-link convenience.
   const [checkinOpen, setCheckinOpen] = useState(checkin === '1' || checkin === 'bill')
+
+  // A live Modal overlays other screens — close it whenever we lose focus.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setTimeout(() => setCheckinOpen(false), 0)
+      }
+    }, []),
+  )
   const stops = timeline
   const stop = stops[step]
 
@@ -110,7 +119,7 @@ export default function ActiveDateScreen() {
         )}
       </ScrollView>
 
-      <CheckinSheet visible={checkinOpen} stop={stop} initialBillOn={checkin === 'bill'} onSave={handleSave} onSkip={advance} />
+      <CheckinSheet visible={checkinOpen} stop={stop} onSave={handleSave} onSkip={advance} />
     </Atmosphere>
   )
 }

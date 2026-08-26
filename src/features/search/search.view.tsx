@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { unsplashUrl } from '@/data/mockData'
+import { STYLE_TAGS } from '@/data/taxonomy'
 import type { SavedPlace } from '@/data/types'
 import { useCatalogPlaces } from '@/shared/api/mock'
 import { track } from '@/shared/analytics'
@@ -58,6 +59,7 @@ export default function SearchScreen() {
   const [priceFrom, setPriceFrom] = useState('')
   const [priceTo, setPriceTo] = useState('')
   const [suitedIdx, setSuitedIdx] = useState<number | null>(null)
+  const [styleTags, setStyleTags] = useState<string[]>([])
   const isPicker = picker === '1'
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (filters === '1') {
-      const timer = setTimeout(() => setSheetOpen(true), 0)
+      const timer = setTimeout(() => setSheetOpen(true), 400)
       return () => clearTimeout(timer)
     }
   }, [filters])
@@ -89,7 +91,8 @@ export default function SearchScreen() {
     (maxKmNum !== null ? 1 : 0) +
     (priceFromNum !== null || priceToNum !== null ? 1 : 0) +
     (suitedIdx !== null ? 1 : 0) +
-    (selectedCats.length > 0 ? 1 : 0)
+    (selectedCats.length > 0 ? 1 : 0) +
+    (styleTags.length > 0 ? 1 : 0)
 
   function toggleCat(group: number) {
     setSelectedCats(prev => (prev.includes(group) ? prev.filter(x => x !== group) : [...prev, group]))
@@ -106,6 +109,7 @@ export default function SearchScreen() {
       if (priceToNum !== null && per > priceToNum) return false
     }
     if (suitedIdx !== null && p.suitedFor && !p.suitedFor.includes(SUITED_KEYS[suitedIdx])) return false
+    if (styleTags.length > 0 && !styleTags.some(tag => p.tags.includes(tag))) return false
     if (!needle) return true
     return normalize(`${p.title} ${p.area} ${p.tags.join(' ')}`).includes(needle)
   })
@@ -132,6 +136,7 @@ export default function SearchScreen() {
   }
 
   function clearFilters() {
+    setStyleTags([])
     setSelectedCats([])
     setMaxKm('')
     setPriceFrom('')
@@ -290,6 +295,25 @@ export default function SearchScreen() {
                   style={[styles.sheetOption, active && styles.sheetOptionActive]}
                 >
                   <Text style={[styles.sheetOptionLabel, active && styles.sheetOptionLabelActive]}>{label}</Text>
+                </Pressable>
+              )
+            })}
+          </View>
+
+          <Text style={styles.sheetSection}>{t('search.filterStyle')}</Text>
+          <View style={styles.sheetOptionRow}>
+            {STYLE_TAGS.map(tag => {
+              const active = styleTags.includes(tag)
+              return (
+                <Pressable
+                  key={tag}
+                  onPress={() => setStyleTags(prev => (prev.includes(tag) ? prev.filter(x => x !== tag) : [...prev, tag]))}
+                  accessibilityState={{ selected: active }}
+                  style={[styles.sheetOption, active && styles.sheetOptionActive]}
+                >
+                  <Text style={[styles.sheetOptionLabel, active && styles.sheetOptionLabelActive]}>
+                    {content.tagLabels[tag] ?? tag}
+                  </Text>
                 </Pressable>
               )
             })}
