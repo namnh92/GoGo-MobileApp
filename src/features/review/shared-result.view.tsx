@@ -61,7 +61,7 @@ export default function SharedResultScreen() {
         </View>
 
         <View style={styles.darkCard}>
-          <Text style={styles.caption}>{t('sharedResult.common')}</Text>
+          <Text style={styles.caption}>{t('sharedResult.common', { context: roomType })}</Text>
           {commonInterests.map(([icon, label, pct]) => (
             <View key={label} style={styles.interestRow}>
               <Text style={{ fontSize: 18 }}>{icon}</Text>

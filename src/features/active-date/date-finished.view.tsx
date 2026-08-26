@@ -5,6 +5,7 @@ import { Text, View } from 'react-native'
 import { timeline } from '@/data/mockData'
 import { usePriceFormatter } from '@/shared/pricing'
 import { useCheckinStore } from '@/shared/store/checkinStore'
+import { useRoom } from '@/shared/store/roomStore'
 import { Atmosphere, GlassCard, PrimaryBtn, RemoteImage } from '@/shared/ui/primitives'
 import { IconCheck, IconStar } from '@/shared/ui/icons'
 import { styles } from './date-finished.style'
@@ -17,13 +18,14 @@ export default function DateFinishedScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>()
   const { summaryTotal } = usePriceFormatter()
   const checkins = useCheckinStore(state => state.checkins)
+  const { roomType } = useRoom()
   const total = summaryTotal(requiredK)
 
   return (
     <Atmosphere style={styles.root}>
       <Text style={styles.burst}>✨</Text>
       <Text style={styles.title}>{t('dateFinished.title')}</Text>
-      <Text style={styles.body}>{t('dateFinished.body')}</Text>
+      <Text style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>
 
       <GlassCard style={styles.card}>
         {timeline.map((stop, i) => (
@@ -64,7 +66,7 @@ export default function DateFinishedScreen() {
         </View>
       </GlassCard>
 
-      <PrimaryBtn label={t('dateFinished.cta')} onPress={() => router.push(`/plans/${planId}/review`)} style={styles.cta} />
+      <PrimaryBtn label={t('dateFinished.cta', { context: roomType })} onPress={() => router.push(`/plans/${planId}/review`)} style={styles.cta} />
     </Atmosphere>
   )
 }

@@ -20,9 +20,9 @@ export const viMessages = {
   'onboarding.next': 'Tiếp theo',
   'onboarding.guest': 'Tiếp tục với tư cách khách',
   'onboarding.slide1.title': 'Đỡ mất nửa tiếng\nhỏi "đi đâu?"',
-  'onboarding.slide1.body': 'GoGo tìm địa điểm và hoạt động phù hợp với cả hai.',
+  'onboarding.slide1.body': 'GoGo tìm địa điểm và hoạt động phù hợp với các bạn.',
   'onboarding.slide2.title': 'Mỗi người\nchọn riêng',
-  'onboarding.slide2.body': 'Không cần tranh luận. GoGo chỉ hiển thị những lựa chọn hai người cùng thích.',
+  'onboarding.slide2.body': 'Không cần tranh luận. GoGo chỉ hiển thị những lựa chọn các bạn cùng thích.',
   'onboarding.slide3.title': 'Nhận ngay một\nbuổi date hoàn chỉnh',
   'onboarding.slide3.body': 'Ăn gì, đi đâu, mất bao lâu và khoảng bao nhiêu tiền.',
 
@@ -69,7 +69,8 @@ export const viMessages = {
   'createLocation.currentLabel': 'Vị trí hiện tại',
   'createLocation.maxDistance': 'Khoảng cách tối đa',
 
-  'createTime.title': 'Hai đứa có\nbao nhiêu thời gian?',
+  'createTime.title': 'Các bạn có\nbao nhiêu thời gian?',
+  'createTime.title_couple': 'Hai đứa có\nbao nhiêu thời gian?',
   'createTime.body': 'GoGo chỉ gợi ý nơi còn mở trong khoảng này.',
   'createTime.specificTime': 'Hoặc chọn giờ cụ thể',
   'createTime.start': 'Bắt đầu',
@@ -135,7 +136,8 @@ export const viMessages = {
   'waiting.partialWarning': 'Còn {{n}} người chưa chọn xong',
 
   'matching.matched': 'Match rồi!',
-  'matching.matchedBody': 'Hai đứa có nhiều điểm chung hơn nghĩ đó.',
+  'matching.matchedBody': 'Các bạn có nhiều điểm chung hơn nghĩ đó.',
+  'matching.matchedBody_couple': 'Hai đứa có nhiều điểm chung hơn nghĩ đó.',
   'matching.matchedBody_group': 'Cả nhóm có nhiều điểm chung hơn nghĩ đó.',
 
   'matchResult.whyTitle': 'Vì sao GoGo chọn cái này?',
@@ -216,8 +218,10 @@ export const viMessages = {
   'dateFinished.checkinTitle': 'Check-in của bạn',
 
   'dateFinished.title': 'Date xong rồi!',
-  'dateFinished.body': 'Hy vọng hai đứa có một buổi tối tuyệt vời.',
-  'dateFinished.cta': 'Hai đứa thấy sao? 💬',
+  'dateFinished.body': 'Hy vọng các bạn có một buổi tối tuyệt vời.',
+  'dateFinished.body_couple': 'Hy vọng hai đứa có một buổi tối tuyệt vời.',
+  'dateFinished.cta': 'Các bạn thấy sao? 💬',
+  'dateFinished.cta_couple': 'Hai đứa thấy sao? 💬',
 
   'review.title': 'Bạn thấy buổi\ndate này thế nào?',
   'review.body': 'Đánh giá của bạn giúp GoGo chọn tốt hơn lần sau.',
@@ -232,7 +236,8 @@ export const viMessages = {
   'review.starAria': '{{n}} sao',
 
   'sharedResult.title': 'Our Date ✨',
-  'sharedResult.common': 'Điểm chung của hai đứa',
+  'sharedResult.common': 'Điểm chung của các bạn',
+  'sharedResult.common_couple': 'Điểm chung của hai đứa',
   'sharedResult.stats': 'Thống kê',
   'sharedResult.nextDate': 'Lên date tiếp theo 🚀',
   'sharedResult.share': 'Chia sẻ story',
@@ -385,13 +390,13 @@ export const viContent = {
     { emoji: '🍰', label: 'Tráng miệng' },
   ] as Mood[],
   matchReasons: [
-    'Cả hai đều thích Japanese',
-    'Cả hai chọn Creative',
+    'Cùng thích Japanese',
+    'Cùng chọn Creative',
     'Trong ngân sách 500–800k',
     'Mọi nơi đều đang mở cửa',
     'Không quá 5 km',
   ],
-  matchingMessages: ['Đang tìm phần hai đứa cùng thích…', 'Đang ghép lịch trình…', 'Match rồi 🎉'],
+  matchingMessages: ['Đang tìm phần các bạn cùng thích…', 'Đang ghép lịch trình…', 'Match rồi 🎉'],
   dateSummaryChips: ['🌙 Tonight', '📍 Thảo Điền', '⏱ 2–3 giờ', '💰 500–800k', '❤️ Romantic', '🎨 Creative'],
   dateDetails: [
     ['🌙', 'Tối nay'],

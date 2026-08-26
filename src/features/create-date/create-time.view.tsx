@@ -23,7 +23,7 @@ export default function CreateTimeScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
-  const { startTime, endTime, setStartTime, setEndTime } = useRoom()
+  const { roomType, startTime, endTime, setStartTime, setEndTime } = useRoom()
   const [selectedIndex, setSelectedIndex] = useState(1)
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null)
 
@@ -51,7 +51,7 @@ export default function CreateTimeScreen() {
         <ProgressDots total={4} current={1} />
       </View>
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
-        <Text style={styles.title}>{t('createTime.title')}</Text>
+        <Text style={styles.title}>{t('createTime.title', { context: roomType })}</Text>
         <Text style={styles.body}>{t('createTime.body')}</Text>
 
         <View style={{ gap: spacing[2], marginBottom: spacing[6] }}>
