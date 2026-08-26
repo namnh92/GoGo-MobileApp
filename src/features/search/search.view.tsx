@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -18,24 +18,24 @@ import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './search.style'
 
 // Category filter → place category emoji groups (mock retrieval stand-in).
-const FILTER_EMOJI: Record<number, string[]> = {
-  1: ['🍣', '🍜', '📍'],
-  2: ['☕'],
-  3: ['🎨'],
-  4: ['🌃'],
-  5: ['🛏'],
-}
-
-const DISTANCE_MAX = [2, 5, Infinity]
-const PRICE_BOUNDS: [number, number][] = [
-  [0, 100],
-  [100, 300],
-  [300, Infinity],
+// Index 0 in searchFilters is "All"; groups are keyed by index - 1.
+const CATEGORY_EMOJI: string[][] = [
+  ['🍣', '🍜', '📍'],
+  ['☕'],
+  ['🎨'],
+  ['🌃'],
+  ['🛏'],
 ]
+
 const SUITED_KEYS = ['couple', 'group'] as const
 
 function normalize(value: string): string {
   return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
+function parseNum(value: string): number | null {
+  const n = Number(value.replace(',', '.'))
+  return Number.isFinite(n) && n > 0 ? n : null
 }
 
 export default function SearchScreen() {
@@ -51,11 +51,12 @@ export default function SearchScreen() {
   const toggleBookmark = useBookmarkStore(s => s.toggleBookmark)
   const addSeedPlace = useRoom().addSeedPlace
   const [query, setQuery] = useState(q ?? '')
-  const [categoryIndex, setCategoryIndex] = useState(0)
-  // Filter sheet state: index into option lists, null = no constraint.
+  // Multi-select category group indices (into CATEGORY_EMOJI); empty = all.
+  const [selectedCats, setSelectedCats] = useState<number[]>([])
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
-  const [distanceIdx, setDistanceIdx] = useState<number | null>(null)
-  const [priceIdx, setPriceIdx] = useState<number | null>(null)
+  const [maxKm, setMaxKm] = useState('')
+  const [priceFrom, setPriceFrom] = useState('')
+  const [priceTo, setPriceTo] = useState('')
   const [suitedIdx, setSuitedIdx] = useState<number | null>(null)
   const isPicker = picker === '1'
 
@@ -64,6 +65,16 @@ export default function SearchScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Close the sheet whenever this screen loses focus — a live Modal would
+  // otherwise overlay whatever screen we navigate to.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setTimeout(() => setSheetOpen(false), 0)
+      }
+    }, []),
+  )
+
   useEffect(() => {
     if (filters === '1') {
       const timer = setTimeout(() => setSheetOpen(true), 0)
@@ -71,17 +82,28 @@ export default function SearchScreen() {
     }
   }, [filters])
 
-  const activeFilterCount = [distanceIdx, priceIdx, suitedIdx].filter(x => x !== null).length
+  const maxKmNum = parseNum(maxKm)
+  const priceFromNum = parseNum(priceFrom)
+  const priceToNum = parseNum(priceTo)
+  const activeFilterCount =
+    (maxKmNum !== null ? 1 : 0) +
+    (priceFromNum !== null || priceToNum !== null ? 1 : 0) +
+    (suitedIdx !== null ? 1 : 0) +
+    (selectedCats.length > 0 ? 1 : 0)
+
+  function toggleCat(group: number) {
+    setSelectedCats(prev => (prev.includes(group) ? prev.filter(x => x !== group) : [...prev, group]))
+  }
 
   const places = [...importedPlaces, ...(catalog.data ?? [])]
   const needle = normalize(query.trim())
   const filtered = places.filter(p => {
-    if (categoryIndex > 0 && !FILTER_EMOJI[categoryIndex]?.includes(p.category)) return false
-    if (distanceIdx !== null && p.distanceKm > DISTANCE_MAX[distanceIdx]) return false
-    if (priceIdx !== null && p.priceK > 0) {
+    if (selectedCats.length > 0 && !selectedCats.some(g => CATEGORY_EMOJI[g]?.includes(p.category))) return false
+    if (maxKmNum !== null && p.distanceKm > maxKmNum) return false
+    if (p.priceK > 0 && (priceFromNum !== null || priceToNum !== null)) {
       const per = p.priceK / 2
-      const [min, max] = PRICE_BOUNDS[priceIdx]
-      if (per < min || per >= max) return false
+      if (priceFromNum !== null && per < priceFromNum) return false
+      if (priceToNum !== null && per > priceToNum) return false
     }
     if (suitedIdx !== null && p.suitedFor && !p.suitedFor.includes(SUITED_KEYS[suitedIdx])) return false
     if (!needle) return true
@@ -110,34 +132,14 @@ export default function SearchScreen() {
   }
 
   function clearFilters() {
-    setDistanceIdx(null)
-    setPriceIdx(null)
+    setSelectedCats([])
+    setMaxKm('')
+    setPriceFrom('')
+    setPriceTo('')
     setSuitedIdx(null)
   }
 
-  function optionRow(
-    options: readonly string[],
-    selected: number | null,
-    onSelect: (i: number | null) => void,
-  ) {
-    return (
-      <View style={styles.sheetOptionRow}>
-        {options.map((label, i) => {
-          const active = selected === i
-          return (
-            <Pressable
-              key={label}
-              onPress={() => onSelect(active ? null : i)}
-              accessibilityState={{ selected: active }}
-              style={[styles.sheetOption, active && styles.sheetOptionActive]}
-            >
-              <Text style={[styles.sheetOptionLabel, active && styles.sheetOptionLabelActive]}>{label}</Text>
-            </Pressable>
-          )
-        })}
-      </View>
-    )
-  }
+  const categoryLabels = content.searchFilters.slice(1)
 
   return (
     <Atmosphere>
@@ -169,15 +171,22 @@ export default function SearchScreen() {
         </Pressable>
       </View>
 
+      {/* Multi-select category chips — "Tất cả" clears the set */}
       <View style={styles.filterRow}>
-        {content.searchFilters.map((label, i) => (
-          <Pressable key={label} onPress={() => setCategoryIndex(i)} style={[styles.filterBtn, categoryIndex === i && styles.filterBtnActive]}>
-            <Text style={[styles.filterLabel, categoryIndex === i && styles.filterLabelActive]}>{label}</Text>
-          </Pressable>
-        ))}
+        <Pressable onPress={() => setSelectedCats([])} style={[styles.filterBtn, selectedCats.length === 0 && styles.filterBtnActive]}>
+          <Text style={[styles.filterLabel, selectedCats.length === 0 && styles.filterLabelActive]}>{content.searchFilters[0]}</Text>
+        </Pressable>
+        {categoryLabels.map((label, g) => {
+          const active = selectedCats.includes(g)
+          return (
+            <Pressable key={label} onPress={() => toggleCat(g)} accessibilityState={{ selected: active }} style={[styles.filterBtn, active && styles.filterBtnActive]}>
+              <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{label}</Text>
+            </Pressable>
+          )
+        })}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[1], paddingBottom: insets.bottom + spacing[6] }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[1], paddingBottom: insets.bottom + 96 }}>
         {filtered.map(place => (
           <Pressable key={place.title} onPress={() => onPlacePress(place)}>
             <GlassCard style={styles.card}>
@@ -217,10 +226,19 @@ export default function SearchScreen() {
             <Text style={styles.emptyEmoji}>🔍</Text>
             <Text style={styles.emptyTitle}>{t('search.empty')}</Text>
             <Text style={styles.emptyHint}>{t('search.emptyHint')}</Text>
-            <PrimaryBtn label={t('search.addNew')} onPress={() => router.push('/places/import')} style={styles.addNewBtn} />
           </View>
         )}
       </ScrollView>
+
+      {/* Floating add-place button — always available (SRS FR-PLACE-001) */}
+      <Pressable
+        onPress={() => router.push('/places/import')}
+        accessibilityRole="button"
+        accessibilityLabel={t('search.addNew')}
+        style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing[5] }, pressed && { transform: [{ scale: 0.95 }] }]}
+      >
+        <Text style={styles.fabIcon}>＋</Text>
+      </Pressable>
 
       {/* Multi-criteria filter sheet */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
@@ -230,16 +248,69 @@ export default function SearchScreen() {
           <Text style={styles.sheetTitle}>{t('search.filters')}</Text>
 
           <Text style={styles.sheetSection}>{t('search.filterDistance')}</Text>
-          {optionRow(content.distanceOptions, distanceIdx, setDistanceIdx)}
+          <TextInput
+            value={maxKm}
+            onChangeText={setMaxKm}
+            placeholder={t('search.distancePlaceholder')}
+            placeholderTextColor={colors.neutral[300]}
+            keyboardType="numeric"
+            style={styles.sheetInput}
+          />
 
           <Text style={styles.sheetSection}>{t('search.filterPrice')}</Text>
-          {optionRow(content.pricePerPersonOptions, priceIdx, setPriceIdx)}
+          <View style={styles.priceRow}>
+            <TextInput
+              value={priceFrom}
+              onChangeText={setPriceFrom}
+              placeholder={t('search.priceFrom')}
+              placeholderTextColor={colors.neutral[300]}
+              keyboardType="numeric"
+              style={[styles.sheetInput, styles.priceInput]}
+            />
+            <Text style={styles.priceDash}>–</Text>
+            <TextInput
+              value={priceTo}
+              onChangeText={setPriceTo}
+              placeholder={t('search.priceTo')}
+              placeholderTextColor={colors.neutral[300]}
+              keyboardType="numeric"
+              style={[styles.sheetInput, styles.priceInput]}
+            />
+          </View>
 
           <Text style={styles.sheetSection}>{t('search.filterSuited')}</Text>
-          {optionRow(content.suitedOptions, suitedIdx, setSuitedIdx)}
+          <View style={styles.sheetOptionRow}>
+            {content.suitedOptions.map((label, i) => {
+              const active = suitedIdx === i
+              return (
+                <Pressable
+                  key={label}
+                  onPress={() => setSuitedIdx(active ? null : i)}
+                  accessibilityState={{ selected: active }}
+                  style={[styles.sheetOption, active && styles.sheetOptionActive]}
+                >
+                  <Text style={[styles.sheetOptionLabel, active && styles.sheetOptionLabelActive]}>{label}</Text>
+                </Pressable>
+              )
+            })}
+          </View>
 
           <Text style={styles.sheetSection}>{t('search.filterCategory')}</Text>
-          {optionRow(content.searchFilters.slice(1), categoryIndex === 0 ? null : categoryIndex - 1, i => setCategoryIndex(i === null ? 0 : i + 1))}
+          <View style={styles.sheetOptionRow}>
+            {categoryLabels.map((label, g) => {
+              const active = selectedCats.includes(g)
+              return (
+                <Pressable
+                  key={label}
+                  onPress={() => toggleCat(g)}
+                  accessibilityState={{ selected: active }}
+                  style={[styles.sheetOption, active && styles.sheetOptionActive]}
+                >
+                  <Text style={[styles.sheetOptionLabel, active && styles.sheetOptionLabelActive]}>{label}</Text>
+                </Pressable>
+              )
+            })}
+          </View>
 
           <PrimaryBtn label={t('search.apply')} onPress={() => setSheetOpen(false)} style={styles.sheetApply} />
           <Pressable onPress={clearFilters} style={styles.sheetClear}>

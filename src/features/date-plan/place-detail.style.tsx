@@ -75,6 +75,15 @@ export const styles = StyleSheet.create({
     gap: spacing[2],
   },
   factLabel: { fontSize: 13, color: neutral[500], flexShrink: 1 },
+  createFromPlace: {
+    height: 48,
+    borderRadius: radius.compact,
+    backgroundColor: brand.lavenderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[4],
+  },
+  createFromPlaceLabel: { fontSize: 14, fontWeight: '700', color: brand.lavender },
   freshnessRow: {
     flexDirection: 'row',
     alignItems: 'center',
