@@ -2,7 +2,7 @@
 
 Mobile app của **GoGo** — nền tảng giúp cặp đôi và nhóm bạn thống nhất địa điểm, tạo lịch trình và sử dụng kế hoạch trong ngày đi chơi.
 
-Repo này chứa ứng dụng **React Native iOS/Android**: trải nghiệm native, map, push notification, active date và offline plan. Tài liệu nguồn (workspace docs): `GOGO_SRS.md`, `GOGO_ENGINEERING_SKILLS_AND_PLANS.md`, `GOGO_MOCKUP_VERIFICATION_AND_TECHNICAL_APPLICATION-2.md`.
+Repo này chứa ứng dụng **React Native iOS/Android**: trải nghiệm native, map, push notification, active date và offline plan. Tài liệu nguồn (workspace docs): `GOGO_SRS.md`, `GOGO_IMPLEMENTATION_WBS.md`, `GOGO_FEATURE_IMPROVEMENT_SPEC.md`, `GOGO_ENGINEERING_SKILLS_AND_PLANS.md`, `GOGO_MOCKUP_VERIFICATION_AND_TECHNICAL_APPLICATION.md`.
 
 ## Hệ sinh thái GoGo
 
@@ -83,10 +83,25 @@ Lệnh chuẩn mục tiêu: `pnpm lint` · `pnpm typecheck` · `pnpm test` · `p
 
 Git Flow: `master` (production, tag `vX.Y.Z`) · `develop` (integration) · `feature|bugfix/GOGO-<ticket>-<name>` · `hotfix/GOGO-<ticket>-<name>` · `release/x.y.z`. PR bắt buộc, CI xanh, ≥1 approval.
 
-## Lộ trình
+## Backlog
 
-M1 Shell (nav, theme/tokens, environments) → M2 Core (auth/guest, room, preference) → M3 Map/Plan → M4 Active Date → M5 Retention (saved/review/push) → M6 Release. Chi tiết task: MOB-APPLY-001 → 011 trong tài liệu verification.
+Backlog theo `GOGO_IMPLEMENTATION_WBS.md` §6, quản lý bằng GitHub issues (label `wbs`):
+
+| Task | Phạm vi | Size |
+| --- | --- | --- |
+| `APP-001` | App shell, navigation, theme/token | M |
+| `APP-002` | Auth, secure token storage, guest claim | M |
+| `APP-003` | Universal/App links, invite, native share | M |
+| `APP-004` | Create/join/lobby/preference flows | L |
+| `APP-005` | Search, native map, location permission | L |
+| `APP-006` | Place, vote, result, plan editor | L |
+| `APP-007` | Active date, local plan cache, external navigation | L |
+| `APP-008` | Push token, notification routing | M |
+| `APP-009` | Saved/review/profile/settings | M |
+| `APP-010` | Store build, crash/perf/a11y hardening | L |
+
+Mobile core nằm ở Sprint 6; app shell (`APP-001`) có thể chạy song song ngay sau Sprint 0 theo mục "Công việc có thể chạy song song" của WBS.
 
 ## Trạng thái
 
-**Sprint 0 — skeleton.** Cấu trúc thư mục đã dựng theo tài liệu kiến trúc; chưa có code. `ios/`, `android/` sẽ được generate bằng Expo prebuild.
+**Sprint 0 — skeleton + APP-001 đang triển khai.** `ios/`, `android/` sẽ được generate bằng Expo prebuild.
