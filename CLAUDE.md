@@ -2,7 +2,20 @@
 
 React Native iOS/Android app for GoGo (couple/group date planning).
 
-**Stack:** RN + TypeScript strict, Expo Dev Client (bare only if a native dep forces it), Expo Router/React Navigation per ADR, TanStack Query (server state) + Zustand (UI/workflow only), React Hook Form + Zod, Keychain/Keystore secure storage, native map adapter, APNs/FCM abstraction, crash reporting.
+**Stack:** RN + TypeScript strict, Expo Dev Client + New Architecture (bare only if a native dep forces it), Expo Router, TanStack Query (server state) + Zustand (UI/workflow only), Keychain/Keystore secure storage, native map adapter, APNs/FCM abstraction, crash reporting.
+
+## Approved libraries (alternatives need an ADR)
+
+| Concern | Library | Status |
+| --- | --- | --- |
+| Theme, tokens, variants | `react-native-unistyles` | Chốt (New Arch + Dev Client) — adopt incrementally, keep the `.view/.style` split |
+| Form state | `react-hook-form` (`Controller`, `useWatch`) | Chốt |
+| Runtime validation | `zod` + `@hookform/resolvers` (`zodResolver`) | Chốt — one schema shared by forms and API-response validation |
+| Animation foundation | `react-native-reanimated` v4 (+`react-native-worklets`) | Chốt — installed |
+| Gesture | `react-native-gesture-handler` | Chốt — installed; migrate PanResponder usages when touched |
+| Simple mount/unmount | `moti` | Optional — compatibility spike vs Reanimated 4 first |
+| Blur / glass | `@callstack/liquid-glass` + `expo-blur` | Chốt — installed |
+| Gradient | `expo-linear-gradient` | Chốt — installed |
 
 ## Structure
 
