@@ -120,7 +120,7 @@ export default function DatePlanScreen() {
 
       {/* Sticky summary + CTA */}
       <View style={[styles.summaryBar, { paddingBottom: insets.bottom + spacing[4] }]}>
-        <View style={{ flexDirection: 'row', gap: spacing[4], flex: 1 }}>
+        <View style={{ flexDirection: 'row', gap: spacing[4], flex: 1, flexShrink: 1 }}>
           <View>
             <Text style={styles.summaryCaption}>{t('datePlan.total')}</Text>
             <Text style={styles.summaryValue}>

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DEMO_PLAN_ID, unsplashUrl } from '@/data/mockData'
 import { usePastDates } from '@/shared/api/mock'
 import { usePriceFormatter } from '@/shared/pricing'
-import { Atmosphere, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
+import { Atmosphere, GlassCard, RemoteImage, TagChip, useTabDockInset } from '@/shared/ui/primitives'
 import { spacing } from '@/shared/ui/tokens'
 import { styles } from './plans.style'
 
@@ -15,13 +15,14 @@ export default function PlansScreen() {
   const insets = useSafeAreaInsets()
   const { planTotal } = usePriceFormatter()
   const pastDates = usePastDates()
+  const dockInset = useTabDockInset()
 
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top + spacing[2] }}>
         <Text style={styles.title}>{t('plans.title')}</Text>
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: dockInset }}>
         <Text style={styles.caption}>{t('plans.upcoming')}</Text>
         <Pressable onPress={() => router.push(`/plans/${DEMO_PLAN_ID}`)}>
           <GlassCard style={styles.upcomingCard}>
