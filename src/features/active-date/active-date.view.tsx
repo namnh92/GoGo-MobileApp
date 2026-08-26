@@ -22,7 +22,7 @@ export default function ActiveDateScreen() {
   const saveCheckin = useCheckinStore(s => s.saveCheckin)
   const [step, setStep] = useState(0)
   // `?checkin=1` opens the sheet immediately — demo/deep-link convenience.
-  const [checkinOpen, setCheckinOpen] = useState(checkin === '1')
+  const [checkinOpen, setCheckinOpen] = useState(checkin === '1' || checkin === 'bill')
   const stops = timeline
   const stop = stops[step]
 
@@ -48,6 +48,7 @@ export default function ActiveDateScreen() {
       rating: data.rating,
       photos: data.photos.length,
       tags: data.tags.join(','),
+      bill: data.bill ? data.bill.totalK : 0,
     })
     advance()
   }
@@ -109,7 +110,7 @@ export default function ActiveDateScreen() {
         )}
       </ScrollView>
 
-      <CheckinSheet visible={checkinOpen} stop={stop} onSave={handleSave} onSkip={advance} />
+      <CheckinSheet visible={checkinOpen} stop={stop} initialBillOn={checkin === 'bill'} onSave={handleSave} onSkip={advance} />
     </Atmosphere>
   )
 }

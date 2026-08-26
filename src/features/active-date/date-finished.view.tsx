@@ -36,6 +36,11 @@ export default function DateFinishedScreen() {
                 {checkins[stop.time] && checkins[stop.time].rating > 0 && (
                   <Text style={styles.stopRating}>{'⭐'.repeat(checkins[stop.time].rating)}</Text>
                 )}
+                {checkins[stop.time]?.bill && (
+                  <Text style={styles.stopBill}>
+                    💳 {checkins[stop.time].bill!.totalK}k · ~{checkins[stop.time].bill!.perPersonK}k/người
+                  </Text>
+                )}
               </View>
               {checkins[stop.time] && checkins[stop.time].photos.length > 0 ? (
                 <View style={styles.photoStrip}>

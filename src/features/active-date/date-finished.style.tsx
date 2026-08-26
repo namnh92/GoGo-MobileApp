@@ -16,6 +16,7 @@ export const styles = StyleSheet.create({
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[2] },
   stopName: { fontSize: 15, fontWeight: '600', color: neutral[900] },
   stopRating: { fontSize: 11, marginTop: 2 },
+  stopBill: { fontSize: 12, fontWeight: '600', color: neutral[500], marginTop: 2 },
   photoStrip: { flexDirection: 'row', gap: 4 },
   photoThumb: { width: 32, height: 32, borderRadius: 8 },
   connector: { height: 16, width: 2, backgroundColor: neutral[100], alignSelf: 'center', marginVertical: 2 },
