@@ -1,5 +1,1 @@
-import { PlaceholderScreen } from '@/shared/ui/PlaceholderScreen'
-
-export default function CreateLocationScreen() {
-  return <PlaceholderScreen titleKey="screens.createLocation" />
-}
+export { default } from '@/features/create-date/create-location.view'

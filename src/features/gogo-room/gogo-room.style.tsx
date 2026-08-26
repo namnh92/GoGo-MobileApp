@@ -1,0 +1,83 @@
+import { StyleSheet } from 'react-native'
+import { colors, radius, spacing } from '@/shared/ui/tokens'
+
+const { brand, neutral } = colors
+
+export const styles = StyleSheet.create({
+  avatarRow: { flexDirection: 'row' },
+  avatarWrap: {
+    marginLeft: -12,
+    borderWidth: 2,
+    borderColor: neutral[50],
+    borderRadius: 30,
+  },
+  morePeople: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: neutral[100],
+    borderStyle: 'dashed',
+    borderColor: neutral[300],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  morePeopleLabel: { fontSize: 14, fontWeight: '700', color: neutral[500] },
+  joined: { fontSize: 13, color: neutral[500], fontWeight: '500', marginTop: spacing[3] },
+  couplePair: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[4],
+    marginTop: spacing[4],
+    marginBottom: spacing[6],
+  },
+  emptySeat: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: neutral[100],
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: neutral[300],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 26, fontWeight: '800', color: neutral[900], textAlign: 'center' },
+  body: { fontSize: 15, color: neutral[500], textAlign: 'center', marginTop: spacing[2], marginBottom: spacing[6], lineHeight: 22 },
+  chipsCard: {
+    padding: spacing[4],
+    marginBottom: spacing[4],
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  chip: {
+    backgroundColor: neutral[50],
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  chipLabel: { fontSize: 12, fontWeight: '600', color: neutral[500] },
+  codeCard: { padding: spacing[5], marginBottom: spacing[4] },
+  codeCaption: { fontSize: 12, color: neutral[500], fontWeight: '500', marginBottom: spacing[2] },
+  code: { fontSize: 36, fontWeight: '800', color: neutral[900], letterSpacing: 8 },
+  copyBtn: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: neutral[100],
+  },
+  copyLabel: { fontSize: 13, fontWeight: '600', color: neutral[500] },
+  noApp: {
+    marginTop: spacing[2],
+    paddingVertical: spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: neutral[100],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  noAppDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.mint },
+  noAppLabel: { fontSize: 13, color: neutral[500] },
+})

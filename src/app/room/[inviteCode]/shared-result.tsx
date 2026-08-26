@@ -1,5 +1,1 @@
-import { PlaceholderScreen } from '@/shared/ui/PlaceholderScreen'
-
-export default function SharedResultScreen() {
-  return <PlaceholderScreen titleKey="screens.sharedResult" />
-}
+export { default } from '@/features/review/shared-result.view'
