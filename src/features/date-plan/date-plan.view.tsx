@@ -7,7 +7,7 @@ import { timeline, unsplashUrl } from '@/data/mockData'
 import { track } from '@/shared/analytics'
 import { usePriceFormatter } from '@/shared/pricing'
 import { useRoom } from '@/shared/store/roomStore'
-import { Atmosphere, BackHeader, GlassCard, RemoteImage, TagChip, Toast, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, PrimaryBtn, BackHeader, GlassCard, RemoteImage, TagChip, Toast, glassStyles } from '@/shared/ui/primitives'
 import { IconNavigation } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './date-plan.style'
@@ -57,7 +57,7 @@ export default function DatePlanScreen() {
         />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 170 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 240 }}>
         {timeline.map((stop, i) => {
           const locked = lockedStops.includes(stop.time)
           return (
@@ -118,29 +118,27 @@ export default function DatePlanScreen() {
         })}
       </ScrollView>
 
-      {/* Sticky summary + CTA */}
-      <View style={[styles.summaryBar, { paddingBottom: insets.bottom + spacing[4] }]}>
-        <View style={{ flexDirection: 'row', gap: spacing[4], flex: 1, flexShrink: 1 }}>
-          <View>
+      {/* Sticky summary + CTA — stats row on top, full-width CTA below */}
+      <View style={[styles.summaryBar, { paddingBottom: insets.bottom + spacing[3] }]}>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryColMain}>
             <Text style={styles.summaryCaption}>{t('datePlan.total')}</Text>
-            <Text style={styles.summaryValue}>
+            <Text style={styles.summaryValue} numberOfLines={1}>
               {total.value} <Text style={styles.summaryUnit}>{total.unit}</Text>
             </Text>
-            {total.secondary && <Text style={styles.summarySecondary}>{total.secondary}</Text>}
-            <Text style={styles.summaryOptional}>{optionalExtra(optionalK)}</Text>
+            {total.secondary && <Text style={styles.summarySecondary} numberOfLines={1}>{total.secondary}</Text>}
+            <Text style={styles.summaryOptional} numberOfLines={1}>{optionalExtra(optionalK)}</Text>
           </View>
-          <View>
+          <View style={styles.summaryCol}>
             <Text style={styles.summaryCaption}>{t('datePlan.time')}</Text>
             <Text style={styles.summaryValue}>3h 30m</Text>
           </View>
-          <View>
+          <View style={styles.summaryCol}>
             <Text style={styles.summaryCaption}>{t('datePlan.travel')}</Text>
             <Text style={styles.summaryValue}>{"~12'"}</Text>
           </View>
         </View>
-        <Pressable onPress={startDate} style={({ pressed }) => [styles.goBtn, pressed && { opacity: 0.9 }]}>
-          <Text style={styles.goLabel}>{t('datePlan.go')}</Text>
-        </Pressable>
+        <PrimaryBtn label={t('datePlan.go')} onPress={startDate} style={styles.goBtn} />
       </View>
 
       {toast && <Toast message={toast} />}
