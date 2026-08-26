@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, glassFx, radius, spacing } from '@/shared/ui/tokens'
+import { colors, glassFx, radius, spacing, overlay } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -23,7 +23,63 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: neutral[900],
   },
-  filterRow: { gap: spacing[2], paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], paddingHorizontal: spacing[5], paddingBottom: spacing[2] },
+  filterToggle: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.compact,
+    backgroundColor: glassFx.chip,
+    borderWidth: 1,
+    borderColor: neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterToggleActive: { borderColor: brand.coral },
+  filterToggleIcon: { fontSize: 18 },
+  filterCountBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: brand.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  filterCountLabel: { fontSize: 11, fontWeight: '700', color: neutral[0] },
+  backdrop: { flex: 1, backgroundColor: overlay.backdrop },
+  sheet: {
+    backgroundColor: glassFx.sheet,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[5],
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: neutral[100],
+    alignSelf: 'center',
+    marginBottom: spacing[4],
+  },
+  sheetTitle: { fontSize: 17, fontWeight: '800', color: neutral[900], marginBottom: spacing[2] },
+  sheetSection: { fontSize: 13, fontWeight: '700', color: neutral[500], marginTop: spacing[3], marginBottom: spacing[2] },
+  sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  sheetOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: radius.compact,
+    backgroundColor: neutral[50],
+  },
+  sheetOptionActive: { backgroundColor: brand.coral },
+  sheetOptionLabel: { fontSize: 13, fontWeight: '600', color: neutral[700] },
+  sheetOptionLabelActive: { color: neutral[0] },
+  sheetApply: { marginTop: spacing[5] },
+  sheetClear: { alignItems: 'center', paddingVertical: spacing[3] },
+  sheetClearLabel: { fontSize: 14, fontWeight: '500', color: neutral[500] },
   filterBtn: {
     paddingHorizontal: spacing[4],
     paddingVertical: 8,

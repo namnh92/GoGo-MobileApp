@@ -81,17 +81,18 @@ export const timeline: TimelineStop[] = [
 ]
 
 export const savedPlaces: SavedPlace[] = [
-  { title: 'Sakura Omakase', area: 'Thảo Điền', priceK: 450, distanceKm: 1.2, category: '🍣', open: true, tags: ['Romantic', 'Quiet'], score: '8.9', img: 'photo-1562436260-126d541901e0' },
-  { title: 'Clay & Co.', area: 'Thảo Điền', priceK: 300, distanceKm: 0.8, category: '🎨', open: true, tags: ['Creative', 'Indoor'], score: '8.4', img: 'photo-1595351298020-038700609878' },
-  { title: 'Koi Café', area: 'Q2', priceK: 100, distanceKm: 1.5, category: '☕', open: true, tags: ['Chill', 'View'], score: '7.8', img: 'photo-1578682965096-d619919e348b' },
-  { title: 'Night Market Q1', area: 'Q1', priceK: 200, distanceKm: 4.2, category: '🌃', open: false, tags: ['Night vibe', 'Outdoor'], score: '8.1', img: 'photo-1740030326094-2f0b5f35a095' },
+  { title: 'Sakura Omakase', area: 'Thảo Điền', priceK: 450, distanceKm: 1.2, category: '🍣', open: true, openAt: '11:00', closeAt: '23:00', suitedFor: ['couple'], tags: ['Romantic', 'Quiet'], score: '8.9', img: 'photo-1562436260-126d541901e0' },
+  { title: 'Clay & Co.', area: 'Thảo Điền', priceK: 300, distanceKm: 0.8, category: '🎨', open: true, openAt: '09:00', closeAt: '21:00', suitedFor: ['couple', 'group'], tags: ['Creative', 'Indoor'], score: '8.4', img: 'photo-1595351298020-038700609878' },
+  { title: 'Koi Café', area: 'Q2', priceK: 100, distanceKm: 1.5, category: '☕', open: true, openAt: '07:00', closeAt: '22:30', suitedFor: ['couple', 'group'], tags: ['Chill', 'View'], score: '7.8', img: 'photo-1578682965096-d619919e348b' },
+  { title: 'Night Market Q1', area: 'Q1', priceK: 200, distanceKm: 4.2, category: '🌃', open: false, openAt: '17:00', closeAt: '23:30', suitedFor: ['group'], tags: ['Night vibe', 'Outdoor'], score: '8.1', img: 'photo-1740030326094-2f0b5f35a095' },
 ]
 
 export const morePlaces: SavedPlace[] = [
-  { title: 'Phở Lệ', area: 'Q5', priceK: 120, distanceKm: 5.1, category: '🍜', open: true, tags: ['Budget'], score: '8.7', img: 'photo-1739595417132-8b0503795984' },
-  { title: 'Sky Bar 26', area: 'Q1', priceK: 600, distanceKm: 4.0, category: '🌃', open: true, tags: ['Fancy', 'Night vibe'], score: '8.5', img: 'photo-1740030326094-2f0b5f35a095' },
-  { title: 'Bảo tàng Mỹ thuật', area: 'Q1', priceK: 50, distanceKm: 3.8, category: '🎨', open: true, tags: ['Creative', 'Indoor'], score: '8.2', img: 'photo-1595351298020-038700609878' },
-  { title: 'The Coffee Apartment', area: 'Q1', priceK: 90, distanceKm: 4.4, category: '☕', open: false, tags: ['Chill', 'View'], score: '8.0', img: 'photo-1578682965096-d619919e348b' },
+  { title: 'Phở Lệ', area: 'Q5', priceK: 120, distanceKm: 5.1, category: '🍜', open: true, openAt: '06:00', closeAt: '22:00', suitedFor: ['couple', 'group'], tags: ['Budget'], score: '8.7', img: 'photo-1739595417132-8b0503795984' },
+  { title: 'Sky Bar 26', area: 'Q1', priceK: 600, distanceKm: 4.0, category: '🌃', open: true, openAt: '17:00', closeAt: '01:00', suitedFor: ['couple', 'group'], tags: ['Fancy', 'Night vibe'], score: '8.5', img: 'photo-1740030326094-2f0b5f35a095' },
+  { title: 'Bảo tàng Mỹ thuật', area: 'Q1', priceK: 50, distanceKm: 3.8, category: '🎨', open: true, openAt: '08:00', closeAt: '17:00', suitedFor: ['couple', 'group'], tags: ['Creative', 'Indoor'], score: '8.2', img: 'photo-1595351298020-038700609878' },
+  { title: 'The Coffee Apartment', area: 'Q1', priceK: 90, distanceKm: 4.4, category: '☕', open: false, openAt: '08:00', closeAt: '22:00', suitedFor: ['couple', 'group'], tags: ['Chill', 'View'], score: '8.0', img: 'photo-1578682965096-d619919e348b' },
+  { title: 'Wink Hotel Đồng Khởi', area: 'Q1', priceK: 1200, distanceKm: 4.1, category: '🛏', open: true, openAt: '00:00', closeAt: '24/7', suitedFor: ['couple'], tags: ['Fancy', 'Quiet'], score: '8.8', img: 'photo-1748591633516-94b4b80cdc6a' },
 ]
 
 /** Full mock place catalog: seed saved places + extra discoverables. */

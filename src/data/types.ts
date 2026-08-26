@@ -43,10 +43,16 @@ export interface TimelineStop {
 export interface SavedPlace {
   title: string
   area: string
+  /** Estimated total for 2 people (mock semantics) in thousands of VND. */
   priceK: number
   distanceKm: number
   category: string
   open: boolean
+  /** Opening hours, 24h HH:mm. */
+  openAt?: string
+  closeAt?: string
+  /** Room types this place suits; undefined = suits everything. */
+  suitedFor?: ('couple' | 'group')[]
   tags: string[]
   score: string
   img: string
