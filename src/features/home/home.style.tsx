@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, onDark, overlay } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
   },
   heroScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: overlay.scrim,
   },
   heroContent: {
     flex: 1,
@@ -39,7 +39,7 @@ export const styles = StyleSheet.create({
   },
   heroBadgeLabel: { color: neutral[0], fontSize: 11, fontWeight: '600' },
   heroTitle: { fontSize: 24, fontWeight: '800', color: neutral[0] },
-  heroBody: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4, marginBottom: spacing[3] },
+  heroBody: { fontSize: 13, color: onDark.medium, marginTop: 4, marginBottom: spacing[3] },
   heroActions: { flexDirection: 'row', gap: spacing[2] },
   heroBtn: {
     flex: 1,
@@ -48,7 +48,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: glassFx.btnBorder,
   },
   heroBtnLabel: { color: neutral[0], fontSize: 14, fontWeight: '600' },
   preset: {
@@ -57,7 +57,7 @@ export const styles = StyleSheet.create({
     borderRadius: radius.compact,
   },
   presetGlass: {
-    backgroundColor: 'rgba(255,255,255,0.78)',
+    backgroundColor: glassFx.chip,
     borderWidth: 1,
     borderColor: neutral[100],
   },

@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconBookmark, IconCalendar, IconHome, IconUser } from '@/shared/ui/icons'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, shadows } from '@/shared/ui/tokens'
 
 // Floating glass dock (spec §45.1): detached from the screen edges, strong
 // glass over whatever scrolls underneath.
@@ -29,7 +29,7 @@ export default function TabsLayout() {
           borderRadius: radius.hero,
           borderTopWidth: 0,
           backgroundColor: 'transparent',
-          shadowColor: '#362D26',
+          shadowColor: shadows.warm,
           shadowOffset: { width: 0, height: 16 },
           shadowOpacity: 0.16,
           shadowRadius: 42,
@@ -44,7 +44,7 @@ export default function TabsLayout() {
               effect="regular"
               colorScheme="light"
               interactive
-              tintColor="rgba(255,255,255,0.4)"
+              tintColor={glassFx.nativeTint}
               style={styles.dockGlass}
             />
           ) : (
@@ -86,10 +86,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.hero,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
+    borderColor: glassFx.borderLight,
   },
   dockTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: glassFx.dockTint,
   },
 })

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors } from '@/shared/ui/tokens'
+import { colors, onDark, shadows } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   root: {
@@ -25,7 +25,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: shadows.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
@@ -40,7 +40,7 @@ export const styles = StyleSheet.create({
   tagline: {
     fontSize: 16,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.8)',
+    color: onDark.medium,
     marginTop: 4,
   },
 })

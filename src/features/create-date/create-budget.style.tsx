@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   stepLabel: { fontSize: 13, color: colors.neutral[500], fontWeight: '500' },
@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: glassFx.badge,
     alignItems: 'center',
     justifyContent: 'center',
   },

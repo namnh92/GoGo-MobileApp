@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useLocaleContent } from '@/shared/i18n'
 import { IconChevronLeft } from '@/shared/ui/icons'
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget, glass, glassFx, shadows } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -25,20 +25,20 @@ const { brand, neutral } = colors
 // per-card blur stays off lists for performance (spec §48.1).
 export const glassStyles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.56)',
-    borderColor: 'rgba(255,255,255,0.72)',
+    backgroundColor: glass.regular.background,
+    borderColor: glassFx.border,
     borderWidth: 1,
-    shadowColor: '#362D26',
+    shadowColor: shadows.warm,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
     elevation: 3,
   },
   strong: {
-    backgroundColor: 'rgba(255,255,255,0.78)',
-    borderColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: glassFx.chip,
+    borderColor: glass.strong.border,
     borderWidth: 1,
-    shadowColor: '#362D26',
+    shadowColor: shadows.warm,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.13,
     shadowRadius: 24,
@@ -60,7 +60,7 @@ export function GlassCard({ children, style, strong = false, interactive = false
         effect="regular"
         colorScheme="light"
         interactive={interactive}
-        tintColor={strong ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.38)'}
+        tintColor={strong ? glassFx.nativeTintStrong : glass.subtle.background}
         style={[{ borderRadius: radius.card }, style]}
       >
         {children}
@@ -105,7 +105,7 @@ export function PrimaryBtn({ label, onPress, disabled = false, style }: {
       style={({ pressed }) => [styles.primaryBtnShadow, pressed && { transform: [{ scale: 0.98 }] }, style]}
     >
       <LinearGradient
-        colors={disabled ? [neutral[100], neutral[100]] : [brand.coral, '#C74552']}
+        colors={disabled ? [neutral[100], neutral[100]] : [brand.coral, brand.coralDeep]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.primaryBtn}
@@ -132,7 +132,7 @@ const tagPalette: Record<TagColor, { bg: string; fg: string }> = {
   coral: { bg: brand.coralSoft, fg: brand.coral },
   violet: { bg: brand.lavenderSoft, fg: brand.lavender },
   green: { bg: brand.mintSoft, fg: brand.mint },
-  neutral: { bg: 'rgba(236,232,225,0.85)', fg: neutral[500] },
+  neutral: { bg: glassFx.neutralChip, fg: neutral[500] },
 }
 
 // Canonical tag keys live in mock data; display label is locale-mapped here.
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: radius.button,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.26)',
+    borderColor: glassFx.btnBorder,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[4],
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: radius.compact,
     zIndex: 20,
-    shadowColor: '#000',
+    shadowColor: shadows.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 12,

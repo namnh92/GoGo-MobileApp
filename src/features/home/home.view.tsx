@@ -66,7 +66,7 @@ export default function HomeScreen() {
               <Pressable onPress={startCreate} style={({ pressed }) => [styles.heroBtn, { backgroundColor: brand.coral }, pressed && { transform: [{ scale: 0.98 }] }]}>
                 <Text style={styles.heroBtnLabel}>{t('home.createDate')}</Text>
               </Pressable>
-              <Pressable onPress={startCreate} style={({ pressed }) => [styles.heroBtn, { backgroundColor: 'rgba(118,103,232,0.78)' }, pressed && { opacity: 0.9 }]}>
+              <Pressable onPress={startCreate} style={({ pressed }) => [styles.heroBtn, { backgroundColor: brand.lavenderGlass }, pressed && { opacity: 0.9 }]}>
                 <Text style={styles.heroBtnLabel}>{t('home.quickPick')}</Text>
               </Pressable>
             </View>

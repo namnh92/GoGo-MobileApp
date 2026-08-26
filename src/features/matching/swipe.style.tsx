@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, onDark, overlay } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -21,12 +21,12 @@ export const styles = StyleSheet.create({
     borderRadius: radius.hero,
     overflow: 'hidden',
   },
-  imageScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
+  imageScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrimMedium },
   categoryBadge: {
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: overlay.scrimStrong,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.pill,
@@ -41,7 +41,7 @@ export const styles = StyleSheet.create({
   },
   overlayLabel: { color: neutral[0], fontSize: 18, fontWeight: '800' },
   areaRow: { position: 'absolute', bottom: 12, left: 12 },
-  areaLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '500' },
+  areaLabel: { color: onDark.strong, fontSize: 12, fontWeight: '500' },
   cardTitle: { fontSize: 18, fontWeight: '800', color: neutral[900] },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing[2] },
   desc: { fontSize: 13, color: neutral[500], marginTop: spacing[2], lineHeight: 19 },

@@ -5,10 +5,16 @@
 export const colors = {
   brand: {
     coral: '#D84F4A',
+    /** Gradient end for the primary CTA (spec §45.2). */
+    coralDeep: '#C74552',
     coralBright: '#FF746C',
     coralSoft: '#FFD8D4',
+    /** Faint coral wash for badges on light surfaces. */
+    coralGhost: 'rgba(216,79,74,0.1)',
     lavender: '#7667E8',
     lavenderSoft: '#E5E0FF',
+    /** Translucent lavender for CTAs sitting on photos. */
+    lavenderGlass: 'rgba(118,103,232,0.78)',
     mint: '#4FAF86',
     mintSoft: '#D9F3E7',
     amber: '#D99028',
@@ -26,6 +32,59 @@ export const colors = {
     700: '#4A4641',
     900: '#211F1C',
   },
+} as const
+
+/** Dark-theme surfaces (shared result / night screens, spec §46). */
+export const night = {
+  surface: '#222222',
+  raised: '#2A2A2A',
+  line: '#333333',
+} as const
+
+/** Text/icon colors over photos and dark backgrounds. */
+export const onDark = {
+  strong: 'rgba(255,255,255,0.9)',
+  medium: 'rgba(255,255,255,0.8)',
+  soft: 'rgba(255,255,255,0.6)',
+} as const
+
+/** Image scrims and modal backdrops. */
+export const overlay = {
+  scrimLight: 'rgba(0,0,0,0.2)',
+  scrimMedium: 'rgba(0,0,0,0.25)',
+  scrim: 'rgba(0,0,0,0.35)',
+  scrimStrong: 'rgba(0,0,0,0.4)',
+  backdrop: 'rgba(33,31,28,0.4)',
+} as const
+
+export const shadows = {
+  warm: '#362D26',
+  black: '#000',
+} as const
+
+/** Mock map canvas colors until a real map SDK lands. */
+export const mapColors = {
+  canvas: '#DCE9DC',
+  road: 'rgba(255,255,255,0.55)',
+} as const
+
+/** White-alpha washes for glass surfaces, borders and tints. */
+export const glassFx = {
+  sheet: 'rgba(252,251,248,0.98)',
+  bar: 'rgba(252,251,248,0.97)',
+  solid: 'rgba(255,255,255,0.95)',
+  pill: 'rgba(255,255,255,0.92)',
+  cardWash: 'rgba(255,255,255,0.85)',
+  chip: 'rgba(255,255,255,0.78)',
+  border: 'rgba(255,255,255,0.72)',
+  borderBright: 'rgba(255,255,255,0.9)',
+  borderLight: 'rgba(255,255,255,0.8)',
+  dockTint: 'rgba(255,255,255,0.55)',
+  nativeTint: 'rgba(255,255,255,0.4)',
+  nativeTintStrong: 'rgba(255,255,255,0.62)',
+  badge: 'rgba(255,255,255,0.3)',
+  btnBorder: 'rgba(255,255,255,0.26)',
+  neutralChip: 'rgba(236,232,225,0.85)',
 } as const
 
 // Glass surfaces: RN has no backdrop blur without an extra native module, so the

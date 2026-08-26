@@ -7,7 +7,7 @@ import { useLocaleContent } from '@/shared/i18n'
 import { useRoom } from '@/shared/store/roomStore'
 import { Atmosphere, BackHeader, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, spacing, onDark } from '@/shared/ui/tokens'
 import { styles } from './create-budget.style'
 
 export default function CreateBudgetScreen() {
@@ -48,7 +48,7 @@ export default function CreateBudgetScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{o.label}</Text>
-                  <Text style={[styles.optionSub, { color: active ? 'rgba(255,255,255,0.8)' : colors.neutral[500] }]}>{o.sub}</Text>
+                  <Text style={[styles.optionSub, { color: active ? onDark.medium : colors.neutral[500] }]}>{o.sub}</Text>
                 </View>
                 {active && (
                   <View style={styles.checkBubble}>
