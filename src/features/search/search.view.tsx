@@ -5,7 +5,7 @@ import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { unsplashUrl } from '@/data/mockData'
-import { STYLE_TAGS } from '@/data/taxonomy'
+import { SEARCH_STYLE_TAGS } from '@/data/taxonomy'
 import type { SavedPlace } from '@/data/types'
 import { useCatalogPlaces } from '@/shared/api/mock'
 import { track } from '@/shared/analytics'
@@ -302,7 +302,7 @@ export default function SearchScreen() {
 
           <Text style={styles.sheetSection}>{t('search.filterStyle')}</Text>
           <View style={styles.sheetOptionRow}>
-            {STYLE_TAGS.map(tag => {
+            {SEARCH_STYLE_TAGS.map(tag => {
               const active = styleTags.includes(tag)
               return (
                 <Pressable

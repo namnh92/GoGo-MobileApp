@@ -16,3 +16,10 @@ export const STYLE_TAGS = [
 ] as const
 
 export type StyleTag = (typeof STYLE_TAGS)[number]
+
+/** Subset for the search filter sheet: excludes keys already covered by the
+ *  category group ('Night vibe' ↔ Về đêm) and by the numeric price range
+ *  ('Budget'/'Fancy') to avoid duplicate/conflicting filters. */
+export const SEARCH_STYLE_TAGS = STYLE_TAGS.filter(
+  tag => tag !== 'Night vibe' && tag !== 'Budget' && tag !== 'Fancy',
+)
