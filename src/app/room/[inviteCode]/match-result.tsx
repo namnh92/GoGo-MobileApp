@@ -1,5 +1,1 @@
-import { PlaceholderScreen } from '@/shared/ui/PlaceholderScreen'
-
-export default function MatchResultScreen() {
-  return <PlaceholderScreen titleKey="screens.matchResult" />
-}
+export { default } from '@/features/matching/match-result.view'

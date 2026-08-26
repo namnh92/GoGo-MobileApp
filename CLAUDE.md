@@ -6,7 +6,9 @@ React Native iOS/Android app for GoGo (couple/group date planning).
 
 ## Structure
 
-`src/app/` (navigation, providers) · `src/features/{auth,room,preference,search,suggestion,plan,active-date,profile}` · `src/shared/{ui,api,storage,navigation,analytics,providers}` · `ios/`, `android/` via Expo prebuild.
+`src/app/` (expo-router routes — thin `export { default } from '@/features/...'` re-exports only) · `src/features/<feature>/` (screen implementations) · `src/shared/{ui,api,storage,navigation,analytics,providers,i18n,store,pricing,config}` · `src/data/` (mock fixtures until the real API lands) · `ios/`, `android/` via Expo prebuild.
+
+**Screen file convention (mandatory):** each screen/view = `<screen>.view.tsx` (component, no `StyleSheet.create`) + `<screen>.style.tsx` (exports `styles`) co-located in its feature folder. Inline styles only for dynamic values (animations, safe-area insets, interpolations). Shared primitives live in `src/shared/ui`.
 
 ## Hard rules
 

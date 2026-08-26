@@ -1,5 +1,1 @@
-import { PlaceholderScreen } from '@/shared/ui/PlaceholderScreen'
-
-export default function PlansScreen() {
-  return <PlaceholderScreen titleKey="screens.plans" />
-}
+export { default } from '@/features/tabs/plans.view'

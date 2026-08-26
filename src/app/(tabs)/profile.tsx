@@ -1,5 +1,1 @@
-import { PlaceholderScreen } from '@/shared/ui/PlaceholderScreen'
-
-export default function ProfileScreen() {
-  return <PlaceholderScreen titleKey="screens.profile" />
-}
+export { default } from '@/features/tabs/profile.view'
