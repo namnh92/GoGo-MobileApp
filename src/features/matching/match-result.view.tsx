@@ -138,6 +138,7 @@ export default function MatchResultScreen() {
 
       {/* Refinement bottom sheet — never regenerate blindly */}
       <Modal visible={refineOpen} transparent animationType="slide" onRequestClose={() => setRefineOpen(false)}>
+        <View style={styles.modalRoot}>
         <Pressable style={styles.backdrop} onPress={() => setRefineOpen(false)} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[6] }]}>
           <View style={styles.handle} />
@@ -197,6 +198,7 @@ export default function MatchResultScreen() {
               {submitting ? '…' : canRegenerate ? t('matchResult.regenerate') : t('matchResult.sendSuggestion')}
             </Text>
           </Pressable>
+        </View>
         </View>
       </Modal>
     </Atmosphere>
