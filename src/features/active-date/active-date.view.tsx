@@ -6,28 +6,50 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { timeline, unsplashUrl } from '@/data/mockData'
 import { track } from '@/shared/analytics'
 import { usePriceFormatter } from '@/shared/pricing'
+import { useCheckinStore, type StopCheckin } from '@/shared/store/checkinStore'
 import { Atmosphere, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
 import { IconArrowRight, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
+import { CheckinSheet } from './checkin-sheet.view'
 import { styles } from './active-date.style'
 
 export default function ActiveDateScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { planId } = useLocalSearchParams<{ planId: string }>()
+  const { planId, checkin } = useLocalSearchParams<{ planId: string; checkin?: string }>()
   const { stopPrice } = usePriceFormatter()
+  const saveCheckin = useCheckinStore(s => s.saveCheckin)
   const [step, setStep] = useState(0)
+  // `?checkin=1` opens the sheet immediately — demo/deep-link convenience.
+  const [checkinOpen, setCheckinOpen] = useState(checkin === '1')
   const stops = timeline
   const stop = stops[step]
 
-  function nextStep() {
+  function completeStop() {
+    track('stop_completed', { stop: stop.name, index: step + 1 })
+    setCheckinOpen(true)
+  }
+
+  function advance() {
+    setCheckinOpen(false)
     if (step < stops.length - 1) {
       setStep(step + 1)
     } else {
       track('date_completed', { stops: stops.length })
       router.replace(`/plans/${planId}/finished`)
     }
+  }
+
+  function handleSave(data: StopCheckin) {
+    saveCheckin(stop.time, data)
+    track('stop_checkin_saved', {
+      stop: stop.name,
+      rating: data.rating,
+      photos: data.photos.length,
+      tags: data.tags.join(','),
+    })
+    advance()
   }
 
   return (
@@ -65,7 +87,7 @@ export default function ActiveDateScreen() {
                 <IconNavigation />
                 <Text style={styles.dirLabel}>{t('common.directions')}</Text>
               </Pressable>
-              <Pressable onPress={nextStep} style={styles.doneBtn}>
+              <Pressable onPress={completeStop} style={styles.doneBtn}>
                 <Text style={styles.doneLabel}>
                   {step < stops.length - 1 ? t('activeDate.doneStep') : t('activeDate.finish')}
                 </Text>
@@ -86,6 +108,8 @@ export default function ActiveDateScreen() {
           </GlassCard>
         )}
       </ScrollView>
+
+      <CheckinSheet visible={checkinOpen} stop={stop} onSave={handleSave} onSkip={advance} />
     </Atmosphere>
   )
 }

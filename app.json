@@ -28,6 +28,16 @@
         }
       ]
     },
-    "plugins": ["expo-router", "expo-dev-client", "expo-splash-screen"]
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      "expo-splash-screen",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "GoGo cần truy cập thư viện ảnh để bạn thêm ảnh check-in tại địa điểm."
+        }
+      ]
+    ]
   }
 }

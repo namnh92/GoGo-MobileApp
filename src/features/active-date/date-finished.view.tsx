@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { timeline } from '@/data/mockData'
 import { usePriceFormatter } from '@/shared/pricing'
-import { Atmosphere, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { useCheckinStore } from '@/shared/store/checkinStore'
+import { Atmosphere, GlassCard, PrimaryBtn, RemoteImage } from '@/shared/ui/primitives'
 import { IconCheck, IconStar } from '@/shared/ui/icons'
 import { styles } from './date-finished.style'
 
@@ -15,6 +16,7 @@ export default function DateFinishedScreen() {
   const router = useRouter()
   const { planId } = useLocalSearchParams<{ planId: string }>()
   const { summaryTotal } = usePriceFormatter()
+  const checkins = useCheckinStore(state => state.checkins)
   const total = summaryTotal(requiredK)
 
   return (
@@ -29,8 +31,21 @@ export default function DateFinishedScreen() {
             {i > 0 && <View style={styles.connector} />}
             <View style={styles.stopRow}>
               <Text style={{ fontSize: 20 }}>{stop.emoji}</Text>
-              <Text style={styles.stopName}>{stop.name}</Text>
-              <IconCheck />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.stopName}>{stop.name}</Text>
+                {checkins[stop.time] && checkins[stop.time].rating > 0 && (
+                  <Text style={styles.stopRating}>{'⭐'.repeat(checkins[stop.time].rating)}</Text>
+                )}
+              </View>
+              {checkins[stop.time] && checkins[stop.time].photos.length > 0 ? (
+                <View style={styles.photoStrip}>
+                  {checkins[stop.time].photos.slice(0, 2).map(uri => (
+                    <RemoteImage key={uri} uri={uri} style={styles.photoThumb} />
+                  ))}
+                </View>
+              ) : (
+                <IconCheck />
+              )}
             </View>
           </Fragment>
         ))}
