@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -72,7 +72,7 @@ export const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(252,251,248,0.97)',
+    backgroundColor: glassFx.bar,
     borderTopWidth: 1,
     borderTopColor: neutral[100],
     paddingHorizontal: spacing[5],

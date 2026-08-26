@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { track } from '@/shared/analytics'
 import { useRoom, type RoomType } from '@/shared/store/roomStore'
 import { Atmosphere, BackHeader, glassStyles } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, spacing, onDark } from '@/shared/ui/tokens'
 import { styles } from './create-type.style'
 
 const options: { type: RoomType; emoji: string; titleKey: 'createType.couple' | 'createType.group'; descKey: 'createType.coupleDesc' | 'createType.groupDesc' }[] = [
@@ -46,7 +46,7 @@ export default function CreateTypeScreen() {
                 <Text style={styles.optionEmoji}>{o.emoji}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{t(o.titleKey)}</Text>
-                  <Text style={[styles.optionDesc, { color: active ? 'rgba(255,255,255,0.8)' : colors.neutral[500] }]}>{t(o.descKey)}</Text>
+                  <Text style={[styles.optionDesc, { color: active ? onDark.medium : colors.neutral[500] }]}>{t(o.descKey)}</Text>
                 </View>
               </Pressable>
             )

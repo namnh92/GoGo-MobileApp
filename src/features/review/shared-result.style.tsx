@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, night, onDark } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -15,10 +15,10 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   score: { fontSize: 56, fontWeight: '800', color: neutral[0], lineHeight: 60 },
-  scoreMax: { fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.8)' },
+  scoreMax: { fontSize: 15, fontWeight: '500', color: onDark.medium },
   scoreStars: { flexDirection: 'row', gap: 4, marginTop: spacing[2] },
   darkCard: {
-    backgroundColor: '#222222',
+    backgroundColor: night.surface,
     borderRadius: radius.hero,
     padding: spacing[5],
     marginBottom: spacing[4],
@@ -35,10 +35,10 @@ export const styles = StyleSheet.create({
   interestHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   interestLabel: { fontSize: 13, fontWeight: '600', color: neutral[0] },
   interestPct: { fontSize: 12, color: neutral[500] },
-  track: { height: 6, borderRadius: 3, backgroundColor: '#333333', overflow: 'hidden' },
+  track: { height: 6, borderRadius: 3, backgroundColor: night.line, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: brand.coral, borderRadius: 3 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
-  statCard: { width: '47%', backgroundColor: '#2A2A2A', borderRadius: radius.compact, padding: spacing[3] },
+  statCard: { width: '47%', backgroundColor: night.raised, borderRadius: radius.compact, padding: spacing[3] },
   statLabel: { fontSize: 11, color: neutral[500], marginBottom: 4 },
   statValue: { fontSize: 20, fontWeight: '800' },
   nextBtn: {
@@ -53,7 +53,7 @@ export const styles = StyleSheet.create({
     height: 48,
     borderRadius: radius.compact,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: night.line,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,13 +1,13 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, overlay } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(33,31,28,0.4)' },
+  backdrop: { flex: 1, backgroundColor: overlay.backdrop },
   sheet: {
-    backgroundColor: 'rgba(252,251,248,0.98)',
+    backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
     paddingHorizontal: spacing[5],

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, mapColors, shadows } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -9,7 +9,7 @@ export const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: neutral[900] },
   toggle: { flexDirection: 'row', backgroundColor: neutral[100], borderRadius: 12, padding: 2 },
   toggleBtn: { paddingHorizontal: 12, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  toggleBtnActive: { backgroundColor: 'rgba(255,255,255,0.95)' },
+  toggleBtnActive: { backgroundColor: glassFx.solid },
   toggleLabel: { fontSize: 12, fontWeight: '600', color: neutral[500] },
   toggleLabelActive: { color: neutral[900] },
   filterRow: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     paddingVertical: 8,
     borderRadius: radius.compact,
-    backgroundColor: 'rgba(255,255,255,0.78)',
+    backgroundColor: glassFx.chip,
     borderWidth: 1,
     borderColor: neutral[100],
   },
@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: glassFx.pill,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radius.pill,
@@ -41,8 +41,8 @@ export const styles = StyleSheet.create({
   gridMeta: { fontSize: 11, color: neutral[500], marginTop: 2 },
   // Map mock
   mapRoot: { flex: 1, overflow: 'hidden' },
-  mapCanvas: { ...StyleSheet.absoluteFillObject, backgroundColor: '#DCE9DC' },
-  road: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.55)' },
+  mapCanvas: { ...StyleSheet.absoluteFillObject, backgroundColor: mapColors.canvas },
+  road: { position: 'absolute', backgroundColor: mapColors.road },
   marker: {
     position: 'absolute',
     width: 36,
@@ -52,10 +52,10 @@ export const styles = StyleSheet.create({
     marginTop: -18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: glassFx.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
-    shadowColor: '#362D26',
+    borderColor: glassFx.solid,
+    shadowColor: shadows.warm,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -80,10 +80,10 @@ export const styles = StyleSheet.create({
     height: 36,
     paddingHorizontal: spacing[4],
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: glassFx.solid,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#362D26',
+    shadowColor: shadows.warm,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,

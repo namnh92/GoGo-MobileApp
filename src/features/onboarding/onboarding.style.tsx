@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, spacing, glassFx } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   skip: {
@@ -38,7 +38,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.brand.coral,
   },
   chipGlass: {
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: glassFx.cardWash,
     borderWidth: 1,
     borderColor: colors.neutral[100],
   },

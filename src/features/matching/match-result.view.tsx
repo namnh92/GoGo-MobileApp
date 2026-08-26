@@ -10,7 +10,7 @@ import { usePriceFormatter } from '@/shared/pricing'
 import { useRoom } from '@/shared/store/roomStore'
 import { Atmosphere, GhostBtn, GlassCard, PrimaryBtn, RemoteImage, Toast } from '@/shared/ui/primitives'
 import { IconCheck, IconZap } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, spacing, onDark } from '@/shared/ui/tokens'
 import { styles } from './match-result.style'
 
 const { brand, neutral } = colors
@@ -129,7 +129,7 @@ export default function MatchResultScreen() {
       {diff && (
         <View style={[styles.diffCard, { top: insets.top + spacing[6] }]} accessibilityLiveRegion="polite">
           <Text style={styles.diffLine}>✓ {t('matchResult.diffKept', { name: 'Sakura Omakase' })}</Text>
-          <Text style={[styles.diffLine, { color: 'rgba(255,255,255,0.8)' }]}>
+          <Text style={[styles.diffLine, { color: onDark.medium }]}>
             {t('matchResult.diffChanged', { from: 'Clay & Co.', to: 'Paint & Sip' })}
           </Text>
           <Text style={[styles.diffLine, { color: brand.mint }]}>{t('matchResult.diffSaved', { amount: '120k' })}</Text>

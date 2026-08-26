@@ -5,7 +5,7 @@ const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   badge: {
-    backgroundColor: 'rgba(216,79,74,0.1)',
+    backgroundColor: brand.coralGhost,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: radius.pill,

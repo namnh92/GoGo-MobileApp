@@ -1,18 +1,18 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, overlay } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   headerImage: { height: 240 },
-  imageScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)' },
+  imageScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrimLight },
   backBtn: {
     position: 'absolute',
     left: spacing[4],
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: glassFx.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -21,7 +21,7 @@ export const styles = StyleSheet.create({
     marginTop: -24,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
-    backgroundColor: 'rgba(252,251,248,0.98)',
+    backgroundColor: glassFx.sheet,
   },
   name: { fontSize: 22, fontWeight: '800', color: neutral[900] },
   meta: { fontSize: 13, color: neutral[500], marginTop: 2 },
@@ -91,7 +91,7 @@ export const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(252,251,248,0.97)',
+    backgroundColor: glassFx.bar,
     borderTopWidth: 1,
     borderTopColor: neutral[100],
     paddingHorizontal: spacing[5],

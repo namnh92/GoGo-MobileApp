@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, onDark, overlay } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
     borderRadius: radius.hero,
     overflow: 'hidden',
   },
-  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrim },
   heroBadge: {
     position: 'absolute',
     top: spacing[4],
@@ -23,8 +23,8 @@ export const styles = StyleSheet.create({
   heroBadgeLabel: { color: neutral[0], fontSize: 13, fontWeight: '700' },
   heroBottom: { position: 'absolute', bottom: spacing[4], left: spacing[4], right: spacing[4] },
   heroTitle: { fontSize: 28, fontWeight: '800', color: neutral[0] },
-  heroVotes: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 4 },
-  heroMeta: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: spacing[2] },
+  heroVotes: { fontSize: 13, fontWeight: '600', color: onDark.strong, marginTop: 4 },
+  heroMeta: { fontSize: 13, color: onDark.medium, marginTop: spacing[2] },
   stopsRow: {
     flexDirection: 'row',
     gap: spacing[3],
@@ -55,9 +55,9 @@ export const styles = StyleSheet.create({
     zIndex: 20,
   },
   diffLine: { color: neutral[0], fontSize: 13, fontWeight: '600', marginTop: 2 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(33,31,28,0.4)' },
+  backdrop: { flex: 1, backgroundColor: overlay.backdrop },
   sheet: {
-    backgroundColor: 'rgba(252,251,248,0.98)',
+    backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
     paddingHorizontal: spacing[5],
