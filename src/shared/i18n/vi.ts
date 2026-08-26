@@ -352,7 +352,7 @@ export const viContent = {
     { emoji: '👎', label: 'Không hợp' },
   ] as Mood[],
   savedFilters: ['Tất cả', 'Ăn uống', 'Hoạt động', 'Kế hoạch'],
-  searchFilters: ['Tất cả', 'Ăn uống', 'Cà phê', 'Hoạt động', 'Về đêm', 'Nghỉ dưỡng'],
+  searchFilters: ['Tất cả', 'Ăn uống', 'Cà phê', 'Hoạt động', 'Về đêm', 'Lưu trú'],
   distanceOptions: ['≤ 2 km', '≤ 5 km', 'Bao xa cũng được'],
   pricePerPersonOptions: ['< 100k', '100–300k', '> 300k'],
   suitedOptions: ['Cặp đôi', 'Nhóm bạn'],
