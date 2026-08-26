@@ -109,6 +109,19 @@ export const groupMembers: GroupMemberMock[] = [
   { name: 'Huy', emoji: '🙋‍♂️', progress: 3, goal: 12 },
 ]
 
+/** Mock service areas until the real geo/areas API lands. */
+export const AREAS = [
+  'Thảo Điền, TP.HCM',
+  'Quận 1, TP.HCM',
+  'Quận 2, TP.HCM',
+  'Quận 3, TP.HCM',
+  'Quận 5, TP.HCM',
+  'Quận 7, TP.HCM',
+  'Bình Thạnh, TP.HCM',
+  'Phú Nhuận, TP.HCM',
+  'Thủ Đức, TP.HCM',
+]
+
 export const INVITE_CODE = 'X7K2'
 export const INVITE_URL = `https://gogo.app/r/${INVITE_CODE}`
 export const DEMO_PLAN_ID = 'tonight'

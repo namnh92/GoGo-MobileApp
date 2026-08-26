@@ -63,12 +63,17 @@ export const viMessages = {
   'groupSetup.groupTotal': 'Tổng cả nhóm',
   'createLocation.current': 'Vị trí hiện tại',
   'createLocation.searchOther': 'Tìm khu vực khác…',
+  'createLocation.pickArea': 'Chọn khu vực',
+  'createLocation.currentLabel': 'Vị trí hiện tại',
   'createLocation.maxDistance': 'Khoảng cách tối đa',
 
   'createTime.title': 'Hai đứa có\nbao nhiêu thời gian?',
   'createTime.body': 'GoGo chỉ gợi ý nơi còn mở trong khoảng này.',
   'createTime.specificTime': 'Hoặc chọn giờ cụ thể',
   'createTime.start': 'Bắt đầu',
+  'createTime.pickTime': 'Chọn giờ',
+  'createTime.notSet': '--:--',
+  'createTime.startRequired': 'Chọn giờ bắt đầu để tiếp tục.',
   'createTime.end': 'Kết thúc',
 
   'createBudget.title': 'Ngân sách\ncho cả hai?',

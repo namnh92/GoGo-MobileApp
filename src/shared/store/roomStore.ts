@@ -18,6 +18,11 @@ interface RoomStoreState {
   participantCount: number
   budgetMode: BudgetMode
   quickPreset: QuickPreset
+  /** Khu vực xuất phát của room draft. */
+  area: string
+  /** Giờ bắt đầu (bắt buộc trước khi qua bước sau) và kết thúc dự kiến. */
+  startTime: string | null
+  endTime: string | null
   /** Host-suggested places attached to the room draft (create flow). */
   seedPlaces: SavedPlace[]
   /** Locked itinerary stops (by stop time) — shared between plan and regenerate. */
@@ -27,6 +32,9 @@ interface RoomStoreState {
   setParticipantCount: (n: number) => void
   setBudgetMode: (mode: BudgetMode) => void
   setQuickPreset: (p: QuickPreset) => void
+  setArea: (area: string) => void
+  setStartTime: (t: string | null) => void
+  setEndTime: (t: string | null) => void
   addSeedPlace: (place: SavedPlace) => void
   removeSeedPlace: (title: string) => void
   toggleLockedStop: (time: string) => void
@@ -38,6 +46,9 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   participantCount: 4,
   budgetMode: 'per_person',
   quickPreset: 'tonight',
+  area: 'Thảo Điền, TP.HCM',
+  startTime: null,
+  endTime: null,
   seedPlaces: [],
   lockedStops: [],
   setAudience: audience => set({ audience }),
@@ -45,6 +56,9 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   setParticipantCount: participantCount => set({ participantCount }),
   setBudgetMode: budgetMode => set({ budgetMode }),
   setQuickPreset: quickPreset => set({ quickPreset }),
+  setArea: area => set({ area }),
+  setStartTime: startTime => set({ startTime }),
+  setEndTime: endTime => set({ endTime }),
   addSeedPlace: place =>
     set(state =>
       state.seedPlaces.some(p => p.title === place.title)
@@ -67,6 +81,9 @@ export interface RoomView {
   participantCount: number
   budgetMode: BudgetMode
   quickPreset: QuickPreset
+  area: string
+  startTime: string | null
+  endTime: string | null
   seedPlaces: SavedPlace[]
   lockedStops: string[]
   setAudience: (a: DemoAudience) => void
@@ -74,6 +91,9 @@ export interface RoomView {
   setParticipantCount: (n: number) => void
   setBudgetMode: (mode: BudgetMode) => void
   setQuickPreset: (p: QuickPreset) => void
+  setArea: (area: string) => void
+  setStartTime: (t: string | null) => void
+  setEndTime: (t: string | null) => void
   addSeedPlace: (place: SavedPlace) => void
   removeSeedPlace: (title: string) => void
   toggleLockedStop: (time: string) => void

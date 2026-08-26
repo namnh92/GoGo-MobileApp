@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, glassFx, overlay, radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   stepLabel: { fontSize: 13, color: colors.neutral[500], fontWeight: '500' },
@@ -20,6 +20,36 @@ export const styles = StyleSheet.create({
     padding: spacing[3],
     alignItems: 'center',
   },
+  timeBoxRequired: { borderWidth: 1, borderColor: colors.brand.coral },
+  requiredHint: { fontSize: 12, color: colors.brand.coral, marginTop: spacing[2] },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  sheet: {
+    backgroundColor: glassFx.sheet,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[5],
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.neutral[100],
+    alignSelf: 'center',
+    marginBottom: spacing[4],
+  },
+  sheetTitle: { fontSize: 17, fontWeight: '800', color: colors.neutral[900], marginBottom: spacing[3] },
+  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  slotBtn: {
+    width: '23%',
+    height: 44,
+    borderRadius: radius.compact,
+    backgroundColor: colors.neutral[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotLabel: { fontSize: 14, fontWeight: '600', color: colors.neutral[700] },
   timeCaption: { fontSize: 11, color: colors.neutral[500], fontWeight: '500' },
   timeValue: { fontSize: 20, fontWeight: '800', color: colors.neutral[900], marginTop: 2 },
 })
