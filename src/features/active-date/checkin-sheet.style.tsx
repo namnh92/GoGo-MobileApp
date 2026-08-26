@@ -1,0 +1,71 @@
+import { StyleSheet } from 'react-native'
+
+import { colors, radius, spacing } from '@/shared/ui/tokens'
+
+const { brand, neutral } = colors
+
+export const styles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(33,31,28,0.4)' },
+  sheet: {
+    backgroundColor: 'rgba(252,251,248,0.98)',
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[5],
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: neutral[100],
+    alignSelf: 'center',
+    marginBottom: spacing[4],
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[4] },
+  headerEmoji: { fontSize: 28 },
+  title: { fontSize: 17, fontWeight: '800', color: neutral[900] },
+  stopName: { fontSize: 13, color: neutral[500], marginTop: 2 },
+  rateLabel: { fontSize: 14, fontWeight: '700', color: neutral[900], marginBottom: spacing[2] },
+  starsRow: { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[4] },
+  star: { fontSize: 30 },
+  starDim: { opacity: 0.25 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[4] },
+  tagBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.compact,
+    backgroundColor: neutral[50],
+  },
+  tagBtnActive: { backgroundColor: brand.coral },
+  tagLabel: { fontSize: 13, fontWeight: '600', color: neutral[500] },
+  tagLabelActive: { color: neutral[0] },
+  photoRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[4], alignItems: 'center' },
+  photoThumb: { width: 64, height: 64, borderRadius: radius.compact },
+  addPhotoBtn: {
+    height: 64,
+    minWidth: 64,
+    paddingHorizontal: spacing[3],
+    borderRadius: radius.compact,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: neutral[300],
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  addPhotoLabel: { fontSize: 12, fontWeight: '600', color: neutral[500], textAlign: 'center' },
+  photoCount: { fontSize: 11, color: neutral[300] },
+  input: {
+    minHeight: 44,
+    borderRadius: radius.compact,
+    backgroundColor: neutral[50],
+    paddingHorizontal: spacing[4],
+    paddingVertical: 10,
+    fontSize: 14,
+    color: neutral[900],
+    marginBottom: spacing[3],
+  },
+  saveBtn: { alignSelf: 'stretch' },
+  skipBtn: { alignItems: 'center', paddingVertical: spacing[3] },
+  skipLabel: { fontSize: 14, fontWeight: '500', color: neutral[500] },
+})

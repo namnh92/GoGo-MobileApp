@@ -185,6 +185,15 @@ export const enMessages: Record<MessageKey, string> = {
   'activeDate.finish': 'Finish date 🎉',
   'activeDate.viewMap': 'View map',
 
+  'checkin.title': 'Check in here',
+  'checkin.rate': 'How was this stop?',
+  'checkin.addPhoto': '📷 Add check-in photos',
+  'checkin.photoCount': '{{n}}/3 photos',
+  'checkin.notePlaceholder': 'Quick thoughts… (optional)',
+  'checkin.save': 'Save check-in ✓',
+  'checkin.skip': 'Skip',
+  'dateFinished.checkinTitle': 'Your check-ins',
+
   'dateFinished.title': 'Date complete!',
   'dateFinished.body': 'Hope you two had a great evening.',
   'dateFinished.cta': 'How was it? 💬',

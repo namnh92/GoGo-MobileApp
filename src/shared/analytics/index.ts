@@ -17,6 +17,8 @@ export type AnalyticsEvent =
   | 'date_plan_viewed'
   | 'date_plan_accepted'
   | 'date_started'
+  | 'stop_completed'
+  | 'stop_checkin_saved'
   | 'date_completed'
   | 'review_submitted'
 

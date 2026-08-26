@@ -186,6 +186,15 @@ export const viMessages = {
   'activeDate.finish': 'Kết thúc date 🎉',
   'activeDate.viewMap': 'Xem bản đồ',
 
+  'checkin.title': 'Check-in điểm này',
+  'checkin.rate': 'Điểm này thế nào?',
+  'checkin.addPhoto': '📷 Thêm ảnh check-in',
+  'checkin.photoCount': '{{n}}/3 ảnh',
+  'checkin.notePlaceholder': 'Cảm nhận nhanh… (không bắt buộc)',
+  'checkin.save': 'Lưu check-in ✓',
+  'checkin.skip': 'Bỏ qua',
+  'dateFinished.checkinTitle': 'Check-in của bạn',
+
   'dateFinished.title': 'Date xong rồi!',
   'dateFinished.body': 'Hy vọng hai đứa có một buổi tối tuyệt vời.',
   'dateFinished.cta': 'Hai đứa thấy sao? 💬',
