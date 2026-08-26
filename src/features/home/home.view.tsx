@@ -6,7 +6,7 @@ import { unsplashUrl } from '@/data/mockData'
 import { useSuggestedPlans } from '@/shared/api/mock'
 import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
-import { useRoom } from '@/shared/store/roomStore'
+import { useRoom, type QuickPreset } from '@/shared/store/roomStore'
 import { IconClock } from '@/shared/ui/icons'
 import { Atmosphere, AvatarCircle, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
@@ -14,16 +14,18 @@ import { styles } from './home.style'
 
 const { brand, neutral } = colors
 
+const PRESET_KEYS: QuickPreset[] = ['tonight', 'weekend', 'special']
+
 export default function HomeScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
-  const { uiState, setUiState, audience, participantCount } = useRoom()
+  const { uiState, setUiState, audience, participantCount, quickPreset, setQuickPreset } = useRoom()
   const plans = useSuggestedPlans()
 
   function startCreate() {
-    track('date_create_started')
+    track('date_create_started', { preset: quickPreset })
     router.push('/create/type')
   }
 
@@ -70,15 +72,25 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Quick presets */}
+        {/* Quick presets — context filter for the next room, not a create action */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing[5] }} contentContainerStyle={{ paddingHorizontal: spacing[5], gap: spacing[3] }}>
-          {content.quickPresets.map((preset, i) => (
-            <Pressable key={preset.label} onPress={startCreate} style={[styles.preset, i === 0 ? { backgroundColor: brand.coral } : styles.presetGlass]}>
-              <Text style={[styles.presetLabel, { color: i === 0 ? neutral[0] : neutral[500] }]}>
-                {preset.emoji} {preset.label}
-              </Text>
-            </Pressable>
-          ))}
+          {content.quickPresets.map((preset, i) => {
+            const key = PRESET_KEYS[i]
+            const active = quickPreset === key
+            return (
+              <Pressable
+                key={preset.label}
+                onPress={() => setQuickPreset(key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                style={[styles.preset, active ? { backgroundColor: brand.coral } : styles.presetGlass]}
+              >
+                <Text style={[styles.presetLabel, { color: active ? neutral[0] : neutral[500] }]}>
+                  {preset.emoji} {preset.label}
+                </Text>
+              </Pressable>
+            )
+          })}
         </ScrollView>
 
         {/* Suggested plans */}

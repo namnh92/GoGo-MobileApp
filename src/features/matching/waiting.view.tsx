@@ -29,7 +29,7 @@ export default function WaitingScreen() {
 
   useEffect(() => {
     if (progress < PARTNER_GOAL) return
-    const timer = setTimeout(() => router.push(`/room/${inviteCode}/matching`), 800)
+    const timer = setTimeout(() => router.replace(`/room/${inviteCode}/matching`), 800)
     return () => clearTimeout(timer)
   }, [progress, router, inviteCode])
 
@@ -99,7 +99,7 @@ export default function WaitingScreen() {
 
       {roomType === 'group' && (
         <View style={{ marginTop: spacing[3], alignItems: 'center', gap: 6 }}>
-          <Pressable onPress={() => router.push(`/room/${inviteCode}/matching`)} style={styles.partialBtn}>
+          <Pressable onPress={() => router.replace(`/room/${inviteCode}/matching`)} style={styles.partialBtn}>
             <Text style={styles.partialLabel}>{t('waiting.viewPartial')}</Text>
           </Pressable>
           {pendingCount > 0 && (

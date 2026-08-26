@@ -34,7 +34,7 @@ export default function ReviewScreen() {
 
   function submit() {
     track('review_submitted', { rating, tags: tags.join(',') })
-    router.push(`/room/${INVITE_CODE}/shared-result`)
+    router.replace(`/room/${INVITE_CODE}/shared-result`)
   }
 
   return (

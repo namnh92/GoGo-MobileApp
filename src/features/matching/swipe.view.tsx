@@ -60,7 +60,7 @@ export default function SwipeScreen() {
     setCardIndex(progressRef.current.index)
     position.setValue({ x: 0, y: 0 })
     if (progressRef.current.count >= SWIPE_GOAL) {
-      setTimeout(() => router.push(`/room/${inviteCode}/waiting`), 300)
+      setTimeout(() => router.replace(`/room/${inviteCode}/waiting`), 300)
     }
   }
 
