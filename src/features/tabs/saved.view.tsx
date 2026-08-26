@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DEMO_PLAN_ID, savedPlaces, unsplashUrl } from '@/data/mockData'
 import { useSavedPlaces } from '@/shared/api/mock'
+import { useImportStore } from '@/shared/store/importStore'
 import { usePriceFormatter } from '@/shared/pricing'
 import { useLocaleContent } from '@/shared/i18n'
 import { Atmosphere, GlassCard, RemoteImage, TagChip, useTabDockInset } from '@/shared/ui/primitives'
@@ -32,7 +33,8 @@ export default function SavedScreen() {
   const [view, setView] = useState<ViewMode>('list')
   const [selectedPlace, setSelectedPlace] = useState(0)
   const [savedIdx, setSavedIdx] = useState<number[]>([0, 1, 2, 3])
-  const places = query.data ?? savedPlaces
+  const importedPlaces = useImportStore(s => s.importedPlaces)
+  const places = [...importedPlaces, ...(query.data ?? savedPlaces)]
   const selected = places[selectedPlace]
   const dockInset = useTabDockInset()
 
@@ -41,6 +43,14 @@ export default function SavedScreen() {
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>{t('saved.title')}</Text>
+          <Pressable
+            onPress={() => router.push('/places/import')}
+            accessibilityRole="button"
+            accessibilityLabel={t('saved.addPlace')}
+            style={styles.addPlaceBtn}
+          >
+            <Text style={styles.addPlaceLabel}>＋</Text>
+          </Pressable>
           {/* List/Map toggle — filters survive the switch */}
           <View style={styles.toggle}>
             {(['list', 'map'] as ViewMode[]).map(m => (
@@ -75,7 +85,7 @@ export default function SavedScreen() {
                   </View>
                   <View style={{ padding: spacing[3] }}>
                     <Text style={styles.gridTitle}>{item.title}</Text>
-                    <Text style={styles.gridMeta}>{item.area} · {stopPrice(item.priceK)}</Text>
+                    <Text style={styles.gridMeta}>{item.priceK > 0 ? `${item.area} · ${stopPrice(item.priceK)}` : item.area}</Text>
                     <View style={{ flexDirection: 'row', marginTop: 6 }}>
                       <TagChip label={item.tags[0]} />
                     </View>
@@ -94,7 +104,7 @@ export default function SavedScreen() {
             <View style={[styles.road, { top: '42%', left: 0, right: 0, height: 8, transform: [{ rotate: '2deg' }] }]} />
           </View>
 
-          {places.map((p, i) => {
+          {places.slice(0, markerPositions.length).map((p, i) => {
             const isSelected = selectedPlace === i
             return (
               <Pressable

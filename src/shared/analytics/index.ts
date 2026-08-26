@@ -21,6 +21,10 @@ export type AnalyticsEvent =
   | 'stop_checkin_saved'
   | 'date_completed'
   | 'review_submitted'
+  | 'place_import_submitted'
+  | 'place_import_verified'
+  | 'place_import_rejected'
+  | 'place_import_added'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 
