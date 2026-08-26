@@ -84,7 +84,7 @@ export default function CreateMoodScreen() {
         <ChipGrid options={content.settings} selected={settings} onToggle={toggleCapped(setSettings, MAX_SETTINGS)} />
 
         <Text style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text>
-        <ChipGrid options={content.spendingStyles} selected={[spending]} onToggle={setSpending} cols={3} />
+        <ChipGrid options={content.spendingStyles} selected={[spending]} onToggle={setSpending} />
 
         <Text style={styles.sectionTitle}>{t('createMood.seedTitle')}</Text>
         <Text style={styles.seedHint}>{t('createMood.seedHint')}</Text>

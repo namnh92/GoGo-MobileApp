@@ -62,12 +62,17 @@ export const enMessages: Record<MessageKey, string> = {
   'groupSetup.groupTotal': 'Group total',
   'createLocation.current': 'Current location',
   'createLocation.searchOther': 'Search another area…',
+  'createLocation.pickArea': 'Pick an area',
+  'createLocation.currentLabel': 'Current location',
   'createLocation.maxDistance': 'Max distance',
 
   'createTime.title': 'How much time\ndo you two have?',
   'createTime.body': 'GoGo only suggests places still open within this window.',
   'createTime.specificTime': 'Or pick exact times',
   'createTime.start': 'Start',
+  'createTime.pickTime': 'Pick a time',
+  'createTime.notSet': '--:--',
+  'createTime.startRequired': 'Pick a start time to continue.',
   'createTime.end': 'End',
 
   'createBudget.title': 'Budget\nfor both?',
