@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "GoGo",
+    "slug": "gogo",
+    "version": "0.1.0",
+    "scheme": "gogo",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "backgroundColor": "#F6F3EE",
+    "splash": {
+      "backgroundColor": "#F6F3EE",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "bundleIdentifier": "app.gogo.mobile",
+      "supportsTablet": false,
+      "associatedDomains": ["applinks:gogo.app"]
+    },
+    "android": {
+      "package": "app.gogo.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "gogo.app", "pathPrefix": "/r" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": ["expo-router", "expo-dev-client", "expo-splash-screen"]
+  }
+}
