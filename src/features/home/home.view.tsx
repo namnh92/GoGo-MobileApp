@@ -52,6 +52,15 @@ export default function HomeScreen() {
           <AvatarCircle label="M" />
         </View>
 
+        {/* Search entry — full discovery lives at /places/search */}
+        <Pressable
+          onPress={() => router.push('/places/search')}
+          accessibilityRole="search"
+          style={styles.searchBar}
+        >
+          <Text style={styles.searchBarLabel}>🔍  {t('search.placeholder')}</Text>
+        </Pressable>
+
         {/* Hero */}
         <View style={styles.hero}>
           <RemoteImage uri={unsplashUrl('photo-1748591633516-94b4b80cdc6a', 800, 500)} style={StyleSheet.absoluteFill} />

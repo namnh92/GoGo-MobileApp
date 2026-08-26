@@ -78,6 +78,9 @@ export const viMessages = {
   'createMood.body': 'Chọn tối đa {{max}} mood.',
   'createMood.settingTitle': 'Không gian',
   'createMood.spendingTitle': 'Mức chi',
+  'createMood.seedTitle': 'Địa điểm bạn muốn gợi ý',
+  'createMood.seedHint': 'Không bắt buộc — GoGo sẽ ưu tiên đưa vào phương án.',
+  'createMood.addPlace': '＋ Thêm địa điểm',
   'createMood.cta': 'Tạo GoGo Room',
 
   'gogoRoom.title': 'Giờ kéo người kia vào',
@@ -217,6 +220,12 @@ export const viMessages = {
   'sharedResult.nextDate': 'Lên date tiếp theo 🚀',
   'sharedResult.share': 'Chia sẻ story',
 
+  'search.title': 'Tìm địa điểm',
+  'search.placeholder': 'Tìm quán, hoạt động, khu vực…',
+  'search.empty': 'Không tìm thấy địa điểm nào',
+  'search.emptyHint': 'Thử từ khóa khác hoặc thêm địa điểm mới từ Google Maps.',
+  'search.addNew': 'Thêm địa điểm từ Google Maps',
+
   'placeImport.title': 'Thêm địa điểm mới',
   'placeImport.body': 'Dán link Google Maps — GoGo sẽ xác minh địa điểm có thật và đủ tin cậy trước khi thêm.',
   'placeImport.placeholder': 'https://maps.app.goo.gl/…',
@@ -334,6 +343,7 @@ export const viContent = {
     { emoji: '👎', label: 'Không hợp' },
   ] as Mood[],
   savedFilters: ['Tất cả', 'Ăn uống', 'Hoạt động', 'Kế hoạch'],
+  searchFilters: ['Tất cả', 'Ăn uống', 'Cà phê', 'Hoạt động', 'Về đêm'],
   stopCategories: [
     { emoji: '🍣', label: 'Bữa tối' },
     { emoji: '🎨', label: 'Hoạt động' },
