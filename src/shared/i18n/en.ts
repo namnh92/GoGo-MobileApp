@@ -63,6 +63,8 @@ export const enMessages: Record<MessageKey, string> = {
   'createLocation.current': 'Current location',
   'createLocation.searchOther': 'Search another area…',
   'createLocation.pickArea': 'Pick an area',
+  'createLocation.poweredBy': 'Area suggestions from Google Maps',
+  'createLocation.noResults': 'No matching areas found.',
   'createLocation.currentLabel': 'Current location',
   'createLocation.maxDistance': 'Max distance',
 

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
 import {
+  AREAS,
   catalogPlaces,
   groupMembers,
   pastDates,
@@ -63,8 +64,27 @@ function verifyPlaceImport(url: string): Promise<PlaceImportResult> {
   return new Promise(resolve => setTimeout(() => resolve(result), 1500))
 }
 
+export interface AreaPrediction {
+  placeId: string
+  description: string
+}
+
+function normalize(value: string): string {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
+// Mock of the BFF proxy over Google Places Autocomplete (the API key lives
+// server-side — clients only ever send the query). Real endpoint:
+// GET /v1/places/areas?query=... returning ranked predictions.
+function autocompleteAreas(query: string): Promise<AreaPrediction[]> {
+  const needle = normalize(query.trim())
+  const matches = AREAS.filter(a => !needle || normalize(a).includes(needle))
+  return respond(matches.map((description, i) => ({ placeId: `mock-area-${i}`, description })))
+}
+
 export const mockApi = {
   verifyPlaceImport,
+  autocompleteAreas,
   suggestedPlans: (): Promise<SuggestedPlan[]> => respond(suggestedPlans),
   swipeCards: (): Promise<SwipeCard[]> => respond(swipeCards),
   timeline: (): Promise<TimelineStop[]> => respond(timeline),

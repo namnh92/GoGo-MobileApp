@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { timeline, unsplashUrl } from '@/data/mockData'
 import { track } from '@/shared/analytics'
+import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { usePriceFormatter } from '@/shared/pricing'
 import { useCheckinStore, type StopCheckin } from '@/shared/store/checkinStore'
 import { Atmosphere, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
@@ -93,7 +94,7 @@ export default function ActiveDateScreen() {
             </View>
 
             <View style={styles.actions}>
-              <Pressable style={styles.dirBtn}>
+              <Pressable onPress={() => openGoogleMapsDirections(`${stop.name}, ${stop.area}`)} style={styles.dirBtn}>
                 <IconNavigation />
                 <Text style={styles.dirLabel}>{t('common.directions')}</Text>
               </Pressable>

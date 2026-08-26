@@ -64,6 +64,8 @@ export const viMessages = {
   'createLocation.current': 'Vị trí hiện tại',
   'createLocation.searchOther': 'Tìm khu vực khác…',
   'createLocation.pickArea': 'Chọn khu vực',
+  'createLocation.poweredBy': 'Gợi ý khu vực từ Google Maps',
+  'createLocation.noResults': 'Không tìm thấy khu vực phù hợp.',
   'createLocation.currentLabel': 'Vị trí hiện tại',
   'createLocation.maxDistance': 'Khoảng cách tối đa',
 

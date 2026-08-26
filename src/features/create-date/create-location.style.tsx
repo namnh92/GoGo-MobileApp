@@ -60,6 +60,8 @@ export const styles = StyleSheet.create({
     color: colors.neutral[900],
     marginBottom: spacing[2],
   },
+  poweredBy: { fontSize: 11, color: colors.neutral[300], marginBottom: spacing[2] },
+  noResults: { fontSize: 14, color: colors.neutral[500], textAlign: 'center', paddingVertical: spacing[5] },
   areaRow: {
     flexDirection: 'row',
     alignItems: 'center',
