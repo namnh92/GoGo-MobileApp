@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import type { SavedPlace } from '@/data/types'
+
 // Demo/client state only (drafts, flow state, permissions) — Zustand per the
 // state-ownership rule. Server state stays in TanStack Query. Model ported
 // from the mockup RoomContext (spec v3 §22 / v4 §35).
@@ -16,6 +18,8 @@ interface RoomStoreState {
   participantCount: number
   budgetMode: BudgetMode
   quickPreset: QuickPreset
+  /** Host-suggested places attached to the room draft (create flow). */
+  seedPlaces: SavedPlace[]
   /** Locked itinerary stops (by stop time) — shared between plan and regenerate. */
   lockedStops: string[]
   setAudience: (a: DemoAudience) => void
@@ -23,6 +27,8 @@ interface RoomStoreState {
   setParticipantCount: (n: number) => void
   setBudgetMode: (mode: BudgetMode) => void
   setQuickPreset: (p: QuickPreset) => void
+  addSeedPlace: (place: SavedPlace) => void
+  removeSeedPlace: (title: string) => void
   toggleLockedStop: (time: string) => void
 }
 
@@ -32,12 +38,21 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   participantCount: 4,
   budgetMode: 'per_person',
   quickPreset: 'tonight',
+  seedPlaces: [],
   lockedStops: [],
   setAudience: audience => set({ audience }),
   setUiState: uiState => set({ uiState }),
   setParticipantCount: participantCount => set({ participantCount }),
   setBudgetMode: budgetMode => set({ budgetMode }),
   setQuickPreset: quickPreset => set({ quickPreset }),
+  addSeedPlace: place =>
+    set(state =>
+      state.seedPlaces.some(p => p.title === place.title)
+        ? state
+        : { seedPlaces: [...state.seedPlaces, place] },
+    ),
+  removeSeedPlace: title =>
+    set(state => ({ seedPlaces: state.seedPlaces.filter(p => p.title !== title) })),
   toggleLockedStop: time =>
     set(state => ({
       lockedStops: state.lockedStops.includes(time)
@@ -52,12 +67,15 @@ export interface RoomView {
   participantCount: number
   budgetMode: BudgetMode
   quickPreset: QuickPreset
+  seedPlaces: SavedPlace[]
   lockedStops: string[]
   setAudience: (a: DemoAudience) => void
   setUiState: (s: DemoUIState) => void
   setParticipantCount: (n: number) => void
   setBudgetMode: (mode: BudgetMode) => void
   setQuickPreset: (p: QuickPreset) => void
+  addSeedPlace: (place: SavedPlace) => void
+  removeSeedPlace: (title: string) => void
   toggleLockedStop: (time: string) => void
   roomType: RoomType
   isGuest: boolean

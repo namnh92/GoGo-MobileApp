@@ -13,6 +13,18 @@ export const styles = StyleSheet.create({
   },
   greeting: { fontSize: 22, fontWeight: '800', color: neutral[900] },
   subtitle: { fontSize: 14, color: neutral[500], marginTop: 2 },
+  searchBar: {
+    marginHorizontal: spacing[5],
+    marginBottom: spacing[3],
+    height: 48,
+    borderRadius: radius.compact,
+    backgroundColor: glassFx.chip,
+    borderWidth: 1,
+    borderColor: glassFx.borderLight,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[4],
+  },
+  searchBarLabel: { fontSize: 14, color: neutral[500] },
   hero: {
     marginHorizontal: spacing[5],
     marginTop: spacing[2],

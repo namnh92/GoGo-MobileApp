@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { INVITE_CODE } from '@/data/mockData'
+import { useRoom } from '@/shared/store/roomStore'
 import type { Mood } from '@/data/types'
 import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
@@ -51,6 +52,7 @@ export default function CreateMoodScreen() {
   const [moods, setMoods] = useState<string[]>(['Romantic', 'Creative'])
   const [settings, setSettings] = useState<string[]>([])
   const [spending, setSpending] = useState<string>(content.spendingStyles[1].label)
+  const { seedPlaces, removeSeedPlace } = useRoom()
 
   function toggleCapped(setter: React.Dispatch<React.SetStateAction<string[]>>, max: number) {
     return (label: string) =>
@@ -82,6 +84,24 @@ export default function CreateMoodScreen() {
 
         <Text style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text>
         <ChipGrid options={content.spendingStyles} selected={[spending]} onToggle={setSpending} cols={3} />
+
+        <Text style={styles.sectionTitle}>{t('createMood.seedTitle')}</Text>
+        <Text style={styles.seedHint}>{t('createMood.seedHint')}</Text>
+        <View style={styles.seedRow}>
+          {seedPlaces.map(place => (
+            <Pressable
+              key={place.title}
+              onPress={() => removeSeedPlace(place.title)}
+              accessibilityLabel={`${place.title} ✕`}
+              style={styles.seedChip}
+            >
+              <Text style={styles.seedChipLabel}>{place.category} {place.title}  ✕</Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => router.push('/places/search?picker=1')} style={styles.seedAddBtn}>
+            <Text style={styles.seedAddLabel}>{t('createMood.addPlace')}</Text>
+          </Pressable>
+        </View>
       </ScrollView>
       <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
         <PrimaryBtn label={t('createMood.cta')} onPress={createRoom} />

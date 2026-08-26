@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
 import {
+  catalogPlaces,
   groupMembers,
   pastDates,
   savedPlaces,
@@ -68,6 +69,7 @@ export const mockApi = {
   swipeCards: (): Promise<SwipeCard[]> => respond(swipeCards),
   timeline: (): Promise<TimelineStop[]> => respond(timeline),
   savedPlaces: (): Promise<SavedPlace[]> => respond(savedPlaces),
+  catalogPlaces: (): Promise<SavedPlace[]> => respond(catalogPlaces),
   pastDates: (): Promise<PastDate[]> => respond(pastDates),
   groupMembers: (): Promise<GroupMemberMock[]> => respond(groupMembers),
 }
@@ -77,6 +79,7 @@ export const queryKeys = {
   swipeCards: ['swipe-cards'] as const,
   timeline: (planId: string) => ['timeline', planId] as const,
   savedPlaces: ['saved-places'] as const,
+  catalogPlaces: ['catalog-places'] as const,
   pastDates: ['past-dates'] as const,
 }
 
@@ -94,6 +97,10 @@ export function useTimeline(planId: string) {
 
 export function useSavedPlaces() {
   return useQuery({ queryKey: queryKeys.savedPlaces, queryFn: mockApi.savedPlaces })
+}
+
+export function useCatalogPlaces() {
+  return useQuery({ queryKey: queryKeys.catalogPlaces, queryFn: mockApi.catalogPlaces })
 }
 
 export function usePastDates() {

@@ -77,6 +77,9 @@ export const enMessages: Record<MessageKey, string> = {
   'createMood.body': 'Pick up to {{max}} moods.',
   'createMood.settingTitle': 'Setting',
   'createMood.spendingTitle': 'Spending style',
+  'createMood.seedTitle': 'Places you want to suggest',
+  'createMood.seedHint': 'Optional — GoGo will prioritize them in the plan.',
+  'createMood.addPlace': '＋ Add place',
   'createMood.cta': 'Create GoGo Room',
 
   'gogoRoom.title': 'Now pull the other one in',
@@ -216,6 +219,12 @@ export const enMessages: Record<MessageKey, string> = {
   'sharedResult.nextDate': 'Plan the next date 🚀',
   'sharedResult.share': 'Share story',
 
+  'search.title': 'Find places',
+  'search.placeholder': 'Search venues, activities, areas…',
+  'search.empty': 'No places found',
+  'search.emptyHint': 'Try another keyword or add a new place from Google Maps.',
+  'search.addNew': 'Add a place from Google Maps',
+
   'placeImport.title': 'Add a new place',
   'placeImport.body': 'Paste a Google Maps link — GoGo verifies the place is real and trustworthy before adding it.',
   'placeImport.placeholder': 'https://maps.app.goo.gl/…',
@@ -319,6 +328,7 @@ export const enContent: LocaleContent = {
     { emoji: '👎', label: 'Not a fit' },
   ],
   savedFilters: ['All', 'Food', 'Activities', 'Plans'],
+  searchFilters: ['All', 'Food', 'Coffee', 'Activities', 'Nightlife'],
   stopCategories: [
     { emoji: '🍣', label: 'Dinner' },
     { emoji: '🎨', label: 'Activity' },

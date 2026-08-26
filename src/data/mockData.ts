@@ -87,6 +87,16 @@ export const savedPlaces: SavedPlace[] = [
   { title: 'Night Market Q1', area: 'Q1', priceK: 200, distanceKm: 4.2, category: '🌃', open: false, tags: ['Night vibe', 'Outdoor'], score: '8.1', img: 'photo-1740030326094-2f0b5f35a095' },
 ]
 
+export const morePlaces: SavedPlace[] = [
+  { title: 'Phở Lệ', area: 'Q5', priceK: 120, distanceKm: 5.1, category: '🍜', open: true, tags: ['Budget'], score: '8.7', img: 'photo-1739595417132-8b0503795984' },
+  { title: 'Sky Bar 26', area: 'Q1', priceK: 600, distanceKm: 4.0, category: '🌃', open: true, tags: ['Fancy', 'Night vibe'], score: '8.5', img: 'photo-1740030326094-2f0b5f35a095' },
+  { title: 'Bảo tàng Mỹ thuật', area: 'Q1', priceK: 50, distanceKm: 3.8, category: '🎨', open: true, tags: ['Creative', 'Indoor'], score: '8.2', img: 'photo-1595351298020-038700609878' },
+  { title: 'The Coffee Apartment', area: 'Q1', priceK: 90, distanceKm: 4.4, category: '☕', open: false, tags: ['Chill', 'View'], score: '8.0', img: 'photo-1578682965096-d619919e348b' },
+]
+
+/** Full mock place catalog: seed saved places + extra discoverables. */
+export const catalogPlaces: SavedPlace[] = [...savedPlaces, ...morePlaces]
+
 export const pastDates: PastDate[] = [
   { title: 'Chill Thảo Điền', date: '12/07', rating: '4.5', match: 'Khá hợp', img: 'photo-1739595417132-8b0503795984' },
   { title: 'Q1 Late Night', date: '28/06', rating: '4.2', match: 'Có thể thử', img: 'photo-1748591651068-3ad1fd97efb2' },

@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { DEMO_PLAN_ID, savedPlaces, unsplashUrl } from '@/data/mockData'
-import { useSavedPlaces } from '@/shared/api/mock'
+import { DEMO_PLAN_ID, unsplashUrl } from '@/data/mockData'
+import { useCatalogPlaces } from '@/shared/api/mock'
+import { useBookmarkStore } from '@/shared/store/bookmarkStore'
 import { useImportStore } from '@/shared/store/importStore'
 import { usePriceFormatter } from '@/shared/pricing'
 import { useLocaleContent } from '@/shared/i18n'
@@ -28,13 +29,14 @@ export default function SavedScreen() {
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
   const { stopPrice } = usePriceFormatter()
-  const query = useSavedPlaces()
+  const query = useCatalogPlaces()
+  const bookmarked = useBookmarkStore(s => s.bookmarked)
   const [filterIndex, setFilterIndex] = useState(0)
   const [view, setView] = useState<ViewMode>('list')
   const [selectedPlace, setSelectedPlace] = useState(0)
   const [savedIdx, setSavedIdx] = useState<number[]>([0, 1, 2, 3])
   const importedPlaces = useImportStore(s => s.importedPlaces)
-  const places = [...importedPlaces, ...(query.data ?? savedPlaces)]
+  const places = [...importedPlaces, ...(query.data ?? []).filter(p => bookmarked.includes(p.title))]
   const selected = places[selectedPlace]
   const dockInset = useTabDockInset()
 
