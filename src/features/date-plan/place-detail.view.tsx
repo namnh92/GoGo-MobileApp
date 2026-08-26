@@ -2,8 +2,10 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { unsplashUrl } from '@/data/mockData'
+import { catalogPlaces, unsplashUrl } from '@/data/mockData'
 import { usePriceFormatter } from '@/shared/pricing'
+import { track } from '@/shared/analytics'
+import { useRoom } from '@/shared/store/roomStore'
 import { Atmosphere, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
@@ -31,6 +33,7 @@ export default function PlaceDetailScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { stopPrice } = usePriceFormatter()
+  const addSeedPlace = useRoom().addSeedPlace
 
   return (
     <Atmosphere>
@@ -92,6 +95,19 @@ export default function PlaceDetailScreen() {
               </GlassCard>
             ))}
           </View>
+
+          <Pressable
+            onPress={() => {
+              const place = catalogPlaces.find(p => p.title === 'Sakura Omakase')
+              if (place) addSeedPlace(place)
+              track('date_create_started', { from: 'place_detail' })
+              router.push('/create/type')
+            }}
+            accessibilityRole="button"
+            style={styles.createFromPlace}
+          >
+            <Text style={styles.createFromPlaceLabel}>{t('placeDetail.createRoom')}</Text>
+          </Pressable>
 
           <View style={styles.freshnessRow}>
             <Text style={styles.updated}>{t('placeDetail.updated')}</Text>
