@@ -18,33 +18,36 @@ const MAX_PHOTOS = 3
 interface CheckinSheetProps {
   visible: boolean
   stop: TimelineStop
-  /** Open with the bill section already enabled (demo/deep-link). */
-  initialBillOn?: boolean
   onSave: (checkin: StopCheckin) => void
   onSkip: () => void
 }
 
-export function CheckinSheet({ visible, stop, initialBillOn = false, onSave, onSkip }: CheckinSheetProps) {
+export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProps) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
-  const [rating, setRating] = useState(0)
-  const [tags, setTags] = useState<string[]>([])
+  // Prefill the happy path (5★ + the community's most-picked tag) — the user
+  // can change everything; bill check-in always starts OFF.
+  const [rating, setRating] = useState(5)
+  const [tags, setTags] = useState<string[]>([content.reviewTags[0]?.label ?? ''])
   const [note, setNote] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
   const { participantCount, roomType } = useRoom()
   const participants = roomType === 'couple' ? 2 : participantCount
-  const [billOn, setBillOn] = useState(initialBillOn)
+  const [billOn, setBillOn] = useState(false)
   const [billTotal, setBillTotal] = useState('')
+  // Actual headcount at this stop — not everyone in the room always shows up.
+  const [billPeople, setBillPeople] = useState(String(participants))
   const [billPhoto, setBillPhoto] = useState<string | null>(null)
 
   function reset() {
-    setRating(0)
-    setTags([])
+    setRating(5)
+    setTags([content.reviewTags[0]?.label ?? ''])
     setNote('')
     setPhotos([])
-    setBillOn(initialBillOn)
+    setBillOn(false)
     setBillTotal('')
+    setBillPeople(String(participants))
     setBillPhoto(null)
   }
 
@@ -70,7 +73,9 @@ export function CheckinSheet({ visible, stop, initialBillOn = false, onSave, onS
   }
 
   const billTotalK = Number(billTotal.replace(',', '.'))
-  const billValid = Number.isFinite(billTotalK) && billTotalK > 0 && billPhoto !== null
+  const billPeopleNum = Math.floor(Number(billPeople))
+  const billPeopleValid = Number.isFinite(billPeopleNum) && billPeopleNum >= 1
+  const billValid = Number.isFinite(billTotalK) && billTotalK > 0 && billPeopleValid && billPhoto !== null
   const saveBlocked = billOn && !billValid
 
   function save() {
@@ -81,7 +86,7 @@ export function CheckinSheet({ visible, stop, initialBillOn = false, onSave, onS
       note: note.trim(),
       photos,
       bill: billOn && billValid
-        ? { totalK: billTotalK, perPersonK: perPersonK(billTotalK, participants), participants, photo: billPhoto as string }
+        ? { totalK: billTotalK, perPersonK: perPersonK(billTotalK, billPeopleNum), participants: billPeopleNum, photo: billPhoto as string }
         : undefined,
       at: new Date().toISOString(),
     })
@@ -167,17 +172,28 @@ export function CheckinSheet({ visible, stop, initialBillOn = false, onSave, onS
         {billOn && (
           <View style={styles.billBox}>
             <Text style={styles.billHint}>{t('checkin.billHint')}</Text>
-            <TextInput
-              value={billTotal}
-              onChangeText={setBillTotal}
-              placeholder={t('checkin.billTotal')}
-              placeholderTextColor={colors.neutral[300]}
-              keyboardType="numeric"
-              style={styles.billInput}
-            />
-            {Number.isFinite(billTotalK) && billTotalK > 0 && (
+            <View style={styles.billRow}>
+              <TextInput
+                value={billTotal}
+                onChangeText={setBillTotal}
+                placeholder={t('checkin.billTotal')}
+                placeholderTextColor={colors.neutral[300]}
+                keyboardType="numeric"
+                style={[styles.billInput, styles.billInputTotal]}
+              />
+              <TextInput
+                value={billPeople}
+                onChangeText={setBillPeople}
+                placeholder={t('checkin.billPeople')}
+                placeholderTextColor={colors.neutral[300]}
+                keyboardType="number-pad"
+                style={[styles.billInput, styles.billInputPeople]}
+              />
+            </View>
+            <Text style={styles.billPeopleHint}>{t('checkin.billPeopleHint')}</Text>
+            {Number.isFinite(billTotalK) && billTotalK > 0 && billPeopleValid && (
               <Text style={styles.billPerPerson}>
-                {t('checkin.billPerPerson', { amount: `${perPersonK(billTotalK, participants)}k`, n: participants })}
+                {t('checkin.billPerPerson', { amount: `${perPersonK(billTotalK, billPeopleNum)}k`, n: billPeopleNum })}
               </Text>
             )}
             <Pressable onPress={addBillPhoto} style={[styles.billPhotoBtn, billPhoto && styles.billPhotoDone]}>
