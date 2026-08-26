@@ -19,7 +19,7 @@ export default function GuestJoinScreen() {
 
   function join() {
     track('gogo_partner_joined', { role: 'guest' })
-    router.push(`/room/${inviteCode}/preference`)
+    router.replace(`/room/${inviteCode}/preference`)
   }
 
   return (

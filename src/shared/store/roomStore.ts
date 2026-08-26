@@ -7,18 +7,22 @@ export type DemoAudience = 'couple' | 'group-host' | 'group-guest'
 export type DemoUIState = 'default' | 'loading' | 'empty' | 'error'
 export type RoomType = 'couple' | 'group'
 export type BudgetMode = 'per_person' | 'total'
+/** Home quick presets (spec §8.3) — a draft context filter, not a create action. */
+export type QuickPreset = 'tonight' | 'weekend' | 'special'
 
 interface RoomStoreState {
   audience: DemoAudience
   uiState: DemoUIState
   participantCount: number
   budgetMode: BudgetMode
+  quickPreset: QuickPreset
   /** Locked itinerary stops (by stop time) — shared between plan and regenerate. */
   lockedStops: string[]
   setAudience: (a: DemoAudience) => void
   setUiState: (s: DemoUIState) => void
   setParticipantCount: (n: number) => void
   setBudgetMode: (mode: BudgetMode) => void
+  setQuickPreset: (p: QuickPreset) => void
   toggleLockedStop: (time: string) => void
 }
 
@@ -27,11 +31,13 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   uiState: 'default',
   participantCount: 4,
   budgetMode: 'per_person',
+  quickPreset: 'tonight',
   lockedStops: [],
   setAudience: audience => set({ audience }),
   setUiState: uiState => set({ uiState }),
   setParticipantCount: participantCount => set({ participantCount }),
   setBudgetMode: budgetMode => set({ budgetMode }),
+  setQuickPreset: quickPreset => set({ quickPreset }),
   toggleLockedStop: time =>
     set(state => ({
       lockedStops: state.lockedStops.includes(time)
@@ -45,11 +51,13 @@ export interface RoomView {
   uiState: DemoUIState
   participantCount: number
   budgetMode: BudgetMode
+  quickPreset: QuickPreset
   lockedStops: string[]
   setAudience: (a: DemoAudience) => void
   setUiState: (s: DemoUIState) => void
   setParticipantCount: (n: number) => void
   setBudgetMode: (mode: BudgetMode) => void
+  setQuickPreset: (p: QuickPreset) => void
   toggleLockedStop: (time: string) => void
   roomType: RoomType
   isGuest: boolean

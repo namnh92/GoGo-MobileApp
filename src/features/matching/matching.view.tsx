@@ -23,7 +23,7 @@ export default function MatchingScreen() {
       setPhase(2)
       track('match_generated')
     }, 2400)
-    const t3 = setTimeout(() => router.push(`/room/${inviteCode}/match-result`), 3200)
+    const t3 = setTimeout(() => router.replace(`/room/${inviteCode}/match-result`), 3200)
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)

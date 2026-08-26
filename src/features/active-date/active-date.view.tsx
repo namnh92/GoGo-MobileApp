@@ -26,7 +26,7 @@ export default function ActiveDateScreen() {
       setStep(step + 1)
     } else {
       track('date_completed', { stops: stops.length })
-      router.push(`/plans/${planId}/finished`)
+      router.replace(`/plans/${planId}/finished`)
     }
   }
 
