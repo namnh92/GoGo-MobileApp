@@ -55,5 +55,10 @@ export function usePriceFormatter() {
     return t('datePlan.optionalExtra', { amount: `${per} · ${total}` })
   }
 
-  return { stopPrice, summaryTotal, planTotal, optionalExtra }
+  /** Per-person estimate from a 2-person total (place cards/search). */
+  function perPersonPrice(totalFor2K: number): string {
+    return `~${fmtK(perPersonK(totalFor2K, 2))}${t('datePlan.perPerson')}`
+  }
+
+  return { stopPrice, summaryTotal, planTotal, optionalExtra, perPersonPrice }
 }
