@@ -8,6 +8,13 @@ export interface StopCheckin {
   note: string
   /** Local photo URIs picked from the library/camera. */
   photos: string[]
+  /** Optional real-bill check-in: total split by participants; photo mandatory. */
+  bill?: {
+    totalK: number
+    perPersonK: number
+    participants: number
+    photo: string
+  }
   at: string
 }
 

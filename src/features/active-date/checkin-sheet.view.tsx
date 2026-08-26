@@ -5,6 +5,8 @@ import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import type { TimelineStop } from '@/data/types'
+import { perPersonK } from '@/shared/pricing'
+import { useRoom } from '@/shared/store/roomStore'
 import { useLocaleContent } from '@/shared/i18n'
 import type { StopCheckin } from '@/shared/store/checkinStore'
 import { PrimaryBtn, RemoteImage } from '@/shared/ui/primitives'
@@ -16,11 +18,13 @@ const MAX_PHOTOS = 3
 interface CheckinSheetProps {
   visible: boolean
   stop: TimelineStop
+  /** Open with the bill section already enabled (demo/deep-link). */
+  initialBillOn?: boolean
   onSave: (checkin: StopCheckin) => void
   onSkip: () => void
 }
 
-export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProps) {
+export function CheckinSheet({ visible, stop, initialBillOn = false, onSave, onSkip }: CheckinSheetProps) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
@@ -28,16 +32,29 @@ export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProp
   const [tags, setTags] = useState<string[]>([])
   const [note, setNote] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
+  const { participantCount, roomType } = useRoom()
+  const participants = roomType === 'couple' ? 2 : participantCount
+  const [billOn, setBillOn] = useState(initialBillOn)
+  const [billTotal, setBillTotal] = useState('')
+  const [billPhoto, setBillPhoto] = useState<string | null>(null)
 
   function reset() {
     setRating(0)
     setTags([])
     setNote('')
     setPhotos([])
+    setBillOn(initialBillOn)
+    setBillTotal('')
+    setBillPhoto(null)
   }
 
   function toggleTag(tag: string) {
     setTags(prev => (prev.includes(tag) ? prev.filter(x => x !== tag) : [...prev, tag]))
+  }
+
+  async function addBillPhoto() {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 })
+    if (!result.canceled && result.assets[0]) setBillPhoto(result.assets[0].uri)
   }
 
   async function addPhotos() {
@@ -52,8 +69,22 @@ export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProp
     }
   }
 
+  const billTotalK = Number(billTotal.replace(',', '.'))
+  const billValid = Number.isFinite(billTotalK) && billTotalK > 0 && billPhoto !== null
+  const saveBlocked = billOn && !billValid
+
   function save() {
-    onSave({ rating, tags, note: note.trim(), photos, at: new Date().toISOString() })
+    if (saveBlocked) return
+    onSave({
+      rating,
+      tags,
+      note: note.trim(),
+      photos,
+      bill: billOn && billValid
+        ? { totalK: billTotalK, perPersonK: perPersonK(billTotalK, participants), participants, photo: billPhoto as string }
+        : undefined,
+      at: new Date().toISOString(),
+    })
     reset()
   }
 
@@ -123,7 +154,42 @@ export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProp
           style={styles.input}
         />
 
-        <PrimaryBtn label={t('checkin.save')} onPress={save} style={styles.saveBtn} />
+        {/* Bill check-in (FR-PLAN-008): photo mandatory when enabled */}
+        <Pressable
+          onPress={() => setBillOn(v => !v)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: billOn }}
+          style={[styles.billToggle, billOn && styles.billToggleOn]}
+        >
+          <Text style={[styles.billToggleLabel, billOn && styles.billToggleLabelOn]}>{t('checkin.billToggle')}</Text>
+          <Text style={styles.billToggleMark}>{billOn ? '✓' : ''}</Text>
+        </Pressable>
+        {billOn && (
+          <View style={styles.billBox}>
+            <Text style={styles.billHint}>{t('checkin.billHint')}</Text>
+            <TextInput
+              value={billTotal}
+              onChangeText={setBillTotal}
+              placeholder={t('checkin.billTotal')}
+              placeholderTextColor={colors.neutral[300]}
+              keyboardType="numeric"
+              style={styles.billInput}
+            />
+            {Number.isFinite(billTotalK) && billTotalK > 0 && (
+              <Text style={styles.billPerPerson}>
+                {t('checkin.billPerPerson', { amount: `${perPersonK(billTotalK, participants)}k`, n: participants })}
+              </Text>
+            )}
+            <Pressable onPress={addBillPhoto} style={[styles.billPhotoBtn, billPhoto && styles.billPhotoDone]}>
+              <Text style={[styles.billPhotoLabel, billPhoto && styles.billPhotoLabelDone]}>
+                {billPhoto ? t('checkin.billPhotoDone') : t('checkin.billPhoto')}
+              </Text>
+            </Pressable>
+            {saveBlocked && <Text style={styles.billRequired}>{t('checkin.billRequired')}</Text>}
+          </View>
+        )}
+
+        <PrimaryBtn label={t('checkin.save')} onPress={save} disabled={saveBlocked} style={styles.saveBtn} />
         <Pressable onPress={skip} style={styles.skipBtn}>
           <Text style={styles.skipLabel}>{t('checkin.skip')}</Text>
         </Pressable>
