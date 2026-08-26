@@ -36,6 +36,8 @@ export interface TimelineStop {
   tags: string[]
   img: string
   optional?: boolean
+  /** Minutes of travel from the previous stop (first stop has none). */
+  travelMinFromPrev?: number
 }
 
 export interface SavedPlace {

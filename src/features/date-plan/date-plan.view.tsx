@@ -61,7 +61,16 @@ export default function DatePlanScreen() {
         {timeline.map((stop, i) => {
           const locked = lockedStops.includes(stop.time)
           return (
-            <View key={stop.time} style={{ flexDirection: 'row', gap: spacing[3] }}>
+            <View key={stop.time}>
+            {stop.travelMinFromPrev != null && i > 0 && (
+              <View style={styles.legRow}>
+                <View style={styles.legLineCol}>
+                  <View style={styles.legLine} />
+                </View>
+                <Text style={styles.legLabel}>{t('datePlan.travelLeg', { n: stop.travelMinFromPrev })}</Text>
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', gap: spacing[3] }}>
               <View style={{ alignItems: 'center', width: 40 }}>
                 <View style={[styles.timelineIcon, glassStyles.card]}>
                   <Text style={{ fontSize: 18 }}>{stop.emoji}</Text>
@@ -114,6 +123,7 @@ export default function DatePlanScreen() {
                 </GlassCard>
               </Pressable>
             </View>
+            </View>
           )
         })}
       </ScrollView>
@@ -132,10 +142,6 @@ export default function DatePlanScreen() {
           <View style={styles.summaryCol}>
             <Text style={styles.summaryCaption}>{t('datePlan.time')}</Text>
             <Text style={styles.summaryValue}>3h 30m</Text>
-          </View>
-          <View style={styles.summaryCol}>
-            <Text style={styles.summaryCaption}>{t('datePlan.travel')}</Text>
-            <Text style={styles.summaryValue}>{"~12'"}</Text>
           </View>
         </View>
         <PrimaryBtn label={t('datePlan.go')} onPress={startDate} style={styles.goBtn} />
