@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { env } from '@/shared/config/env'
 import { locales, useLocaleContent } from '@/shared/i18n'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
-import { Atmosphere, AvatarCircle, GlassCard, TagChip } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
 import { IconChevronRight } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './profile.style'
@@ -17,10 +17,11 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
   const room = useRoom()
+  const dockInset = useTabDockInset()
 
   return (
     <Atmosphere>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: spacing[6] }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: dockInset }}>
         <View style={styles.headerRow}>
           <AvatarCircle label="M" size={64} />
           <View>
@@ -59,8 +60,8 @@ export default function ProfileScreen() {
         </GlassCard>
 
         <GlassCard style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
-          {content.settingsItems.map(item => (
-            <Pressable key={item} style={styles.settingRow}>
+          {content.settingsItems.map((item, i) => (
+            <Pressable key={item} style={[styles.settingRow, i === content.settingsItems.length - 1 && { borderBottomWidth: 0 }]}>
               <Text style={styles.settingLabel}>{item}</Text>
               <IconChevronRight />
             </Pressable>

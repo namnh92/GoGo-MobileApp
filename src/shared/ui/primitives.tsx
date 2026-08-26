@@ -1,4 +1,7 @@
+import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass'
+import { BlurView } from 'expo-blur'
 import { Image } from 'expo-image'
+import { LinearGradient } from 'expo-linear-gradient'
 import type { ReactNode } from 'react'
 import {
   Pressable,
@@ -17,12 +20,13 @@ import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-// RN has no backdrop blur without a native module, so glass uses the opaque
-// warm fallback (spec §43.4/§48.3): hierarchy and semantics, not the effect.
+// Warm Liquid Glass (spec §43): translucent surfaces over a strong atmosphere.
+// One full-screen BlurView softens the color blobs into radial-gradient light;
+// per-card blur stays off lists for performance (spec §48.1).
 export const glassStyles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.78)',
-    borderColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.56)',
+    borderColor: 'rgba(255,255,255,0.72)',
     borderWidth: 1,
     shadowColor: '#362D26',
     shadowOffset: { width: 0, height: 6 },
@@ -31,8 +35,8 @@ export const glassStyles = StyleSheet.create({
     elevation: 3,
   },
   strong: {
-    backgroundColor: 'rgba(252,251,248,0.96)',
-    borderColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderColor: 'rgba(255,255,255,0.85)',
     borderWidth: 1,
     shadowColor: '#362D26',
     shadowOffset: { width: 0, height: 10 },
@@ -42,11 +46,27 @@ export const glassStyles = StyleSheet.create({
   },
 })
 
-export function GlassCard({ children, style, strong = false }: {
+export function GlassCard({ children, style, strong = false, interactive = false }: {
   children: ReactNode
   style?: StyleProp<ViewStyle>
   strong?: boolean
+  interactive?: boolean
 }) {
+  // Native Liquid Glass on iOS 26+ (@callstack/liquid-glass); translucent
+  // solid fallback elsewhere — never depend on the effect for readability.
+  if (isLiquidGlassSupported) {
+    return (
+      <LiquidGlassView
+        effect="regular"
+        colorScheme="light"
+        interactive={interactive}
+        tintColor={strong ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.38)'}
+        style={[{ borderRadius: radius.card }, style]}
+      >
+        {children}
+      </LiquidGlassView>
+    )
+  }
   return (
     <View style={[strong ? glassStyles.strong : glassStyles.card, { borderRadius: radius.card }, style]}>
       {children}
@@ -54,13 +74,18 @@ export function GlassCard({ children, style, strong = false }: {
   )
 }
 
-/** Warm atmosphere background (spec §42.3) — soft brand blobs over ivory. */
+/** Warm atmosphere (spec §42.3): coral/lavender/mint light blobs under a soft
+ *  blur so they read as radial gradients, over the ivory base. */
 export function Atmosphere({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[styles.atmosphereRoot, style]}>
-      <View style={[styles.blob, { top: -60, left: -70, backgroundColor: brand.coralBright, opacity: 0.14 }]} />
-      <View style={[styles.blob, { top: 40, right: -90, backgroundColor: brand.lavender, opacity: 0.1 }]} />
-      <View style={[styles.blob, { bottom: -80, left: '30%', backgroundColor: brand.mint, opacity: 0.08 }]} />
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <View style={[styles.blob, { top: -110, left: -90, width: 380, height: 380, borderRadius: 190, backgroundColor: brand.coralBright, opacity: 0.4 }]} />
+        <View style={[styles.blob, { top: -40, right: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: brand.lavender, opacity: 0.3 }]} />
+        <View style={[styles.blob, { top: '38%', right: -140, width: 300, height: 300, borderRadius: 150, backgroundColor: brand.lavenderSoft, opacity: 0.55 }]} />
+        <View style={[styles.blob, { bottom: -120, left: '22%', width: 360, height: 360, borderRadius: 180, backgroundColor: brand.mint, opacity: 0.22 }]} />
+        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+      </View>
       {children}
     </View>
   )
@@ -77,14 +102,18 @@ export function PrimaryBtn({ label, onPress, disabled = false, style }: {
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.primaryBtn,
-        pressed && { transform: [{ scale: 0.98 }] },
-        disabled && { backgroundColor: neutral[100] },
-        style,
-      ]}
+      style={({ pressed }) => [styles.primaryBtnShadow, pressed && { transform: [{ scale: 0.98 }] }, style]}
     >
-      <Text style={[styles.primaryBtnLabel, disabled && { color: neutral[300] }]}>{label}</Text>
+      <LinearGradient
+        colors={disabled ? [neutral[100], neutral[100]] : [brand.coral, '#C74552']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.primaryBtn}
+      >
+        <Text style={[styles.primaryBtnLabel, disabled && { color: neutral[300] }]} numberOfLines={1}>
+          {label}
+        </Text>
+      </LinearGradient>
     </Pressable>
   )
 }
@@ -103,7 +132,7 @@ const tagPalette: Record<TagColor, { bg: string; fg: string }> = {
   coral: { bg: brand.coralSoft, fg: brand.coral },
   violet: { bg: brand.lavenderSoft, fg: brand.lavender },
   green: { bg: brand.mintSoft, fg: brand.mint },
-  neutral: { bg: neutral[100], fg: neutral[500] },
+  neutral: { bg: 'rgba(236,232,225,0.85)', fg: neutral[500] },
 }
 
 // Canonical tag keys live in mock data; display label is locale-mapped here.
@@ -174,6 +203,13 @@ export function Toast({ message }: { message: string }) {
   )
 }
 
+/** Height reserved by the floating glass tab dock — tab screens pad scroll
+ *  content by this so the dock never covers the last row. */
+export function useTabDockInset(): number {
+  const insets = useSafeAreaInsets()
+  return 64 + insets.bottom + spacing[6]
+}
+
 const styles = StyleSheet.create({
   atmosphereRoot: {
     flex: 1,
@@ -182,23 +218,23 @@ const styles = StyleSheet.create({
   },
   blob: {
     position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
   },
-  primaryBtn: {
-    height: 56,
+  primaryBtnShadow: {
     borderRadius: radius.button,
-    backgroundColor: brand.coral,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.26)',
-    alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: brand.coral,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.28,
     shadowRadius: 24,
     elevation: 5,
+  },
+  primaryBtn: {
+    height: 56,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.26)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[4],
   },
   primaryBtnLabel: {
     color: neutral[0],

@@ -46,8 +46,8 @@ export default function GuestJoinScreen() {
 
         <GlassCard style={styles.details}>
           <Text style={styles.detailsTitle}>{t('guestJoin.detailsTitle')}</Text>
-          {content.dateDetails.map(([icon, text]) => (
-            <View key={text} style={styles.detailRow}>
+          {content.dateDetails.map(([icon, text], i) => (
+            <View key={text} style={[styles.detailRow, i === content.dateDetails.length - 1 && { borderBottomWidth: 0 }]}>
               <Text style={{ fontSize: 18 }}>{icon}</Text>
               <Text style={styles.detailLabel}>{text}</Text>
             </View>

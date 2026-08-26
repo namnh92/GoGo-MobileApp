@@ -47,10 +47,15 @@ export const styles = StyleSheet.create({
   desc: { fontSize: 13, color: neutral[500], marginTop: spacing[2], lineHeight: 19 },
   actions: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
     gap: spacing[4],
     marginTop: spacing[4],
+  },
+  actionCol: {
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 64,
   },
   actionBtn: {
     width: 56,
@@ -58,12 +63,6 @@ export const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  actionLabels: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing[6],
-    marginTop: spacing[1],
   },
   actionCaption: { fontSize: 11, color: neutral[300] },
 })

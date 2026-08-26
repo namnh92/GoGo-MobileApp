@@ -7,7 +7,7 @@ import { DEMO_PLAN_ID, savedPlaces, unsplashUrl } from '@/data/mockData'
 import { useSavedPlaces } from '@/shared/api/mock'
 import { usePriceFormatter } from '@/shared/pricing'
 import { useLocaleContent } from '@/shared/i18n'
-import { Atmosphere, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
+import { Atmosphere, GlassCard, RemoteImage, TagChip, useTabDockInset } from '@/shared/ui/primitives'
 import { spacing } from '@/shared/ui/tokens'
 import { styles } from './saved.style'
 
@@ -34,6 +34,7 @@ export default function SavedScreen() {
   const [savedIdx, setSavedIdx] = useState<number[]>([0, 1, 2, 3])
   const places = query.data ?? savedPlaces
   const selected = places[selectedPlace]
+  const dockInset = useTabDockInset()
 
   return (
     <Atmosphere>
@@ -61,7 +62,7 @@ export default function SavedScreen() {
       </View>
 
       {view === 'list' ? (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[2], paddingBottom: spacing[6] }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[2], paddingBottom: dockInset }}>
           <View style={styles.grid}>
             {places.map(item => (
               <Pressable key={item.title} onPress={() => router.push('/places/sakura-omakase')} style={{ width: '48%' }}>
@@ -114,7 +115,7 @@ export default function SavedScreen() {
           </Pressable>
 
           {/* Bottom sheet: marker ↔ card selection stays in sync */}
-          <GlassCard strong style={[styles.sheet, { bottom: insets.bottom + spacing[4] }]}>
+          <GlassCard strong style={[styles.sheet, { bottom: dockInset }]}>
             <RemoteImage uri={unsplashUrl(selected.img, 200, 200)} style={styles.sheetThumb} />
             <View style={{ flex: 1, padding: spacing[3] }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2] }}>
@@ -134,16 +135,15 @@ export default function SavedScreen() {
               </Text>
               <Text style={styles.sheetMeta} numberOfLines={1}>{stopPrice(selected.priceK)}</Text>
               <View style={styles.sheetActions}>
-                <TagChip label={selected.tags[0]} />
                 <Pressable onPress={() => router.push('/places/sakura-omakase')} style={styles.sheetBtn}>
-                  <Text style={styles.sheetBtnLabel}>{t('common.details')}</Text>
+                  <Text style={styles.sheetBtnLabel} numberOfLines={1}>{t('common.details')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => router.push(`/plans/${DEMO_PLAN_ID}`)}
                   disabled={!selected.open}
-                  style={[styles.sheetBtn, selected.open ? styles.sheetAddBtn : styles.sheetAddDisabled]}
+                  style={[styles.sheetBtn, styles.sheetBtnGrow, selected.open ? styles.sheetAddBtn : styles.sheetAddDisabled]}
                 >
-                  <Text style={selected.open ? styles.sheetAddLabel : styles.sheetAddLabelDisabled}>
+                  <Text style={selected.open ? styles.sheetAddLabel : styles.sheetAddLabelDisabled} numberOfLines={1}>
                     {t('placeDetail.addToPlan')}
                   </Text>
                 </Pressable>

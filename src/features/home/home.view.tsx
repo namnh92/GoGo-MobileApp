@@ -8,7 +8,7 @@ import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
 import { useRoom, type QuickPreset } from '@/shared/store/roomStore'
 import { IconClock } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, GlassCard, RemoteImage, TagChip, useTabDockInset } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './home.style'
 
@@ -23,6 +23,7 @@ export default function HomeScreen() {
   const content = useLocaleContent()
   const { uiState, setUiState, audience, participantCount, quickPreset, setQuickPreset } = useRoom()
   const plans = useSuggestedPlans()
+  const dockInset = useTabDockInset()
 
   function startCreate() {
     track('date_create_started', { preset: quickPreset })
@@ -42,7 +43,7 @@ export default function HomeScreen() {
 
   return (
     <Atmosphere>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: spacing[8] }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: dockInset }}>
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{t('home.greeting')}</Text>

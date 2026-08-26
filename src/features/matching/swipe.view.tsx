@@ -123,20 +123,24 @@ export default function SwipeScreen() {
         </Animated.View>
 
         <View style={styles.actions}>
-          <Pressable onPress={() => flyOut('dislike')} accessibilityLabel={t('swipe.passLabel')} style={[styles.actionBtn, glassStyles.card]}>
-            <Text style={{ fontSize: 24 }}>✕</Text>
-          </Pressable>
-          <Pressable onPress={() => flyOut('maybe')} accessibilityLabel={t('swipe.maybeLabel')} style={[styles.actionBtn, { width: 48, height: 48, backgroundColor: brand.lavenderSoft }]}>
-            <Text style={{ fontSize: 20 }}>🤔</Text>
-          </Pressable>
-          <Pressable onPress={() => flyOut('like')} accessibilityLabel={t('swipe.likeLabel')} style={[styles.actionBtn, { backgroundColor: brand.coral }]}>
-            <Text style={{ fontSize: 24 }}>❤️</Text>
-          </Pressable>
-        </View>
-        <View style={styles.actionLabels}>
-          <Text style={styles.actionCaption}>{t('swipe.passLabel')}</Text>
-          <Text style={styles.actionCaption}>{t('swipe.maybeLabel')}</Text>
-          <Text style={styles.actionCaption}>{t('swipe.likeLabel')}</Text>
+          <View style={styles.actionCol}>
+            <Pressable onPress={() => flyOut('dislike')} accessibilityLabel={t('swipe.passLabel')} style={[styles.actionBtn, glassStyles.card]}>
+              <Text style={{ fontSize: 24 }}>✕</Text>
+            </Pressable>
+            <Text style={styles.actionCaption}>{t('swipe.passLabel')}</Text>
+          </View>
+          <View style={styles.actionCol}>
+            <Pressable onPress={() => flyOut('maybe')} accessibilityLabel={t('swipe.maybeLabel')} style={[styles.actionBtn, { width: 48, height: 48, backgroundColor: brand.lavenderSoft }]}>
+              <Text style={{ fontSize: 20 }}>🤔</Text>
+            </Pressable>
+            <Text style={styles.actionCaption}>{t('swipe.maybeLabel')}</Text>
+          </View>
+          <View style={styles.actionCol}>
+            <Pressable onPress={() => flyOut('like')} accessibilityLabel={t('swipe.likeLabel')} style={[styles.actionBtn, { backgroundColor: brand.coral }]}>
+              <Text style={{ fontSize: 24 }}>❤️</Text>
+            </Pressable>
+            <Text style={styles.actionCaption}>{t('swipe.likeLabel')}</Text>
+          </View>
         </View>
       </View>
     </Atmosphere>

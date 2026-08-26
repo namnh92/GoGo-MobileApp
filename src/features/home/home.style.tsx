@@ -85,7 +85,7 @@ export const styles = StyleSheet.create({
   },
   recoverLabel: { fontSize: 14, fontWeight: '600', color: neutral[900] },
   planCard: { flexDirection: 'row', overflow: 'hidden' },
-  planThumb: { width: 112, height: 96 },
+  planThumb: { width: 112, alignSelf: 'stretch', minHeight: 96 },
   planTitle: { fontSize: 14, fontWeight: '700', color: neutral[900] },
   planMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   planMetaLabel: { fontSize: 12, color: neutral[500] },

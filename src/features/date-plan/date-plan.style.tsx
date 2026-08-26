@@ -74,9 +74,11 @@ export const styles = StyleSheet.create({
   summaryCaption: { fontSize: 11, color: neutral[500] },
   summaryValue: { fontSize: 15, fontWeight: '800', color: neutral[900] },
   summaryUnit: { fontSize: 10, fontWeight: '600', color: neutral[500] },
-  summarySecondary: { fontSize: 10, fontWeight: '600', color: neutral[500] },
+  summarySecondary: { fontSize: 10, fontWeight: '600', color: neutral[500], flexShrink: 1 },
   summaryOptional: { fontSize: 10, color: neutral[300] },
   goBtn: {
+    flexShrink: 0,
+    marginLeft: spacing[2],
     backgroundColor: brand.coral,
     paddingHorizontal: spacing[6],
     height: 48,
