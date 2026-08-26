@@ -100,6 +100,7 @@ export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProp
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={skip}>
+      <View style={styles.modalRoot}>
       <Pressable style={styles.backdrop} onPress={skip} />
       <View style={[styles.sheet, { maxHeight: '85%' }]}>
         <View style={styles.handle} />
@@ -216,6 +217,7 @@ export function CheckinSheet({ visible, stop, onSave, onSkip }: CheckinSheetProp
           <Text style={styles.skipLabel}>{t('checkin.skip')}</Text>
         </Pressable>
         </ScrollView>
+      </View>
       </View>
     </Modal>
   )

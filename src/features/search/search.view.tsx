@@ -247,6 +247,7 @@ export default function SearchScreen() {
 
       {/* Multi-criteria filter sheet */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
+        <View style={styles.modalRoot}>
         <Pressable style={styles.backdrop} onPress={() => setSheetOpen(false)} />
         <View style={[styles.sheet, { maxHeight: '85%' }]}>
           <View style={styles.handle} />
@@ -347,6 +348,7 @@ export default function SearchScreen() {
             <Text style={styles.sheetClearLabel}>{t('search.clearFilters')}</Text>
           </Pressable>
           </ScrollView>
+        </View>
         </View>
       </Modal>
     </Atmosphere>

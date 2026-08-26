@@ -5,7 +5,8 @@ import { colors, radius, spacing, glassFx, overlay } from '@/shared/ui/tokens'
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: overlay.backdrop },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,

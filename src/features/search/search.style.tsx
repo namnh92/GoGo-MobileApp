@@ -78,7 +78,8 @@ export const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   priceInput: { flex: 1 },
   priceDash: { fontSize: 16, color: neutral[500] },
-  backdrop: { flex: 1, backgroundColor: overlay.backdrop },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
