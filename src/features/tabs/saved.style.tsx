@@ -6,6 +6,17 @@ const { brand, neutral } = colors
 export const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  addPlaceBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: brand.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 'auto',
+    marginRight: spacing[2],
+  },
+  addPlaceLabel: { fontSize: 20, fontWeight: '700', color: neutral[0], lineHeight: 24 },
   title: { fontSize: 24, fontWeight: '800', color: neutral[900] },
   toggle: { flexDirection: 'row', backgroundColor: neutral[100], borderRadius: 12, padding: 2 },
   toggleBtn: { paddingHorizontal: 12, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

@@ -1,0 +1,65 @@
+import { StyleSheet } from 'react-native'
+
+import { colors, radius, spacing } from '@/shared/ui/tokens'
+
+const { brand, neutral } = colors
+
+export const styles = StyleSheet.create({
+  title: { fontSize: 26, fontWeight: '800', color: neutral[900], lineHeight: 32, marginTop: spacing[2] },
+  body: { fontSize: 15, color: neutral[500], marginTop: spacing[2], marginBottom: spacing[6], lineHeight: 22 },
+  input: {
+    height: 52,
+    borderRadius: radius.compact,
+    backgroundColor: neutral[50],
+    borderWidth: 1,
+    borderColor: neutral[100],
+    paddingHorizontal: spacing[4],
+    fontSize: 14,
+    color: neutral[900],
+    marginBottom: spacing[2],
+  },
+  inputError: { borderColor: brand.red },
+  errorLabel: { fontSize: 13, color: brand.red, marginBottom: spacing[2] },
+  verifyBtn: { marginTop: spacing[2] },
+  verifyingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[5],
+  },
+  verifyingLabel: { fontSize: 14, fontWeight: '500', color: neutral[500] },
+  resultCard: { overflow: 'hidden', marginTop: spacing[5] },
+  resultImage: { width: '100%', height: 140 },
+  resultBody: { padding: spacing[4] },
+  verifiedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: brand.mintSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    marginBottom: spacing[2],
+  },
+  verifiedBadgeLabel: { fontSize: 12, fontWeight: '700', color: brand.mint },
+  placeName: { fontSize: 18, fontWeight: '800', color: neutral[900] },
+  placeAddress: { fontSize: 13, color: neutral[500], marginTop: 2 },
+  placeReviews: { fontSize: 13, fontWeight: '600', color: neutral[700], marginTop: spacing[2] },
+  addBtn: { marginTop: spacing[4] },
+  addedLabel: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+    color: brand.mint,
+    paddingVertical: spacing[4],
+  },
+  rejectedCard: {
+    marginTop: spacing[5],
+    backgroundColor: brand.redSoft,
+    borderRadius: radius.card,
+    padding: spacing[5],
+  },
+  rejectedTitle: { fontSize: 15, fontWeight: '700', color: brand.red },
+  rejectedReason: { fontSize: 14, color: neutral[700], marginTop: spacing[2], lineHeight: 20 },
+  tryAgain: { alignItems: 'center', paddingVertical: spacing[3], marginTop: spacing[2] },
+  tryAgainLabel: { fontSize: 14, fontWeight: '600', color: neutral[500] },
+})
