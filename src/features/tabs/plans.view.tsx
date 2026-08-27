@@ -70,7 +70,12 @@ export default function PlansScreen() {
           <EmptyState
             title={t('plans.emptyTitle')}
             body={status === 'anonymous' ? t('plans.emptySignedOut') : t('plans.emptyBody')}
-            action={<GhostBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />}
+            action={
+              <View style={{ gap: spacing[2], alignSelf: 'stretch' }}>
+                <GhostBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
+                <GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} />
+              </View>
+            }
           />
         ) : null}
 

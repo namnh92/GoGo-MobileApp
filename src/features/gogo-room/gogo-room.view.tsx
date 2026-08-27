@@ -228,6 +228,10 @@ export default function GoGoRoomScreen() {
           onPress={() => router.push(`/room/${roomId}/preference`)}
         />
 
+        {capabilities.isHost ? (
+          <GhostBtn label={t('roomManage.title')} onPress={() => router.push(`/room/${roomId}/manage`)} />
+        ) : null}
+
         <View style={styles.noApp}>
           <View style={styles.noAppDot} />
           <Text style={styles.noAppLabel}>{t('gogoRoom.noApp', { context: roomType })}</Text>

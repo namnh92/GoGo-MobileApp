@@ -9,6 +9,7 @@ import {
   toPlanSummary,
   useLockPlanStop,
   usePlan,
+  useRegeneratePlan,
   usePlanStopPlaces,
   useRoom,
   useRoomRealtime,
@@ -40,6 +41,7 @@ export default function DatePlanScreen() {
   // Another member can regenerate or lock while this screen is open.
   useRoomRealtime(summary?.roomId, 'plan')
   const lockStop = useLockPlanStop(planId)
+  const regenerate = useRegeneratePlan(planId)
 
   const capabilities = roomCapabilities(room.data)
   const [toast, setToast] = useState<string | null>(null)
@@ -53,6 +55,30 @@ export default function DatePlanScreen() {
     setToast(t(locking ? 'datePlan.lockedToast' : 'datePlan.unlockedToast', { name }))
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 2200)
+  }
+
+  /**
+   * Host-only rebuild. Locked stops come back verbatim (RULE-CORE-007), so the
+   * toast reports how many survived — that guarantee is the whole point of the
+   * padlock, and it was previously unreachable from the app.
+   */
+  async function rebuild() {
+    const lockedBefore = summary?.stops.filter(stop => stop.isLocked).length ?? 0
+    try {
+      const next = await regenerate.mutateAsync({})
+      const kept = (next.stops ?? []).filter(stop => stop.isLocked).length
+      setToast(
+        lockedBefore > 0
+          ? t('datePlan.regeneratedKept', { n: kept })
+          : t('datePlan.regenerated'),
+      )
+      // A rebuild supersedes this plan and returns a new one.
+      if (next.id && next.id !== planId) router.replace(`/plans/${next.id}`)
+    } catch {
+      setToast(t('datePlan.regenerateFailed'))
+    }
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
 
   function startDate() {
@@ -113,6 +139,16 @@ export default function DatePlanScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 240 }}>
         {/* A plan built before the last constraint edit is no longer the answer. */}
         {summary.isStale ? <Text style={styles.staleWarning}>⚠️ {t('datePlan.stale')}</Text> : null}
+
+        {/* Someone edited or rebuilt this plan — possibly on another device. */}
+        {summary.status === 'superseded' ? (
+          <Pressable
+            onPress={() => router.replace(`/room/${summary.roomId}`)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.staleWarning}>⚠️ {t('datePlan.superseded')}</Text>
+          </Pressable>
+        ) : null}
 
         {summary.stops.map((stop, index) => {
           const place = places.byPlaceId.get(stop.placeId)
@@ -232,6 +268,28 @@ export default function DatePlanScreen() {
           </View>
         </View>
         <PrimaryBtn label={t('datePlan.go')} onPress={startDate} style={styles.goBtn} />
+        {capabilities.isHost ? (
+          <Pressable
+            onPress={() => router.push(`/plans/${planId}/edit`)}
+            accessibilityRole="button"
+            style={styles.regenerateBtn}
+          >
+            <Text style={styles.regenerateLabel}>{t('datePlan.edit')}</Text>
+          </Pressable>
+        ) : null}
+        {capabilities.canRegenerate ? (
+          <Pressable
+            onPress={rebuild}
+            disabled={regenerate.isPending}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: regenerate.isPending, busy: regenerate.isPending }}
+            style={styles.regenerateBtn}
+          >
+            <Text style={styles.regenerateLabel}>
+              {regenerate.isPending ? t('datePlan.regenerating') : t('datePlan.regenerate')}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {toast && <Toast message={toast} />}

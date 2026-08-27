@@ -282,9 +282,16 @@ describe('toPlanSummary', () => {
     const summary = toPlanSummary(plan)
 
     expect(summary.stops.map(stop => stop.id)).toEqual(['s1', 's2'])
+    // A superseded plan must be distinguishable: editing or rebuilding returns
+    // a NEW plan and the old one stops accepting writes (PLAN_NOT_CURRENT).
+    expect(summary.status).toBe('current')
     expect(summary.stops[0].isLocked).toBe(true)
     // Over-budget comes from the upper bound; never soften it in the adapter.
     expect(summary.overBudget).toBe(true)
+  })
+
+  it('reports a superseded plan as superseded', () => {
+    expect(toPlanSummary({ id: 'p1', status: 'superseded' } as Plan).status).toBe('superseded')
   })
 
   it('defaults a plan with no totals to a safe, non-committal summary', () => {

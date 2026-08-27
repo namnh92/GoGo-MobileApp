@@ -5,7 +5,14 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { z } from 'zod'
 
-import { isApiError, useResolveGoogleMapsLink, useSubmitPlace, type ResolveLinkResult } from '@/shared/api'
+import {
+  isApiError,
+  usePlaceSubmission,
+  useResolveGoogleMapsLink,
+  useSubmitPlace,
+  useTaxonomies,
+  type ResolveLinkResult,
+} from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
@@ -38,6 +45,11 @@ const mapsUrlSchema = z
 
 type Candidate = NonNullable<ResolveLinkResult['candidate']>
 
+const MAX_NOTE = 1000
+const MAX_VIBES = 3
+/** Price inputs are typed in thousands of dong; the API wants minor units. */
+const PRICE_MULTIPLIER = 1000
+
 export default function PlaceImportScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -48,8 +60,54 @@ export default function PlaceImportScreen() {
   const [invalid, setInvalid] = useState(false)
   const [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState<string | null>(null)
 
+  // Optional metadata (PI-APP-004) — everything here may be left blank.
+  const [category, setCategory] = useState<string | null>(null)
+  const [vibes, setVibes] = useState<string[]>([])
+  const [priceMin, setPriceMin] = useState('')
+  const [priceMax, setPriceMax] = useState('')
+  const [note, setNote] = useState('')
+
+  const taxonomies = useTaxonomies({ kinds: 'category,mood' })
   const resolve = useResolveGoogleMapsLink()
   const submit = useSubmitPlace()
+  // A proposal is queued for moderation, so its status is polled after sending.
+  const submission = usePlaceSubmission(submit.data?.submissionId)
+
+  function taxonomyOptions(kind: string) {
+    return (taxonomies.data?.kinds?.[kind] ?? []).map(entry => ({
+      key: entry.key ?? '',
+      label: entry.labels?.[i18n.language] ?? entry.labels?.vi ?? entry.key ?? '',
+    }))
+  }
+
+  function toggleVibe(key: string) {
+    setVibes(prev => {
+      if (prev.includes(key)) return prev.filter(x => x !== key)
+      return prev.length < MAX_VIBES ? [...prev, key] : prev
+    })
+  }
+
+  /** Only sends what the user actually filled in. */
+  function metadata() {
+    const min = Number(priceMin.replace(',', '.'))
+    const max = Number(priceMax.replace(',', '.'))
+    const hasMin = Number.isFinite(min) && min > 0
+    const hasMax = Number.isFinite(max) && max > 0
+    return {
+      ...(category ? { category } : {}),
+      ...(vibes.length > 0 ? { vibes } : {}),
+      ...(hasMin || hasMax
+        ? {
+            estimatedPrice: {
+              ...(hasMin ? { min: Math.round(min * PRICE_MULTIPLIER) } : {}),
+              ...(hasMax ? { max: Math.round(max * PRICE_MULTIPLIER) } : {}),
+              unit: 'per_person' as const,
+            },
+          }
+        : {}),
+      ...(note.trim() ? { note: note.trim().slice(0, MAX_NOTE) } : {}),
+    }
+  }
 
   const result = resolve.data
   const candidate = result?.candidate as Candidate | undefined
@@ -78,7 +136,7 @@ export default function PlaceImportScreen() {
 
   function onSubmitPlace(googlePlaceId: string) {
     submit.mutate(
-      { googlePlaceId, ...(roomId ? { roomId } : {}) },
+      { googlePlaceId, ...(roomId ? { roomId } : {}), ...metadata() },
       {
         onSuccess: submission => {
           track('place_import_added', { placeId: submission.placeId ?? googlePlaceId })
@@ -92,6 +150,11 @@ export default function PlaceImportScreen() {
     submit.reset()
     setUrl('')
     setSelectedGooglePlaceId(null)
+    setCategory(null)
+    setVibes([])
+    setPriceMin('')
+    setPriceMax('')
+    setNote('')
   }
 
   return (
@@ -230,12 +293,99 @@ export default function PlaceImportScreen() {
                 </Text>
               ) : null}
 
+              {/* Optional metadata (PI-APP-004) — moderators get better context
+                  when the submitter fills it in, and nothing here is required. */}
+              {!submit.isSuccess ? (
+                <View style={styles.metaSection}>
+                  <Text style={styles.metaTitle}>{t('placeImport.metaTitle')}</Text>
+
+                  <Text style={styles.metaLabel}>{t('placeImport.metaCategory')}</Text>
+                  <View style={styles.chipRow}>
+                    {taxonomyOptions('category').map(option => {
+                      const active = category === option.key
+                      return (
+                        <Pressable
+                          key={option.key}
+                          onPress={() => setCategory(active ? null : option.key)}
+                          accessibilityState={{ selected: active }}
+                          style={[styles.chip, active && styles.chipActive]}
+                        >
+                          <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{option.label}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+
+                  <Text style={styles.metaLabel}>{t('placeImport.metaVibes', { max: MAX_VIBES })}</Text>
+                  <View style={styles.chipRow}>
+                    {taxonomyOptions('mood').map(option => {
+                      const active = vibes.includes(option.key)
+                      return (
+                        <Pressable
+                          key={option.key}
+                          onPress={() => toggleVibe(option.key)}
+                          accessibilityState={{ selected: active }}
+                          style={[styles.chip, active && styles.chipActive]}
+                        >
+                          <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{option.label}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+
+                  <Text style={styles.metaLabel}>{t('placeImport.metaPrice')}</Text>
+                  <View style={styles.priceRow}>
+                    <TextInput
+                      value={priceMin}
+                      onChangeText={setPriceMin}
+                      placeholder={t('search.priceFrom')}
+                      placeholderTextColor={colors.neutral[300]}
+                      keyboardType="numeric"
+                      style={[styles.input, styles.priceInput]}
+                    />
+                    <TextInput
+                      value={priceMax}
+                      onChangeText={setPriceMax}
+                      placeholder={t('search.priceTo')}
+                      placeholderTextColor={colors.neutral[300]}
+                      keyboardType="numeric"
+                      style={[styles.input, styles.priceInput]}
+                    />
+                  </View>
+
+                  <TextInput
+                    value={note}
+                    onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
+                    placeholder={t('placeImport.metaNote')}
+                    placeholderTextColor={colors.neutral[300]}
+                    multiline
+                    style={[styles.input, styles.noteInput]}
+                  />
+                </View>
+              ) : null}
+
               {submit.isSuccess ? (
-                <Text style={styles.addedLabel}>
-                  {submit.data?.status === 'ALREADY_EXISTS'
-                    ? t('placeImport.existsBody')
-                    : t('placeImport.pendingReview')}
-                </Text>
+                <View>
+                  <Text style={styles.addedLabel}>
+                    {submit.data?.status === 'ALREADY_EXISTS'
+                      ? t('placeImport.existsBody')
+                      : t('placeImport.pendingReview')}
+                  </Text>
+                  {/* Polled until a moderator decides. */}
+                  {submission.data?.status ? (
+                    <Text style={styles.submissionStatus}>
+                      {t(`placeImport.submissionStatus.${submission.data.status}`, {
+                        defaultValue: submission.data.status,
+                      })}
+                    </Text>
+                  ) : null}
+                  {submission.data?.status === 'approved' && submission.data.placeId ? (
+                    <GhostBtn
+                      label={t('placeImport.openPlace')}
+                      onPress={() => router.replace(`/places/${submission.data?.placeId}`)}
+                    />
+                  ) : null}
+                </View>
               ) : (
                 <PrimaryBtn
                   label={t('placeImport.submit')}

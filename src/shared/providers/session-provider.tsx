@@ -25,6 +25,8 @@ interface SessionContextValue {
   signUp: (body: OpBody<'register'>) => Promise<Session>
   joinAsGuest: (body: OpBody<'joinRoomAsGuest'>) => Promise<Session>
   signOut: (allDevices?: boolean) => Promise<void>
+  /** Irreversible: PII is nulled and every session revoked server-side. */
+  deleteAccount: () => Promise<void>
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null)
@@ -86,6 +88,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [purge],
   )
 
+  const deleteAccount = useCallback(async () => {
+    await sessionsApi.deleteAccount()
+    await purge()
+  }, [purge])
+
   const value = useMemo<SessionContextValue>(() => {
     const status: SessionStatus = hydrating
       ? 'hydrating'
@@ -100,8 +107,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signUp,
       joinAsGuest,
       signOut,
+      deleteAccount,
     }
-  }, [hydrating, session, signIn, signUp, joinAsGuest, signOut])
+  }, [hydrating, session, signIn, signUp, joinAsGuest, signOut, deleteAccount])
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
 }

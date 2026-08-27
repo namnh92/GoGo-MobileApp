@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   areaLabel,
+  useAddRoomSeedPlaces,
   formatDistance,
   formatMinuteOfDay,
   isSaved,
@@ -44,7 +45,12 @@ export default function SearchScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
-  const { picker, q, filters } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string }>()
+  const { picker, q, filters, roomId } = useLocalSearchParams<{
+    picker?: string
+    q?: string
+    filters?: string
+    roomId?: string
+  }>()
   const { status } = useSession()
 
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
@@ -138,6 +144,9 @@ export default function SearchScreen() {
     return params
   }, [debouncedQuery, selectedCategories, suited, priceFromNum, priceToNum, hasOrigin, originLat, originLng, maxKmNum])
 
+  // With a roomId the picker attaches straight to that room; without one it
+  // fills the create-wizard draft for a room that does not exist yet.
+  const addSeedToRoom = useAddRoomSeedPlaces(roomId ?? '')
   const search = usePlaceSearch(searchQuery)
   const saved = useSaved({ enabled: canSave })
   const toggleSaved = useToggleSaved()
@@ -149,6 +158,13 @@ export default function SearchScreen() {
 
   function onPlacePress(place: PlaceCard) {
     if (isPicker) {
+      if (roomId) {
+        addSeedToRoom.mutate(
+          { placeIds: [place.id] },
+          { onSuccess: () => router.back() },
+        )
+        return
+      }
       addSeedPlace({ placeId: place.id, name: place.name })
       router.back()
       return

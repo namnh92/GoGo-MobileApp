@@ -384,6 +384,8 @@ export interface PlanSummary {
   id: string
   roomId: string
   version: number
+  /** `superseded` means an edit or regenerate replaced this plan. */
+  status: NonNullable<Plan['status']>
   isStale: boolean
   stops: PlanStopRow[]
   costMin: number
@@ -403,6 +405,7 @@ export function toPlanSummary(plan: Plan): PlanSummary {
     id: plan.id ?? '',
     roomId: plan.roomId ?? '',
     version: plan.version ?? 1,
+    status: plan.status ?? 'current',
     isStale: plan.isStale ?? false,
     stops: (plan.stops ?? []).map(toPlanStopRow).sort((a, b) => a.position - b.position),
     costMin: totals?.costMin ?? 0,

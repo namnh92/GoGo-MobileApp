@@ -18,9 +18,10 @@ import { styles } from './profile.style'
 const SETTINGS_ROWS: readonly { key: string; route?: string }[] = [
   { key: 'inbox', route: '/notifications' },
   { key: 'notifications', route: '/settings/notifications' },
+  { key: 'reviews', route: '/settings/reviews' },
   { key: 'location' },
   { key: 'privacy' },
-  { key: 'account' },
+  { key: 'account', route: '/settings/account' },
 ]
 
 const audiences: DemoAudience[] = ['couple', 'group-host', 'group-guest']

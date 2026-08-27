@@ -91,10 +91,12 @@ export function useSubmitPlace() {
   })
 }
 
+/** Polled while pending — a moderator decides, so the answer arrives later. */
 export function usePlaceSubmission(id: string | undefined) {
   return useQuery({
     queryKey: queryKeys.placeSubmission(id ?? ''),
     queryFn: () => placesApi.getPlaceSubmission(id as string),
     enabled: Boolean(id),
+    refetchInterval: query => (query.state.data?.status === 'pending' ? 10_000 : false),
   })
 }

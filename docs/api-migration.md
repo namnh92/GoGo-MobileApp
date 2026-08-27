@@ -198,6 +198,22 @@ instead of silently doing nothing.
    into a screen. Swapping in SSE means adding one transport and keeping polling
    as the fallback when the stream drops.
 
+## Screens added after the five phases
+
+Everything the API layer already covered but no screen reached:
+
+| Screen | Why it mattered |
+| --- | --- |
+| Rebuild the plan (`date-plan`) | `useRegeneratePlan` had no caller, so RULE-CORE-007 — locked stops survive a rebuild — was verified in tests but unreachable in the app |
+| Edit the route (`/plans/[planId]/edit`) | Reorder or drop stops via `useEditPlanStops` |
+| Manage room (`/room/[roomId]/manage`) | Edit constraints, list and revoke invites, remove members, attach seed places, cancel the room |
+| Account (`/settings/account`) | Edit the profile, export data, delete the account — APP-009 requires the delete/export entry point |
+| My reviews (`/settings/reviews`) | List and edit own reviews with their moderation status |
+| Join with a code (`/join`) | The only way in was an invite link |
+| Place submission metadata (PI-APP-004) | Category, vibes, estimated price and a note, plus polling the submission until a moderator decides |
+
+Android app links now cover `/plans`, `/places` and `/room`, not just `/r`.
+
 ## Workarounds to remove when the backend catches up
 
 | Workaround | Remove when | Then |

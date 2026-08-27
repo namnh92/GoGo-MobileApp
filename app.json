@@ -30,6 +30,21 @@
               "scheme": "https",
               "host": "gogo.app",
               "pathPrefix": "/r"
+            },
+            {
+              "scheme": "https",
+              "host": "gogo.app",
+              "pathPrefix": "/plans"
+            },
+            {
+              "scheme": "https",
+              "host": "gogo.app",
+              "pathPrefix": "/places"
+            },
+            {
+              "scheme": "https",
+              "host": "gogo.app",
+              "pathPrefix": "/room"
             }
           ],
           "category": [
