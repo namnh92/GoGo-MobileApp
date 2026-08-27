@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:contract": "GOGO_CONTRACT_TEST=1 vitest run src/shared/api/__tests__/contract.test.ts",
     "api:types": "openapi-typescript openapi/gogo.v1.yaml -o src/shared/api/schema.d.ts",
-    "api:check": "openapi-typescript openapi/gogo.v1.yaml -o /tmp/gogo.mobile.v1.d.ts && diff -q /tmp/gogo.mobile.v1.d.ts src/shared/api/schema.d.ts"
+    "api:check": "openapi-typescript openapi/gogo.v1.yaml -o /tmp/gogo.mobile.v1.d.ts && diff -q /tmp/gogo.mobile.v1.d.ts src/shared/api/schema.d.ts",
+    "test:ui": "jest",
+    "test:all": "pnpm test && pnpm test:ui"
   },
   "dependencies": {
     "@callstack/liquid-glass": "^0.8.1",
@@ -53,10 +55,17 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.1.17",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^57.0.1",
+    "jest": "^29.7.0",
+    "jest-environment-node": "^29.7.0",
+    "jest-expo": "^57.0.5",
     "openapi-typescript": "^7.13.0",
+    "test-renderer": "^1.2.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
   }
