@@ -40,11 +40,23 @@ export default function SignInScreen() {
   const form = mode === 'signIn' ? signInForm : signUpForm
   const pending = form.formState.isSubmitting
 
+  /**
+   * Where to land after authenticating, decided by an explicit `next` rather
+   * than by history. `router.back()` sent someone who arrived from a deep link
+   * or from onboarding straight back to the intro carousel right after they
+   * created an account.
+   */
   function done() {
-    // `next=create` returns to the wizard's last step so the draft is not lost.
-    if (next === 'create') router.replace('/create/mood')
-    else if (router.canGoBack()) router.back()
-    else router.replace('/(tabs)')
+    if (next === 'create') {
+      // Returns to the wizard's last step so the draft is not lost.
+      router.replace('/create/mood')
+      return
+    }
+    if (next === 'saved') {
+      router.replace('/(tabs)/saved')
+      return
+    }
+    router.replace('/(tabs)')
   }
 
   function toApiMessage(error: unknown): string {

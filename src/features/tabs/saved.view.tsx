@@ -131,7 +131,7 @@ export default function SavedScreen() {
         <EmptyState
           title={t('saved.signInTitle')}
           body={t('saved.signInBody')}
-          action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />}
+          action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in?next=saved')} />}
         />
       ) : saved.isPending ? (
         <LoadingState />
