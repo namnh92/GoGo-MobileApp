@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
@@ -145,10 +145,13 @@ export function useUpdateReview() {
 
 // --- notifications ---------------------------------------------------------
 
+/** Cursor-paginated inbox; the cursor is an opaque `createdAt` marker. */
 export function useNotifications(options?: { enabled?: boolean }) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.notifications(),
-    queryFn: () => meApi.listNotifications(),
+    queryFn: ({ pageParam }) => meApi.listNotifications(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
     enabled: options?.enabled ?? true,
   })
 }

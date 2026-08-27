@@ -7,12 +7,21 @@ import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useSession } from '@/shared/providers/session-provider'
-import { locales, useLocaleContent } from '@/shared/i18n'
+import { locales } from '@/shared/i18n'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
 import { Atmosphere, AvatarCircle, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
 import { IconChevronRight } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './profile.style'
+
+/** Only rows with a destination are tappable. */
+const SETTINGS_ROWS: readonly { key: string; route?: string }[] = [
+  { key: 'inbox', route: '/notifications' },
+  { key: 'notifications', route: '/settings/notifications' },
+  { key: 'location' },
+  { key: 'privacy' },
+  { key: 'account' },
+]
 
 const audiences: DemoAudience[] = ['couple', 'group-host', 'group-guest']
 const uiStates: DemoUIState[] = ['default', 'loading', 'empty', 'error']
@@ -20,7 +29,6 @@ const uiStates: DemoUIState[] = ['default', 'loading', 'empty', 'error']
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation()
   const insets = useSafeAreaInsets()
-  const content = useLocaleContent()
   const room = useRoom()
   const router = useRouter()
   const dockInset = useTabDockInset()
@@ -82,10 +90,25 @@ export default function ProfileScreen() {
         </GlassCard>
 
         <GlassCard style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
-          {content.settingsItems.map((item, i) => (
-            <Pressable key={item} style={[styles.settingRow, i === content.settingsItems.length - 1 && { borderBottomWidth: 0 }]}>
-              <Text style={styles.settingLabel}>{item}</Text>
-              <IconChevronRight />
+          {SETTINGS_ROWS.map((row, index) => (
+            <Pressable
+              key={row.key}
+              onPress={() => (row.route ? router.push(row.route) : undefined)}
+              // A row with nowhere to go says so instead of silently doing
+              // nothing when tapped.
+              disabled={!row.route}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !row.route }}
+              style={[styles.settingRow, index === SETTINGS_ROWS.length - 1 && { borderBottomWidth: 0 }]}
+            >
+              <Text style={[styles.settingLabel, !row.route && { color: colors.neutral[300] }]}>
+                {t(`profile.settings.${row.key}`)}
+              </Text>
+              {row.route ? (
+                <IconChevronRight />
+              ) : (
+                <Text style={styles.settingPending}>{t('profile.settings.comingSoon')}</Text>
+              )}
             </Pressable>
           ))}
         </GlassCard>

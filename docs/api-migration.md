@@ -144,10 +144,22 @@ Decisions made while migrating:
   and `src/data/taxonomy.ts` are deleted. `src/data/types.ts` keeps only the
   `Mood` shape the i18n content bundle is typed with.
 
-### Phase 5 — notifications (remaining)
+### Phase 5 — notifications ✅ done
 
-Inbox, `registerDeviceToken`, and push-tap routing. Push is only a trigger:
-the app refetches from the API on open.
+Two new screens: the inbox (`/notifications`) and per-channel preferences
+(`/settings/notifications`), both reachable from Profile. The Profile settings
+rows used to be labels with no handler; rows without a destination now say so
+instead of silently doing nothing.
+
+- The inbox is cursor-paginated, marks a notification read on open, and routes
+  by `kind` using the ids in the payload.
+- Preferences cover every `NotificationKind` × channel the contract defines, so
+  a new kind cannot become silently unreachable. An absent entry means the
+  server default, which is on.
+- **`registerDeviceToken` is deliberately not called.** A device token needs a
+  real device plus APNs/FCM credentials, and neither is configured — the BE's
+  `APNS_*` and `FCM_*` settings are empty. The screen says so rather than
+  implying push already works. The hook exists for when it does.
 
 | Screen | Hook | Trap to fix |
 | --- | --- | --- |

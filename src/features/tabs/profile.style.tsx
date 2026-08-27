@@ -49,4 +49,5 @@ export const styles = StyleSheet.create({
   segmentLabelActive: { color: neutral[0] },
   logout: { alignItems: 'center', paddingVertical: spacing[3], marginBottom: spacing[6] },
   logoutLabel: { fontSize: 15, fontWeight: '600', color: brand.coral },
+  settingPending: { fontSize: 12, color: colors.neutral[300] },
 })
