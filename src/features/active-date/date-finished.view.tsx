@@ -62,7 +62,9 @@ export default function DateFinishedScreen() {
               <Text style={{ fontSize: 20 }}>{stop.status === 'completed' ? '✅' : '⚪️'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.stopName}>{places.byPlaceId.get(stop.placeId)?.name ?? ''}</Text>
-                {stop.arriveLabel ? <Text style={styles.stopRating}>{stop.arriveLabel}</Text> : null}
+                <Text style={styles.stopRating}>
+                  {stop.arriveLabel ?? t('datePlan.stopOrder', { n: index + 1 })}
+                </Text>
               </View>
               {stop.status === 'completed' ? <IconCheck /> : null}
             </View>

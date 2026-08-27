@@ -272,6 +272,7 @@ export const viMessages = {
   'datePlan.done': 'Đã xong',
   'datePlan.minutes': '{{n}} phút',
   'datePlan.overBudget': '⚠️ Vượt ngân sách đã đặt',
+  'datePlan.stopOrder': 'Điểm {{n}}',
 
   'placeDetail.goodFor': 'Phù hợp cho',
   'placeDetail.coupleRatings': 'Đánh giá từ các cặp đôi',

@@ -268,6 +268,7 @@ export const enMessages: Record<MessageKey, string> = {
   'datePlan.done': 'Done',
   'datePlan.minutes': '{{n}} min',
   'datePlan.overBudget': '⚠️ Over the budget you set',
+  'datePlan.stopOrder': 'Stop {{n}}',
 
   'placeDetail.goodFor': 'Good for',
   'placeDetail.coupleRatings': 'Couple ratings',

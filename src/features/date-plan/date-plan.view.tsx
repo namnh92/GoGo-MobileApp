@@ -144,7 +144,11 @@ export default function DatePlanScreen() {
                     <PlacePhoto placeId={stop.placeId} name={name} uri={null} style={styles.stopImage} />
                     <View style={{ padding: spacing[4] }}>
                       <View style={styles.stopHeader}>
-                        <Text style={styles.stopTime}>{stop.arriveLabel ?? '--:--'}</Text>
+                        {/* A room with no `startAt` gets no scheduled times, so
+                            the order is shown rather than an empty clock. */}
+                        <Text style={styles.stopTime}>
+                          {stop.arriveLabel ?? t('datePlan.stopOrder', { n: index + 1 })}
+                        </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           {stop.status === 'completed' ? <TagChip label={t('datePlan.done')} /> : null}
                           {/* Host-only, and server-enforced. */}

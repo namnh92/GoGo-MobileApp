@@ -78,7 +78,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>{t('checkin.title')}</Text>
                 <Text style={styles.stopName} numberOfLines={1}>
-                  {[placeName, stop.arriveLabel].filter(Boolean).join(' · ')}
+                  {placeName}
                 </Text>
               </View>
             </View>
