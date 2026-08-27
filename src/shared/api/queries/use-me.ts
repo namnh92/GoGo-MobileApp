@@ -1,10 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
+import * as placesApi from '../endpoints/places'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
 import type { OpBody, SavedItem } from '../types'
+import { detailToPlaceCard } from '../view-models'
 
 /** Current actor facts: `actorType` distinguishes a signed-in user from a guest. */
 export function useMe(options?: { enabled?: boolean }) {
@@ -74,6 +76,39 @@ export function useToggleSaved() {
 
 export function isSaved(items: SavedItem[] | undefined, type: SavedTargetType, id: string): boolean {
   return Boolean(items?.some(item => item.targetType === type && item.targetId === id))
+}
+
+/**
+ * `GET /me/saved` returns ids only and the contract has no batch place lookup,
+ * so each saved place is fetched individually. Saved lists are small and the
+ * details are cached and shared with the place-detail screen, so this stays
+ * cheap — but it is the reason a large saved list would need a batch endpoint.
+ */
+export function useSavedPlaces(options?: { enabled?: boolean }) {
+  const saved = useSaved({ enabled: options?.enabled ?? true })
+
+  const placeIds = (saved.data ?? [])
+    .filter(item => item.targetType === 'place' && item.targetId)
+    .map(item => item.targetId as string)
+
+  const details = useQueries({
+    queries: placeIds.map(id => ({
+      queryKey: queryKeys.place(id),
+      queryFn: () => placesApi.getPlaceDetail(id),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+
+  return {
+    places: details.flatMap(query => (query.data ? [detailToPlaceCard(query.data)] : [])),
+    savedPlanIds: (saved.data ?? [])
+      .filter(item => item.targetType === 'plan' && item.targetId)
+      .map(item => item.targetId as string),
+    isPending: saved.isPending || details.some(query => query.isPending),
+    isError: saved.isError,
+    error: saved.error,
+    refetch: saved.refetch,
+  }
 }
 
 // --- reviews ---------------------------------------------------------------

@@ -64,11 +64,29 @@ describe('toCreateRoomBody', () => {
     expect(toCreateRoomBody(draft()).constraint).toMatchObject({ originLat: 10.77, originLng: 106.7 })
   })
 
-  it('caps seed places at the ten the contract allows', () => {
-    const ids = Array.from({ length: 14 }, (_, index) => `place-${index}`)
-    useRoomStore.getState().patchDraft({ budgetAmount: 300_000, seedPlaceIds: ids })
+  it('sends seed places as ids, not names', () => {
+    useRoomStore.getState().patchDraft({ budgetAmount: 300_000 })
+    useRoomStore.getState().addSeedPlace({ placeId: 'place-a', name: 'Cà phê Đỗ Phủ' })
+    useRoomStore.getState().addSeedPlace({ placeId: 'place-b', name: 'Landmark 81' })
 
-    expect(toCreateRoomBody(draft()).seedPlaceIds).toHaveLength(10)
+    expect(toCreateRoomBody(draft()).seedPlaceIds).toEqual(['place-a', 'place-b'])
+  })
+
+  it('refuses a duplicate seed place', () => {
+    useRoomStore.getState().addSeedPlace({ placeId: 'place-a', name: 'Cà phê Đỗ Phủ' })
+    useRoomStore.getState().addSeedPlace({ placeId: 'place-a', name: 'Cà phê Đỗ Phủ' })
+
+    expect(draft().seedPlaces).toHaveLength(1)
+  })
+
+  it('stops at the ten seed places the contract allows', () => {
+    for (let index = 0; index < 14; index += 1) {
+      useRoomStore.getState().addSeedPlace({ placeId: `place-${index}`, name: `Place ${index}` })
+    }
+
+    // Capped on the way in, so the user sees the limit instead of losing
+    // places silently at create time.
+    expect(draft().seedPlaces).toHaveLength(10)
   })
 })
 

@@ -5,6 +5,7 @@ import {
   formatDistance,
   formatMinuteOfDay,
   memberProgress,
+  openStateFromHours,
   toPlaceCard,
   toPlanSummary,
   toRoomAudience,
@@ -49,6 +50,64 @@ describe('toPlaceCard', () => {
     expect(card.priceMin).toBeNull()
     expect(card.priceMax).toBeNull()
     expect(card.priceUncertain).toBe(true)
+  })
+})
+
+describe('openStateFromHours', () => {
+  // 2026-08-27 is a Thursday (day 4).
+  const thursdayEvening = new Date(2026, 7, 27, 19, 0)
+  const thursdayMorning = new Date(2026, 7, 27, 8, 0)
+  const fridayNight = new Date(2026, 7, 28, 1, 0)
+
+  const weekday = [{ dayOfWeek: 4, openMinute: 9 * 60, closeMinute: 22 * 60, isOvernight: false }]
+
+  it('reports open inside the window, with its closing time', () => {
+    expect(openStateFromHours(weekday, thursdayEvening)).toEqual({
+      openNow: true,
+      closesAtMinute: 22 * 60,
+    })
+  })
+
+  it('reports the next opening when closed earlier the same day', () => {
+    expect(openStateFromHours(weekday, thursdayMorning)).toEqual({
+      openNow: false,
+      opensAtMinute: 9 * 60,
+      opensDayOffset: 0,
+    })
+  })
+
+  it('keeps an overnight session open past midnight, under the previous day', () => {
+    // Thursday 18:00–02:00 is still running at 01:00 on Friday.
+    const overnight = [{ dayOfWeek: 4, openMinute: 18 * 60, closeMinute: 2 * 60, isOvernight: true }]
+
+    expect(openStateFromHours(overnight, fridayNight)).toEqual({
+      openNow: true,
+      closesAtMinute: 2 * 60,
+    })
+  })
+
+  it('does not claim open after an overnight session has ended', () => {
+    const overnight = [{ dayOfWeek: 4, openMinute: 18 * 60, closeMinute: 2 * 60, isOvernight: true }]
+    const fridayMorning = new Date(2026, 7, 28, 9, 0)
+
+    expect(openStateFromHours(overnight, fridayMorning).openNow).toBe(false)
+  })
+
+  it('looks ahead to a later day when today has no hours', () => {
+    // Saturday only (day 6), asked on Thursday.
+    const weekendOnly = [{ dayOfWeek: 6, openMinute: 10 * 60, closeMinute: 20 * 60, isOvernight: false }]
+
+    expect(openStateFromHours(weekendOnly, thursdayEvening)).toEqual({
+      openNow: false,
+      opensAtMinute: 10 * 60,
+      opensDayOffset: 2,
+    })
+  })
+
+  it('says nothing rather than guessing when hours are unknown', () => {
+    // No hours must never render as "open" (RULE-CORE-008).
+    expect(openStateFromHours(undefined, thursdayEvening)).toEqual({ openNow: false })
+    expect(openStateFromHours([], thursdayEvening)).toEqual({ openNow: false })
   })
 })
 

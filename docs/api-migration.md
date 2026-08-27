@@ -24,6 +24,12 @@ pnpm test:contract   # needs GoGo-BE running; see docs/adr/0001-api-integration.
 | `features/create-date/create-budget.view` | writes `budgetAmount` in integer minor units |
 | `features/create-date/create-mood.view` | `useTaxonomies` for stable keys, `useCreateRoom` |
 | `features/tabs/profile.view` | `useMe`, real logout with full cache purge |
+| `features/search/search.view` | `usePlaceSearch` — every filter is a server param, cursor paging |
+| `features/date-plan/place-detail.view` | `usePlaceDetail(placeId)`, real hours/suitability/attribution |
+| `features/tabs/saved.view` | `useSavedPlaces`, `useToggleSaved` |
+| `features/place-import/import.view` | `useResolveGoogleMapsLink` + `useSubmitPlace` |
+
+`bookmarkStore` and `importStore` are deleted — both held server state.
 
 ## Remaining, migrated per vertical
 
@@ -36,10 +42,27 @@ a half-migrated vertical is harder to reason about than an unmigrated one.
 Each row lists the hook to use and the specific trap in that screen's current
 mock shape.
 
-### Phase 1 — places
+### Phase 1 — places ✅ done
 
-`search.view`, `place-detail.view`, `saved.view` (list rendering only),
-`import.view`, plus `home.view`'s discovery rail.
+`search.view`, `place-detail.view`, `saved.view`, `import.view`. `home.view`'s
+discovery rail still reads `mockApi.suggestedPlans`; it needs room context to
+build a sensible query, so it moves with the plan phase.
+
+Decisions made while migrating:
+
+- **The style-tag filter was removed from search.** The contract has no
+  mood/style search parameter, and filtering client-side over a cursor-paged
+  list only ever filters the page in hand — "no results" would be a lie. Add it
+  back when search supports it server-side.
+- **Distance filtering requires an origin.** Without location permission the
+  only origin the app has is the wizard's area pick, so the distance field is
+  replaced by an explanation when there is none. `sort=distance` is only ever
+  sent alongside `lat`/`lng`, which the server requires.
+- **The saved map projects real coordinates.** Markers were fixed percentages;
+  they now normalise real `lat`/`lng` into the view box, so relative geometry is
+  true. There is still no basemap — that needs the map-SDK ADR.
+- **Saved and bookmarking require an account.** Guests get 403 `USER_ONLY` on
+  `/me/saved`, so the control is hidden rather than offered and then refused.
 
 ### Phase 2 — suggestions and votes
 
@@ -65,28 +88,25 @@ the app refetches from the API on open.
 | --- | --- | --- |
 | `matching/preference.view` | `useTaxonomies`, `useMyPreferences`, `useSaveMyPreferences`, `useCompleteMyPreferences` | Selections are localised labels; the API wants stable keys per taxonomy kind. Send `expectedVersion` from the last read. |
 | `matching/swipe.view` | `useCurrentSuggestions`, `useCastVote` | Votes are local counters today. `swipeCards` is imported directly, bypassing Query. Vote values are `yes` / `no` / `star`, not like/dislike/maybe. |
-| `matching/waiting.view` | `useRoomMembers({ refetchInterval })` | Partner progress is a `setInterval` fake. `groupMembers` is a direct fixture import. |
+| `matching/waiting.view` | `useRoomMembers` + `useRoomRealtime` | Partner progress is a `setInterval` fake. `groupMembers` is a direct fixture import. |
 | `matching/matching.view` | `useGenerateSuggestions` | Pure timer theatre — 1200/2400/3200ms then navigate. |
 | `matching/match-result.view` | `useCurrentSuggestions`, `useFinalizeVotes`, `useRegeneratePlan` | Hero title and `planTotal(750)` are hardcoded. Regenerate is a 600ms fake; the real one returns the new plan and must preserve locked stops. |
 | `date-plan/date-plan.view` | `useCurrentPlan` / `usePlan`, `useLockPlanStop` | Locks are keyed by the `'18:30'` time string. Use `stop.id`. `timeline` is a direct fixture import. |
-| `date-plan/place-detail.view` | `usePlaceDetail(placeId)` | Ignores its own `[placeId]` route param and is hardcoded to "Sakura Omakase"; every caller navigates to the literal `/places/sakura-omakase`. `PlaceDetail` is snake_case with no required fields. |
 | `active-date/active-date.view` | `usePlan`, `useCompletePlanStop` | `const stops = timeline`. Stop completion is local only. |
 | `active-date/checkin-sheet.view` | `useCheckinPlanStop` | Sends local photo URIs; the API wants uploaded `photoKeys`, and `billTotal` requires `billPhotoKey`. Needs an upload step first. |
 | `active-date/date-finished.view` | `usePlan` | Reads `checkinStore`, keyed by time string. |
 | `review/review.view` | `useCreateReview` | Nothing is persisted; navigates using the mock `INVITE_CODE`. New reviews come back as `pending` moderation — do not render them as published. |
 | `review/shared-result.view` | `usePlan` + room facts | Stats are entirely hardcoded. |
-| `search/search.view` | `usePlaceSearch` | **All filtering is client-side** over the full array. Move `q`, category, distance, price, `suitedFor` to server params, and page with `nextCursor`. |
-| `tabs/saved.view` | `useSaved`, `useToggleSaved` | Two divergent bookmark states (`bookmarkStore` seeded from fixtures, plus a local `savedIdx`). Map is fake percent offsets. |
 | `tabs/plans.view` | `useRecentRoomsStore` + `useCurrentPlan` | Hardcoded upcoming card. There is no `GET /rooms`, so the room list comes from the local recent-rooms store. |
 | `home/home.view` | `useRecentRoomsStore`, `usePlaceSearch` | Renders loading/empty/error from the demo `uiState` flag rather than real query state. |
-| `place-import/import.view` | `useResolveGoogleMapsLink`, `useSubmitPlaceImport`, `usePlaceImportStatus` | Builds a fake `SavedPlace` with `priceK: 0`. Verification is asynchronous — poll the import until it leaves `pending`. |
 
 ## Cross-cutting changes these depend on
 
 1. **Identity.** No mock entity has an id: places key on `title`, stops on a
-   `'18:30'` time string. `bookmarkStore`, `importStore`, `roomStore.seedPlaces`
-   / `lockedStops` and `checkinStore` all index on those strings and must move
-   to uuids.
+   `'18:30'` time string. Places are done — `bookmarkStore` and `importStore`
+   are deleted and `roomStore.seedPlaces` now holds real place ids. Still on
+   strings: `roomStore.lockedStops` and `checkinStore`, both keyed by stop time
+   rather than `stop.id`.
 2. **Money.** Mocks use `priceK` (thousands of VND, "total for two"). The
    contract uses integer minor units. `src/shared/pricing/money.ts` is the
    replacement; `usePriceFormatter` still speaks `priceK` and should be retired

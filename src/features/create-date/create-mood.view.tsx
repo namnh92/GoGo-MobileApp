@@ -157,12 +157,12 @@ export default function CreateMoodScreen() {
           <View style={styles.seedRow}>
             {seedPlaces.map(place => (
               <Pressable
-                key={place.title}
-                onPress={() => removeSeedPlace(place.title)}
-                accessibilityLabel={`${place.title} ✕`}
+                key={place.placeId}
+                onPress={() => removeSeedPlace(place.placeId)}
+                accessibilityLabel={`${place.name} ✕`}
                 style={styles.seedChip}
               >
-                <Text style={styles.seedChipLabel}>{place.category} {place.title}  ✕</Text>
+                <Text style={styles.seedChipLabel}>📍 {place.name}  ✕</Text>
               </Pressable>
             ))}
             <Pressable onPress={() => router.push('/places/search?picker=1')} style={styles.seedAddBtn}>

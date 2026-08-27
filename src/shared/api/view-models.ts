@@ -111,6 +111,75 @@ export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
   }
 }
 
+type OpeningHour = NonNullable<PlaceDetail['hours']>[number]
+
+export interface DerivedOpenState {
+  openNow: boolean
+  closesAtMinute?: number
+  opensAtMinute?: number
+  /** 0 = today, 1 = tomorrow — lets copy say "mở lại 09:00 mai". */
+  opensDayOffset?: number
+}
+
+const MINUTES_PER_DAY = 24 * 60
+const DAYS_PER_WEEK = 7
+
+/**
+ * `PlaceSearchResult` ships an `open` block, but `PlaceDetail` only ships raw
+ * `hours`, so the detail screen has to derive the same facts rather than claim
+ * "open now" from nothing (RULE-CORE-008).
+ *
+ * `isOvernight` means the entry closes after midnight, so a place open
+ * 18:00–02:00 is still open at 01:00 — under *yesterday's* entry.
+ */
+export function openStateFromHours(hours: OpeningHour[] | undefined, now = new Date()): DerivedOpenState {
+  if (!hours || hours.length === 0) return { openNow: false }
+
+  const day = now.getDay()
+  const minute = now.getHours() * 60 + now.getMinutes()
+
+  for (const entry of hours) {
+    if (entry.dayOfWeek !== day || entry.openMinute == null || entry.closeMinute == null) continue
+    const openNow = entry.isOvernight
+      ? minute >= entry.openMinute
+      : minute >= entry.openMinute && minute < entry.closeMinute
+    if (openNow) return { openNow: true, closesAtMinute: entry.closeMinute }
+  }
+
+  // Yesterday's overnight session may still be running.
+  const yesterday = (day + DAYS_PER_WEEK - 1) % DAYS_PER_WEEK
+  for (const entry of hours) {
+    if (entry.dayOfWeek !== yesterday || !entry.isOvernight || entry.closeMinute == null) continue
+    if (minute < entry.closeMinute) return { openNow: true, closesAtMinute: entry.closeMinute }
+  }
+
+  // Closed: find the next opening within a week.
+  for (let offset = 0; offset < DAYS_PER_WEEK; offset += 1) {
+    const target = (day + offset) % DAYS_PER_WEEK
+    const candidates = hours
+      .filter(entry => entry.dayOfWeek === target && entry.openMinute != null)
+      .map(entry => entry.openMinute as number)
+      .filter(openMinute => offset > 0 || openMinute > minute)
+      .sort((a, b) => a - b)
+
+    if (candidates.length > 0) return { openNow: false, opensAtMinute: candidates[0], opensDayOffset: offset }
+  }
+
+  return { openNow: false }
+}
+
+/** Total minutes a place is open on a given weekday — used for "closed today". */
+export function minutesOpenOnDay(hours: OpeningHour[] | undefined, day: number): number {
+  if (!hours) return 0
+  return hours
+    .filter(entry => entry.dayOfWeek === day && entry.openMinute != null && entry.closeMinute != null)
+    .reduce((total, entry) => {
+      const open = entry.openMinute as number
+      const close = entry.closeMinute as number
+      return total + (entry.isOvernight ? MINUTES_PER_DAY - open + close : close - open)
+    }, 0)
+}
+
 /** "18:30" from the minute-of-day the contract uses for opening hours. */
 export function formatMinuteOfDay(minute: number | undefined): string | null {
   if (minute == null) return null

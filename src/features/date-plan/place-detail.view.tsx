@@ -1,45 +1,105 @@
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { catalogPlaces, unsplashUrl } from '@/data/mockData'
-import { usePriceFormatter } from '@/shared/pricing'
+
+import {
+  formatMinuteOfDay,
+  isSaved,
+  openStateFromHours,
+  usePlaceDetail,
+  useSaved,
+  useTaxonomies,
+  useToggleSaved,
+} from '@/shared/api'
+import { formatRange } from '@/shared/pricing/money'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
-import { useRoom } from '@/shared/store/roomStore'
-import { Atmosphere, GlassCard, RemoteImage, TagChip } from '@/shared/ui/primitives'
+import { useSession } from '@/shared/providers/session-provider'
+import { useRoomStore } from '@/shared/store/roomStore'
+import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { Atmosphere, GlassCard, TagChip } from '@/shared/ui/primitives'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
+
 import { styles } from './place-detail.style'
 
 const { neutral } = colors
 
-const coupleRatings: [string, number][] = [
-  ['💬 Trò chuyện', 4.8],
-  ['❤️ Lãng mạn', 4.5],
-  ['🚪 Riêng tư', 4.2],
-  ['💸 Đáng tiền cho hai người', 4.6],
-]
-
-// Only attributes with real data — no generic "accessible" claims (spec §27.3)
-const placeFacts: [string, string][] = [
-  ['🅿️', 'Có chỗ đậu xe'],
-  ['🏠', 'Trong nhà'],
-  ['🤫', 'Yên tĩnh'],
-  ['♿', 'Có lối vào cho xe lăn'],
-]
+/** Suitability scores are 0..1 from the ranking pipeline. */
+const SUITABILITY_MAX = 1
 
 export default function PlaceDetailScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { stopPrice } = usePriceFormatter()
-  const addSeedPlace = useRoom().addSeedPlace
+  const { placeId } = useLocalSearchParams<{ placeId: string }>()
+  const { status } = useSession()
+
+  const addSeedPlace = useRoomStore(state => state.addSeedPlace)
+  const place = usePlaceDetail(placeId)
+  const taxonomies = useTaxonomies()
+  const canSave = status === 'user'
+  const saved = useSaved({ enabled: canSave })
+  const toggleSaved = useToggleSaved()
+
+  if (place.isPending) {
+    return (
+      <Atmosphere>
+        <View style={{ paddingTop: insets.top }}>
+          <Pressable onPress={() => router.back()} accessibilityLabel={t('common.back')} style={styles.backInline}>
+            <IconChevronLeft />
+          </Pressable>
+        </View>
+        <LoadingState />
+      </Atmosphere>
+    )
+  }
+
+  if (place.isError || !place.data) {
+    return (
+      <Atmosphere>
+        <View style={{ paddingTop: insets.top }}>
+          <Pressable onPress={() => router.back()} accessibilityLabel={t('common.back')} style={styles.backInline}>
+            <IconChevronLeft />
+          </Pressable>
+        </View>
+        <ErrorState error={place.error} onRetry={() => void place.refetch()} />
+      </Atmosphere>
+    )
+  }
+
+  const detail = place.data
+  const id = detail.id ?? placeId
+  const name = detail.name ?? ''
+  const open = openStateFromHours(detail.hours)
+  const price = detail.prices?.[0]
+  const priceLabel = formatRange(price?.priceMin, price?.priceMax, price?.currency ?? 'VND')
+
+  /** Taxonomy keys resolve to labels; the key is what the data actually holds. */
+  function taxonomyLabel(kind: string, key: string): string {
+    const entry = taxonomies.data?.kinds?.[kind]?.find(candidate => candidate.key === key)
+    return entry?.labels?.[i18n.language] ?? entry?.labels?.vi ?? key
+  }
+
+  const tags = (detail.taxonomies ?? []).filter(entry => entry.kind && entry.key)
+  const accessibility = tags.filter(entry => entry.kind === 'accessibility')
+  const suitability = Object.entries(detail.suitability ?? {}).sort((a, b) => b[1] - a[1])
+
+  const destination = detail.address_text ?? (detail.lat != null && detail.lng != null ? `${detail.lat},${detail.lng}` : name)
+
+  function onSave() {
+    const currentlySaved = isSaved(saved.data, 'place', id)
+    toggleSaved.mutate({ type: 'place', id, saved: currentlySaved })
+    if (!currentlySaved) track('place_saved', { placeId: id })
+  }
 
   return (
     <Atmosphere>
       <View style={styles.headerImage}>
-        <RemoteImage uri={unsplashUrl('photo-1562436260-126d541901e0', 700, 500)} style={StyleSheet.absoluteFill} />
+        {/* `uri` stays null until the contract carries photos (GoGo-BE#151). */}
+        <PlacePhoto placeId={id} name={name} uri={null} style={StyleSheet.absoluteFill} />
         <View style={styles.imageScrim} />
         <Pressable
           onPress={() => router.back()}
@@ -52,55 +112,99 @@ export default function PlaceDetailScreen() {
 
       <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[5] }}>
-          <Text style={styles.name}>Sakura Omakase</Text>
-          <Text style={styles.meta}>Thảo Điền · Nhà hàng Nhật · 1.2 km</Text>
-          {/* Single rating line with source + sample size (spec §27.1) */}
-          <Text style={styles.rating}>★ {t('placeDetail.rating')}</Text>
-          <Text style={styles.price}>{stopPrice(450)}</Text>
-          <Text style={styles.open}>{t('placeDetail.openNow')}</Text>
+          <Text style={styles.name}>{name}</Text>
+          <Text style={styles.meta}>
+            {[detail.area_key, ...tags.filter(tag => tag.kind === 'category').map(tag => taxonomyLabel('category', tag.key as string))]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
 
-          <View style={styles.addressCard}>
-            <View style={styles.addressIcon}>
-              <IconMapPin />
-            </View>
-            <Text style={styles.addressLabel}>12 Đường 41, Thảo Điền, Thủ Đức, TP.HCM</Text>
-          </View>
+          {/* Rating always carries its sample size — a 5.0 from two people is
+              not a 5.0 from two thousand (spec §27.1). */}
+          {detail.rating != null ? (
+            <Text style={styles.rating}>
+              ★ {detail.rating.toFixed(1)}
+              {detail.rating_count != null ? ` · ${t('placeDetail.ratingCount', { count: detail.rating_count })}` : ''}
+            </Text>
+          ) : null}
 
-          <Text style={styles.sectionTitle}>{t('placeDetail.goodFor')}</Text>
-          <View style={styles.tagRow}>
-            {['First date', 'Quiet conversation', 'Romantic', 'Rainy day'].map(tag => (
-              <TagChip key={tag} label={tag} color="violet" />
-            ))}
-          </View>
+          {priceLabel ? (
+            <Text style={styles.price}>
+              {priceLabel}
+              {price?.unit ? ` · ${t(`placeDetail.priceUnit.${price.unit}`, { defaultValue: '' })}` : ''}
+            </Text>
+          ) : null}
 
-          <View style={styles.ratingsCard}>
-            <Text style={styles.ratingsTitle}>{t('placeDetail.coupleRatings')}</Text>
-            {coupleRatings.map(([label, val]) => (
-              <View key={label} style={styles.ratingRow}>
-                <Text style={styles.ratingLabel}>{label}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={styles.ratingTrack}>
-                    <View style={[styles.ratingFill, { width: `${(val / 5) * 100}%` }]} />
-                  </View>
-                  <Text style={styles.ratingValue}>{val}</Text>
-                </View>
+          <Text style={open.openNow ? styles.open : styles.closed}>
+            {open.openNow
+              ? formatMinuteOfDay(open.closesAtMinute)
+                ? t('search.openUntil', { time: formatMinuteOfDay(open.closesAtMinute) })
+                : t('common.open')
+              : formatMinuteOfDay(open.opensAtMinute)
+                ? t('search.closedOpens', { time: formatMinuteOfDay(open.opensAtMinute) })
+                : t('common.closed')}
+          </Text>
+
+          {detail.address_text ? (
+            <View style={styles.addressCard}>
+              <View style={styles.addressIcon}>
+                <IconMapPin />
               </View>
-            ))}
-          </View>
+              <Text style={styles.addressLabel}>{detail.address_text}</Text>
+            </View>
+          ) : null}
 
-          <View style={styles.factsGrid}>
-            {placeFacts.map(([icon, text]) => (
-              <GlassCard key={text} style={styles.factCard}>
-                <Text>{icon}</Text>
-                <Text style={styles.factLabel}>{text}</Text>
-              </GlassCard>
-            ))}
-          </View>
+          {tags.length > 0 ? (
+            <>
+              <Text style={styles.sectionTitle}>{t('placeDetail.goodFor')}</Text>
+              <View style={styles.tagRow}>
+                {tags
+                  .filter(tag => tag.kind !== 'accessibility')
+                  .map(tag => (
+                    <TagChip
+                      key={`${tag.kind}:${tag.key}`}
+                      label={taxonomyLabel(tag.kind as string, tag.key as string)}
+                      color="violet"
+                    />
+                  ))}
+              </View>
+            </>
+          ) : null}
+
+          {/* Real suitability scores from the ranking pipeline, not invented bars. */}
+          {suitability.length > 0 ? (
+            <View style={styles.ratingsCard}>
+              <Text style={styles.ratingsTitle}>{t('placeDetail.coupleRatings')}</Text>
+              {suitability.map(([key, value]) => (
+                <View key={key} style={styles.ratingRow}>
+                  <Text style={styles.ratingLabel}>{taxonomyLabel('suitability', key)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={styles.ratingTrack}>
+                      <View style={[styles.ratingFill, { width: `${Math.round((value / SUITABILITY_MAX) * 100)}%` }]} />
+                    </View>
+                    <Text style={styles.ratingValue}>{(value * 5).toFixed(1)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Only attributes with real data — no generic "accessible" claims
+              (spec §27.3). */}
+          {accessibility.length > 0 ? (
+            <View style={styles.factsGrid}>
+              {accessibility.map(entry => (
+                <GlassCard key={entry.key} style={styles.factCard}>
+                  <Text>♿</Text>
+                  <Text style={styles.factLabel}>{taxonomyLabel('accessibility', entry.key as string)}</Text>
+                </GlassCard>
+              ))}
+            </View>
+          ) : null}
 
           <Pressable
             onPress={() => {
-              const place = catalogPlaces.find(p => p.title === 'Sakura Omakase')
-              if (place) addSeedPlace(place)
+              addSeedPlace({ placeId: id, name })
               track('date_create_started', { from: 'place_detail' })
               router.push('/create/type')
             }}
@@ -110,8 +214,21 @@ export default function PlaceDetailScreen() {
             <Text style={styles.createFromPlaceLabel}>{t('placeDetail.createRoom')}</Text>
           </Pressable>
 
+          {/* Provider facts must be shown with their attribution. */}
+          {(detail.sources ?? []).map(source => (
+            <Text key={source.url ?? source.provider} style={styles.attribution}>
+              {source.attribution ?? source.provider}
+            </Text>
+          ))}
+
           <View style={styles.freshnessRow}>
-            <Text style={styles.updated}>{t('placeDetail.updated')}</Text>
+            <Text style={styles.updated}>
+              {detail.freshness_checked_at
+                ? t('placeDetail.updatedAt', {
+                    date: new Date(detail.freshness_checked_at).toLocaleDateString(i18n.language),
+                  })
+                : t('placeDetail.updated')}
+            </Text>
             <Pressable>
               <Text style={styles.report}>{t('placeDetail.report')}</Text>
             </Pressable>
@@ -120,13 +237,21 @@ export default function PlaceDetailScreen() {
       </ScrollView>
 
       <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing[4] }]}>
-        <Pressable accessibilityLabel={t('placeDetail.save')} style={styles.saveBtn}>
-          <Text style={{ fontSize: 18 }}>🔖</Text>
-        </Pressable>
+        {canSave ? (
+          <Pressable
+            onPress={onSave}
+            accessibilityRole="togglebutton"
+            accessibilityState={{ checked: isSaved(saved.data, 'place', id) }}
+            accessibilityLabel={t('placeDetail.save')}
+            style={styles.saveBtn}
+          >
+            <Text style={{ fontSize: 18 }}>{isSaved(saved.data, 'place', id) ? '🔖' : '📑'}</Text>
+          </Pressable>
+        ) : null}
         <Pressable style={styles.addBtn}>
           <Text style={styles.addLabel}>{t('placeDetail.addToPlan')}</Text>
         </Pressable>
-        <Pressable onPress={() => openGoogleMapsDirections('Sakura Omakase, Thảo Điền, TP.HCM')} style={styles.dirBtn}>
+        <Pressable onPress={() => openGoogleMapsDirections(destination)} style={styles.dirBtn}>
           <IconNavigation color={neutral[0]} />
           <Text style={styles.dirLabel}>{t('common.directions')}</Text>
         </Pressable>

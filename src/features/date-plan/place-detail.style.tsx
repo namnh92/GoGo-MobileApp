@@ -28,6 +28,9 @@ export const styles = StyleSheet.create({
   rating: { fontSize: 13, fontWeight: '700', color: neutral[900], marginTop: 6 },
   price: { fontSize: 14, fontWeight: '700', color: brand.coral, marginTop: spacing[2] },
   open: { fontSize: 13, fontWeight: '600', color: brand.mint, marginTop: 2 },
+  closed: { fontSize: 13, fontWeight: '600', color: brand.amber, marginTop: 2 },
+  backInline: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
+  attribution: { fontSize: 11, color: neutral[300], marginTop: spacing[2] },
   addressCard: {
     marginTop: spacing[3],
     backgroundColor: neutral[50],

@@ -1,7 +1,15 @@
 import { create } from 'zustand'
 
 import type { DecisionMode, OpBody } from '@/shared/api'
-import type { SavedPlace } from '@/data/types'
+
+/** A host-suggested place on the room draft: the id is what the API needs. */
+export interface SeedPlaceRef {
+  placeId: string
+  name: string
+}
+
+/** `POST /rooms` accepts at most ten seed places. */
+export const MAX_SEED_PLACES = 10
 
 // Demo/client state only (drafts, flow state, permissions) — Zustand per the
 // state-ownership rule. Server state stays in TanStack Query. Model ported
@@ -32,8 +40,6 @@ export interface RoomDraft {
   /** ISO-8601 UTC, built from the picked local times. */
   startAt: string | null
   endAt: string | null
-  /** Real place ids for `seedPlaceIds`. */
-  seedPlaceIds: string[]
   /** Stable taxonomy keys, carried into the first preference save. */
   moodKeys: string[]
   settingKeys: string[]
@@ -51,8 +57,11 @@ interface RoomStoreState extends RoomDraft {
   /** Giờ bắt đầu (bắt buộc trước khi qua bước sau) và kết thúc dự kiến. */
   startTime: string | null
   endTime: string | null
-  /** Host-suggested places attached to the room draft (create flow). */
-  seedPlaces: SavedPlace[]
+  /**
+   * Host-suggested places attached to the room draft. Holds real place ids —
+   * the name is carried only so the chip can be labelled without a fetch.
+   */
+  seedPlaces: SeedPlaceRef[]
   /** Locked itinerary stops (by stop time) — shared between plan and regenerate. */
   lockedStops: string[]
   setAudience: (a: DemoAudience) => void
@@ -63,8 +72,8 @@ interface RoomStoreState extends RoomDraft {
   setArea: (area: string) => void
   setStartTime: (t: string | null) => void
   setEndTime: (t: string | null) => void
-  addSeedPlace: (place: SavedPlace) => void
-  removeSeedPlace: (title: string) => void
+  addSeedPlace: (place: SeedPlaceRef) => void
+  removeSeedPlace: (placeId: string) => void
   toggleLockedStop: (time: string) => void
   patchDraft: (patch: Partial<RoomDraft>) => void
   resetDraft: () => void
@@ -80,7 +89,6 @@ const emptyDraft: RoomDraft = {
   radiusM: null,
   startAt: null,
   endAt: null,
-  seedPlaceIds: [],
   moodKeys: [],
   settingKeys: [],
   spendingStyleKey: null,
@@ -110,12 +118,15 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   setEndTime: endTime => set({ endTime }),
   addSeedPlace: place =>
     set(state =>
-      state.seedPlaces.some(p => p.title === place.title)
+      // The contract caps seed places at 10; adding an eleventh silently would
+      // drop it at create time instead of here.
+      state.seedPlaces.some(candidate => candidate.placeId === place.placeId) ||
+      state.seedPlaces.length >= MAX_SEED_PLACES
         ? state
         : { seedPlaces: [...state.seedPlaces, place] },
     ),
-  removeSeedPlace: title =>
-    set(state => ({ seedPlaces: state.seedPlaces.filter(p => p.title !== title) })),
+  removeSeedPlace: placeId =>
+    set(state => ({ seedPlaces: state.seedPlaces.filter(place => place.placeId !== placeId) })),
   toggleLockedStop: time =>
     set(state => ({
       lockedStops: state.lockedStops.includes(time)
@@ -133,7 +144,7 @@ export interface RoomView {
   area: string
   startTime: string | null
   endTime: string | null
-  seedPlaces: SavedPlace[]
+  seedPlaces: SeedPlaceRef[]
   lockedStops: string[]
   setAudience: (a: DemoAudience) => void
   setUiState: (s: DemoUIState) => void
@@ -143,8 +154,8 @@ export interface RoomView {
   setArea: (area: string) => void
   setStartTime: (t: string | null) => void
   setEndTime: (t: string | null) => void
-  addSeedPlace: (place: SavedPlace) => void
-  removeSeedPlace: (title: string) => void
+  addSeedPlace: (place: SeedPlaceRef) => void
+  removeSeedPlace: (placeId: string) => void
   toggleLockedStop: (time: string) => void
   roomType: RoomType
   isGuest: boolean
@@ -198,6 +209,8 @@ export function toCreateRoomBody(state: RoomStoreState): OpBody<'createRoom'> {
       ...(state.startAt ? { startAt: state.startAt } : {}),
       ...(state.endAt ? { endAt: state.endAt } : {}),
     },
-    ...(state.seedPlaceIds.length > 0 ? { seedPlaceIds: state.seedPlaceIds.slice(0, 10) } : {}),
+    ...(state.seedPlaces.length > 0
+      ? { seedPlaceIds: state.seedPlaces.slice(0, MAX_SEED_PLACES).map(place => place.placeId) }
+      : {}),
   }
 }

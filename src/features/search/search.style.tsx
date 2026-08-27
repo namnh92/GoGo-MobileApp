@@ -137,4 +137,5 @@ export const styles = StyleSheet.create({
   emptyTitle: { fontSize: 15, fontWeight: '700', color: neutral[900] },
   emptyHint: { fontSize: 13, color: neutral[500], marginTop: 4, textAlign: 'center', lineHeight: 19 },
   addNewBtn: { marginTop: spacing[4], alignSelf: 'stretch' },
+  sheetHint: { fontSize: 13, color: neutral[500], lineHeight: 19, marginBottom: spacing[2] },
 })

@@ -62,4 +62,18 @@ export const styles = StyleSheet.create({
   rejectedReason: { fontSize: 14, color: neutral[700], marginTop: spacing[2], lineHeight: 20 },
   tryAgain: { alignItems: 'center', paddingVertical: spacing[3], marginTop: spacing[2] },
   tryAgainLabel: { fontSize: 14, fontWeight: '600', color: neutral[500] },
+  warning: { fontSize: 13, color: brand.amber, marginTop: spacing[2], lineHeight: 19 },
+  attribution: { fontSize: 11, color: neutral[300], marginTop: spacing[2] },
+  candidateTitle: { fontSize: 14, fontWeight: '600', color: neutral[900], marginBottom: spacing[3] },
+  candidateRow: {
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: neutral[100],
+    marginBottom: spacing[2],
+  },
+  candidateRowActive: { borderColor: brand.coral, backgroundColor: brand.coralGhost },
+  candidateName: { fontSize: 15, fontWeight: '700', color: neutral[900] },
+  candidateAddress: { fontSize: 13, color: neutral[500], marginTop: 2 },
 })

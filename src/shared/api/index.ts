@@ -5,6 +5,8 @@ export * from './errors'
 export * from './view-models'
 export { queryKeys } from './query-keys'
 export { newIdempotencyKey } from './idempotency'
+export type { PlaceSearchQuery } from './endpoints/places'
+export type { SavedTargetType } from './endpoints/me'
 export type { Session, SessionKind } from './session'
 export { getSession } from './session'
 
