@@ -128,6 +128,7 @@ export default function CreateLocationScreen() {
               <Pressable
                 key={label}
                 onPress={() => setRadiusM(option)}
+                accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 style={[styles.radiusBtn, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
               >
@@ -177,6 +178,7 @@ export default function CreateLocationScreen() {
                     <Pressable
                       key={prediction.key ?? prediction.description}
                       onPress={() => pickArea(prediction)}
+                      accessibilityRole="button"
                       accessibilityState={{ selected: active }}
                       style={styles.areaRow}
                     >

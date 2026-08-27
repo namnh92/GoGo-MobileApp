@@ -116,7 +116,12 @@ export default function WaitingScreen() {
         ) : null}
       </GlassCard>
 
-      <Pressable onPress={() => setReminded(true)} disabled={reminded} style={[styles.remindBtn, glassStyles.card]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setReminded(true)}
+        disabled={reminded}
+        style={[styles.remindBtn, glassStyles.card]}
+      >
         <Text style={[styles.remindLabel, reminded && { color: neutral[300] }]}>
           {reminded ? t('waiting.reminded') : t('waiting.remind', { context: roomType })}
         </Text>
@@ -125,7 +130,11 @@ export default function WaitingScreen() {
       {/* Only the host can start matching early (server-enforced). */}
       {roomType === 'group' && capabilities.isHost && (
         <View style={{ marginTop: spacing[3], alignItems: 'center', gap: 6 }}>
-          <Pressable onPress={() => router.replace(`/room/${roomId}/matching`)} style={styles.partialBtn}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.replace(`/room/${roomId}/matching`)}
+            style={styles.partialBtn}
+          >
             <Text style={styles.partialLabel}>{t('waiting.viewPartial')}</Text>
           </Pressable>
           {pendingCount > 0 && (

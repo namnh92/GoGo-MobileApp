@@ -22,7 +22,7 @@ import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, PrimaryBtn, BackHeader, GlassCard, TagChip, Toast, glassStyles } from '@/shared/ui/primitives'
 import { IconNavigation } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './date-plan.style'
 
@@ -175,7 +175,11 @@ export default function DatePlanScreen() {
                   {index < summary.stops.length - 1 && <View style={styles.timelineLine} />}
                 </View>
 
-                <Pressable style={{ flex: 1 }} onPress={() => router.push(`/places/${stop.placeId}`)}>
+                <Pressable
+                  accessibilityRole="button"
+                  style={{ flex: 1 }}
+                  onPress={() => router.push(`/places/${stop.placeId}`)}
+                >
                   <GlassCard style={styles.stopCard}>
                     <PlacePhoto placeId={stop.placeId} name={name} uri={null} style={styles.stopImage} />
                     <View style={{ padding: spacing[4] }}>
@@ -194,6 +198,7 @@ export default function DatePlanScreen() {
                               accessibilityRole="togglebutton"
                               accessibilityState={{ checked: stop.isLocked }}
                               accessibilityLabel={t(stop.isLocked ? 'datePlan.unlockHint' : 'datePlan.lockHint')}
+                              hitSlop={hitSlop}
                               style={[
                                 styles.lockBtn,
                                 stop.isLocked
@@ -215,11 +220,18 @@ export default function DatePlanScreen() {
                         </Text>
                       </View>
                       <View style={styles.stopActions}>
-                        <Pressable onPress={() => router.push(`/places/${stop.placeId}`)} style={styles.detailBtn}>
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => router.push(`/places/${stop.placeId}`)}
+                          hitSlop={hitSlop}
+                          style={styles.detailBtn}
+                        >
                           <Text style={styles.detailLabel}>{t('common.details')}</Text>
                         </Pressable>
                         <Pressable
+                          accessibilityRole="button"
                           onPress={() => openGoogleMapsDirections(place?.addressText ?? name)}
+                          hitSlop={hitSlop}
                           style={styles.directionBtn}
                         >
                           <IconNavigation />

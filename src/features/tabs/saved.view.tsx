@@ -17,7 +17,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, GhostBtn, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
-import { spacing } from '@/shared/ui/tokens'
+import { hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './saved.style'
 
@@ -95,6 +95,7 @@ export default function SavedScreen() {
             onPress={() => router.push('/places/import')}
             accessibilityRole="button"
             accessibilityLabel={t('saved.addPlace')}
+            hitSlop={hitSlop}
             style={styles.addPlaceBtn}
           >
             <Text style={styles.addPlaceLabel}>＋</Text>
@@ -102,7 +103,13 @@ export default function SavedScreen() {
           {/* List/Map toggle — filters survive the switch */}
           <View style={styles.toggle}>
             {(['list', 'map'] as ViewMode[]).map(mode => (
-              <Pressable key={mode} onPress={() => setView(mode)} style={[styles.toggleBtn, view === mode && styles.toggleBtnActive]}>
+              <Pressable
+                key={mode}
+                accessibilityRole="button"
+                onPress={() => setView(mode)}
+                hitSlop={hitSlop}
+                style={[styles.toggleBtn, view === mode && styles.toggleBtnActive]}
+              >
                 <Text style={[styles.toggleLabel, view === mode && styles.toggleLabelActive]}>
                   {t(mode === 'list' ? 'saved.list' : 'saved.map')}
                 </Text>
@@ -115,6 +122,7 @@ export default function SavedScreen() {
             <Pressable
               key={option}
               onPress={() => setFilter(option)}
+              accessibilityRole="button"
               accessibilityState={{ selected: filter === option }}
               style={[styles.filterBtn, filter === option && styles.filterBtnActive]}
             >
@@ -147,7 +155,12 @@ export default function SavedScreen() {
         <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[2], paddingBottom: dockInset }}>
           <View style={styles.grid}>
             {places.map(place => (
-              <Pressable key={place.id} onPress={() => openPlace(place)} style={{ width: '48%' }}>
+              <Pressable
+                key={place.id}
+                accessibilityRole="button"
+                onPress={() => openPlace(place)}
+                style={{ width: '48%' }}
+              >
                 <GlassCard style={[styles.gridCard, { width: '100%' }]}>
                   <View style={styles.gridThumbWrap}>
                     <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
@@ -223,7 +236,12 @@ export default function SavedScreen() {
                 </Text>
                 <Text style={styles.sheetMeta} numberOfLines={1}>{placePriceLabel(selected) ?? ''}</Text>
                 <View style={styles.sheetActions}>
-                  <Pressable onPress={() => openPlace(selected)} style={styles.sheetBtn}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => openPlace(selected)}
+                    hitSlop={hitSlop}
+                    style={styles.sheetBtn}
+                  >
                     <Text style={styles.sheetBtnLabel} numberOfLines={1}>{t('common.details')}</Text>
                   </Pressable>
                 </View>

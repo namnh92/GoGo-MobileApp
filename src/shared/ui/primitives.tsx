@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useLocaleContent } from '@/shared/i18n'
 import { IconChevronLeft } from '@/shared/ui/icons'
-import { colors, radius, spacing, touchTarget, glass, glassFx, shadows } from '@/shared/ui/tokens'
+import { colors, glass, glassFx, hitSlop, radius, shadows, spacing, touchTarget } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -174,6 +174,7 @@ export function BackHeader({ title, onBack, right }: { title?: string; onBack: (
         onPress={onBack}
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
+        hitSlop={hitSlop}
         style={({ pressed }) => [styles.backBtn, glassStyles.card, pressed && { opacity: 0.7 }]}
       >
         <IconChevronLeft />

@@ -83,7 +83,11 @@ export default function PlansScreen() {
           <>
             <Text style={styles.caption}>{t('plans.upcoming')}</Text>
             {upcoming.map(room => (
-              <Pressable key={room.id} onPress={() => openRoom(room)}>
+              <Pressable
+                key={room.id}
+                accessibilityRole="button"
+                onPress={() => openRoom(room)}
+              >
                 <GlassCard style={styles.upcomingCard}>
                   <View style={styles.upcomingIcon}>
                     <Text style={{ fontSize: 24 }}>{room.type === 'group' ? '👥' : '💞'}</Text>
@@ -105,7 +109,11 @@ export default function PlansScreen() {
           <>
             <Text style={styles.caption}>{t('plans.past')}</Text>
             {past.map(room => (
-              <Pressable key={room.id} onPress={() => openRoom(room)}>
+              <Pressable
+                key={room.id}
+                accessibilityRole="button"
+                onPress={() => openRoom(room)}
+              >
                 <GlassCard style={styles.upcomingCard}>
                   <View style={styles.upcomingIcon}>
                     <Text style={{ fontSize: 24 }}>{room.type === 'group' ? '👥' : '💞'}</Text>

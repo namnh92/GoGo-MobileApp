@@ -103,6 +103,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
                   <Pressable
                     key={tag.key}
                     onPress={() => toggleTag(tag.key)}
+                    accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                     style={[styles.tagBtn, active && styles.tagBtnActive]}
                   >
@@ -138,7 +139,11 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
               loading={pending}
               style={styles.saveBtn}
             />
-            <Pressable onPress={skip} style={styles.skipBtn}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={skip}
+              style={styles.skipBtn}
+            >
               <Text style={styles.skipLabel}>{t('checkin.skip')}</Text>
             </Pressable>
           </ScrollView>

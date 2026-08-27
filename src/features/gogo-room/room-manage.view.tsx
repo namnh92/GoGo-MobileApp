@@ -158,6 +158,7 @@ export default function RoomManageScreen() {
                 <Pressable
                   key={tier.key}
                   onPress={() => setBudgetAmount(tier.amount)}
+                  accessibilityRole="button"
                   accessibilityState={{ selected: active }}
                   style={[styles.tier, active && styles.tierActive]}
                 >

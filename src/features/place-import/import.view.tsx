@@ -207,7 +207,11 @@ export default function PlaceImportScreen() {
                 ? t('placeImport.rateLimited')
                 : t('common.errorBody')}
             </Text>
-            <Pressable onPress={reset} style={styles.tryAgain}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={reset}
+              style={styles.tryAgain}
+            >
               <Text style={styles.tryAgainLabel}>{t('placeImport.tryAgain')}</Text>
             </Pressable>
           </View>
@@ -241,6 +245,7 @@ export default function PlaceImportScreen() {
                 <Pressable
                   key={option.googlePlaceId}
                   onPress={() => setSelectedGooglePlaceId(option.googlePlaceId ?? null)}
+                  accessibilityRole="button"
                   accessibilityState={{ selected: active }}
                   style={[styles.candidateRow, active && styles.candidateRowActive]}
                 >
@@ -307,6 +312,7 @@ export default function PlaceImportScreen() {
                         <Pressable
                           key={option.key}
                           onPress={() => setCategory(active ? null : option.key)}
+                          accessibilityRole="button"
                           accessibilityState={{ selected: active }}
                           style={[styles.chip, active && styles.chipActive]}
                         >
@@ -324,6 +330,7 @@ export default function PlaceImportScreen() {
                         <Pressable
                           key={option.key}
                           onPress={() => toggleVibe(option.key)}
+                          accessibilityRole="button"
                           accessibilityState={{ selected: active }}
                           style={[styles.chip, active && styles.chipActive]}
                         >

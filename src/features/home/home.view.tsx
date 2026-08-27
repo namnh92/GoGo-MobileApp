@@ -111,12 +111,14 @@ export default function HomeScreen() {
             <Text style={styles.heroBody}>{t('home.heroBody')}</Text>
             <View style={styles.heroActions}>
               <Pressable
+                accessibilityRole="button"
                 onPress={startCreate}
                 style={({ pressed }) => [styles.heroBtn, { backgroundColor: brand.coral }, pressed && { transform: [{ scale: 0.98 }] }]}
               >
                 <Text style={styles.heroBtnLabel}>{t('home.createDate')}</Text>
               </Pressable>
               <Pressable
+                accessibilityRole="button"
                 onPress={() => router.push('/places/search')}
                 style={({ pressed }) => [styles.heroBtn, { backgroundColor: brand.lavenderGlass }, pressed && { opacity: 0.9 }]}
               >
@@ -176,10 +178,18 @@ export default function HomeScreen() {
               <Text style={styles.stateTitle}>{t('home.emptyTitle')}</Text>
               <Text style={styles.stateBody}>{t('home.emptyBody')}</Text>
               <View style={{ gap: spacing[2], alignSelf: 'stretch', marginTop: spacing[4] }}>
-                <Pressable onPress={() => router.push('/places/search')} style={styles.recoverBtn}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push('/places/search')}
+                  style={styles.recoverBtn}
+                >
                   <Text style={styles.recoverLabel}>{t('home.recoverNearest')}</Text>
                 </Pressable>
-                <Pressable onPress={startCreate} style={styles.recoverBtn}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={startCreate}
+                  style={styles.recoverBtn}
+                >
                   <Text style={styles.recoverLabel}>{t('home.createManual')}</Text>
                 </Pressable>
               </View>
@@ -193,6 +203,7 @@ export default function HomeScreen() {
               <Text style={styles.stateBody}>{t('home.errorBody')}</Text>
               <View style={{ flexDirection: 'row', gap: spacing[2], marginTop: spacing[4] }}>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setUiState('default')
                     void search.refetch()
@@ -201,7 +212,11 @@ export default function HomeScreen() {
                 >
                   <Text style={[styles.recoverLabel, { color: neutral[0] }]}>{t('home.retry')}</Text>
                 </Pressable>
-                <Pressable onPress={startCreate} style={[styles.recoverBtn, styles.recoverOutline]}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={startCreate}
+                  style={[styles.recoverBtn, styles.recoverOutline]}
+                >
                   <Text style={styles.recoverLabel}>{t('home.createManual')}</Text>
                 </Pressable>
               </View>
@@ -211,7 +226,11 @@ export default function HomeScreen() {
           {visualState === 'default' && (
             <View style={{ gap: spacing[3] }}>
               {places.map(place => (
-                <Pressable key={place.id} onPress={() => router.push(`/places/${place.id}`)}>
+                <Pressable
+                  key={place.id}
+                  accessibilityRole="button"
+                  onPress={() => router.push(`/places/${place.id}`)}
+                >
                   <GlassCard style={styles.planCard}>
                     <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.planThumb} />
                     <View style={{ flex: 1, padding: spacing[3] }}>

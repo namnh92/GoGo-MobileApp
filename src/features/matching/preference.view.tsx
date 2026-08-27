@@ -142,6 +142,7 @@ export default function PreferenceScreen() {
               <Pressable
                 key={option.key}
                 onPress={() => toggle(option.key)}
+                accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
               >

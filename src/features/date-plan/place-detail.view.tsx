@@ -23,7 +23,7 @@ import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, GlassCard, TagChip } from '@/shared/ui/primitives'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './place-detail.style'
 
@@ -116,6 +116,7 @@ export default function PlaceDetailScreen() {
         <Pressable
           onPress={() => router.back()}
           accessibilityLabel={t('common.back')}
+          hitSlop={hitSlop}
           style={[styles.backBtn, { top: insets.top + spacing[2] }]}
         >
           <IconChevronLeft />
@@ -241,7 +242,9 @@ export default function PlaceDetailScreen() {
                 ? t('placeDetail.updatedAt', { date: checkedAt.toLocaleDateString(i18n.language) })
                 : t('placeDetail.updated')}
             </Text>
-            <Pressable>
+            <Pressable
+              accessibilityRole="button"
+            >
               <Text style={styles.report}>{t('placeDetail.report')}</Text>
             </Pressable>
           </View>
@@ -260,10 +263,17 @@ export default function PlaceDetailScreen() {
             <Text style={{ fontSize: 18 }}>{isSaved(saved.data, 'place', id) ? '🔖' : '📑'}</Text>
           </Pressable>
         ) : null}
-        <Pressable style={styles.addBtn}>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.addBtn}
+        >
           <Text style={styles.addLabel}>{t('placeDetail.addToPlan')}</Text>
         </Pressable>
-        <Pressable onPress={() => openGoogleMapsDirections(destination)} style={styles.dirBtn}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => openGoogleMapsDirections(destination)}
+          style={styles.dirBtn}
+        >
           <IconNavigation color={neutral[0]} />
           <Text style={styles.dirLabel}>{t('common.directions')}</Text>
         </Pressable>

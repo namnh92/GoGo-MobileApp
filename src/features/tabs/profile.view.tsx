@@ -121,21 +121,36 @@ export default function ProfileScreen() {
             <Text style={styles.caption}>Demo · {env.name}</Text>
             <View style={styles.segmentRow}>
               {audiences.map(a => (
-                <Pressable key={a} onPress={() => room.setAudience(a)} style={[styles.segmentBtn, room.audience === a && styles.segmentBtnActive]}>
+                <Pressable
+                  key={a}
+                  accessibilityRole="button"
+                  onPress={() => room.setAudience(a)}
+                  style={[styles.segmentBtn, room.audience === a && styles.segmentBtnActive]}
+                >
                   <Text style={[styles.segmentLabel, room.audience === a && styles.segmentLabelActive]}>{a}</Text>
                 </Pressable>
               ))}
             </View>
             <View style={[styles.segmentRow, { marginTop: spacing[2] }]}>
               {uiStates.map(s => (
-                <Pressable key={s} onPress={() => room.setUiState(s)} style={[styles.segmentBtn, room.uiState === s && styles.segmentBtnActive]}>
+                <Pressable
+                  key={s}
+                  accessibilityRole="button"
+                  onPress={() => room.setUiState(s)}
+                  style={[styles.segmentBtn, room.uiState === s && styles.segmentBtnActive]}
+                >
                   <Text style={[styles.segmentLabel, room.uiState === s && styles.segmentLabelActive]}>{s}</Text>
                 </Pressable>
               ))}
             </View>
             <View style={[styles.segmentRow, { marginTop: spacing[2] }]}>
               {locales.map(l => (
-                <Pressable key={l} onPress={() => void i18n.changeLanguage(l)} style={[styles.segmentBtn, i18n.resolvedLanguage === l && styles.segmentBtnActive]}>
+                <Pressable
+                  key={l}
+                  accessibilityRole="button"
+                  onPress={() => void i18n.changeLanguage(l)}
+                  style={[styles.segmentBtn, i18n.resolvedLanguage === l && styles.segmentBtnActive]}
+                >
                   <Text style={[styles.segmentLabel, i18n.resolvedLanguage === l && styles.segmentLabelActive]}>{l.toUpperCase()}</Text>
                 </Pressable>
               ))}
@@ -144,7 +159,11 @@ export default function ProfileScreen() {
         )}
 
         {status === 'anonymous' ? (
-          <Pressable style={styles.logout} onPress={() => router.push('/auth/sign-in')}>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.logout}
+            onPress={() => router.push('/auth/sign-in')}
+          >
             <Text style={styles.logoutLabel}>{t('auth.signInCta')}</Text>
           </Pressable>
         ) : (

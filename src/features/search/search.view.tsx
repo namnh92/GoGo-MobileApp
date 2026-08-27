@@ -245,6 +245,7 @@ export default function SearchScreen() {
 
       <View style={styles.filterRow}>
         <Pressable
+          accessibilityRole="button"
           onPress={() => setSelectedCategories([])}
           style={[styles.filterBtn, selectedCategories.length === 0 && styles.filterBtnActive]}
         >
@@ -258,6 +259,7 @@ export default function SearchScreen() {
             <Pressable
               key={category.key}
               onPress={() => toggleCategory(category.key)}
+              accessibilityRole="button"
               accessibilityState={{ selected: active }}
               style={[styles.filterBtn, active && styles.filterBtnActive]}
             >
@@ -300,7 +302,10 @@ export default function SearchScreen() {
             search.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: spacing[4] }} /> : null
           }
           renderItem={({ item: place }) => (
-            <Pressable onPress={() => onPlacePress(place)}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => onPlacePress(place)}
+            >
               <GlassCard style={styles.card}>
                 <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.thumb} />
                 <View style={styles.cardBody}>
@@ -410,6 +415,7 @@ export default function SearchScreen() {
                     <Pressable
                       key={option}
                       onPress={() => setSuited(active ? null : option)}
+                      accessibilityRole="button"
                       accessibilityState={{ selected: active }}
                       style={[styles.sheetOption, active && styles.sheetOptionActive]}
                     >
@@ -429,6 +435,7 @@ export default function SearchScreen() {
                     <Pressable
                       key={category.key}
                       onPress={() => toggleCategory(category.key)}
+                      accessibilityRole="button"
                       accessibilityState={{ selected: active }}
                       style={[styles.sheetOption, active && styles.sheetOptionActive]}
                     >
@@ -441,7 +448,11 @@ export default function SearchScreen() {
               </View>
 
               <PrimaryBtn label={t('search.apply')} onPress={() => setSheetOpen(false)} style={styles.sheetApply} />
-              <Pressable onPress={clearFilters} style={styles.sheetClear}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={clearFilters}
+                style={styles.sheetClear}
+              >
                 <Text style={styles.sheetClearLabel}>{t('search.clearFilters')}</Text>
               </Pressable>
             </ScrollView>

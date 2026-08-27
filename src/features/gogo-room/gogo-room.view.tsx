@@ -187,6 +187,7 @@ export default function GoGoRoomScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={styles.code}>{inviteCode ?? '·····'}</Text>
               <Pressable
+                accessibilityRole="button"
                 onPress={copyCode}
                 disabled={!inviteCode}
                 style={[styles.copyBtn, codeCopied && { backgroundColor: brand.mintSoft }]}

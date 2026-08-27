@@ -40,6 +40,7 @@ export default function GroupSetupScreen() {
           </Pressable>
           <Text style={styles.count}>{t('groupSetup.people', { n: participantCount })}</Text>
           <Pressable
+            accessibilityRole="button"
             onPress={() => setParticipantCount(Math.min(MAX_PEOPLE, participantCount + 1))}
             disabled={participantCount >= MAX_PEOPLE}
             accessibilityLabel="+1"

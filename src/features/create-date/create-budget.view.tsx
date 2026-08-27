@@ -49,6 +49,7 @@ export default function CreateBudgetScreen() {
               <Pressable
                 key={tier.key}
                 onPress={() => setSelected(tier)}
+                accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
               >

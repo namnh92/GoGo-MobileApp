@@ -44,6 +44,7 @@ function ChipGrid({ options, selected, onToggle, cols = 2 }: {
           <Pressable
             key={option.key}
             onPress={() => onToggle(option.key)}
+            accessibilityRole="button"
             accessibilityState={{ selected: active }}
             style={[styles.chip, sizing, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
           >
@@ -165,7 +166,11 @@ export default function CreateMoodScreen() {
                 <Text style={styles.seedChipLabel}>📍 {place.name}  ✕</Text>
               </Pressable>
             ))}
-            <Pressable onPress={() => router.push('/places/search?picker=1')} style={styles.seedAddBtn}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/places/search?picker=1')}
+              style={styles.seedAddBtn}
+            >
               <Text style={styles.seedAddLabel}>{t('createMood.addPlace')}</Text>
             </Pressable>
           </View>

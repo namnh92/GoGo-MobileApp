@@ -69,6 +69,7 @@ export default function CreateTimeScreen() {
               <Pressable
                 key={o}
                 onPress={() => setSelectedIndex(i)}
+                accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
               >
@@ -120,6 +121,7 @@ export default function CreateTimeScreen() {
                   <Pressable
                     key={slot}
                     onPress={() => pickSlot(slot)}
+                    accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                     style={[styles.slotBtn, active && { backgroundColor: colors.brand.coral }]}
                   >

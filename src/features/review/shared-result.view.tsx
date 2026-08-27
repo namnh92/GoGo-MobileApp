@@ -162,10 +162,18 @@ export default function SharedResultScreen() {
           </View>
         ) : null}
 
-        <Pressable onPress={() => router.replace('/(tabs)')} style={styles.nextBtn}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.replace('/(tabs)')}
+          style={styles.nextBtn}
+        >
           <Text style={styles.nextLabel}>{t('sharedResult.nextDate')}</Text>
         </Pressable>
-        <Pressable onPress={share} style={styles.shareBtn}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={share}
+          style={styles.shareBtn}
+        >
           <IconShare />
           <Text style={styles.shareLabel}>{t('sharedResult.share')}</Text>
         </Pressable>

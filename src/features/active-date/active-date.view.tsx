@@ -163,13 +163,19 @@ export default function ActiveDateScreen() {
 
             <View style={styles.actions}>
               <Pressable
+                accessibilityRole="button"
                 onPress={() => openGoogleMapsDirections(address ?? placeName)}
                 style={styles.dirBtn}
               >
                 <IconNavigation />
                 <Text style={styles.dirLabel}>{t('common.directions')}</Text>
               </Pressable>
-              <Pressable onPress={onDone} disabled={completeStop.isPending} style={styles.doneBtn}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onDone}
+                disabled={completeStop.isPending}
+                style={styles.doneBtn}
+              >
                 <Text style={styles.doneLabel}>
                   {completeStop.isPending
                     ? t('activeDate.saving')
