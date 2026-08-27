@@ -1,8 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import * as placesApi from '../endpoints/places'
 import * as plansApi from '../endpoints/plans'
 import { queryKeys } from '../query-keys'
 import type { OpBody, Plan } from '../types'
+import { detailToPlaceCard, type PlaceCard } from '../view-models'
 
 /** Liveness comes from `useRoomRealtime`, never from a per-screen interval. */
 export function useCurrentPlan(roomId: string | undefined) {
@@ -19,6 +21,31 @@ export function usePlan(planId: string | undefined) {
     queryFn: () => plansApi.getPlan(planId as string),
     enabled: Boolean(planId),
   })
+}
+
+/**
+ * A `PlanStop` carries a `placeId` and nothing else about the place, and the
+ * contract has no batch place lookup, so each stop's details are fetched
+ * individually. A plan has at most eight stops and the details are cached and
+ * shared with the place-detail screen, so this stays cheap.
+ */
+export function usePlanStopPlaces(stops: readonly { placeId: string }[]) {
+  const placeIds = [...new Set(stops.map(stop => stop.placeId).filter(Boolean))]
+
+  const details = useQueries({
+    queries: placeIds.map(id => ({
+      queryKey: queryKeys.place(id),
+      queryFn: () => placesApi.getPlaceDetail(id),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+
+  const byPlaceId = new Map<string, PlaceCard>()
+  for (const query of details) {
+    if (query.data?.id) byPlaceId.set(query.data.id, detailToPlaceCard(query.data))
+  }
+
+  return { byPlaceId, isPending: details.some(query => query.isPending) }
 }
 
 /** Every plan mutation returns the new version — write it to both cache keys. */

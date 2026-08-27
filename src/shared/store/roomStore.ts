@@ -62,8 +62,6 @@ interface RoomStoreState extends RoomDraft {
    * the name is carried only so the chip can be labelled without a fetch.
    */
   seedPlaces: SeedPlaceRef[]
-  /** Locked itinerary stops (by stop time) — shared between plan and regenerate. */
-  lockedStops: string[]
   setAudience: (a: DemoAudience) => void
   setUiState: (s: DemoUIState) => void
   setParticipantCount: (n: number) => void
@@ -74,7 +72,6 @@ interface RoomStoreState extends RoomDraft {
   setEndTime: (t: string | null) => void
   addSeedPlace: (place: SeedPlaceRef) => void
   removeSeedPlace: (placeId: string) => void
-  toggleLockedStop: (time: string) => void
   patchDraft: (patch: Partial<RoomDraft>) => void
   resetDraft: () => void
 }
@@ -105,7 +102,6 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   startTime: null,
   endTime: null,
   seedPlaces: [],
-  lockedStops: [],
   patchDraft: patch => set(patch),
   resetDraft: () => set({ ...emptyDraft, seedPlaces: [] }),
   setAudience: audience => set({ audience }),
@@ -127,12 +123,6 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
     ),
   removeSeedPlace: placeId =>
     set(state => ({ seedPlaces: state.seedPlaces.filter(place => place.placeId !== placeId) })),
-  toggleLockedStop: time =>
-    set(state => ({
-      lockedStops: state.lockedStops.includes(time)
-        ? state.lockedStops.filter(x => x !== time)
-        : [...state.lockedStops, time],
-    })),
 }))
 
 export interface RoomView {
@@ -145,7 +135,6 @@ export interface RoomView {
   startTime: string | null
   endTime: string | null
   seedPlaces: SeedPlaceRef[]
-  lockedStops: string[]
   setAudience: (a: DemoAudience) => void
   setUiState: (s: DemoUIState) => void
   setParticipantCount: (n: number) => void
@@ -156,12 +145,10 @@ export interface RoomView {
   setEndTime: (t: string | null) => void
   addSeedPlace: (place: SeedPlaceRef) => void
   removeSeedPlace: (placeId: string) => void
-  toggleLockedStop: (time: string) => void
   roomType: RoomType
   isGuest: boolean
   /** UI authorization (spec v4 §35): guests never see host-only controls. */
   canRegenerate: boolean
-  canLockStops: boolean
   canEditConstraints: boolean
 }
 
@@ -173,7 +160,6 @@ export function useRoom(): RoomView {
     roomType: state.audience === 'couple' ? 'couple' : 'group',
     isGuest,
     canRegenerate: !isGuest,
-    canLockStops: !isGuest,
     canEditConstraints: !isGuest,
   }
 }

@@ -33,6 +33,10 @@ pnpm test:contract   # needs GoGo-BE running; see docs/adr/0001-api-integration.
 | `features/matching/waiting.view` | `useRoomMembers` + `useRoomRealtime` |
 | `features/matching/matching.view` | `useStartMatching`, `useCurrentSuggestions` |
 | `features/matching/match-result.view` | `useCurrentSuggestions`, `useFinalizeVotes`, `useGenerateSuggestions` |
+| `features/date-plan/date-plan.view` | `usePlan`, `useLockPlanStop`, `usePlanStopPlaces` |
+| `features/active-date/active-date.view` | `usePlan`, `useCompletePlanStop`, `useCheckinPlanStop` |
+| `features/active-date/checkin-sheet.view` | rating/tags/note only — see below |
+| `features/active-date/date-finished.view` | `usePlan` |
 
 `bookmarkStore` and `importStore` are deleted — both held server state.
 
@@ -92,10 +96,28 @@ Decisions made while migrating:
   (server-enforced), so a member sees "waiting for the host" instead of a
   spinner that never resolves.
 
-### Phase 3 — plan
+### Phase 3 — plan ✅ done
 
 `date-plan.view`, `active-date.view`, `checkin-sheet.view`,
 `date-finished.view`.
+
+Decisions made while migrating:
+
+- **Locks moved from a time string to `stop.id`.** They were keyed by `'18:30'`
+  and held in Zustand; a lock is server state that must survive regenerate, so
+  it now goes through `useLockPlanStop` and the returned plan is the truth.
+- **Progress comes from `stop.status`, not a local counter.** The active-date
+  screen resumes correctly after a reload or on a second device.
+- **Check-in ships without photos or the verified bill.** The API takes
+  `photoKeys` and `billPhotoKey` — keys of already-uploaded objects — and the
+  contract has no client upload path (GoGo-BE#171). `billTotal` is rejected
+  without `billPhotoKey`, so a bill form could never submit. The fields are
+  removed with a visible note rather than collected into a dead form.
+- **Check-in tags travel as stable keys.** `tags` is free-form `string[]` with
+  no `checkin_tag` taxonomy, so sending the localised label would store
+  "Muốn đi lại" for one user and "Would go again" for another.
+- **`checkinStore` and `roomStore.lockedStops` are deleted** — both held server
+  state.
 
 ### Phase 4 — saved and reviews
 
@@ -109,10 +131,6 @@ the app refetches from the API on open.
 
 | Screen | Hook | Trap to fix |
 | --- | --- | --- |
-| `date-plan/date-plan.view` | `useCurrentPlan` / `usePlan`, `useLockPlanStop` | Locks are keyed by the `'18:30'` time string. Use `stop.id`. `timeline` is a direct fixture import. |
-| `active-date/active-date.view` | `usePlan`, `useCompletePlanStop` | `const stops = timeline`. Stop completion is local only. |
-| `active-date/checkin-sheet.view` | `useCheckinPlanStop` | Sends local photo URIs; the API wants uploaded `photoKeys`, and `billTotal` requires `billPhotoKey`. Needs an upload step first. |
-| `active-date/date-finished.view` | `usePlan` | Reads `checkinStore`, keyed by time string. |
 | `review/review.view` | `useCreateReview` | Nothing is persisted; navigates using the mock `INVITE_CODE`. New reviews come back as `pending` moderation — do not render them as published. |
 | `review/shared-result.view` | `usePlan` + room facts | Stats are entirely hardcoded. |
 | `tabs/plans.view` | `useRecentRoomsStore` + `useCurrentPlan` | Hardcoded upcoming card. There is no `GET /rooms`, so the room list comes from the local recent-rooms store. |
@@ -123,8 +141,8 @@ the app refetches from the API on open.
 1. **Identity.** No mock entity has an id: places key on `title`, stops on a
    `'18:30'` time string. Places are done — `bookmarkStore` and `importStore`
    are deleted and `roomStore.seedPlaces` now holds real place ids. Still on
-   strings: `roomStore.lockedStops` and `checkinStore`, both keyed by stop time
-   rather than `stop.id`.
+   strings — none left: `roomStore.lockedStops` and `checkinStore` are deleted,
+   and locks and check-ins now key on `stop.id`.
 2. **Money.** Mocks use `priceK` (thousands of VND, "total for two"). The
    contract uses integer minor units. `src/shared/pricing/money.ts` is the
    replacement; `usePriceFormatter` still speaks `priceK` and should be retired
@@ -156,6 +174,7 @@ the app refetches from the API on open.
 | `recentRoomsStore` as the room list | GoGo-BE#152 | `GET /rooms` becomes the source of truth; the store is demoted to cache / offline fallback |
 | `pollingTransport` | GoGo-BE#154 | Add an SSE transport; keep polling as the fallback when the stream drops |
 | `createAndOpenRoom`, `ensureRoomMatching` | GoGo-BE#155 | Delete both, and update the contract test that pins `status === 'collecting'` after creation |
+| Check-in without photos or bill | GoGo-BE#171 | Restore the photo picker and the verified-bill form once an upload path exists |
 | `toNumber`, `parseApiDate` in `view-models.ts` | GoGo-BE#169 | Delete both once `GET /places/{id}` returns a mapped DTO instead of the raw SQL row |
 | `areaLabel` omitting `areaKey` | GoGo-BE#169 | Render the area once there is a label source for the key |
 
