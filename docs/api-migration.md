@@ -119,12 +119,32 @@ Decisions made while migrating:
 - **`checkinStore` and `roomStore.lockedStops` are deleted** — both held server
   state.
 
-### Phase 4 — saved and reviews
+### Phase 4 — saved, reviews, home ✅ done
 
-`saved.view` (mutations), `review.view`, `shared-result.view`,
-`plans.view`.
+`review.view`, `shared-result.view`, `plans.view`, `home.view`.
+(`saved.view` landed with the places vertical.)
 
-### Phase 5 — notifications
+Decisions made while migrating:
+
+- **Review highlight chips removed.** `POST /reviews` takes `rating` and `text`
+  only — no tags field and no review-tag taxonomy (GoGo-BE#171). The note input
+  was also uncontrolled, so whatever the user typed was never read.
+- **`shared-result` now shows real numbers.** It invented "Food compatibility
+  88%", "Budget harmony 94%" and a 4.7/5 rating. It renders the ranking
+  pipeline's own explainable score components instead — `budget`, `consensus`,
+  `preference`, `distance` — plus stop count, duration and cost from the plan.
+  The headline figure is labelled as GoGo's match score, not a user rating.
+- **`plans.view` lists rooms opened on this device**, refetched for live status,
+  and says so on screen. Without `GET /rooms` (GoGo-BE#152) there is no history
+  to show, and a fabricated "Japanese + Pottery" card was standing in for it.
+- **Home's rail is a real curated search**, and its loading / empty / error
+  branches come from the query rather than only from the demo state flag. The
+  stock-photo hero is now a brand surface.
+- **The mock layer is gone**: `src/shared/api/mock.ts`, `src/data/mockData.ts`
+  and `src/data/taxonomy.ts` are deleted. `src/data/types.ts` keeps only the
+  `Mood` shape the i18n content bundle is typed with.
+
+### Phase 5 — notifications (remaining)
 
 Inbox, `registerDeviceToken`, and push-tap routing. Push is only a trigger:
 the app refetches from the API on open.

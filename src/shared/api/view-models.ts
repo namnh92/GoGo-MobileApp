@@ -306,7 +306,9 @@ export interface CandidateCard {
   rank: number
   score: number
   reasonCodes: string[]
-  /** Explainable score parts, highest first — drives "Vì sao phù hợp". */
+  /** Every explainable score part the engine reported, unfiltered. */
+  components: Record<string, number>
+  /** The three strongest parts, highest first — drives "Vì sao phù hợp". */
   topComponents: { key: string; value: number }[]
   myVote?: SuggestionCandidate['myVote']
   points: number
@@ -314,10 +316,10 @@ export interface CandidateCard {
 }
 
 export function toCandidateCard(candidate: SuggestionCandidate): CandidateCard {
-  const components = Object.entries(candidate.components ?? {})
+  const components = candidate.components ?? {}
+  const ranked = Object.entries(components)
     .map(([key, value]) => ({ key, value }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 3)
 
   return {
     placeId: candidate.placeId ?? '',
@@ -325,7 +327,8 @@ export function toCandidateCard(candidate: SuggestionCandidate): CandidateCard {
     rank: candidate.rank ?? 0,
     score: candidate.score ?? 0,
     reasonCodes: candidate.reasonCodes ?? [],
-    topComponents: components,
+    components,
+    topComponents: ranked.slice(0, 3),
     myVote: candidate.myVote,
     points: candidate.points ?? 0,
     stale: candidate.stale ?? false,

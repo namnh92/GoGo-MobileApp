@@ -1,37 +1,83 @@
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Share, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRoom } from '@/shared/store/roomStore'
+
+import {
+  toCandidateCard,
+  toPlanSummary,
+  useCurrentPlan,
+  useCurrentSuggestions,
+  useRoom,
+} from '@/shared/api'
+import { formatMoney, perPerson } from '@/shared/pricing/money'
+import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { IconShare } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
+
 import { styles } from './shared-result.style'
 
-const { brand } = colors
-
-const commonInterests: [string, string, number][] = [
-  ['🍣', 'Japanese', 88],
-  ['🎨', 'Creative', 82],
-  ['😌', 'Quiet', 76],
-]
-
-const funStats: [string, string, string][] = [
-  ['Food compatibility', '88%', brand.coral],
-  ['Activity match', '76%', brand.lavender],
-  ['Budget harmony', '94%', brand.mint],
-  ['Time together', '3h 18m', brand.coral],
-]
+/** Score components are 0..1 from the ranking pipeline. */
+const SCORE_MAX = 5
+/** A zero component (a seed boost nobody used) is noise, not a result. */
+const MIN_SHOWN_COMPONENT = 0.01
 
 export default function SharedResultScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { participantCount, roomType } = useRoom()
+  const { roomId } = useLocalSearchParams<{ roomId: string }>()
+
+  const room = useRoom(roomId)
+  const suggestions = useCurrentSuggestions(roomId)
+  const plan = useCurrentPlan(roomId)
+
+  const winner = useMemo(() => {
+    const candidates = (suggestions.data?.candidates ?? []).map(toCandidateCard)
+    return candidates.sort((a, b) => a.rank - b.rank)[0]
+  }, [suggestions.data])
+
+  const summary = useMemo(() => (plan.data ? toPlanSummary(plan.data) : null), [plan.data])
+
+  if (room.isPending || suggestions.isPending || plan.isPending) {
+    return (
+      <View style={styles.root}>
+        <LoadingState />
+      </View>
+    )
+  }
+
+  if (room.isError || !room.data) {
+    return (
+      <View style={styles.root}>
+        <ErrorState error={room.error} onRetry={() => void room.refetch()} />
+      </View>
+    )
+  }
+
+  const roomType = room.data.type
+  const participantCount = room.data.participantCount
+
+  /**
+   * The pipeline's own explainable score parts, rendered as they are. The
+   * screen used to show invented figures like "Budget harmony 94%"; these are
+   * the numbers the ranking actually used.
+   */
+  const scoreParts = Object.entries(winner?.components ?? {})
+    .filter(([, value]) => value >= MIN_SHOWN_COMPONENT)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+
+  const matchScore = winner ? (winner.score * SCORE_MAX).toFixed(1) : null
 
   async function share() {
     // Plain share via the native sheet (spec: no story/social-specific CTA).
     try {
-      await Share.share({ message: `${t('sharedResult.title')} · 4.7/5 ⭐` })
+      const line = [winner?.name, summary ? formatMoney(summary.costMax, summary.currency) : null]
+        .filter(Boolean)
+        .join(' · ')
+      await Share.share({ message: `${t('sharedResult.title')}${line ? ` — ${line}` : ''}` })
     } catch {
       // user dismissed — nothing to do
     }
@@ -47,48 +93,74 @@ export default function SharedResultScreen() {
         }}
       >
         <Text style={styles.title}>
-          {roomType === 'group' ? `${t('matchResult.groupTitle')} · ${participantCount} 👥` : t('sharedResult.title')}
+          {roomType === 'group'
+            ? `${t('matchResult.groupTitle')} · ${participantCount} 👥`
+            : t('sharedResult.title')}
         </Text>
 
-        <View style={styles.scoreCard}>
-          <Text style={styles.score}>4.7</Text>
-          <Text style={styles.scoreMax}>/ 5</Text>
-          <View style={styles.scoreStars}>
-            {[1, 2, 3, 4, 5].map(s => (
-              <Text key={s} style={[{ fontSize: 20 }, s > 4 && { opacity: 0.4 }]}>⭐</Text>
+        {/* The pipeline's match score, labelled as such — not a user rating. */}
+        {matchScore ? (
+          <View style={styles.scoreCard}>
+            <Text style={styles.score}>{matchScore}</Text>
+            <Text style={styles.scoreMax}>/ {SCORE_MAX}</Text>
+            <Text style={styles.scoreCaption}>{t('sharedResult.matchScore')}</Text>
+          </View>
+        ) : null}
+
+        {winner ? <Text style={styles.winnerName}>{winner.name}</Text> : null}
+
+        {scoreParts.length > 0 ? (
+          <View style={styles.darkCard}>
+            <Text style={styles.caption}>{t('sharedResult.common', { context: roomType })}</Text>
+            {scoreParts.map(([key, value]) => (
+              <View key={key} style={styles.interestRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.interestHeader}>
+                    <Text style={styles.interestLabel}>
+                      {t(`suggestion.component.${key}`, { defaultValue: key })}
+                    </Text>
+                    <Text style={styles.interestPct}>{Math.round(value * 100)}%</Text>
+                  </View>
+                  <View style={styles.track}>
+                    <View style={[styles.fill, { width: `${Math.round(value * 100)}%` }]} />
+                  </View>
+                </View>
+              </View>
             ))}
           </View>
-        </View>
+        ) : null}
 
-        <View style={styles.darkCard}>
-          <Text style={styles.caption}>{t('sharedResult.common', { context: roomType })}</Text>
-          {commonInterests.map(([icon, label, pct]) => (
-            <View key={label} style={styles.interestRow}>
-              <Text style={{ fontSize: 18 }}>{icon}</Text>
-              <View style={{ flex: 1 }}>
-                <View style={styles.interestHeader}>
-                  <Text style={styles.interestLabel}>{label}</Text>
-                  <Text style={styles.interestPct}>{pct}%</Text>
-                </View>
-                <View style={styles.track}>
-                  <View style={[styles.fill, { width: `${pct}%` }]} />
-                </View>
+        {/* Facts from the plan, not invented compatibility percentages. */}
+        {summary ? (
+          <View style={styles.darkCard}>
+            <Text style={styles.caption}>{t('sharedResult.stats')}</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>{t('sharedResult.stops')}</Text>
+                <Text style={styles.statValue}>{summary.stops.length}</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>{t('datePlan.time')}</Text>
+                <Text style={styles.statValue}>
+                  {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m
+                </Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>{t('datePlan.total')}</Text>
+                <Text style={styles.statValue}>
+                  {summary.uncertain ? '~' : ''}
+                  {formatMoney(summary.costMax, summary.currency)}
+                </Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>{t('sharedResult.perPerson')}</Text>
+                <Text style={styles.statValue}>
+                  ~{formatMoney(perPerson(summary.costMax, participantCount, summary.currency), summary.currency)}
+                </Text>
               </View>
             </View>
-          ))}
-        </View>
-
-        <View style={styles.darkCard}>
-          <Text style={styles.caption}>{t('sharedResult.stats')}</Text>
-          <View style={styles.statsGrid}>
-            {funStats.map(([label, val, color]) => (
-              <View key={label} style={styles.statCard}>
-                <Text style={styles.statLabel}>{label}</Text>
-                <Text style={[styles.statValue, { color }]}>{val}</Text>
-              </View>
-            ))}
           </View>
-        </View>
+        ) : null}
 
         <Pressable onPress={() => router.replace('/(tabs)')} style={styles.nextBtn}>
           <Text style={styles.nextLabel}>{t('sharedResult.nextDate')}</Text>
