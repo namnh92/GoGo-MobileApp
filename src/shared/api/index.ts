@@ -1,0 +1,19 @@
+// Public surface of the API layer. Features import from '@/shared/api' only —
+// never from './schema' or './client' directly.
+export * from './types'
+export * from './errors'
+export * from './view-models'
+export { queryKeys } from './query-keys'
+export { newIdempotencyKey } from './idempotency'
+export type { Session, SessionKind } from './session'
+export { getSession } from './session'
+
+export * from './realtime/room-events'
+export type { RoomRealtimeStatus } from './realtime/transport'
+export * from './queries/use-room-realtime'
+export * from './queries/use-rooms'
+export * from './queries/use-preferences'
+export * from './queries/use-places'
+export * from './queries/use-suggestions'
+export * from './queries/use-plans'
+export * from './queries/use-me'

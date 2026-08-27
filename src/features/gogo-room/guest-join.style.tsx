@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -39,4 +39,20 @@ export const styles = StyleSheet.create({
   },
   detailLabel: { fontSize: 14, color: neutral[500] },
   noAccount: { textAlign: 'center', fontSize: 13, color: neutral[500] },
+  nameInput: {
+    minHeight: touchTarget.min,
+    borderWidth: 1,
+    borderColor: neutral[100],
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing[4],
+    fontSize: 16,
+    color: neutral[900],
+    backgroundColor: neutral[0],
+  },
+  error: {
+    fontSize: 13,
+    color: brand.red,
+    textAlign: 'center',
+    marginBottom: spacing[4],
+  },
 })

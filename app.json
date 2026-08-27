@@ -15,7 +15,9 @@
     "ios": {
       "bundleIdentifier": "app.gogo.mobile",
       "supportsTablet": false,
-      "associatedDomains": ["applinks:gogo.app"]
+      "associatedDomains": [
+        "applinks:gogo.app"
+      ]
     },
     "android": {
       "package": "app.gogo.mobile",
@@ -23,8 +25,17 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "gogo.app", "pathPrefix": "/r" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gogo.app",
+              "pathPrefix": "/r"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -37,7 +48,8 @@
         {
           "photosPermission": "GoGo cần truy cập thư viện ảnh để bạn thêm ảnh check-in tại địa điểm."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

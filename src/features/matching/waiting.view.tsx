@@ -17,7 +17,7 @@ const REMIND_COOLDOWN_MS = 5 * 60 * 1000
 export default function WaitingScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  const { roomId } = useLocalSearchParams<{ roomId: string }>()
   const { roomType } = useRoom()
   const [progress, setProgress] = useState(7)
   const [reminded, setReminded] = useState(false)
@@ -29,9 +29,9 @@ export default function WaitingScreen() {
 
   useEffect(() => {
     if (progress < PARTNER_GOAL) return
-    const timer = setTimeout(() => router.replace(`/room/${inviteCode}/matching`), 800)
+    const timer = setTimeout(() => router.replace(`/room/${roomId}/matching`), 800)
     return () => clearTimeout(timer)
-  }, [progress, router, inviteCode])
+  }, [progress, router, roomId])
 
   useEffect(() => {
     if (!reminded) return
@@ -99,7 +99,7 @@ export default function WaitingScreen() {
 
       {roomType === 'group' && (
         <View style={{ marginTop: spacing[3], alignItems: 'center', gap: 6 }}>
-          <Pressable onPress={() => router.replace(`/room/${inviteCode}/matching`)} style={styles.partialBtn}>
+          <Pressable onPress={() => router.replace(`/room/${roomId}/matching`)} style={styles.partialBtn}>
             <Text style={styles.partialLabel}>{t('waiting.viewPartial')}</Text>
           </Pressable>
           {pendingCount > 0 && (

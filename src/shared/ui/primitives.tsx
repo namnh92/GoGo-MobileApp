@@ -4,6 +4,7 @@ import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import type { ReactNode } from 'react'
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -91,28 +92,37 @@ export function Atmosphere({ children, style }: { children: ReactNode; style?: S
   )
 }
 
-export function PrimaryBtn({ label, onPress, disabled = false, style }: {
+export function PrimaryBtn({ label, onPress, disabled = false, loading = false, style }: {
   label: string
   onPress: () => void
   disabled?: boolean
+  loading?: boolean
   style?: StyleProp<ViewStyle>
 }) {
+  // A CTA in flight must not fire twice; the spinner replaces the label rather
+  // than sitting beside it so the button never changes width mid-press.
+  const inactive = disabled || loading
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={inactive}
       accessibilityRole="button"
+      accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [styles.primaryBtnShadow, pressed && { transform: [{ scale: 0.98 }] }, style]}
     >
       <LinearGradient
-        colors={disabled ? [neutral[100], neutral[100]] : [brand.coral, brand.coralDeep]}
+        colors={inactive ? [neutral[100], neutral[100]] : [brand.coral, brand.coralDeep]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.primaryBtn}
       >
-        <Text style={[styles.primaryBtnLabel, disabled && { color: neutral[300] }]} numberOfLines={1}>
-          {label}
-        </Text>
+        {loading ? (
+          <ActivityIndicator color={neutral[500]} />
+        ) : (
+          <Text style={[styles.primaryBtnLabel, inactive && { color: neutral[300] }]} numberOfLines={1}>
+            {label}
+          </Text>
+        )}
       </LinearGradient>
     </Pressable>
   )

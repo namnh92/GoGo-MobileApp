@@ -12,7 +12,7 @@ import { styles } from './matching.style'
 export default function MatchingScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  const { roomId } = useLocalSearchParams<{ roomId: string }>()
   const content = useLocaleContent()
   const { roomType } = useRoom()
   const [phase, setPhase] = useState(0)
@@ -23,13 +23,13 @@ export default function MatchingScreen() {
       setPhase(2)
       track('match_generated')
     }, 2400)
-    const t3 = setTimeout(() => router.replace(`/room/${inviteCode}/match-result`), 3200)
+    const t3 = setTimeout(() => router.replace(`/room/${roomId}/match-result`), 3200)
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
       clearTimeout(t3)
     }
-  }, [router, inviteCode])
+  }, [router, roomId])
 
   return (
     <View style={styles.root}>

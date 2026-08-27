@@ -5,9 +5,10 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useLocaleContent } from '@/shared/i18n'
-import { useRoom } from '@/shared/store/roomStore'
+import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
+import { endSlotToIso, slotToIso } from './schedule'
 import { styles } from './create-time.style'
 
 // 30-minute slots, 08:00 → 23:30 (mock — real slots come from constraints).
@@ -24,11 +25,18 @@ export default function CreateTimeScreen() {
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
   const { roomType, startTime, endTime, setStartTime, setEndTime } = useRoom()
+  const patchDraft = useRoomStore(state => state.patchDraft)
   const [selectedIndex, setSelectedIndex] = useState(1)
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null)
 
   // Start time is mandatory (per SRS room constraints) — end stays optional.
   const canContinue = startTime !== null
+
+  function next() {
+    const startAt = startTime ? slotToIso(startTime) : null
+    patchDraft({ startAt, endAt: endTime ? endSlotToIso(endTime, startAt) : null })
+    router.push('/create/budget')
+  }
 
   function pickSlot(slot: string) {
     if (pickerFor === 'start') {
@@ -93,7 +101,7 @@ export default function CreateTimeScreen() {
         </GlassCard>
       </View>
       <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
-        <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/budget')} disabled={!canContinue} />
+        <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} />
       </View>
 
       {/* Time slot picker sheet */}

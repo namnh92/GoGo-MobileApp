@@ -16,7 +16,7 @@ export default function PreferenceScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
-  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  const { roomId } = useLocalSearchParams<{ roomId: string }>()
   const [selected, setSelected] = useState<string[]>([])
 
   function toggle(label: string) {
@@ -27,7 +27,7 @@ export default function PreferenceScreen() {
 
   function complete() {
     track('preference_completed', { count: selected.length })
-    router.push(`/room/${inviteCode}/swipe`)
+    router.push(`/room/${roomId}/swipe`)
   }
 
   return (

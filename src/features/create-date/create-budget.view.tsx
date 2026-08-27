@@ -3,20 +3,26 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useLocaleContent } from '@/shared/i18n'
-import { useRoom } from '@/shared/store/roomStore'
+import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Atmosphere, BackHeader, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 import { colors, spacing, onDark } from '@/shared/ui/tokens'
+import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, type BudgetTier } from './budget-tiers'
 import { styles } from './create-budget.style'
 
 export default function CreateBudgetScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const content = useLocaleContent()
   const { roomType, budgetMode } = useRoom()
-  const [selectedIndex, setSelectedIndex] = useState(2)
+  const patchDraft = useRoomStore(state => state.patchDraft)
+  const [selected, setSelected] = useState<BudgetTier>(DEFAULT_BUDGET_TIER)
+
+  function next() {
+    // The amount is what the API constrains on; the tier key is presentation.
+    patchDraft({ budgetAmount: selected.amount })
+    router.push('/create/mood')
+  }
 
   // Group budget carries its scope explicitly — no couple copy on group flows.
   const subtitle =
@@ -37,18 +43,22 @@ export default function CreateBudgetScreen() {
         <Text style={styles.body}>{subtitle}</Text>
 
         <View style={{ gap: spacing[2] }}>
-          {content.budgetOptions.map((o, i) => {
-            const active = selectedIndex === i
+          {BUDGET_TIERS.map(tier => {
+            const active = selected.key === tier.key
             return (
               <Pressable
-                key={o.label}
-                onPress={() => setSelectedIndex(i)}
+                key={tier.key}
+                onPress={() => setSelected(tier)}
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{o.label}</Text>
-                  <Text style={[styles.optionSub, { color: active ? onDark.medium : colors.neutral[500] }]}>{o.sub}</Text>
+                  <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>
+                    {t(`createBudget.tier.${tier.key}`)}
+                  </Text>
+                  <Text style={[styles.optionSub, { color: active ? onDark.medium : colors.neutral[500] }]}>
+                    {t(`createBudget.tier.${tier.key}.sub`)}
+                  </Text>
                 </View>
                 {active && (
                   <View style={styles.checkBubble}>
@@ -61,7 +71,7 @@ export default function CreateBudgetScreen() {
         </View>
       </View>
       <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
-        <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/mood')} />
+        <PrimaryBtn label={t('common.continue')} onPress={next} />
       </View>
     </Atmosphere>
   )

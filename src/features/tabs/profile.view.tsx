@@ -1,7 +1,12 @@
+import { useRouter } from 'expo-router'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useMe } from '@/shared/api'
+import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
+import { useSession } from '@/shared/providers/session-provider'
 import { locales, useLocaleContent } from '@/shared/i18n'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
 import { Atmosphere, AvatarCircle, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
@@ -17,16 +22,33 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
   const room = useRoom()
+  const router = useRouter()
   const dockInset = useTabDockInset()
+  const { status, signOut } = useSession()
+  const me = useMe({ enabled: status === 'user' || status === 'guest' })
+  const [signingOut, setSigningOut] = useState(false)
+
+  async function signOutNow() {
+    setSigningOut(true)
+    try {
+      // Revokes server-side, wipes the Keychain, and purges every cached room.
+      await signOut()
+      track('auth_signed_out')
+      router.replace('/(tabs)')
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   return (
     <Atmosphere>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: dockInset }}>
         <View style={styles.headerRow}>
-          <AvatarCircle label="M" size={64} />
+          <AvatarCircle label={(me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()} size={64} />
           <View>
-            <Text style={styles.name}>Max</Text>
-            <Text style={styles.email}>max@gogo.vn</Text>
+            <Text style={styles.name}>{me.data?.displayName ?? t('profile.guestName')}</Text>
+            {/* Guests have no email; showing a placeholder would be a lie. */}
+            <Text style={styles.email}>{me.data?.email ?? t('profile.guestSubtitle')}</Text>
           </View>
         </View>
 
@@ -97,9 +119,23 @@ export default function ProfileScreen() {
           </GlassCard>
         )}
 
-        <Pressable style={styles.logout}>
-          <Text style={styles.logoutLabel}>{t('profile.logout')}</Text>
-        </Pressable>
+        {status === 'anonymous' ? (
+          <Pressable style={styles.logout} onPress={() => router.push('/auth/sign-in')}>
+            <Text style={styles.logoutLabel}>{t('auth.signInCta')}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.logout}
+            onPress={signOutNow}
+            disabled={signingOut}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: signingOut, busy: signingOut }}
+          >
+            <Text style={styles.logoutLabel}>
+              {signingOut ? t('profile.loggingOut') : t('profile.logout')}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
     </Atmosphere>
   )

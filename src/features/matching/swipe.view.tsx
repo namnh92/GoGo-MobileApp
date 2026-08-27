@@ -21,7 +21,7 @@ export default function SwipeScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  const { roomId } = useLocalSearchParams<{ roomId: string }>()
   const { stopPrice } = usePriceFormatter()
   const [cardIndex, setCardIndex] = useState(0)
   const [swipeCount, setSwipeCount] = useState(0)
@@ -60,7 +60,7 @@ export default function SwipeScreen() {
     setCardIndex(progressRef.current.index)
     position.setValue({ x: 0, y: 0 })
     if (progressRef.current.count >= SWIPE_GOAL) {
-      setTimeout(() => router.replace(`/room/${inviteCode}/waiting`), 300)
+      setTimeout(() => router.replace(`/room/${roomId}/waiting`), 300)
     }
   }
 
