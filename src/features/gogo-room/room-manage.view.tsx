@@ -8,6 +8,7 @@ import {
   isApiError,
   roomCapabilities,
   useRemoveRoomMember,
+  useRemoveRoomSeedPlace,
   useRevokeRoomInvite,
   useRoom,
   useRoomInvites,
@@ -34,6 +35,7 @@ export default function RoomManageScreen() {
   const revokeInvite = useRevokeRoomInvite(roomId)
   const removeMember = useRemoveRoomMember(roomId)
   const transitionRoom = useTransitionRoom(roomId)
+  const removeSeedPlace = useRemoveRoomSeedPlace(roomId)
 
   const [budgetAmount, setBudgetAmount] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -234,10 +236,29 @@ export default function RoomManageScreen() {
           )}
         </GlassCard>
 
-        <GhostBtn
-          label={t('roomManage.addSeedPlaces')}
-          onPress={() => router.push(`/places/search?picker=1&roomId=${roomId}`)}
-        />
+        <GlassCard style={styles.card}>
+          <Text style={styles.sectionTitle}>{t('roomManage.seedTitle')}</Text>
+          <Text style={styles.sectionBody}>{t('createMood.seedHint')}</Text>
+          {(summary.seedPlaces ?? []).map(seed => (
+            <View key={seed.placeId} style={styles.row}>
+              <Text style={[styles.rowTitle, { flex: 1 }]} numberOfLines={1}>
+                {seed.name}
+              </Text>
+              <Pressable
+                onPress={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)}
+                accessibilityRole="button"
+                accessibilityLabel={t('roomManage.removeConfirm')}
+                style={styles.rowAction}
+              >
+                <Text style={styles.rowActionLabel}>{t('roomManage.removeConfirm')}</Text>
+              </Pressable>
+            </View>
+          ))}
+          <GhostBtn
+            label={t('roomManage.addSeedPlaces')}
+            onPress={() => router.push(`/places/search?picker=1&roomId=${roomId}`)}
+          />
+        </GlassCard>
 
         <Pressable
           onPress={confirmCancel}

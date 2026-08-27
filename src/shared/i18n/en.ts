@@ -194,6 +194,7 @@ export const enMessages: Record<MessageKey, string> = {
   'roomManage.cancelling': 'Cancelling…',
   'roomManage.cancelTitle': 'Cancel this room?',
   'roomManage.cancelBody': 'A cancelled room cannot be restored. Everyone loses access.',
+  'roomManage.seedTitle': 'Suggested places',
 
   'guestJoin.badge': 'Date invite',
   'guestJoin.title': "You're invited\nto pick a date 🎉",

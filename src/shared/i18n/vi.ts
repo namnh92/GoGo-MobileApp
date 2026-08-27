@@ -195,6 +195,7 @@ export const viMessages = {
   'roomManage.cancelling': 'Đang huỷ…',
   'roomManage.cancelTitle': 'Huỷ phòng này?',
   'roomManage.cancelBody': 'Phòng bị huỷ không khôi phục được. Mọi người sẽ mất quyền truy cập.',
+  'roomManage.seedTitle': 'Địa điểm gợi ý',
 
   'guestJoin.badge': 'Lời mời date',
   // The invite lookup deliberately exposes no host name before joining — an
