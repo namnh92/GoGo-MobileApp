@@ -21,4 +21,5 @@ export const styles = StyleSheet.create({
   message: { color: onDark.soft, fontSize: 16, fontWeight: '500' },
   matched: { color: neutral[0], fontSize: 36, fontWeight: '800' },
   matchedBody: { color: onDark.soft, fontSize: 16, marginTop: spacing[2], textAlign: 'center' },
+  backLink: { fontSize: 14, fontWeight: '600', color: colors.brand.coral, textDecorationLine: 'underline' },
 })

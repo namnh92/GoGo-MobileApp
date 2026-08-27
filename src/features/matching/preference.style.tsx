@@ -14,4 +14,5 @@ export const styles = StyleSheet.create({
     gap: spacing[2],
   },
   optionLabel: { fontSize: 13, fontWeight: '600' },
+  error: { fontSize: 13, color: colors.brand.red, marginTop: spacing[4] },
 })

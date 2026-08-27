@@ -200,6 +200,13 @@ export function placePriceLabel(card: PlaceCard): string | null {
   return formatRange(card.priceMin, card.priceMax, card.currency)
 }
 
+/** Same, straight from a `PlaceDetail` — null when it carries no price. */
+export function formatRangeForPlace(detail: PlaceDetail | undefined): string | null {
+  const price = detail?.prices?.[0]
+  if (!price) return null
+  return formatRange(price.priceMin, price.priceMax, price.currency ?? 'VND')
+}
+
 // ---------------------------------------------------------------------------
 // Rooms
 // ---------------------------------------------------------------------------

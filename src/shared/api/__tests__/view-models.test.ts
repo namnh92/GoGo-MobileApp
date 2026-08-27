@@ -6,6 +6,7 @@ import {
   formatMinuteOfDay,
   memberProgress,
   openStateFromHours,
+  toCandidateCard,
   toPlaceCard,
   toPlanSummary,
   toRoomAudience,
@@ -170,6 +171,38 @@ describe('memberProgress', () => {
       completed: 0,
       total: 4,
     })
+  })
+})
+
+describe('toCandidateCard', () => {
+  it('keeps the three strongest score components, highest first', () => {
+    const card = toCandidateCard({
+      placeId: 'p1',
+      name: 'Landmark 81',
+      rank: 1,
+      score: 0.82,
+      components: { budget: 0.4, preferences: 0.9, distance: 0.7, rating: 0.6 },
+      reasonCodes: ['FITS_BUDGET'],
+      points: 3,
+      stale: false,
+    })
+
+    expect(card.topComponents.map(component => component.key)).toEqual([
+      'preferences',
+      'distance',
+      'rating',
+    ])
+  })
+
+  it('fills in safe defaults for a sparse candidate', () => {
+    // Every field on SuggestionCandidate is optional in the contract.
+    const card = toCandidateCard({})
+
+    expect(card.placeId).toBe('')
+    expect(card.reasonCodes).toEqual([])
+    expect(card.topComponents).toEqual([])
+    expect(card.points).toBe(0)
+    expect(card.stale).toBe(false)
   })
 })
 

@@ -1,206 +1,213 @@
-import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { DEMO_PLAN_ID, unsplashUrl } from '@/data/mockData'
-import { track } from '@/shared/analytics'
-import { useLocaleContent } from '@/shared/i18n'
-import { usePriceFormatter } from '@/shared/pricing'
-import { useRoom } from '@/shared/store/roomStore'
-import { Atmosphere, GhostBtn, GlassCard, PrimaryBtn, RemoteImage, Toast } from '@/shared/ui/primitives'
-import { IconCheck, IconZap } from '@/shared/ui/icons'
-import { colors, spacing, onDark } from '@/shared/ui/tokens'
-import { styles } from './match-result.style'
 
-const { brand, neutral } = colors
+import {
+  roomCapabilities,
+  toCandidateCard,
+  useCurrentPlan,
+  useCurrentSuggestions,
+  useGenerateSuggestions,
+  useFinalizeVotes,
+  useRoom,
+  useRoomRealtime,
+  type CandidateCard,
+} from '@/shared/api'
+import { track } from '@/shared/analytics'
+import { formatMoney } from '@/shared/pricing/money'
+import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { Atmosphere, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { IconCheck, IconZap } from '@/shared/ui/icons'
+import { spacing } from '@/shared/ui/tokens'
+
+import { styles } from './match-result.style'
 
 export default function MatchResultScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const content = useLocaleContent()
-  const { roomType, participantCount, canRegenerate, lockedStops } = useRoom()
-  const { planTotal } = usePriceFormatter()
-  const [refineOpen, setRefineOpen] = useState(false)
-  const [reasons, setReasons] = useState<string[]>([])
-  const [customRequest, setCustomRequest] = useState('')
-  const [lockChoice, setLockChoice] = useState<'keep' | 'drop'>('keep')
-  const [submitting, setSubmitting] = useState(false)
-  const [diff, setDiff] = useState(false)
-  const [sent, setSent] = useState(false)
-  const exclusiveLabel = content.refinementOptions[content.refinementOptions.length - 1].label
-  const lockConflict = reasons.includes(exclusiveLabel) && lockedStops.length > 0
-  const formEmpty = reasons.length === 0 && customRequest.trim() === ''
+  const { roomId } = useLocalSearchParams<{ roomId: string }>()
 
-  function viewPlan() {
+  const room = useRoom(roomId)
+  const suggestions = useCurrentSuggestions(roomId)
+  const plan = useCurrentPlan(roomId)
+  useRoomRealtime(roomId, 'matching')
+
+  const finalize = useFinalizeVotes(roomId)
+  const regenerate = useGenerateSuggestions(roomId)
+
+  const capabilities = roomCapabilities(room.data)
+  const roomType = room.data?.type ?? 'couple'
+  const participantCount = room.data?.participantCount ?? 2
+
+  const candidates = useMemo(
+    () => (suggestions.data?.candidates ?? []).map(toCandidateCard).sort((a, b) => a.rank - b.rank),
+    [suggestions.data],
+  )
+  const winner: CandidateCard | undefined = candidates[0]
+
+  const tally = useMemo(() => {
+    const progress = suggestions.data?.votes?.progress ?? []
+    return new Map(progress.map(entry => [entry.placeId, entry]))
+  }, [suggestions.data])
+
+  async function onFinalize() {
+    try {
+      const result = await finalize.mutateAsync({})
+      track('match_generated', { finalized: true })
+      if (result.planId) router.replace(`/plans/${result.planId}`)
+    } catch {
+      // The error state renders below; the ranking stays usable.
+    }
+  }
+
+  function viewPlan(planId: string) {
     track('date_plan_viewed')
-    router.push(`/plans/${DEMO_PLAN_ID}`)
+    router.push(`/plans/${planId}`)
   }
 
-  function toggleReason(label: string) {
-    setReasons(prev => {
-      if (prev.includes(label)) return prev.filter(x => x !== label)
-      if (label === exclusiveLabel) return [label]
-      return [...prev.filter(x => x !== exclusiveLabel), label]
-    })
+  if (room.isPending || suggestions.isPending) {
+    return (
+      <Atmosphere>
+        <LoadingState />
+      </Atmosphere>
+    )
   }
 
-  function regenerate() {
-    if (submitting || formEmpty) return
-    setSubmitting(true)
-    // Guests send a proposal to the host; hosts regenerate directly (spec v4 §35)
-    track('recommendation_refinement_selected', {
-      reasons: reasons.join(','),
-      custom: customRequest.trim().length > 0,
-      role: canRegenerate ? 'host' : 'guest',
-      lockChoice: lockConflict ? lockChoice : 'n/a',
-    })
-    setTimeout(() => {
-      setSubmitting(false)
-      setRefineOpen(false)
-      setReasons([])
-      setCustomRequest('')
-      if (canRegenerate) {
-        setDiff(true)
-        setTimeout(() => setDiff(false), 3500)
-      } else {
-        setSent(true)
-        setTimeout(() => setSent(false), 2500)
-      }
-    }, 600)
+  if (room.isError || suggestions.isError) {
+    return (
+      <Atmosphere>
+        <ErrorState
+          error={room.error ?? suggestions.error}
+          onRetry={() => {
+            void room.refetch()
+            void suggestions.refetch()
+          }}
+        />
+      </Atmosphere>
+    )
   }
+
+  if (!winner) {
+    return (
+      <Atmosphere>
+        <EmptyState
+          title={t('matchResult.emptyTitle')}
+          body={t('matchResult.emptyBody')}
+          action={<GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />}
+        />
+      </Atmosphere>
+    )
+  }
+
+  const existingPlanId = plan.data?.id
+  const winnerTally = tally.get(winner.placeId)
+  // A run built before the last constraint edit is stale and must not be shown
+  // as the current answer (RULE-CORE-006).
+  const isStale = suggestions.data?.run?.stale ?? false
 
   return (
     <Atmosphere>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: spacing[8] }}>
-        {/* Hero */}
         <View style={styles.hero}>
-          <RemoteImage uri={unsplashUrl('photo-1562436260-126d541901e0', 700, 500)} style={StyleSheet.absoluteFill} />
+          <PlacePhoto placeId={winner.placeId} name={winner.name} uri={null} style={StyleSheet.absoluteFill} />
           <View style={styles.heroScrim} />
           <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeLabel}>⚡ {roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')}</Text>
+            <Text style={styles.heroBadgeLabel}>
+              ⚡ {roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')}
+            </Text>
           </View>
           <View style={styles.heroBottom}>
-            <Text style={styles.heroTitle}>Japanese + Pottery</Text>
-            {roomType === 'group' && (
+            <Text style={styles.heroTitle}>{winner.name}</Text>
+            {roomType === 'group' && winnerTally ? (
               <Text style={styles.heroVotes}>
-                {t('matchResult.groupVotes', { likes: participantCount - 1, total: participantCount, vetoes: 0 })}
+                {t('matchResult.groupVotes', {
+                  likes: (winnerTally.yes ?? 0) + (winnerTally.star ?? 0),
+                  total: participantCount,
+                  vetoes: winnerTally.no ?? 0,
+                })}
               </Text>
-            )}
-            <Text style={styles.heroMeta}>⏱ 3h 30m · 💰 {planTotal(750)} · 📍 4.2 km</Text>
+            ) : null}
+            {plan.data?.totals ? (
+              <Text style={styles.heroMeta}>
+                ⏱ {Math.round((plan.data.totals.durationMinutes ?? 0) / 60)}h · 💰{' '}
+                {formatMoney(plan.data.totals.costMax ?? 0, plan.data.totals.currency ?? 'VND')}
+              </Text>
+            ) : null}
           </View>
         </View>
 
-        {/* Stop categories */}
-        <View style={styles.stopsRow}>
-          {content.stopCategories.map(c => (
-            <GlassCard key={c.label} style={styles.stopChip}>
-              <Text style={{ fontSize: 20 }}>{c.emoji}</Text>
-              <Text style={styles.stopChipLabel}>{c.label}</Text>
-            </GlassCard>
-          ))}
-        </View>
+        {isStale ? (
+          <Text style={styles.staleWarning}>⚠️ {t('matchResult.stale')}</Text>
+        ) : null}
 
-        {/* Reasons */}
+        {/* Why this one — the explainable part of the score, straight from the
+            pipeline rather than a written-in list. */}
         <GlassCard style={styles.reasonCard}>
           <View style={styles.reasonTitleRow}>
             <IconZap />
             <Text style={styles.reasonTitle}>{t('matchResult.whyTitle')}</Text>
           </View>
-          {(roomType === 'group' ? content.groupMatchReasons : content.matchReasons).map(r => (
-            <View key={r} style={styles.reasonRow}>
+          {winner.reasonCodes.map(code => (
+            <View key={code} style={styles.reasonRow}>
               <IconCheck />
-              <Text style={styles.reasonLabel}>{r}</Text>
+              <Text style={styles.reasonLabel}>{t(`suggestion.reason.${code}`, { defaultValue: code })}</Text>
             </View>
           ))}
+          {winner.reasonCodes.length === 0 ? (
+            <Text style={styles.reasonLabel}>{t('matchResult.noReasons')}</Text>
+          ) : null}
         </GlassCard>
 
-        <View style={{ paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] }}>
-          <PrimaryBtn label={t('matchResult.viewPlan')} onPress={viewPlan} />
-          <GhostBtn
-            label={canRegenerate ? t('matchResult.another') : t('matchResult.suggestToHost')}
-            onPress={() => setRefineOpen(true)}
-          />
-        </View>
-      </ScrollView>
-
-      {sent && <Toast message={t('matchResult.suggestionSent')} />}
-      {diff && (
-        <View style={[styles.diffCard, { top: insets.top + spacing[6] }]} accessibilityLiveRegion="polite">
-          <Text style={styles.diffLine}>✓ {t('matchResult.diffKept', { name: 'Sakura Omakase' })}</Text>
-          <Text style={[styles.diffLine, { color: onDark.medium }]}>
-            {t('matchResult.diffChanged', { from: 'Clay & Co.', to: 'Paint & Sip' })}
-          </Text>
-          <Text style={[styles.diffLine, { color: brand.mint }]}>{t('matchResult.diffSaved', { amount: '120k' })}</Text>
-        </View>
-      )}
-
-      {/* Refinement bottom sheet — never regenerate blindly */}
-      <Modal visible={refineOpen} transparent animationType="slide" onRequestClose={() => setRefineOpen(false)}>
-        <View style={styles.modalRoot}>
-        <Pressable style={styles.backdrop} onPress={() => setRefineOpen(false)} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[6] }]}>
-          <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>{canRegenerate ? t('matchResult.refineTitle') : t('matchResult.suggestTitle')}</Text>
-          <View style={styles.reasonGrid}>
-            {content.refinementOptions.map(r => {
-              const active = reasons.includes(r.label)
+        {/* The rest of the ranking, with its real tally. */}
+        {candidates.length > 1 ? (
+          <View style={styles.runnersUp}>
+            <Text style={styles.runnersUpTitle}>{t('matchResult.runnersUp')}</Text>
+            {candidates.slice(1, 5).map(candidate => {
+              const entry = tally.get(candidate.placeId)
               return (
-                <Pressable
-                  key={r.label}
-                  onPress={() => toggleReason(r.label)}
-                  accessibilityState={{ selected: active }}
-                  style={[styles.reasonBtn, active ? { backgroundColor: brand.coral } : { backgroundColor: neutral[50] }]}
-                >
-                  <Text style={[styles.reasonBtnLabel, { color: active ? neutral[0] : neutral[900] }]}>
-                    {active ? '✓' : r.emoji} {r.label}
+                <GlassCard key={candidate.placeId} style={styles.runnerRow}>
+                  <Text style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
+                  <Text style={styles.runnerPoints}>
+                    {t('matchResult.points', { n: entry?.points ?? candidate.points })}
                   </Text>
-                </Pressable>
+                </GlassCard>
               )
             })}
           </View>
-          <View>
-            <TextInput
-              value={customRequest}
-              onChangeText={text => setCustomRequest(text.slice(0, 150))}
-              maxLength={150}
-              placeholder={t('matchResult.customRequest')}
-              placeholderTextColor={neutral[300]}
-              style={styles.input}
-            />
-            {customRequest.length >= 120 && (
-              <Text style={styles.charCount}>{t('matchResult.charCount', { n: customRequest.length })}</Text>
-            )}
-          </View>
+        ) : null}
 
-          {/* Lock conflict — resolved BEFORE submit (spec v4 §38.3) */}
-          {lockConflict && (
-            <View style={styles.lockCard}>
-              <Text style={styles.lockTitle}>🔒 {t('matchResult.lockConflict', { n: lockedStops.length })}</Text>
-              {(['keep', 'drop'] as const).map(choice => (
-                <Pressable key={choice} onPress={() => setLockChoice(choice)} style={styles.lockRow}>
-                  <View style={[styles.radio, { borderColor: lockChoice === choice ? brand.coral : neutral[300] }]}>
-                    {lockChoice === choice && <View style={styles.radioDot} />}
-                  </View>
-                  <Text style={styles.lockLabel}>{t(choice === 'keep' ? 'matchResult.keepLocked' : 'matchResult.dropLocked')}</Text>
-                </Pressable>
-              ))}
-            </View>
+        <View style={{ paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] }}>
+          {existingPlanId ? (
+            <PrimaryBtn label={t('matchResult.viewPlan')} onPress={() => viewPlan(existingPlanId)} />
+          ) : capabilities.canFinalize ? (
+            // Host-only, and server-enforced: a member sending this gets 403.
+            <PrimaryBtn
+              label={finalize.isPending ? t('matchResult.finalizing') : t('matchResult.finalize')}
+              onPress={onFinalize}
+              loading={finalize.isPending}
+            />
+          ) : (
+            <Text style={styles.waitingHost}>{t('matchResult.waitingHost')}</Text>
           )}
 
-          <Pressable
-            onPress={regenerate}
-            disabled={formEmpty || submitting}
-            style={[styles.submitBtn, (formEmpty || submitting) && { opacity: 0.4 }]}
-          >
-            <Text style={styles.submitLabel}>
-              {submitting ? '…' : canRegenerate ? t('matchResult.regenerate') : t('matchResult.sendSuggestion')}
+          {capabilities.canRegenerate ? (
+            <GhostBtn
+              label={regenerate.isPending ? t('matchResult.regenerating') : t('matchResult.another')}
+              onPress={() => regenerate.mutate()}
+            />
+          ) : null}
+
+          {finalize.isError ? (
+            <Text accessibilityLiveRegion="polite" style={styles.error}>
+              {t('matchResult.finalizeFailed')}
             </Text>
-          </Pressable>
+          ) : null}
         </View>
-        </View>
-      </Modal>
+      </ScrollView>
     </Atmosphere>
   )
 }

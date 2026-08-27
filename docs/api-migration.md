@@ -28,6 +28,11 @@ pnpm test:contract   # needs GoGo-BE running; see docs/adr/0001-api-integration.
 | `features/date-plan/place-detail.view` | `usePlaceDetail(placeId)`, real hours/suitability/attribution |
 | `features/tabs/saved.view` | `useSavedPlaces`, `useToggleSaved` |
 | `features/place-import/import.view` | `useResolveGoogleMapsLink` + `useSubmitPlace` |
+| `features/matching/preference.view` | `useTaxonomies`, `useMyPreferences`, `useSaveMyPreferences`, `useCompleteMyPreferences` |
+| `features/matching/swipe.view` | `useCurrentSuggestions`, `useCastVote` |
+| `features/matching/waiting.view` | `useRoomMembers` + `useRoomRealtime` |
+| `features/matching/matching.view` | `useStartMatching`, `useCurrentSuggestions` |
+| `features/matching/match-result.view` | `useCurrentSuggestions`, `useFinalizeVotes`, `useGenerateSuggestions` |
 
 `bookmarkStore` and `importStore` are deleted — both held server state.
 
@@ -64,10 +69,28 @@ Decisions made while migrating:
 - **Saved and bookmarking require an account.** Guests get 403 `USER_ONLY` on
   `/me/saved`, so the control is hidden rather than offered and then refused.
 
-### Phase 2 — suggestions and votes
+### Phase 2 — suggestions and votes ✅ done
 
 `preference.view`, `swipe.view`, `waiting.view`, `matching.view`,
 `match-result.view`.
+
+Decisions made while migrating:
+
+- **The swipe deck's three actions map onto the three vote values** the contract
+  counts: pass → `no`, like → `yes` (1 point), star → `star` (2 points). There
+  is no "maybe" server-side, so the middle action was relabelled rather than
+  left looking non-committal while scoring a point.
+- **The refinement sheet was removed.** It collected structured reasons and free
+  text, and no endpoint accepts them — `generateSuggestions` takes no body and
+  AI refinement is behind a disabled flag. The host now gets a plain
+  "regenerate", and the guest's "suggest to the host" action is gone until
+  there is somewhere to send it.
+- **Timers no longer drive navigation.** `waiting.view` advances when the room
+  actually reaches `matching`, and `matching.view` advances when a run exists.
+  The copy still cycles on a timer; the routing does not.
+- **A member can no longer trigger matching.** Only the host runs the pipeline
+  (server-enforced), so a member sees "waiting for the host" instead of a
+  spinner that never resolves.
 
 ### Phase 3 — plan
 
@@ -86,11 +109,6 @@ the app refetches from the API on open.
 
 | Screen | Hook | Trap to fix |
 | --- | --- | --- |
-| `matching/preference.view` | `useTaxonomies`, `useMyPreferences`, `useSaveMyPreferences`, `useCompleteMyPreferences` | Selections are localised labels; the API wants stable keys per taxonomy kind. Send `expectedVersion` from the last read. |
-| `matching/swipe.view` | `useCurrentSuggestions`, `useCastVote` | Votes are local counters today. `swipeCards` is imported directly, bypassing Query. Vote values are `yes` / `no` / `star`, not like/dislike/maybe. |
-| `matching/waiting.view` | `useRoomMembers` + `useRoomRealtime` | Partner progress is a `setInterval` fake. `groupMembers` is a direct fixture import. |
-| `matching/matching.view` | `useGenerateSuggestions` | Pure timer theatre — 1200/2400/3200ms then navigate. |
-| `matching/match-result.view` | `useCurrentSuggestions`, `useFinalizeVotes`, `useRegeneratePlan` | Hero title and `planTotal(750)` are hardcoded. Regenerate is a 600ms fake; the real one returns the new plan and must preserve locked stops. |
 | `date-plan/date-plan.view` | `useCurrentPlan` / `usePlan`, `useLockPlanStop` | Locks are keyed by the `'18:30'` time string. Use `stop.id`. `timeline` is a direct fixture import. |
 | `active-date/active-date.view` | `usePlan`, `useCompletePlanStop` | `const stops = timeline`. Stop completion is local only. |
 | `active-date/checkin-sheet.view` | `useCheckinPlanStop` | Sends local photo URIs; the API wants uploaded `photoKeys`, and `billTotal` requires `billPhotoKey`. Needs an upload step first. |
