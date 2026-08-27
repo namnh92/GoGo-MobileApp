@@ -156,6 +156,24 @@ the app refetches from the API on open.
 | `recentRoomsStore` as the room list | GoGo-BE#152 | `GET /rooms` becomes the source of truth; the store is demoted to cache / offline fallback |
 | `pollingTransport` | GoGo-BE#154 | Add an SSE transport; keep polling as the fallback when the stream drops |
 | `createAndOpenRoom`, `ensureRoomMatching` | GoGo-BE#155 | Delete both, and update the contract test that pins `status === 'collecting'` after creation |
+| `toNumber`, `parseApiDate` in `view-models.ts` | GoGo-BE#169 | Delete both once `GET /places/{id}` returns a mapped DTO instead of the raw SQL row |
+| `areaLabel` omitting `areaKey` | GoGo-BE#169 | Render the area once there is a label source for the key |
+
+## Found by running the app, not by the gates
+
+Typecheck, lint, unit tests and a clean bundle all passed while these were
+broken. Each is pinned by a regression test now.
+
+1. **`expo-crypto` unresolved at runtime.** A Metro dev server left running from
+   before the dependency was installed served a stale haste map. Restart Metro
+   with `--clear` after adding a native module.
+2. **`detail.rating.toFixed is not a function`.** Postgres `numeric` columns
+   arrive as strings (`"4.60"`) through the raw-row DTO, while the generated
+   type says `number` — so TypeScript cannot see it.
+3. **"Invalid Date" rendered on screen.** `freshness_checked_at` comes back as
+   `2026-08-26 23:40:14.332+00`, which Hermes will not parse.
+4. **A raw internal key shown to users.** `areaKey` (`hcm_q3`) has no label
+   source anywhere in the contract.
 
 ## Backend notes worth keeping
 

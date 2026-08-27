@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  areaLabel,
   formatDistance,
   formatMinuteOfDay,
   placePriceLabel,
@@ -159,7 +160,7 @@ export default function SavedScreen() {
                   <View style={{ padding: spacing[3] }}>
                     <Text style={styles.gridTitle} numberOfLines={1}>{place.name}</Text>
                     <Text style={styles.gridMeta} numberOfLines={1}>
-                      {[place.areaKey, placePriceLabel(place)].filter(Boolean).join(' · ')}
+                      {[areaLabel(place), placePriceLabel(place)].filter(Boolean).join(' · ')}
                     </Text>
                     {place.reasonCodes[0] ? (
                       <View style={{ flexDirection: 'row', marginTop: 6 }}>
@@ -218,7 +219,7 @@ export default function SavedScreen() {
                   {hoursLabel(selected)}
                 </Text>
                 <Text style={styles.sheetMeta} numberOfLines={1}>
-                  {[selected.areaKey, formatDistance(selected.distanceM)].filter(Boolean).join(' · ')}
+                  {[areaLabel(selected), formatDistance(selected.distanceM)].filter(Boolean).join(' · ')}
                 </Text>
                 <Text style={styles.sheetMeta} numberOfLines={1}>{placePriceLabel(selected) ?? ''}</Text>
                 <View style={styles.sheetActions}>

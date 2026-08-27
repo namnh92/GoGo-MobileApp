@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, TextIn
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  areaLabel,
   formatDistance,
   formatMinuteOfDay,
   isSaved,
@@ -174,7 +175,7 @@ export default function SearchScreen() {
   function metaLine(place: PlaceCard): string {
     const price = placePriceLabel(place)
     return [
-      place.areaKey,
+      areaLabel(place),
       formatDistance(place.distanceM),
       // A low-confidence estimate is marked as one rather than shown as a fact.
       price ? (place.priceUncertain ? `~${price}` : price) : null,

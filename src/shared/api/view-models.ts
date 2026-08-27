@@ -84,24 +84,57 @@ export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
 }
 
 /**
+ * `PlaceDetail` is the raw SQL row: snake_case, no required fields, and — the
+ * part the generated types cannot warn about — Postgres `numeric` columns
+ * arrive as **strings** (`rating: "4.60"`) even though the contract declares
+ * them as numbers. Everything numeric out of this DTO goes through `toNumber`.
+ */
+export function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
+/**
+ * Timestamps are declared ISO-8601, but the raw-SQL-row DTOs hand back the
+ * Postgres rendering — `2026-08-26 23:40:14.332+00`, with a space instead of
+ * `T` and a two-digit offset. Hermes rejects that as an Invalid Date, which
+ * then renders as the literal text "Invalid Date" on screen.
+ */
+export function parseApiDate(value: string | undefined | null): Date | undefined {
+  if (!value) return undefined
+
+  const direct = new Date(value)
+  if (!Number.isNaN(direct.getTime())) return direct
+
+  const normalised = value.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00')
+  const repaired = new Date(normalised)
+  return Number.isNaN(repaired.getTime()) ? undefined : repaired
+}
+
+/**
  * `PlaceDetail` is snake_case and declares no required fields, unlike every
  * other DTO — this adapter is the only place that has to know that.
  */
 export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
   const price = detail.prices?.[0]
+  const priceConfidence = toNumber(price?.confidence) ?? 0
   return {
     id: detail.id ?? '',
     name: detail.name ?? '',
     areaKey: detail.area_key,
     addressText: detail.address_text,
-    lat: detail.lat,
-    lng: detail.lng,
-    rating: detail.rating,
-    ratingCount: detail.rating_count,
-    priceMin: price?.priceMin ?? null,
-    priceMax: price?.priceMax ?? null,
+    lat: toNumber(detail.lat),
+    lng: toNumber(detail.lng),
+    rating: toNumber(detail.rating),
+    ratingCount: toNumber(detail.rating_count),
+    priceMin: toNumber(price?.priceMin) ?? null,
+    priceMax: toNumber(price?.priceMax) ?? null,
     currency: price?.currency ?? 'VND',
-    priceUncertain: price == null || (price.confidence ?? 0) < PRICE_CONFIDENCE_FLOOR,
+    priceUncertain: price == null || priceConfidence < PRICE_CONFIDENCE_FLOOR,
     isLodging: detail.is_lodging ?? false,
     reasonCodes: [],
     freshnessCheckedAt: detail.freshness_checked_at,
@@ -195,6 +228,19 @@ export function formatDistance(distanceM: number | undefined): string | null {
   return `${(distanceM / 1000).toFixed(1).replace('.', ',')} km`
 }
 
+/**
+ * Human-readable location for a card.
+ *
+ * `areaKey` is a stable internal key (`hcm_q3`) and the contract exposes no
+ * label for it — taxonomy has no `area` kind, and `/places/areas` only answers
+ * autocomplete queries (GoGo-BE#169). Showing the raw key would put an internal
+ * identifier in front of a user, so it is omitted until there is something to
+ * resolve it with.
+ */
+export function areaLabel(card: Pick<PlaceCard, 'addressText'>): string | null {
+  return card.addressText ?? null
+}
+
 /** Per-person price line for a card. Returns null when the price is unknown. */
 export function placePriceLabel(card: PlaceCard): string | null {
   return formatRange(card.priceMin, card.priceMax, card.currency)
@@ -204,7 +250,7 @@ export function placePriceLabel(card: PlaceCard): string | null {
 export function formatRangeForPlace(detail: PlaceDetail | undefined): string | null {
   const price = detail?.prices?.[0]
   if (!price) return null
-  return formatRange(price.priceMin, price.priceMax, price.currency ?? 'VND')
+  return formatRange(toNumber(price.priceMin), toNumber(price.priceMax), price.currency ?? 'VND')
 }
 
 // ---------------------------------------------------------------------------
@@ -308,9 +354,8 @@ export interface PlanStopRow {
 }
 
 function timeLabel(iso: string | undefined): string | null {
-  if (!iso) return null
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return null
+  const date = parseApiDate(iso)
+  if (!date) return null
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 

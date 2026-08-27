@@ -7,6 +7,8 @@ import {
   formatMinuteOfDay,
   isSaved,
   openStateFromHours,
+  parseApiDate,
+  toNumber,
   usePlaceDetail,
   useSaved,
   useTaxonomies,
@@ -75,7 +77,15 @@ export default function PlaceDetailScreen() {
   const name = detail.name ?? ''
   const open = openStateFromHours(detail.hours)
   const price = detail.prices?.[0]
-  const priceLabel = formatRange(price?.priceMin, price?.priceMax, price?.currency ?? 'VND')
+  // Numerics on this DTO can arrive as strings — see `toNumber`.
+  const checkedAt = parseApiDate(detail.freshness_checked_at)
+  const rating = toNumber(detail.rating)
+  const ratingCount = toNumber(detail.rating_count)
+  const priceLabel = formatRange(
+    toNumber(price?.priceMin),
+    toNumber(price?.priceMax),
+    price?.currency ?? 'VND',
+  )
 
   /** Taxonomy keys resolve to labels; the key is what the data actually holds. */
   function taxonomyLabel(kind: string, key: string): string {
@@ -85,7 +95,9 @@ export default function PlaceDetailScreen() {
 
   const tags = (detail.taxonomies ?? []).filter(entry => entry.kind && entry.key)
   const accessibility = tags.filter(entry => entry.kind === 'accessibility')
-  const suitability = Object.entries(detail.suitability ?? {}).sort((a, b) => b[1] - a[1])
+  const suitability = Object.entries(detail.suitability ?? {})
+    .map(([key, value]) => [key, toNumber(value) ?? 0] as const)
+    .sort((a, b) => b[1] - a[1])
 
   const destination = detail.address_text ?? (detail.lat != null && detail.lng != null ? `${detail.lat},${detail.lng}` : name)
 
@@ -114,17 +126,19 @@ export default function PlaceDetailScreen() {
         <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[5] }}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.meta}>
-            {[detail.area_key, ...tags.filter(tag => tag.kind === 'category').map(tag => taxonomyLabel('category', tag.key as string))]
-              .filter(Boolean)
+            {/* `area_key` is an internal key with no label source — omitted. */}
+            {tags
+              .filter(tag => tag.kind === 'category')
+              .map(tag => taxonomyLabel('category', tag.key as string))
               .join(' · ')}
           </Text>
 
           {/* Rating always carries its sample size — a 5.0 from two people is
               not a 5.0 from two thousand (spec §27.1). */}
-          {detail.rating != null ? (
+          {rating != null ? (
             <Text style={styles.rating}>
-              ★ {detail.rating.toFixed(1)}
-              {detail.rating_count != null ? ` · ${t('placeDetail.ratingCount', { count: detail.rating_count })}` : ''}
+              ★ {rating.toFixed(1)}
+              {ratingCount != null ? ` · ${t('placeDetail.ratingCount', { count: ratingCount })}` : ''}
             </Text>
           ) : null}
 
@@ -223,10 +237,8 @@ export default function PlaceDetailScreen() {
 
           <View style={styles.freshnessRow}>
             <Text style={styles.updated}>
-              {detail.freshness_checked_at
-                ? t('placeDetail.updatedAt', {
-                    date: new Date(detail.freshness_checked_at).toLocaleDateString(i18n.language),
-                  })
+              {checkedAt
+                ? t('placeDetail.updatedAt', { date: checkedAt.toLocaleDateString(i18n.language) })
                 : t('placeDetail.updated')}
             </Text>
             <Pressable>

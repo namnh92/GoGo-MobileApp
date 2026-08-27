@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { PlaceSearchResult, Plan, RoomSummary } from '../types'
 import {
+  detailToPlaceCard,
   formatDistance,
   formatMinuteOfDay,
   memberProgress,
   openStateFromHours,
+  parseApiDate,
   toCandidateCard,
+  toNumber,
   toPlaceCard,
   toPlanSummary,
   toRoomAudience,
@@ -51,6 +54,63 @@ describe('toPlaceCard', () => {
     expect(card.priceMin).toBeNull()
     expect(card.priceMax).toBeNull()
     expect(card.priceUncertain).toBe(true)
+  })
+})
+
+describe('regression: PlaceDetail numerics arrive as strings', () => {
+  // Postgres `numeric` columns are serialised as strings by node-postgres, and
+  // PlaceDetail passes the raw SQL row straight through — so `rating` is
+  // "4.60", not 4.6, even though the contract declares a number. This crashed
+  // place detail with `detail.rating.toFixed is not a function`.
+  it('coerces string numerics into real numbers', () => {
+    const card = detailToPlaceCard({
+      id: 'p1',
+      name: 'Cà phê Đỗ Phủ',
+      rating: '4.60',
+      rating_count: 980,
+      lat: '10.7889',
+      lng: '106.6903',
+      prices: [{ priceMin: '45000', priceMax: '90000', currency: 'VND', confidence: '0.80' }],
+    } as never)
+
+    expect(card.rating).toBe(4.6)
+    expect(card.rating?.toFixed(1)).toBe('4.6')
+    expect(card.lat).toBe(10.7889)
+    expect(card.priceMin).toBe(45_000)
+    expect(card.priceMax).toBe(90_000)
+    // "0.80" must compare as 0.8, not sort as a string below the floor.
+    expect(card.priceUncertain).toBe(false)
+  })
+
+  it('parses the Postgres timestamp rendering, not just ISO-8601', () => {
+    // Rendered on screen as the literal text "Invalid Date" before this.
+    const parsed = parseApiDate('2026-08-26 23:40:14.332+00')
+
+    expect(parsed).toBeDefined()
+    expect(parsed?.toISOString()).toBe('2026-08-26T23:40:14.332Z')
+  })
+
+  it('still parses a proper ISO-8601 timestamp', () => {
+    expect(parseApiDate('2026-08-26T23:40:14.332Z')?.toISOString()).toBe('2026-08-26T23:40:14.332Z')
+    expect(parseApiDate('2026-08-26T23:40:14.335+00:00')).toBeDefined()
+  })
+
+  it('returns nothing for an unusable timestamp instead of an Invalid Date', () => {
+    expect(parseApiDate(undefined)).toBeUndefined()
+    expect(parseApiDate(null)).toBeUndefined()
+    expect(parseApiDate('')).toBeUndefined()
+    expect(parseApiDate('not a date')).toBeUndefined()
+  })
+
+  it('treats unusable values as absent rather than NaN', () => {
+    expect(toNumber(undefined)).toBeUndefined()
+    expect(toNumber(null)).toBeUndefined()
+    expect(toNumber('')).toBeUndefined()
+    expect(toNumber('  ')).toBeUndefined()
+    expect(toNumber('not-a-number')).toBeUndefined()
+    expect(toNumber(Number.NaN)).toBeUndefined()
+    expect(toNumber(0)).toBe(0)
+    expect(toNumber('0')).toBe(0)
   })
 })
 
