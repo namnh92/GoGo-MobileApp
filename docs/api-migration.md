@@ -214,6 +214,17 @@ Everything the API layer already covered but no screen reached:
 
 Android app links now cover `/plans`, `/places` and `/room`, not just `/r`.
 
+## Placeholders replaced by the real thing
+
+| Was | Is now |
+| --- | --- |
+| `CURRENT_AREA = 'Thảo Điền, TP.HCM'` — a constant presented as the user's position | `expo-location`, asked on tap, with the area picker as the fallback on every refusal (ADR 0003) |
+| A coloured rectangle captioned "Bản đồ", pins absolutely positioned | `react-native-maps` behind the `MapCanvas` adapter (ADR 0004) |
+| A strip captioned "Xem bản đồ" that showed no map | A real map of the current stop, or nothing |
+
+Each was documented as interim in the source and still read as finished in the
+app. Android renders the map fallback until a Google Maps API key exists.
+
 ## Workarounds to remove when the backend catches up
 
 | Workaround | Remove when | Then |
