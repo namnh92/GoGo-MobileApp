@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Fragment, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text, View } from 'react-native'
 
 import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom } from '@/shared/api'
@@ -13,6 +14,7 @@ import { styles } from './date-finished.style'
 
 export default function DateFinishedScreen() {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const { planId } = useLocalSearchParams<{ planId: string }>()
 
@@ -52,7 +54,9 @@ export default function DateFinishedScreen() {
 
   return (
     <Atmosphere style={styles.root}>
-      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
+      <View style={{ paddingTop: insets.top, alignSelf: 'stretch' }}>
+        <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
+      </View>
       <Text style={styles.burst}>✨</Text>
       <Text style={styles.title}>{t('dateFinished.title')}</Text>
       <Text style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>

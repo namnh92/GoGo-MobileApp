@@ -133,7 +133,6 @@ export default function ActiveDateScreen() {
 
   return (
     <Atmosphere>
-      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
       <View style={[styles.topBar, { paddingTop: insets.top + spacing[3] }]}>
         <View>
           <Text style={styles.live}>{t('activeDate.live')}</Text>
@@ -154,6 +153,7 @@ export default function ActiveDateScreen() {
           ))}
         </View>
       </View>
+      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <GlassCard style={styles.card}>

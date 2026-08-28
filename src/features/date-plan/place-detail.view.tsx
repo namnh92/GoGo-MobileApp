@@ -111,7 +111,6 @@ export default function PlaceDetailScreen() {
 
   return (
     <Atmosphere>
-      <StaleNotice error={place.isError ? place.error : null} onRetry={() => void place.refetch()} />
       <View style={styles.headerImage}>
         {/* `uri` stays null until the contract carries photos (GoGo-BE#151). */}
         <PlacePhoto placeId={id} name={name} uri={null} style={StyleSheet.absoluteFill} />
@@ -125,6 +124,7 @@ export default function PlaceDetailScreen() {
           <IconChevronLeft />
         </Pressable>
       </View>
+      <StaleNotice error={place.isError ? place.error : null} onRetry={() => void place.refetch()} />
 
       <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[5] }}>

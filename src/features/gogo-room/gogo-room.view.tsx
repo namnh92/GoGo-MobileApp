@@ -140,10 +140,10 @@ export default function GoGoRoomScreen() {
 
   return (
     <Atmosphere>
-      <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
       <View style={{ paddingTop: insets.top }}>
         <BackHeader onBack={() => router.back()} />
       </View>
+      <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[8] }}>
         {roomType === 'group' ? (
           <View style={{ alignItems: 'center', marginTop: spacing[4], marginBottom: spacing[6] }}>

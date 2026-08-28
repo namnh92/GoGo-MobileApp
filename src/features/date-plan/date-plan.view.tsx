@@ -126,7 +126,6 @@ export default function DatePlanScreen() {
 
   return (
     <Atmosphere>
-      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
       <View style={{ paddingTop: insets.top }}>
         <BackHeader
           onBack={() => router.back()}
@@ -138,6 +137,7 @@ export default function DatePlanScreen() {
           }
         />
       </View>
+      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 240 }}>
         {/* A plan built before the last constraint edit is no longer the answer. */}
