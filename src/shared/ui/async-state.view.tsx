@@ -59,3 +59,21 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
     </View>
   )
 }
+
+/**
+ * A refetch that failed while cached data is on screen. The data stays — it is
+ * what the user came back for — and this says how much to trust it (APP-007).
+ * Showing the error screen instead throws away a perfectly readable plan.
+ */
+export function StaleNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const { t } = useTranslation()
+  if (!error) return null
+  return (
+    <View style={styles.staleBar} accessibilityLiveRegion="polite">
+      <Text style={styles.staleLabel} numberOfLines={2}>
+        {isOffline(error) ? t('common.staleOffline') : t('common.staleError')}
+      </Text>
+      {onRetry ? <GhostBtn label={t('common.retry')} onPress={onRetry} /> : null}
+    </View>
+  )
+}

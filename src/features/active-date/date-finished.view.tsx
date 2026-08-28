@@ -5,7 +5,7 @@ import { Text, View } from 'react-native'
 
 import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom } from '@/shared/api'
 import { formatMoney, perPerson } from '@/shared/pricing/money'
-import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Atmosphere, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 
@@ -29,7 +29,9 @@ export default function DateFinishedScreen() {
     )
   }
 
-  if (plan.isError || !summary) {
+  // A failed refetch must not throw away a cached plan; the error screen is
+  // only for having nothing at all to show (APP-007).
+  if (!summary) {
     return (
       <Atmosphere style={styles.root}>
         <ErrorState error={plan.error} onRetry={() => void plan.refetch()} />
@@ -50,6 +52,7 @@ export default function DateFinishedScreen() {
 
   return (
     <Atmosphere style={styles.root}>
+      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
       <Text style={styles.burst}>✨</Text>
       <Text style={styles.title}>{t('dateFinished.title')}</Text>
       <Text style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>

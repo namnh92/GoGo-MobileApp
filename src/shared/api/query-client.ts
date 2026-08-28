@@ -5,6 +5,7 @@ import * as Network from 'expo-network'
 import { AppState, type AppStateStatus } from 'react-native'
 
 import { isRetryable, isUnauthorized } from './errors'
+import { shouldPersistQuery } from './persist-policy'
 import { queryKeys } from './query-keys'
 
 const MAX_RETRIES = 3
@@ -59,25 +60,13 @@ export function bindAppStateToQueryClient(): () => void {
   }
 }
 
-/**
- * Offline cache for the active date: the current plan and the place summaries
- * it references must stay readable with a flaky connection. Only those keys are
- * persisted — search results and suggestion runs are deliberately not.
- */
-const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me']
+export { shouldPersistQuery }
 
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,
   key: 'gogo.query-cache',
   throttleTime: 2000,
 })
-
-export function shouldPersistQuery(queryKey: readonly unknown[]): boolean {
-  const [root, , segment] = queryKey
-  if (typeof root !== 'string' || !PERSISTED_PREFIXES.includes(root)) return false
-  // Search is location- and filter-dependent; a stale hit is worse than a spinner.
-  return segment !== 'search'
-}
 
 /**
  * Logout must leave no room data behind (RULE-MOB-OFFLINE). Clears the

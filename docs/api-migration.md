@@ -225,6 +225,21 @@ Android app links now cover `/plans`, `/places` and `/room`, not just `/r`.
 Each was documented as interim in the source and still read as finished in the
 app. Android renders the map fallback until a Google Maps API key exists.
 
+## Offline cache (APP-007)
+
+Reading the persisted cache off a simulator, rather than trusting the code,
+found three defects that all pointed the same way — the plan was not readable
+offline at all:
+
+| Defect | Effect |
+| --- | --- |
+| `shouldPersistQuery` read the discriminator one index too far (`['places','search',query]`) | The search exclusion never fired; every search result was written to disk |
+| `shouldDehydrateQuery` required `status === 'success'` | One failed refetch while offline evicted the plan from disk, so the next launch had nothing left |
+| Screens branched on `isError \|\| !data` | A failed refetch showed the error screen even with a cached plan in hand |
+
+Cached data now wins over a failed refetch on the five offline-critical screens,
+with a `StaleNotice` saying how much to trust it.
+
 ## Workarounds to remove when the backend catches up
 
 | Workaround | Remove when | Then |

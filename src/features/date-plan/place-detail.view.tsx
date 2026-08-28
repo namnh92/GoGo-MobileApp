@@ -19,7 +19,7 @@ import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
-import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, GlassCard, TagChip } from '@/shared/ui/primitives'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
@@ -59,7 +59,9 @@ export default function PlaceDetailScreen() {
     )
   }
 
-  if (place.isError || !place.data) {
+  // A failed refetch must not throw away a cached plan; the error screen is
+  // only for having nothing at all to show (APP-007).
+  if (!place.data) {
     return (
       <Atmosphere>
         <View style={{ paddingTop: insets.top }}>
@@ -109,6 +111,7 @@ export default function PlaceDetailScreen() {
 
   return (
     <Atmosphere>
+      <StaleNotice error={place.isError ? place.error : null} onRetry={() => void place.refetch()} />
       <View style={styles.headerImage}>
         {/* `uri` stays null until the contract carries photos (GoGo-BE#151). */}
         <PlacePhoto placeId={id} name={name} uri={null} style={StyleSheet.absoluteFill} />

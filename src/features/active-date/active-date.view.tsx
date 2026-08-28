@@ -14,7 +14,7 @@ import {
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { formatRange } from '@/shared/pricing/money'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, GlassCard, TagChip } from '@/shared/ui/primitives'
@@ -113,7 +113,9 @@ export default function ActiveDateScreen() {
     )
   }
 
-  if (plan.isError || !summary) {
+  // A failed refetch must not throw away a cached plan; the error screen is
+  // only for having nothing at all to show (APP-007).
+  if (!summary) {
     return (
       <Atmosphere>
         <ErrorState error={plan.error} onRetry={() => void plan.refetch()} />
@@ -131,6 +133,7 @@ export default function ActiveDateScreen() {
 
   return (
     <Atmosphere>
+      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
       <View style={[styles.topBar, { paddingTop: insets.top + spacing[3] }]}>
         <View>
           <Text style={styles.live}>{t('activeDate.live')}</Text>

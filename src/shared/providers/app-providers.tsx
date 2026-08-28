@@ -30,8 +30,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
             buster: CACHE_BUSTER,
             maxAge: 24 * 60 * 60 * 1000,
             dehydrateOptions: {
+              // Anything that HAS data, not only what succeeded most recently:
+              // requiring `success` meant one failed refetch while offline
+              // evicted the plan from disk, so the next launch had nothing left
+              // to read (APP-007).
               shouldDehydrateQuery: query =>
-                query.state.status === 'success' && shouldPersistQuery(query.queryKey),
+                query.state.data !== undefined && shouldPersistQuery(query.queryKey),
             },
           }}
         >

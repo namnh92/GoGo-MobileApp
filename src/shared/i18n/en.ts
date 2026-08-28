@@ -304,6 +304,8 @@ export const enMessages: Record<MessageKey, string> = {
   'price.groupTotal': 'group total',
   'common.open': 'Open now',
   'common.closed': 'Closed',
+  'common.staleOffline': 'Offline — this is the copy saved on your device.',
+  'common.staleError': "Couldn't refresh — this is the copy saved on your device.",
   'matchResult.diffKept': 'Kept {{name}}',
   'matchResult.diffChanged': 'Swapped {{from}} → {{to}}',
   'matchResult.diffSaved': 'Saves about {{amount}}',

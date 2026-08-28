@@ -308,6 +308,8 @@ export const viMessages = {
   'price.groupTotal': 'tổng nhóm',
   'common.open': 'Đang mở',
   'common.closed': 'Đã đóng',
+  'common.staleOffline': 'Đang ngoại tuyến — đây là bản đã lưu trên máy.',
+  'common.staleError': 'Chưa cập nhật được — đây là bản đã lưu trên máy.',
   'matchResult.diffKept': 'Đã giữ {{name}}',
   'matchResult.diffChanged': 'Đã đổi {{from}} → {{to}}',
   'matchResult.diffSaved': 'Tiết kiệm khoảng {{amount}}',

@@ -8,10 +8,6 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "backgroundColor": "#F6F3EE",
-    "splash": {
-      "backgroundColor": "#F6F3EE",
-      "resizeMode": "contain"
-    },
     "ios": {
       "bundleIdentifier": "app.gogo.mobile",
       "supportsTablet": false,
@@ -52,12 +48,24 @@
             "DEFAULT"
           ]
         }
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#D84F4A"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-dev-client",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#F6F3EE"
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -74,6 +82,7 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "icon": "./assets/icon.png"
   }
 }

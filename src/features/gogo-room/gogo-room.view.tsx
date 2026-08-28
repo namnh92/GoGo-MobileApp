@@ -16,7 +16,7 @@ import {
 import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Atmosphere, AvatarCircle, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { IconUserOutline } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
@@ -86,7 +86,9 @@ export default function GoGoRoomScreen() {
     )
   }
 
-  if (room.isError || !summary) {
+  // A failed refetch must not throw away a cached plan; the error screen is
+  // only for having nothing at all to show (APP-007).
+  if (!summary) {
     return (
       <Atmosphere>
         <View style={{ paddingTop: insets.top }}>
@@ -138,6 +140,7 @@ export default function GoGoRoomScreen() {
 
   return (
     <Atmosphere>
+      <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
       <View style={{ paddingTop: insets.top }}>
         <BackHeader onBack={() => router.back()} />
       </View>

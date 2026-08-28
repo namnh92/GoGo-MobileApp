@@ -18,7 +18,7 @@ import {
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { formatMoney, formatRange, perPerson } from '@/shared/pricing/money'
-import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, PrimaryBtn, BackHeader, GlassCard, TagChip, Toast, glassStyles } from '@/shared/ui/primitives'
 import { IconNavigation } from '@/shared/ui/icons'
@@ -102,7 +102,9 @@ export default function DatePlanScreen() {
     )
   }
 
-  if (plan.isError || !summary) {
+  // A failed refetch must not throw away a cached plan; the error screen is
+  // only for having nothing at all to show (APP-007).
+  if (!summary) {
     return (
       <Atmosphere>
         {header}
@@ -124,6 +126,7 @@ export default function DatePlanScreen() {
 
   return (
     <Atmosphere>
+      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
       <View style={{ paddingTop: insets.top }}>
         <BackHeader
           onBack={() => router.back()}
