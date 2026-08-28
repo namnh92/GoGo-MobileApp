@@ -15,9 +15,10 @@ import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { formatRange } from '@/shared/pricing/money'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, GlassCard, TagChip } from '@/shared/ui/primitives'
-import { IconArrowRight, IconMapPin, IconNavigation } from '@/shared/ui/icons'
+import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
 import { CheckinSheet, type CheckinDraft } from './checkin-sheet.view'
@@ -58,6 +59,12 @@ export default function ActiveDateScreen() {
   const nextStop = stops[currentIndex + 1]
   const placeName = stop ? (places.byPlaceId.get(stop.placeId)?.name ?? '') : ''
   const address = stop ? places.byPlaceId.get(stop.placeId)?.addressText : undefined
+
+  const stopPlace = stop ? places.byPlaceId.get(stop.placeId) : undefined
+  const stopPin: MapPin | null =
+    stopPlace?.lat != null && stopPlace.lng != null
+      ? { id: stopPlace.id, lat: stopPlace.lat, lng: stopPlace.lng, title: stopPlace.name }
+      : null
 
   async function onDone() {
     if (!stop) return
@@ -156,10 +163,11 @@ export default function ActiveDateScreen() {
             <Text style={styles.name}>{placeName}</Text>
             {address ? <Text style={styles.area}>{address}</Text> : null}
 
-            <View style={styles.mapThumb}>
-              <IconMapPin />
-              <Text style={styles.mapLabel}>{t('activeDate.viewMap')}</Text>
-            </View>
+            {/* A real map of this stop, or nothing — a strip captioned "view
+                map" that shows no map and does not open one is worse. */}
+            {stopPin ? (
+              <MapCanvas pins={[stopPin]} style={styles.mapThumb} />
+            ) : null}
 
             <View style={styles.actions}>
               <Pressable

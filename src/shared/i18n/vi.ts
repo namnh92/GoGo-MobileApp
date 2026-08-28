@@ -371,7 +371,6 @@ export const viMessages = {
   'activeDate.next': 'Tiếp theo',
   'activeDate.doneStep': 'Xong bước này ✓',
   'activeDate.finish': 'Kết thúc date 🎉',
-  'activeDate.viewMap': 'Xem bản đồ',
 
   'checkin.title': 'Check-in điểm này',
   'checkin.rate': 'Điểm này thế nào?',
@@ -551,6 +550,7 @@ export const viMessages = {
   'saved.browse': 'Tìm địa điểm',
   'saved.signInTitle': 'Đăng nhập để lưu địa điểm',
   'saved.signInBody': 'Mục đã lưu gắn với tài khoản của bạn.',
+  'saved.mapUnavailable': 'Chưa mở được bản đồ trên máy này.',
 
   'profile.couple': 'Couple',
   'profile.coupleTagline': 'Cùng nhau trên GoGo',

@@ -15,6 +15,7 @@ import {
 } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, GhostBtn, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
 import { hitSlop, spacing } from '@/shared/ui/tokens'
@@ -26,33 +27,16 @@ type SavedFilter = 'all' | 'places' | 'plans'
 
 const FILTERS: readonly SavedFilter[] = ['all', 'places', 'plans']
 
-/**
- * Marker layout until the native map adapter lands (a map SDK needs its own
- * ADR). Positions are projected from real coordinates, so the *relative*
- * geometry is true even though there is no basemap — unlike fixed percentages,
- * which put places wherever the array order happened to fall.
- */
-function projectMarkers(places: PlaceCard[]): { place: PlaceCard; left: `${number}%`; top: `${number}%` }[] {
-  const located = places.filter(place => place.lat != null && place.lng != null)
-  if (located.length === 0) return []
-
-  const lats = located.map(place => place.lat as number)
-  const lngs = located.map(place => place.lng as number)
-  const minLat = Math.min(...lats)
-  const maxLat = Math.max(...lats)
-  const minLng = Math.min(...lngs)
-  const maxLng = Math.max(...lngs)
-
-  // A single place, or a set sharing a coordinate, has no spread to normalise.
-  const latSpan = maxLat - minLat || 1
-  const lngSpan = maxLng - minLng || 1
-
-  return located.map(place => {
-    const left = 15 + (((place.lng as number) - minLng) / lngSpan) * 70
-    // Latitude grows northward, screen y grows downward.
-    const top = 15 + (1 - ((place.lat as number) - minLat) / latSpan) * 70
-    return { place, left: `${left}%` as const, top: `${top}%` as const }
-  })
+/** Saved places that carry coordinates, as pins for the map adapter. */
+function toPins(places: PlaceCard[]): MapPin[] {
+  return places
+    .filter(place => place.lat != null && place.lng != null)
+    .map(place => ({
+      id: place.id,
+      lat: place.lat as number,
+      lng: place.lng as number,
+      title: place.name,
+    }))
 }
 
 export default function SavedScreen() {
@@ -71,7 +55,7 @@ export default function SavedScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const places = useMemo(() => (filter === 'plans' ? [] : saved.places), [filter, saved.places])
-  const markers = useMemo(() => projectMarkers(places), [places])
+  const pins = useMemo(() => toPins(places), [places])
   const selected = places.find(place => place.id === selectedId) ?? places[0]
 
   function openPlace(place: PlaceCard) {
@@ -188,28 +172,17 @@ export default function SavedScreen() {
         </ScrollView>
       ) : (
         <View style={styles.mapRoot}>
-          <View style={styles.mapCanvas} />
-
-          {markers.map(({ place, left, top }) => {
-            const isSelected = (selected?.id ?? '') === place.id
-            return (
-              <Pressable
-                key={place.id}
-                onPress={() => setSelectedId(place.id)}
-                accessibilityLabel={`${place.name}${place.openNow ? '' : ` — ${t('common.closed')}`}`}
-                style={[
-                  styles.marker,
-                  { left, top },
-                  isSelected && styles.markerSelected,
-                  !place.openNow && !isSelected && styles.markerClosed,
-                ]}
-              >
-                <Text style={isSelected ? styles.markerPrice : styles.markerEmoji}>
-                  {isSelected ? (placePriceLabel(place) ?? '·') : '📍'}
-                </Text>
-              </Pressable>
-            )
-          })}
+          <MapCanvas
+            pins={pins}
+            onSelect={setSelectedId}
+            style={styles.mapCanvas}
+            fallback={
+              <View style={styles.mapUnavailable}>
+                <Text style={styles.mapUnavailableLabel}>{t('saved.mapUnavailable')}</Text>
+                <GhostBtn label={t('saved.list')} onPress={() => setView('list')} />
+              </View>
+            }
+          />
 
           {selected ? (
             <GlassCard strong style={[styles.sheet, { bottom: dockInset }]}>

@@ -367,7 +367,6 @@ export const enMessages: Record<MessageKey, string> = {
   'activeDate.next': 'Up next',
   'activeDate.doneStep': 'Done here ✓',
   'activeDate.finish': 'Finish date 🎉',
-  'activeDate.viewMap': 'View map',
 
   'checkin.title': 'Check in here',
   'checkin.rate': 'How was this stop?',
@@ -546,6 +545,7 @@ export const enMessages: Record<MessageKey, string> = {
   'saved.browse': 'Find places',
   'saved.signInTitle': 'Sign in to save places',
   'saved.signInBody': 'Saved items belong to your account.',
+  'saved.mapUnavailable': "The map can't open on this device.",
 
   'profile.couple': 'Couple',
   'profile.coupleTagline': 'Together on GoGo',
