@@ -117,6 +117,11 @@ export const viMessages = {
   'createLocation.noResults': 'Không tìm thấy khu vực phù hợp.',
   'createLocation.currentLabel': 'Vị trí hiện tại',
   'createLocation.maxDistance': 'Khoảng cách tối đa',
+  'createLocation.useMyLocation': 'Chạm để dùng vị trí của bạn',
+  'createLocation.locating': 'Đang lấy vị trí…',
+  'createLocation.locatedNoLabel': 'Đã lấy được vị trí của bạn',
+  'createLocation.permissionDenied': 'Chưa có quyền vị trí. Chọn khu vực thủ công bên dưới nhé.',
+  'createLocation.locationUnavailable': 'Chưa lấy được vị trí. Chọn khu vực thủ công bên dưới nhé.',
 
   'createTime.title': 'Các bạn có\nbao nhiêu thời gian?',
   'createTime.title_couple': 'Hai đứa có\nbao nhiêu thời gian?',

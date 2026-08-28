@@ -64,6 +64,15 @@
           "photosPermission": "GoGo cần truy cập thư viện ảnh để bạn thêm ảnh check-in tại địa điểm."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "GoGo dùng vị trí của bạn để gợi ý địa điểm gần đó. Bạn có thể chọn khu vực thủ công thay vì cấp quyền.",
+          "locationWhenInUsePermission": "GoGo dùng vị trí của bạn để gợi ý địa điểm gần đó. Bạn có thể chọn khu vực thủ công thay vì cấp quyền.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
       "expo-secure-store"
     ]
   }

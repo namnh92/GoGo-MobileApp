@@ -116,6 +116,11 @@ export const enMessages: Record<MessageKey, string> = {
   'createLocation.noResults': 'No matching areas found.',
   'createLocation.currentLabel': 'Current location',
   'createLocation.maxDistance': 'Max distance',
+  'createLocation.useMyLocation': 'Tap to use your location',
+  'createLocation.locating': 'Getting your location…',
+  'createLocation.locatedNoLabel': 'Got your location',
+  'createLocation.permissionDenied': 'No location permission. Pick an area below instead.',
+  'createLocation.locationUnavailable': "Couldn't get your location. Pick an area below instead.",
 
   'createTime.title': 'How much time\ndo you all have?',
   'createTime.title_couple': 'How much time\ndo you two have?',

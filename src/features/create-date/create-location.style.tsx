@@ -71,4 +71,10 @@ export const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[100],
   },
   areaLabel: { fontSize: 15, color: colors.neutral[700] },
+  locationFallback: {
+    fontSize: 13,
+    color: colors.brand.amber,
+    lineHeight: 19,
+    marginTop: spacing[2],
+  },
 })

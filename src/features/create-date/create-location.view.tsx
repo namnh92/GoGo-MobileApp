@@ -5,16 +5,21 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View 
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAreaAutocomplete } from '@/shared/api'
+import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck, IconMapPin, IconSearch } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './create-location.style'
 
-const CURRENT_AREA = 'Thảo Điền, TP.HCM'
 /** `null` means "anywhere" — the constraint simply omits `radiusM`. */
 const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 const DEBOUNCE_MS = 250
+
+/** What the "current location" row shows once a fix comes back. */
+function currentAreaLabel(state: { label: string | null }): string {
+  return state.label ?? ''
+}
 
 export default function CreateLocationScreen() {
   const { t } = useTranslation()
@@ -23,6 +28,7 @@ export default function CreateLocationScreen() {
   const { area, setArea } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
   const params = useLocalSearchParams<{ picker?: string }>()
+  const location = useCurrentLocation()
   const [radiusM, setRadiusM] = useState<number | null>(5000)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [areaQuery, setAreaQuery] = useState('')
@@ -44,7 +50,7 @@ export default function CreateLocationScreen() {
 
   const areas = useAreaAutocomplete(debouncedQuery, { enabled: pickerOpen })
   const predictions = areas.data?.predictions ?? []
-  const usingCurrent = area === CURRENT_AREA
+  const usingCurrent = location.state.status === 'granted' && area === currentAreaLabel(location.state)
 
   function pickArea(prediction: { key?: string; description?: string; lat?: number; lng?: number }) {
     setArea(prediction.description ?? '')
@@ -58,6 +64,19 @@ export default function CreateLocationScreen() {
     // Picking ends the billable autocomplete session.
     areas.endSession()
     setPickerOpen(false)
+  }
+
+  async function useDeviceLocation() {
+    const result = await location.request()
+    if (result.status === 'granted') {
+      setArea(result.label ?? '')
+      // Coordinates are the fact the API constrains on; the label is display
+      // only, and there is no stable area key for a device fix.
+      patchDraft({ areaKey: null, originLat: result.lat, originLng: result.lng })
+      return
+    }
+    // Denied or unavailable: the manual picker is the fallback, opened for them.
+    setPickerOpen(true)
     setAreaQuery('')
     setDebouncedQuery('')
   }
@@ -79,11 +98,13 @@ export default function CreateLocationScreen() {
         <Text style={styles.title}>{t('createLocation.title')}</Text>
         <Text style={styles.body}>{t('createLocation.body')}</Text>
 
-        {/* Current location — tap to switch back */}
+        {/* Current location — the permission is asked here, on tap, never on
+            launch, and every refusal leaves the area picker as the way on. */}
         <Pressable
-          onPress={() => pickArea({ description: CURRENT_AREA })}
+          onPress={useDeviceLocation}
+          disabled={location.state.status === 'asking'}
           accessibilityRole="radio"
-          accessibilityState={{ selected: usingCurrent }}
+          accessibilityState={{ selected: usingCurrent, busy: location.state.status === 'asking' }}
         >
           <GlassCard style={styles.rowCard}>
             <View style={[styles.rowIcon, { backgroundColor: colors.brand.coralSoft }]}>
@@ -91,11 +112,25 @@ export default function CreateLocationScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>{t('createLocation.current')}</Text>
-              <Text style={styles.rowSub}>{CURRENT_AREA}</Text>
+              <Text style={styles.rowSub}>
+                {location.state.status === 'asking'
+                  ? t('createLocation.locating')
+                  : location.state.status === 'granted'
+                    ? (location.state.label ?? t('createLocation.locatedNoLabel'))
+                    : t('createLocation.useMyLocation')}
+              </Text>
             </View>
-            {usingCurrent && <IconCheck />}
+            {location.state.status === 'asking' ? <ActivityIndicator /> : usingCurrent && <IconCheck />}
           </GlassCard>
         </Pressable>
+
+        {location.state.status === 'denied' || location.state.status === 'unavailable' ? (
+          <Text accessibilityLiveRegion="polite" style={styles.locationFallback}>
+            {location.state.status === 'denied'
+              ? t('createLocation.permissionDenied')
+              : t('createLocation.locationUnavailable')}
+          </Text>
+        ) : null}
 
         {/* Other area — opens the picker sheet */}
         <Pressable onPress={() => setPickerOpen(true)} accessibilityRole="button">
