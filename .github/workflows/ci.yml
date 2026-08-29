@@ -42,6 +42,14 @@ jobs:
 
       - run: pnpm test
 
+      # A second runner, not a duplicate: `pnpm test` is vitest over pure
+      # TypeScript, while these render the screens under jest-expo — the
+      # state matrix, the location permission branches, the map adapter's
+      # fallback and the optimistic rollbacks. They are the only gate that
+      # runs React Native code, so leaving them out of CI meant a screen
+      # could break with every check above still green.
+      - run: pnpm test:ui
+
       # app.config.ts decides what the native projects become, and nothing above
       # reads it. Two defects reached develop that way and only surfaced when
       # someone opened Xcode: plugins were declared for expo-location and

@@ -73,16 +73,23 @@ Tenjin, App Store Connect / Play Console, và ràng buộc key Google Maps.
 ## Deep link contract
 
 ```text
-https://gogo.app/r/{inviteCode}     # chỉ prod claim domain này
-gogo://room/{inviteCode}
+https://go-dev.gogo.id.vn/l/{slug}    # dev  — share host của môi trường dev
+https://go.gogo.id.vn/l/{slug}        # prod — share host production
+https://{webHost}/r/{inviteCode}      # link mời, cùng host theo flavour
+gogo://room/{inviteCode}              # prod giữ scheme trần
 gogo://plans/{planId}
 gogo://places/{placeId}
+gogo-dev://... / gogo-stag://...      # dev/stag dùng scheme riêng
 ```
 
-Chỉ **`prod`** khai `associatedDomains` và intent filter cho `gogo.app`.
+Domain sở hữu là **`gogo.id.vn`**; mỗi flavour một share host
+(`go-dev` / `go-stag` / `go.gogo.id.vn`) do Worker của môi trường đó phục vụ:
+`/l/{slug}` resolve và redirect, `/.well-known/*` mang file association.
+**`dev` và `prod` khai `associatedDomains` + intent filter cho host của mình;
+`stag` chưa khai** cho tới khi host của nó phục vụ file association.
 Universal link được xác minh theo danh sách app id trong
 `apple-app-site-association` / `assetlinks.json` của domain; một bản dev claim
-domain không nêu tên nó là claim không bao giờ verify được — Android đưa vào
+domain không nêu tên app id của nó là claim không bao giờ verify được — Android đưa vào
 chooser dưới dạng handler chưa xác minh, iOS bỏ qua. `dev`/`stag` dùng scheme
 riêng ở bảng trên.
 
