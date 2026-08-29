@@ -1,6 +1,6 @@
-process.env.EXPO_PUBLIC_ENV = 'development'
+process.env.EXPO_PUBLIC_ENV = 'dev'
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:3000/v1'
-process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://gogo.app'
+process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://go-dev.gogo.id.vn'
 
 // Native modules the screens reach through their stores and session layer.
 // Only the storage backends are faked; the stores themselves stay real, so a

@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only. Nothing here deploys, publishes or reaches a provider, so nothing
+# here needs a credential — and a workflow that cannot write is one fewer place
+# a leaked token would matter.
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: lint / typecheck / test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version comes from packageManager in package.json, so it cannot
+      # drift from what developers run.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # --frozen-lockfile: a lockfile that does not match package.json fails
+      # here rather than resolving to something nobody has run locally.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      # app.config.ts decides what the native projects become, and nothing above
+      # reads it. Two defects reached develop that way and only surfaced when
+      # someone opened Xcode: plugins were declared for expo-location and
+      # expo-secure-store, which were never installed, and `icon` pointed at
+      # ./assets/icon.png in a repository with no assets directory. Both stopped
+      # `expo prebuild` before it wrote a line.
+      #
+      # Resolving the config for each flavour runs the plugin chain and the asset
+      # lookups without generating anything, so the failure lands on the pull
+      # request instead of in a developer's build.
+      - name: app.config.ts resolves for every flavour
+        run: |
+          set -euo pipefail
+          for flavor in dev stag prod; do
+            # `expo config` prints "env: load .env" to stdout before the JSON,
+            # so the object is taken from the first brace rather than the first
+            # line.
+            EXPO_PUBLIC_ENV="$flavor" npx expo config --type prebuild --json \
+              | sed -n '/^{/,$p' > "/tmp/config.$flavor.json"
+            echo "  $flavor: config resolves"
+          done
+
+      # Resolving the config is not enough on its own. `expo config` runs the
+      # plugin chain but never opens the images, so a missing icon passes it and
+      # fails later, inside prebuild, after --clean has already deleted the
+      # native projects. Measured: removing assets/icon.png left the step above
+      # green.
+      - name: every file the config points at exists
+        run: |
+          set -euo pipefail
+          for flavor in dev stag prod; do
+            node -e "
+              const fs = require('fs');
+              const config = JSON.parse(fs.readFileSync('/tmp/config.$flavor.json', 'utf8'));
+              const missing = [];
+              const seen = new Set();
+              (function walk(node) {
+                if (typeof node === 'string') {
+                  if (node.startsWith('./') && !seen.has(node)) {
+                    seen.add(node);
+                    if (!fs.existsSync(node)) missing.push(node);
+                  }
+                  return;
+                }
+                if (Array.isArray(node)) return node.forEach(walk);
+                if (node && typeof node === 'object') return Object.values(node).forEach(walk);
+              })(config);
+              if (missing.length) {
+                console.error('$flavor references files that do not exist:');
+                for (const path of missing) console.error('  ' + path);
+                process.exit(1);
+              }
+              console.log('  $flavor: ' + seen.size + ' referenced file(s), all present');
+            "
+          done
+
+      # The app is configured entirely through EXPO_PUBLIC_* variables that Zod
+      # validates at startup (FND-006), so a broken .env.example is a broken
+      # first run for whoever clones the repo next. Nothing else checks it.
+      - name: .env.example satisfies the config schema
+        run: |
+          set -euo pipefail
+          cp .env.example .env.ci
+          set -a; . ./.env.ci; set +a
+          rm -f .env.ci
+          node --input-type=module -e "
+            const url = process.env.EXPO_PUBLIC_API_URL;
+            const web = process.env.EXPO_PUBLIC_WEB_BASE_URL;
+            const env = process.env.EXPO_PUBLIC_ENV;
+            const flavors = ['dev', 'stag', 'prod'];
+            if (!flavors.includes(env)) throw new Error(\`EXPO_PUBLIC_ENV must be one of \${flavors} — got \${env}\`);
+            for (const [name, value] of [['EXPO_PUBLIC_API_URL', url], ['EXPO_PUBLIC_WEB_BASE_URL', web]]) {
+              if (!value) throw new Error(\`\${name} is missing\`);
+              new URL(value);
+            }
+            if (url.startsWith('http://localhost')) {
+              throw new Error('EXPO_PUBLIC_API_URL points at localhost. DEV is remote-first: the example must work for someone who has not run a backend.');
+            }
+            console.log('ok:', env, url, web);
+          "
