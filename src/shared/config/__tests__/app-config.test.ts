@@ -36,19 +36,29 @@ describe('app identity', () => {
     expect(config.extra?.flavor).toBe(flavor)
   })
 
-  it('claims gogo.app links from production only', async () => {
+  it('claims its own share host, and only where the host serves the files', async () => {
     const production = await loadConfig('prod')
-    expect(production.ios?.associatedDomains).toEqual(['applinks:gogo.app'])
+    expect(production.ios?.associatedDomains).toEqual(['applinks:go.gogo.id.vn'])
     expect(production.android?.intentFilters).toHaveLength(1)
 
-    // A dev build cannot verify against a domain whose assetlinks never names
-    // it, so it does not ask: an unverified handler in the Android chooser is
-    // worse than no handler.
-    for (const flavor of ['dev', 'stag']) {
-      const config = await loadConfig(flavor)
-      expect(config.ios?.associatedDomains).toBeUndefined()
-      expect(config.android?.intentFilters).toBeUndefined()
-    }
+    // dev claims its own host, which serves association files naming
+    // max.gogo.dev. Each flavour claims only itself: a build claiming another
+    // environment's host could not verify there.
+    const dev = await loadConfig('dev')
+    expect(dev.ios?.associatedDomains).toEqual(['applinks:go-dev.gogo.id.vn'])
+    expect(dev.android?.intentFilters?.[0]?.data).toEqual(
+      ['/l', '/r', '/plans', '/places', '/room'].map((pathPrefix) => ({
+        scheme: 'https',
+        host: 'go-dev.gogo.id.vn',
+        pathPrefix,
+      })),
+    )
+
+    // stag has no host serving association files yet, so it asks for nothing:
+    // an unverified handler in the Android chooser is worse than no handler.
+    const staging = await loadConfig('stag')
+    expect(staging.ios?.associatedDomains).toBeUndefined()
+    expect(staging.android?.intentFilters).toBeUndefined()
   })
 
   it('refuses an unknown flavour instead of guessing one', async () => {
