@@ -50,6 +50,13 @@ jobs:
       # could break with every check above still green.
       - run: pnpm test:ui
 
+      # schema.d.ts is generated from openapi/gogo.v1.yaml and committed, so
+      # the two can drift silently — an edited spec with stale types, or
+      # hand-edited types. Everything the app knows about the API comes from
+      # that file, so regenerating and diffing is the only check that the
+      # contract the code compiles against is the contract in the repo.
+      - run: pnpm api:check
+
       # app.config.ts decides what the native projects become, and nothing above
       # reads it. Two defects reached develop that way and only surfaced when
       # someone opened Xcode: plugins were declared for expo-location and

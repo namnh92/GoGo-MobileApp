@@ -84,10 +84,11 @@ export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
 }
 
 /**
- * `PlaceDetail` is the raw SQL row: snake_case, no required fields, and — the
- * part the generated types cannot warn about — Postgres `numeric` columns
- * arrive as **strings** (`rating: "4.60"`) even though the contract declares
- * them as numbers. Everything numeric out of this DTO goes through `toNumber`.
+ * `PlaceDetail` declares no required fields, and historically served Postgres
+ * `numeric` columns as **strings** (`rating: "4.60"`) despite the contract
+ * declaring them as numbers. Dev now returns numbers, but the DTO still
+ * promises nothing, so everything numeric out of it goes through `toNumber`
+ * rather than trusting the current serialiser.
  */
 export function toNumber(value: unknown): number | undefined {
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
@@ -116,8 +117,8 @@ export function parseApiDate(value: string | undefined | null): Date | undefined
 }
 
 /**
- * `PlaceDetail` is snake_case and declares no required fields, unlike every
- * other DTO — this adapter is the only place that has to know that.
+ * `PlaceDetail` declares no required field at all, unlike every other DTO —
+ * this adapter is the only place that has to know that.
  */
 export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
   const price = detail.prices?.[0]
