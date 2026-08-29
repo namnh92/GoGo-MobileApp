@@ -15,14 +15,14 @@ async function loadConfig(flavor: string | undefined) {
 }
 
 afterEach(() => {
-  process.env.EXPO_PUBLIC_ENV = 'development'
+  process.env.EXPO_PUBLIC_ENV = 'dev'
 })
 
 describe('app identity', () => {
   it.each([
-    ['development', 'max.gogo.development', 'GoGo Dev', 'gogo-dev'],
-    ['staging', 'max.gogo.staging', 'GoGo Staging', 'gogo-staging'],
-    ['production', 'max.gogo.production', 'GoGo', 'gogo'],
+    ['dev', 'max.gogo.dev', 'GoGo Dev', 'gogo-dev'],
+    ['stag', 'max.gogo.stag', 'GoGo Staging', 'gogo-stag'],
+    ['prod', 'max.gogo.prod', 'GoGo', 'gogo'],
   ])('%s builds as %s', async (flavor, bundleId, name, scheme) => {
     const config = await loadConfig(flavor)
 
@@ -37,14 +37,14 @@ describe('app identity', () => {
   })
 
   it('claims gogo.app links from production only', async () => {
-    const production = await loadConfig('production')
+    const production = await loadConfig('prod')
     expect(production.ios?.associatedDomains).toEqual(['applinks:gogo.app'])
     expect(production.android?.intentFilters).toHaveLength(1)
 
     // A dev build cannot verify against a domain whose assetlinks never names
     // it, so it does not ask: an unverified handler in the Android chooser is
     // worse than no handler.
-    for (const flavor of ['development', 'staging']) {
+    for (const flavor of ['dev', 'stag']) {
       const config = await loadConfig(flavor)
       expect(config.ios?.associatedDomains).toBeUndefined()
       expect(config.android?.intentFilters).toBeUndefined()
@@ -52,13 +52,13 @@ describe('app identity', () => {
   })
 
   it('refuses an unknown flavour instead of guessing one', async () => {
-    // A typo in a CI variable must fail the build, not ship a store binary
-    // named "GoGo Dev".
-    await expect(loadConfig('prod')).rejects.toThrow(/EXPO_PUBLIC_ENV must be one of/)
+    // A near-miss like `production` for `prod` must fail the build, not ship a
+    // store binary named "GoGo Dev".
+    await expect(loadConfig('production')).rejects.toThrow(/EXPO_PUBLIC_ENV must be one of/)
   })
 
   it('falls back to development when nothing is set', async () => {
     const config = await loadConfig(undefined)
-    expect(config.ios?.bundleIdentifier).toBe('max.gogo.development')
+    expect(config.ios?.bundleIdentifier).toBe('max.gogo.dev')
   })
 })

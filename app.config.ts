@@ -14,34 +14,35 @@ import type { ExpoConfig } from 'expo/config'
  * cannot import them. The mapping is covered by
  * `src/shared/config/__tests__/app-config.test.ts`, which loads this very file.
  */
-export const FLAVORS = ['development', 'staging', 'production'] as const
+export const FLAVORS = ['dev', 'stag', 'prod'] as const
 
 export type Flavor = (typeof FLAVORS)[number]
 
+/** Home-screen labels stay readable — an icon is not an identifier. */
 const NAMES: Record<Flavor, string> = {
-  development: 'GoGo Dev',
-  staging: 'GoGo Staging',
-  production: 'GoGo',
+  dev: 'GoGo Dev',
+  stag: 'GoGo Staging',
+  prod: 'GoGo',
 }
 
 /** Only production keeps the bare `gogo://` contract. */
 const SCHEMES: Record<Flavor, string> = {
-  development: 'gogo-dev',
-  staging: 'gogo-staging',
-  production: 'gogo',
+  dev: 'gogo-dev',
+  stag: 'gogo-stag',
+  prod: 'gogo',
 }
 
 /**
  * Resolved from `EXPO_PUBLIC_ENV` — the same variable the running app
- * validates in `src/shared/config/env.ts`, so a build cannot be a development
- * app pointed at production.
+ * validates in `src/shared/config/env.ts`, so a build cannot be a dev app
+ * pointed at production.
  *
  * An unknown value throws rather than defaulting: defaulting would let a typo
  * in a CI variable produce a store build named "GoGo Dev", discovered after
  * upload rather than before.
  */
 function resolveFlavor(value: string | undefined): Flavor {
-  const flavor = value ?? 'development'
+  const flavor = value ?? 'dev'
   if (!(FLAVORS as readonly string[]).includes(flavor)) {
     throw new Error(`EXPO_PUBLIC_ENV must be one of ${FLAVORS.join(', ')} — received "${flavor}"`)
   }
@@ -64,7 +65,7 @@ const identity = {
    * Android then offers an unverified handler in the chooser and iOS ignores
    * it, which is worse than not claiming at all.
    */
-  claimsWebLinks: flavor === 'production',
+  claimsWebLinks: flavor === 'prod',
 }
 
 const WEB_LINK_PREFIXES = ['/r', '/plans', '/places', '/room']
