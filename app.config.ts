@@ -49,6 +49,17 @@ function resolveFlavor(value: string | undefined): Flavor {
   return flavor as Flavor
 }
 
+/**
+ * Share-link hosts, one per flavour. The owned domain is gogo.id.vn — `gogo.app`
+ * was never registered by this project, so every link built against it was
+ * unverifiable regardless of fingerprints.
+ */
+const WEB_HOSTS: Record<Flavor, string> = {
+  dev: 'go-dev.gogo.id.vn',
+  stag: 'go-stag.gogo.id.vn',
+  prod: 'go.gogo.id.vn',
+}
+
 const flavor = resolveFlavor(process.env.EXPO_PUBLIC_ENV)
 const identity = {
   flavor,
@@ -56,19 +67,32 @@ const identity = {
   bundleId: `max.gogo.${flavor}`,
   appName: NAMES[flavor],
   scheme: SCHEMES[flavor],
+  /** Share-link host for this flavour, served by that environment's Worker. */
+  webHost: WEB_HOSTS[flavor],
   /**
-   * Whether the build claims `https://gogo.app/...`.
+   * Whether the build claims `https://<webHost>/...`.
    *
-   * Only production does. Universal links verify against the app IDs listed in
-   * the domain's `apple-app-site-association` / `assetlinks.json`; a dev build
-   * claiming a domain that never names it ships a claim that cannot verify —
-   * Android then offers an unverified handler in the chooser and iOS ignores
-   * it, which is worse than not claiming at all.
+   * A universal link verifies against the app IDs listed in the host's
+   * `apple-app-site-association` / `assetlinks.json`. Claiming a host that
+   * never names the build ships a claim that cannot verify — Android offers an
+   * unverified handler in the chooser and iOS ignores it, which is worse than
+   * not claiming at all. So this follows what is actually served.
+   *
+   * dev is served today:
+   *   https://go-dev.gogo.id.vn/.well-known/apple-app-site-association
+   *   → appIDs ["HLSABWU9U8.max.gogo.dev"]
+   *
+   * This used to name `gogo.app`, a domain this project does not own, so
+   * production's claim could never verify either. stag stays off until its host
+   * serves the files.
    */
-  claimsWebLinks: flavor === 'prod',
+  claimsWebLinks: flavor !== 'stag',
 }
 
-const WEB_LINK_PREFIXES = ['/r', '/plans', '/places', '/room']
+// Matches the components served in the association files. `/l` is the canonical
+// share link the Worker resolves, and leaving it out meant the one path the
+// product actually generates was the one path the app did not claim.
+const WEB_LINK_PREFIXES = ['/l', '/r', '/plans', '/places', '/room']
 
 const config: ExpoConfig = {
   name: identity.appName,
@@ -84,7 +108,7 @@ const config: ExpoConfig = {
     bundleIdentifier: identity.bundleId,
     supportsTablet: false,
     // Only the flavour the domain actually names can verify (see app-identity).
-    ...(identity.claimsWebLinks ? { associatedDomains: ['applinks:gogo.app'] } : {}),
+    ...(identity.claimsWebLinks ? { associatedDomains: [`applinks:${identity.webHost}`] } : {}),
   },
   android: {
     package: identity.bundleId,
@@ -96,7 +120,7 @@ const config: ExpoConfig = {
               autoVerify: true,
               data: WEB_LINK_PREFIXES.map((pathPrefix) => ({
                 scheme: 'https',
-                host: 'gogo.app',
+                host: identity.webHost,
                 pathPrefix,
               })),
               category: ['BROWSABLE', 'DEFAULT'],
