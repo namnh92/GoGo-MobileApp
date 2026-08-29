@@ -4,6 +4,28 @@
  */
 
 export interface paths {
+    "/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Prometheus text exposition for a scraper
+         * @description Guarded by `METRICS_TOKEN` as a bearer token. Series names and label values describe internal structure — which providers are called, which admin actions happen — so this is not public.
+         *
+         *     With no token configured the route answers **404**, not 401: an unconfigured endpoint should not advertise that it exists and is merely locked.
+         */
+        get: operations["scrapeMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -172,7 +194,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Rooms the caller belongs to, most recently active first
+         * @description A room used to be reachable only by id, so a client that lost the id lost the room — closing the app mid-flow was enough. Keyset paging on `(updatedAt, id)` because a room's timestamp moves while the list is being read: one vote is enough. Each row carries the progress needed to draw it, so a "your rooms" screen makes one call, not one per room. The invite code is deliberately absent — a list screen has no reason to hand one out.
+         */
+        get: operations["listRooms"];
         put?: never;
         /** Create a couple/group room with constraint v1 and optional seed places */
         post: operations["createRoom"];
@@ -231,6 +257,36 @@ export interface paths {
         head?: never;
         /** Host-only: validated room state transition (SRS §7.2) */
         patch: operations["transitionRoom"];
+        trace?: never;
+    };
+    "/rooms/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Realtime room stream (SSE)
+         * @description Server-sent events for one room, authorized exactly like `GET /rooms/{id}`: members only, and a guest token reaches only the room it is bound to.
+         *
+         *     SSE rather than a WebSocket because every event here is server → client; nothing needs a bidirectional channel, and this keeps the same bearer auth as the rest of the API.
+         *
+         *     Event types: `room.status_changed`, `participant.joined`, `participant.left`, `participant.selection_changed`, `matching.started`, `matching.completed`, `matching.failed`, `suggestions.generated`, `suggestions.updated`, `vote.changed`, `plan.updated`, plus two stream-level types — `heartbeat`, which keeps idle connections alive through proxies, and `resync`, which says the client's resume point is older than the replay buffer and it must refetch. `resync` exists so a gap is reported rather than silently skipped: a client that is wrong without knowing it is the failure this endpoint is meant to prevent.
+         *
+         *     Each message's `id` is a per-room sequence number. Send it back as `Last-Event-ID` (or the `lastEventId` query parameter, which browsers need because `EventSource` cannot set headers) to resume.
+         *
+         *     Payloads carry facts, never composed copy, and never another member's preference selections — `participant.selection_changed` reports progress only (FR-PREF-005).
+         *
+         *     Polling the underlying endpoints remains a supported fallback; when `REALTIME_SSE_ENABLED` is off, this route answers `503 REALTIME_DISABLED` and clients should poll.
+         */
+        get: operations["streamRoomEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/rooms/{id}/members": {
@@ -399,6 +455,32 @@ export interface paths {
         put?: never;
         /** Mark own preferences complete; room auto-moves to matching when everyone is done */
         post: operations["completeMyPreferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Presigned upload for moderated user media
+         * @description Check-in accepts `photoKeys` and `billPhotoKey` — keys of already uploaded objects — and until this endpoint existed nothing in the contract could produce one, so the mobile check-in sheet shipped without photos or the verified bill (FR-PLAN-009 was unreachable).
+         *
+         *     Presigned rather than multipart: the client PUTs the bytes straight to storage with the returned URL and sends only the `key` back. Image bytes never cross the API.
+         *
+         *     The returned key is bound to the actor that created it. Attaching a key belonging to another actor, an expired one, or one issued for a different purpose is rejected — the server does not distinguish those cases in its answer.
+         *
+         *     Content type and size are enforced server-side and the content type is part of what is signed, so storage refuses an upload that does not match what was authorized.
+         */
+        post: operations["createUpload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -574,7 +656,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Host-only: regenerate — locked stops are invariant (SG-008) */
+        /**
+         * Host-only: regenerate — locked stops are invariant (SG-008)
+         * @description `feedbackText` (SG-009) is the member's own words. It is turned into structured constraints, validated against the verified candidate set and the room's own constraints, and only then handed to the same deterministic pipeline — which stays the thing making the decision.
+         *
+         *     Feedback may only **tighten**: it can narrow the budget, shrink the radius, drop stops or avoid a category. It cannot raise the budget the room agreed on, widen the host's radius, add stops, or reference a place that was not already a verified candidate. Anything it proposes outside those bounds is dropped with a reason code.
+         *
+         *     The response reports what was understood and what was ignored, because feedback that silently changes nothing is indistinguishable from feedback that was never read.
+         *
+         *     When AI parsing is disabled, times out, runs out of quota, or returns output that fails validation, a deterministic parser produces the result instead. There is no failure path that surfaces a model error to the user.
+         */
         post: operations["regeneratePlan"];
         delete?: never;
         options?: never;
@@ -836,6 +927,26 @@ export interface paths {
         };
         /** Poll a submission (owner only) */
         get: operations["getPlaceSubmission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/place-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Moderator/editor: queue of places proposed from Mobile (PI-CMS-007)
+         * @description Keyset paging on `(created_at, id)`, newest first — proposals keep arriving while a moderator works through the queue, so an offset would repeat or skip them. Repeat proposals of the same provider place are one row with `submissionCount`, which is what a moderator prioritises by. The submitter is reduced to `fromRegisteredUser`: moderating does not need the person's identity.
+         */
+        get: operations["cmsListPlaceSubmissions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1176,6 +1287,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin: read the audit log (filterable, cursor-paged)
+         * @description Audit is a feature, not a log — ops must be able to answer "who suspended this place and why" without database access. Read-only: FR-CMS-008 makes the log immutable, so there is no update or delete path here by design.
+         *     `breakGlass=true` is the incident-review query: it returns emergency takedowns on their own, with actor, role, reason and request id.
+         */
+        get: operations["cmsListAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/places/{id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin: one place's change history
+         * @description The same query as `cmsListAudit`, scoped to a place for the editor's history drawer.
+         */
+        get: operations["cmsListPlaceAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cms/auth/login": {
         parameters: {
             query?: never;
@@ -1193,6 +1345,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the staff session (SEC-003)
+         * @description Reads the refresh token from the `gogo_rt` cookie, or from the body for non-browser callers. Single-use: presenting a superseded token is treated as theft and revokes the whole session family. The admin row is re-read, so a suspended or demoted account cannot refresh onward.
+         */
+        post: operations["cmsRefresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End the staff session (SEC-003)
+         * @description Revokes the session and denylists its id, so an access token already in flight stops working immediately rather than at expiry. Idempotent.
+         */
+        post: operations["cmsLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cms/auth/totp/setup": {
         parameters: {
             query?: never;
@@ -1202,8 +1394,33 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Enroll TOTP (requires a fresh password proof) */
+        /**
+         * Enroll TOTP, step 1 of 2 (requires a fresh password proof)
+         * @description Returns the secret and otpauth URI, and does **not** switch MFA on. `cmsConfirmTotp` does that, once a code generated from the secret verifies. Enrolling and activating together locked an admin out of the console whenever the authenticator never actually received the secret, because production requires MFA to log in.
+         *
+         *     The secret is shown exactly once, here. The stored copy is encrypted at rest and never readable again.
+         */
         post: operations["cmsSetupTotp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/auth/totp/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enroll TOTP, step 2 of 2 (proves the authenticator has the secret)
+         * @description A code from the pending secret activates MFA for this account. The confirming code is spent, so it cannot also be used to log in, and every other session for the admin is revoked — enrolling a second factor is a credential change, and sessions opened before it were opened with less.
+         */
+        post: operations["cmsConfirmTotp"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1288,7 +1505,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Editor: the record the place editor loads
+         * @description Everything `cmsUpdatePlace` accepts, plus the facts rendered around the form. The list endpoint is not a substitute — it is a keyset-paged index and carries none of this on purpose.
+         */
+        get: operations["cmsGetPlace"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1386,6 +1607,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/search-analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops: search quality — zero-result rate and the queries that fail
+         * @description Zero-result counts were measurable before this; the denominator was not, and "40 zero-results today" says nothing without "out of how many searches".
+         *
+         *     Built from a daily aggregate, not a per-request search log. There is no request-level search log to drill into — that absence is the privacy design rather than a gap: a daily counter carries no actor, so nothing can join a query back to a person.
+         *
+         *     A query term is only named once at least 5 searches produced it. Below that floor the rows are still counted, in `hiddenBelowFloor`, but the text is withheld: a query one person typed is effectively that person's query. Hiding the rows entirely would understate how much of search is failing, which is the opposite of the point.
+         */
+        get: operations["cmsSearchAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cms/taxonomies": {
         parameters: {
             query?: never;
@@ -1393,7 +1638,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Editor/Ops: taxonomy keys with labels, synonyms and usage
+         * @description Unfiltered, this returns active **and** inactive keys — the CMS is where a deactivated key is seen and reactivated, so hiding it by default would make it unreachable.
+         */
+        get: operations["cmsListTaxonomies"];
         put?: never;
         /** Editor/Ops: create a taxonomy key with i18n labels */
         post: operations["cmsCreateTaxonomy"];
@@ -1479,7 +1728,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Editor/Ops: the ordered place list, as stored
+         * @description `cmsSetCollectionItems` replaces the whole list, so an editor must be able to read the current one before writing it back.
+         */
+        get: operations["cmsListCollectionItems"];
         /** Editor/Ops: replace the ordered place list */
         put: operations["cmsSetCollectionItems"];
         post?: never;
@@ -1564,7 +1817,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Ops: ranking config versions with approver and activation
+         * @description Approve and activate must be two different accounts, which is only checkable if both names are readable — so each version carries who drafted it and who approved it.
+         */
+        get: operations["cmsListRankingConfigs"];
         put?: never;
         /** Ops: draft a versioned ranking/scoring config (weights bounds-checked) */
         post: operations["cmsCreateRankingConfig"];
@@ -1625,6 +1882,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/experiments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ops: experiment definitions and their current split */
+        get: operations["cmsListExperiments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/experiments/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Ops: define, re-split, or switch off an experiment
+         * @description `enabled: false` is the kill switch: every subject goes to control on the next request, and the assignment history is not deleted.
+         *
+         *     Variant names are ranking config versions, and only an **approved** version is honoured — an experiment must not be a way to put unreviewed weights in front of users, and the four-eyes rule stays the gate.
+         *
+         *     Shares may sum to less than 1; the remainder is control. Summing to more is refused rather than silently dropping a variant.
+         */
+        put: operations["cmsUpsertExperiment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/ranking-configs/{id}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops: replay a candidate config against stored snapshots
+         * @description Every suggestion run keeps the immutable snapshot it was computed from, so a candidate config can be scored against real rooms **before** anyone is exposed to it — which is what makes activating a config a decision rather than a hope.
+         *
+         *     Offline in the strict sense: snapshots are read, scoring happens in memory, and nothing is written. No plan, no run, no user sees any of it.
+         *
+         *     Runs where no candidate passes the hard filters are skipped rather than counted as agreement, which would flatter every candidate config.
+         */
+        get: operations["cmsEvaluateRankingConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops: every flag with its current value and last writer
+         * @description A kill switch nobody can read is not a kill switch. The AI fallback and the travel-time provider are both flag-gated, so their state has to be visible before an incident, not during one.
+         */
+        get: operations["cmsListFeatureFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cms/feature-flags/{key}": {
         parameters: {
             query?: never;
@@ -1636,6 +1978,66 @@ export interface paths {
         /** Ops: toggle a feature flag / kill switch */
         put: operations["cmsSetFeatureFlag"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/emergency/places/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Any active admin: take a published place down (SEC-001 break-glass)
+         * @description Break-glass, deliberately asymmetric. Taking content **down** is open to every active admin role because it is reversible and reduces harm; putting it **back up** keeps its usual privileged role. Only `published → suspended` is accepted — any other current state is refused rather than coerced. One resource per call; there is no bulk form. Rate limited to 20 per hour per admin with a 5-per-minute burst cap, separately from the normal baseline. Every call is audited with actor, role, request id, staff IP, reason and before/after state, and raises an alert.
+         */
+        post: operations["emergencySuspendPlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/emergency/reviews/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Any active admin: hide a published review (SEC-001 break-glass)
+         * @description `published → hidden`. `hidden` is distinct from the moderator verdicts `rejected`/`removed` on purpose: it records "taken down under time pressure, pending review". Same limits and audit as the place route.
+         */
+        post: operations["emergencyHideReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/emergency/checkins/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Any active admin: hide a stop check-in (SEC-001 break-glass)
+         * @description Same limits and audit as the place route.
+         */
+        post: operations["emergencyHideCheckin"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1731,6 +2133,7 @@ export interface components {
             name: string;
             addressText?: string;
             areaKey?: string;
+            primaryPhoto?: components["schemas"]["PlacePhoto"];
             lat: number;
             lng: number;
             rating?: number;
@@ -1828,22 +2231,27 @@ export interface components {
             name?: string;
             description?: string;
             status?: string;
-            address_text?: string;
-            area_key?: string;
+            addressText?: string;
+            areaKey?: string;
             lat?: number;
             lng?: number;
             phone?: string;
             website?: string;
+            /** @description A number, not the string Postgres returns for `numeric`. The endpoint used to pass the row through unmapped, so a client calling `.toFixed` on this crashed (#169). */
             rating?: number;
-            rating_count?: number;
-            avg_visit_minutes?: number;
+            ratingCount?: number;
+            priceLevel?: number;
+            avgVisitMinutes?: number;
             suitability?: {
                 [key: string]: number;
             };
-            is_lodging?: boolean;
+            isLodging?: boolean;
             confidence?: number;
+            curatedRank?: number;
             /** Format: date-time */
-            freshness_checked_at?: string;
+            freshnessCheckedAt?: string;
+            /** @description Ordered gallery; empty when the place has no approved imagery. */
+            photos?: components["schemas"]["PlacePhoto"][];
             taxonomies?: {
                 kind?: string;
                 key?: string;
@@ -1926,6 +2334,8 @@ export interface components {
             overBudget?: boolean;
             /** @description Some stop has unknown/low-confidence price — surface the uncertainty. */
             uncertain?: boolean;
+            /** @description True when at least one leg is a straight-line estimate rather than a routed travel time. Say so in the UI: in city traffic the two differ by a lot, and presenting a guess as a measured duration is what core rule #8 forbids. */
+            travelEstimated?: boolean;
         };
         PlanStop: {
             /** Format: uuid */
@@ -1944,10 +2354,20 @@ export interface components {
             costMax?: number | null;
             /** @description Locked stops are invariant across regenerate. */
             isLocked?: boolean;
-            /** @enum {string} */
+            /**
+             * @description Progress of the stop itself, not of the place behind it.
+             * @enum {string}
+             */
             status?: "planned" | "completed" | "skipped";
             /** Format: date-time */
             completedAt?: string;
+            /** @description False when the place behind this stop is no longer usable — taken down, archived or never published. The stop is deliberately kept: a locked stop is invariant, and dropping stops would rewrite a plan people already agreed on. Show a warning; do not present it as fine. */
+            placeAvailable?: boolean;
+            /**
+             * @description Present only when `placeAvailable` is false. Two independent axes: `PLACE_SUSPENDED`/`PLACE_ARCHIVED`/`PLACE_NOT_PUBLISHED` are GoGo moderation states, while `PLACE_TEMPORARILY_CLOSED`/`PLACE_CLOSED` are what the provider reports about the business itself. A place on holiday and a place taken down need different copy — resolve it via i18n, never render the code.
+             * @enum {string}
+             */
+            unavailableReason?: "PLACE_SUSPENDED" | "PLACE_ARCHIVED" | "PLACE_NOT_PUBLISHED" | "PLACE_MISSING" | "PLACE_TEMPORARILY_CLOSED" | "PLACE_CLOSED";
         };
         Plan: {
             /** Format: uuid */
@@ -1963,6 +2383,8 @@ export interface components {
             totals?: components["schemas"]["PlanTotals"];
             /** Format: date-time */
             createdAt?: string;
+            /** @description True when at least one stop points at a place that is no longer usable — lets a client show one banner without scanning stops. */
+            hasUnavailableStops?: boolean;
             stops?: components["schemas"]["PlanStop"][];
         };
         Checkin: {
@@ -2102,8 +2524,11 @@ export interface components {
             id?: string;
             /** @enum {string} */
             status?: "uploaded" | "validating" | "processing" | "review_required" | "completed" | "partial_success" | "failed" | "cancelled" | "paused_provider_quota";
-            /** @enum {string} */
-            mode?: "dry_run" | "create_drafts" | "publish_approved";
+            /**
+             * @description `update_existing` re-syncs an edited sheet onto places that already exist: provider facts refresh from Google, editorial fields come from the sheet, and an empty cell means "unknown", not "delete". A row whose provider place now looks like a *different business* is written nowhere and lands in review instead.
+             * @enum {string}
+             */
+            mode?: "dry_run" | "create_drafts" | "publish_approved" | "update_existing";
             /** @enum {string} */
             sourceType?: "csv" | "xlsx" | "google_sheet" | "mobile_link";
             sourceFileName?: string | null;
@@ -2185,6 +2610,371 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        EmergencyTakedownRequest: {
+            /** @description Why this was taken down. Required and stored in the audit record — it is the only explanation anyone reviewing the incident later has. */
+            reason: string;
+        };
+        AdminSession: {
+            /** @description For non-browser callers. Browser clients use the cookie. */
+            accessToken?: string;
+            refreshToken?: string;
+            /** @description Access token lifetime */
+            expiresIn?: number;
+            /** @description Session lifetime, seconds. Deliberately shorter than the consumer app's (security rule): a shift, not a month. */
+            refreshExpiresIn?: number;
+            role?: components["schemas"]["AdminRole"];
+            displayName?: string;
+        };
+        PlaceSubmissionSummary: {
+            /** Format: uuid */
+            id: string;
+            googlePlaceId: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "merged";
+            /** @description How many people proposed this same provider place. */
+            submissionCount: number;
+            categoryKey?: string;
+            estimatedPrice?: {
+                min?: number;
+                max?: number;
+                unit?: string;
+            };
+            vibeKeys?: string[];
+            note?: string;
+            /** Format: uuid */
+            roomId?: string;
+            /** Format: uuid */
+            resultPlaceId?: string;
+            resultPlaceName?: string;
+            /** @description Whether it came from an account rather than a guest session. */
+            fromRegisteredUser?: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            decisionReason?: string;
+        };
+        PlacePhoto: {
+            /** Format: uuid */
+            id: string;
+            /** @description Directly loadable. Photos are omitted entirely rather than sent with a URL that will not load — a broken image is worse than the neutral placeholder a client falls back to. */
+            url: string;
+            width?: number;
+            height?: number;
+            /**
+             * @description Lets a client tell imported and user-submitted imagery apart.
+             * @enum {string}
+             */
+            source: "google" | "community" | "manual";
+            /** @description Present for provider imagery, which must be displayed with it. Community photos are only returned once approved in moderation. */
+            attribution?: string;
+        };
+        RoomListItem: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "couple" | "group";
+            /** @enum {string} */
+            status: "draft" | "collecting" | "matching" | "ready" | "active" | "completed" | "cancelled" | "expired";
+            /** @enum {string} */
+            decisionMode: "match" | "vote" | "host";
+            participantCount: number;
+            title?: string;
+            /** Format: date-time */
+            scheduledDate?: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string} */
+            myRole: "host" | "member" | "guest";
+            /** Format: uuid */
+            myMemberId: string;
+            memberCount?: number;
+            /** @description Members done with preferences — enough to render "2/3" without another call. */
+            completedCount?: number;
+            /**
+             * Format: uuid
+             * @description The room's current plan, when one exists.
+             */
+            planId?: string;
+        };
+        CmsPlaceDetail: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string | null;
+            /** @enum {string} */
+            status: "draft" | "community_submitted" | "review" | "published" | "suspended" | "archived";
+            addressText?: string | null;
+            areaKey?: string | null;
+            lat?: number;
+            lng?: number;
+            phone?: string | null;
+            website?: string | null;
+            avgVisitMinutes?: number | null;
+            suitability?: {
+                [key: string]: number;
+            };
+            isLodging?: boolean;
+            curatedRank?: number | null;
+            confidence?: number;
+            priceLevel?: number | null;
+            /** @description Kept apart, never averaged. The provider figure and GoGo's own — derived from published reviews — measure different populations, and a blended number would describe neither (FR-INGEST-006). The composite score that spec also describes is not computed anywhere yet, so it is absent rather than faked. */
+            ratings: {
+                provider: {
+                    rating?: number;
+                    count: number;
+                };
+                gogo: {
+                    rating?: number;
+                    count: number;
+                };
+            };
+            taxonomyIds: string[];
+            /** @description Alongside the ids so a chip can be labelled without a second call; writes still send ids. */
+            taxonomyKeys?: string[];
+            hours: {
+                dayOfWeek: number;
+                openMinute: number;
+                closeMinute: number;
+                isOvernight: boolean;
+                source: string;
+                /** Format: date-time */
+                verifiedAt?: string | null;
+            }[];
+            prices: {
+                /** Format: uuid */
+                id: string;
+                /** @description Integer minor units. */
+                priceMin: number;
+                /** @description Integer minor units. */
+                priceMax: number;
+                currency: string;
+                unit: string;
+                source: string;
+                confidence: number;
+                /** Format: date-time */
+                verifiedAt?: string | null;
+                /** Format: date-time */
+                createdAt?: string;
+            }[];
+            sources: {
+                /** Format: uuid */
+                id: string;
+                provider: string;
+                externalId: string;
+                url?: string | null;
+                /** @description Provider facts must be displayed with their attribution (FR-INGEST-014). */
+                attribution?: string | null;
+                /** Format: date-time */
+                fetchedAt?: string | null;
+            }[];
+            media: {
+                /** Format: uuid */
+                id: string;
+                storageKey: string;
+                width?: number | null;
+                height?: number | null;
+                sortOrder: number;
+                moderation: string;
+            }[];
+            /** Format: date-time */
+            freshnessCheckedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CmsTaxonomy: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "mood" | "category" | "setting" | "dietary" | "accessibility" | "spending_style" | "suitability" | "checkin_tag";
+            key: string;
+            /** @description Locale to label. Business data stores the key; the label is presentation. */
+            labels: {
+                [key: string]: string;
+            };
+            sortOrder: number;
+            isActive: boolean;
+            /** @description Places referencing this key — what makes the delete rule checkable. */
+            usageCount: number;
+            synonyms: {
+                /** Format: uuid */
+                id: string;
+                term: string;
+                locale: string;
+            }[];
+        };
+        CmsAdminRef: {
+            /** Format: uuid */
+            id: string;
+            displayName?: string | null;
+        };
+        CmsRankingConfig: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            key: "suggestion.scoring" | "search.ranking";
+            version: number;
+            /** @enum {string} */
+            status: "draft" | "approved" | "active" | "rolled_back";
+            weights: {
+                [key: string]: number;
+            };
+            /** @description The engine's own limits, sent so a console cannot drift from them. */
+            bounds: Record<string, never>;
+            createdBy: components["schemas"]["CmsAdminRef"];
+            /** @description Null until approved; separation of duties requires it to differ from the activator. */
+            approvedBy?: components["schemas"]["CmsAdminRef"] | null;
+            /** Format: date-time */
+            activatedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CmsFeatureFlag: {
+            key: string;
+            enabled: boolean;
+            /** @description Free-form flag configuration. */
+            payload?: unknown;
+            description?: string | null;
+            updatedBy?: components["schemas"]["CmsAdminRef"] | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CmsAuditEntry: {
+            /** Format: uuid */
+            id: string;
+            action: string;
+            /** @enum {string} */
+            actorType: "admin" | "user" | "system";
+            /** Format: uuid */
+            actorId?: string;
+            /**
+             * @description The role at read time, joined for incident review. Nothing else about the account is exposed.
+             * @enum {string}
+             */
+            actorRole?: "editor" | "moderator" | "ops_admin" | "super_admin";
+            resourceType: string;
+            resourceId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** @description Before/after of the sensitive write, PII-minimised at write time. */
+            diff?: unknown;
+            /** @description Lifted out of the diff for the writes that require one. */
+            reason?: string;
+            /** @description True for emergency takedown — the write that bypassed the normal role for this action. */
+            breakGlass: boolean;
+            requestId?: string;
+            /** @description Staff IP, recorded for admin actions only and returned only to ops_admin and above. It exists to tell "that admin did it" apart from "that admin's account was taken over"; that justification does not extend to the roles that do not run incident review, so it is omitted for them, and it must not appear in any other response, log line or analytics event. */
+            ipAddress?: string;
+            /**
+             * @description Which rule authorized the write. `super_admin_bypass` means every other role would have been refused.
+             * @enum {string}
+             */
+            authorizationPath?: "exact_role" | "rank_read" | "super_admin_bypass";
+        };
+        CmsAuditPage: {
+            items: components["schemas"]["CmsAuditEntry"][];
+            /** @description Keyset cursor over (occurredAt, id); the log is appended to while it is read. */
+            nextCursor: string | null;
+        };
+        /** @description The domain-event envelope from the api-contract rules, unchanged. Field names are snake_case here because that is the event convention, not the REST DTO convention. */
+        RoomEvent: {
+            /** Format: uuid */
+            event_id: string;
+            /** @enum {string} */
+            event_type: "room.status_changed" | "participant.joined" | "participant.left" | "participant.selection_changed" | "matching.started" | "matching.completed" | "matching.failed" | "suggestions.generated" | "suggestions.updated" | "vote.changed" | "plan.updated" | "resync" | "heartbeat";
+            event_version: number;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Pseudonymous. Where a participant is named it is by room-scoped member id, which does not carry an account across rooms. */
+            actor_id?: string | null;
+            resource_type: string;
+            resource_id: string;
+            correlation_id?: string | null;
+            payload_schema_version?: number;
+            /** @description Facts, never composed copy. Carries the version a client should compare against — `constraintVersion` for suggestions, `version` for a plan — so a stale event is distinguishable from a fresh one. */
+            payload: Record<string, never>;
+        };
+        CmsSearchAnalytics: {
+            days: number;
+            totals: {
+                searches: number;
+                zeroResults: number;
+                zeroResultRate: number;
+                avgResults: number;
+                avgLatencyMs: number;
+            };
+            trend: {
+                /** Format: date */
+                day: string;
+                searches: number;
+                zeroResults: number;
+                zeroResultRate: number;
+            }[];
+            /** @description Only terms at or above the visibility floor. */
+            worstQueries: {
+                query: string;
+                searches: number;
+                zeroResults: number;
+                zeroResultRate: number;
+            }[];
+            /** @description Rare terms, counted but not named. Present so the totals stay honest about how much of search is failing. */
+            hiddenBelowFloor: {
+                terms: number;
+                searches: number;
+                zeroResults: number;
+            };
+        };
+        /** @description Present only when `feedbackText` was sent. Says what the deterministic pipeline was actually asked to do, so a user can tell "understood and applied" from "not understood". */
+        FeedbackOutcome: {
+            /** @description False means nothing in the text survived validation. */
+            understood: boolean;
+            applied: {
+                excludePlaceIds?: string[];
+                avoidCategoryKeys?: string[];
+                requireDietaryKeys?: string[];
+                /** @description Integer minor units, always below the room's own budget. */
+                budgetMaxAmount?: number;
+                radiusM?: number;
+                maxStops?: number;
+            };
+            /** @description Why parts were dropped. `PLACE_NOT_A_CANDIDATE` is the shape of a hallucinated place id; `BUDGET_NOT_TIGHTENED` means the proposal tried to loosen a constraint rather than narrow it. */
+            ignoredReasons: ("SCHEMA_INVALID" | "PLACE_NOT_A_CANDIDATE" | "CATEGORY_UNKNOWN" | "DIETARY_UNKNOWN" | "BUDGET_NOT_TIGHTENED" | "RADIUS_NOT_REDUCED" | "STOPS_NOT_REDUCED" | "NOTHING_UNDERSTOOD")[];
+        };
+        CmsExperiment: {
+            key: string;
+            description?: string | null;
+            enabled: boolean;
+            variants: {
+                [key: string]: number;
+            };
+            /** @description What is left after the named variants. */
+            controlShare?: number;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        CmsRankingEvaluation: {
+            configVersion: number;
+            /** @description The active config it was compared against, or "default". */
+            baselineVersion: string;
+            runsEvaluated: number;
+            metrics: {
+                /** @description Share of runs whose top result is unchanged. */
+                top1Agreement: number;
+                /** @description Mean overlap of the top 5 — how far the ordering moved. */
+                top5Overlap: number;
+                /** @description Runs where the candidate returns nothing and the baseline did not. */
+                newZeroResults: number;
+                meanCandidateCount: number;
+            };
+            /** @description Runs that could not be evaluated, and why. Not counted as agreement. */
+            skipped: {
+                /** Format: uuid */
+                runId: string;
+                reason: string;
+            }[];
+        };
     };
     responses: {
         /** @description Validation or business rule failure */
@@ -2255,6 +3045,40 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    scrapeMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metrics in Prometheus text format */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Missing or wrong token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No metrics token is configured in this environment */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -2590,6 +3414,36 @@ export interface operations {
             };
         };
     };
+    listRooms: {
+        parameters: {
+            query?: {
+                /** @description Repeatable or comma-separated; unknown values are ignored. */
+                status?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of room summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["RoomListItem"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     createRoom: {
         parameters: {
             query?: never;
@@ -2716,6 +3570,50 @@ export interface operations {
                 };
             };
             409: components["responses"]["Conflict"];
+        };
+    };
+    streamRoomEvents: {
+        parameters: {
+            query?: {
+                /** @description Same as the header, for browser EventSource which cannot set one. */
+                lastEventId?: string;
+            };
+            header?: {
+                /** @description The last sequence number received, to resume after a reconnect. */
+                "Last-Event-ID"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An event stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["RoomEvent"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Too many open streams for this session */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Realtime disabled in this environment; poll instead */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listRoomMembers: {
@@ -3065,6 +3963,11 @@ export interface operations {
                 content: {
                     "application/json": {
                         completed?: boolean;
+                        /** @description Every member has finished their preferences. */
+                        allMembersCompleted?: boolean;
+                        /** @enum {string} */
+                        roomStatus?: "draft" | "collecting" | "matching" | "ready" | "active" | "completed" | "cancelled" | "expired";
+                        /** @description Everyone has finished **and** the room is in a state the suggestions endpoint accepts. It used to report member progress alone, so a client could be told the room was ready and then get 409 ROOM_NOT_MATCHING. */
                         roomReadyForMatching?: boolean;
                     };
                 };
@@ -3072,10 +3975,56 @@ export interface operations {
             400: components["responses"]["BadRequest"];
         };
     };
+    createUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    purpose: "checkin_photo" | "bill_photo" | "place_photo";
+                    /** @enum {string} */
+                    contentType: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+                    /** @description Declared up front, so an oversized file is refused before a URL exists. */
+                    contentLength: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Upload authorized */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Send this back in the check-in; it is only usable by this actor. */
+                        key: string;
+                        uploadUrl: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                        maxBytes: number;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Object storage is not configured in this environment */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listTaxonomies: {
         parameters: {
             query?: {
-                /** @description Comma-separated kind filter (mood,category,setting,dietary,accessibility,spending_style,suitability) */
+                /** @description Comma-separated kind filter (mood,category,setting,dietary,accessibility,spending_style,suitability,checkin_tag) */
                 kinds?: string;
             };
             header?: never;
@@ -3388,6 +4337,8 @@ export interface operations {
             content: {
                 "application/json": {
                     excludePlaceIds?: string[];
+                    /** @description Free text, e.g. "rẻ hơn và gần hơn". */
+                    feedbackText?: string;
                 };
             };
         };
@@ -3398,7 +4349,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Plan"];
+                    "application/json": components["schemas"]["Plan"] & {
+                        feedback?: components["schemas"]["FeedbackOutcome"];
+                    };
                 };
             };
             409: components["responses"]["Conflict"];
@@ -3847,6 +4800,35 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    cmsListPlaceSubmissions: {
+        parameters: {
+            query?: {
+                status?: "pending" | "approved" | "rejected" | "merged";
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of submissions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["PlaceSubmissionSummary"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     decidePlaceSubmission: {
         parameters: {
             query?: never;
@@ -3922,7 +4904,7 @@ export interface operations {
                      * @default dry_run
                      * @enum {string}
                      */
-                    mode?: "dry_run" | "create_drafts" | "publish_approved";
+                    mode?: "dry_run" | "create_drafts" | "publish_approved" | "update_existing";
                     defaultCity?: string;
                     /** @description JSON object mapping raw header → canonical field */
                     mapping?: string;
@@ -3960,7 +4942,7 @@ export interface operations {
                      * @default dry_run
                      * @enum {string}
                      */
-                    mode?: "dry_run" | "create_drafts" | "publish_approved";
+                    mode?: "dry_run" | "create_drafts" | "publish_approved" | "update_existing";
                     defaultCity?: string;
                     tabCityMapping?: {
                         [key: string]: string;
@@ -4427,6 +5409,68 @@ export interface operations {
             };
         };
     };
+    cmsListAudit: {
+        parameters: {
+            query?: {
+                resourceType?: string;
+                /** @description Text, not uuid — flags and ranking configs are audited by key. */
+                resourceId?: string;
+                actorId?: string;
+                action?: string;
+                from?: string;
+                to?: string;
+                /** @description Emergency takedowns only. */
+                breakGlass?: boolean;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit entries, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAuditPage"];
+                };
+            };
+        };
+    };
+    cmsListPlaceAudit: {
+        parameters: {
+            query?: {
+                action?: string;
+                actorId?: string;
+                from?: string;
+                to?: string;
+                breakGlass?: boolean;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit entries for this place, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAuditPage"];
+                };
+            };
+        };
+    };
     cmsLogin: {
         parameters: {
             query?: never;
@@ -4445,18 +5489,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Admin token grant (act=admin; role re-checked per request) */
+            /** @description Session opened. Sets `gogo_at` (HttpOnly), `gogo_rt` (HttpOnly, scoped to `/v1/cms/auth/refresh`) and `gogo_csrf` (readable, for the double-submit header). **Browser clients authenticate by cookie and must ignore the body tokens** — those exist for non-browser callers. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        accessToken?: string;
-                        role?: components["schemas"]["AdminRole"];
-                        displayName?: string;
-                        expiresIn?: number;
-                    };
+                    "application/json": components["schemas"]["AdminSession"];
                 };
             };
             /** @description Bad credentials or missing/invalid TOTP (`MFA_REQUIRED`) */
@@ -4478,6 +5517,76 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
+        };
+    };
+    cmsRefresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    refreshToken?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Rotated session; cookies reset */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSession"];
+                };
+            };
+            /** @description INVALID_REFRESH_TOKEN / SESSION_REVOKED / SESSION_EXPIRED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    cmsLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Revoke every session in this login's family.
+                     * @default false
+                     */
+                    allDevices?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Session ended and cookies cleared */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        loggedOut?: boolean;
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
         };
     };
     cmsSetupTotp: {
@@ -4502,10 +5611,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Shown once. Not retrievable afterwards. */
                         secret?: string;
                         otpauthUri?: string;
+                        /** @description Always false here — enrollment is not active until confirmed. */
+                        confirmed?: boolean;
                     };
                 };
+            };
+        };
+    };
+    cmsConfirmTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description MFA is now required for this account */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        confirmed: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description No enrollment is pending */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -4627,6 +5775,29 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    cmsGetPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Place record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsPlaceDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     cmsUpdatePlace: {
@@ -4808,6 +5979,52 @@ export interface operations {
             400: components["responses"]["BadRequest"];
         };
     };
+    cmsSearchAnalytics: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Search quality over the window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsSearchAnalytics"];
+                };
+            };
+        };
+    };
+    cmsListTaxonomies: {
+        parameters: {
+            query?: {
+                kind?: "mood" | "category" | "setting" | "dietary" | "accessibility" | "spending_style" | "suitability" | "checkin_tag";
+                isActive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Taxonomy keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsTaxonomy"][];
+                };
+            };
+        };
+    };
     cmsCreateTaxonomy: {
         parameters: {
             query?: never;
@@ -4819,7 +6036,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    kind: "mood" | "category" | "setting" | "dietary" | "accessibility" | "spending_style" | "suitability";
+                    kind: "mood" | "category" | "setting" | "dietary" | "accessibility" | "spending_style" | "suitability" | "checkin_tag";
                     key: string;
                     labels: {
                         [key: string]: string;
@@ -4976,6 +6193,44 @@ export interface operations {
             };
         };
     };
+    cmsListCollectionItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Collection items in position order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        collectionId: string;
+                        items: {
+                            position: number;
+                            /** Format: uuid */
+                            placeId: string;
+                            name: string;
+                            addressText?: string | null;
+                            /**
+                             * @description Carried so a curator sees that a pinned place has left publication, instead of a silently empty slot.
+                             * @enum {string}
+                             */
+                            status: "draft" | "community_submitted" | "review" | "published" | "suspended" | "archived";
+                        }[];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
     cmsSetCollectionItems: {
         parameters: {
             query?: never;
@@ -5095,6 +6350,29 @@ export interface operations {
             };
         };
     };
+    cmsListRankingConfigs: {
+        parameters: {
+            query?: {
+                key?: "suggestion.scoring" | "search.ranking";
+                status?: "draft" | "approved" | "active" | "rolled_back";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Config versions, newest first per key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsRankingConfig"][];
+                };
+            };
+        };
+    };
     cmsCreateRankingConfig: {
         parameters: {
             query?: never;
@@ -5202,6 +6480,111 @@ export interface operations {
             };
         };
     };
+    cmsListExperiments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Experiments in key order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsExperiment"][];
+                };
+            };
+        };
+    };
+    cmsUpsertExperiment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    description?: string;
+                    enabled: boolean;
+                    variants: {
+                        [key: string]: number;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Experiment saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsExperiment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    cmsEvaluateRankingConfig: {
+        parameters: {
+            query?: {
+                sampleSize?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How the candidate would have ranked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsRankingEvaluation"];
+                };
+            };
+            /** @description Config weights are outside the engine's own bounds */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cmsListFeatureFlags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flags in key order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsFeatureFlag"][];
+                };
+            };
+        };
+    };
     cmsSetFeatureFlag: {
         parameters: {
             query?: never;
@@ -5227,6 +6610,119 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    emergencySuspendPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyTakedownRequest"];
+            };
+        };
+        responses: {
+            /** @description Place suspended; it leaves search and suggestion immediately */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id?: string;
+                        /** @enum {string} */
+                        status?: "suspended";
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description NOT_TAKEDOWNABLE — the resource is not in a state this applies to */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    emergencyHideReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyTakedownRequest"];
+            };
+        };
+        responses: {
+            /** @description Review hidden */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id?: string;
+                        /** @enum {string} */
+                        status?: "hidden";
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    emergencyHideCheckin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyTakedownRequest"];
+            };
+        };
+        responses: {
+            /** @description Check-in hidden */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id?: string;
+                        /** @enum {string} */
+                        moderation?: "hidden";
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
         };
     };
     cmsOpsKpis: {

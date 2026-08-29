@@ -80,9 +80,9 @@ export default function PlaceDetailScreen() {
   const open = openStateFromHours(detail.hours)
   const price = detail.prices?.[0]
   // Numerics on this DTO can arrive as strings — see `toNumber`.
-  const checkedAt = parseApiDate(detail.freshness_checked_at)
+  const checkedAt = parseApiDate(detail.freshnessCheckedAt)
   const rating = toNumber(detail.rating)
-  const ratingCount = toNumber(detail.rating_count)
+  const ratingCount = toNumber(detail.ratingCount)
   const priceLabel = formatRange(
     toNumber(price?.priceMin),
     toNumber(price?.priceMax),
@@ -101,7 +101,7 @@ export default function PlaceDetailScreen() {
     .map(([key, value]) => [key, toNumber(value) ?? 0] as const)
     .sort((a, b) => b[1] - a[1])
 
-  const destination = detail.address_text ?? (detail.lat != null && detail.lng != null ? `${detail.lat},${detail.lng}` : name)
+  const destination = detail.addressText ?? (detail.lat != null && detail.lng != null ? `${detail.lat},${detail.lng}` : name)
 
   function onSave() {
     const currentlySaved = isSaved(saved.data, 'place', id)
@@ -130,7 +130,7 @@ export default function PlaceDetailScreen() {
         <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[5] }}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.meta}>
-            {/* `area_key` is an internal key with no label source — omitted. */}
+            {/* `areaKey` is an internal key with no label source — omitted. */}
             {tags
               .filter(tag => tag.kind === 'category')
               .map(tag => taxonomyLabel('category', tag.key as string))
@@ -163,12 +163,12 @@ export default function PlaceDetailScreen() {
                 : t('common.closed')}
           </Text>
 
-          {detail.address_text ? (
+          {detail.addressText ? (
             <View style={styles.addressCard}>
               <View style={styles.addressIcon}>
                 <IconMapPin />
               </View>
-              <Text style={styles.addressLabel}>{detail.address_text}</Text>
+              <Text style={styles.addressLabel}>{detail.addressText}</Text>
             </View>
           ) : null}
 

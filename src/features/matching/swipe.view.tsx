@@ -190,9 +190,9 @@ export default function SwipeScreen() {
             <Animated.View style={[styles.overlay, { alignSelf: 'center', backgroundColor: brand.lavender, opacity: starOpacity }]}>
               <Text style={styles.overlayLabel}>{t('swipe.star')}</Text>
             </Animated.View>
-            {detail.data?.address_text ? (
+            {detail.data?.addressText ? (
               <View style={styles.areaRow}>
-                <Text style={styles.areaLabel} numberOfLines={1}>📍 {detail.data.address_text}</Text>
+                <Text style={styles.areaLabel} numberOfLines={1}>📍 {detail.data.addressText}</Text>
               </View>
             ) : null}
           </View>

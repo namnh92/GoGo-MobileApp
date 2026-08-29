@@ -67,7 +67,7 @@ describe('regression: PlaceDetail numerics arrive as strings', () => {
       id: 'p1',
       name: 'Cà phê Đỗ Phủ',
       rating: '4.60',
-      rating_count: 980,
+      ratingCount: 980,
       lat: '10.7889',
       lng: '106.6903',
       prices: [{ priceMin: '45000', priceMax: '90000', currency: 'VND', confidence: '0.80' }],
