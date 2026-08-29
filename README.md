@@ -39,19 +39,52 @@ GoGo-MobileApp/
 │       ├── navigation/       # Deep link routing
 │       ├── analytics/        # Typed events
 │       └── providers/        # Map, push, share adapters
+├── app.config.ts             # Flavour, bundle id, deep link claim
 ├── ios/                      # Generate bởi Expo prebuild
 ├── android/                  # Generate bởi Expo prebuild
 └── docs/adr/
 ```
 
+## Flavour và bundle id
+
+App ship ba flavour, chọn bằng `EXPO_PUBLIC_ENV`. `app.config.ts` là nguồn duy
+nhất; `ios/` và `android/` do `expo prebuild` sinh ra nên **không** sửa tay.
+
+| `EXPO_PUBLIC_ENV` | Bundle id (iOS + Android) | Tên trên máy | Scheme |
+| --- | --- | --- | --- |
+| `dev` | `max.gogo.dev` | GoGo Dev | `gogo-dev://` |
+| `stag` | `max.gogo.stag` | GoGo Staging | `gogo-stag://` |
+| `prod` | `max.gogo.prod` | GoGo | `gogo://` |
+
+Ba token này cũng là giá trị `EXPO_PUBLIC_ENV` mà app validate lúc chạy
+(`src/shared/config/env.ts`) — một từ vựng duy nhất, nên bản build và app chạy
+trong nó không thể bất đồng về môi trường. Nhãn trên màn hình vẫn viết đủ
+("GoGo Staging") vì icon không phải định danh.
+
+Ba id khác nhau để một máy cài được cả ba: hai app **không thể** trùng bundle
+id, và hai app trùng scheme thì `gogo://` mở app nào là tuỳ hệ điều hành chọn
+lần cuối. Giá trị lạ (kể cả `production` viết đủ) làm **fail build**, không tự đoán —
+đoán nghĩa là một biến CI gõ sai sinh ra bản store tên "GoGo Dev" và chỉ phát
+hiện sau khi upload.
+
+Đổi bundle id là đổi cấu hình bên ngoài repo: OneSignal (app theo bundle id),
+Tenjin, App Store Connect / Play Console, và ràng buộc key Google Maps.
+
 ## Deep link contract
 
 ```text
-https://gogo.app/r/{inviteCode}
+https://gogo.app/r/{inviteCode}     # chỉ prod claim domain này
 gogo://room/{inviteCode}
 gogo://plans/{planId}
 gogo://places/{placeId}
 ```
+
+Chỉ **`prod`** khai `associatedDomains` và intent filter cho `gogo.app`.
+Universal link được xác minh theo danh sách app id trong
+`apple-app-site-association` / `assetlinks.json` của domain; một bản dev claim
+domain không nêu tên nó là claim không bao giờ verify được — Android đưa vào
+chooser dưới dạng handler chưa xác minh, iOS bỏ qua. `dev`/`stag` dùng scheme
+riêng ở bảng trên.
 
 Phải test: cold start, warm start, đã đăng nhập, guest, invite hết hạn, app chưa cài. Invite code không chứa PII.
 

@@ -3,7 +3,10 @@ import { z } from 'zod'
 // Fail fast on invalid config (WBS FND-006). EXPO_PUBLIC_* values are compiled
 // into the bundle — never put secrets here.
 const envSchema = z.object({
-  EXPO_PUBLIC_ENV: z.enum(['development', 'staging', 'production']).default('development'),
+  // Same three tokens `app.config.ts` builds `max.gogo.{flavor}` from, so the
+  // running app and the binary it runs in can never disagree about which
+  // environment this is.
+  EXPO_PUBLIC_ENV: z.enum(['dev', 'stag', 'prod']).default('dev'),
   EXPO_PUBLIC_API_URL: z.url(),
   EXPO_PUBLIC_WEB_BASE_URL: z.url().default('https://gogo.app'),
 })
