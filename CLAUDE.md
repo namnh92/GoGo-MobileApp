@@ -27,7 +27,8 @@ React Native iOS/Android app for GoGo (couple/group date planning).
 
 - TanStack Query owns server state; Zustand only drafts/flow/session flags — never duplicate server state long-term in a global store.
 - API via generated OpenAPI client wrapper (`src/shared/api`) — never hand-copied types. Clients call only the BFF `/v1` contract.
-- Deep links: `https://gogo.app/r/{inviteCode}`, `gogo://room/{inviteCode}`, `gogo://plans/{planId}`, `gogo://places/{placeId}`. Handle cold/warm start × logged-in/guest × expired invite × app-not-installed. Invite codes carry no PII.
+- **Flavours:** `EXPO_PUBLIC_ENV` (`development` | `staging` | `production`) drives bundle id `max.gogo.{flavor}`, app name and scheme from `app.config.ts` — the single source, since `ios/`/`android/` are prebuild output. An unknown value fails the build rather than defaulting.
+- Deep links: `https://gogo.app/r/{inviteCode}` (**production only** — dev/staging cannot verify against a domain whose assetlinks never names them), `gogo://room/{inviteCode}`, `gogo://plans/{planId}`, `gogo://places/{placeId}`; dev/staging use `gogo-dev://` / `gogo-staging://`. Handle cold/warm start × logged-in/guest × expired invite × app-not-installed. Invite codes carry no PII.
 - Permissions asked in context with fallback (manual area entry when location denied). Map/provider failure → List + external directions URL. Push is only a trigger — refetch from API on open.
 - Offline: cache current plan + minimal place summaries for active date; drafts persisted with sync version; **purge room data cache on logout**.
 - Tokens only in Keychain/Keystore; never in URLs or logs.
