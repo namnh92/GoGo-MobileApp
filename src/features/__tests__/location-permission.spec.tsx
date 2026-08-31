@@ -13,6 +13,8 @@ const mockPermission = { status: 'granted' as string }
 const mockModuleMissing = { value: false }
 
 jest.mock('expo-router', () => ({
+  // A screen under test is the one on top; the focus effect is a no-op.
+  useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({}),
 }))
