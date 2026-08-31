@@ -100,6 +100,16 @@ export function IconCheck({ color = brand.mint, size = 16 }: { color?: string; s
   )
 }
 
+/** Two offset sheets — the copy glyph every platform uses. */
+export function IconCopy({ color = neutral[500], size = 18 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Rect x={9} y={9} width={13} height={13} rx={2} ry={2} />
+      <Path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </Svg>
+  )
+}
+
 export function IconShare({ color = neutral[0] }: { color?: string }) {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

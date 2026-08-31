@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
@@ -61,14 +61,24 @@ export const styles = StyleSheet.create({
   chipLabel: { ...type.label, color: neutral[500] },
   codeCard: { padding: spacing[5], marginBottom: spacing[4] },
   codeCaption: { ...type.caption, color: neutral[500], marginBottom: spacing[2] },
-  code: { fontSize: 34, lineHeight: 40, fontWeight: '800', color: neutral[900], letterSpacing: 6 },
-  copyBtn: {
-    paddingHorizontal: spacing[4],
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: neutral[100],
+  codeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  /**
+   * The server issues an opaque token, not a five-character code people read
+   * aloud — 22 characters is normal. Display size with wide letter-spacing wrapped
+   * it onto a second line and pushed the copy button outside the card, so the
+   * code takes the room it needs and the button keeps its own.
+   */
+  code: {
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    color: neutral[900],
+    letterSpacing: 0.5,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
-  copyLabel: { ...type.label, color: neutral[500] },
+  copyBtn: { flexShrink: 0 },
+  copyBtnDone: { backgroundColor: brand.mintSoft, borderColor: brand.mint },
   noApp: {
     marginTop: spacing[2],
     paddingVertical: spacing[3],

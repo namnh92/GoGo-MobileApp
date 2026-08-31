@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Share, Text, View } from 'react-native'
+import { ScrollView, Share, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -27,11 +27,12 @@ import {
   Chip,
   GhostBtn,
   GlassCard,
+  IconBtn,
   PrimaryBtn,
   SecondaryBtn,
 } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
-import { IconUserOutline } from '@/shared/ui/icons'
+import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './gogo-room.style'
@@ -283,18 +284,22 @@ export default function GoGoRoomScreen() {
         {capabilities.canInvite ? (
           <GlassCard style={styles.codeCard}>
             <Text style={styles.codeCaption}>{t('gogoRoom.codeLabel')}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={styles.code}>{inviteCode ?? '·····'}</Text>
-              <Pressable
-                accessibilityRole="button"
+            <View style={styles.codeRow}>
+              {/* `selectable` so the code can still be lifted by hand if the
+                  clipboard write is refused. */}
+              <Text style={styles.code} selectable numberOfLines={2}>
+                {inviteCode ?? '·····'}
+              </Text>
+              {/* Icon-only: a label here gets squeezed by a long code, and this
+                  is the only way to lift the code other than the invite link. */}
+              <IconBtn
                 onPress={copyCode}
                 disabled={!inviteCode}
-                style={[styles.copyBtn, codeCopied && { backgroundColor: brand.mintSoft }]}
+                accessibilityLabel={t(codeCopied ? 'common.copied' : 'common.copy')}
+                style={[styles.copyBtn, codeCopied && styles.copyBtnDone]}
               >
-                <Text style={[styles.copyLabel, codeCopied && { color: brand.mint }]}>
-                  {codeCopied ? t('common.copied') : t('common.copy')}
-                </Text>
-              </Pressable>
+                {codeCopied ? <IconCheck /> : <IconCopy />}
+              </IconBtn>
             </View>
           </GlassCard>
         ) : null}
