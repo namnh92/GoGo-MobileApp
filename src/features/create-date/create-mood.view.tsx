@@ -9,10 +9,12 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { ErrorState } from '@/shared/ui/async-state.view'
+import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Skeleton } from '@/shared/ui/skeleton.view'
+import { spacing } from '@/shared/ui/tokens'
 
+import { WizardStep } from './wizard-step.view'
 import { styles } from './create-mood.style'
 import { taxonomyEmoji } from './taxonomy-emoji'
 
@@ -28,33 +30,22 @@ interface ChipOption {
   emoji?: string
 }
 
-function ChipGrid({ options, selected, onToggle, cols = 2 }: {
+function ChipGrid({ options, selected, onToggle }: {
   options: ChipOption[]
   selected: string[]
   onToggle: (key: string) => void
-  cols?: number
 }) {
-  // cols=3 rows (short labels) auto-size so text never truncates.
-  const sizing = cols === 3 ? styles.chipAuto : { width: '48%' as const }
   return (
     <View style={styles.grid}>
-      {options.map(option => {
-        const active = selected.includes(option.key)
-        return (
-          <Pressable
-            key={option.key}
-            onPress={() => onToggle(option.key)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            style={[styles.chip, sizing, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
-          >
-            {option.emoji ? <Text style={{ fontSize: 20 }}>{option.emoji}</Text> : null}
-            <Text style={[styles.chipLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]} numberOfLines={1}>
-              {option.label}
-            </Text>
-          </Pressable>
-        )
-      })}
+      {options.map(option => (
+        <Chip
+          key={option.key}
+          label={option.label}
+          icon={option.emoji}
+          variant={selected.includes(option.key) ? 'selected' : 'default'}
+          onPress={() => onToggle(option.key)}
+        />
+      ))}
     </View>
   )
 }
@@ -125,15 +116,24 @@ export default function CreateMoodScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} right={<Text style={styles.stepLabel}>4 / 4</Text>} />
-      </View>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: spacing[4] }}>
-        <ProgressDots total={4} current={3} />
-      </View>
+      <WizardStep step="mood" onBack={() => router.back()} />
 
       {taxonomies.isPending ? (
-        <LoadingState />
+        // A grid of chips is coming; say so with its shape, not a spinner.
+        <View style={{ paddingHorizontal: spacing[5], gap: spacing[3] }}>
+          <Skeleton width="55%" height={22} />
+          <View style={styles.grid}>
+            {[0, 1, 2, 3, 4, 5].map(index => (
+              <Skeleton key={index} width={index % 3 === 0 ? 120 : 96} height={32} radius={999} />
+            ))}
+          </View>
+          <Skeleton width="40%" height={18} />
+          <View style={styles.grid}>
+            {[0, 1, 2, 3].map(index => (
+              <Skeleton key={index} width={104} height={32} radius={999} />
+            ))}
+          </View>
+        </View>
       ) : taxonomies.isError ? (
         <ErrorState error={taxonomies.error} onRetry={() => void taxonomies.refetch()} />
       ) : (
@@ -157,14 +157,14 @@ export default function CreateMoodScreen() {
           <Text style={styles.seedHint}>{t('createMood.seedHint')}</Text>
           <View style={styles.seedRow}>
             {seedPlaces.map(place => (
-              <Pressable
+              <Chip
                 key={place.placeId}
+                label={`${place.name}  ✕`}
+                icon="📍"
+                variant="info"
+                accessibilityLabel={t('createMood.removePlace', { name: place.name })}
                 onPress={() => removeSeedPlace(place.placeId)}
-                accessibilityLabel={`${place.name} ✕`}
-                style={styles.seedChip}
-              >
-                <Text style={styles.seedChipLabel}>📍 {place.name}  ✕</Text>
-              </Pressable>
+              />
             ))}
             <Pressable
               accessibilityRole="button"

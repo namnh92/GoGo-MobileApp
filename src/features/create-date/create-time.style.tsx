@@ -1,9 +1,8 @@
 import { StyleSheet } from 'react-native'
-import { colors, glassFx, overlay, radius, spacing } from '@/shared/ui/tokens'
+import { colors, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
-  stepLabel: { fontSize: 13, color: colors.neutral[500], fontWeight: '500' },
-  title: { fontSize: 28, fontWeight: '800', color: colors.neutral[900], lineHeight: 34 },
+  title: { ...type.display, color: colors.neutral[900] },
   body: { fontSize: 15, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
     height: 56,
@@ -11,8 +10,8 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing[5],
   },
-  optionLabel: { fontSize: 16, fontWeight: '600' },
-  exactLabel: { fontSize: 13, color: colors.neutral[500], fontWeight: '500', marginBottom: spacing[3] },
+  optionLabel: { ...type.title2, fontWeight: '600' },
+  exactLabel: { ...type.bodySmall, color: colors.neutral[500], marginBottom: spacing[3] },
   timeBox: {
     flex: 1,
     backgroundColor: colors.neutral[50],
@@ -21,7 +20,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeBoxRequired: { borderWidth: 1, borderColor: colors.brand.coral },
-  requiredHint: { fontSize: 12, color: colors.brand.coral, marginTop: spacing[2] },
+  requiredHint: { ...type.caption, color: colors.brand.coral, marginTop: spacing[2] },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
@@ -39,7 +38,7 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: spacing[4],
   },
-  sheetTitle: { fontSize: 17, fontWeight: '800', color: colors.neutral[900], marginBottom: spacing[3] },
+  sheetTitle: { ...type.title1, color: colors.neutral[900], marginBottom: spacing[3] },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   slotBtn: {
     width: '23%',
@@ -49,7 +48,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  slotLabel: { fontSize: 14, fontWeight: '600', color: colors.neutral[700] },
-  timeCaption: { fontSize: 11, color: colors.neutral[500], fontWeight: '500' },
-  timeValue: { fontSize: 20, fontWeight: '800', color: colors.neutral[900], marginTop: 2 },
+  slotLabel: { ...type.label, color: colors.neutral[700] },
+  timeCaption: { ...type.caption, color: colors.neutral[500] },
+  timeValue: { ...type.title1, fontSize: 20, lineHeight: 26, color: colors.neutral[900], marginTop: 2 },
 })

@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useLocaleContent } from '@/shared/i18n'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { endSlotToIso, slotToIso } from './schedule'
+import { WizardStep } from './wizard-step.view'
 import { styles } from './create-time.style'
 
 // 30-minute slots, 08:00 → 23:30 (mock — real slots come from constraints).
@@ -52,12 +53,7 @@ export default function CreateTimeScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} right={<Text style={styles.stepLabel}>2 / 4</Text>} />
-      </View>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: spacing[4] }}>
-        <ProgressDots total={4} current={1} />
-      </View>
+      <WizardStep step="time" onBack={() => router.back()} />
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{t('createTime.title', { context: roomType })}</Text>
         <Text style={styles.body}>{t('createTime.body')}</Text>

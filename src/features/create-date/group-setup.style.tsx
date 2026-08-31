@@ -1,12 +1,13 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+
+import { colors, glassFx, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+
+const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.neutral[900],
-    lineHeight: 34,
+    ...type.display,
+    color: neutral[900],
     marginTop: spacing[2],
   },
   stepper: {
@@ -24,36 +25,44 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnLabel: { fontSize: 24, fontWeight: '700' },
-  count: { fontSize: 24, fontWeight: '800', color: colors.neutral[900] },
+  stepBtnLabel: { fontSize: 24, fontWeight: '700', lineHeight: 28 },
+  count: { ...type.title1, color: neutral[900] },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.neutral[900],
+    ...type.title2,
+    color: neutral[900],
     marginTop: spacing[6],
     marginBottom: spacing[3],
   },
-  modeBtn: {
-    height: 56,
-    borderRadius: radius.compact,
+
+  /**
+   * A two-way choice is a segmented control, not two stacked radio rows: the
+   * options are alternatives to each other, and side by side is what says so.
+   */
+  segmented: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-    paddingHorizontal: spacing[5],
+    backgroundColor: neutral[100],
+    borderRadius: radius.compact,
+    padding: 3,
+    gap: 3,
   },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
+  segment: {
+    flex: 1,
+    minHeight: touchTarget.min,
+    borderRadius: radius.compact - 3,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing[2],
+    gap: 2,
   },
-  radioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.neutral[0],
+  segmentActive: {
+    backgroundColor: glassFx.solid,
+    shadowColor: neutral[900],
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  modeLabel: { fontSize: 15, fontWeight: '600' },
+  segmentLabel: { ...type.label, color: neutral[500] },
+  segmentLabelActive: { color: brand.coral, fontWeight: '700' },
+  helper: { ...type.bodySmall, color: neutral[500], marginTop: spacing[3] },
 })

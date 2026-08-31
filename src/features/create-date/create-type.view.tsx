@@ -1,14 +1,24 @@
 import { useRouter } from 'expo-router'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
 import { track } from '@/shared/analytics'
 import { useRoom, type RoomType } from '@/shared/store/roomStore'
-import { Atmosphere, BackHeader, glassStyles } from '@/shared/ui/primitives'
-import { colors, spacing, onDark } from '@/shared/ui/tokens'
+import { haptic } from '@/shared/ui/feedback'
+import { IconCheck } from '@/shared/ui/icons'
+import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { colors, onDark, spacing } from '@/shared/ui/tokens'
+
 import { styles } from './create-type.style'
 
-const options: { type: RoomType; emoji: string; titleKey: 'createType.couple' | 'createType.group'; descKey: 'createType.coupleDesc' | 'createType.groupDesc' }[] = [
+const options: {
+  type: RoomType
+  emoji: string
+  titleKey: 'createType.couple' | 'createType.group'
+  descKey: 'createType.coupleDesc' | 'createType.groupDesc'
+}[] = [
   { type: 'couple', emoji: '❤️', titleKey: 'createType.couple', descKey: 'createType.coupleDesc' },
   { type: 'group', emoji: '👥', titleKey: 'createType.group', descKey: 'createType.groupDesc' },
 ]
@@ -19,10 +29,24 @@ export default function CreateTypeScreen() {
   const insets = useSafeAreaInsets()
   const { roomType, setAudience } = useRoom()
 
+  /**
+   * Tapping a card used to navigate immediately, which made the selected state
+   * unreachable — you could never see which one you had picked, and a mis-tap
+   * was a screen you had to back out of. Selection and commitment are now two
+   * separate acts (spec §10).
+   */
+  const [selected, setSelected] = useState<RoomType | null>(roomType ?? null)
+
   function pick(type: RoomType) {
+    haptic('select')
+    setSelected(type)
     setAudience(type === 'group' ? 'group-host' : 'couple')
-    track('room_type_selected', { type })
-    router.push(type === 'group' ? '/create/group-setup' : '/create/location')
+  }
+
+  function next() {
+    if (!selected) return
+    track('room_type_selected', { type: selected })
+    router.push(selected === 'group' ? '/create/group-setup' : '/create/location')
   }
 
   return (
@@ -33,25 +57,42 @@ export default function CreateTypeScreen() {
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{t('createType.title')}</Text>
         <View style={{ gap: spacing[3], marginTop: spacing[7] }}>
-          {options.map(o => {
-            const active = roomType === o.type
+          {options.map(option => {
+            const active = selected === option.type
             return (
               <Pressable
-                key={o.type}
-                onPress={() => pick(o.type)}
-                accessibilityRole="button"
+                key={option.type}
+                onPress={() => pick(option.type)}
+                accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
+                style={({ pressed }) => [
+                  styles.option,
+                  active ? styles.optionActive : glassStyles.card,
+                  pressed && styles.optionPressed,
+                ]}
               >
-                <Text style={styles.optionEmoji}>{o.emoji}</Text>
+                <Text style={styles.optionEmoji}>{option.emoji}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{t(o.titleKey)}</Text>
-                  <Text style={[styles.optionDesc, { color: active ? onDark.medium : colors.neutral[500] }]}>{t(o.descKey)}</Text>
+                  <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>
+                    {t(option.titleKey)}
+                  </Text>
+                  <Text style={[styles.optionDesc, { color: active ? onDark.medium : colors.neutral[500] }]}>
+                    {t(option.descKey)}
+                  </Text>
                 </View>
+                {/* Selection is not colour alone. */}
+                {active ? (
+                  <View style={styles.check}>
+                    <IconCheck color={colors.brand.coral} size={14} />
+                  </View>
+                ) : null}
               </Pressable>
             )
           })}
         </View>
+      </View>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing[6] }]}>
+        <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!selected} />
       </View>
     </Atmosphere>
   )

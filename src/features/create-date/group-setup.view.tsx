@@ -2,13 +2,21 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
 import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { haptic } from '@/shared/ui/feedback'
+import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
+
 import { styles } from './group-setup.style'
 
 const MIN_PEOPLE = 3
 const MAX_PEOPLE = 12
+
+const BUDGET_MODES: { mode: BudgetMode; labelKey: 'groupSetup.perPerson' | 'groupSetup.groupTotal' }[] = [
+  { mode: 'per_person', labelKey: 'groupSetup.perPerson' },
+  { mode: 'total', labelKey: 'groupSetup.groupTotal' },
+]
 
 export default function GroupSetupScreen() {
   const { t } = useTranslation()
@@ -16,10 +24,12 @@ export default function GroupSetupScreen() {
   const insets = useSafeAreaInsets()
   const { participantCount, setParticipantCount, budgetMode, setBudgetMode } = useRoom()
 
-  const budgetModes: { mode: BudgetMode; labelKey: 'groupSetup.perPerson' | 'groupSetup.groupTotal' }[] = [
-    { mode: 'per_person', labelKey: 'groupSetup.perPerson' },
-    { mode: 'total', labelKey: 'groupSetup.groupTotal' },
-  ]
+  function step(delta: number) {
+    const next = Math.min(MAX_PEOPLE, Math.max(MIN_PEOPLE, participantCount + delta))
+    if (next === participantCount) return
+    haptic('select')
+    setParticipantCount(next)
+  }
 
   return (
     <Atmosphere>
@@ -31,45 +41,67 @@ export default function GroupSetupScreen() {
 
         <GlassCard style={styles.stepper}>
           <Pressable
-            onPress={() => setParticipantCount(Math.max(MIN_PEOPLE, participantCount - 1))}
+            onPress={() => step(-1)}
             disabled={participantCount <= MIN_PEOPLE}
-            accessibilityLabel="−1"
-            style={[styles.stepBtn, { backgroundColor: colors.neutral[100] }, participantCount <= MIN_PEOPLE && { opacity: 0.3 }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('groupSetup.decrease')}
+            hitSlop={hitSlop}
+            style={[
+              styles.stepBtn,
+              { backgroundColor: colors.neutral[100] },
+              participantCount <= MIN_PEOPLE && { opacity: 0.3 },
+            ]}
           >
             <Text style={[styles.stepBtnLabel, { color: colors.neutral[900] }]}>−</Text>
           </Pressable>
-          <Text style={styles.count}>{t('groupSetup.people', { n: participantCount })}</Text>
+          <Text style={styles.count} accessibilityLiveRegion="polite">
+            {t('groupSetup.people', { n: participantCount })}
+          </Text>
           <Pressable
-            accessibilityRole="button"
-            onPress={() => setParticipantCount(Math.min(MAX_PEOPLE, participantCount + 1))}
+            onPress={() => step(1)}
             disabled={participantCount >= MAX_PEOPLE}
-            accessibilityLabel="+1"
-            style={[styles.stepBtn, { backgroundColor: colors.brand.coral }, participantCount >= MAX_PEOPLE && { opacity: 0.3 }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('groupSetup.increase')}
+            hitSlop={hitSlop}
+            style={[
+              styles.stepBtn,
+              { backgroundColor: colors.brand.coral },
+              participantCount >= MAX_PEOPLE && { opacity: 0.3 },
+            ]}
           >
             <Text style={[styles.stepBtnLabel, { color: colors.neutral[0] }]}>+</Text>
           </Pressable>
         </GlassCard>
 
         <Text style={styles.sectionTitle}>{t('groupSetup.budgetBy')}</Text>
-        <View style={{ gap: spacing[2] }}>
-          {budgetModes.map(b => {
-            const active = budgetMode === b.mode
+        <View style={styles.segmented} accessibilityRole="radiogroup">
+          {BUDGET_MODES.map(option => {
+            const active = budgetMode === option.mode
             return (
               <Pressable
-                key={b.mode}
-                onPress={() => setBudgetMode(b.mode)}
+                key={option.mode}
+                onPress={() => {
+                  haptic('select')
+                  setBudgetMode(option.mode)
+                }}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                style={[styles.modeBtn, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
+                style={[styles.segment, active && styles.segmentActive]}
               >
-                <View style={[styles.radio, { borderColor: active ? colors.neutral[0] : colors.neutral[300] }]}>
-                  {active && <View style={styles.radioDot} />}
-                </View>
-                <Text style={[styles.modeLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{t(b.labelKey)}</Text>
+                <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+                  {t(option.labelKey)}
+                </Text>
               </Pressable>
             )
           })}
         </View>
+        {/* Which mode is chosen changes what every price in the room means, so
+            it is spelled out rather than left to the label alone. */}
+        <Text style={styles.helper}>
+          {t(budgetMode === 'per_person' ? 'groupSetup.perPersonHelp' : 'groupSetup.groupTotalHelp', {
+            n: participantCount,
+          })}
+        </Text>
       </View>
       <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
         <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/location')} />
