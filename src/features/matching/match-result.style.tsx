@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, glassFx, onDark, overlay } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, onDark, overlay, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   hero: {
     marginHorizontal: spacing[5],
-    height: 260,
+    height: 300,
     borderRadius: radius.hero,
     overflow: 'hidden',
   },
@@ -20,11 +20,11 @@ export const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
-  heroBadgeLabel: { color: neutral[0], fontSize: 13, fontWeight: '700' },
+  heroBadgeLabel: { ...type.label, color: neutral[0], fontWeight: '700' },
   heroBottom: { position: 'absolute', bottom: spacing[4], left: spacing[4], right: spacing[4] },
-  heroTitle: { fontSize: 28, fontWeight: '800', color: neutral[0] },
-  heroVotes: { fontSize: 13, fontWeight: '600', color: onDark.strong, marginTop: 4 },
-  heroMeta: { fontSize: 13, color: onDark.medium, marginTop: spacing[2] },
+  heroTitle: { ...type.display, color: neutral[0] },
+  heroVotes: { ...type.label, color: onDark.strong, marginTop: 4 },
+  heroMeta: { ...type.bodySmall, color: onDark.medium, marginTop: spacing[2] },
   stopsRow: {
     flexDirection: 'row',
     gap: spacing[3],
@@ -38,12 +38,12 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  stopChipLabel: { fontSize: 12, fontWeight: '600', color: neutral[500] },
+  stopChipLabel: { ...type.label, color: neutral[500] },
   reasonCard: { marginHorizontal: spacing[5], marginTop: spacing[4], padding: spacing[5] },
   reasonTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
-  reasonTitle: { fontSize: 15, fontWeight: '700', color: neutral[900] },
+  reasonTitle: { ...type.title2, color: neutral[900] },
   reasonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  reasonLabel: { fontSize: 14, color: neutral[500], flex: 1 },
+  reasonLabel: { ...type.body, color: neutral[700], flex: 1 },
   diffCard: {
     position: 'absolute',
     left: spacing[5],
@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     zIndex: 20,
   },
-  diffLine: { color: neutral[0], fontSize: 13, fontWeight: '600', marginTop: 2 },
+  diffLine: { ...type.label, color: neutral[0], marginTop: 2 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
@@ -72,7 +72,7 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: spacing[4],
   },
-  sheetTitle: { fontSize: 17, fontWeight: '800', color: neutral[900], marginBottom: spacing[3] },
+  sheetTitle: { ...type.title1, color: neutral[900], marginBottom: spacing[3] },
   reasonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   reasonBtn: {
     width: '48%',
@@ -81,7 +81,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reasonBtnLabel: { fontSize: 14, fontWeight: '600' },
+  reasonBtnLabel: { ...type.label },
   input: {
     height: 48,
     marginTop: spacing[2],
@@ -91,18 +91,18 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: neutral[900],
   },
-  charCount: { position: 'absolute', right: 12, bottom: 14, fontSize: 11, color: neutral[500] },
+  charCount: { position: 'absolute', right: 12, bottom: 14, ...type.caption, color: neutral[500] },
   lockCard: {
     marginTop: spacing[2],
     backgroundColor: brand.amberSoft,
     borderRadius: radius.compact,
     padding: spacing[3],
   },
-  lockTitle: { fontSize: 13, fontWeight: '700', color: neutral[900], marginBottom: spacing[2] },
+  lockTitle: { ...type.label, fontWeight: '700', color: neutral[900], marginBottom: spacing[2] },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: 6 },
   radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.coral },
-  lockLabel: { fontSize: 13, color: neutral[900] },
+  lockLabel: { ...type.bodySmall, color: neutral[900] },
   submitBtn: {
     height: 48,
     marginTop: spacing[3],
@@ -111,16 +111,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  submitLabel: { fontSize: 15, fontWeight: '600', color: neutral[0] },
+  submitLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
   staleWarning: {
     marginHorizontal: spacing[5],
     marginTop: spacing[3],
-    fontSize: 13,
+    ...type.bodySmall,
     color: brand.amber,
-    lineHeight: 19,
   },
   runnersUp: { paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] },
-  runnersUpTitle: { fontSize: 14, fontWeight: '700', color: neutral[900], marginBottom: spacing[1] },
+  runnersUpTitle: { ...type.title2, color: neutral[900], marginBottom: spacing[1] },
   runnerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -128,8 +127,32 @@ export const styles = StyleSheet.create({
     padding: spacing[3],
     gap: spacing[3],
   },
-  runnerName: { flex: 1, fontSize: 14, fontWeight: '600', color: neutral[900] },
-  runnerPoints: { fontSize: 13, color: neutral[500] },
-  waitingHost: { fontSize: 14, color: neutral[500], textAlign: 'center', paddingVertical: spacing[3] },
-  error: { fontSize: 13, color: brand.red, textAlign: 'center' },
+  runnerName: { flex: 1, ...type.body, fontWeight: '600', color: neutral[900] },
+  runnerPoints: { ...type.label, color: neutral[500] },
+  waitingHost: { ...type.bodySmall, color: neutral[500], textAlign: 'center', paddingVertical: spacing[3] },
+  error: { ...type.bodySmall, color: brand.red, textAlign: 'center' },
+
+  /** Facts under the hero — price, distance and open state (spec §19). */
+  factRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginHorizontal: spacing[5],
+    marginTop: spacing[4],
+  },
+  reasonChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
+  runnerRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: neutral[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  runnerRankLabel: { ...type.caption, fontWeight: '700', color: neutral[500] },
+  runnerAction: {
+    minHeight: touchTarget.min,
+    justifyContent: 'center',
+  },
 })

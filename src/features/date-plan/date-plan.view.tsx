@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  formatDistance,
   roomCapabilities,
   toPlanSummary,
   useLockPlanStop,
@@ -18,9 +19,21 @@ import {
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { formatMoney, formatRange, perPerson } from '@/shared/pricing/money'
-import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
+import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, PrimaryBtn, BackHeader, GlassCard, TagChip, Toast, glassStyles } from '@/shared/ui/primitives'
+import {
+  Atmosphere,
+  BackHeader,
+  Chip,
+  GhostBtn,
+  GlassCard,
+  PrimaryBtn,
+  SecondaryBtn,
+  Toast,
+  glassStyles,
+} from '@/shared/ui/primitives'
+import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconNavigation } from '@/shared/ui/icons'
 import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
 
@@ -49,6 +62,9 @@ export default function DatePlanScreen() {
 
   function toggleLock(stop: PlanStopRow, name: string) {
     const locking = !stop.isLocked
+    // A lock is a commitment the user cannot see land immediately — the times
+    // below it shift a moment later — so it earns a tick.
+    haptic(locking ? 'success' : 'select')
     // Optimistic in the hook; the returned plan replaces the guess because a
     // lock can shift the times and totals of every later stop.
     lockStop.mutate({ stopId: stop.id, locked: locking })
@@ -97,7 +113,9 @@ export default function DatePlanScreen() {
     return (
       <Atmosphere>
         {header}
-        <LoadingState />
+        <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[4] }}>
+          <PlanSkeleton count={3} />
+        </View>
       </Atmosphere>
     )
   }
@@ -165,15 +183,32 @@ export default function DatePlanScreen() {
                   <View style={styles.legLineCol}>
                     <View style={styles.legLine} />
                   </View>
-                  <Text style={styles.legLabel}>
-                    {t('datePlan.travelLeg', { n: stop.travelMinutesFromPrev })}
-                  </Text>
+                  {/* Minutes and distance both come from the optimizer. The
+                      contract carries no travel *mode*, so none is claimed. */}
+                  <View style={styles.legRail}>
+                    <Text style={styles.legLabel}>
+                      {t('datePlan.travelLeg', { n: stop.travelMinutesFromPrev })}
+                    </Text>
+                    {stop.travelDistanceMFromPrev != null ? (
+                      <Text style={styles.legDistance}>
+                        · {formatDistance(stop.travelDistanceMFromPrev)}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               )}
               <View style={{ flexDirection: 'row', gap: spacing[3] }}>
                 <View style={{ alignItems: 'center', width: 40 }}>
-                  <View style={[styles.timelineIcon, glassStyles.card]}>
-                    <Text style={{ fontSize: 18 }}>{stop.status === 'completed' ? '✅' : '📍'}</Text>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      glassStyles.card,
+                      stop.isLocked && styles.timelineDotLocked,
+                    ]}
+                  >
+                    <Text style={{ fontSize: 18 }}>
+                      {stop.status === 'completed' ? '✅' : stop.isLocked ? '🔒' : '📍'}
+                    </Text>
                   </View>
                   {index < summary.stops.length - 1 && <View style={styles.timelineLine} />}
                 </View>
@@ -183,7 +218,13 @@ export default function DatePlanScreen() {
                   style={{ flex: 1 }}
                   onPress={() => router.push(`/places/${stop.placeId}`)}
                 >
-                  <GlassCard style={styles.stopCard}>
+                  <GlassCard
+                    style={[
+                      styles.stopCard,
+                      stop.isLocked && styles.stopCardLocked,
+                      stop.status === 'completed' && styles.stopCardCompleted,
+                    ]}
+                  >
                     <PlacePhoto placeId={stop.placeId} name={name} uri={null} style={styles.stopImage} />
                     <View style={{ padding: spacing[4] }}>
                       <View style={styles.stopHeader}>
@@ -192,8 +233,15 @@ export default function DatePlanScreen() {
                         <Text style={styles.stopTime}>
                           {stop.arriveLabel ?? t('datePlan.stopOrder', { n: index + 1 })}
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          {stop.status === 'completed' ? <TagChip label={t('datePlan.done')} /> : null}
+                        <View style={styles.stopBadges}>
+                          {stop.status === 'completed' ? (
+                            <Chip label={t('datePlan.done')} variant="positive" />
+                          ) : null}
+                          {/* Locked reads as locked without colour: padlock,
+                              word, and the card's left edge all say it. */}
+                          {stop.isLocked && !capabilities.canLockStops ? (
+                            <Chip label={t('datePlan.locked')} icon="🔒" variant="warning" />
+                          ) : null}
                           {/* Host-only, and server-enforced. */}
                           {capabilities.canLockStops && (
                             <Pressable
@@ -206,10 +254,18 @@ export default function DatePlanScreen() {
                                 styles.lockBtn,
                                 stop.isLocked
                                   ? { backgroundColor: brand.coralSoft }
-                                  : { backgroundColor: neutral[100], opacity: 0.7 },
+                                  : { backgroundColor: neutral[100] },
                               ]}
                             >
                               <Text style={{ fontSize: 12 }}>{stop.isLocked ? '🔒' : '🔓'}</Text>
+                              <Text
+                                style={[
+                                  styles.lockBtnLabel,
+                                  { color: stop.isLocked ? brand.coral : neutral[500] },
+                                ]}
+                              >
+                                {t(stop.isLocked ? 'datePlan.locked' : 'datePlan.lockable')}
+                              </Text>
                             </Pressable>
                           )}
                         </View>
@@ -226,15 +282,16 @@ export default function DatePlanScreen() {
                         <Pressable
                           accessibilityRole="button"
                           onPress={() => router.push(`/places/${stop.placeId}`)}
-                          hitSlop={hitSlop}
                           style={styles.detailBtn}
                         >
                           <Text style={styles.detailLabel}>{t('common.details')}</Text>
                         </Pressable>
                         <Pressable
                           accessibilityRole="button"
-                          onPress={() => openGoogleMapsDirections(place?.addressText ?? name)}
-                          hitSlop={hitSlop}
+                          onPress={() => {
+                            haptic('select')
+                            openGoogleMapsDirections(place?.addressText ?? name)
+                          }}
                           style={styles.directionBtn}
                         >
                           <IconNavigation />
@@ -283,28 +340,20 @@ export default function DatePlanScreen() {
           </View>
         </View>
         <PrimaryBtn label={t('datePlan.go')} onPress={startDate} style={styles.goBtn} />
-        {capabilities.isHost ? (
-          <Pressable
-            onPress={() => router.push(`/plans/${planId}/edit`)}
-            accessibilityRole="button"
-            style={styles.regenerateBtn}
-          >
-            <Text style={styles.regenerateLabel}>{t('datePlan.edit')}</Text>
-          </Pressable>
-        ) : null}
-        {capabilities.canRegenerate ? (
-          <Pressable
-            onPress={rebuild}
-            disabled={regenerate.isPending}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: regenerate.isPending, busy: regenerate.isPending }}
-            style={styles.regenerateBtn}
-          >
-            <Text style={styles.regenerateLabel}>
-              {regenerate.isPending ? t('datePlan.regenerating') : t('datePlan.regenerate')}
-            </Text>
-          </Pressable>
-        ) : null}
+        {/* "Đi thôi" is the one dominant CTA; edit and rebuild sit below it. */}
+        <View style={styles.secondaryRow}>
+          {capabilities.isHost ? (
+            <GhostBtn label={t('datePlan.edit')} onPress={() => router.push(`/plans/${planId}/edit`)} style={{ flex: 1 }} />
+          ) : null}
+          {capabilities.canRegenerate ? (
+            <SecondaryBtn
+              label={regenerate.isPending ? t('datePlan.regenerating') : t('datePlan.regenerate')}
+              onPress={rebuild}
+              loading={regenerate.isPending}
+              style={{ flex: 1 }}
+            />
+          ) : null}
+        </View>
       </View>
 
       {toast && <Toast message={toast} />}
