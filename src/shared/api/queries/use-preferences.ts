@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import * as preferencesApi from '../endpoints/preferences'
 import { queryKeys } from '../query-keys'
@@ -52,4 +54,25 @@ export function useTaxonomies(query?: OpQuery<'listTaxonomies'>) {
     queryFn: () => preferencesApi.listTaxonomies(query),
     staleTime: 60 * 60 * 1000,
   })
+}
+
+/**
+ * Resolves a stable taxonomy key to a locale label. Business data stores the
+ * key (`cafe`, `romantic`); only this turns it into "Cafe" / "Lãng mạn"
+ * (RULE-CORE-002). Falls back to the key rather than rendering nothing — a
+ * blank chip hides a real gap.
+ */
+export function useTaxonomyLabel(kinds?: string) {
+  const { i18n } = useTranslation()
+  const taxonomies = useTaxonomies(kinds ? { kinds } : undefined)
+
+  const resolve = useCallback(
+    (kind: string, key: string): string => {
+      const entry = taxonomies.data?.kinds?.[kind]?.find(candidate => candidate.key === key)
+      return entry?.labels?.[i18n.language] ?? entry?.labels?.vi ?? key
+    },
+    [taxonomies.data, i18n.language],
+  )
+
+  return { resolve, isPending: taxonomies.isPending }
 }
