@@ -44,5 +44,4 @@ export const styles = StyleSheet.create({
   cardMeta: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
   cardFacts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 6 },
   fact: { ...type.caption, color: neutral[500] },
-  deviceOnlyNote: { ...type.caption, color: neutral[500], marginTop: spacing[5], lineHeight: 17 },
 })

@@ -1,7 +1,18 @@
 import { api } from '../client'
 import { newIdempotencyKey } from '../idempotency'
 import { persistSession, sessionFromGuestGrant, type Session } from '../session'
-import type { OpBody, OpResponse } from '../types'
+import type { OpBody, OpQuery, OpResponse } from '../types'
+
+/**
+ * The rooms the caller belongs to, most recently active first.
+ *
+ * Keyset paging on `(updatedAt, id)` rather than an offset, because a room's
+ * timestamp moves while the list is being read — one vote is enough to shift a
+ * row onto a page the reader already passed.
+ */
+export function listRooms(query: OpQuery<'listRooms'> = {}): Promise<OpResponse<'listRooms'>> {
+  return api.get<OpResponse<'listRooms'>>('/rooms', { query })
+}
 
 export function createRoom(
   body: OpBody<'createRoom'>,

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as roomsApi from '../endpoints/rooms'
 import * as suggestionsApi from '../endpoints/suggestions'
@@ -6,9 +6,8 @@ import { queryKeys } from '../query-keys'
 import type { OpBody, RoomSummary } from '../types'
 
 /**
- * The contract has no `GET /rooms` list (GoGo-BE#152), so a room is only
- * reachable by id. Screens get the id from the route, a deep link, or the
- * recent-rooms store.
+ * One room by id — what a screen reached from a route or a deep link needs.
+ * For "the rooms I belong to", use `useMyRooms`.
  *
  * Liveness is not this hook's job: a screen that needs the room to stay fresh
  * calls `useRoomRealtime`.
@@ -166,4 +165,26 @@ export function roomCapabilities(room: RoomSummary | undefined) {
     canFinalize: isHost,
     canInvite: isHost,
   }
+}
+
+/**
+ * The rooms the caller belongs to, newest activity first.
+ *
+ * This replaces reading a device-local list: a room opened on a phone used to be
+ * invisible on a tablet, and clearing the app lost every room the user was still
+ * a member of. Paging is keyset, so a room whose timestamp moves mid-read
+ * cannot duplicate onto a later page.
+ */
+export function useMyRooms(options?: { status?: string; enabled?: boolean }) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.roomList(options?.status),
+    queryFn: ({ pageParam }) =>
+      roomsApi.listRooms({
+        ...(options?.status ? { status: options.status } : {}),
+        ...(pageParam ? { cursor: pageParam } : {}),
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: last => last.nextCursor ?? undefined,
+    enabled: options?.enabled ?? true,
+  })
 }
