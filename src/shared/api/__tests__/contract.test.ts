@@ -12,16 +12,25 @@ import { clearSession, getSession, persistSession, type Session } from '../sessi
 import type { Plan, PlaceSearchResult, RoomSummary, SuggestionsCurrent } from '../types'
 
 /**
- * Drives the shipped API client against a running GoGo-BE. This is the gate
+ * Drives the shipped API client against a deployed GoGo-BE. This is the gate
  * that catches contract drift the generated types cannot see — state-machine
  * preconditions, authorization, token rotation, and the locked-stop invariant.
  *
- *   docker compose -f docker/docker-compose.yml up -d   # in GoGo-BE
- *   pnpm db:migrate && pnpm db:seed
- *   node -r @swc-node/register apps/api/src/main.ts      # from the BE repo root
- *   GOGO_CONTRACT_TEST=1 pnpm test:contract              # here
+ *   GOGO_CONTRACT_TEST=1 pnpm test:contract
  *
- * Skipped by default so `pnpm test` stays runnable without a backend.
+ * Runs against whatever `EXPO_PUBLIC_API_URL` names, which `.env.example` points
+ * at DEV: https://api-dev.gogo.id.vn/v1. DEV is deployed — nothing here needs
+ * GoGo-BE, PostgreSQL or Redis on the machine (GoGo-Infra INF-038).
+ *
+ * It writes. Each run signs up `host.<timestamp>@gogo.test`, creates a room and
+ * leaves both behind in whatever environment it pointed at. That is fine in DEV
+ * and is the reason it must never be pointed at production.
+ *
+ * Standing GoGo-BE up locally still works, and is the right move when the change
+ * under test is a BE change: point EXPO_PUBLIC_API_URL at it and know it is a
+ * different database from the one everyone else sees.
+ *
+ * Skipped by default so `pnpm test` stays runnable offline.
  */
 const enabled = process.env.GOGO_CONTRACT_TEST === '1'
 

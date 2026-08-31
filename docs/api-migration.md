@@ -1,7 +1,7 @@
 # Mock → API migration status
 
-The API layer (`src/shared/api`) is complete and verified against a running
-GoGo-BE: every consumer endpoint in `openapi/gogo.v1.yaml` has a typed wrapper
+The API layer (`src/shared/api`) is complete and verified against the deployed
+DEV API (`https://api-dev.gogo.id.vn/v1`): every consumer endpoint in `openapi/gogo.v1.yaml` has a typed wrapper
 and a TanStack Query hook. What remains is per-screen work — replacing the
 fixtures in `src/data/mockData.ts` with those hooks.
 
@@ -9,7 +9,7 @@ Run the gate before and after each screen:
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
-pnpm test:contract   # needs GoGo-BE running; see docs/adr/0001-api-integration.md
+pnpm test:contract   # hits DEV (EXPO_PUBLIC_API_URL); writes data there
 ```
 
 ## Done
@@ -278,6 +278,7 @@ broken. Each is pinned by a regression test now.
   `completeMyPreferences` answered `roomReadyForMatching: true`.
 - `matching` has no self-loop in the state machine, so re-transitioning an
   already-matching room returns 409 `INVALID_ROOM_TRANSITION`.
-- `pnpm dev` in GoGo-BE fails: the docs controller reads
+- Only when debugging GoGo-BE locally — DEV is deployed and needs none of this:
+  `pnpm dev` in GoGo-BE fails because the docs controller reads
   `openapi/gogo.v1.yaml` from `process.cwd()`, which the filtered script sets to
   `apps/api`. Start the API from the repo root instead.
