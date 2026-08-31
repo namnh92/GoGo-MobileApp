@@ -1,18 +1,23 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Share, Text, View } from 'react-native'
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  detailToPlaceCard,
   toCandidateCard,
   toPlanSummary,
   useCurrentPlan,
   useCurrentSuggestions,
+  usePlaceDetail,
   useRoom,
 } from '@/shared/api'
 import { formatMoney, perPerson } from '@/shared/pricing/money'
-import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { ErrorState } from '@/shared/ui/async-state.view'
+import { haptic } from '@/shared/ui/feedback'
+import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconShare } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -39,11 +44,13 @@ export default function SharedResultScreen() {
   }, [suggestions.data])
 
   const summary = useMemo(() => (plan.data ? toPlanSummary(plan.data) : null), [plan.data])
+  // The imagery is what makes a shared result worth looking at (spec §28).
+  const winnerDetail = usePlaceDetail(winner?.placeId)
 
   if (room.isPending || suggestions.isPending || plan.isPending) {
     return (
       <View style={styles.root}>
-        <LoadingState />
+        <ResultSkeleton />
       </View>
     )
   }
@@ -70,9 +77,11 @@ export default function SharedResultScreen() {
     .slice(0, 5)
 
   const matchScore = winner ? (winner.score * SCORE_MAX).toFixed(1) : null
+  const winnerPhoto = winnerDetail.data ? detailToPlaceCard(winnerDetail.data).photoUrl : null
 
   async function share() {
     // Plain share via the native sheet (spec: no story/social-specific CTA).
+    haptic('select')
     try {
       const line = [winner?.name, summary ? formatMoney(summary.costMax, summary.currency) : null]
         .filter(Boolean)
@@ -107,7 +116,24 @@ export default function SharedResultScreen() {
           </View>
         ) : null}
 
-        {winner ? <Text style={styles.winnerName}>{winner.name}</Text> : null}
+        {/* The place, not just its name — this is the card people send on. */}
+        {winner ? (
+          <View style={styles.heroCard}>
+            <PlacePhoto
+              placeId={winner.placeId}
+              name={winner.name}
+              uri={winnerPhoto}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.heroScrim} />
+            <View style={styles.heroBody}>
+              <Text style={styles.winnerName} numberOfLines={2}>{winner.name}</Text>
+              {winnerDetail.data?.addressText ? (
+                <Text style={styles.heroMeta} numberOfLines={1}>{winnerDetail.data.addressText}</Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
 
         {scoreParts.length > 0 ? (
           <View style={styles.darkCard}>
@@ -162,20 +188,22 @@ export default function SharedResultScreen() {
           </View>
         ) : null}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.replace('/(tabs)')}
-          style={styles.nextBtn}
-        >
-          <Text style={styles.nextLabel}>{t('sharedResult.nextDate')}</Text>
-        </Pressable>
+        {/* Sharing is what this screen is for, so it is the dominant action;
+            one CTA into the native sheet, no social-network icon row. */}
         <Pressable
           accessibilityRole="button"
           onPress={share}
-          style={styles.shareBtn}
+          style={({ pressed }) => [styles.shareBtn, styles.shareIsPrimary, pressed && { opacity: 0.9 }]}
         >
           <IconShare />
           <Text style={styles.shareLabel}>{t('sharedResult.share')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.replace('/(tabs)')}
+          style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.8 }]}
+        >
+          <Text style={styles.shareLabel}>{t('sharedResult.nextDate')}</Text>
         </Pressable>
       </ScrollView>
     </View>
