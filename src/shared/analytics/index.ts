@@ -30,6 +30,7 @@ export type AnalyticsEvent =
   | 'place_import_verified'
   | 'place_import_rejected'
   | 'place_import_added'
+  | 'deep_link_opened'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 
