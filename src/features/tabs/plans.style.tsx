@@ -1,40 +1,48 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
-  title: { fontSize: 24, fontWeight: '800', color: neutral[900], paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
+  title: {
+    ...type.display,
+    color: neutral[900],
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[3],
+  },
   caption: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...type.caption,
+    fontWeight: '700',
     color: neutral[500],
     textTransform: 'uppercase',
     letterSpacing: 1,
+    marginTop: spacing[4],
     marginBottom: spacing[3],
   },
-  upcomingCard: {
+
+  card: {
     padding: spacing[4],
-    marginBottom: spacing[6],
+    marginBottom: spacing[3],
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[4],
+    minHeight: touchTarget.min + 24,
   },
-  upcomingIcon: {
-    width: 56,
-    height: 56,
+  /** Past rooms are still readable, just clearly behind the live ones. */
+  cardPast: { opacity: 0.72 },
+  icon: {
+    width: 52,
+    height: 52,
     borderRadius: radius.compact,
     backgroundColor: brand.coralSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  upcomingTitle: { fontSize: 15, fontWeight: '700', color: neutral[900] },
-  upcomingMeta: { fontSize: 13, color: neutral[500], marginTop: 2 },
-  pastCard: { flexDirection: 'row', overflow: 'hidden', marginBottom: spacing[3] },
-  pastThumb: { width: 80, height: 80 },
-  pastTitle: { fontSize: 14, fontWeight: '700', color: neutral[900] },
-  pastDate: { fontSize: 12, color: neutral[500], marginTop: 2 },
-  pastMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: 6 },
-  pastRating: { fontSize: 12, fontWeight: '600', color: brand.coral },
-  deviceOnlyNote: { fontSize: 12, color: colors.neutral[500], marginTop: spacing[5], lineHeight: 18 },
+  iconPast: { backgroundColor: neutral[100] },
+  cardTitle: { ...type.title2, color: neutral[900] },
+  cardMeta: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
+  cardFacts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 6 },
+  fact: { ...type.caption, color: neutral[500] },
+  deviceOnlyNote: { ...type.caption, color: neutral[500], marginTop: spacing[5], lineHeight: 17 },
 })
