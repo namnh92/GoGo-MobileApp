@@ -1,45 +1,41 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
-  root: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[7] },
+  root: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[6] },
   eyes: { fontSize: 56, marginBottom: spacing[5] },
-  title: { fontSize: 28, fontWeight: '800', color: neutral[900], textAlign: 'center', lineHeight: 34 },
-  body: { fontSize: 15, color: neutral[500], marginTop: spacing[3], marginBottom: spacing[8], textAlign: 'center' },
-  card: { alignSelf: 'stretch', padding: spacing[5], marginBottom: spacing[7] },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing[4],
-  },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  name: { fontSize: 14, fontWeight: '700', color: neutral[900] },
+  title: { ...type.display, color: neutral[900], textAlign: 'center' },
+  body: { ...type.body, color: neutral[500], marginTop: spacing[3], textAlign: 'center' },
+
+  /** How far the room is, in one line and one bar (spec §18). */
+  progress: { alignSelf: 'stretch', marginTop: spacing[6], marginBottom: spacing[5], gap: spacing[2] },
+  progressLabel: { ...type.label, color: neutral[700], textAlign: 'center' },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: neutral[100], overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 3 },
+
+  card: { alignSelf: 'stretch', padding: spacing[5], marginBottom: spacing[6], gap: spacing[3] },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flex: 1 },
+  name: { ...type.body, fontWeight: '600', color: neutral[900], flexShrink: 1 },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  doneLabel: { fontSize: 13, fontWeight: '600', color: brand.mint },
-  notStarted: { fontSize: 13, fontWeight: '500', color: neutral[300] },
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  progressTrack: { height: 6, width: 96, borderRadius: 3, backgroundColor: neutral[100], overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: brand.lavender, borderRadius: 3 },
-  progressLabel: { fontSize: 13, fontWeight: '500', color: neutral[500] },
-  remindBtn: {
-    height: 48,
-    paddingHorizontal: spacing[6],
+  doneLabel: { ...type.label, color: brand.mint },
+  notStarted: { ...type.bodySmall, color: neutral[300] },
+
+  actions: { alignSelf: 'stretch', gap: spacing[2] },
+  partialWarning: { ...type.caption, color: brand.amber, textAlign: 'center', marginTop: spacing[2] },
+  retryNote: {
+    ...type.bodySmall,
+    color: brand.amber,
+    textAlign: 'center',
+    marginBottom: spacing[3],
+  },
+  reminded: {
+    minHeight: touchTarget.min,
     borderRadius: radius.compact,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  remindLabel: { fontSize: 15, fontWeight: '600', color: neutral[500] },
-  partialBtn: {
-    height: 48,
-    paddingHorizontal: spacing[6],
-    borderRadius: radius.compact,
-    backgroundColor: neutral[900],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  partialLabel: { fontSize: 15, fontWeight: '600', color: neutral[0] },
-  partialWarning: { fontSize: 12, fontWeight: '500', color: brand.coral },
 })

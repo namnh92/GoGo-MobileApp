@@ -1,17 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 
-import { roomCapabilities, useRoom, useRoomMembers, useRoomRealtime } from '@/shared/api'
-import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, AvatarCircle, GlassCard, glassStyles } from '@/shared/ui/primitives'
+import { isOffline, roomCapabilities, useRoom, useRoomMembers, useRoomRealtime } from '@/shared/api'
+import { ErrorState } from '@/shared/ui/async-state.view'
+import { Atmosphere, AvatarCircle, Chip, GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './waiting.style'
-
-const { neutral } = colors
 
 const REMIND_COOLDOWN_MS = 5 * 60 * 1000
 
@@ -48,7 +46,9 @@ export default function WaitingScreen() {
   if (room.isPending || members.isPending) {
     return (
       <Atmosphere style={styles.root}>
-        <LoadingState />
+        <View style={{ alignSelf: 'stretch' }}>
+          <RoomMemberSkeleton count={3} />
+        </View>
       </Atmosphere>
     )
   }
@@ -72,11 +72,40 @@ export default function WaitingScreen() {
   const others = roster.filter(member => member.id !== myMemberId)
   const pendingCount = others.filter(member => member.selectionStatus !== 'completed').length
 
+  // Progress is the answer to "how much longer" — the reason this screen
+  // exists. It comes from the roster's statuses, never a local guess.
+  const completedCount = roster.filter(member => member.selectionStatus === 'completed').length
+  const totalExpected = summary?.participantCount ?? roster.length
+  const progressPct = totalExpected > 0 ? Math.round((completedCount / totalExpected) * 100) : 0
+
+  // A dropped realtime connection leaves this screen silently stale; the
+  // refetch is what unsticks it, so say so rather than waiting forever.
+  const staleError = room.isError || members.isError ? (room.error ?? members.error) : null
+
   return (
     <Atmosphere style={styles.root}>
       <Text style={styles.eyes}>👀</Text>
       <Text style={styles.title}>{t('waiting.title')}</Text>
       <Text style={styles.body}>{t('waiting.body', { context: roomType })}</Text>
+
+      <View style={styles.progress}>
+        <Text style={styles.progressLabel} accessibilityLiveRegion="polite">
+          {t('waiting.progress', { done: completedCount, total: totalExpected })}
+        </Text>
+        <View
+          style={styles.progressTrack}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
+        </View>
+      </View>
+
+      {staleError ? (
+        <Text accessibilityLiveRegion="polite" style={styles.retryNote}>
+          {isOffline(staleError) ? t('common.staleOffline') : t('common.staleError')}
+        </Text>
+      ) : null}
 
       <GlassCard style={styles.card}>
         <View style={styles.row}>
@@ -99,11 +128,11 @@ export default function WaitingScreen() {
             {/* The contract reports a status, not a count, so the UI shows the
                 status rather than inventing a progress fraction. */}
             {member.selectionStatus === 'completed' ? (
-              <Text style={styles.doneLabel}>{t('waiting.done')}</Text>
+              <Chip label={t('waiting.done')} variant="positive" />
             ) : member.selectionStatus === 'in_progress' ? (
-              <Text style={styles.progressLabel}>{t('waiting.inProgress')}</Text>
+              <Chip label={t('waiting.inProgress')} variant="info" />
             ) : (
-              <Text style={styles.notStarted}>{t('waiting.notStarted')}</Text>
+              <Chip label={t('waiting.notStarted')} variant="default" />
             )}
           </View>
         ))}
@@ -116,32 +145,32 @@ export default function WaitingScreen() {
         ) : null}
       </GlassCard>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => setReminded(true)}
-        disabled={reminded}
-        style={[styles.remindBtn, glassStyles.card]}
-      >
-        <Text style={[styles.remindLabel, reminded && { color: neutral[300] }]}>
-          {reminded ? t('waiting.reminded') : t('waiting.remind', { context: roomType })}
-        </Text>
-      </Pressable>
-
-      {/* Only the host can start matching early (server-enforced). */}
-      {roomType === 'group' && capabilities.isHost && (
-        <View style={{ marginTop: spacing[3], alignItems: 'center', gap: 6 }}>
-          <Pressable
-            accessibilityRole="button"
+      <View style={styles.actions}>
+        {/* Only the host can start matching early (server-enforced). */}
+        {roomType === 'group' && capabilities.isHost ? (
+          <SecondaryBtn
+            label={t('waiting.viewPartial')}
             onPress={() => router.replace(`/room/${roomId}/matching`)}
-            style={styles.partialBtn}
-          >
-            <Text style={styles.partialLabel}>{t('waiting.viewPartial')}</Text>
-          </Pressable>
-          {pendingCount > 0 && (
-            <Text style={styles.partialWarning}>⚠️ {t('waiting.partialWarning', { n: pendingCount })}</Text>
-          )}
-        </View>
-      )}
+          />
+        ) : null}
+        <GhostBtn
+          label={reminded ? t('waiting.reminded') : t('waiting.remind', { context: roomType })}
+          onPress={() => setReminded(true)}
+          disabled={reminded}
+        />
+        {/* Retrying is the only thing that unsticks a dropped realtime feed. */}
+        <GhostBtn
+          label={t('common.retry')}
+          onPress={() => {
+            void room.refetch()
+            void members.refetch()
+          }}
+        />
+      </View>
+      {roomType === 'group' && capabilities.isHost && pendingCount > 0 ? (
+        <Text style={styles.partialWarning}>⚠️ {t('waiting.partialWarning', { n: pendingCount })}</Text>
+      ) : null}
+
     </Atmosphere>
   )
 }

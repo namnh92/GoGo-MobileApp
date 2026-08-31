@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native'
-import { colors, spacing, onDark } from '@/shared/ui/tokens'
 
-const { neutral } = colors
+import { colors, night, onDark, radius, spacing, type } from '@/shared/ui/tokens'
+
+const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   root: {
@@ -9,17 +10,40 @@ export const styles = StyleSheet.create({
     backgroundColor: neutral[900],
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing[7],
+    paddingHorizontal: spacing[6],
   },
   pair: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[4],
-    marginBottom: spacing[8],
+    marginBottom: spacing[7],
   },
   times: { color: onDark.soft, fontSize: 28 },
-  message: { color: onDark.soft, fontSize: 16, fontWeight: '500' },
-  matched: { color: neutral[0], fontSize: 36, fontWeight: '800' },
-  matchedBody: { color: onDark.soft, fontSize: 16, marginTop: spacing[2], textAlign: 'center' },
-  backLink: { fontSize: 14, fontWeight: '600', color: colors.brand.coral, textDecorationLine: 'underline' },
+
+  /** What is happening, and why it is taking a moment (spec §18). */
+  message: { ...type.body, color: onDark.strong, fontWeight: '600', textAlign: 'center' },
+  reason: { ...type.bodySmall, color: onDark.soft, textAlign: 'center' },
+  progressTrack: {
+    alignSelf: 'stretch',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: night.line,
+    overflow: 'hidden',
+    marginTop: spacing[5],
+  },
+  progressFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 2 },
+
+  matched: { ...type.display, fontSize: 34, lineHeight: 40, color: neutral[0], textAlign: 'center' },
+  matchedBody: { ...type.body, color: onDark.soft, marginTop: spacing[2], textAlign: 'center' },
+  backLink: { ...type.label, color: brand.coral, textDecorationLine: 'underline' },
+  retryBtn: {
+    minHeight: 48,
+    paddingHorizontal: spacing[6],
+    borderRadius: radius.compact,
+    borderWidth: 1,
+    borderColor: night.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
 })

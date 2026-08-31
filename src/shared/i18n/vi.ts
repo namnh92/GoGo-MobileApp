@@ -268,6 +268,7 @@ export const viMessages = {
   'waiting.you': 'Bạn',
   'waiting.partner': 'Partner',
   'waiting.done': 'Xong!',
+  'waiting.progress': '{{done}}/{{total}} người đã chọn xong',
   'waiting.remind': 'Nhắc nhẹ 🔔',
   'waiting.reminded': 'Đã nhắc 5 phút trước',
   'waiting.remind_group': 'Nhắc những người chưa xong 🔔',
@@ -284,6 +285,8 @@ export const viMessages = {
   'matching.failedTitle': 'Chưa ghép được',
   'matching.notReadyBody': 'Phòng chưa sẵn sàng để ghép. Đợi mọi người chọn xong nhé.',
   'matching.waitingForHost': 'Đang đợi chủ phòng bắt đầu ghép…',
+  'matching.reason': 'Đang lọc theo ngân sách, giờ mở cửa và khoảng cách của cả phòng.',
+  'matching.retrying': 'Đang thử lại…',
 
   'matchResult.whyTitle': 'Vì sao GoGo chọn cái này?',
   'matchResult.matchBadge': 'RẤT HỢP',
