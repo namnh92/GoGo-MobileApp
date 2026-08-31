@@ -463,6 +463,11 @@ export const viMessages = {
   'review.submit': 'Gửi đánh giá',
   'review.starAria': '{{n}} sao',
   'review.submitting': 'Đang gửi…',
+  'review.successTitle': 'Đã gửi đánh giá',
+  'review.successPending': 'Đánh giá của bạn đang được xem xét. Khi duyệt xong, đánh giá sẽ hiện ở trang địa điểm.',
+  'review.successPublished': 'Cảm ơn bạn! Đánh giá đã hiển thị ở trang địa điểm.',
+  'review.continue': 'Tiếp tục',
+  'review.skip': 'Để sau',
   'review.failed': 'Gửi đánh giá không thành công. Thử lại nhé.',
   'review.moderationNote': 'Đánh giá sẽ được kiểm duyệt trước khi hiển thị công khai.',
 
