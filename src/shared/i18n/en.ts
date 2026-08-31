@@ -81,6 +81,7 @@ export const enMessages: Record<MessageKey, string> = {
   'home.createDate': 'Create a plan',
   'home.quickPick': '✨ Quick pick',
   'home.suggested': 'You might like these',
+  'home.suggestedHint': 'Picked for you',
   'home.empty': 'No suggestions for this area yet.',
   'home.emptyHint': 'Try a wider radius or a different time.',
   'home.error': "Couldn't load suggestions.",

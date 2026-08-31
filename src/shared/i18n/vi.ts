@@ -82,6 +82,7 @@ export const viMessages = {
   'home.createDate': 'Tạo kèo',
   'home.quickPick': '✨ Chọn nhanh',
   'home.suggested': 'Có thể bạn sẽ thích',
+  'home.suggestedHint': 'Gợi ý cho bạn',
   'home.empty': 'Chưa có gợi ý cho khu vực này.',
   'home.emptyHint': 'Thử tăng khoảng cách hoặc đổi khung giờ.',
   'home.error': 'Không tải được gợi ý.',
