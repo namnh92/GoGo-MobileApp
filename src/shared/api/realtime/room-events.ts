@@ -34,41 +34,44 @@ export interface RoomEvent {
  * hooks and this table stay put.
  */
 export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void {
-  const { roomId } = event
-  const invalidate = (queryKey: readonly unknown[]) => {
+  for (const queryKey of eventQueryKeys(event)) {
     void queryClient.invalidateQueries({ queryKey })
   }
+}
+
+/**
+ * The caches one event touches, as keys. Pure, so a transport that replays
+ * many events per tick can ask for all of them and invalidate each key once —
+ * the polling transport used to call `applyRoomEvent` per event and refetch the
+ * same room several times per tick.
+ */
+export function eventQueryKeys(event: RoomEvent): readonly (readonly unknown[])[] {
+  const { roomId } = event
 
   switch (event.type) {
     case 'room.status_changed':
-      invalidate(queryKeys.room(roomId))
-      break
+      return [queryKeys.room(roomId)]
 
     case 'participant.joined':
     case 'participant.left':
     case 'participant.selection_changed':
       // Member progress lives on both the room summary and the members list.
-      invalidate(queryKeys.room(roomId))
-      invalidate(queryKeys.roomMembers(roomId))
-      break
+      return [queryKeys.room(roomId), queryKeys.roomMembers(roomId)]
 
     case 'matching.started':
     case 'matching.completed':
     case 'matching.failed':
-      invalidate(queryKeys.room(roomId))
-      invalidate(queryKeys.roomSuggestions(roomId))
-      break
+      return [queryKeys.room(roomId), queryKeys.roomSuggestions(roomId)]
 
     case 'suggestions.generated':
     case 'suggestions.updated':
     case 'vote.changed':
-      invalidate(queryKeys.roomSuggestions(roomId))
-      break
+      return [queryKeys.roomSuggestions(roomId)]
 
     case 'plan.updated':
-      invalidate(queryKeys.roomCurrentPlan(roomId))
-      if (event.planId) invalidate(queryKeys.plan(event.planId))
-      break
+      return event.planId
+        ? [queryKeys.roomCurrentPlan(roomId), queryKeys.plan(event.planId)]
+        : [queryKeys.roomCurrentPlan(roomId)]
   }
 }
 
