@@ -10,6 +10,7 @@ import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck } from '@/shared/ui/icons'
 
 import { styles } from './waiting.style'
+import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 const REMIND_COOLDOWN_MS = 5 * 60 * 1000
 
@@ -21,7 +22,7 @@ export default function WaitingScreen() {
   const room = useRoom(roomId)
   const members = useRoomMembers(roomId)
   // Other members finish picking while this screen sits open.
-  useRoomRealtime(roomId, 'lobby')
+  useRoomRealtime(roomId, 'lobby', { enabled: useScreenFocused() })
 
   const [reminded, setReminded] = useState(false)
 

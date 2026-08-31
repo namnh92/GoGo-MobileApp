@@ -36,6 +36,7 @@ import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './gogo-room.style'
+import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 const { brand } = colors
 
@@ -72,7 +73,7 @@ export default function GoGoRoomScreen() {
   const room = useRoom(roomId)
   // Members join and finish picking while this screen is open; the realtime
   // layer owns how that freshness arrives.
-  useRoomRealtime(roomId, 'lobby')
+  useRoomRealtime(roomId, 'lobby', { enabled: useScreenFocused() })
   const createInvite = useCreateRoomInvite(roomId)
   const startMatching = useStartMatching(roomId)
 

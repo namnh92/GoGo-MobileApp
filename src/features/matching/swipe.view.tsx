@@ -38,6 +38,7 @@ import { Skeleton } from '@/shared/ui/skeleton.view'
 import { colors, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './swipe.style'
+import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 const { brand, neutral } = colors
 
@@ -66,7 +67,7 @@ export default function SwipeScreen() {
   const reducedMotion = useReducedMotion()
 
   const suggestions = useCurrentSuggestions(roomId)
-  useRoomRealtime(roomId, 'matching')
+  useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
   const castVote = useCastVote(roomId)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
 

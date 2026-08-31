@@ -32,6 +32,7 @@ import { IconCheck, IconZap } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './match-result.style'
+import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 export default function MatchResultScreen() {
   const { t } = useTranslation()
@@ -42,7 +43,7 @@ export default function MatchResultScreen() {
   const room = useRoom(roomId)
   const suggestions = useCurrentSuggestions(roomId)
   const plan = useCurrentPlan(roomId)
-  useRoomRealtime(roomId, 'matching')
+  useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
 
   const finalize = useFinalizeVotes(roomId)
   const regenerate = useGenerateSuggestions(roomId)
