@@ -1,12 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  detailToPlaceCard,
+  formatDistance,
+  formatMinuteOfDay,
+  openStateFromHours,
+  placePriceParts,
   roomCapabilities,
   toCandidateCard,
+  usePlaceDetail,
   useCurrentPlan,
   useCurrentSuggestions,
   useGenerateSuggestions,
@@ -17,9 +23,11 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { formatMoney } from '@/shared/pricing/money'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
+import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, GhostBtn, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconZap } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -48,6 +56,9 @@ export default function MatchResultScreen() {
     [suggestions.data],
   )
   const winner: CandidateCard | undefined = candidates[0]
+  // The candidate carries a name and a score; price, distance and opening
+  // hours are place facts, so the winner's detail is fetched for them.
+  const winnerDetail = usePlaceDetail(winner?.placeId)
 
   const tally = useMemo(() => {
     const progress = suggestions.data?.votes?.progress ?? []
@@ -72,7 +83,7 @@ export default function MatchResultScreen() {
   if (room.isPending || suggestions.isPending) {
     return (
       <Atmosphere>
-        <LoadingState />
+        <ResultSkeleton />
       </Atmosphere>
     )
   }
@@ -105,6 +116,39 @@ export default function MatchResultScreen() {
 
   const existingPlanId = plan.data?.id
   const winnerTally = tally.get(winner.placeId)
+
+  const winnerPlace = winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : null
+  const winnerOpen = openStateFromHours(winnerDetail.data?.hours)
+  const winnerPrice = winnerPlace ? placePriceParts(winnerPlace) : null
+  const winnerFacts: { key: string; label: string; icon?: string; variant: 'default' | 'positive' | 'warning' }[] = []
+  if (winnerPrice) {
+    winnerFacts.push({
+      key: 'price',
+      icon: '💰',
+      variant: 'default',
+      label: isStandalonePrice(winnerPrice.unit)
+        ? t(priceUnitKey(winnerPrice.unit))
+        : `${winnerPrice.amount}${t(priceUnitKey(winnerPrice.unit))}`,
+    })
+  }
+  if (winnerPlace?.distanceM != null) {
+    winnerFacts.push({ key: 'distance', icon: '📍', variant: 'default', label: formatDistance(winnerPlace.distanceM) ?? '' })
+  }
+  if ((winnerDetail.data?.hours ?? []).length > 0) {
+    const closes = formatMinuteOfDay(winnerOpen.closesAtMinute)
+    const opens = formatMinuteOfDay(winnerOpen.opensAtMinute)
+    winnerFacts.push({
+      key: 'open',
+      variant: winnerOpen.openNow ? 'positive' : 'warning',
+      label: winnerOpen.openNow
+        ? closes
+          ? t('search.openUntil', { time: closes })
+          : t('common.open')
+        : opens
+          ? t('search.closedOpens', { time: opens })
+          : t('common.closed'),
+    })
+  }
   // A run built before the last constraint edit is stale and must not be shown
   // as the current answer (RULE-CORE-006).
   const isStale = suggestions.data?.run?.stale ?? false
@@ -140,6 +184,15 @@ export default function MatchResultScreen() {
           </View>
         </View>
 
+        {/* The facts behind the verdict, not just the verdict (spec §19). */}
+        {winnerFacts.length > 0 ? (
+          <View style={styles.factRow}>
+            {winnerFacts.map(fact => (
+              <Chip key={fact.key} label={fact.label} icon={fact.icon} variant={fact.variant} />
+            ))}
+          </View>
+        ) : null}
+
         {isStale ? (
           <Text style={styles.staleWarning}>⚠️ {t('matchResult.stale')}</Text>
         ) : null}
@@ -169,12 +222,23 @@ export default function MatchResultScreen() {
             {candidates.slice(1, 5).map(candidate => {
               const entry = tally.get(candidate.placeId)
               return (
-                <GlassCard key={candidate.placeId} style={styles.runnerRow}>
-                  <Text style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
-                  <Text style={styles.runnerPoints}>
-                    {t('matchResult.points', { n: entry?.points ?? candidate.points })}
-                  </Text>
-                </GlassCard>
+                <Pressable
+                  key={candidate.placeId}
+                  accessibilityRole="button"
+                  accessibilityLabel={candidate.name}
+                  onPress={() => router.push(`/places/${candidate.placeId}`)}
+                  style={styles.runnerAction}
+                >
+                  <GlassCard style={styles.runnerRow}>
+                    <View style={styles.runnerRank}>
+                      <Text style={styles.runnerRankLabel}>{candidate.rank}</Text>
+                    </View>
+                    <Text style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
+                    <Text style={styles.runnerPoints}>
+                      {t('matchResult.points', { n: entry?.points ?? candidate.points })}
+                    </Text>
+                  </GlassCard>
+                </Pressable>
               )
             })}
           </View>
@@ -195,9 +259,10 @@ export default function MatchResultScreen() {
           )}
 
           {capabilities.canRegenerate ? (
-            <GhostBtn
+            <SecondaryBtn
               label={regenerate.isPending ? t('matchResult.regenerating') : t('matchResult.another')}
               onPress={() => regenerate.mutate()}
+              loading={regenerate.isPending}
             />
           ) : null}
 
