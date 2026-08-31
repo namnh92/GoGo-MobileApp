@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -21,8 +21,8 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  morePeopleLabel: { fontSize: 14, fontWeight: '700', color: neutral[500] },
-  joined: { fontSize: 13, color: neutral[500], fontWeight: '500', marginTop: spacing[3] },
+  morePeopleLabel: { ...type.body, fontWeight: '700', color: neutral[500] },
+  joined: { ...type.bodySmall, color: neutral[500], marginTop: spacing[3] },
   couplePair: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -42,14 +42,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 26, fontWeight: '800', color: neutral[900], textAlign: 'center' },
-  body: { fontSize: 15, color: neutral[500], textAlign: 'center', marginTop: spacing[2], marginBottom: spacing[6], lineHeight: 22 },
-  error: {
-    fontSize: 13,
-    color: colors.brand.red,
-    textAlign: 'center',
-    marginTop: spacing[3],
-  },
+  title: { ...type.display, color: neutral[900], textAlign: 'center' },
+  body: { ...type.body, color: neutral[500], textAlign: 'center', marginTop: spacing[2], marginBottom: spacing[6] },
+  error: { ...type.bodySmall, color: brand.red, textAlign: 'center', marginTop: spacing[3] },
   chipsCard: {
     padding: spacing[4],
     marginBottom: spacing[4],
@@ -63,17 +58,17 @@ export const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
-  chipLabel: { fontSize: 12, fontWeight: '600', color: neutral[500] },
+  chipLabel: { ...type.label, color: neutral[500] },
   codeCard: { padding: spacing[5], marginBottom: spacing[4] },
-  codeCaption: { fontSize: 12, color: neutral[500], fontWeight: '500', marginBottom: spacing[2] },
-  code: { fontSize: 36, fontWeight: '800', color: neutral[900], letterSpacing: 8 },
+  codeCaption: { ...type.caption, color: neutral[500], marginBottom: spacing[2] },
+  code: { fontSize: 34, lineHeight: 40, fontWeight: '800', color: neutral[900], letterSpacing: 6 },
   copyBtn: {
     paddingHorizontal: spacing[4],
     paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: neutral[100],
   },
-  copyLabel: { fontSize: 13, fontWeight: '600', color: neutral[500] },
+  copyLabel: { ...type.label, color: neutral[500] },
   noApp: {
     marginTop: spacing[2],
     paddingVertical: spacing[3],
@@ -85,5 +80,46 @@ export const styles = StyleSheet.create({
     gap: spacing[2],
   },
   noAppDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.mint },
-  noAppLabel: { fontSize: 13, color: neutral[500] },
+  noAppLabel: { ...type.bodySmall, color: neutral[500] },
+
+  /** Per-member status (spec §16) — the lobby's actual information. */
+  memberList: { gap: spacing[2], marginBottom: spacing[5] },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    borderRadius: radius.compact,
+    minHeight: touchTarget.min,
+  },
+  memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flex: 1 },
+  memberName: { ...type.body, fontWeight: '600', color: neutral[900], flexShrink: 1 },
+  hostBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: brand.coralSoft,
+  },
+  hostBadgeLabel: { ...type.caption, fontWeight: '700', color: brand.coral },
+  guestBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: brand.lavenderSoft,
+  },
+  guestBadgeLabel: { ...type.caption, fontWeight: '700', color: brand.lavender },
+  constraintsCard: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[2] },
+  constraintsTitle: { ...type.caption, color: neutral[500], fontWeight: '700' },
+  constraintsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  sectionTitle: { ...type.title2, color: neutral[900], marginBottom: spacing[3] },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: neutral[100],
+    overflow: 'hidden',
+    marginTop: spacing[3],
+    marginBottom: spacing[2],
+  },
+  progressFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 3 },
 })

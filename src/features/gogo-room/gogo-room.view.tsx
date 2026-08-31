@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   memberProgress,
   roomCapabilities,
+  type MemberSelectionStatus,
+  type RoomMember,
   useCreateRoomInvite,
   useRoom,
   useRoomRealtime,
@@ -16,8 +18,19 @@ import {
 import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
-import { Atmosphere, AvatarCircle, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { formatMoney } from '@/shared/pricing/money'
+import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import {
+  Atmosphere,
+  AvatarCircle,
+  BackHeader,
+  Chip,
+  GhostBtn,
+  GlassCard,
+  PrimaryBtn,
+  SecondaryBtn,
+} from '@/shared/ui/primitives'
+import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { IconUserOutline } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 
@@ -30,6 +43,17 @@ const VISIBLE_AVATARS = 3
 
 function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?'
+}
+
+/**
+ * The lobby's whole job is answering "are we waiting on anyone?" (spec §16).
+ * `selectionStatus` already carries that; before this it only fed a counter,
+ * so a host could see 2/4 without knowing which two.
+ */
+const STATUS_CHIP: Record<MemberSelectionStatus, { key: string; variant: 'default' | 'info' | 'positive' }> = {
+  pending: { key: 'gogoRoom.status.waiting', variant: 'default' },
+  in_progress: { key: 'gogoRoom.status.choosing', variant: 'info' },
+  completed: { key: 'gogoRoom.status.completed', variant: 'positive' },
 }
 
 export default function GoGoRoomScreen() {
@@ -81,7 +105,9 @@ export default function GoGoRoomScreen() {
         <View style={{ paddingTop: insets.top }}>
           <BackHeader onBack={() => router.back()} />
         </View>
-        <LoadingState />
+        <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[6] }}>
+          <RoomMemberSkeleton count={3} />
+        </View>
       </Atmosphere>
     )
   }
@@ -184,6 +210,76 @@ export default function GoGoRoomScreen() {
         <Text style={styles.title}>{t('gogoRoom.title', { context: roomType })}</Text>
         <Text style={styles.body}>{t('gogoRoom.body', { context: roomType })}</Text>
 
+        {/* What the room is actually constrained by — facts, composed here. */}
+        {summary.constraints ? (
+          <GlassCard style={styles.constraintsCard}>
+            <Text style={styles.constraintsTitle}>{t('gogoRoom.constraints')}</Text>
+            <View style={styles.constraintsRow}>
+              <Chip
+                label={t('groupSetup.people', { n: participantCount })}
+                icon="👥"
+                variant="default"
+              />
+              {summary.constraints.budgetAmount ? (
+                <Chip
+                  label={`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${
+                    summary.constraints.budgetMode === 'per_person'
+                      ? t('datePlan.perPerson')
+                      : t('price.groupTotal')
+                  }`}
+                  icon="💰"
+                  variant="default"
+                />
+              ) : null}
+            </View>
+          </GlassCard>
+        ) : null}
+
+        {/* Per-member status, not just a count (spec §16). */}
+        {members.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>
+              {t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })}
+            </Text>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${progress.total ? (progress.completed / progress.total) * 100 : 0}%` },
+                ]}
+              />
+            </View>
+            <View style={styles.memberList}>
+              {members.map((member: RoomMember, index: number) => {
+                const chip = STATUS_CHIP[member.selectionStatus]
+                return (
+                  <GlassCard key={member.id} style={styles.memberRow}>
+                    <AvatarCircle
+                      label={initial(member.displayName)}
+                      size={40}
+                      background={AVATAR_COLORS[index % AVATAR_COLORS.length]}
+                    />
+                    <View style={styles.memberNameRow}>
+                      <Text style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
+                      {member.role === 'host' ? (
+                        <View style={styles.hostBadge}>
+                          <Text style={styles.hostBadgeLabel}>{t('gogoRoom.hostBadge')}</Text>
+                        </View>
+                      ) : null}
+                      {member.isGuest ? (
+                        <View style={styles.guestBadge}>
+                          <Text style={styles.guestBadgeLabel}>{t('gogoRoom.guestBadge')}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Chip label={t(chip.key)} variant={chip.variant} />
+                  </GlassCard>
+                )
+              })}
+            </View>
+          </>
+        ) : null}
+
         {capabilities.canInvite ? (
           <GlassCard style={styles.codeCard}>
             <Text style={styles.codeCaption}>{t('gogoRoom.codeLabel')}</Text>
@@ -203,21 +299,33 @@ export default function GoGoRoomScreen() {
           </GlassCard>
         ) : null}
 
-        {capabilities.canInvite ? (
+        {/*
+          One dominant CTA per screen (spec §7). Which one it is depends on
+          where the room actually is: while people are still picking, inviting
+          them is the job; once everyone has finished, starting the match is.
+          Host-only either way, and server-enforced.
+        */}
+        {capabilities.isHost && progress.completed >= 2 && progress.completed === progress.total ? (
+          <>
+            <PrimaryBtn
+              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+              onPress={beginMatching}
+              loading={startMatching.isPending}
+            />
+            {capabilities.canInvite ? (
+              <SecondaryBtn
+                label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
+                onPress={invite}
+                disabled={!inviteUrl}
+                style={{ marginTop: spacing[2] }}
+              />
+            ) : null}
+          </>
+        ) : capabilities.canInvite ? (
           <PrimaryBtn
             label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
             onPress={invite}
             disabled={!inviteUrl}
-          />
-        ) : null}
-
-        {/* Host-only: everyone has picked, so the ranking can be built. */}
-        {capabilities.isHost && progress.completed >= 2 && progress.completed === progress.total ? (
-          <PrimaryBtn
-            label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-            onPress={beginMatching}
-            loading={startMatching.isPending}
-            style={{ marginTop: spacing[3] }}
           />
         ) : null}
 
