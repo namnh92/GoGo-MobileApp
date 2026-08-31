@@ -20,6 +20,8 @@ const mockPlan: { query: QueryLike } = { query: loaded(null) }
 const mockRoom: { query: QueryLike } = { query: loaded(roomFor('group-host')) }
 
 jest.mock('expo-router', () => ({
+  // A screen under test is the one on top; the focus effect is a no-op.
+  useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => ({ planId: 'plan-1' }),
 }))

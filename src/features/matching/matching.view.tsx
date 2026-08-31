@@ -18,6 +18,7 @@ import { AvatarCircle } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './matching.style'
+import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 /** Rotates the reassurance copy while the pipeline runs. */
 const MESSAGE_INTERVAL_MS = 1400
@@ -30,7 +31,7 @@ export default function MatchingScreen() {
 
   const room = useRoom(roomId)
   const suggestions = useCurrentSuggestions(roomId)
-  useRoomRealtime(roomId, 'matching')
+  useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
   const startMatching = useStartMatching(roomId)
 
   const [messageIndex, setMessageIndex] = useState(0)
