@@ -10,6 +10,7 @@ export const queryKeys = {
   taxonomies: (kinds?: string) => ['taxonomies', kinds ?? 'all'] as const,
 
   rooms: () => ['rooms'] as const,
+  roomList: (status?: string) => ['rooms', 'list', status ?? 'all'] as const,
   room: (roomId: string) => ['rooms', roomId] as const,
   roomMembers: (roomId: string) => ['rooms', roomId, 'members'] as const,
   roomInvites: (roomId: string) => ['rooms', roomId, 'invites'] as const,

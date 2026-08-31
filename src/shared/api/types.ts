@@ -14,6 +14,7 @@ export type TokenGrant = Schemas['TokenGrant']
 
 export type RoomSummary = Schemas['RoomSummary']
 export type RoomMember = Schemas['RoomMember']
+export type RoomListItem = Schemas['RoomListItem']
 export type RoomConstraintInput = Schemas['RoomConstraintInput']
 export type RoomType = RoomSummary['type']
 export type RoomStatus = RoomSummary['status']
