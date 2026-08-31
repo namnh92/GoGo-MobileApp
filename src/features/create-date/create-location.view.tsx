@@ -7,9 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAreaAutocomplete } from '@/shared/api'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck, IconMapPin, IconSearch } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
+import { WizardStep } from './wizard-step.view'
 import { styles } from './create-location.style'
 
 /** `null` means "anywhere" — the constraint simply omits `radiusM`. */
@@ -88,12 +89,7 @@ export default function CreateLocationScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} right={<Text style={styles.stepLabel}>1 / 4</Text>} />
-      </View>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: spacing[4] }}>
-        <ProgressDots total={4} current={0} />
-      </View>
+      <WizardStep step="location" onBack={() => router.back()} />
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{t('createLocation.title')}</Text>
         <Text style={styles.body}>{t('createLocation.body')}</Text>

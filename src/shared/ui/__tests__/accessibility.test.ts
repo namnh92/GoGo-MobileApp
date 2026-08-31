@@ -20,14 +20,26 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-/** The opening tag only — props after the first `>` belong to the children. */
+/**
+ * The opening tag only — props after the first `>` belong to the children.
+ *
+ * Two operators put a `>` inside a prop and must not be mistaken for the end of
+ * the tag: `=>` in a handler, and `>=` in a comparison. Truncating at `>=`
+ * hides every prop after it, which reported a control as unlabelled when its
+ * `accessibilityRole` merely sat below a `disabled={count >= MAX}`.
+ */
 function openingTags(source: string, component: string): { tag: string; line: number }[] {
   const tags: { tag: string; line: number }[] = []
   const opener = new RegExp(`<${component}\\b`, 'g')
   let match: RegExpExecArray | null
   while ((match = opener.exec(source))) {
     let end = match.index
-    while (end < source.length && !(source[end] === '>' && source[end - 1] !== '=')) end += 1
+    while (
+      end < source.length &&
+      !(source[end] === '>' && source[end - 1] !== '=' && source[end + 1] !== '=')
+    ) {
+      end += 1
+    }
     tags.push({ tag: source.slice(match.index, end), line: source.slice(0, match.index).split('\n').length })
   }
   return tags

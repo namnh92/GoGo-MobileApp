@@ -1,10 +1,9 @@
 import { StyleSheet } from 'react-native'
-import { colors, glassFx, overlay, radius, spacing } from '@/shared/ui/tokens'
+import { colors, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
-  stepLabel: { fontSize: 13, color: colors.neutral[500], fontWeight: '500' },
-  title: { fontSize: 28, fontWeight: '800', color: colors.neutral[900], lineHeight: 34 },
-  body: { fontSize: 15, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
+  title: { ...type.display, color: colors.neutral[900] },
+  body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -19,9 +18,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowTitle: { fontSize: 15, fontWeight: '700', color: colors.neutral[900] },
-  rowSub: { fontSize: 13, color: colors.neutral[500] },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.neutral[900], marginTop: spacing[2], marginBottom: spacing[3] },
+  rowTitle: { ...type.body, fontWeight: '700', color: colors.neutral[900] },
+  rowSub: { ...type.bodySmall, color: colors.neutral[500] },
+  sectionTitle: { ...type.title2, color: colors.neutral[900], marginTop: spacing[2], marginBottom: spacing[3] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   radiusBtn: {
     width: '48%',
@@ -30,7 +29,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radiusLabel: { fontSize: 14, fontWeight: '600' },
+  radiusLabel: { ...type.label },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
@@ -48,7 +47,7 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: spacing[4],
   },
-  sheetTitle: { fontSize: 17, fontWeight: '800', color: colors.neutral[900], marginBottom: spacing[3] },
+  sheetTitle: { ...type.title1, color: colors.neutral[900], marginBottom: spacing[3] },
   sheetInput: {
     height: 46,
     borderRadius: radius.compact,
@@ -60,8 +59,8 @@ export const styles = StyleSheet.create({
     color: colors.neutral[900],
     marginBottom: spacing[2],
   },
-  poweredBy: { fontSize: 11, color: colors.neutral[300], marginBottom: spacing[2] },
-  noResults: { fontSize: 14, color: colors.neutral[500], textAlign: 'center', paddingVertical: spacing[5] },
+  poweredBy: { ...type.caption, color: colors.neutral[300], marginBottom: spacing[2] },
+  noResults: { ...type.body, color: colors.neutral[500], textAlign: 'center', paddingVertical: spacing[5] },
   areaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -70,7 +69,7 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[100],
   },
-  areaLabel: { fontSize: 15, color: colors.neutral[700] },
+  areaLabel: { ...type.body, color: colors.neutral[700] },
   locationFallback: {
     fontSize: 13,
     color: colors.brand.amber,

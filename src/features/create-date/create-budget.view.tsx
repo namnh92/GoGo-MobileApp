@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { Atmosphere, BackHeader, PrimaryBtn, ProgressDots, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 import { colors, spacing, onDark } from '@/shared/ui/tokens'
 import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, type BudgetTier } from './budget-tiers'
+import { WizardStep } from './wizard-step.view'
 import { styles } from './create-budget.style'
 
 export default function CreateBudgetScreen() {
@@ -32,12 +33,7 @@ export default function CreateBudgetScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} right={<Text style={styles.stepLabel}>3 / 4</Text>} />
-      </View>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: spacing[4] }}>
-        <ProgressDots total={4} current={2} />
-      </View>
+      <WizardStep step="budget" onBack={() => router.back()} />
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
         <Text style={styles.body}>{subtitle}</Text>

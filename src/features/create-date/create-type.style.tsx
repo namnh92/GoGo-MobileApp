@@ -1,12 +1,13 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+
+import { colors, glassFx, radius, spacing, type } from '@/shared/ui/tokens'
+
+const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.neutral[900],
-    lineHeight: 34,
+    ...type.display,
+    color: neutral[900],
     marginTop: spacing[2],
   },
   option: {
@@ -16,7 +17,25 @@ export const styles = StyleSheet.create({
     gap: spacing[4],
     alignItems: 'flex-start',
   },
+  optionActive: {
+    backgroundColor: brand.coral,
+    borderWidth: 1,
+    borderColor: brand.coralDeep,
+  },
+  optionPressed: { transform: [{ scale: 0.99 }], opacity: 0.95 },
   optionEmoji: { fontSize: 30 },
-  optionTitle: { fontSize: 18, fontWeight: '800' },
-  optionDesc: { fontSize: 13, marginTop: 4, lineHeight: 19 },
+  optionTitle: { ...type.title1, fontSize: 18, lineHeight: 24 },
+  optionDesc: { ...type.bodySmall, marginTop: 4, lineHeight: 19 },
+  check: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: glassFx.solid,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footer: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+  },
 })
