@@ -1,33 +1,69 @@
 import { useRouter } from 'expo-router'
-import { useEffect } from 'react'
-import { Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { Animated, Text, View } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
-import { colors } from '@/shared/ui/tokens'
+
+import { useReducedMotion } from '@/shared/ui/feedback'
+import { colors, motion } from '@/shared/ui/tokens'
+
 import { styles } from './splash.style'
 
 const SPLASH_MS = 2200
 
 export default function SplashScreen() {
   const router = useRouter()
+  const reducedMotion = useReducedMotion()
+
+  // Lazy initialiser, not a ref: the value must survive re-renders without
+  // being read during render.
+  const [entrance] = useState(() => new Animated.Value(0))
 
   useEffect(() => {
     const timer = setTimeout(() => router.replace('/onboarding'), SPLASH_MS)
     return () => clearTimeout(timer)
   }, [router])
 
+  useEffect(() => {
+    // Reduced motion gets the finished state immediately — a cut, not a slower
+    // fade. Everyone else gets one settle, which is the whole animation.
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: reducedMotion ? 0 : motion.slow,
+      useNativeDriver: true,
+    }).start()
+  }, [entrance, reducedMotion])
+
+  const rise = entrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] })
+  const settle = entrance.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] })
+
   return (
     <View style={styles.root}>
-      <View style={[styles.deco, { top: -80, left: -60 }]} />
-      <View style={[styles.deco, { bottom: -100, right: -40, width: 380, height: 380, borderRadius: 190 }]} />
-      <View style={styles.logoBox}>
-        <Svg width={42} height={42} viewBox="0 0 42 42" fill="none">
+      <View pointerEvents="none" style={[styles.deco, { top: -90, left: -70 }]} />
+      <View
+        pointerEvents="none"
+        style={[styles.deco, { bottom: -110, right: -50, width: 400, height: 400, borderRadius: 200 }]}
+      />
+
+      <Animated.View
+        // The wordmark is the accessible name; the mark beside it is decoration.
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[styles.logoBox, { opacity: entrance, transform: [{ scale: settle }] }]}
+      >
+        <Svg width={48} height={48} viewBox="0 0 42 42" fill="none">
           <Circle cx={14} cy={21} r={9} fill={colors.brand.coral} />
           <Circle cx={28} cy={21} r={9} fill={colors.brand.coral} opacity={0.6} />
-          <Path d="M21 14 C17 14, 14 17, 14 21 C14 25, 17 28, 21 28 C25 28, 28 25, 28 21 C28 17, 25 14, 21 14Z" fill={colors.neutral[0]} />
+          <Path
+            d="M21 14 C17 14, 14 17, 14 21 C14 25, 17 28, 21 28 C25 28, 28 25, 28 21 C28 17, 25 14, 21 14Z"
+            fill={colors.neutral[0]}
+          />
         </Svg>
-      </View>
-      <Text style={styles.title}>GoGo</Text>
-      <Text style={styles.tagline}>Có kèo, đi đâu.</Text>
+      </Animated.View>
+
+      <Animated.View style={{ opacity: entrance, transform: [{ translateY: rise }], alignItems: 'center' }}>
+        <Text style={styles.wordmark} accessibilityRole="header">GoGo</Text>
+        <Text style={styles.tagline}>Có kèo, đi đâu.</Text>
+      </Animated.View>
     </View>
   )
 }
