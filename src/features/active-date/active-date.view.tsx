@@ -14,10 +14,12 @@ import {
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { formatRange } from '@/shared/pricing/money'
-import { EmptyState, ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { haptic } from '@/shared/ui/feedback'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, GlassCard, TagChip } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -61,6 +63,7 @@ export default function ActiveDateScreen() {
   const address = stop ? places.byPlaceId.get(stop.placeId)?.addressText : undefined
 
   const stopPlace = stop ? places.byPlaceId.get(stop.placeId) : undefined
+  const stopCost = stop ? formatRange(stop.costMin, stop.costMax, summary?.currency ?? 'VND') : null
   const stopPin: MapPin | null =
     stopPlace?.lat != null && stopPlace.lng != null
       ? { id: stopPlace.id, lat: stopPlace.lat, lng: stopPlace.lng, title: stopPlace.name }
@@ -69,6 +72,8 @@ export default function ActiveDateScreen() {
   async function onDone() {
     if (!stop) return
     track('stop_completed', { placeId: stop.placeId, index: currentIndex + 1 })
+    // Finishing a stop is the one commitment on this screen.
+    haptic('success')
     try {
       await completeStop.mutateAsync(stop.id)
       setCheckinOpen(true)
@@ -108,7 +113,9 @@ export default function ActiveDateScreen() {
   if (plan.isPending) {
     return (
       <Atmosphere>
-        <LoadingState />
+        <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[6] }}>
+          <PlanSkeleton count={2} />
+        </View>
       </Atmosphere>
     )
   }
@@ -134,23 +141,33 @@ export default function ActiveDateScreen() {
   return (
     <Atmosphere>
       <View style={[styles.topBar, { paddingTop: insets.top + spacing[3] }]}>
-        <View>
-          <Text style={styles.live}>{t('activeDate.live')}</Text>
-          <Text style={styles.stopCounter}>
-            {t('activeDate.stop', { n: currentIndex + 1, total: stops.length })}
-          </Text>
-        </View>
-        <View style={styles.stepDots}>
-          {stops.map((candidate, index) => (
-            <View
-              key={candidate.id}
-              style={[
-                styles.stepDot,
-                index === currentIndex && styles.stepDotActive,
-                candidate.status === 'completed' && styles.stepDotDone,
-              ]}
-            />
-          ))}
+        <View style={styles.topRow}>
+          <View>
+            <View style={styles.liveRow}>
+              <View style={styles.liveDot} />
+              <Text style={styles.live}>{t('activeDate.live')}</Text>
+            </View>
+            <Text style={styles.stopCounter} accessibilityLiveRegion="polite">
+              {t('activeDate.stop', { n: currentIndex + 1, total: stops.length })}
+            </Text>
+          </View>
+          {/* The dots repeat the counter above, so they are decorative. */}
+          <View
+            style={styles.stepDots}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {stops.map((candidate, index) => (
+              <View
+                key={candidate.id}
+                style={[
+                  styles.stepDot,
+                  index === currentIndex && styles.stepDotActive,
+                  candidate.status === 'completed' && styles.stepDotDone,
+                ]}
+              />
+            ))}
+          </View>
         </View>
       </View>
       <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
@@ -160,42 +177,62 @@ export default function ActiveDateScreen() {
           <PlacePhoto placeId={stop.placeId} name={placeName} uri={null} style={styles.cardImage} />
           <View style={styles.cardBody}>
             <View style={styles.cardHeader}>
-              <Text style={{ fontSize: 24 }}>📍</Text>
-              <TagChip label={t('activeDate.ongoing')} color="green" />
+              <Chip label={t('activeDate.ongoing')} icon="📍" variant="positive" />
             </View>
             <Text style={styles.name}>{placeName}</Text>
             {address ? <Text style={styles.area}>{address}</Text> : null}
 
-            {/* A real map of this stop, or nothing — a strip captioned "view
-                map" that shows no map and does not open one is worse. */}
+            <View style={styles.factRow}>
+              {stop.arriveLabel ? <Chip label={stop.arriveLabel} icon="🕘" variant="default" /> : null}
+              {stopCost ? <Chip label={stopCost} icon="💰" variant="default" /> : null}
+            </View>
+
+            {/* A real map of this stop, or a stated fallback — a strip captioned
+                "view map" that shows no map and does not open one is worse. */}
             {stopPin ? (
-              <MapCanvas pins={[stopPin]} style={styles.mapThumb} />
+              <MapCanvas
+                pins={[stopPin]}
+                style={styles.mapThumb}
+                fallback={
+                  <View style={styles.mapFallback}>
+                    <Text style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
+                  </View>
+                }
+              />
             ) : null}
 
+            {/* Finishing the stop is the dominant action; directions support it. */}
             <View style={styles.actions}>
+              <PrimaryBtn
+                label={
+                  completeStop.isPending
+                    ? t('activeDate.saving')
+                    : nextStop
+                      ? t('activeDate.doneStep')
+                      : t('activeDate.finish')
+                }
+                onPress={onDone}
+                loading={completeStop.isPending}
+              />
               <Pressable
                 accessibilityRole="button"
-                onPress={() => openGoogleMapsDirections(address ?? placeName)}
-                style={styles.dirBtn}
+                onPress={() => {
+                  haptic('select')
+                  openGoogleMapsDirections(address ?? placeName)
+                }}
+                style={({ pressed }) => [styles.dirBtn, pressed && { opacity: 0.85 }]}
               >
                 <IconNavigation />
                 <Text style={styles.dirLabel}>{t('common.directions')}</Text>
               </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={onDone}
-                disabled={completeStop.isPending}
-                style={styles.doneBtn}
-              >
-                <Text style={styles.doneLabel}>
-                  {completeStop.isPending
-                    ? t('activeDate.saving')
-                    : nextStop
-                      ? t('activeDate.doneStep')
-                      : t('activeDate.finish')}
-                </Text>
-              </Pressable>
             </View>
+
+            {/* Completing a stop is a network write; say when it did not land. */}
+            {completeStop.isError ? (
+              <Text accessibilityLiveRegion="polite" style={styles.failure}>
+                {t('activeDate.completeFailed')}
+              </Text>
+            ) : null}
           </View>
         </GlassCard>
 

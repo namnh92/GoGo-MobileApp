@@ -406,6 +406,7 @@ export const viMessages = {
   'activeDate.next': 'Tiếp theo',
   'activeDate.doneStep': 'Xong bước này ✓',
   'activeDate.finish': 'Kết thúc date 🎉',
+  'activeDate.completeFailed': 'Chưa lưu được. Kiểm tra kết nối rồi thử lại.',
 
   'checkin.title': 'Check-in điểm này',
   'checkin.rate': 'Điểm này thế nào?',

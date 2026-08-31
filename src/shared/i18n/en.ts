@@ -402,6 +402,7 @@ export const enMessages: Record<MessageKey, string> = {
   'activeDate.next': 'Up next',
   'activeDate.doneStep': 'Done here ✓',
   'activeDate.finish': 'Finish date 🎉',
+  'activeDate.completeFailed': 'Could not save. Check your connection and try again.',
 
   'checkin.title': 'Check in here',
   'checkin.rate': 'How was this stop?',
