@@ -3,13 +3,14 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useMe } from '@/shared/api'
+import { useMe, useMyReviews, useSaved } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useSession } from '@/shared/providers/session-provider'
 import { locales } from '@/shared/i18n'
+import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
-import { Atmosphere, AvatarCircle, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, GlassCard, useTabDockInset } from '@/shared/ui/primitives'
 import { IconChevronRight } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './profile.style'
@@ -37,6 +38,19 @@ export default function ProfileScreen() {
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const [signingOut, setSigningOut] = useState(false)
 
+  // Counts come from the same queries the destination screens use, so a
+  // shortcut never promises a number the screen behind it does not have.
+  const canRead = status === 'user'
+  const saved = useSaved({ enabled: canRead })
+  const reviews = useMyReviews({ enabled: canRead })
+  const recentRooms = useRecentRoomsStore(state => state.rooms)
+
+  const shortcuts: { key: string; route: string; count: number | null }[] = [
+    { key: 'saved', route: '/(tabs)/saved', count: canRead ? (saved.data?.length ?? null) : null },
+    { key: 'plans', route: '/(tabs)/plans', count: recentRooms.length },
+    { key: 'reviews', route: '/settings/reviews', count: canRead ? (reviews.data?.length ?? null) : null },
+  ]
+
   async function signOutNow() {
     setSigningOut(true)
     try {
@@ -61,34 +75,38 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <GlassCard style={styles.card}>
-          <Text style={styles.caption}>{t('profile.couple')}</Text>
-          <View style={styles.coupleRow}>
-            <AvatarCircle label="M" size={40} />
-            <Text style={{ color: colors.neutral[300], fontSize: 20 }}>+</Text>
-            <AvatarCircle emoji="😊" size={40} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.coupleTagline}>{t('profile.coupleTagline')}</Text>
-              <Text style={styles.coupleSince}>{t('profile.coupleSince')}</Text>
-            </View>
-          </View>
-        </GlassCard>
-
-        <GlassCard style={styles.card}>
-          <Text style={styles.caption}>{t('profile.prefsTitle')}</Text>
-          <Text style={styles.prefLabel}>{t('profile.likes')}</Text>
-          <View style={styles.prefRow}>
-            {['🍣 Japanese', '🎨 Creative', '😌 Quiet', '🌃 Night vibe'].map(x => (
-              <TagChip key={x} label={x} color="coral" />
-            ))}
-          </View>
-          <Text style={styles.prefLabel}>{t('profile.dislikes')}</Text>
-          <View style={[styles.prefRow, { marginBottom: 0 }]}>
-            {['🔊 Loud', '👥 Crowded'].map(x => (
-              <TagChip key={x} label={x} />
-            ))}
-          </View>
-        </GlassCard>
+        {/*
+          The two cards that stood here were fabricated: a "couple" pairing the
+          contract does not model, and a preferences list hard-coded in English
+          ("Japanese", "Night vibe") rather than resolved from taxonomy keys.
+          Both broke RULE-CORE-002 and RULE-CORE-003, and neither told the user
+          anything true. Replaced with the three places a profile actually
+          leads, carrying real counts.
+        */}
+        <View style={styles.shortcutRow}>
+          {shortcuts.map(shortcut => (
+            <Pressable
+              key={shortcut.key}
+              accessibilityRole="button"
+              accessibilityLabel={
+                shortcut.count == null
+                  ? t(`profile.shortcut.${shortcut.key}`)
+                  : `${t(`profile.shortcut.${shortcut.key}`)}: ${shortcut.count}`
+              }
+              onPress={() => router.push(shortcut.route)}
+              style={{ flex: 1 }}
+            >
+              <GlassCard style={styles.shortcut}>
+                {/* A dash, not a zero: an unknown count and an empty list are
+                    different facts, and only one of them is reassuring. */}
+                <Text style={shortcut.count == null ? styles.shortcutValueMuted : styles.shortcutValue}>
+                  {shortcut.count ?? '—'}
+                </Text>
+                <Text style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
+              </GlassCard>
+            </Pressable>
+          ))}
+        </View>
 
         <GlassCard style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
           {SETTINGS_ROWS.map((row, index) => (
