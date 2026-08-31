@@ -1,9 +1,11 @@
+import { Image } from 'expo-image'
+import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import type { PlanStopRow } from '@/shared/api'
+import { useUploadImage, type PlanStopRow } from '@/shared/api'
 import { PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
@@ -12,12 +14,22 @@ import { styles } from './checkin-sheet.style'
 
 const MAX_TAGS = 10
 const MAX_NOTE = 1000
+const MAX_PHOTOS = 3
 
 export interface CheckinDraft {
   rating: number
   /** Stable keys, not localised labels — see `checkin-tags.ts`. */
   tags: string[]
   note: string
+  /** Storage keys from `POST /uploads`; the check-in never carries bytes. */
+  photoKeys: string[]
+}
+
+/** A picked photo and where it is in the presign → PUT round trip. */
+interface PendingPhoto {
+  uri: string
+  key: string | null
+  failed: boolean
 }
 
 interface CheckinSheetProps {
@@ -37,11 +49,48 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
   const [rating, setRating] = useState(5)
   const [tags, setTags] = useState<string[]>([CHECKIN_TAGS[0].key])
   const [note, setNote] = useState('')
+  const [photos, setPhotos] = useState<PendingPhoto[]>([])
+  const upload = useUploadImage()
 
   function reset() {
     setRating(5)
     setTags([CHECKIN_TAGS[0].key])
     setNote('')
+    setPhotos([])
+  }
+
+  /**
+   * Uploads as soon as a photo is picked, so saving never waits on the network
+   * twice. A failed upload marks that photo and nothing else — a check-in
+   * without its picture is still a check-in.
+   */
+  async function addPhoto() {
+    if (photos.length >= MAX_PHOTOS) return
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) return
+
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+    })
+    const asset = picked.canceled ? null : picked.assets[0]
+    if (!asset) return
+
+    const index = photos.length
+    setPhotos(prev => [...prev, { uri: asset.uri, key: null, failed: false }])
+    try {
+      const key = await upload.mutateAsync({
+        image: { uri: asset.uri, mimeType: asset.mimeType },
+        purpose: 'checkin_photo',
+      })
+      setPhotos(prev => prev.map((p, i) => (i === index ? { ...p, key } : p)))
+    } catch {
+      setPhotos(prev => prev.map((p, i) => (i === index ? { ...p, failed: true } : p)))
+    }
+  }
+
+  function removePhoto(index: number) {
+    setPhotos(prev => prev.filter((_, i) => i !== index))
   }
 
   function toggleTag(key: string) {
@@ -52,7 +101,10 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
   }
 
   function save() {
-    onSave({ rating, tags, note: note.trim() })
+    // Only photos that actually landed carry a key; the rest are dropped rather
+    // than sent as a reference the server would reject.
+    const photoKeys = photos.map(p => p.key).filter((k): k is string => Boolean(k))
+    onSave({ rating, tags, note: note.trim(), photoKeys })
     reset()
   }
 
@@ -125,13 +177,49 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
             />
 
             {/*
-              Photos and the verified bill (FR-PLAN-008) are missing on purpose.
-              The API takes `photoKeys` and `billPhotoKey` — keys of already
-              uploaded objects — and the contract exposes no upload endpoint for
-              a client (GoGo-BE#171). `billTotal` is rejected without
-              `billPhotoKey`, so a bill form here could never be submitted.
+              Photos upload the moment they are picked and travel as storage
+              keys. The verified bill (FR-PLAN-008) is still absent: `billTotal`
+              is rejected without `billPhotoKey`, and that flow needs its own
+              amount/people form rather than riding on the photo picker.
             */}
-            <Text style={styles.unavailableNote}>{t('checkin.photosUnavailable')}</Text>
+            <View style={styles.photoRow}>
+              {photos.map((photo, index) => (
+                <Pressable
+                  key={photo.uri}
+                  onPress={() => removePhoto(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('checkin.removePhoto')}
+                >
+                  <Image source={{ uri: photo.uri }} style={styles.photoThumb} contentFit="cover" />
+                  {photo.key === null && !photo.failed ? (
+                    <View style={styles.photoOverlay}>
+                      <ActivityIndicator color={colors.neutral[0]} />
+                    </View>
+                  ) : null}
+                  {photo.failed ? (
+                    <View style={styles.photoOverlay}>
+                      <Text style={styles.photoFailed}>!</Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              ))}
+              {photos.length < MAX_PHOTOS ? (
+                <Pressable
+                  onPress={addPhoto}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('checkin.addPhoto')}
+                  style={styles.photoAdd}
+                >
+                  <Text style={styles.photoAddGlyph}>+</Text>
+                </Pressable>
+              ) : null}
+              <Text style={styles.photoCount}>{t('checkin.photoCount', { n: photos.length })}</Text>
+            </View>
+            {photos.some(p => p.failed) ? (
+              <Text accessibilityLiveRegion="polite" style={styles.unavailableNote}>
+                {t('checkin.photoFailed')}
+              </Text>
+            ) : null}
 
             <PrimaryBtn
               label={pending ? t('checkin.saving') : t('checkin.save')}

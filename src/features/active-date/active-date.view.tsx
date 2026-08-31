@@ -98,11 +98,13 @@ export default function ActiveDateScreen() {
         rating: draft.rating,
         tags: draft.tags,
         ...(draft.note ? { note: draft.note } : {}),
+        ...(draft.photoKeys.length > 0 ? { photoKeys: draft.photoKeys } : {}),
       })
       track('stop_checkin_saved', {
         placeId: stop.placeId,
         rating: draft.rating,
         tags: draft.tags.join(','),
+        photos: draft.photoKeys.length,
       })
     } catch {
       // Check-in is optional; a failure must not block the date.
