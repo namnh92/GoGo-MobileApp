@@ -269,6 +269,7 @@ export const enMessages: Record<MessageKey, string> = {
   'waiting.you': 'You',
   'waiting.partner': 'Partner',
   'waiting.done': 'Done!',
+  'waiting.progress': '{{done}}/{{total}} finished picking',
   'waiting.remind': 'Gentle nudge 🔔',
   'waiting.reminded': 'Nudged 5 minutes ago',
   'waiting.remind_group': 'Nudge the stragglers 🔔',
@@ -285,6 +286,8 @@ export const enMessages: Record<MessageKey, string> = {
   'matching.failedTitle': 'Could not match',
   'matching.notReadyBody': 'The room is not ready yet. Wait for everyone to finish picking.',
   'matching.waitingForHost': 'Waiting for the host to start matching…',
+  'matching.reason': 'Filtering by the room\'s budget, opening hours and distance.',
+  'matching.retrying': 'Retrying…',
 
   'matchResult.whyTitle': 'Why did GoGo pick this?',
   'matchResult.matchBadge': 'GREAT FIT',
