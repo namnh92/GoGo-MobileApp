@@ -1,7 +1,11 @@
 import { formatRange, perPerson } from '@/shared/pricing/money'
+import { toPriceUnit } from '@/shared/pricing/price-unit'
+
+import type { PriceUnit } from '@/shared/pricing/price-unit'
 
 import type {
   PlaceDetail,
+  PlacePhoto,
   PlaceSearchResult,
   Plan,
   PlanStop,
@@ -44,19 +48,30 @@ export interface PlaceCard {
   /** Stale place data must be flagged rather than shown as certain. */
   freshnessCheckedAt?: string
   /**
-   * Real place imagery. Always null until the contract carries it
-   * (GoGo-BE#151) — `PlacePhoto` renders a neutral placeholder meanwhile,
-   * because a stock photo would read as a picture of the venue.
+   * Real place imagery from the contract (`primaryPhoto` / `photos[0]`). Null
+   * when the place has no approved photo — the contract omits a photo rather
+   * than sending a URL that will not load, and `PlacePhoto` then renders a
+   * neutral placeholder. A stock photo would read as a picture of the venue.
    */
   photoUrl: string | null
   /** Required beside provider imagery; null while there is none to attribute. */
   photoAttribution: string | null
+  /** Lets the UI tell imported from community imagery apart. */
+  photoSource: PlacePhoto['source'] | null
+  /**
+   * The rating is provider data, never a GoGo community score — the contract
+   * carries no GoGo aggregate, so nothing may present it as one (spec §6).
+   */
+  ratingSource: 'google'
+  /** What the price is per. `unknown` when the contract carries no price. */
+  priceUnit: PriceUnit
 }
 
 const PRICE_CONFIDENCE_FLOOR = 0.6
 
 export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
   const price = result.pricePerPerson
+  const photo = result.primaryPhoto
   return {
     id: result.id,
     name: result.name,
@@ -77,9 +92,13 @@ export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
     isLodging: result.isLodging,
     reasonCodes: result.reasonCodes ?? [],
     freshnessCheckedAt: result.freshnessCheckedAt,
-    // Becomes `result.primaryPhoto` once GoGo-BE#151 ships.
-    photoUrl: null,
-    photoAttribution: null,
+    photoUrl: photo?.url ?? null,
+    photoAttribution: photo?.attribution ?? null,
+    photoSource: photo?.source ?? null,
+    ratingSource: 'google',
+    // Search only ever quotes a per-person estimate; `pricePerPerson` is the
+    // field's own name, so the unit is not a guess.
+    priceUnit: price == null ? 'unknown' : 'per_person',
   }
 }
 
@@ -123,6 +142,7 @@ export function parseApiDate(value: string | undefined | null): Date | undefined
 export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
   const price = detail.prices?.[0]
   const priceConfidence = toNumber(price?.confidence) ?? 0
+  const photo = detail.photos?.[0]
   return {
     id: detail.id ?? '',
     name: detail.name ?? '',
@@ -139,9 +159,11 @@ export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
     isLodging: detail.isLodging ?? false,
     reasonCodes: [],
     freshnessCheckedAt: detail.freshnessCheckedAt,
-    // Becomes `detail.photos[0]` once GoGo-BE#151 ships.
-    photoUrl: null,
-    photoAttribution: null,
+    photoUrl: photo?.url ?? null,
+    photoAttribution: photo?.attribution ?? null,
+    photoSource: photo?.source ?? null,
+    ratingSource: 'google',
+    priceUnit: toPriceUnit(price?.unit, price != null),
   }
 }
 
@@ -245,6 +267,34 @@ export function areaLabel(card: Pick<PlaceCard, 'addressText'>): string | null {
 /** Per-person price line for a card. Returns null when the price is unknown. */
 export function placePriceLabel(card: PlaceCard): string | null {
   return formatRange(card.priceMin, card.priceMax, card.currency)
+}
+
+/**
+ * Amount plus the unit it is measured in, kept apart so the caller can put the
+ * unit through i18n. A price whose scope is unknown returns no amount at all —
+ * "150k–250k" with no unit is exactly the ambiguity spec §5 forbids.
+ */
+export function placePriceParts(card: PlaceCard): { amount: string | null; unit: PriceUnit } {
+  if (card.priceUnit === 'free') return { amount: null, unit: 'free' }
+  const amount = formatRange(card.priceMin, card.priceMax, card.currency)
+  if (amount == null) return { amount: null, unit: 'unknown' }
+  return { amount: card.priceUncertain ? `~${amount}` : amount, unit: card.priceUnit }
+}
+
+/**
+ * Rating with its provenance. Provider ratings and GoGo community ratings are
+ * different measurements of different things and must never merge into one
+ * star (spec §6). The contract carries no GoGo aggregate, so `gogo` is always
+ * `null` here — the UI says so in words rather than inventing a number.
+ */
+export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource'>): {
+  google: { value: number; count?: number } | null
+  gogo: { value: number; count?: number } | null
+} {
+  return {
+    google: card.rating == null ? null : { value: card.rating, count: card.ratingCount },
+    gogo: null,
+  }
 }
 
 /** Same, straight from a `PlaceDetail` — null when it carries no price. */
