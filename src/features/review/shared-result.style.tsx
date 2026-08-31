@@ -1,11 +1,11 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, night, onDark } from '@/shared/ui/tokens'
+import { colors, radius, spacing, night, onDark, overlay, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: neutral[900] },
-  title: { fontSize: 26, fontWeight: '800', color: neutral[0], textAlign: 'center', marginTop: spacing[4] },
+  title: { ...type.title1, color: neutral[0], textAlign: 'center', marginTop: spacing[4] },
   scoreCard: {
     backgroundColor: brand.coral,
     borderRadius: radius.sheet,
@@ -14,9 +14,8 @@ export const styles = StyleSheet.create({
     marginBottom: spacing[4],
     alignItems: 'center',
   },
-  score: { fontSize: 56, fontWeight: '800', color: neutral[0], lineHeight: 60 },
-  scoreMax: { fontSize: 15, fontWeight: '500', color: onDark.medium },
-  scoreStars: { flexDirection: 'row', gap: 4, marginTop: spacing[2] },
+  score: { fontSize: 52, lineHeight: 58, fontWeight: '800', color: neutral[0] },
+  scoreMax: { ...type.body, color: onDark.medium },
   darkCard: {
     backgroundColor: night.surface,
     borderRadius: radius.hero,
@@ -24,8 +23,8 @@ export const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   caption: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...type.caption,
+    fontWeight: '700',
     color: neutral[500],
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -33,24 +32,17 @@ export const styles = StyleSheet.create({
   },
   interestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[2] },
   interestHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  interestLabel: { fontSize: 13, fontWeight: '600', color: neutral[0] },
-  interestPct: { fontSize: 12, color: neutral[500] },
+  interestLabel: { ...type.label, color: neutral[0] },
+  interestPct: { ...type.caption, color: onDark.soft },
   track: { height: 6, borderRadius: 3, backgroundColor: night.line, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: brand.coral, borderRadius: 3 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
   statCard: { width: '47%', backgroundColor: night.raised, borderRadius: radius.compact, padding: spacing[3] },
-  statLabel: { fontSize: 11, color: neutral[500], marginBottom: 4 },
-  statValue: { fontSize: 20, fontWeight: '800' },
-  nextBtn: {
-    height: 56,
-    borderRadius: radius.compact,
-    backgroundColor: brand.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextLabel: { fontSize: 16, fontWeight: '600', color: neutral[0] },
+  statLabel: { ...type.caption, color: onDark.soft, marginBottom: 4 },
+  // Without an explicit colour this rendered as black text on a dark card.
+  statValue: { ...type.title1, fontSize: 20, lineHeight: 26, color: neutral[0] },
   shareBtn: {
-    height: 48,
+    height: touchTarget.min + 12,
     borderRadius: radius.compact,
     borderWidth: 1,
     borderColor: night.line,
@@ -60,13 +52,26 @@ export const styles = StyleSheet.create({
     gap: spacing[2],
     marginTop: spacing[2],
   },
-  shareLabel: { fontSize: 15, fontWeight: '500', color: neutral[0] },
-  scoreCaption: { fontSize: 12, color: onDark.soft, marginTop: 4 },
-  winnerName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.neutral[0],
-    textAlign: 'center',
+  shareLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
+  scoreCaption: { ...type.caption, color: onDark.soft, marginTop: 4 },
+  winnerName: { ...type.display, color: neutral[0], textAlign: 'center' },
+
+  /** The place itself, as the summary card people actually share. */
+  heroCard: {
+    height: 240,
+    borderRadius: radius.hero,
+    overflow: 'hidden',
+    marginTop: spacing[4],
     marginBottom: spacing[4],
+    justifyContent: 'flex-end',
+  },
+  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrim },
+  heroBody: { padding: spacing[5], gap: 4 },
+  heroMeta: { ...type.bodySmall, color: onDark.strong, textAlign: 'center' },
+  shareIsPrimary: {
+    backgroundColor: brand.coral,
+    borderColor: brand.coral,
+    marginTop: 0,
+    marginBottom: spacing[2],
   },
 })
