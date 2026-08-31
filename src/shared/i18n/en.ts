@@ -451,6 +451,11 @@ export const enMessages: Record<MessageKey, string> = {
   'review.submit': 'Submit review',
   'review.starAria': '{{n}} stars',
   'review.submitting': 'Sending…',
+  'review.successTitle': 'Review sent',
+  'review.successPending': 'Your review is being checked. It appears on the place page once it is approved.',
+  'review.successPublished': 'Thank you! Your review is live on the place page.',
+  'review.continue': 'Continue',
+  'review.skip': 'Later',
   'review.failed': 'Could not send your review. Please try again.',
   'review.moderationNote': 'Reviews are checked before they appear publicly.',
 
