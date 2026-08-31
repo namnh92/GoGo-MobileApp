@@ -1,12 +1,14 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, onDark, overlay } from '@/shared/ui/tokens'
+
+import { colors, glassFx, onDark, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
-  counter: { fontSize: 13, fontWeight: '700', color: neutral[900] },
-  header: { fontSize: 13, color: neutral[500], fontWeight: '500' },
-  subheader: { fontSize: 11, color: neutral[300] },
+  counter: { ...type.label, color: neutral[900] },
+  header: { ...type.bodySmall, color: neutral[500], fontWeight: '600' },
+  subheader: { ...type.caption, color: neutral[300] },
+
   progressTrack: {
     marginHorizontal: spacing[5],
     height: 4,
@@ -16,53 +18,77 @@ export const styles = StyleSheet.create({
     marginBottom: spacing[3],
   },
   progressFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 2 },
+
+  deck: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   card: {
-    height: 420,
+    flex: 1,
+    maxHeight: 520,
     borderRadius: radius.hero,
     overflow: 'hidden',
+    backgroundColor: glassFx.solid,
   },
-  imageScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrimMedium },
+
+  // Imagery carries the card (spec §17): two thirds of it, with a gradient
+  // rather than a flat scrim so the top of the photo stays bright.
+  imageWrap: { flex: 1 },
+  imageGradient: { ...StyleSheet.absoluteFillObject },
   categoryBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: overlay.scrimStrong,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    top: spacing[3],
+    left: spacing[3],
+    backgroundColor: glassFx.solid,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 5,
     borderRadius: radius.pill,
   },
-  categoryLabel: { color: neutral[0], fontSize: 11, fontWeight: '600' },
+  categoryLabel: { ...type.caption, fontWeight: '700', color: neutral[900] },
+
+  overImage: { position: 'absolute', left: spacing[4], right: spacing[4], bottom: spacing[4], gap: 4 },
+  overTitle: { ...type.display, color: neutral[0] },
+  overMeta: { ...type.bodySmall, color: onDark.strong },
+
+  /** Swipe verdict stamps — large, rotated, and worded, never colour alone. */
   overlay: {
     position: 'absolute',
-    top: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
+    top: spacing[5],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    borderRadius: radius.compact,
+    borderWidth: 3,
+    borderColor: glassFx.borderBright,
   },
-  overlayLabel: { color: neutral[0], fontSize: 18, fontWeight: '800' },
-  areaRow: { position: 'absolute', bottom: 12, left: 12 },
-  areaLabel: { color: onDark.strong, fontSize: 12, fontWeight: '500' },
-  cardTitle: { fontSize: 18, fontWeight: '800', color: neutral[900] },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing[2] },
-  desc: { fontSize: 13, color: neutral[500], marginTop: spacing[2], lineHeight: 19 },
+  overlayLabel: { ...type.title1, color: neutral[0], letterSpacing: 1 },
+
+  footer: { padding: spacing[4], gap: spacing[2] },
+  factRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
+  price: { ...type.title2, color: neutral[900] },
+  priceUnit: { ...type.bodySmall, color: neutral[500] },
+  priceUnknown: { ...type.bodySmall, color: neutral[300] },
+  meta: { ...type.bodySmall, color: neutral[500] },
+  openDot: { width: 6, height: 6, borderRadius: 3 },
+  open: { ...type.caption, fontWeight: '700', color: brand.mint },
+  closed: { ...type.caption, fontWeight: '700', color: neutral[500] },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+
   actions: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    gap: spacing[4],
+    gap: spacing[5],
     marginTop: spacing[4],
+    marginBottom: spacing[2],
   },
-  actionCol: {
-    alignItems: 'center',
-    gap: 4,
-    minWidth: 64,
-  },
+  actionCol: { alignItems: 'center', gap: 4, minWidth: 72 },
   actionBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    minWidth: touchTarget.min,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionCaption: { fontSize: 11, color: neutral[300] },
+  actionBtnStar: { width: 56, height: 56, borderRadius: 28, backgroundColor: brand.lavenderSoft },
+  actionCaption: { ...type.caption, color: neutral[500] },
+
+  skeletonCard: { flex: 1, maxHeight: 520, borderRadius: radius.hero },
 })
