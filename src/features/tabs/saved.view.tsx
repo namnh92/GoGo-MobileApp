@@ -1,23 +1,34 @@
 import { useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   areaLabel,
   formatDistance,
   formatMinuteOfDay,
-  placePriceLabel,
+  placePriceParts,
   useSavedPlaces,
   useToggleSaved,
-  type PlaceCard,
+  type PlaceCard as PlaceCardModel,
 } from '@/shared/api'
+import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { useSession } from '@/shared/providers/session-provider'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
+import { PlaceCard } from '@/shared/ui/place-card.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, GhostBtn, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
+import {
+  Atmosphere,
+  Chip,
+  GhostBtn,
+  GlassCard,
+  IconBtn,
+  SecondaryBtn,
+  useTabDockInset,
+} from '@/shared/ui/primitives'
+import { PlaceGridSkeleton } from '@/shared/ui/skeleton.view'
 import { hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './saved.style'
@@ -28,7 +39,7 @@ type SavedFilter = 'all' | 'places' | 'plans'
 const FILTERS: readonly SavedFilter[] = ['all', 'places', 'plans']
 
 /** Saved places that carry coordinates, as pins for the map adapter. */
-function toPins(places: PlaceCard[]): MapPin[] {
+function toPins(places: PlaceCardModel[]): MapPin[] {
   return places
     .filter(place => place.lat != null && place.lng != null)
     .map(place => ({
@@ -58,11 +69,11 @@ export default function SavedScreen() {
   const pins = useMemo(() => toPins(places), [places])
   const selected = places.find(place => place.id === selectedId) ?? places[0]
 
-  function openPlace(place: PlaceCard) {
+  function openPlace(place: PlaceCardModel) {
     router.push(`/places/${place.id}`)
   }
 
-  function hoursLabel(place: PlaceCard): string {
+  function hoursLabel(place: PlaceCardModel): string {
     if (place.openNow) {
       const closes = formatMinuteOfDay(place.closesAtMinute)
       return closes ? t('search.openUntil', { time: closes }) : t('common.open')
@@ -75,15 +86,13 @@ export default function SavedScreen() {
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>{t('saved.title')}</Text>
-          <Pressable
+          <IconBtn
             onPress={() => router.push('/places/import')}
-            accessibilityRole="button"
             accessibilityLabel={t('saved.addPlace')}
-            hitSlop={hitSlop}
             style={styles.addPlaceBtn}
           >
             <Text style={styles.addPlaceLabel}>＋</Text>
-          </Pressable>
+          </IconBtn>
           {/* List/Map toggle — filters survive the switch */}
           <View style={styles.toggle}>
             {(['list', 'map'] as ViewMode[]).map(mode => (
@@ -103,17 +112,12 @@ export default function SavedScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
           {FILTERS.map(option => (
-            <Pressable
+            <Chip
               key={option}
+              label={t(`saved.filter.${option}`)}
+              variant={filter === option ? 'selected' : 'default'}
               onPress={() => setFilter(option)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: filter === option }}
-              style={[styles.filterBtn, filter === option && styles.filterBtnActive]}
-            >
-              <Text style={[styles.filterLabel, filter === option && styles.filterLabelActive]}>
-                {t(`saved.filter.${option}`)}
-              </Text>
-            </Pressable>
+            />
           ))}
         </ScrollView>
       </View>
@@ -126,7 +130,13 @@ export default function SavedScreen() {
           action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in?next=saved')} />}
         />
       ) : saved.isPending ? (
-        <LoadingState />
+        <View style={[styles.grid, { paddingHorizontal: spacing[5], paddingTop: spacing[2] }]}>
+          {[0, 1, 2, 3].map(index => (
+            <View key={index} style={{ width: '48%' }}>
+              <PlaceGridSkeleton />
+            </View>
+          ))}
+        </View>
       ) : saved.isError ? (
         <ErrorState error={saved.error} onRetry={() => void saved.refetch()} />
       ) : places.length === 0 ? (
@@ -139,34 +149,17 @@ export default function SavedScreen() {
         <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[2], paddingBottom: dockInset }}>
           <View style={styles.grid}>
             {places.map(place => (
-              <Pressable
+              <PlaceCard
                 key={place.id}
-                accessibilityRole="button"
+                place={place}
+                variant="grid"
                 onPress={() => openPlace(place)}
+                // Everything in this list is already saved, so the only action
+                // the bookmark offers is removal.
+                saved
+                onToggleSave={() => toggleSaved.mutate({ type: 'place', id: place.id, saved: true })}
                 style={{ width: '48%' }}
-              >
-                <GlassCard style={[styles.gridCard, { width: '100%' }]}>
-                  <View style={styles.gridThumbWrap}>
-                    <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
-                    {place.rating != null ? (
-                      <View style={styles.score}>
-                        <Text style={styles.scoreLabel}>♥ {place.rating.toFixed(1)}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View style={{ padding: spacing[3] }}>
-                    <Text style={styles.gridTitle} numberOfLines={1}>{place.name}</Text>
-                    <Text style={styles.gridMeta} numberOfLines={1}>
-                      {[areaLabel(place), placePriceLabel(place)].filter(Boolean).join(' · ')}
-                    </Text>
-                    {place.reasonCodes[0] ? (
-                      <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                        <TagChip label={t(`search.reason.${place.reasonCodes[0]}`, { defaultValue: place.reasonCodes[0] })} />
-                      </View>
-                    ) : null}
-                  </View>
-                </GlassCard>
-              </Pressable>
+              />
             ))}
           </View>
         </ScrollView>
@@ -207,16 +200,25 @@ export default function SavedScreen() {
                 <Text style={styles.sheetMeta} numberOfLines={1}>
                   {[areaLabel(selected), formatDistance(selected.distanceM)].filter(Boolean).join(' · ')}
                 </Text>
-                <Text style={styles.sheetMeta} numberOfLines={1}>{placePriceLabel(selected) ?? ''}</Text>
+                {/* The price never leaves its unit behind (spec §5). */}
+                {(() => {
+                  const { amount, unit } = placePriceParts(selected)
+                  if (isStandalonePrice(unit)) {
+                    return <Text style={styles.sheetMeta} numberOfLines={1}>{t(priceUnitKey(unit))}</Text>
+                  }
+                  return amount ? (
+                    <Text style={styles.sheetMeta} numberOfLines={1}>
+                      {amount}
+                      {t(priceUnitKey(unit))}
+                    </Text>
+                  ) : null
+                })()}
                 <View style={styles.sheetActions}>
-                  <Pressable
-                    accessibilityRole="button"
+                  <SecondaryBtn
+                    label={t('common.details')}
                     onPress={() => openPlace(selected)}
-                    hitSlop={hitSlop}
                     style={styles.sheetBtn}
-                  >
-                    <Text style={styles.sheetBtnLabel} numberOfLines={1}>{t('common.details')}</Text>
-                  </Pressable>
+                  />
                 </View>
               </View>
             </GlassCard>
