@@ -5,18 +5,14 @@ import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, TextIn
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
-  areaLabel,
   useAddRoomSeedPlaces,
-  formatDistance,
-  formatMinuteOfDay,
   isSaved,
-  placePriceLabel,
   toPlaceCard,
   useSaved,
   useTaxonomies,
   useToggleSaved,
   usePlaceSearch,
-  type PlaceCard,
+  type PlaceCard as PlaceCardModel,
   type PlaceSearchQuery,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
@@ -24,8 +20,9 @@ import { useLocaleContent } from '@/shared/i18n'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState } from '@/shared/ui/async-state.view'
-import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, TagChip } from '@/shared/ui/primitives'
+import { PlaceCard } from '@/shared/ui/place-card.view'
+import { Atmosphere, BackHeader, Chip, GhostBtn, IconBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './search.style'
@@ -151,12 +148,12 @@ export default function SearchScreen() {
   const saved = useSaved({ enabled: canSave })
   const toggleSaved = useToggleSaved()
 
-  const results: PlaceCard[] = useMemo(
+  const results: PlaceCardModel[] = useMemo(
     () => (search.data?.pages ?? []).flatMap(page => page.results.map(toPlaceCard)),
     [search.data],
   )
 
-  function onPlacePress(place: PlaceCard) {
+  function onPlacePress(place: PlaceCardModel) {
     if (isPicker) {
       if (roomId) {
         addSeedToRoom.mutate(
@@ -172,32 +169,10 @@ export default function SearchScreen() {
     router.push(`/places/${place.id}`)
   }
 
-  function onBookmark(place: PlaceCard) {
+  function onBookmark(place: PlaceCardModel) {
     const currentlySaved = isSaved(saved.data, 'place', place.id)
     toggleSaved.mutate({ type: 'place', id: place.id, saved: currentlySaved })
     if (!currentlySaved) track('place_saved', { placeId: place.id })
-  }
-
-  /** "Đang mở · đóng 23:00" composed from facts, never sent as a sentence. */
-  function hoursLabel(place: PlaceCard): string {
-    if (place.openNow) {
-      const closes = formatMinuteOfDay(place.closesAtMinute)
-      return closes ? t('search.openUntil', { time: closes }) : t('common.open')
-    }
-    const opens = formatMinuteOfDay(place.opensAtMinute)
-    return opens ? t('search.closedOpens', { time: opens }) : t('common.closed')
-  }
-
-  function metaLine(place: PlaceCard): string {
-    const price = placePriceLabel(place)
-    return [
-      areaLabel(place),
-      formatDistance(place.distanceM),
-      // A low-confidence estimate is marked as one rather than shown as a fact.
-      price ? (place.priceUncertain ? `~${price}` : price) : null,
-    ]
-      .filter(Boolean)
-      .join(' · ')
   }
 
   function clearFilters() {
@@ -228,11 +203,11 @@ export default function SearchScreen() {
           returnKeyType="search"
           style={styles.input}
         />
-        <Pressable
+        <IconBtn
           onPress={() => setSheetOpen(true)}
-          accessibilityRole="button"
           accessibilityLabel={t('search.filters')}
-          style={[styles.filterToggle, activeFilterCount > 0 && styles.filterToggleActive]}
+          active={activeFilterCount > 0}
+          style={styles.filterToggle}
         >
           <Text style={styles.filterToggleIcon}>⚙️</Text>
           {activeFilterCount > 0 && (
@@ -240,33 +215,23 @@ export default function SearchScreen() {
               <Text style={styles.filterCountLabel}>{activeFilterCount}</Text>
             </View>
           )}
-        </Pressable>
+        </IconBtn>
       </View>
 
       <View style={styles.filterRow}>
-        <Pressable
-          accessibilityRole="button"
+        <Chip
+          label={content.searchFilters[0]}
+          variant={selectedCategories.length === 0 ? 'selected' : 'default'}
           onPress={() => setSelectedCategories([])}
-          style={[styles.filterBtn, selectedCategories.length === 0 && styles.filterBtnActive]}
-        >
-          <Text style={[styles.filterLabel, selectedCategories.length === 0 && styles.filterLabelActive]}>
-            {content.searchFilters[0]}
-          </Text>
-        </Pressable>
-        {categories.map(category => {
-          const active = selectedCategories.includes(category.key)
-          return (
-            <Pressable
-              key={category.key}
-              onPress={() => toggleCategory(category.key)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              style={[styles.filterBtn, active && styles.filterBtnActive]}
-            >
-              <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{category.label}</Text>
-            </Pressable>
-          )
-        })}
+        />
+        {categories.map(category => (
+          <Chip
+            key={category.key}
+            label={category.label}
+            variant={selectedCategories.includes(category.key) ? 'selected' : 'default'}
+            onPress={() => toggleCategory(category.key)}
+          />
+        ))}
       </View>
 
       {search.isError ? (
@@ -287,14 +252,14 @@ export default function SearchScreen() {
           }}
           ListEmptyComponent={
             search.isPending ? (
-              <View style={styles.empty}>
-                <ActivityIndicator />
-              </View>
+              // A skeleton in the shape of the results, not a bare spinner.
+              <PlaceListSkeleton count={4} />
             ) : (
               <View style={styles.empty}>
                 <Text style={styles.emptyEmoji}>🔍</Text>
                 <Text style={styles.emptyTitle}>{t('search.empty')}</Text>
                 <Text style={styles.emptyHint}>{t('search.emptyHint')}</Text>
+                <GhostBtn label={t('search.clearFilters')} onPress={clearFilters} />
               </View>
             )
           }
@@ -302,47 +267,14 @@ export default function SearchScreen() {
             search.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: spacing[4] }} /> : null
           }
           renderItem={({ item: place }) => (
-            <Pressable
-              accessibilityRole="button"
+            <PlaceCard
+              place={place}
               onPress={() => onPlacePress(place)}
-            >
-              <GlassCard style={styles.card}>
-                <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.thumb} />
-                <View style={styles.cardBody}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.title} numberOfLines={1}>
-                      {place.name}
-                    </Text>
-                    {/* Saving needs an account: a guest token gets 403 USER_ONLY. */}
-                    {canSave ? (
-                      <Pressable
-                        onPress={() => onBookmark(place)}
-                        hitSlop={8}
-                        accessibilityRole="togglebutton"
-                        accessibilityState={{ checked: isSaved(saved.data, 'place', place.id) }}
-                        accessibilityLabel={t('placeDetail.save')}
-                      >
-                        <Text style={styles.bookmark}>
-                          {isSaved(saved.data, 'place', place.id) ? '🔖' : '📑'}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                  <Text style={place.openNow ? styles.statusOpen : styles.statusClosed} numberOfLines={1}>
-                    {hoursLabel(place)}
-                  </Text>
-                  <Text style={styles.meta} numberOfLines={1}>
-                    {metaLine(place)}
-                  </Text>
-                  <View style={styles.tagRow}>
-                    {place.reasonCodes.slice(0, 2).map(code => (
-                      <TagChip key={code} label={t(`search.reason.${code}`, { defaultValue: code })} />
-                    ))}
-                    {place.rating != null ? <Text style={styles.score}>♥ {place.rating.toFixed(1)}</Text> : null}
-                  </View>
-                </View>
-              </GlassCard>
-            </Pressable>
+              tags={place.reasonCodes.map(code => t(`search.reason.${code}`, { defaultValue: code }))}
+              saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined}
+              onToggleSave={canSave ? () => onBookmark(place) : undefined}
+              style={{ marginBottom: spacing[3] }}
+            />
           )}
         />
       )}
@@ -409,42 +341,26 @@ export default function SearchScreen() {
 
               <Text style={styles.sheetSection}>{t('search.filterSuited')}</Text>
               <View style={styles.sheetOptionRow}>
-                {SUITED_OPTIONS.map((option, index) => {
-                  const active = suited === option
-                  return (
-                    <Pressable
-                      key={option}
-                      onPress={() => setSuited(active ? null : option)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      style={[styles.sheetOption, active && styles.sheetOptionActive]}
-                    >
-                      <Text style={[styles.sheetOptionLabel, active && styles.sheetOptionLabelActive]}>
-                        {content.suitedOptions[index] ?? option}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
+                {SUITED_OPTIONS.map((option, index) => (
+                  <Chip
+                    key={option}
+                    label={content.suitedOptions[index] ?? option}
+                    variant={suited === option ? 'selected' : 'default'}
+                    onPress={() => setSuited(suited === option ? null : option)}
+                  />
+                ))}
               </View>
 
               <Text style={styles.sheetSection}>{t('search.filterCategory')}</Text>
               <View style={styles.sheetOptionRow}>
-                {categories.map(category => {
-                  const active = selectedCategories.includes(category.key)
-                  return (
-                    <Pressable
-                      key={category.key}
-                      onPress={() => toggleCategory(category.key)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      style={[styles.sheetOption, active && styles.sheetOptionActive]}
-                    >
-                      <Text style={[styles.sheetOptionLabel, active && styles.sheetOptionLabelActive]}>
-                        {category.label}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
+                {categories.map(category => (
+                  <Chip
+                    key={category.key}
+                    label={category.label}
+                    variant={selectedCategories.includes(category.key) ? 'selected' : 'default'}
+                    onPress={() => toggleCategory(category.key)}
+                  />
+                ))}
               </View>
 
               <PrimaryBtn label={t('search.apply')} onPress={() => setSheetOpen(false)} style={styles.sheetApply} />
