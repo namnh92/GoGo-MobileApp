@@ -1,46 +1,50 @@
 import { StyleSheet } from 'react-native'
-import { colors, onDark, shadows } from '@/shared/ui/tokens'
+
+import { colors, onDark, shadows, spacing, type } from '@/shared/ui/tokens'
+
+const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.brand.coral,
+    backgroundColor: brand.coral,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  /** Two soft washes give the flat coral some depth without a gradient asset. */
   deco: {
     position: 'absolute',
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: colors.neutral[0],
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: neutral[0],
     opacity: 0.1,
   },
   logoBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 28,
-    backgroundColor: colors.neutral[0],
+    width: 96,
+    height: 96,
+    borderRadius: 32,
+    backgroundColor: neutral[0],
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
     shadowColor: shadows.black,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 10,
   },
-  title: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: colors.neutral[0],
+  wordmark: {
+    ...type.display,
+    fontSize: 40,
+    lineHeight: 48,
+    color: neutral[0],
     letterSpacing: -0.5,
+    marginTop: spacing[6],
   },
   tagline: {
-    fontSize: 16,
-    fontWeight: '500',
+    ...type.body,
     color: onDark.medium,
-    marginTop: 4,
+    marginTop: spacing[1],
   },
 })
