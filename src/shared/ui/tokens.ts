@@ -102,6 +102,24 @@ export const glass = {
   opaqueFallback: 'rgba(252,251,248,0.94)',
 } as const
 
+/**
+ * Six sizes, no more (spec §7). Every screen spreads one of these instead of
+ * writing `fontSize` — a scale with three near-identical sizes reads as
+ * accidental, and that is what the app looked like before.
+ *
+ * `label` is not a seventh size: it is `bodySmall` at button weight, kept
+ * separate so a CTA never drifts away from the scale.
+ */
+export const type = {
+  display: { fontSize: 28, lineHeight: 34, fontWeight: '800' },
+  title1: { fontSize: 22, lineHeight: 28, fontWeight: '800' },
+  title2: { fontSize: 17, lineHeight: 22, fontWeight: '700' },
+  body: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
+  bodySmall: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
+  caption: { fontSize: 11, lineHeight: 15, fontWeight: '500' },
+  label: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
+} as const
+
 export const spacing = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48] as const
 
 export const radius = {

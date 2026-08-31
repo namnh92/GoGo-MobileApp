@@ -17,7 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useLocaleContent } from '@/shared/i18n'
 import { IconChevronLeft } from '@/shared/ui/icons'
-import { colors, glass, glassFx, hitSlop, radius, shadows, spacing, touchTarget } from '@/shared/ui/tokens'
+import { haptic } from '@/shared/ui/feedback'
+import { colors, glass, glassFx, hitSlop, radius, shadows, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -92,23 +93,40 @@ export function Atmosphere({ children, style }: { children: ReactNode; style?: S
   )
 }
 
-export function PrimaryBtn({ label, onPress, disabled = false, loading = false, style }: {
+/**
+ * The button family (spec §7). One dominant `PrimaryBtn` per screen; everything
+ * else is secondary, ghost, danger or icon-only. They share a height, a radius
+ * and a pressed transform so a screen never looks like it borrowed a control
+ * from somewhere else.
+ */
+
+interface ButtonProps {
   label: string
   onPress: () => void
   disabled?: boolean
   loading?: boolean
   style?: StyleProp<ViewStyle>
-}) {
+}
+
+/** Press feedback: the same scale everywhere, plus one haptic tick. */
+function pressHandler(onPress: () => void, kind: Parameters<typeof haptic>[0] = 'select') {
+  return () => {
+    haptic(kind)
+    onPress()
+  }
+}
+
+export function PrimaryBtn({ label, onPress, disabled = false, loading = false, style }: ButtonProps) {
   // A CTA in flight must not fire twice; the spinner replaces the label rather
   // than sitting beside it so the button never changes width mid-press.
   const inactive = disabled || loading
   return (
     <Pressable
-      onPress={onPress}
+      onPress={pressHandler(onPress, 'impact')}
       disabled={inactive}
       accessibilityRole="button"
       accessibilityState={{ disabled: inactive, busy: loading }}
-      style={({ pressed }) => [styles.primaryBtnShadow, pressed && { transform: [{ scale: 0.98 }] }, style]}
+      style={({ pressed }) => [styles.primaryBtnShadow, pressed && styles.pressed, style]}
     >
       <LinearGradient
         colors={inactive ? [neutral[100], neutral[100]] : [brand.coral, brand.coralDeep]}
@@ -128,10 +146,93 @@ export function PrimaryBtn({ label, onPress, disabled = false, loading = false, 
   )
 }
 
-export function GhostBtn({ label, onPress }: { label: string; onPress: () => void }) {
+/**
+ * The second action on a screen. Outlined rather than filled, so the eye still
+ * lands on the primary — two filled CTAs side by side have no hierarchy at all.
+ */
+export function SecondaryBtn({ label, onPress, disabled = false, loading = false, style }: ButtonProps) {
+  const inactive = disabled || loading
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.7 }]}>
+    <Pressable
+      onPress={pressHandler(onPress)}
+      disabled={inactive}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: inactive, busy: loading }}
+      style={({ pressed }) => [styles.secondaryBtn, inactive && styles.inactive, pressed && styles.pressed, style]}
+    >
+      {loading ? (
+        <ActivityIndicator color={brand.coral} />
+      ) : (
+        <Text style={styles.secondaryBtnLabel} numberOfLines={1}>{label}</Text>
+      )}
+    </Pressable>
+  )
+}
+
+export function GhostBtn({ label, onPress, disabled = false, style }: Omit<ButtonProps, 'loading'>) {
+  return (
+    <Pressable
+      onPress={pressHandler(onPress)}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [styles.ghostBtn, disabled && styles.inactive, pressed && { opacity: 0.7 }, style]}
+    >
       <Text style={styles.ghostBtnLabel}>{label}</Text>
+    </Pressable>
+  )
+}
+
+/** Destructive and irreversible — never the default action on a screen. */
+export function DangerBtn({ label, onPress, disabled = false, loading = false, style }: ButtonProps) {
+  const inactive = disabled || loading
+  return (
+    <Pressable
+      onPress={pressHandler(onPress, 'warning')}
+      disabled={inactive}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: inactive, busy: loading }}
+      style={({ pressed }) => [styles.dangerBtn, inactive && styles.inactive, pressed && styles.pressed, style]}
+    >
+      {loading ? (
+        <ActivityIndicator color={brand.red} />
+      ) : (
+        <Text style={styles.dangerBtnLabel} numberOfLines={1}>{label}</Text>
+      )}
+    </Pressable>
+  )
+}
+
+/**
+ * Icon-only. The glyph is not a label, so `accessibilityLabel` is required —
+ * a screen reader announcing "button" and nothing else is a dead end. Drawn at
+ * 40pt with slop so the touch area still clears 44 (RULE-DS touch targets).
+ */
+export function IconBtn({ children, onPress, accessibilityLabel, active = false, disabled = false, style }: {
+  children: ReactNode
+  onPress: () => void
+  accessibilityLabel: string
+  active?: boolean
+  disabled?: boolean
+  style?: StyleProp<ViewStyle>
+}) {
+  return (
+    <Pressable
+      onPress={pressHandler(onPress)}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled, selected: active }}
+      hitSlop={hitSlop}
+      style={({ pressed }) => [
+        styles.iconBtn,
+        active ? styles.iconBtnActive : glassStyles.card,
+        disabled && styles.inactive,
+        pressed && styles.pressed,
+        style,
+      ]}
+    >
+      {children}
     </Pressable>
   )
 }
@@ -143,6 +244,71 @@ const tagPalette: Record<TagColor, { bg: string; fg: string }> = {
   violet: { bg: brand.lavenderSoft, fg: brand.lavender },
   green: { bg: brand.mintSoft, fg: brand.mint },
   neutral: { bg: glassFx.neutralChip, fg: neutral[500] },
+}
+
+/**
+ * Chip states (spec §7). `selected` is the only interactive one; the rest are
+ * read-only meaning. Selection is never colour alone — it also carries a check
+ * and a heavier weight, because roughly one man in twelve cannot tell the
+ * coral fill from the neutral one (RULE-DS colour-is-not-the-only-signal).
+ */
+export type ChipVariant = 'default' | 'selected' | 'disabled' | 'info' | 'positive' | 'warning'
+
+const chipPalette: Record<ChipVariant, { bg: string; fg: string; border?: string }> = {
+  default: { bg: glassFx.chip, fg: neutral[700], border: neutral[100] },
+  selected: { bg: brand.coral, fg: neutral[0], border: brand.coral },
+  disabled: { bg: neutral[50], fg: neutral[300], border: neutral[100] },
+  info: { bg: brand.lavenderSoft, fg: brand.lavender },
+  positive: { bg: brand.mintSoft, fg: brand.mint },
+  warning: { bg: brand.amberSoft, fg: brand.amber },
+}
+
+export function Chip({ label, variant = 'default', icon, onPress, accessibilityLabel, style }: {
+  label: string
+  variant?: ChipVariant
+  /** Emoji or short glyph rendered before the label. */
+  icon?: string
+  onPress?: () => void
+  accessibilityLabel?: string
+  style?: StyleProp<ViewStyle>
+}) {
+  const palette = chipPalette[variant]
+  const selected = variant === 'selected'
+  const disabled = variant === 'disabled'
+
+  const body = (
+    <View
+      style={[
+        styles.chip,
+        { backgroundColor: palette.bg, borderColor: palette.border ?? palette.bg },
+        style,
+      ]}
+    >
+      {icon ? <Text style={styles.chipIcon}>{icon}</Text> : null}
+      <Text style={[styles.chipLabel, { color: palette.fg }, selected && styles.chipLabelSelected]} numberOfLines={1}>
+        {selected ? `✓ ${label}` : label}
+      </Text>
+    </View>
+  )
+
+  if (!onPress) return body
+
+  return (
+    <Pressable
+      onPress={() => {
+        haptic('select')
+        onPress()
+      }}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ selected, disabled }}
+      hitSlop={hitSlop}
+      style={({ pressed }) => [pressed && styles.pressed]}
+    >
+      {body}
+    </Pressable>
+  )
 }
 
 // Canonical tag keys live in mock data; display label is locale-mapped here.
@@ -248,29 +414,87 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
   },
   primaryBtnLabel: {
+    ...type.body,
     color: neutral[0],
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  secondaryBtn: {
+    height: 52,
+    borderRadius: radius.button,
+    borderWidth: 1.5,
+    borderColor: brand.coral,
+    backgroundColor: glassFx.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[4],
+  },
+  secondaryBtnLabel: {
+    ...type.body,
+    color: brand.coral,
+    fontWeight: '700',
+  },
+  dangerBtn: {
+    height: 52,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: brand.redSoft,
+    backgroundColor: brand.redSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[4],
+  },
+  dangerBtnLabel: {
+    ...type.body,
+    color: brand.red,
+    fontWeight: '700',
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnActive: {
+    backgroundColor: brand.coralSoft,
+    borderWidth: 1,
+    borderColor: brand.coral,
   },
   ghostBtn: {
-    height: 48,
+    height: touchTarget.min,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ghostBtnLabel: {
+    ...type.label,
     color: neutral[500],
-    fontSize: 15,
-    fontWeight: '500',
   },
+  pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
+  inactive: { opacity: 0.45 },
   tag: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.pill,
   },
   tagLabel: {
-    fontSize: 11,
+    ...type.caption,
     fontWeight: '600',
   },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 32,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  chipIcon: { fontSize: 13 },
+  chipLabel: {
+    ...type.label,
+  },
+  chipLabelSelected: { fontWeight: '700' },
   dotsRow: {
     flexDirection: 'row',
     gap: 6,
@@ -302,8 +526,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...type.body,
+    fontWeight: '700',
     color: neutral[900],
   },
   avatar: {
@@ -329,8 +553,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   toastLabel: {
+    ...type.label,
     color: neutral[0],
-    fontSize: 13,
-    fontWeight: '600',
   },
 })
