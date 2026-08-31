@@ -92,4 +92,8 @@ export const styles = StyleSheet.create({
   summarySecondary: { fontSize: 10, fontWeight: '600', color: neutral[500], flexShrink: 1 },
   summaryOptional: { fontSize: 10, color: neutral[300] },
   goBtn: { alignSelf: 'stretch' },
+  staleWarning: { fontSize: 13, color: colors.brand.amber, lineHeight: 19, marginBottom: spacing[3] },
+  summaryOverBudget: { fontSize: 12, color: colors.brand.red, marginTop: 2 },
+  regenerateBtn: { alignItems: 'center', paddingVertical: spacing[3], marginTop: spacing[2] },
+  regenerateLabel: { fontSize: 14, fontWeight: '600', color: colors.neutral[500] },
 })

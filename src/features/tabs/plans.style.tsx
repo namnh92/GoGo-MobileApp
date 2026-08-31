@@ -36,4 +36,5 @@ export const styles = StyleSheet.create({
   pastDate: { fontSize: 12, color: neutral[500], marginTop: 2 },
   pastMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: 6 },
   pastRating: { fontSize: 12, fontWeight: '600', color: brand.coral },
+  deviceOnlyNote: { fontSize: 12, color: colors.neutral[500], marginTop: spacing[5], lineHeight: 18 },
 })

@@ -33,7 +33,6 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing[2],
   },
-  mapLabel: { fontSize: 13, fontWeight: '600', color: brand.mint },
   actions: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
   dirBtn: {
     flex: 1,

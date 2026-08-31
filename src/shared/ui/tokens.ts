@@ -122,5 +122,12 @@ export const motion = {
 
 export const touchTarget = { min: 44 } as const
 
+/**
+ * Some controls are drawn smaller than `touchTarget.min` on purpose — a 28pt
+ * lock toggle, a 36pt back button. Give those a slop so the *touch* area still
+ * clears 44pt without changing the visual size.
+ */
+export const hitSlop = { top: 8, bottom: 8, left: 8, right: 8 } as const
+
 export type BrandColor = keyof typeof colors.brand
 export type NeutralColor = keyof typeof colors.neutral

@@ -1,44 +1,74 @@
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { DEMO_PLAN_ID, unsplashUrl } from '@/data/mockData'
-import { useCatalogPlaces } from '@/shared/api/mock'
-import { useBookmarkStore } from '@/shared/store/bookmarkStore'
-import { useImportStore } from '@/shared/store/importStore'
-import { usePriceFormatter } from '@/shared/pricing'
-import { useLocaleContent } from '@/shared/i18n'
-import { Atmosphere, GlassCard, RemoteImage, TagChip, useTabDockInset } from '@/shared/ui/primitives'
-import { spacing } from '@/shared/ui/tokens'
+
+import {
+  areaLabel,
+  formatDistance,
+  formatMinuteOfDay,
+  placePriceLabel,
+  useSavedPlaces,
+  useToggleSaved,
+  type PlaceCard,
+} from '@/shared/api'
+import { useSession } from '@/shared/providers/session-provider'
+import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
+import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { Atmosphere, GhostBtn, GlassCard, TagChip, useTabDockInset } from '@/shared/ui/primitives'
+import { hitSlop, spacing } from '@/shared/ui/tokens'
+
 import { styles } from './saved.style'
 
 type ViewMode = 'list' | 'map'
+type SavedFilter = 'all' | 'places' | 'plans'
 
-// Mock marker positions (percent of map area) — a real map SDK replaces this.
-const markerPositions = [
-  { left: '30%', top: '32%' },
-  { left: '58%', top: '48%' },
-  { left: '44%', top: '68%' },
-  { left: '72%', top: '26%' },
-] as const
+const FILTERS: readonly SavedFilter[] = ['all', 'places', 'plans']
+
+/** Saved places that carry coordinates, as pins for the map adapter. */
+function toPins(places: PlaceCard[]): MapPin[] {
+  return places
+    .filter(place => place.lat != null && place.lng != null)
+    .map(place => ({
+      id: place.id,
+      lat: place.lat as number,
+      lng: place.lng as number,
+      title: place.name,
+    }))
+}
 
 export default function SavedScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const content = useLocaleContent()
-  const { stopPrice } = usePriceFormatter()
-  const query = useCatalogPlaces()
-  const bookmarked = useBookmarkStore(s => s.bookmarked)
-  const [filterIndex, setFilterIndex] = useState(0)
-  const [view, setView] = useState<ViewMode>('list')
-  const [selectedPlace, setSelectedPlace] = useState(0)
-  const [savedIdx, setSavedIdx] = useState<number[]>([0, 1, 2, 3])
-  const importedPlaces = useImportStore(s => s.importedPlaces)
-  const places = [...importedPlaces, ...(query.data ?? []).filter(p => bookmarked.includes(p.title))]
-  const selected = places[selectedPlace]
+  const { status } = useSession()
   const dockInset = useTabDockInset()
+
+  const canSave = status === 'user'
+  const saved = useSavedPlaces({ enabled: canSave })
+  const toggleSaved = useToggleSaved()
+
+  const [filter, setFilter] = useState<SavedFilter>('all')
+  const [view, setView] = useState<ViewMode>('list')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const places = useMemo(() => (filter === 'plans' ? [] : saved.places), [filter, saved.places])
+  const pins = useMemo(() => toPins(places), [places])
+  const selected = places.find(place => place.id === selectedId) ?? places[0]
+
+  function openPlace(place: PlaceCard) {
+    router.push(`/places/${place.id}`)
+  }
+
+  function hoursLabel(place: PlaceCard): string {
+    if (place.openNow) {
+      const closes = formatMinuteOfDay(place.closesAtMinute)
+      return closes ? t('search.openUntil', { time: closes }) : t('common.open')
+    }
+    return t('common.closed')
+  }
 
   return (
     <Atmosphere>
@@ -49,48 +79,91 @@ export default function SavedScreen() {
             onPress={() => router.push('/places/import')}
             accessibilityRole="button"
             accessibilityLabel={t('saved.addPlace')}
+            hitSlop={hitSlop}
             style={styles.addPlaceBtn}
           >
             <Text style={styles.addPlaceLabel}>＋</Text>
           </Pressable>
           {/* List/Map toggle — filters survive the switch */}
           <View style={styles.toggle}>
-            {(['list', 'map'] as ViewMode[]).map(m => (
-              <Pressable key={m} onPress={() => setView(m)} style={[styles.toggleBtn, view === m && styles.toggleBtnActive]}>
-                <Text style={[styles.toggleLabel, view === m && styles.toggleLabelActive]}>
-                  {t(m === 'list' ? 'saved.list' : 'saved.map')}
+            {(['list', 'map'] as ViewMode[]).map(mode => (
+              <Pressable
+                key={mode}
+                accessibilityRole="button"
+                onPress={() => setView(mode)}
+                hitSlop={hitSlop}
+                style={[styles.toggleBtn, view === mode && styles.toggleBtnActive]}
+              >
+                <Text style={[styles.toggleLabel, view === mode && styles.toggleLabelActive]}>
+                  {t(mode === 'list' ? 'saved.list' : 'saved.map')}
                 </Text>
               </Pressable>
             ))}
           </View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {content.savedFilters.map((f, i) => (
-            <Pressable key={f} onPress={() => setFilterIndex(i)} style={[styles.filterBtn, filterIndex === i && styles.filterBtnActive]}>
-              <Text style={[styles.filterLabel, filterIndex === i && styles.filterLabelActive]}>{f}</Text>
+          {FILTERS.map(option => (
+            <Pressable
+              key={option}
+              onPress={() => setFilter(option)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filter === option }}
+              style={[styles.filterBtn, filter === option && styles.filterBtnActive]}
+            >
+              <Text style={[styles.filterLabel, filter === option && styles.filterLabelActive]}>
+                {t(`saved.filter.${option}`)}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
       </View>
 
-      {view === 'list' ? (
+      {/* Saving requires an account: a guest token gets 403 USER_ONLY. */}
+      {!canSave ? (
+        <EmptyState
+          title={t('saved.signInTitle')}
+          body={t('saved.signInBody')}
+          action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in?next=saved')} />}
+        />
+      ) : saved.isPending ? (
+        <LoadingState />
+      ) : saved.isError ? (
+        <ErrorState error={saved.error} onRetry={() => void saved.refetch()} />
+      ) : places.length === 0 ? (
+        <EmptyState
+          title={t('saved.emptyTitle')}
+          body={t('saved.emptyBody')}
+          action={<GhostBtn label={t('saved.browse')} onPress={() => router.push('/places/search')} />}
+        />
+      ) : view === 'list' ? (
         <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[2], paddingBottom: dockInset }}>
           <View style={styles.grid}>
-            {places.map(item => (
-              <Pressable key={item.title} onPress={() => router.push('/places/sakura-omakase')} style={{ width: '48%' }}>
+            {places.map(place => (
+              <Pressable
+                key={place.id}
+                accessibilityRole="button"
+                onPress={() => openPlace(place)}
+                style={{ width: '48%' }}
+              >
                 <GlassCard style={[styles.gridCard, { width: '100%' }]}>
                   <View style={styles.gridThumbWrap}>
-                    <RemoteImage uri={unsplashUrl(item.img, 300, 240)} style={StyleSheet.absoluteFill} />
-                    <View style={styles.score}>
-                      <Text style={styles.scoreLabel}>♥ {item.score}</Text>
-                    </View>
+                    <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
+                    {place.rating != null ? (
+                      <View style={styles.score}>
+                        <Text style={styles.scoreLabel}>♥ {place.rating.toFixed(1)}</Text>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={{ padding: spacing[3] }}>
-                    <Text style={styles.gridTitle}>{item.title}</Text>
-                    <Text style={styles.gridMeta}>{item.priceK > 0 ? `${item.area} · ${stopPrice(item.priceK)}` : item.area}</Text>
-                    <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                      <TagChip label={item.tags[0]} />
-                    </View>
+                    <Text style={styles.gridTitle} numberOfLines={1}>{place.name}</Text>
+                    <Text style={styles.gridMeta} numberOfLines={1}>
+                      {[areaLabel(place), placePriceLabel(place)].filter(Boolean).join(' · ')}
+                    </Text>
+                    {place.reasonCodes[0] ? (
+                      <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                        <TagChip label={t(`search.reason.${place.reasonCodes[0]}`, { defaultValue: place.reasonCodes[0] })} />
+                      </View>
+                    ) : null}
                   </View>
                 </GlassCard>
               </Pressable>
@@ -99,69 +172,55 @@ export default function SavedScreen() {
         </ScrollView>
       ) : (
         <View style={styles.mapRoot}>
-          {/* Mock map canvas */}
-          <View style={styles.mapCanvas}>
-            <View style={[styles.road, { left: '15%', top: 0, bottom: 0, width: 8, transform: [{ rotate: '12deg' }] }]} />
-            <View style={[styles.road, { left: '55%', top: 0, bottom: 0, width: 12, transform: [{ rotate: '-6deg' }] }]} />
-            <View style={[styles.road, { top: '42%', left: 0, right: 0, height: 8, transform: [{ rotate: '2deg' }] }]} />
-          </View>
-
-          {places.slice(0, markerPositions.length).map((p, i) => {
-            const isSelected = selectedPlace === i
-            return (
-              <Pressable
-                key={p.title}
-                onPress={() => setSelectedPlace(i)}
-                accessibilityLabel={`${p.title}${p.open ? '' : ` — ${t('common.closed')}`}`}
-                style={[styles.marker, markerPositions[i], isSelected && styles.markerSelected, !p.open && !isSelected && styles.markerClosed]}
-              >
-                <Text style={isSelected ? styles.markerPrice : styles.markerEmoji}>
-                  {isSelected ? `${p.priceK}k` : p.category}
-                </Text>
-              </Pressable>
-            )
-          })}
-
-          <Pressable style={styles.searchArea}>
-            <Text style={styles.searchAreaLabel}>{t('saved.searchArea')}</Text>
-          </Pressable>
-
-          {/* Bottom sheet: marker ↔ card selection stays in sync */}
-          <GlassCard strong style={[styles.sheet, { bottom: dockInset }]}>
-            <RemoteImage uri={unsplashUrl(selected.img, 200, 200)} style={styles.sheetThumb} />
-            <View style={{ flex: 1, padding: spacing[3] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2] }}>
-                <Text style={styles.sheetTitle} numberOfLines={1}>{selected.title}</Text>
-                <Pressable
-                  onPress={() => setSavedIdx(prev => (prev.includes(selectedPlace) ? prev.filter(x => x !== selectedPlace) : [...prev, selectedPlace]))}
-                  accessibilityLabel={t('placeDetail.save')}
-                >
-                  <Text style={{ fontSize: 15 }}>{savedIdx.includes(selectedPlace) ? '🔖' : '📑'}</Text>
-                </Pressable>
+          <MapCanvas
+            pins={pins}
+            onSelect={setSelectedId}
+            style={styles.mapCanvas}
+            fallback={
+              <View style={styles.mapUnavailable}>
+                <Text style={styles.mapUnavailableLabel}>{t('saved.mapUnavailable')}</Text>
+                <GhostBtn label={t('saved.list')} onPress={() => setView('list')} />
               </View>
-              <Text>
-                <Text style={selected.open ? styles.sheetStatusOpen : styles.sheetStatusClosed}>
-                  {t(selected.open ? 'common.open' : 'common.closed')}
+            }
+          />
+
+          {selected ? (
+            <GlassCard strong style={[styles.sheet, { bottom: dockInset }]}>
+              <PlacePhoto placeId={selected.id} name={selected.name} uri={selected.photoUrl} style={styles.sheetThumb} />
+              <View style={{ flex: 1, padding: spacing[3] }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2] }}>
+                  <Text style={styles.sheetTitle} numberOfLines={1}>{selected.name}</Text>
+                  {/* Everything in this list is already saved, so the only
+                      action the bookmark offers is removal. */}
+                  <Pressable
+                    onPress={() => toggleSaved.mutate({ type: 'place', id: selected.id, saved: true })}
+                    accessibilityRole="togglebutton"
+                    accessibilityState={{ checked: true }}
+                    accessibilityLabel={t('saved.remove')}
+                  >
+                    <Text style={{ fontSize: 15 }}>🔖</Text>
+                  </Pressable>
+                </View>
+                <Text style={selected.openNow ? styles.sheetStatusOpen : styles.sheetStatusClosed}>
+                  {hoursLabel(selected)}
                 </Text>
-                <Text style={styles.sheetMeta}> · {selected.area} · {selected.distanceKm} km</Text>
-              </Text>
-              <Text style={styles.sheetMeta} numberOfLines={1}>{stopPrice(selected.priceK)}</Text>
-              <View style={styles.sheetActions}>
-                <Pressable onPress={() => router.push('/places/sakura-omakase')} style={styles.sheetBtn}>
-                  <Text style={styles.sheetBtnLabel} numberOfLines={1}>{t('common.details')}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => router.push(`/plans/${DEMO_PLAN_ID}`)}
-                  disabled={!selected.open}
-                  style={[styles.sheetBtn, styles.sheetBtnGrow, selected.open ? styles.sheetAddBtn : styles.sheetAddDisabled]}
-                >
-                  <Text style={selected.open ? styles.sheetAddLabel : styles.sheetAddLabelDisabled} numberOfLines={1}>
-                    {t('placeDetail.addToPlan')}
-                  </Text>
-                </Pressable>
+                <Text style={styles.sheetMeta} numberOfLines={1}>
+                  {[areaLabel(selected), formatDistance(selected.distanceM)].filter(Boolean).join(' · ')}
+                </Text>
+                <Text style={styles.sheetMeta} numberOfLines={1}>{placePriceLabel(selected) ?? ''}</Text>
+                <View style={styles.sheetActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => openPlace(selected)}
+                    hitSlop={hitSlop}
+                    style={styles.sheetBtn}
+                  >
+                    <Text style={styles.sheetBtnLabel} numberOfLines={1}>{t('common.details')}</Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          </GlassCard>
+            </GlassCard>
+          ) : null}
         </View>
       )}
     </Atmosphere>

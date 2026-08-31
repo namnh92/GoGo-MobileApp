@@ -45,4 +45,9 @@ export const styles = StyleSheet.create({
     marginTop: spacing[6],
     marginBottom: spacing[3],
   },
+  error: {
+    fontSize: 13,
+    color: colors.brand.red,
+    marginTop: spacing[4],
+  },
 })

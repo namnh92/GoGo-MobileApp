@@ -8,7 +8,11 @@ const envSchema = z.object({
   // environment this is.
   EXPO_PUBLIC_ENV: z.enum(['dev', 'stag', 'prod']).default('dev'),
   EXPO_PUBLIC_API_URL: z.url(),
-  EXPO_PUBLIC_WEB_BASE_URL: z.url().default('https://gogo.app'),
+  // No default. The share host differs per environment (go-dev / go-stag /
+  // go.gogo.id.vn) and a link built against the wrong one cannot verify
+  // against that host's association files, so a missing value has to fail the
+  // way a missing API URL does rather than silently pick one.
+  EXPO_PUBLIC_WEB_BASE_URL: z.url(),
 })
 
 const parsed = envSchema.safeParse({

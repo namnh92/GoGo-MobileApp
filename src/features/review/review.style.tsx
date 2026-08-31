@@ -25,4 +25,6 @@ export const styles = StyleSheet.create({
   tagLabelActive: { color: neutral[0] },
   inputCard: { padding: spacing[4], marginBottom: spacing[4] },
   input: { minHeight: 80, fontSize: 14, color: neutral[900], textAlignVertical: 'top' },
+  moderationNote: { fontSize: 12, color: colors.neutral[500], lineHeight: 18, marginTop: spacing[3] },
+  error: { fontSize: 13, color: colors.brand.red, marginTop: spacing[3] },
 })

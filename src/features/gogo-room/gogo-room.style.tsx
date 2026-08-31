@@ -44,6 +44,12 @@ export const styles = StyleSheet.create({
   },
   title: { fontSize: 26, fontWeight: '800', color: neutral[900], textAlign: 'center' },
   body: { fontSize: 15, color: neutral[500], textAlign: 'center', marginTop: spacing[2], marginBottom: spacing[6], lineHeight: 22 },
+  error: {
+    fontSize: 13,
+    color: colors.brand.red,
+    textAlign: 'center',
+    marginTop: spacing[3],
+  },
   chipsCard: {
     padding: spacing[4],
     marginBottom: spacing[4],

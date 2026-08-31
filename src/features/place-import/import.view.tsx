@@ -1,32 +1,41 @@
-import { useMutation } from '@tanstack/react-query'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { z } from 'zod'
 
-import { unsplashUrl } from '@/data/mockData'
-import { mockApi, type PlaceImportResult } from '@/shared/api/mock'
+import {
+  isApiError,
+  usePlaceSubmission,
+  useResolveGoogleMapsLink,
+  useSubmitPlace,
+  useTaxonomies,
+  type ResolveLinkResult,
+} from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { useImportStore } from '@/shared/store/importStore'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn, RemoteImage } from '@/shared/ui/primitives'
+import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { Atmosphere, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
+
 import { styles } from './import.style'
 
-// Accepted Google Maps link shapes (SRS FR-PLACE-001).
+// Accepted Google Maps link shapes (SRS FR-PLACE-001). The server validates
+// again — this only keeps an obviously wrong paste from costing a round trip.
 const mapsUrlSchema = z
   .string()
   .trim()
   .url()
+  .max(2000)
   .refine(value => {
     try {
-      const host = new URL(value).hostname.replace(/^www\./, '')
+      const parsed = new URL(value)
+      const host = parsed.hostname.replace(/^www\./, '')
       return (
         host === 'maps.google.com' ||
         host === 'maps.app.goo.gl' ||
         host === 'goo.gl' ||
-        (host === 'google.com' && new URL(value).pathname.startsWith('/maps')) ||
+        (host === 'google.com' && parsed.pathname.startsWith('/maps')) ||
         host.endsWith('.google.com')
       )
     } catch {
@@ -34,83 +43,129 @@ const mapsUrlSchema = z
     }
   })
 
-const DEMO_URLS: Record<string, string> = {
-  '1': 'https://maps.app.goo.gl/banhmi362',
-  fail: 'https://maps.app.goo.gl/failcase',
-}
+type Candidate = NonNullable<ResolveLinkResult['candidate']>
+
+const MAX_NOTE = 1000
+const MAX_VIBES = 3
+/** Price inputs are typed in thousands of dong; the API wants minor units. */
+const PRICE_MULTIPLIER = 1000
 
 export default function PlaceImportScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { demo } = useLocalSearchParams<{ demo?: string }>()
-  const addImportedPlace = useImportStore(s => s.addImportedPlace)
-  const demoUrl = demo ? DEMO_URLS[demo] : undefined
-  const [url, setUrl] = useState(demoUrl ?? '')
+  const { roomId } = useLocalSearchParams<{ roomId?: string }>()
+
+  const [url, setUrl] = useState('')
   const [invalid, setInvalid] = useState(false)
-  const [added, setAdded] = useState(false)
+  const [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState<string | null>(null)
 
-  const verify = useMutation({
-    mutationFn: mockApi.verifyPlaceImport,
-    onSuccess: (result: PlaceImportResult) => {
-      if (result.status === 'verified') track('place_import_verified', { place: result.place?.name ?? '' })
-      else track('place_import_rejected', { reason: result.reasonCode ?? '' })
-    },
-  })
+  // Optional metadata (PI-APP-004) — everything here may be left blank.
+  const [category, setCategory] = useState<string | null>(null)
+  const [vibes, setVibes] = useState<string[]>([])
+  const [priceMin, setPriceMin] = useState('')
+  const [priceMax, setPriceMax] = useState('')
+  const [note, setNote] = useState('')
 
-  function submit(value: string) {
-    setAdded(false)
-    const parsed = mapsUrlSchema.safeParse(value)
+  const taxonomies = useTaxonomies({ kinds: 'category,mood' })
+  const resolve = useResolveGoogleMapsLink()
+  const submit = useSubmitPlace()
+  // A proposal is queued for moderation, so its status is polled after sending.
+  const submission = usePlaceSubmission(submit.data?.submissionId)
+
+  function taxonomyOptions(kind: string) {
+    return (taxonomies.data?.kinds?.[kind] ?? []).map(entry => ({
+      key: entry.key ?? '',
+      label: entry.labels?.[i18n.language] ?? entry.labels?.vi ?? entry.key ?? '',
+    }))
+  }
+
+  function toggleVibe(key: string) {
+    setVibes(prev => {
+      if (prev.includes(key)) return prev.filter(x => x !== key)
+      return prev.length < MAX_VIBES ? [...prev, key] : prev
+    })
+  }
+
+  /** Only sends what the user actually filled in. */
+  function metadata() {
+    const min = Number(priceMin.replace(',', '.'))
+    const max = Number(priceMax.replace(',', '.'))
+    const hasMin = Number.isFinite(min) && min > 0
+    const hasMax = Number.isFinite(max) && max > 0
+    return {
+      ...(category ? { category } : {}),
+      ...(vibes.length > 0 ? { vibes } : {}),
+      ...(hasMin || hasMax
+        ? {
+            estimatedPrice: {
+              ...(hasMin ? { min: Math.round(min * PRICE_MULTIPLIER) } : {}),
+              ...(hasMax ? { max: Math.round(max * PRICE_MULTIPLIER) } : {}),
+              unit: 'per_person' as const,
+            },
+          }
+        : {}),
+      ...(note.trim() ? { note: note.trim().slice(0, MAX_NOTE) } : {}),
+    }
+  }
+
+  const result = resolve.data
+  const candidate = result?.candidate as Candidate | undefined
+
+  function onResolve() {
+    const parsed = mapsUrlSchema.safeParse(url)
     if (!parsed.success) {
       setInvalid(true)
       return
     }
     setInvalid(false)
+    setSelectedGooglePlaceId(null)
+    submit.reset()
     track('place_import_submitted')
-    verify.mutate(parsed.data)
+
+    resolve.mutate(
+      { url: parsed.data, ...(roomId ? { roomId } : {}) },
+      {
+        onSuccess: resolved => {
+          if (resolved.status === 'RESOLVED') track('place_import_verified', { placeId: resolved.candidate?.googlePlaceId ?? '' })
+          else track('place_import_rejected', { reason: resolved.status ?? 'UNRESOLVED' })
+        },
+      },
+    )
   }
 
-  // Demo/deep-link: gogo://places/import?demo=1 (verified) | demo=fail (rejected)
-  useEffect(() => {
-    if (demoUrl) {
-      track('place_import_submitted')
-      verify.mutate(demoUrl)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demoUrl])
-
-  function addToSaved() {
-    const place = verify.data?.place
-    if (!place) return
-    addImportedPlace({
-      title: place.name,
-      area: place.area,
-      priceK: 0,
-      distanceKm: 0,
-      category: '📍',
-      open: true,
-      tags: ['Mới thêm'],
-      score: place.rating.toFixed(1),
-      img: place.img,
-    })
-    track('place_import_added', { place: place.name })
-    setAdded(true)
+  function onSubmitPlace(googlePlaceId: string) {
+    submit.mutate(
+      { googlePlaceId, ...(roomId ? { roomId } : {}), ...metadata() },
+      {
+        onSuccess: submission => {
+          track('place_import_added', { placeId: submission.placeId ?? googlePlaceId })
+        },
+      },
+    )
   }
 
   function reset() {
-    verify.reset()
+    resolve.reset()
+    submit.reset()
     setUrl('')
-    setAdded(false)
+    setSelectedGooglePlaceId(null)
+    setCategory(null)
+    setVibes([])
+    setPriceMin('')
+    setPriceMax('')
+    setNote('')
   }
-
-  const result = verify.data
 
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
         <BackHeader onBack={() => router.back()} />
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.title}>{t('placeImport.title')}</Text>
         <Text style={styles.body}>{t('placeImport.body')}</Text>
 
@@ -125,51 +180,252 @@ export default function PlaceImportScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
+          accessibilityLabel={t('placeImport.title')}
           style={[styles.input, invalid && styles.inputError]}
         />
         {invalid && <Text style={styles.errorLabel}>{t('placeImport.invalidUrl')}</Text>}
 
-        {verify.isPending ? (
+        {resolve.isPending ? (
           <View style={styles.verifyingRow}>
             <ActivityIndicator color={colors.brand.coral} />
             <Text style={styles.verifyingLabel}>{t('placeImport.verifying')}</Text>
           </View>
         ) : (
-          <PrimaryBtn label={t('placeImport.verify')} onPress={() => submit(url)} disabled={url.trim() === ''} style={styles.verifyBtn} />
+          <PrimaryBtn
+            label={t('placeImport.verify')}
+            onPress={onResolve}
+            disabled={url.trim() === ''}
+            style={styles.verifyBtn}
+          />
         )}
 
-        {result?.status === 'verified' && result.place && (
+        {resolve.isError ? (
+          <View style={styles.rejectedCard}>
+            <Text style={styles.rejectedTitle}>{t('placeImport.rejectedTitle')}</Text>
+            <Text style={styles.rejectedReason}>
+              {isApiError(resolve.error) && resolve.error.status === 429
+                ? t('placeImport.rateLimited')
+                : t('common.errorBody')}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={reset}
+              style={styles.tryAgain}
+            >
+              <Text style={styles.tryAgainLabel}>{t('placeImport.tryAgain')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* Already in the catalog — send the user to it instead of creating a
+            duplicate submission. */}
+        {result?.status === 'ALREADY_EXISTS' ? (
           <GlassCard style={styles.resultCard}>
-            <RemoteImage uri={unsplashUrl(result.place.img, 600, 280)} style={styles.resultImage} />
+            <View style={styles.resultBody}>
+              <Text style={styles.placeName}>{candidate?.name ?? t('placeImport.existsTitle')}</Text>
+              <Text style={styles.placeAddress}>{t('placeImport.existsBody')}</Text>
+              {result.existingPlaceId ? (
+                <PrimaryBtn
+                  label={t('placeImport.openPlace')}
+                  onPress={() => router.replace(`/places/${result.existingPlaceId}`)}
+                  style={styles.addBtn}
+                />
+              ) : null}
+            </View>
+          </GlassCard>
+        ) : null}
+
+        {/* The link matched more than one place; the user picks which. */}
+        {result?.status === 'CANDIDATE_SELECTION' ? (
+          <View style={styles.resultCard}>
+            <Text style={styles.candidateTitle}>{t('placeImport.pickCandidate')}</Text>
+            {(result.candidates ?? []).map(option => {
+              const active = selectedGooglePlaceId === option.googlePlaceId
+              return (
+                <Pressable
+                  key={option.googlePlaceId}
+                  onPress={() => setSelectedGooglePlaceId(option.googlePlaceId ?? null)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.candidateRow, active && styles.candidateRowActive]}
+                >
+                  <Text style={styles.candidateName}>{option.name}</Text>
+                  <Text style={styles.candidateAddress}>{option.address}</Text>
+                </Pressable>
+              )
+            })}
+            <PrimaryBtn
+              label={t('placeImport.submit')}
+              onPress={() => selectedGooglePlaceId && onSubmitPlace(selectedGooglePlaceId)}
+              disabled={!selectedGooglePlaceId}
+              loading={submit.isPending}
+              style={styles.addBtn}
+            />
+          </View>
+        ) : null}
+
+        {result?.status === 'RESOLVED' && candidate ? (
+          <GlassCard style={styles.resultCard}>
+            <PlacePhoto
+              placeId={candidate.googlePlaceId ?? url}
+              name={candidate.name}
+              uri={null}
+              style={styles.resultImage}
+            />
             <View style={styles.resultBody}>
               <View style={styles.verifiedBadge}>
                 <Text style={styles.verifiedBadgeLabel}>{t('placeImport.verifiedBadge')}</Text>
               </View>
-              <Text style={styles.placeName}>{result.place.name}</Text>
-              <Text style={styles.placeAddress}>{result.place.address}</Text>
-              <Text style={styles.placeReviews}>
-                {t('placeImport.reviews', { rating: result.place.rating, n: result.place.reviewCount.toLocaleString('vi-VN') })}
-              </Text>
-              {added ? (
-                <Text style={styles.addedLabel}>{t('placeImport.added')}</Text>
+              <Text style={styles.placeName}>{candidate.name}</Text>
+              <Text style={styles.placeAddress}>{candidate.address}</Text>
+
+              {candidate.googleRating != null ? (
+                <Text style={styles.placeReviews}>
+                  {t('placeImport.reviews', {
+                    rating: candidate.googleRating,
+                    n: (candidate.googleRatingCount ?? 0).toLocaleString(i18n.language),
+                  })}
+                </Text>
+              ) : null}
+
+              {/* Google's business status is a fact worth surfacing: submitting a
+                  closed place wastes a moderator's time and the user's. */}
+              {candidate.businessStatus && candidate.businessStatus !== 'OPERATIONAL' ? (
+                <Text style={styles.warning}>
+                  {t(`placeImport.businessStatus.${candidate.businessStatus}`, {
+                    defaultValue: t('placeImport.businessStatusUnknown'),
+                  })}
+                </Text>
+              ) : null}
+
+              {/* Optional metadata (PI-APP-004) — moderators get better context
+                  when the submitter fills it in, and nothing here is required. */}
+              {!submit.isSuccess ? (
+                <View style={styles.metaSection}>
+                  <Text style={styles.metaTitle}>{t('placeImport.metaTitle')}</Text>
+
+                  <Text style={styles.metaLabel}>{t('placeImport.metaCategory')}</Text>
+                  <View style={styles.chipRow}>
+                    {taxonomyOptions('category').map(option => {
+                      const active = category === option.key
+                      return (
+                        <Pressable
+                          key={option.key}
+                          onPress={() => setCategory(active ? null : option.key)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          style={[styles.chip, active && styles.chipActive]}
+                        >
+                          <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{option.label}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+
+                  <Text style={styles.metaLabel}>{t('placeImport.metaVibes', { max: MAX_VIBES })}</Text>
+                  <View style={styles.chipRow}>
+                    {taxonomyOptions('mood').map(option => {
+                      const active = vibes.includes(option.key)
+                      return (
+                        <Pressable
+                          key={option.key}
+                          onPress={() => toggleVibe(option.key)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          style={[styles.chip, active && styles.chipActive]}
+                        >
+                          <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{option.label}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+
+                  <Text style={styles.metaLabel}>{t('placeImport.metaPrice')}</Text>
+                  <View style={styles.priceRow}>
+                    <TextInput
+                      value={priceMin}
+                      onChangeText={setPriceMin}
+                      placeholder={t('search.priceFrom')}
+                      placeholderTextColor={colors.neutral[300]}
+                      keyboardType="numeric"
+                      style={[styles.input, styles.priceInput]}
+                    />
+                    <TextInput
+                      value={priceMax}
+                      onChangeText={setPriceMax}
+                      placeholder={t('search.priceTo')}
+                      placeholderTextColor={colors.neutral[300]}
+                      keyboardType="numeric"
+                      style={[styles.input, styles.priceInput]}
+                    />
+                  </View>
+
+                  <TextInput
+                    value={note}
+                    onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
+                    placeholder={t('placeImport.metaNote')}
+                    placeholderTextColor={colors.neutral[300]}
+                    multiline
+                    style={[styles.input, styles.noteInput]}
+                  />
+                </View>
+              ) : null}
+
+              {submit.isSuccess ? (
+                <View>
+                  <Text style={styles.addedLabel}>
+                    {submit.data?.status === 'ALREADY_EXISTS'
+                      ? t('placeImport.existsBody')
+                      : t('placeImport.pendingReview')}
+                  </Text>
+                  {/* Polled until a moderator decides. */}
+                  {submission.data?.status ? (
+                    <Text style={styles.submissionStatus}>
+                      {t(`placeImport.submissionStatus.${submission.data.status}`, {
+                        defaultValue: submission.data.status,
+                      })}
+                    </Text>
+                  ) : null}
+                  {submission.data?.status === 'approved' && submission.data.placeId ? (
+                    <GhostBtn
+                      label={t('placeImport.openPlace')}
+                      onPress={() => router.replace(`/places/${submission.data?.placeId}`)}
+                    />
+                  ) : null}
+                </View>
               ) : (
-                <PrimaryBtn label={t('placeImport.addToSaved')} onPress={addToSaved} style={styles.addBtn} />
+                <PrimaryBtn
+                  label={t('placeImport.submit')}
+                  onPress={() => candidate.googlePlaceId && onSubmitPlace(candidate.googlePlaceId)}
+                  loading={submit.isPending}
+                  disabled={!candidate.googlePlaceId}
+                  style={styles.addBtn}
+                />
               )}
+
+              {submit.isError ? <Text style={styles.errorLabel}>{t('placeImport.submitFailed')}</Text> : null}
+
+              {/* Provider data must be shown with its attribution. */}
+              {(candidate.attributions ?? []).map(attribution => (
+                <Text key={attribution} style={styles.attribution}>
+                  {attribution}
+                </Text>
+              ))}
             </View>
           </GlassCard>
-        )}
+        ) : null}
 
-        {result?.status === 'rejected' && (
+        {result?.status === 'UNRESOLVED' ? (
           <View style={styles.rejectedCard}>
             <Text style={styles.rejectedTitle}>{t('placeImport.rejectedTitle')}</Text>
             <Text style={styles.rejectedReason}>
-              {t(`placeImport.reason.${result.reasonCode ?? 'NOT_FOUND'}`)}
+              {t(`placeImport.reason.${result.reasonCodes?.[0] ?? 'NOT_FOUND'}`, {
+                defaultValue: t('placeImport.reason.NOT_FOUND'),
+              })}
             </Text>
-            <Pressable onPress={reset} style={styles.tryAgain}>
-              <Text style={styles.tryAgainLabel}>{t('placeImport.tryAgain')}</Text>
-            </Pressable>
+            <GhostBtn label={t('placeImport.tryAgain')} onPress={reset} />
           </View>
-        )}
+        ) : null}
       </ScrollView>
     </Atmosphere>
   )

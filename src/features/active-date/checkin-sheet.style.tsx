@@ -115,4 +115,5 @@ export const styles = StyleSheet.create({
   saveBtn: { alignSelf: 'stretch' },
   skipBtn: { alignItems: 'center', paddingVertical: spacing[3] },
   skipLabel: { fontSize: 14, fontWeight: '500', color: neutral[500] },
+  unavailableNote: { fontSize: 12, color: colors.neutral[500], lineHeight: 18, marginTop: spacing[3] },
 })

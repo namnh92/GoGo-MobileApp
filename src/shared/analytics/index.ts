@@ -1,6 +1,9 @@
 // Typed analytics stub ported from the mockup. Events mirror the GoGo core
 // event catalog (snake_case). Swap the transport when a real SDK lands.
 export type AnalyticsEvent =
+  | 'auth_signed_in'
+  | 'auth_registered'
+  | 'auth_signed_out'
   | 'date_create_started'
   | 'date_context_completed'
   | 'gogo_room_created'

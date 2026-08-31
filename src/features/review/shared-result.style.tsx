@@ -61,4 +61,12 @@ export const styles = StyleSheet.create({
     marginTop: spacing[2],
   },
   shareLabel: { fontSize: 15, fontWeight: '500', color: neutral[0] },
+  scoreCaption: { fontSize: 12, color: onDark.soft, marginTop: 4 },
+  winnerName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.neutral[0],
+    textAlign: 'center',
+    marginBottom: spacing[4],
+  },
 })
