@@ -24,6 +24,7 @@ export type BudgetMode = RoomConstraintInput['budgetMode']
 
 export type PlaceSearchResult = Schemas['PlaceSearchResult']
 export type PlaceDetail = Schemas['PlaceDetail']
+export type PlacePhoto = Schemas['PlacePhoto']
 export type PricePerPerson = Schemas['PricePerPerson']
 export type OpenState = Schemas['OpenState']
 export type AreaPredictions = Schemas['AreaPredictions']
