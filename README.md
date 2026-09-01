@@ -70,6 +70,12 @@ hiện sau khi upload.
 Đổi bundle id là đổi cấu hình bên ngoài repo: OneSignal (app theo bundle id),
 Tenjin, App Store Connect / Play Console, và ràng buộc key Google Maps.
 
+Bản đồ iOS là Google Maps khi build có `GOOGLE_MAPS_IOS_API_KEY` trong `.env`
+(ADR 0005). Key này chỉ được đọc lúc prebuild, nằm trong binary và được Google
+giới hạn theo đúng ba bundle id trên — đổi bundle id là key ngừng chạy. Không có
+key thì build vẫn xong và iOS dùng Apple Maps. Đổi key xong phải build lại:
+`npx expo prebuild --platform ios && pnpm ios`.
+
 ## Deep link contract
 
 ```text

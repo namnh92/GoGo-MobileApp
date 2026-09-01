@@ -94,6 +94,28 @@ const identity = {
 // product actually generates was the one path the app did not claim.
 const WEB_LINK_PREFIXES = ['/l', '/r', '/plans', '/places', '/room']
 
+/**
+ * Google Maps SDK for iOS key (APP-040, ADR 0005).
+ *
+ * Read at prebuild, not at runtime. Expo's built-in `react-native-maps` plugin
+ * turns `ios.config.googleMapsApiKey` into `GMSApiKey` in Info.plist, the
+ * `react-native-google-maps` pod in the Podfile and `GMSServices.provideAPIKey`
+ * in the AppDelegate. Without a key it adds none of that and the binary carries
+ * Apple Maps only — a build never fails for want of a map key, and `MapCanvas`
+ * asks the binary which SDK it got rather than trusting this file.
+ *
+ * Deliberately not `EXPO_PUBLIC_*`: that prefix inlines a value into the JS
+ * bundle, and this one belongs to native code. It still ships in the binary
+ * (Google's SDK reads it from Info.plist), so on the Google side the key is
+ * restricted to this app's bundle ids and to the Maps SDK for iOS alone
+ * (GoGo-Infra#101). Bundle-id restriction is the protection; secrecy is not
+ * available to a client key.
+ *
+ * Blank counts as absent, so a copied `.env.example` line does not hand Google
+ * an empty string.
+ */
+const googleMapsIosApiKey = process.env.GOOGLE_MAPS_IOS_API_KEY?.trim() || undefined
+
 const config: ExpoConfig = {
   name: identity.appName,
   slug: 'gogo',
@@ -109,6 +131,9 @@ const config: ExpoConfig = {
     supportsTablet: false,
     // Only the flavour the domain actually names can verify (see app-identity).
     ...(identity.claimsWebLinks ? { associatedDomains: [`applinks:${identity.webHost}`] } : {}),
+    // Absent key → no `config` at all, so the plugin's "is Google wanted" check
+    // reads the same as a project that never heard of Google Maps.
+    ...(googleMapsIosApiKey ? { config: { googleMapsApiKey: googleMapsIosApiKey } } : {}),
   },
   android: {
     package: identity.bundleId,
