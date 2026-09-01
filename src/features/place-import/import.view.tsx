@@ -47,6 +47,23 @@ type Candidate = NonNullable<ResolveLinkResult['candidate']>
 
 const MAX_NOTE = 1000
 const MAX_VIBES = 3
+
+/**
+ * APP-036 — GoGo cannot reach its place provider (GoGo-BE#279).
+ *
+ * Worth its own branch because the wrong copy here is not a wording slip: the
+ * screen's other failure states all say something about the link the user
+ * pasted, and this one is about us. Until the BFF grew this code, a disabled
+ * Google API arrived as `UNRESOLVED / NOT_FOUND` and the app told people a real
+ * café did not exist.
+ *
+ * Falls back to the status so the branch still works against a deployment that
+ * answers 503 with a different code.
+ */
+function providerUnavailable(error: unknown): boolean {
+  if (!isApiError(error)) return false
+  return error.code === 'PLACE_PROVIDER_UNAVAILABLE' || error.status === 503
+}
 /** Price inputs are typed in thousands of dong; the API wants minor units. */
 const PRICE_MULTIPLIER = 1000
 
@@ -201,11 +218,19 @@ export default function PlaceImportScreen() {
 
         {resolve.isError ? (
           <View style={styles.rejectedCard}>
-            <Text style={styles.rejectedTitle}>{t('placeImport.rejectedTitle')}</Text>
+            <Text style={styles.rejectedTitle}>
+              {t(
+                providerUnavailable(resolve.error)
+                  ? 'placeImport.providerUnavailableTitle'
+                  : 'placeImport.rejectedTitle',
+              )}
+            </Text>
             <Text style={styles.rejectedReason}>
-              {isApiError(resolve.error) && resolve.error.status === 429
-                ? t('placeImport.rateLimited')
-                : t('common.errorBody')}
+              {providerUnavailable(resolve.error)
+                ? t('placeImport.providerUnavailable')
+                : isApiError(resolve.error) && resolve.error.status === 429
+                  ? t('placeImport.rateLimited')
+                  : t('common.errorBody')}
             </Text>
             <Pressable
               accessibilityRole="button"

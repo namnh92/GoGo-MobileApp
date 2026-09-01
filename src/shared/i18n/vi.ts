@@ -554,6 +554,12 @@ export const viMessages = {
   'placeImport.openPlace': 'Xem địa điểm',
   'placeImport.pickCandidate': 'Link khớp nhiều địa điểm — chọn đúng nơi bạn muốn:',
   'placeImport.rateLimited': 'Bạn thử hơi nhiều lần. Đợi một chút rồi thử lại.',
+  // APP-036 — GoGo không gọi được provider. Đây là sự cố của GoGo, không
+  // phải một kết luận về địa điểm người dùng dán vào, nên tiêu đề cũng đổi:
+  // 'Không thể thêm địa điểm này' đọc như một phán quyết về cái quán.
+  'placeImport.providerUnavailableTitle': 'Chưa xác minh được ngay',
+  'placeImport.providerUnavailable':
+    'GoGo đang tạm thời không thể xác minh địa điểm. Vui lòng thử lại sau.',
   'placeImport.businessStatus.CLOSED_TEMPORARILY': '⚠️ Google báo địa điểm đang tạm đóng cửa.',
   'placeImport.businessStatus.CLOSED_PERMANENTLY': '⚠️ Google báo địa điểm đã đóng cửa vĩnh viễn.',
   'placeImport.businessStatusUnknown': '⚠️ Google chưa xác nhận địa điểm còn hoạt động.',

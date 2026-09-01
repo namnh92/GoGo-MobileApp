@@ -549,6 +549,9 @@ export const enMessages: Record<MessageKey, string> = {
   'placeImport.openPlace': 'Open place',
   'placeImport.pickCandidate': 'The link matched several places — pick the right one:',
   'placeImport.rateLimited': 'That is a lot of tries. Wait a moment and try again.',
+  'placeImport.providerUnavailableTitle': 'Cannot verify right now',
+  'placeImport.providerUnavailable':
+    'GoGo cannot verify places at the moment. Please try again later.',
   'placeImport.businessStatus.CLOSED_TEMPORARILY': '⚠️ Google reports this place as temporarily closed.',
   'placeImport.businessStatus.CLOSED_PERMANENTLY': '⚠️ Google reports this place as permanently closed.',
   'placeImport.businessStatusUnknown': '⚠️ Google has not confirmed this place is operating.',
