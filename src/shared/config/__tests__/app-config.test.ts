@@ -72,3 +72,29 @@ describe('app identity', () => {
     expect(config.ios?.bundleIdentifier).toBe('max.gogo.dev')
   })
 })
+
+describe('iOS map provider (ADR 0005)', () => {
+  afterEach(() => {
+    delete process.env.GOOGLE_MAPS_IOS_API_KEY
+  })
+
+  it('hands a Google Maps key to the native plugin, and nowhere else', async () => {
+    process.env.GOOGLE_MAPS_IOS_API_KEY = 'ios-key-under-test'
+    const config = await loadConfig('dev')
+
+    // Expo's react-native-maps plugin reads exactly this path.
+    expect(config.ios?.config?.googleMapsApiKey).toBe('ios-key-under-test')
+    // `extra` is embedded in the manifest JavaScript can read. The key is for
+    // native code and must not travel there.
+    expect(JSON.stringify(config.extra)).not.toContain('ios-key-under-test')
+  })
+
+  it('builds Apple Maps only when no key is set — including a blank placeholder', async () => {
+    delete process.env.GOOGLE_MAPS_IOS_API_KEY
+    expect((await loadConfig('dev')).ios?.config).toBeUndefined()
+
+    // The line a developer copies from .env.example.
+    process.env.GOOGLE_MAPS_IOS_API_KEY = '   '
+    expect((await loadConfig('dev')).ios?.config).toBeUndefined()
+  })
+})
