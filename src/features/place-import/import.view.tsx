@@ -64,6 +64,21 @@ function providerUnavailable(error: unknown): boolean {
   if (!isApiError(error)) return false
   return error.code === 'PLACE_PROVIDER_UNAVAILABLE' || error.status === 503
 }
+
+/**
+ * APP-042 — the resolve proof went stale between preview and submit
+ * (GoGo-BE#337).
+ *
+ * The server refuses it rather than quietly verifying the place with Google a
+ * second time, which is the whole point: the cost has to be visible. The user
+ * did nothing wrong — they read the preview and took a minute — so the screen
+ * resolves the same link again itself instead of asking anyone to re-paste it.
+ * Exactly once: a loop here would turn one stale token into an unbounded run of
+ * paid resolves.
+ */
+function staleResolution(error: unknown): boolean {
+  return isApiError(error) && error.code === 'RESOLUTION_TOKEN_INVALID'
+}
 /** Price inputs are typed in thousands of dong; the API wants minor units. */
 const PRICE_MULTIPLIER = 1000
 
@@ -76,6 +91,10 @@ export default function PlaceImportScreen() {
   const [url, setUrl] = useState('')
   const [invalid, setInvalid] = useState(false)
   const [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState<string | null>(null)
+  // True only during the silent re-resolve of a stale attestation, so the CTA
+  // keeps its loading state across the two requests instead of flickering back
+  // to idle between them (APP-042).
+  const [revalidating, setRevalidating] = useState(false)
 
   // Optional metadata (PI-APP-004) — everything here may be left blank.
   const [category, setCategory] = useState<string | null>(null)
@@ -151,15 +170,50 @@ export default function PlaceImportScreen() {
     )
   }
 
-  function onSubmitPlace(googlePlaceId: string) {
-    submit.mutate(
-      { googlePlaceId, ...(roomId ? { roomId } : {}), ...metadata() },
-      {
-        onSuccess: submission => {
-          track('place_import_added', { placeId: submission.placeId ?? googlePlaceId })
-        },
-      },
-    )
+  /**
+   * The `resolutionToken` from the preview rides along, so the server does not
+   * verify the same place with Google twice (GoGo-BE#337 / plan §2.8). It is
+   * opaque, lives only in this screen's query state, and is never persisted,
+   * logged or sent to analytics — `track` below carries the place id, which is
+   * the only part of this exchange that means anything to a human.
+   *
+   * A client that sends nothing still works; the server just pays for the extra
+   * fetch, which is the rollback.
+   */
+  async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false) {
+    const resolutionToken = token ?? resolve.data?.resolutionToken
+    try {
+      const submission = await submit.mutateAsync({
+        googlePlaceId,
+        ...(resolutionToken ? { resolutionToken } : {}),
+        ...(roomId ? { roomId } : {}),
+        ...metadata(),
+      })
+      track('place_import_added', { placeId: submission.placeId ?? googlePlaceId })
+    } catch (error) {
+      if (retried || !staleResolution(error)) return
+      await revalidateAndResubmit(googlePlaceId)
+    }
+  }
+
+  /** One silent re-resolve, then one retry — never a loop. */
+  async function revalidateAndResubmit(googlePlaceId: string) {
+    const parsed = mapsUrlSchema.safeParse(url)
+    if (!parsed.success) return
+    setRevalidating(true)
+    try {
+      const fresh = await resolve.mutateAsync({ url: parsed.data, ...(roomId ? { roomId } : {}) })
+      // A link that no longer resolves — the place closed, or now matches
+      // several branches — is a new answer for the user to see, not something
+      // to resubmit behind their back. `resolve.data` already carries it into
+      // the view.
+      if (fresh.status !== 'RESOLVED' || !fresh.resolutionToken) return
+      await onSubmitPlace(fresh.candidate?.googlePlaceId ?? googlePlaceId, fresh.resolutionToken, true)
+    } catch {
+      // The retry failed on its own terms; `submit.isError` already says so.
+    } finally {
+      setRevalidating(false)
+    }
   }
 
   function reset() {
@@ -281,9 +335,11 @@ export default function PlaceImportScreen() {
             })}
             <PrimaryBtn
               label={t('placeImport.submit')}
-              onPress={() => selectedGooglePlaceId && onSubmitPlace(selectedGooglePlaceId)}
+              onPress={() => {
+                if (selectedGooglePlaceId) void onSubmitPlace(selectedGooglePlaceId)
+              }}
               disabled={!selectedGooglePlaceId}
-              loading={submit.isPending}
+              loading={submit.isPending || revalidating}
               style={styles.addBtn}
             />
           </View>
@@ -421,8 +477,10 @@ export default function PlaceImportScreen() {
               ) : (
                 <PrimaryBtn
                   label={t('placeImport.submit')}
-                  onPress={() => candidate.googlePlaceId && onSubmitPlace(candidate.googlePlaceId)}
-                  loading={submit.isPending}
+                  onPress={() => {
+                    if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)
+                  }}
+                  loading={submit.isPending || revalidating}
                   disabled={!candidate.googlePlaceId}
                   style={styles.addBtn}
                 />
