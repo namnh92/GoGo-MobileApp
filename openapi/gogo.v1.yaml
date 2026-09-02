@@ -1358,7 +1358,10 @@ paths:
           description: >
             Import result: pending → verified | rejected. Rejections carry a
             stable reasonCode (NOT_FOUND, INSUFFICIENT_REVIEWS, LOW_RATING,
-            OUT_OF_AREA, CLOSED, INVALID_URL, PROVIDER_ERROR).
+            OUT_OF_AREA, CLOSED, INVALID_URL, PROVIDER_ERROR,
+            IDENTITY_CONFLICT). IDENTITY_CONFLICT means the Google Place ID is
+            recorded against two GoGo places and an editor must merge them
+            first — linking to either would be the API picking a winner.
         '400': { $ref: '#/components/responses/BadRequest' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
@@ -1508,7 +1511,9 @@ paths:
         PI-BE-018 / FR-INGEST-002/010. Hostname allowlist, ≤5 redirects with
         SSRF guard, no HTML scraping. Returns RESOLVED, ALREADY_EXISTS (opens
         the canonical place), CANDIDATE_SELECTION (user picks the branch) or
-        UNRESOLVED with reason codes. Provider data carries source, fetchedAt
+        UNRESOLVED with reason codes — including PLACE_IDENTITY_CONFLICT, where
+        the Google Place ID points at two GoGo places and neither may be
+        offered until an editor merges them. Provider data carries source, fetchedAt
         and attributions; Google rating and derived score stay separate.
       security: []
       requestBody:
@@ -1524,12 +1529,26 @@ paths:
                 roomId: { type: string, format: uuid }
       responses:
         '201':
-          description: Resolution outcome with candidate + attribution facts
+          description: >-
+            Resolution outcome with candidate + attribution facts. UNRESOLVED here always
+            means the provider answered and there was no match — never that GoGo could not
+            reach it. A provider GoGo cannot use answers 503, so a client may present
+            `UNRESOLVED / NOT_FOUND` to the user as a fact about the link they pasted.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResolveLinkResult' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: >-
+            PLACE_PROVIDER_UNAVAILABLE — GoGo cannot verify places right now: no working
+            provider credential, an API not enabled, quota exhausted, or the provider is
+            down. A statement about this deployment, not about the link, so the client must
+            not present it as "địa điểm không tồn tại" (GoGo-BE#279). `retryable` is true;
+            the envelope deliberately names neither the provider nor the fault.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /place-submissions:
     post:
@@ -1539,7 +1558,13 @@ paths:
       description: >
         Creates at most one pending proposal per provider place; repeat
         submissions increment submissionCount. Never publishes to the catalog.
-        Guests must submit within their room-scoped session.
+        Guests must submit within their room-scoped session. 409
+        `PLACE_IDENTITY_CONFLICT` means the Google Place ID is recorded against
+        two GoGo places: accepting would attach the proposal to an ambiguous
+        identity, so an editor merges them first (#334). 400
+        `RESOLUTION_TOKEN_INVALID` (retryable) means the `resolutionToken` was
+        expired, edited or minted for another place — resolve the link again and
+        resubmit; the server never falls back to a silent provider fetch.
       requestBody:
         required: true
         content:
@@ -1563,12 +1588,28 @@ paths:
                   type: array
                   items: { type: string }
                 note: { type: string, maxLength: 1000 }
+                resolutionToken:
+                  type: string
+                  maxLength: 1024
+                  description: >
+                    The `resolutionToken` from the preceding
+                    `POST /places/resolve-google-maps-link` (#337). Optional —
+                    without it the server verifies the place with the provider
+                    again, which is the behaviour before this field existed.
       responses:
         '201':
           description: Proposal accepted (or the place already exists)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SubmissionResult' }
+        '400':
+          description: >
+            `RESOLUTION_TOKEN_INVALID` — the `resolutionToken` was expired,
+            edited, or minted for another place. `retryable: true`: resolve the
+            link again and resubmit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409':
           description: Place is closed/suspended and cannot be added
@@ -1694,7 +1735,13 @@ paths:
                 defaultCity: { type: string, maxLength: 80 }
                 mapping:
                   type: string
-                  description: JSON object mapping raw header → canonical field
+                  description: >-
+                    JSON object mapping raw header → `ImportCanonicalField`.
+                    A header left out of the object is auto-detected; a header
+                    mapped to `""` is ignored. Unknown values, legacy spellings
+                    and retired values behave exactly as described on
+                    `POST /cms/place-imports/google-sheet`. A mapping that is
+                    not a JSON object of strings is a 400 `MAPPING_INVALID`.
       responses:
         '201':
           description: Job created (or an identical one reused)
@@ -1762,6 +1809,22 @@ paths:
                   additionalProperties: { type: string }
                 mapping:
                   type: object
+                  description: >-
+                    Raw header → canonical field. Supported values are the ones
+                    listed by `ImportCanonicalField`; generate against that
+                    schema rather than sending free text. The property stays a
+                    plain string map because narrowing a `/v1` request to an
+                    enum is a breaking change (ADR-0005) — the constraint is
+                    enforced at runtime, not in the wire type. A header left
+                    out is auto-detected; a header mapped to `""` is ignored.
+                    No value here is rejected: three legacy spellings
+                    (`googleMapsUrl`, `priceMin`, `priceMax`) normalise, three
+                    retired values (`address`, `phone`, `website`) are accepted
+                    and skipped, and any other value leaves its column
+                    unmapped — reported in `unmappedHeaders` and counted as
+                    `place_import_unknown_mapping_total`, never auto-detected
+                    into some other field. A mapping that is not a JSON object
+                    of strings is a 400 `MAPPING_INVALID`.
                   additionalProperties: { type: string }
       responses:
         '201':
@@ -1775,11 +1838,25 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '403':
-          description: SHEET_PERMISSION_DENIED, or the caller lacks the CMS role
+          description: >-
+            SHEET_PERMISSION_DENIED — the spreadsheet exists and GoGo may not read it —
+            or the caller lacks the CMS role. A Google setup fault that also arrives as
+            HTTP 403 (an API disabled on the project, a blocked or invalid key) is
+            reported as 503 SHEET_PROVIDER_NOT_CONFIGURED instead, so a client may treat
+            this status as a statement about the document.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: >-
+            SHEET_PROVIDER_NOT_CONFIGURED — GoGo has no working Google Sheets credential.
+            A statement about this deployment, not about the caller's spreadsheet, so the
+            client must not present it as a sharing or permission problem. `retryable` is
+            false: it clears only when an operator sets the key.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /cms/place-imports/{jobId}:
     get:
@@ -2243,6 +2320,68 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
+  /cms/auth/access-exchange:
+    post:
+      operationId: cmsAccessExchange
+      tags: [cms]
+      summary: Exchange a Cloudflare Access assertion for a staff session (SSO)
+      description: >
+        ADR-0010. Cloudflare Access authenticates the operator against the
+        upstream identity provider and enforces MFA there, then signs a
+        short-lived assertion which the CMS Worker forwards on
+        `Cf-Access-Jwt-Assertion`. This endpoint verifies that assertion's
+        signature, issuer and audience against the team's published key set and
+        opens an ordinary staff session.
+
+
+        The assertion is **not** trusted because it is present: this API is
+        reachable without passing through Access, so the header is
+        client-settable and only the signature makes it meaningful. A verified
+        identity is also not an account — the address must already have an
+        active `admin_users` row, and no account is created here.
+      security: []
+      parameters:
+        - name: Cf-Access-Jwt-Assertion
+          in: header
+          required: true
+          description: Set by Cloudflare Access. Absent when the caller did not come through it.
+          schema: { type: string }
+      responses:
+        '201':
+          description: >
+            Session opened, identical in shape and lifetime to `cmsLogin`.
+            Same cookies, same rotating refresh, same revocation family.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSession' }
+        '401':
+          description: >
+            Assertion missing (`ACCESS_ASSERTION_MISSING`) or not valid
+            (`ACCESS_ASSERTION_INVALID` — one code for every rejection, so
+            signature, audience, issuer and expiry failures cannot be told
+            apart by probing).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403':
+          description: >
+            The identity is genuine but has no active staff account
+            (`ADMIN_ONLY`). Being on the Access allow-list does not make
+            somebody staff.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: >
+            SSO is not configured for this environment
+            (`ACCESS_SSO_NOT_CONFIGURED`, not retryable), or the identity
+            provider's key set is unreachable (`ACCESS_KEYS_UNAVAILABLE`,
+            retryable). Password + TOTP remains available in both cases.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
   /cms/auth/refresh:
     post:
       operationId: cmsRefresh
@@ -2379,6 +2518,44 @@ paths:
           description: No enrollment is pending
 
   /cms/auth/admins:
+    get:
+      operationId: cmsListAdmins
+      tags: [cms]
+      summary: 'Super admin: staff accounts, filtered and cursor-paged'
+      description: >
+        The read that was missing beside `cmsCreateAdmin`: the console could
+        create a staff account and then never show it again.
+
+
+        `super_admin` only, matching the write — who holds which role is the
+        shape of the authorization model itself, so it is not a rank-read for
+        lower roles.
+
+
+        Never returns the password hash, the TOTP secret (enrolled or pending),
+        or any session material. `email` is returned because it is how a staff
+        account is identified; nothing beyond it is.
+      parameters:
+        - name: q
+          in: query
+          description: Substring of email or display name, case-insensitive.
+          schema: { type: string, maxLength: 120 }
+        - { name: role, in: query, schema: { $ref: '#/components/schemas/AdminRole' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/AdminStatus' } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Staff accounts, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsAdminPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       operationId: cmsCreateAdmin
       tags: [cms]
@@ -2398,6 +2575,687 @@ paths:
       responses:
         '201': { description: Created }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+  /cms/users:
+    get:
+      operationId: cmsListUsers
+      tags: [cms]
+      summary: 'Ops: app accounts'
+      description: >
+        BE-CMS-G7. `ops_admin` and above, and deliberately outside the guard's
+        rank-read: an editor reading catalogue data is ordinary, an editor
+        reading the user base is not.
+
+
+        **Minimum PII by construction.** No coordinates, no device tokens, no
+        raw preference selections — support work needs to know who someone is
+        and what they have done, not where they were. A field that is not
+        returned cannot leak from a console session, a screenshot, or a cache.
+      parameters:
+        - {
+            name: q,
+            in: query,
+            schema: { type: string, maxLength: 120 },
+            description: Display name or email substring.,
+          }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [active, suspended, banned, deleted] },
+          }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+          description: >
+            Capped at 100: every row costs four indexed counter lookups, and
+            the page size is what keeps this from being a table scan.
+        - { name: cursor, in: query, schema: { type: string, maxLength: 512 } }
+      responses:
+        '200':
+          description: Accounts, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsAppUserPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /cms/users/{id}:
+    get:
+      operationId: cmsUserDetail
+      tags: [cms]
+      summary: 'Ops: one account, with the rooms it has been in'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Account detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsAppUserDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/users/{id}/suspend:
+    post:
+      operationId: cmsSuspendUser
+      tags: [cms]
+      summary: 'Ops: suspend an account (expected back)'
+      description: >
+        Revokes every session as well as setting the status. `AuthGuard` trusts
+        the access token until the session is revoked, so flipping the status
+        alone would leave the account working for up to the token lifetime —
+        long enough to matter during an incident, short enough to pass testing.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Suspended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsUserStatusResult' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`USER_DELETED` — a deleted account cannot change status.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/users/{id}/ban:
+    post:
+      operationId: cmsBanUser
+      tags: [cms]
+      summary: 'Ops: ban an account (not expected back)'
+      description: >
+        Same enforcement as suspend. The two are separate values because what
+        distinguishes them is whether the account is expected back, and an
+        operator reviewing one needs to know which they are looking at without
+        reading a free-text note.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Banned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsUserStatusResult' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`USER_DELETED` — a deleted account cannot change status.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/users/{id}/reactivate:
+    post:
+      operationId: cmsReactivateUser
+      tags: [cms]
+      summary: 'Ops: lift a suspension or ban'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Reactivated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsUserStatusResult' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            `USER_DELETED` — a deleted account is anonymized and its address
+            freed for re-registration, so reviving it would attach a stranger's
+            history to whoever now holds that address.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/users/{id}/delete:
+    post:
+      operationId: cmsDeleteUser
+      tags: [cms]
+      summary: "Super admin: erase an account on its holder's behalf"
+      description: >
+        Runs the same erasure as the consumer `DELETE /me` — PII nulled,
+        sessions revoked, content pseudonymized, address freed. One
+        implementation, not two: two versions of "erase this person" drift, and
+        the one that drifts is the one that leaves a table behind.
+
+
+        `super_admin` only. It is the only action here that cannot be undone,
+        and the account it destroys belongs to someone else.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Erased; idempotent on an already-deleted account
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: boolean }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/users/{id}/export:
+    post:
+      operationId: cmsExportUser
+      tags: [cms]
+      summary: 'Ops: subject-access export, made through support'
+      description: >
+        The same payload as `/me/export`. The audit entry is the point: a staff
+        member reading somebody's data is an event, and it must be attributable
+        even though the bytes are identical to the self-service export.
+
+
+        Rate limited per actor — the payload is one person's whole history, and
+        a loop over the user list is a data export nobody authorized.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: The account's own data
+          content:
+            application/json:
+              schema: { type: object }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/privacy-requests:
+    post:
+      operationId: cmsCreatePrivacyRequest
+      tags: [cms]
+      summary: 'Ops: record a privacy request that arrived through support'
+      description: >
+        BE-CMS-G12 / ADR-0011. The ledger, not the audit log: the audit log
+        says who did what, this says what was received, where it stands, what
+        the deadline is and how it ended.
+
+
+        The subject is **structured** — a user id, an email, or an external
+        reference — never a single free-text field, which becomes a PII
+        dumping ground the first time a conversation is pasted into it. A
+        non-user subject starts `unverified` and says so.
+
+
+        Self-service `/me/export` and `/me/delete` also write here, as
+        born-completed rows; they do not use this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, subjectType]
+              properties:
+                type: { $ref: '#/components/schemas/PrivacyRequestType' }
+                subjectType: { type: string, enum: [user, email, external] }
+                userId: { type: string, format: uuid }
+                contactEmail: { type: string, format: email }
+                externalReference: { type: string, maxLength: 120 }
+                reasonCode: { type: string, maxLength: 64 }
+                ticketReference: { type: string, maxLength: 64 }
+                operatorNote:
+                  type: string
+                  maxLength: 256
+                  description: >
+                    Deliberately short. UI guidance: "Chỉ ghi mã ticket hoặc
+                    thông tin vận hành cần thiết. Không nhập dữ liệu cá nhân,
+                    nội dung trao đổi hoặc chi tiết vụ việc."
+      responses:
+        '201':
+          description: Recorded, with SLA dates computed from per-type configuration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      operationId: cmsListPrivacyRequests
+      tags: [cms]
+      summary: 'Ops: the privacy-request ledger'
+      description: >
+        `sla=overdue` and `sla=due_soon` are computed against the same stored
+        dates the `sla` badge uses, so the list a person filters and the badge
+        they see cannot disagree.
+      parameters:
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [open, acknowledged, in_progress, closed] },
+          }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/PrivacyRequestType' } }
+        - {
+            name: outcome,
+            in: query,
+            schema: { $ref: '#/components/schemas/PrivacyRequestOutcome' },
+          }
+        - { name: sla, in: query, schema: { type: string, enum: [overdue, due_soon] } }
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 512 } }
+      responses:
+        '200':
+          description: Requests, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor, totalCount]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PrivacyRequest' }
+                  nextCursor: { type: [string, 'null'] }
+                  totalCount: { type: integer }
+
+  /cms/privacy-requests/{id}:
+    get:
+      operationId: cmsGetPrivacyRequest
+      tags: [cms]
+      summary: 'Ops: one privacy request'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/privacy-requests/{id}/acknowledge:
+    post:
+      operationId: cmsAcknowledgePrivacyRequest
+      tags: [cms]
+      summary: 'Ops: acknowledge receipt (stops the ack clock)'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Acknowledged
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`NOT_OPEN`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/privacy-requests/{id}/execute:
+    post:
+      operationId: cmsExecutePrivacyRequest
+      tags: [cms]
+      summary: 'Ops: run the export or delete for THIS request and close it'
+      description: >
+        **Explicit linkage.** Same user is not same request: one person may
+        have an export, a delete, a duplicate and a rejected request open at
+        once. Only the request executed here transitions to `completed`. A
+        `POST /cms/users/{id}/delete` outside this workflow never touches the
+        ledger; the console warns instead (`openPrivacyRequestCount`).
+
+
+        Executing a **delete** requires `super_admin` — the same bar as the
+        direct user delete. An export returns the payload to the caller and
+        nowhere else; the ledger then records only delivery metadata.
+        Correction requests are worked by hand and cannot be executed.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Executed and closed as `completed`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request]
+                properties:
+                  request: { $ref: '#/components/schemas/PrivacyRequest' }
+                  data:
+                    type: object
+                    description: Present for an export — the same payload `/me/export` returns.
+        '403':
+          description: '`ROLE_DENIED` — a delete request needs super_admin.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            `ALREADY_CLOSED`, `NOT_EXECUTABLE` (correction), or
+            `IDENTITY_NOT_MATCHED` — match the request to an account first.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/privacy-requests/{id}/close:
+    post:
+      operationId: cmsClosePrivacyRequest
+      tags: [cms]
+      summary: 'Ops: close without executing'
+      description: >
+        The outcomes that end a request unfulfilled. `no_account_found` and
+        `identity_not_verified` are real results — those requests count in the
+        compliance metrics even though nothing was exported or erased.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome]
+              properties:
+                outcome:
+                  {
+                    type: string,
+                    enum: [no_account_found, identity_not_verified, rejected, failed],
+                  }
+                reasonCode: { type: string, maxLength: 64 }
+                operatorNote: { type: string, maxLength: 256 }
+      responses:
+        '201':
+          description: Closed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`ALREADY_CLOSED`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/privacy-requests/{id}/delivered:
+    post:
+      operationId: cmsPrivacyRequestDelivered
+      tags: [cms]
+      summary: 'Ops: record how an export was handed over'
+      description: >
+        Metadata only, ever — never the bytes, never a signed URL. The record
+        outlives any artifact and must not be a way back to the data.
+        `secure_download` is the target method (BE-CMS-G13); the runbook
+        forbids raw exports over ordinary email.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deliveryMethod]
+              properties:
+                deliveryMethod: { type: string, enum: [in_app, secure_download, other] }
+      responses:
+        '201':
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`NOT_AN_EXPORT`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/privacy-requests/{id}/retention-hold:
+    post:
+      operationId: cmsPrivacyRetentionHold
+      tags: [cms]
+      summary: 'Super admin: place a legal retention hold'
+      description: >
+        The mechanism behind "Legal may override retention" — so an override
+        never means editing the database by hand. Reason, legal basis and a
+        future review date are all mandatory; the retention job skips held
+        rows. A hold only ever **extends** retention.
+
+
+        When `reviewAt` passes, nothing is auto-released and nothing is
+        auto-deleted: the request is flagged `reviewOverdue` and the worker
+        alerts. A lapsed review date does not mean the legal basis lapsed.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, legalBasis, reviewAt]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+                legalBasis: { type: string, minLength: 3, maxLength: 500 }
+                reviewAt: { type: string, format: date-time }
+                holdUntil: { type: string, format: date-time }
+      responses:
+        '201':
+          description: Held
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequest' }
+        '400':
+          description: '`REVIEW_IN_PAST`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`NOT_CLOSED` or `ALREADY_HELD`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/privacy-requests/{id}/retention-hold/release:
+    post:
+      operationId: cmsPrivacyRetentionHoldRelease
+      tags: [cms]
+      summary: 'Super admin: release a retention hold'
+      description: >
+        Standard retention resumes from the date already stamped on the row —
+        never an earlier one. Quietly shortening retention is destroying
+        evidence, so there is no path that does it.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Released
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`NOT_HELD`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/rooms:
+    get:
+      operationId: cmsListRooms
+      tags: [cms]
+      summary: 'Ops: rooms, read-only'
+      description: >
+        `code` is never returned. It is a bearer secret — whoever holds it can
+        join the room — and an operations list is exactly the kind of place a
+        value like that gets copied out of.
+
+
+        The host appears as an id, not a name or an address: it links to the
+        account detail, which is where identifying data belongs and is
+        access-controlled.
+      parameters:
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [draft, active, planning, completed, archived] },
+          }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 512 } }
+      responses:
+        '200':
+          description: Rooms, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsRoomPage' }
+
+  /cms/rooms/{id}/guests:
+    get:
+      operationId: cmsRoomGuests
+      tags: [cms]
+      summary: 'Ops: the guests of one room'
+      description: >
+        BE-CMS-G11. Room-scoped on purpose — there is no global guest
+        directory: no moderation case needs one, and a list of every guest's
+        name and activity would be a new PII surface with no reader. The guest
+        bearer credential (`token_hash`) is never returned.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Every guest membership of the room, removed ones included
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [guests]
+                properties:
+                  guests:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        [
+                          memberId,
+                          guestSessionId,
+                          displayName,
+                          selectionStatus,
+                          joinedAt,
+                          sessionExpiresAt,
+                          claimed,
+                        ]
+                      properties:
+                        memberId: { type: string, format: uuid }
+                        guestSessionId: { type: string, format: uuid }
+                        displayName: { type: string }
+                        selectionStatus: { type: string }
+                        joinedAt: { type: string, format: date-time }
+                        sessionExpiresAt: { type: string, format: date-time }
+                        sessionRevokedAt: { type: string, format: date-time }
+                        removedAt: { type: string, format: date-time }
+                        claimed:
+                          type: boolean
+                          description: The session was claimed by a registered account.
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/rooms/{id}/guests/{memberId}/remove:
+    post:
+      operationId: cmsRemoveGuest
+      tags: [cms]
+      summary: 'Ops: remove a guest from a room'
+      description: >
+        **Not a ban.** A guest has no durable identity — only a session tied
+        to this room through the invite flow — so whoever holds a still-valid
+        invite can join again and receive a fresh session. What this does is
+        exactly "out of the room now": the active session is revoked (denylist
+        included, so an access token already issued dies immediately) and the
+        membership row is marked removed but kept, because votes, reports and
+        moderation history reference it.
+
+
+        Preventing a return is a different action — rotating or revoking the
+        room invite — and this endpoint does not pretend to include it.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: memberId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [memberId, removed]
+                properties:
+                  memberId: { type: string, format: uuid }
+                  removed: { type: boolean }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            `NOT_A_GUEST` — registered members have a different moderation
+            path; or `ALREADY_REMOVED`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/plans:
+    get:
+      operationId: cmsListPlans
+      tags: [cms]
+      summary: 'Ops: plans, read-only'
+      parameters:
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [draft, current, superseded, archived] },
+          }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 512 } }
+      responses:
+        '200':
+          description: Plans, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlanPage' }
 
   /cms/places:
     get:
@@ -2911,17 +3769,1315 @@ paths:
       responses:
         '200': { description: Items replaced }
 
+  /cms/plan-templates:
+    get:
+      operationId: cmsListPlanTemplates
+      tags: [cms]
+      summary: 'Editor/ops: plan templates, filtered and cursor-paged'
+      description: >
+        Templates are **source material for future plans, not live ones**.
+        Nothing in this resource references a room, a plan or a plan stop, and
+        editing a template never reaches a plan somebody already has — the
+        separation is in the schema, not in a rule a service has to remember.
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/PlanTemplateStatus' } }
+        - { name: audience, in: query, schema: { $ref: '#/components/schemas/ContentAudience' } }
+        - { name: areaKey, in: query, schema: { type: string, maxLength: 64 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Templates, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlanTemplatePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      operationId: cmsCreatePlanTemplate
+      tags: [cms]
+      summary: 'Editor/ops: create a plan template'
+      description: >
+        `stops` is ordered — the array index becomes the stored position, so a
+        client cannot send two stops claiming the same one or a gap that means
+        nothing.
+
+
+        Every budget is integer minor units and carries its currency and what it
+        is *per*; there is no amount in this contract whose scope a client has
+        to assume.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsPlanTemplateCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlanTemplateDetail' }
+        '400':
+          description: >
+            Unknown preferred place (`PLACE_NOT_FOUND`), unknown or wrong-kind
+            taxonomy (`TAXONOMY_NOT_FOUND`, `TAXONOMY_KIND_INVALID`), or an
+            inverted budget range (`INVALID_BUDGET`).
+        '409': { description: 'Template key already used (`SLUG_TAKEN`)' }
+
+  /cms/plan-templates/{id}:
+    get:
+      operationId: cmsGetPlanTemplate
+      tags: [cms]
+      summary: 'Editor/ops: one template with its ordered stops'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Template
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlanTemplateDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: cmsUpdatePlanTemplate
+      tags: [cms]
+      summary: 'Editor/ops: edit a template'
+      description: >
+        Omitted fields are left alone; a sent `stops` or `taxonomyIds` replaces
+        that list wholesale. Editing a template does not touch any plan built
+        from it earlier — a plan is a copy at the moment it was made, not a
+        live view of its template.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsPlanTemplatePatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlanTemplateDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/plan-templates/{id}/status:
+    patch:
+      operationId: cmsSetPlanTemplateStatus
+      tags: [cms]
+      summary: 'Editor/ops: move a template along its lifecycle'
+      description: >
+        Declared transitions only; `archived` is terminal. Publishing needs at
+        least one stop — a template with none is not a plan anyone can be given.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/PlanTemplateStatus' }
+      responses:
+        '200':
+          description: Status changed (audited)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { $ref: '#/components/schemas/PlanTemplateStatus' }
+        '400': { description: 'Publishing with no stops (`EMPTY_TEMPLATE`)' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'The lifecycle has no such edge (`INVALID_STATUS_TRANSITION`)' }
+
+  /cms/plan-templates/{id}/stops:
+    put:
+      operationId: cmsSetPlanTemplateStops
+      tags: [cms]
+      summary: 'Editor/ops: replace the ordered stop list'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stops]
+              properties:
+                stops:
+                  type: array
+                  maxItems: 20
+                  items: { $ref: '#/components/schemas/CmsPlanTemplateStopInput' }
+      responses:
+        '200':
+          description: Stops replaced
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlanTemplateDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/recommendations:
+    get:
+      operationId: cmsListRecommendations
+      tags: [cms]
+      summary: 'Editor/ops: recommendations, filtered and cursor-paged'
+      description: >
+        A recommendation is a targeted collection (ADR-0009): the same ordered
+        list of places, the same schedule and status machine, plus who it is
+        for. It shares `content_collections` with curated collections rather
+        than forking editorial content into a second store, and
+        `GET /cms/collections` returns only the untargeted ones.
+
+
+        Sorted newest first; `priority` orders recommendations competing for one
+        surface and is returned so the console can show it, not used as the
+        pagination key — it is editable, so a row whose priority changed
+        mid-traversal would jump pages.
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/RecommendationStatus' } }
+        - { name: audience, in: query, schema: { $ref: '#/components/schemas/ContentAudience' } }
+        - { name: areaKey, in: query, schema: { type: string, maxLength: 64 } }
+        - {
+            name: q,
+            in: query,
+            description: Substring of internal name,
+            title or key.,
+            schema: { type: string, maxLength: 120 },
+          }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Recommendations, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsRecommendationPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      operationId: cmsCreateRecommendation
+      tags: [cms]
+      summary: 'Editor/ops: create a recommendation'
+      description: >
+        Every referenced place and taxonomy must exist, and a taxonomy must be
+        of a kind that can target content (`category` or `mood`) — a
+        recommendation pointing at an id nothing resolves would render as a
+        shorter list with no explanation.
+
+
+        `placeIds` is ordered: the array index becomes the stored position, and
+        the order round-trips.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsRecommendationCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsRecommendationDetail' }
+        '400':
+          description: >
+            Unknown place (`PLACE_NOT_FOUND`), duplicate place
+            (`DUPLICATE_PLACE`), unknown or untargetable taxonomy
+            (`TAXONOMY_NOT_FOUND`, `TAXONOMY_KIND_INVALID`), or a window that
+            ends before it starts (`INVALID_SCHEDULE`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409': { description: 'Internal key already used (`SLUG_TAKEN`)' }
+
+  /cms/recommendations/{id}:
+    get:
+      operationId: cmsGetRecommendation
+      tags: [cms]
+      summary: 'Editor/ops: one recommendation with its ordered places'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Recommendation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsRecommendationDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: cmsUpdateRecommendation
+      tags: [cms]
+      summary: 'Editor/ops: edit a recommendation'
+      description: >
+        Omitted fields are left alone. Sending `placeIds` or `taxonomyIds`
+        replaces that list wholesale — a partial reorder is not expressible, and
+        pretending otherwise is how an ordering silently loses a row.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsRecommendationPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsRecommendationDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/recommendations/{id}/status:
+    patch:
+      operationId: cmsSetRecommendationStatus
+      tags: [cms]
+      summary: 'Editor/ops: move a recommendation along its lifecycle'
+      description: >
+        Declared transitions only. `archived` is terminal: bringing retired
+        content back is a new row, not a resurrection. Scheduling needs a start
+        time, and publishing needs at least one place — an empty published
+        recommendation is a surface with nothing on it.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/RecommendationStatus' }
+      responses:
+        '200':
+          description: Status changed (audited)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { $ref: '#/components/schemas/RecommendationStatus' }
+        '400':
+          description: >
+            Scheduling without a start time (`SCHEDULE_REQUIRED`) or publishing
+            with no places (`EMPTY_RECOMMENDATION`).
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'The lifecycle has no such edge (`INVALID_STATUS_TRANSITION`)' }
+
+  /cms/recommendations/{id}/places:
+    put:
+      operationId: cmsSetRecommendationPlaces
+      tags: [cms]
+      summary: 'Editor/ops: replace the ordered place list'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [placeIds]
+              properties:
+                placeIds:
+                  type: array
+                  maxItems: 100
+                  description: Order is meaning — the index becomes the stored position.
+                  items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Places replaced
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsRecommendationDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/safety-rules:
+    get:
+      operationId: cmsListSafetyRules
+      tags: [cms]
+      summary: 'Ops: Trust & Safety rules, filtered and cursor-paged'
+      description: >
+        `ops_admin` only, in both directions — a rule here can suspend an
+        account with no human in the loop, which is policy rather than
+        day-to-day moderation.
+
+
+        Rule **definitions**. Nothing evaluates them yet — the enforcement path
+        is separate work — and when it lands, every automated decision carries
+        the rule's `reasonCode` so a person reviewing it can trace why.
+
+
+        There is no rule builder and no expression language: `conditions` is a
+        closed, typed shape per `ruleType`, validated on write. Nothing here is
+        evaluated as code.
+      parameters:
+        - { name: ruleType, in: query, schema: { $ref: '#/components/schemas/SafetyRuleType' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/SafetyRuleStatus' } }
+        - { name: action, in: query, schema: { $ref: '#/components/schemas/SafetyRuleAction' } }
+        - { name: severity, in: query, schema: { $ref: '#/components/schemas/SafetyRuleSeverity' } }
+        - { name: trigger, in: query, schema: { $ref: '#/components/schemas/SafetyRuleTrigger' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Rules, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSafetyRulePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      operationId: cmsCreateSafetyRule
+      tags: [cms]
+      summary: 'Ops: define a Trust & Safety rule'
+      description: >
+        Three things are checked beyond the shape of `conditions`: the action
+        must be one the rule type can take, the trigger one it can be evaluated
+        on, and `suspend_user` requires severity `high` or `critical` —
+        suspension removes an account from a person with no human in the loop,
+        and a `low` rule doing that at scale is the mistake worth refusing.
+
+
+        `reasonCode` is mandatory and machine-readable (`^[a-z][a-z0-9_]{2,63}$`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsSafetyRuleCreate' }
+      responses:
+        '201':
+          description: Created (audited with the whole definition)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSafetyRule' }
+        '400':
+          description: >
+            Conditions do not fit the rule type (`INVALID_RULE_CONDITIONS`), the
+            action or trigger is not available for it (`ACTION_NOT_ALLOWED`,
+            `TRIGGER_NOT_ALLOWED`), or automatic suspension was asked for below
+            `high` severity (`SEVERITY_TOO_LOW`).
+        '409': { description: 'A rule with that name exists (`RULE_NAME_TAKEN`)' }
+
+  /cms/safety-rules/{id}:
+    get:
+      operationId: cmsGetSafetyRule
+      tags: [cms]
+      summary: 'Ops: one rule'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Rule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSafetyRule' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: cmsUpdateSafetyRule
+      tags: [cms]
+      summary: 'Ops: edit a rule'
+      description: >
+        `ruleType` is immutable — it decides which condition schema applies, and
+        changing it would reinterpret stored conditions rather than revalidate
+        them. The rule is revalidated as a whole on every edit, because changing
+        the action alone can make an already-stored condition set illegal.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsSafetyRulePatch' }
+      responses:
+        '200':
+          description: Updated (audited before/after)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSafetyRule' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/safety-rules/{id}/status:
+    patch:
+      operationId: cmsSetSafetyRuleStatus
+      tags: [cms]
+      summary: 'Ops: activate or disable a rule'
+      description: >
+        Reversible in both directions on purpose — the point of a switch is that
+        it can be thrown back. Activating revalidates the definition first: a
+        rule may have been left in draft precisely because it was unfinished.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/SafetyRuleStatus' }
+      responses:
+        '200':
+          description: Status changed (audited)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { $ref: '#/components/schemas/SafetyRuleStatus' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/banners:
+    get:
+      operationId: cmsListBanners
+      tags: [cms]
+      summary: 'Editor/ops: banners, filtered and cursor-paged'
+      description: >
+        `status` accepts `expired`, which is **computed by the server** from the
+        banner's end time rather than stored — a stored expiry is wrong for as
+        long as it takes something to notice, or forever if nothing runs. Each
+        item carries both: `status` (what it is now) and `lifecycleStatus`
+        (what a person set).
+      parameters:
+        - { name: placement, in: query, schema: { $ref: '#/components/schemas/BannerPlacement' } }
+        - {
+            name: status,
+            in: query,
+            schema: { $ref: '#/components/schemas/BannerEffectiveStatus' },
+          }
+        - { name: audience, in: query, schema: { $ref: '#/components/schemas/ContentAudience' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Banners, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsBannerPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      operationId: cmsCreateBanner
+      tags: [cms]
+      summary: 'Editor/ops: create a banner'
+      description: >
+        `imageKey` is mandatory — a banner is an image. The key comes from
+        `POST /cms/uploads` with purpose `banner_image` and is bound to this
+        banner on save, through the same attach path check-in photos use: a key
+        belonging to another actor, an expired one, or one issued for a
+        different purpose is refused rather than becoming a broken image.
+
+
+        The destination is cross-checked against the type it names: a `place`,
+        `recommendation`, `plan_template` or `campaign` id must resolve, and an
+        `external_url` must be https, carry no credentials and not point inside
+        the network.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsBannerCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsBanner' }
+        '400':
+          description: >
+            Destination is malformed, unsafe or missing (`INVALID_DESTINATION`),
+            points at nothing (`DESTINATION_NOT_FOUND`), the window is inverted
+            (`INVALID_SCHEDULE`), or the image key is not usable
+            (`INVALID_UPLOAD_KEY`).
+        '409': { description: 'A banner with that name exists (`BANNER_NAME_TAKEN`)' }
+
+  /cms/banners/{id}:
+    get:
+      operationId: cmsGetBanner
+      tags: [cms]
+      summary: 'Editor/ops: one banner'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Banner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsBanner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: cmsUpdateBanner
+      tags: [cms]
+      summary: 'Editor/ops: edit a banner'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsBannerPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsBanner' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/banners/{id}/status:
+    patch:
+      operationId: cmsSetBannerStatus
+      tags: [cms]
+      summary: 'Editor/ops: move a banner along its lifecycle'
+      description: >
+        Takes only the statuses a person controls — `expired` is not one of
+        them. Scheduling needs a start time, and publishing a banner whose
+        window has already closed is refused rather than producing something the
+        very next read reports as expired.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/BannerStatus' }
+      responses:
+        '200':
+          description: Status changed (audited)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { $ref: '#/components/schemas/BannerStatus' }
+        '400':
+          description: >
+            Scheduling without a start time (`SCHEDULE_REQUIRED`) or publishing
+            a closed window (`WINDOW_CLOSED`).
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'The lifecycle has no such edge (`INVALID_STATUS_TRANSITION`)' }
+
+  /cms/campaigns:
+    get:
+      operationId: cmsListCampaigns
+      tags: [cms]
+      summary: 'Ops: notification campaigns, filtered and cursor-paged'
+      description: >
+        A campaign is composed here and **sent by the worker**, never from a
+        request. The API only ever writes a row; a scheduled row is what a
+        worker tick picks up, resolves an audience for, and hands to the push
+        provider adapter. A campaign that has gone out cannot be recalled, so
+        there is deliberately no API path that reaches a provider.
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/CampaignStatus' } }
+        - {
+            name: audienceType,
+            in: query,
+            schema: { $ref: '#/components/schemas/CampaignAudience' },
+          }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Campaigns, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaignPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      operationId: cmsCreateCampaign
+      tags: [cms]
+      summary: 'Ops: compose a campaign (draft)'
+      description: >
+        Created as a `draft`; nothing is sent until it is scheduled.
+
+
+        The destination is validated against real data: a `place`,
+        `recommendation` or `plan_template` id must resolve, and an
+        `external_url` must be https, carry no credentials and not point inside
+        the network. A deep link into content that does not exist is a dead
+        notification on every phone that receives it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsCampaignCreate' }
+      responses:
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaign' }
+        '400':
+          description: >
+            Audience filter does not fit the audience type (`INVALID_AUDIENCE`),
+            destination is malformed or unsafe (`INVALID_DESTINATION`), or it
+            points at something that does not exist (`DESTINATION_NOT_FOUND`).
+        '409': { description: 'A campaign with that name exists (`CAMPAIGN_NAME_TAKEN`)' }
+
+  /cms/campaigns/{id}:
+    get:
+      operationId: cmsGetCampaign
+      tags: [cms]
+      summary: 'Ops: one campaign with its delivery counters'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaign' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: cmsUpdateCampaign
+      tags: [cms]
+      summary: 'Ops: edit a campaign that has not been sent'
+      description: >
+        Editable only in `draft`, `cancelled` or `failed`. Editing a scheduled
+        campaign would silently change what is about to go out — unschedule it
+        first, which is a deliberate, audited act.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsCampaignPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaign' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'Not in an editable state (`CAMPAIGN_NOT_EDITABLE`)' }
+
+  /cms/campaigns/{id}/audience-estimate:
+    get:
+      operationId: cmsEstimateCampaignAudience
+      tags: [cms]
+      summary: 'Ops: how many people this would reach, right now'
+      description: >
+        A read with no side effect — nothing is written and nothing is sent. The
+        number is a snapshot: the audience is resolved again at send time by the
+        same predicate, so it can move between the estimate and the send.
+
+
+        Counts only accounts with a registered device: a "recipient" with
+        nothing to receive on inflates the number and makes the delivery
+        counters unreadable.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Estimate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaignAudienceEstimate' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/campaigns/{id}/schedule:
+    post:
+      operationId: cmsScheduleCampaign
+      tags: [cms]
+      summary: 'Ops: make a campaign due (send now, or at a time)'
+      description: >
+        Marks the campaign `scheduled` and returns. **No message exists yet**:
+        the worker picks up what is due on its next tick, resolves the audience
+        then, and dispatches through the provider adapter.
+
+
+        Omitting `sendAt` means now. Scheduling revalidates the destination,
+        because the place or recommendation it points at may have been removed
+        since the draft was written.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sendAt:
+                  type: string
+                  format: date-time
+                  description: Omit for "send now". A past time is also due immediately.
+      responses:
+        '201':
+          description: Scheduled (audited)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaign' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Not schedulable from its current state (`INVALID_STATUS_TRANSITION`)
+
+  /cms/campaigns/{id}/cancel:
+    post:
+      operationId: cmsCancelCampaign
+      tags: [cms]
+      summary: 'Ops: cancel a campaign that has not started'
+      description: >
+        Works while `scheduled`. Once the worker is `sending`, some messages are
+        already on phones and there is nothing to recall — the request is
+        refused with how far the send got, rather than reporting a cancellation
+        the backend cannot perform.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Cancelled (audited)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaign' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Sending has started (`CAMPAIGN_ALREADY_SENDING`) — the message says
+            how many were delivered — or the state is not cancellable
+            (`INVALID_STATUS_TRANSITION`).
+
+  /cms/campaigns/{id}/test-send:
+    post:
+      operationId: cmsTestSendCampaign
+      tags: [cms]
+      summary: 'Ops: send one copy to your own account'
+      description: >
+        Separate from a real send in every way that matters: it never changes
+        `status`, it reaches exactly one account, and that account is the
+        caller's own — matched on a **verified** email between the staff account
+        and a consumer account, so this cannot push a message at somebody else.
+
+
+        Queued like everything else; the worker delivers it. Rate-limited,
+        because it is the one send path a person can trigger repeatedly.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Test send queued for the worker
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [campaignId, status, testSendQueued]
+                properties:
+                  campaignId: { type: string, format: uuid }
+                  status: { $ref: '#/components/schemas/CampaignStatus' }
+                  testSendQueued: { type: boolean }
+        '400':
+          description: >
+            The caller has no verified consumer account on the same address
+            (`NO_TEST_RECIPIENT`).
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { description: Too many test sends }
+
+  /cms/uploads:
+    post:
+      operationId: cmsCreateUpload
+      tags: [cms]
+      summary: 'Editor/ops: presigned upload for CMS-managed media'
+      description: >
+        `/v1/uploads` authorizes a presigned PUT for the **calling consumer** —
+        the key it returns is bound to that actor and to a purpose a mobile
+        client writes — so an admin had no way to produce a key, and a banner,
+        where the image is mandatory, had nothing to bind to.
+
+
+        The same pipeline, not a second one: the same presigner, the same
+        content-type allowlist, the same size ceiling, the same
+        `media_uploads` row that makes a key mean something. What differs is
+        who may ask, what for, and that the authorization is audited.
+
+
+        The client PUTs the bytes straight to storage with `uploadUrl` and
+        sends only `key` back to whichever resource references it. Image bytes
+        never cross the API, so the server cannot report the image's pixel
+        dimensions here — they are not known until something reads the object.
+
+
+        Authentication is the ordinary CMS session: the admin cookie plus the
+        CSRF double-submit header on this mutation, or a bearer token. No
+        second credential path is opened, and no storage credential is ever
+        returned — only a URL that expires and is signed for one key and one
+        content type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose, contentType, contentLength]
+              properties:
+                purpose:
+                  type: string
+                  enum: [banner_image, campaign_image]
+                  description: >
+                    Staff-only purposes. Deliberately disjoint from the consumer
+                    set, so a phone cannot authorize a banner image and an
+                    editor's key is not accepted by the check-in flow.
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp, image/heic]
+                contentLength:
+                  type: integer
+                  description: Declared up front, so an oversized file is refused before a URL exists.
+      responses:
+        '201':
+          description: Upload authorized (audited)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsUpload' }
+        '400':
+          description: >
+            Unsupported content type (`UNSUPPORTED_CONTENT_TYPE`) or over the
+            size ceiling (`FILE_TOO_LARGE`).
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503':
+          description: Object storage is not configured in this environment (`UPLOAD_NOT_CONFIGURED`)
+
+  /cms/auth/admins/{id}:
+    patch:
+      operationId: cmsUpdateAdmin
+      tags: [cms]
+      summary: "Super admin: change a staff account's role or display name"
+      description: >
+        BE-CMS-G9. An admin cannot change their own role — not because
+        self-promotion is the risk, a `super_admin` is already the top of the
+        model, but because a one-person path from any role to any other removes
+        the only check the model has.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                role: { $ref: '#/components/schemas/AdminRole' }
+                displayName: { type: string, minLength: 1, maxLength: 50 }
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                  description: Recorded in the audit log. Mandatory on every staff-account mutation.
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsAdmin' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403':
+          description: >
+            `SELF_ROLE_CHANGE` — another super_admin must change your role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            `LAST_SUPER_ADMIN` — demoting the only active super_admin would
+            leave a console nobody can administer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/auth/admins/{id}/suspend:
+    post:
+      operationId: cmsSuspendAdmin
+      tags: [cms]
+      summary: 'Super admin: suspend a staff account'
+      description: >
+        Revokes every session as well as flipping the status. Both are true and
+        they answer different questions: the guard stops the account being
+        used, the revoke stops the refresh chain being continued.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Suspended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsAdmin' }
+        '403':
+          description: '`SELF_SUSPEND` — you cannot suspend your own account.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`LAST_SUPER_ADMIN` — the only active super_admin cannot be suspended.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/auth/admins/{id}/reactivate:
+    post:
+      operationId: cmsReactivateAdmin
+      tags: [cms]
+      summary: 'Super admin: reactivate a suspended staff account'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Reactivated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsAdmin' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/auth/admins/{id}/reset-password:
+    post:
+      operationId: cmsResetAdminPassword
+      tags: [cms]
+      summary: 'Super admin: issue a one-time temporary password'
+      description: >
+        The temporary password is in this response and nowhere else — not in a
+        log, not readable again, not recoverable if the tab closes. Every
+        existing session is revoked (a reset happens because control of the
+        account is in doubt) and the account then owes a change, enforced by
+        the server on every other CMS route.
+
+
+        MFA is deliberately left alone: resetting it here would turn one
+        `super_admin` into a complete account takeover with no second factor in
+        the way.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminActionReason' }
+      responses:
+        '201':
+          description: Temporary password issued — shown exactly once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [temporaryPassword, mustChangePassword]
+                properties:
+                  temporaryPassword: { type: string }
+                  mustChangePassword: { type: boolean, enum: [true] }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/auth/change-password:
+    post:
+      operationId: cmsChangeOwnPassword
+      tags: [cms]
+      summary: 'Staff: replace your own password'
+      description: >
+        The only route reachable while a password change is owed, which is what
+        keeps the obligation from being a deadlock. The current password is
+        required even then: it proves the caller is the person the temporary
+        password was handed to, and without it a leaked session id would be
+        enough. Every other session of this account is revoked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 12, maxLength: 128 }
+      responses:
+        '201':
+          description: Changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changed]
+                properties:
+                  changed: { type: boolean }
+        '400':
+          description: '`PASSWORD_UNCHANGED` — the new password must differ from the old.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          description: '`INVALID_CREDENTIALS` — current password is incorrect.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
   /cms/moderation:
     get:
       operationId: cmsModerationQueue
+      deprecated: true
       tags: [cms]
       summary: 'Moderator: pending reviews, reports, check-ins and community places'
+      description: >
+        Superseded by `/cms/moderation/counts` and the per-type queues below.
+
+
+        This returns four arrays that share one `limit`, with no filter and no
+        total, so the console could only filter the page it had already been
+        handed and the sidebar badge had to add the four array lengths together
+        — a number that stops being true as soon as a queue is longer than
+        `limit`. Kept working because the console ships against it today.
       parameters:
         - { name: limit, in: query, schema: { type: integer, maximum: 200, default: 50 } }
       responses:
         '200': { description: Unified queue }
 
+  /cms/moderation/counts:
+    get:
+      operationId: cmsModerationCounts
+      tags: [cms]
+      summary: 'Moderator: how much is actually waiting, per queue'
+      description: >
+        The number behind the sidebar badge. Counted in the database over the
+        whole backlog, so it does not change with the page size the console
+        happens to ask for.
+      responses:
+        '200':
+          description: Pending counts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsModerationCounts' }
+
+  /cms/moderation/reviews:
+    get:
+      operationId: cmsListModerationReviews
+      tags: [cms]
+      summary: 'Moderator: review queue, filtered and cursor-paged'
+      description: >
+        Keyset pagination on `(createdAt, id)`, newest first: the queue is
+        written to by users while a moderator reads it, so an offset page would
+        repeat rows that shifted down and skip rows that shifted up.
+
+
+        `totalCount` is the size of the filtered set, not of the page — it is
+        what the pager needs and what the console previously had to guess.
+
+
+        The author's display name is returned because moderating text means
+        knowing who wrote it and whether one account is filling the queue.
+        Email and phone are not part of that judgement and are never selected.
+      parameters:
+        - name: status
+          in: query
+          description: Defaults to `pending` — the work queue.
+          schema:
+            type: string
+            enum: [pending, published, rejected, removed, hidden]
+        - { name: rating, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
+        - name: reported
+          in: query
+          description: Reviews with (or without) an undecided report pointing at them.
+          schema: { type: boolean }
+        - { name: placeId, in: query, schema: { type: string, format: uuid } }
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date-time } }
+        - name: dateTo
+          in: query
+          description: Exclusive, so consecutive day filters tile without double-counting.
+          schema: { type: string, format: date-time }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Reviews, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsModerationReviewPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /cms/moderation/reports:
+    get:
+      operationId: cmsListModerationReports
+      tags: [cms]
+      summary: 'Moderator: report queue, filtered and cursor-paged'
+      description: >
+        `reporterKind` says whether a report came from a signed-in user, a guest
+        or neither. The guest session id itself is an internal handle and is not
+        returned: that a guest reported is the whole of the fact a moderator
+        needs.
+      parameters:
+        - name: status
+          in: query
+          description: Defaults to `open`.
+          schema: { type: string, enum: [open, actioned, dismissed] }
+        - { name: targetType, in: query, schema: { type: string, enum: [place, review, member] } }
+        - { name: targetId, in: query, schema: { type: string, format: uuid } }
+        - { name: reasonCode, in: query, schema: { type: string, maxLength: 64 } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date-time } }
+        - { name: dateTo, in: query, schema: { type: string, format: date-time } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Reports, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsModerationReportPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /cms/moderation/checkins:
+    get:
+      operationId: cmsListModerationCheckins
+      tags: [cms]
+      summary: 'Moderator: check-in queue, filtered and cursor-paged'
+      parameters:
+        - name: status
+          in: query
+          description: Defaults to `pending`.
+          schema: { type: string, enum: [pending, approved, rejected] }
+        - { name: rating, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
+        - name: hasBill
+          in: query
+          description: Check-ins carrying a verified bill (FR-PLAN-009).
+          schema: { type: boolean }
+        - { name: placeId, in: query, schema: { type: string, format: uuid } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date-time } }
+        - { name: dateTo, in: query, schema: { type: string, format: date-time } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Check-ins, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsModerationCheckinPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /cms/moderation/community-places:
+    get:
+      operationId: cmsListModerationCommunityPlaces
+      tags: [cms]
+      summary: 'Moderator: community-submitted places awaiting review'
+      parameters:
+        - {
+            name: q,
+            in: query,
+            description: Accent-insensitive name search,
+            same normalization as consumer search.,
+            schema: { type: string, maxLength: 120 },
+          }
+        - { name: areaKey, in: query, schema: { type: string, maxLength: 64 } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date-time } }
+        - { name: dateTo, in: query, schema: { type: string, format: date-time } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Submitted places, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCommunityPlacePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
   /cms/moderation/reviews/{id}:
+    get:
+      operationId: cmsGetModerationReview
+      tags: [cms]
+      summary: 'Moderator: read one review'
+      description: >
+        BE-CMS-G6. **Not filtered by status.** The queue list defaults to
+        `pending`, which is right for a queue and wrong for a link: a shared
+        URL pointing at a review somebody already decided has to open, rather
+        than the console saying "not in the current filter" about a row that
+        plainly exists.
+
+
+        Same projection as the list — one definition, so a field cannot appear
+        on one and quietly go missing from the other.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The review, whatever its status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsModerationReview' }
+        '404':
+          description: '`REVIEW_NOT_FOUND`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     post:
       operationId: cmsDecideReview
       tags: [cms]
@@ -3149,25 +5305,73 @@ paths:
     get:
       operationId: cmsListFeatureFlags
       tags: [cms]
-      summary: 'Ops: every flag with its current value and last writer'
+      summary: 'Ops: every stored flag override with its value and last writer'
       description: >
         A kill switch nobody can read is not a kill switch. The AI fallback and
         the travel-time provider are both flag-gated, so their state has to be
         visible before an incident, not during one.
+
+
+        One entry per stored override. A key can have several — `(all, all)` is
+        the unscoped row, and a more specific `(production, ios)` row wins over
+        it for that environment and platform. Keys with no row at all are not
+        listed here; `cmsFeatureFlagCatalog` is what says which keys exist and
+        what they fall back to.
+      parameters:
+        - { name: environment, in: query, schema: { $ref: '#/components/schemas/FlagEnvironment' } }
+        - { name: platform, in: query, schema: { $ref: '#/components/schemas/FlagPlatform' } }
       responses:
         '200':
-          description: Flags in key order
+          description: Overrides in key, environment, platform order
           content:
             application/json:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/CmsFeatureFlag' }
 
+  /cms/feature-flags/catalog:
+    get:
+      operationId: cmsFeatureFlagCatalog
+      tags: [cms]
+      summary: 'Ops: every configurable key, its type and its default'
+      description: >
+        The registry of keys something in the backend actually reads. A key is
+        added by shipping the code that reads it, so the console can never
+        write a value nothing consumes.
+
+
+        Needed to edit safely: without the default, "not configured" and
+        "configured to zero" look identical, and a `version` field has no way
+        to show what it falls back to.
+      responses:
+        '200':
+          description: Flag definitions in registry order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CmsFeatureFlagDefinition' }
+
   /cms/feature-flags/{key}:
     put:
       operationId: cmsSetFeatureFlag
       tags: [cms]
-      summary: 'Ops: toggle a feature flag / kill switch'
+      summary: 'Ops: set a flag for an environment and platform (audited)'
+      description: >
+        Validated against the key's declared type: a `version` that is not
+        `1.2.3` is refused here rather than tolerated by one client and crashed
+        on by another, and an unknown key is a 404 rather than a row nothing
+        reads.
+
+
+        A boolean flag's value is `enabled` — that is the column the kill
+        switches read, and an incident is the wrong moment to discover it moved.
+        For every other type the value goes in `value`; `payload` is the old
+        name for the same field and still accepted.
+
+
+        Omitting `environment` / `platform` writes the unscoped `(all, all)`
+        row, which is what every resolution falls back to.
       parameters:
         - { name: key, in: path, required: true, schema: { type: string } }
       requestBody:
@@ -3178,10 +5382,32 @@ paths:
               type: object
               required: [enabled]
               properties:
-                enabled: { type: boolean }
-                payload: {}
+                enabled:
+                  type: boolean
+                  description: >
+                    For a boolean flag this is the value. For any other type it
+                    is whether the override applies at all — switching it off
+                    returns the key to its registry default.
+                value:
+                  description: Typed per the key's `valueType`. Absent for boolean flags.
+                payload:
+                  deprecated: true
+                  description: Old name for `value`. Sending both with different values is a 400.
+                environment: { $ref: '#/components/schemas/FlagEnvironment' }
+                platform: { $ref: '#/components/schemas/FlagPlatform' }
       responses:
-        '200': { description: Flag updated (audited) }
+        '200':
+          description: Flag updated (audited with before/after)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsFeatureFlagWriteResult' }
+        '400':
+          description: >
+            Value does not match the declared type (`INVALID_FLAG_VALUE`), or a
+            platform override was asked for on a key that has no per-platform
+            form (`FLAG_NOT_PLATFORM_SCOPED`).
+        '404':
+          description: No such key in the registry (`FLAG_UNKNOWN`)
 
   /cms/emergency/places/{id}/suspend:
     post:
@@ -3282,6 +5508,146 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
+  /cms/ops/health:
+    get:
+      operationId: cmsOpsHealth
+      tags: [cms]
+      summary: 'Ops: dependency health for the console'
+      description: >
+        BE-CMS-G8. `/health` and `/metrics` exist but neither reaches the
+        console — the CMS Worker proxies `/v1/*` only, and Prometheus text is
+        not something a client should parse.
+
+
+        `unknown` is a first-class value, not a fallback. A dependency nobody
+        has checked is not healthy, and reporting it as healthy is how a
+        dashboard becomes the last place to learn about an outage. Provider
+        rows come from the circuit breaker rather than from live calls:
+        probing Google to colour a screen would spend the quota whose
+        exhaustion this view is meant to reveal — so a provider with no
+        traffic yet is absent rather than green.
+
+
+        Cached ~20s server-side. This is a screen, not an alerting path.
+      responses:
+        '200':
+          description: One row per dependency this deployment can say anything about
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [services]
+                properties:
+                  services:
+                    type: array
+                    items: { $ref: '#/components/schemas/CmsServiceHealth' }
+
+  /cms/ops/queues:
+    get:
+      operationId: cmsOpsQueues
+      tags: [cms]
+      summary: 'Ops: background queue depth'
+      description: >
+        `outbox_events`, the transactional outbox — a queue in every sense
+        that matters here, living in Postgres. It is the only row now: the
+        worker stopped using a broker (GoGo-BE#262), so there are no broker
+        queues left to report.
+
+
+        A broker that is unreachable contributes no rows rather than rows of
+        zeros; `/cms/ops/health` is where that is reported.
+      responses:
+        '200':
+          description: Queue depths
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queues]
+                properties:
+                  queues:
+                    type: array
+                    items: { $ref: '#/components/schemas/CmsQueueStats' }
+
+  /cms/ops/costs:
+    get:
+      operationId: cmsOpsCosts
+      tags: [cms]
+      summary: 'Ops: estimated provider spend today and month to date, from the durable ledger'
+      description: >
+        Backed by `provider_usage_daily` since #335 — a per-day, per-environment
+        record of what each provider operation actually did, priced against a
+        versioned list price. It survives deploys, which is what lets it answer
+        "today" and "month to date"; the in-process counter it replaced could
+        not.
+
+
+        Three rules the payload keeps, all of them about not overstating what
+        is known:
+
+
+        - **It is an estimate, and says so.** `basis: ESTIMATED`, and no field
+          is named `billed`, `actualSpend` or `invoiceCost`. Free caps are
+          applied per billing account per SKU across every linked Google
+          project; this approximates them per environment, hence
+          `confidence: MEDIUM`.
+
+        - **A provider whose price is unverified is absent from the money list
+          and present in `gaps`.** Routes bills per matrix element and no
+          per-element list price has been verified: its units are exact, its
+          money is unknown, and a floor with a currency symbol beside it would
+          be a false claim.
+
+        - **A provider nothing measures is in `gaps`, never at zero.** The Maps
+          SDK renders on the handset; the backend sees no map load.
+
+
+        `sourcesConfigured: false` with an empty list means the ledger is off
+        (`COST_LEDGER_ENABLED=false`) and must not render as a zero amount. With
+        it on, a zero **is** a measured zero: the operations are instrumented
+        and made no calls.
+      responses:
+        '200':
+          description: Estimated spend per provider, plus what could not be estimated
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [
+                    providers,
+                    sourcesConfigured,
+                    currency,
+                    pricingVersion,
+                    basis,
+                    confidence,
+                    asOf,
+                    gaps,
+                  ]
+                properties:
+                  providers:
+                    type: array
+                    items: { $ref: '#/components/schemas/CmsCostLine' }
+                  sourcesConfigured:
+                    type: boolean
+                    description: >
+                      False when no durable source is connected. An empty list
+                      with this false must not render as a zero amount.
+                  currency: { type: string, example: USD }
+                  pricingVersion: { type: string, example: '2026-09-01' }
+                  basis: { type: string, enum: [ESTIMATED] }
+                  confidence: { type: string, enum: [MEDIUM] }
+                  asOf:
+                    type: [string, 'null']
+                    format: date-time
+                    description: >
+                      Newest ledger write in the window — how fresh these
+                      numbers are. Null when nothing has been recorded this
+                      month.
+                  gaps:
+                    type: array
+                    items: { $ref: '#/components/schemas/CmsOpsCostGap' }
+
   /cms/ops/kpis:
     get:
       operationId: cmsOpsKpis
@@ -3289,6 +5655,133 @@ paths:
       summary: 'Ops: health KPIs (freshness, zero-result, suggestion success, budget, providers)'
       responses:
         '200': { description: Aggregated KPIs without exposing PII }
+
+  /cms/ops/summary:
+    get:
+      operationId: cmsOpsSummary
+      tags: [cms]
+      summary: 'Ops: one-screen provider health from the time-series store'
+      description: >
+        BE-CMS-P2 (#315). The console never reads `/v1/metrics` and never
+        reaches Grafana: that endpoint is a machine surface guarded by one
+        shared token granting read of every internal series, with no per-user
+        authorization and no audit of who looked at what. GoGo-BE queries the
+        store server-to-server with a `metrics:read` credential from SSM and
+        returns facts; the admin session decides who may ask.
+
+
+        `window` is an enum, never a duration or a range, and no PromQL crosses
+        this boundary in either direction. Every query is a constant in
+        `libs/modules/cms/domain/ops-metrics.ts`, parameterised only by that
+        enum and by this deployment's own `env` label.
+
+
+        `ops_admin` and above.
+      parameters:
+        - $ref: '#/components/parameters/OpsWindow'
+      responses:
+        '200':
+          description: >
+            Always 200, including when the monitoring backend is down —
+            `backend.status` carries that. A 5xx here would render in the
+            console as "the CMS is broken", which is the wrong sentence for
+            "monitoring is unavailable and everything else is fine".
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CmsOpsEnvelope'
+                  - type: object
+                    required: [totals, trends, costModel, latencySemantics]
+                    properties:
+                      totals:
+                        oneOf:
+                          - $ref: '#/components/schemas/CmsOpsTotals'
+                          - type: 'null'
+                        description: >
+                          Null when the backend could not be read. Never a zero
+                          — no traffic and no measurement are different facts,
+                          and the console must render them differently.
+                      trends:
+                        oneOf:
+                          - $ref: '#/components/schemas/CmsOpsTrends'
+                          - type: 'null'
+                      costModel: { $ref: '#/components/schemas/CmsOpsCostModel' }
+                      latencySemantics:
+                        $ref: '#/components/schemas/CmsOpsLatencySemantics'
+        '403': { description: Role may not read operational data }
+
+  /cms/ops/providers:
+    get:
+      operationId: cmsOpsProviders
+      tags: [cms]
+      summary: 'Ops: per-provider reliability, latency and billable units'
+      description: >
+        One row per external service. `instrumented: false` means no metric for
+        it exists at all, which the console must render as "chưa đo" and never
+        as zero calls.
+      parameters:
+        - $ref: '#/components/parameters/OpsWindow'
+      responses:
+        '200':
+          description: Provider rows, possibly all uninstrumented
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CmsOpsEnvelope'
+                  - type: object
+                    required: [providers, costModel, latencySemantics]
+                    properties:
+                      providers:
+                        type: array
+                        items: { $ref: '#/components/schemas/CmsOpsProvider' }
+                      costModel: { $ref: '#/components/schemas/CmsOpsCostModel' }
+                      latencySemantics:
+                        $ref: '#/components/schemas/CmsOpsLatencySemantics'
+        '403': { description: Role may not read operational data }
+
+  /cms/ops/providers/{provider}:
+    get:
+      operationId: cmsOpsProvider
+      tags: [cms]
+      summary: 'Ops: one provider, broken down by adapter operation'
+      description: >
+        Adds the per-operation rows the list view omits — for Places that is
+        `google.searchText`, `google.details.core|quality|detail`,
+        `google.autocomplete` and `google.expand`, each a distinct SKU.
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [places, routes, sheets]
+        - $ref: '#/components/parameters/OpsWindow'
+      responses:
+        '200':
+          description: One provider with its operations and trend series
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CmsOpsEnvelope'
+                  - type: object
+                    required: [provider, costModel, latencySemantics]
+                    properties:
+                      provider:
+                        oneOf:
+                          - $ref: '#/components/schemas/CmsOpsProviderDetail'
+                          - type: 'null'
+                      trends:
+                        oneOf:
+                          - $ref: '#/components/schemas/CmsOpsTrends'
+                          - type: 'null'
+                      costModel: { $ref: '#/components/schemas/CmsOpsCostModel' }
+                      latencySemantics:
+                        $ref: '#/components/schemas/CmsOpsLatencySemantics'
+        '403': { description: Role may not read operational data }
+        '422': { description: Unknown provider }
 
 components:
   securitySchemes:
@@ -3312,6 +5805,19 @@ components:
         type: string
         minLength: 8
         maxLength: 128
+    OpsWindow:
+      name: window
+      in: query
+      required: false
+      description: >
+        Fixed window, never a duration or a range. Four values only: a
+        free-form range is arbitrary load on the store and an arbitrary number
+        of points at the browser, and the enum is also what makes "no
+        client-supplied PromQL" true by construction rather than by escaping.
+      schema:
+        type: string
+        enum: ['1h', '24h', '7d', '30d']
+        default: '24h'
     Cursor:
       name: cursor
       in: query
@@ -3439,6 +5945,768 @@ components:
     AdminRole:
       type: string
       enum: [editor, moderator, ops_admin, super_admin]
+    AdminStatus:
+      type: string
+      enum: [active, suspended]
+      description: >
+        The two states the server actually enforces: `suspended` loses access on
+        the next request, whatever token the account still holds. There is no
+        third "disabled" state — a status the guard does not act on would be a
+        claim in the data that nothing backs.
+
+    CmsAdmin:
+      type: object
+      required: [id, email, displayName, role, status, createdAt, mfaEnrolled, mustChangePassword]
+      properties:
+        id: { type: string, format: uuid }
+        email:
+          type: string
+          format: email
+          description: How a staff account is identified. No other contact detail is returned.
+        displayName: { type: string }
+        role: { $ref: '#/components/schemas/AdminRole' }
+        status: { $ref: '#/components/schemas/AdminStatus' }
+        createdAt: { type: string, format: date-time }
+        lastLoginAt:
+          type: string
+          format: date-time
+          description: Absent on an account that has never signed in.
+        mfaEnrolled:
+          type: boolean
+          description: >
+            #248. Whether a second factor is enrolled — the status, never
+            anything about the secret. It is what lets the console show which
+            accounts are unprotected.
+        mustChangePassword:
+          type: boolean
+          description: A temporary password is outstanding on this account.
+
+    AdminActionReason:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: >
+            Recorded in the audit log. Mandatory: a row that records what
+            changed but not why answers the easy half of the question a
+            reviewer is asking.
+
+    CmsServiceHealth:
+      type: object
+      required: [key, status, checkedAt]
+      properties:
+        key:
+          type: string
+          description: >
+            `api`, `db`, `redis`, `worker`, or a provider name discovered from
+            the circuit breaker. Not a closed enum: a provider appears once it
+            has been called, and pinning the list here would mean a new
+            provider silently missing from the view.
+        status:
+          type: string
+          enum: [healthy, degraded, down, unknown]
+          description: >
+            `unknown` is a real answer — nothing has measured this dependency
+            in this process. It is not a synonym for healthy.
+        latencyMs:
+          type: integer
+          description: Present only where the check actually timed something.
+        checkedAt: { type: string, format: date-time }
+        detail:
+          type: string
+          description: Why it is degraded or unknown, in words the console can show.
+
+    CmsQueueStats:
+      type: object
+      required: [name, source, pending, running, failed24h, failed24hTruncated, deadLetter]
+      properties:
+        name: { type: string }
+        source:
+          type: string
+          enum: [bullmq, database]
+          description: Where these numbers came from, so the console can say so.
+        pending: { type: integer, description: Waiting plus delayed. }
+        running: { type: integer }
+        failed24h:
+          type: integer
+          description: >
+            Failures finished in the last 24 hours, computed from
+            timestamps — not from a retained failure count, which answers
+            "how many are still on disk" and moves when retention changes.
+        failed24hTruncated:
+          type: boolean
+          description: >
+            True when the scan hit its cap, so `failed24h` is a floor rather
+            than a count. A truncated number that does not say so is what an
+            incident review discovers afterwards.
+        deadLetter:
+          type: integer
+          description: Jobs whose attempts are exhausted; they will not be retried.
+        oldestPendingSeconds:
+          type: [integer, 'null']
+          description: Age of the oldest waiting job. Null when nothing is waiting.
+        workers:
+          type: [integer, 'null']
+          description: >
+            Connected consumers. Null when the backend does not report it —
+            null and 0 are different facts, and zero on a queue with work is
+            the alarm.
+
+    CmsOpsEnvelope:
+      type: object
+      required: [window, effectiveWindow, retentionDays, truncated, generatedAt, backend]
+      properties:
+        window:
+          type: string
+          enum: ['1h', '24h', '7d', '30d']
+          description: What was asked for.
+        effectiveWindow:
+          type: string
+          description: >
+            What the store could actually answer, as a Prometheus duration.
+            Differs from `window` when retention is shorter — Grafana Cloud
+            Free keeps 14 days, so `30d` is answered with `14d`. The missing
+            days are **not** extrapolated: a chart running flat across data
+            that never existed is a lie in the shape of data.
+          example: 14d
+        retentionDays:
+          type: integer
+          description: How much history this deployment's store holds.
+          example: 14
+        truncated:
+          type: boolean
+          description: >
+            True when `effectiveWindow` is shorter than `window`. The console
+            must state the real span rather than labelling the chart 30 days.
+        generatedAt: { type: string, format: date-time }
+        stale:
+          type: boolean
+          description: >
+            Present and true when the refresh failed and this is the last good
+            answer. During an incident the numbers from four minutes ago are
+            usually the ones someone wants — but they must not be presented as
+            live.
+        asOf:
+          type: string
+          format: date-time
+          description: When the stale payload was actually collected.
+        backend:
+          type: object
+          required: [status]
+          properties:
+            status:
+              type: string
+              enum: [ok, degraded, unavailable]
+              description: >
+                `degraded` means stale data is being served after a failed
+                refresh; `unavailable` means there was nothing to fall back to.
+            detail:
+              type: string
+              description: >
+                A bounded sentence, never the store's own error text — its
+                messages quote the query back, and the query names internal
+                series.
+              example: Monitoring backend refused our credential
+
+    CmsOpsPercentiles:
+      type: object
+      required: [p50, p95, p99]
+      properties:
+        p50: { type: [number, 'null'], description: Seconds. }
+        p95: { type: [number, 'null'], description: Seconds. }
+        p99:
+          type: [number, 'null']
+          description: >
+            Null below `latencySemantics.p99MinSamples` observations. A p99
+            from a handful of samples is the top populated bucket edge wearing
+            a decimal point, so the console says "chưa đủ dữ liệu" instead.
+
+    CmsOpsLatencySemantics:
+      type: object
+      required: [unit, source, excludesHttpStatuses, excludesReason, p99MinSamples]
+      properties:
+        unit: { type: string, enum: [seconds] }
+        source: { type: string }
+        excludesHttpStatuses:
+          type: array
+          items: { type: string }
+          description: Statuses left out of the primary percentiles.
+          example: ['400', '404']
+        excludesReason:
+          type: string
+          description: >
+            Deterministic input rejections (#314). Google refuses a malformed
+            place id in tens of milliseconds, so counting those would make the
+            provider look *faster* the more broken links users paste — the p95
+            meant to answer "is Google slow" would improve during an incident
+            of an entirely different kind. Operational failures stay in,
+            because a 403 or a 429 is a real call that really took that long.
+            The excluded mass is reported separately as `rejectedLatency`.
+        p99MinSamples: { type: integer }
+
+    CmsOpsCostModel:
+      type: object
+      required:
+        [
+          kind,
+          estimatedCost,
+          estimatedCostMicros,
+          currency,
+          basis,
+          confidence,
+          pricingVersion,
+          freeCapApplied,
+          costComplete,
+          unpricedOperations,
+          measurementGaps,
+          note,
+        ]
+      description: >
+        What the cost number is, in the payload rather than in a comment
+        nobody reading the JSON will see.
+
+
+        Before #335 this was `units_only` with `estimatedCost: null`, because
+        no price existed anywhere in the system. There is now a versioned list
+        price, so the number is stated — with every qualification attached to
+        it rather than assumed.
+      properties:
+        kind: { type: string, enum: [estimated] }
+        estimatedCost:
+          type: [integer, 'null']
+          description: >
+            Integer USD minor units (cents). Null where nothing under the
+            group has a verified price — an absence, never a zero. Rounded so a
+            real charge under one cent reports as one cent rather than as
+            nothing; `estimatedCostMicros` carries the exact figure.
+        estimatedCostMicros:
+          type: [integer, 'null']
+          description: USD micros. The exact value the minor-unit figure is rounded from.
+        currency: { type: [string, 'null'], example: USD }
+        basis:
+          type: string
+          enum: [ESTIMATED]
+          description: >
+            Arithmetic over our own counters against a list price. Not an
+            invoice. No field here is named `billed`, `actualSpend` or
+            `invoiceCost`, because none of them would be true.
+        confidence: { type: string, enum: [MEDIUM] }
+        pricingVersion:
+          type: string
+          description: Which price list produced the number.
+          example: '2026-09-01'
+        freeCapApplied:
+          type: boolean
+          description: >
+            False on this surface, always. A free cap is monthly and these
+            windows are 1h–30d, so subtracting a monthly allowance from an hour
+            of traffic would understate by an arbitrary amount. Month-to-date
+            spend with the cap applied is on `/cms/ops/costs`.
+        costComplete:
+          type: boolean
+          description: >
+            False when at least one operation in the group has no verified list
+            price. The sum is then a floor, not a total, and the reader is told
+            which.
+        unpricedOperations:
+          type: array
+          items: { type: string }
+          description: The operations whose units are counted but whose price is unknown.
+        measurementGaps:
+          type: array
+          items: { $ref: '#/components/schemas/CmsOpsCostGap' }
+          description: >
+            What has no number, and why. Two different absences, never merged
+            into one.
+        note: { type: string }
+
+    CmsOpsCostGap:
+      type: object
+      required: [key, provider, kind, detail]
+      properties:
+        key: { type: string, example: google.maps_sdk_ios }
+        provider: { type: [string, 'null'], enum: [places, routes, sheets, maps_sdk, null] }
+        kind:
+          type: string
+          enum: [not_instrumented, price_unknown]
+          description: >
+            `not_instrumented` — nobody counted it, so there are no units to
+            price; the Maps SDK renders on the handset and this process sees no
+            map load. `price_unknown` — the units are exact and the list price
+            has not been verified; Routes bills per matrix element. Both render
+            as "chưa đo", and an operator chasing one does something completely
+            different from an operator chasing the other.
+        detail: { type: string }
+
+    CmsOpsTotals:
+      type: object
+      required:
+        [
+          providerRequests,
+          providerSuccesses,
+          providerFailures,
+          providerRejected,
+          providerSuccessRate,
+          providerFailureRate,
+          providerRejectedRate,
+          latency,
+          rejectedLatency,
+          billableUnits,
+          estimatedCost,
+          estimatedCostMicros,
+          costComplete,
+          unpricedOperations,
+        ]
+      properties:
+        providerRequests: { type: integer }
+        providerSuccesses: { type: integer }
+        providerFailures:
+          type: integer
+          description: Google did not serve us — auth, quota, upstream (#273).
+        providerRejected:
+          type: integer
+          description: >
+            Our request was wrong — a malformed place id, a sheet that does not
+            exist (#314). Counted apart so an alert on provider failures keeps
+            meaning "Google is not serving us".
+        providerSuccessRate: { type: [number, 'null'] }
+        providerFailureRate: { type: [number, 'null'] }
+        providerRejectedRate: { type: [number, 'null'] }
+        latency: { $ref: '#/components/schemas/CmsOpsPercentiles' }
+        rejectedLatency:
+          type: object
+          description: >
+            The mass excluded from `latency`, reported rather than discarded,
+            so "rejections are fast" is visible as a fact and not as an absence.
+          properties:
+            p50: { type: [number, 'null'] }
+            p95: { type: [number, 'null'] }
+        billableUnits: { type: integer }
+        estimatedCost: { type: [integer, 'null'] }
+        estimatedCostMicros: { type: [integer, 'null'] }
+        costComplete: { type: boolean }
+        unpricedOperations: { type: array, items: { type: string } }
+
+    CmsOpsProvider:
+      type: object
+      required:
+        [
+          provider,
+          instrumented,
+          calls,
+          successes,
+          failures,
+          rejected,
+          successRate,
+          latency,
+          billableUnits,
+          estimatedCost,
+          estimatedCostMicros,
+          costComplete,
+          unpricedOperations,
+        ]
+      properties:
+        provider:
+          type: string
+          enum: [places, routes, sheets, maps_sdk]
+          description: >
+            `maps_sdk` joined the list in #335 and always arrives with
+            `instrumented: false`: the SDK renders on the handset and the
+            backend sees no map load. It is listed rather than omitted so the
+            console can name it — an absent row and a zero row read the same to
+            anyone not holding the spec.
+        instrumented:
+          type: boolean
+          description: >
+            False when no metric exists for this provider at all. Must render
+            as "chưa đo", never as zero calls — a measured zero and an
+            unmeasured one are different claims.
+        calls: { type: integer }
+        successes: { type: integer }
+        failures: { type: integer }
+        rejected: { type: integer }
+        successRate: { type: [number, 'null'] }
+        latency: { $ref: '#/components/schemas/CmsOpsPercentiles' }
+        billableUnits:
+          type: [integer, 'null']
+          description: >
+            Null where the provider has no SKU counter. Sheets is quota-limited
+            rather than billed per call, so it is null and must never render as
+            0, which reads as "free".
+        estimatedCost:
+          type: [integer, 'null']
+          description: USD minor units at list price. Null where nothing here has a verified price.
+        estimatedCostMicros: { type: [integer, 'null'] }
+        costComplete: { type: boolean }
+        unpricedOperations: { type: array, items: { type: string } }
+
+    CmsOpsProviderDetail:
+      allOf:
+        - $ref: '#/components/schemas/CmsOpsProvider'
+        - type: object
+          required: [operations]
+          properties:
+            operations:
+              type: array
+              items: { $ref: '#/components/schemas/CmsOpsOperation' }
+
+    CmsOpsOperation:
+      type: object
+      required:
+        [
+          method,
+          calls,
+          successes,
+          failures,
+          rejected,
+          successRate,
+          latency,
+          billableUnits,
+          googleSku,
+          estimatedCost,
+          estimatedCostMicros,
+        ]
+      properties:
+        method:
+          type: string
+          description: >
+            The adapter operation. For Places it is also the billed SKU label;
+            Routes is not — it bills as `routes.computeRouteMatrix` while its
+            requests arrive as `google.routeMatrix`, and the server folds the
+            two onto this one operation so a reader sees one row and not two.
+          example: google.details.quality
+        calls: { type: integer }
+        successes: { type: integer }
+        failures: { type: integer }
+        rejected: { type: integer }
+        successRate: { type: [number, 'null'] }
+        latency: { $ref: '#/components/schemas/CmsOpsPercentiles' }
+        billableUnits: { type: [integer, 'null'] }
+        googleSku:
+          type: [string, 'null']
+          description: Null where the call is not a billed Google SKU (Sheets, short-link expansion).
+          example: Places API (New) — Place Details Enterprise
+        estimatedCost: { type: [integer, 'null'] }
+        estimatedCostMicros:
+          type: [integer, 'null']
+          description: >
+            USD micros at list price. Null when the units are unknown **or**
+            the price is — both are absences, and neither is a zero.
+
+    CmsOpsTrends:
+      type: object
+      required: [stepSeconds, series]
+      properties:
+        stepSeconds:
+          type: integer
+          description: >
+            Fixed per window (1h→60, 24h→300, 7d→1800, 30d→7200) so every chart
+            is 60–360 points. The client does not choose it: a step is a
+            resolution decision and an arbitrary one is arbitrary load.
+        series:
+          type: object
+          properties:
+            requests: { $ref: '#/components/schemas/CmsOpsSeries' }
+            failures: { $ref: '#/components/schemas/CmsOpsSeries' }
+            latencyP95: { $ref: '#/components/schemas/CmsOpsSeries' }
+            costUnits: { $ref: '#/components/schemas/CmsOpsSeries' }
+
+    CmsOpsSeries:
+      type: array
+      description: >
+        Gaps are omitted, not zero-filled. Prometheus renders a gap as NaN, and
+        charting it as zero invents a dip that never happened.
+      items:
+        type: object
+        required: [t, v]
+        properties:
+          t: { type: string, format: date-time }
+          v: { type: number }
+
+    CmsCostLine:
+      type: object
+      required:
+        [
+          key,
+          today,
+          monthToDate,
+          currency,
+          basis,
+          todayMicros,
+          monthToDateMicros,
+          billableUnitsToday,
+          billableUnitsMonthToDate,
+        ]
+      properties:
+        key:
+          type: string
+          description: >
+            The provider the line reports (`places`, `routes`, `sheets`, …).
+            Deliberately not an enum: only providers with a priceable total
+            appear here, and constraining a response property that was open
+            would break a client that already handles an unknown key.
+          example: places
+        today: { type: integer, description: 'Minor units (USD cents).' }
+        monthToDate: { type: integer, description: 'Minor units (USD cents).' }
+        currency: { type: string, example: USD }
+        basis:
+          type: string
+          enum: [estimated]
+          description: >
+            Where the number came from. A line never omits this: an estimate
+            and an invoice are different claims about the same provider. There
+            is no billing API connected, so `billed` cannot occur.
+        todayMicros:
+          type: integer
+          description: >
+            USD micros, free-cap adjusted. The exact figure the minor-unit
+            value is rounded from — kept so a sub-cent day is not lost to
+            rounding and not overstated by it either.
+        monthToDateMicros: { type: integer }
+        billableUnitsToday:
+          type: integer
+          description: >
+            The measured quantity the money is derived from. Units are a fact;
+            the money is an estimate over them.
+        billableUnitsMonthToDate: { type: integer }
+
+    CmsAppUser:
+      type: object
+      required: [id, displayName, status, authMethod, locale, createdAt, counters, reportCount]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+        email:
+          type: [string, 'null']
+          description: Null on a deleted account — the address is freed for re-registration.
+        status: { type: string, enum: [active, suspended, banned, deleted] }
+        authMethod:
+          type: string
+          enum: [password, none]
+          description: >
+            How this account signs in. One real value today, because email +
+            password is the only method that exists; it is reported rather than
+            assumed so the console does not have to guess when a second lands.
+            There is deliberately no filter on it — a control that can only
+            return everything is not a control.
+        locale: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastActiveAt:
+          type: [string, 'null']
+          format: date-time
+          description: Newest session use. Null for an account that never signed in.
+        counters:
+          type: object
+          required: [roomsCreated, roomsJoined, reviews, savedPlaces]
+          properties:
+            roomsCreated: { type: integer }
+            roomsJoined: { type: integer }
+            reviews: { type: integer }
+            savedPlaces: { type: integer }
+        reportCount:
+          type: integer
+          description: Reports filed against this person, open or decided.
+
+    CmsAppUserDetail:
+      allOf:
+        - $ref: '#/components/schemas/CmsAppUser'
+        - type: object
+          required: [rooms, openPrivacyRequestCount]
+          properties:
+            openPrivacyRequestCount:
+              type: integer
+              description: >
+                #255. Open privacy requests naming this account. The console
+                warns before a direct delete — a direct delete does not close
+                any of them, because the same user is not the same request.
+            statusReason:
+              type: string
+              description: >
+                From the audit log, not a column — the reason is already
+                written there with who set it and when, and a second copy on
+                the row is one that drifts. Absent while the account is active.
+            statusChangedAt: { type: string, format: date-time }
+            rooms:
+              type: array
+              description: The 20 most recently joined. No invite code.
+              items:
+                type: object
+                required:
+                  [id, type, status, decisionMode, participantCount, role, joinedAt, createdAt]
+                properties:
+                  id: { type: string, format: uuid }
+                  type: { type: string }
+                  status: { type: string }
+                  decisionMode: { type: string }
+                  participantCount: { type: integer }
+                  title: { type: string }
+                  role: { type: string }
+                  joinedAt: { type: string, format: date-time }
+                  createdAt: { type: string, format: date-time }
+
+    CmsAppUserPage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsAppUser' }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    CmsUserStatusResult:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [active, suspended, banned] }
+
+    CmsRoomPage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                id,
+                type,
+                status,
+                decisionMode,
+                participantCount,
+                hostUserId,
+                memberCount,
+                planCount,
+                createdAt,
+              ]
+            properties:
+              id: { type: string, format: uuid }
+              type: { type: string }
+              status: { type: string }
+              decisionMode: { type: string }
+              participantCount: { type: integer }
+              title: { type: string }
+              hostUserId:
+                type: string
+                format: uuid
+                description: An id, not a name — it links to the account detail.
+              memberCount: { type: integer }
+              planCount: { type: integer }
+              scheduledDate: { type: string, format: date-time }
+              createdAt: { type: string, format: date-time }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    CmsPlanPage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, roomId, version, status, isStale, stopCount, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              roomId: { type: string, format: uuid }
+              version: { type: integer }
+              status: { type: string }
+              isStale: { type: boolean }
+              stopCount: { type: integer }
+              createdAt: { type: string, format: date-time }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    PrivacyRequestType:
+      type: string
+      enum: [export, delete, correction]
+
+    PrivacyRequestOutcome:
+      type: string
+      enum: [completed, no_account_found, identity_not_verified, rejected, failed]
+      description: >
+        How a request ended. Separate from `status` on purpose: one enum that
+        mixes "acknowledged" with "no_account_found" forces every query to know
+        which values mean still-moving and which mean ended-and-how.
+
+    PrivacyRequest:
+      type: object
+      required: [id, type, source, status, subject, receivedAt, ackDueAt, fulfillmentDueAt, sla]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/PrivacyRequestType' }
+        source: { type: string, enum: [self_service, support, cms] }
+        status: { type: string, enum: [open, acknowledged, in_progress, closed] }
+        outcome: { $ref: '#/components/schemas/PrivacyRequestOutcome' }
+        subject:
+          type: object
+          required: [subjectType, identityStatus]
+          properties:
+            subjectType: { type: string, enum: [user, email, external] }
+            userId: { type: string, format: uuid }
+            contactEmail: { type: string, format: email }
+            externalReference: { type: string }
+            identityStatus: { type: string, enum: [matched, no_account_found, unverified] }
+        receivedAt: { type: string, format: date-time }
+        ackDueAt: { type: string, format: date-time }
+        acknowledgedAt: { type: string, format: date-time }
+        fulfillmentDueAt: { type: string, format: date-time }
+        extendedDueAt: { type: string, format: date-time }
+        extensionReason: { type: string }
+        executedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time }
+        deliveryMethod: { type: string, enum: [in_app, secure_download, other] }
+        deliveredAt: { type: string, format: date-time }
+        retentionAt:
+          type: string
+          format: date-time
+          description: >
+            Stamped at closure: closed_at + the retention policy. The job
+            hard-deletes the row at this time unless a hold is in place.
+        retentionHold:
+          type: object
+          required: [heldAt, heldBy, reason, legalBasis, reviewAt, reviewOverdue]
+          properties:
+            heldAt: { type: string, format: date-time }
+            heldBy: { type: string, format: uuid }
+            reason: { type: string }
+            legalBasis: { type: string }
+            reviewAt: { type: string, format: date-time }
+            holdUntil: { type: string, format: date-time }
+            reviewOverdue:
+              type: boolean
+              description: HOLD_REVIEW_OVERDUE — a person must review. Nothing is released or deleted automatically.
+        reasonCode: { type: string }
+        ticketReference: { type: string }
+        operatorNote: { type: string, maxLength: 256 }
+        sla:
+          type: string
+          enum: [ON_TRACK, DUE_SOON, OVERDUE, COMPLETED]
+          description: >
+            Computed server-side from the stored due dates. `DUE_SOON` is the
+            last quarter of the window, floored at 24 hours. Production SLA
+            values are provisional until Legal confirms them against current law.
+
+    CmsAdminPage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsAdmin' }
+        nextCursor:
+          type: [string, 'null']
+          description: Keyset cursor over (createdAt, id).
+        totalCount:
+          type: integer
+          description: Accounts matching the filter, not accounts in this page.
+
     ModerationDecision:
       type: object
       required: [decision, reason]
@@ -3781,6 +7049,17 @@ components:
           type: array
           items: { type: string }
         existingPlaceId: { type: string, format: uuid }
+        resolutionToken:
+          type: string
+          maxLength: 1024
+          description: >
+            Opaque, short-lived proof that this request verified the Google Place
+            ID with the provider (#337). Present only when the answer came from a
+            live provider check and the place is operational; send it back on
+            `POST /place-submissions` to skip the duplicate verification fetch. It
+            carries no provider content and authorises nothing — an expired or
+            edited token is rejected with a retryable `RESOLUTION_TOKEN_INVALID`
+            and the client resolves again.
         candidate:
           type: object
           properties:
@@ -3918,6 +7197,38 @@ components:
         totals: { $ref: '#/components/schemas/ImportTotals' }
         createdAt: { type: string, format: date-time }
         completedAt: { type: string, format: date-time }
+    ImportCanonicalField:
+      type: string
+      description: >-
+        A column an import source can be mapped onto — the vocabulary a client
+        should generate its mapping UI from. Mirrors `CANONICAL_FIELDS` in
+        `libs/modules/ingestion/domain/column-mapping.ts`, which is the single
+        source of truth; `import-parsing.spec.ts` fails if the two drift.
+
+        Request schemas keep `mapping` as a plain string map: narrowing an
+        existing `/v1` request property to an enum is a breaking change
+        (ADR-0005), so the vocabulary is published here rather than enforced in
+        the wire type. `/v1` rejects no value — one outside this list leaves
+        its column unmapped and is reported. Strict rejection belongs in `/v2`.
+      enum:
+        - source_row_id
+        - name
+        - city
+        - district
+        - google_maps_url
+        - google_maps_query
+        - category
+        - category_raw
+        - price_min
+        - price_max
+        - price_unit
+        - price_raw
+        - audiences
+        - audiences_raw
+        - vibes
+        - vibes_raw
+        - highlight
+        - note
     ImportJob:
       allOf:
         - $ref: '#/components/schemas/ImportJobSummary'
@@ -3934,6 +7245,16 @@ components:
               description: True when identical bytes/mode returned the existing job.
             unmappedHeaders:
               type: array
+              description: >-
+                Headers the parser recognised no canonical field for, as
+                `tabName:header`. Their cells are dropped, never guessed.
+              items: { type: string }
+            missingRequiredColumns:
+              type: array
+              description: >-
+                Required canonical fields no header covers, as
+                `tabName:field`. `source_row_id` here means row identities were
+                derived from position and will not survive a row reorder.
               items: { type: string }
     ImportCandidate:
       type: object
@@ -4038,6 +7359,13 @@ components:
             app's (security rule): a shift, not a month.
         role: { $ref: '#/components/schemas/AdminRole' }
         displayName: { type: string }
+        mustChangePassword:
+          type: boolean
+          description: >
+            #248. True when a `super_admin` issued a temporary password that
+            has not been replaced. The console must route to the change screen;
+            the obligation itself is enforced server-side — every other CMS
+            route answers 403 `PASSWORD_CHANGE_REQUIRED` until it is cleared.
     PlaceSubmissionSummary:
       type: object
       required: [id, googlePlaceId, status, submissionCount, createdAt]
@@ -4305,19 +7633,784 @@ components:
         activatedAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
 
+    FlagValueType:
+      type: string
+      enum: [boolean, string, number, json, version]
+
+    FlagEnvironment:
+      type: string
+      enum: [all, dev, staging, production]
+      description: >
+        `all` is the unscoped row every resolution falls back to; a named
+        environment overrides it for that deployment only.
+
+    FlagPlatform:
+      type: string
+      enum: [all, ios, android, web]
+
     CmsFeatureFlag:
       type: object
-      required: [key, enabled, updatedAt]
+      required: [key, valueType, environment, platform, enabled, known, updatedAt]
       properties:
         key: { type: string }
-        enabled: { type: boolean }
-        payload: { description: Free-form flag configuration. }
+        valueType: { $ref: '#/components/schemas/FlagValueType' }
+        environment: { $ref: '#/components/schemas/FlagEnvironment' }
+        platform: { $ref: '#/components/schemas/FlagPlatform' }
+        enabled:
+          type: boolean
+          description: >
+            The value itself for a boolean flag; for any other type, whether
+            this override applies at all.
+        value:
+          description: Typed per `valueType`. For a boolean flag this equals `enabled`.
+        payload:
+          deprecated: true
+          description: Old name for `value`, same content.
         description: { type: [string, 'null'] }
+        known:
+          type: boolean
+          description: >
+            False when the row's key is no longer in the registry — a value left
+            behind by a removed feature, which nothing reads any more.
         updatedBy:
           oneOf:
             - { $ref: '#/components/schemas/CmsAdminRef' }
             - { type: 'null' }
         updatedAt: { type: string, format: date-time }
+
+    CmsFeatureFlagDefinition:
+      type: object
+      required: [key, valueType, defaultValue, description, platformScoped]
+      properties:
+        key: { type: string }
+        valueType: { $ref: '#/components/schemas/FlagValueType' }
+        defaultValue:
+          description: What the backend uses when no override matches. Never null.
+        description: { type: string }
+        platformScoped:
+          type: boolean
+          description: >
+            False means a per-platform override is refused for this key rather
+            than stored and ignored.
+
+    CmsFeatureFlagWriteResult:
+      type: object
+      required: [key, valueType, environment, platform, enabled]
+      properties:
+        key: { type: string }
+        valueType: { $ref: '#/components/schemas/FlagValueType' }
+        environment: { $ref: '#/components/schemas/FlagEnvironment' }
+        platform: { $ref: '#/components/schemas/FlagPlatform' }
+        enabled: { type: boolean }
+        value: { description: The stored value, as the server now holds it. }
+
+    PlanTemplateStatus:
+      type: string
+      enum: [draft, published, archived]
+      description: '`archived` is terminal — a retired template comes back as a new row.'
+
+    BudgetScope:
+      type: string
+      enum: [per_person, per_group]
+      description: >
+        What an amount is *per*. These are different numbers, so no amount in
+        this contract is returned without one.
+
+    BudgetRange:
+      type: object
+      required: [min, max, currency, scope]
+      description: >
+        Integer minor units with its currency and scope. Present as a whole or
+        absent as a whole — there is no half of this object.
+      properties:
+        min: { type: integer, minimum: 0 }
+        max: { type: integer, minimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$', description: ISO-4217. }
+        scope: { $ref: '#/components/schemas/BudgetScope' }
+
+    CmsPlanTemplateStopInput:
+      type: object
+      required: [categoryTaxonomyId, expectedDurationMinutes]
+      properties:
+        categoryTaxonomyId:
+          type: string
+          format: uuid
+          description: Taxonomy of kind `category` — what sort of stop this is.
+        preferredPlaceId:
+          type: string
+          format: uuid
+          description: >
+            Optional. A template may name a place or leave the choice to
+            matching.
+        isOptional:
+          type: boolean
+          description: A property of the stop, not a convention the reader infers.
+        expectedDurationMinutes: { type: integer, minimum: 5, maximum: 1440 }
+        budget: { $ref: '#/components/schemas/BudgetRange' }
+        note: { type: string, maxLength: 500 }
+
+    CmsPlanTemplateStop:
+      allOf:
+        - $ref: '#/components/schemas/CmsPlanTemplateStopInput'
+        - type: object
+          required: [id, position, categoryKey, isOptional]
+          properties:
+            id: { type: string, format: uuid }
+            position: { type: integer }
+            categoryKey: { type: string, description: Stable taxonomy key, never a label. }
+            preferredPlaceName: { type: string }
+
+    CmsPlanTemplate:
+      type: object
+      required:
+        [id, slug, locale, internalName, title, status, stopCount, taxonomies, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string, description: The template key. Unique per locale. }
+        locale: { type: string }
+        internalName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        areaKey: { type: string }
+        budget: { $ref: '#/components/schemas/BudgetRange' }
+        expectedDurationMinutes: { type: integer }
+        status: { $ref: '#/components/schemas/PlanTemplateStatus' }
+        stopCount: { type: integer }
+        taxonomies:
+          type: array
+          description: Mood/setting keys for the template as a whole.
+          items: { $ref: '#/components/schemas/CmsRecommendationTaxonomy' }
+        createdByAdminId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CmsPlanTemplateDetail:
+      allOf:
+        - $ref: '#/components/schemas/CmsPlanTemplate'
+        - type: object
+          required: [stops]
+          properties:
+            stops:
+              type: array
+              items: { $ref: '#/components/schemas/CmsPlanTemplateStop' }
+
+    CmsPlanTemplatePage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsPlanTemplate' }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    CmsPlanTemplateCreate:
+      type: object
+      required: [slug, internalName, title]
+      properties:
+        slug: { type: string, pattern: '^[a-z0-9-]{2,60}$' }
+        internalName: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        locale: { type: string, maxLength: 8 }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        areaKey: { type: string, maxLength: 64 }
+        budget: { $ref: '#/components/schemas/BudgetRange' }
+        expectedDurationMinutes: { type: integer, minimum: 15, maximum: 1440 }
+        taxonomyIds:
+          type: array
+          maxItems: 20
+          items: { type: string, format: uuid }
+        stops:
+          type: array
+          maxItems: 20
+          description: Ordered — the index becomes the stored position.
+          items: { $ref: '#/components/schemas/CmsPlanTemplateStopInput' }
+
+    CmsPlanTemplatePatch:
+      type: object
+      description: Omitted fields are left alone; a sent list replaces that list wholesale.
+      properties:
+        internalName: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        locale: { type: string, maxLength: 8 }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        areaKey: { type: string, maxLength: 64 }
+        budget: { $ref: '#/components/schemas/BudgetRange' }
+        expectedDurationMinutes: { type: integer, minimum: 15, maximum: 1440 }
+        taxonomyIds:
+          type: array
+          maxItems: 20
+          items: { type: string, format: uuid }
+        stops:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/CmsPlanTemplateStopInput' }
+
+    RecommendationStatus:
+      type: string
+      enum: [draft, scheduled, published, archived]
+      description: >
+        `archived` is terminal — retired content comes back as a new row, not a
+        resurrection.
+
+    ContentAudience:
+      type: string
+      enum: [couple, group, family, solo]
+      description: >
+        Who a piece of editorial content is aimed at. One vocabulary across
+        content types rather than one per resource. Stable key; the label
+        resolves client-side through i18n.
+
+    CmsRecommendationTaxonomy:
+      type: object
+      required: [id, kind, key]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [category, mood] }
+        key:
+          type: string
+          description: Stable taxonomy key, never a display label.
+
+    CmsRecommendation:
+      type: object
+      required:
+        [id, slug, locale, title, priority, status, placeCount, taxonomies, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug:
+          type: string
+          description: The internal key. Unique per locale.
+        locale: { type: string }
+        internalName:
+          type: string
+          description: The editorial name. What an editor searches; never what a user reads.
+        title: { type: string }
+        subtitle: { type: string }
+        description: { type: string }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        areaKey:
+          type: string
+          description: Same vocabulary as a place's `areaKey` — "city" is one concept.
+        priority:
+          type: integer
+          description: Higher first, between recommendations competing for one surface.
+        status: { $ref: '#/components/schemas/RecommendationStatus' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        placeCount: { type: integer }
+        taxonomies:
+          type: array
+          items: { $ref: '#/components/schemas/CmsRecommendationTaxonomy' }
+        createdByAdminId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CmsRecommendationPlace:
+      type: object
+      required: [position, placeId, name, status]
+      properties:
+        position: { type: integer }
+        placeId: { type: string, format: uuid }
+        name: { type: string }
+        addressText: { type: string }
+        status:
+          type: string
+          description: >
+            The place's catalog status, so a published recommendation quietly
+            holding a suspended place is visible rather than silently short.
+
+    CmsRecommendationDetail:
+      allOf:
+        - $ref: '#/components/schemas/CmsRecommendation'
+        - type: object
+          required: [places]
+          properties:
+            places:
+              type: array
+              items: { $ref: '#/components/schemas/CmsRecommendationPlace' }
+
+    CmsRecommendationPage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsRecommendation' }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    CmsRecommendationCreate:
+      type: object
+      required: [slug, internalName, title, audience]
+      properties:
+        slug: { type: string, pattern: '^[a-z0-9-]{2,60}$' }
+        internalName: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 120 }
+        subtitle: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        locale: { type: string, maxLength: 8 }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        areaKey: { type: string, maxLength: 64 }
+        priority: { type: integer, minimum: 0, maximum: 1000 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        taxonomyIds:
+          type: array
+          maxItems: 30
+          items: { type: string, format: uuid }
+        placeIds:
+          type: array
+          maxItems: 100
+          description: Ordered — the index becomes the stored position.
+          items: { type: string, format: uuid }
+
+    CmsRecommendationPatch:
+      type: object
+      description: Omitted fields are left alone; a sent list replaces that list wholesale.
+      properties:
+        internalName: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 120 }
+        subtitle: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        locale: { type: string, maxLength: 8 }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        areaKey: { type: string, maxLength: 64 }
+        priority: { type: integer, minimum: 0, maximum: 1000 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        taxonomyIds:
+          type: array
+          maxItems: 30
+          items: { type: string, format: uuid }
+        placeIds:
+          type: array
+          maxItems: 100
+          items: { type: string, format: uuid }
+
+    SafetyRuleType:
+      type: string
+      enum:
+        [
+          spam,
+          abusive_content,
+          blocked_words,
+          review_abuse,
+          user_abuse,
+          repeated_reports,
+          rate_limit,
+        ]
+
+    SafetyRuleTrigger:
+      type: string
+      enum:
+        [
+          review_created,
+          review_updated,
+          report_created,
+          checkin_created,
+          place_submitted,
+          user_registered,
+        ]
+
+    SafetyRuleAction:
+      type: string
+      enum: [flag_for_review, auto_hide, require_moderation, suspend_user, block_action]
+      description: >
+        `suspend_user` acts on a person with no human in the loop, so it is
+        available only to rule types that are about that person's conduct and
+        only at `high` severity or above.
+
+    SafetyRuleSeverity:
+      type: string
+      enum: [low, medium, high, critical]
+
+    SafetyRuleStatus:
+      type: string
+      enum: [draft, active, disabled]
+
+    CmsSafetyRuleConditions:
+      type: object
+      description: >
+        A closed shape chosen by `ruleType`, never an expression. Unknown keys
+        are rejected on write rather than stored and never read.
+
+
+        `blocked_words`: `terms[]`, `matchMode` (exact | substring),
+        `caseSensitive`.
+
+        `spam`: `maxLinks`, `maxDuplicatesPerWindow`, `windowHours`,
+        `minAccountAgeHours` — at least one of the first two.
+
+        `abusive_content`: `terms[]`, `minReports`, `windowHours`.
+
+        `review_abuse`: `maxReviewsPerWindow`, `windowHours`,
+        `maxReviewsPerPlace`.
+
+        `user_abuse`: `maxReportsAgainstUser`, `windowHours`, `upheldOnly`.
+
+        `repeated_reports`: `minReports`, `windowHours`, `distinctReporters`.
+
+        `rate_limit`: `action` (review_create | report_create | checkin_create |
+        place_submit | room_join), `limit`, `windowSeconds`.
+      additionalProperties: true
+
+    CmsSafetyRule:
+      type: object
+      required:
+        [
+          id,
+          name,
+          ruleType,
+          trigger,
+          conditions,
+          action,
+          severity,
+          status,
+          priority,
+          reasonCode,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        ruleType: { $ref: '#/components/schemas/SafetyRuleType' }
+        trigger: { $ref: '#/components/schemas/SafetyRuleTrigger' }
+        conditions: { $ref: '#/components/schemas/CmsSafetyRuleConditions' }
+        action: { $ref: '#/components/schemas/SafetyRuleAction' }
+        severity: { $ref: '#/components/schemas/SafetyRuleSeverity' }
+        status: { $ref: '#/components/schemas/SafetyRuleStatus' }
+        priority:
+          type: integer
+          description: >
+            Lower runs first, so two rules matching one event resolve the same
+            way every time rather than by insertion order.
+        reasonCode:
+          type: string
+          description: >
+            Stamped on every decision this rule causes, so an automated action
+            can be traced back by a person reviewing it.
+        createdBy:
+          oneOf:
+            - { $ref: '#/components/schemas/CmsAdminRef' }
+            - { type: 'null' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CmsSafetyRulePage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsSafetyRule' }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    CmsSafetyRuleCreate:
+      type: object
+      required: [name, ruleType, trigger, action, reasonCode]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, maxLength: 1000 }
+        ruleType: { $ref: '#/components/schemas/SafetyRuleType' }
+        trigger: { $ref: '#/components/schemas/SafetyRuleTrigger' }
+        conditions: { $ref: '#/components/schemas/CmsSafetyRuleConditions' }
+        action: { $ref: '#/components/schemas/SafetyRuleAction' }
+        severity: { $ref: '#/components/schemas/SafetyRuleSeverity' }
+        priority: { type: integer, minimum: 0, maximum: 1000 }
+        reasonCode: { type: string, pattern: '^[a-z][a-z0-9_]{2,63}$' }
+
+    CmsSafetyRulePatch:
+      type: object
+      description: '`ruleType` is immutable; it decides which condition schema applies.'
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, maxLength: 1000 }
+        trigger: { $ref: '#/components/schemas/SafetyRuleTrigger' }
+        conditions: { $ref: '#/components/schemas/CmsSafetyRuleConditions' }
+        action: { $ref: '#/components/schemas/SafetyRuleAction' }
+        severity: { $ref: '#/components/schemas/SafetyRuleSeverity' }
+        priority: { type: integer, minimum: 0, maximum: 1000 }
+        reasonCode: { type: string, pattern: '^[a-z][a-z0-9_]{2,63}$' }
+
+    BannerPlacement:
+      type: string
+      enum: [home_hero, home_secondary]
+      description: Stable key; the label resolves client-side.
+
+    BannerStatus:
+      type: string
+      enum: [draft, scheduled, published, archived]
+      description: The lifecycle a person controls. `expired` is not settable.
+
+    BannerEffectiveStatus:
+      type: string
+      enum: [draft, scheduled, published, archived, expired]
+      description: >
+        What the banner is right now. `expired` is computed by the server from
+        the end time on every read, never stored — a stored copy would be wrong
+        between the moment the window closes and whatever noticed.
+
+    BannerDestination:
+      type: string
+      enum: [none, place, recommendation, plan_template, campaign, external_url]
+
+    CmsBanner:
+      type: object
+      required:
+        [
+          id,
+          name,
+          imageKey,
+          imageUrl,
+          destinationType,
+          placement,
+          priority,
+          status,
+          lifecycleStatus,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, description: The editorial name. }
+        imageKey: { type: string }
+        imageUrl:
+          type: [string, 'null']
+          description: >
+            Where the image is readable. Null until media hosting is configured,
+            rather than a URL that would 404.
+        title: { type: string }
+        subtitle: { type: string }
+        ctaLabel: { type: string }
+        destinationType: { $ref: '#/components/schemas/BannerDestination' }
+        destinationValue: { type: string }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        placement: { $ref: '#/components/schemas/BannerPlacement' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        priority:
+          type: integer
+          description: Higher first, between banners competing for one placement.
+        status: { $ref: '#/components/schemas/BannerEffectiveStatus' }
+        lifecycleStatus:
+          allOf:
+            - $ref: '#/components/schemas/BannerStatus'
+          description: What a person set, as opposed to what the clock made of it.
+        createdByAdminId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CmsBannerPage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsBanner' }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    CmsBannerCreate:
+      type: object
+      required: [name, imageKey, placement]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        imageKey:
+          type: string
+          maxLength: 300
+          description: From `POST /cms/uploads`, purpose `banner_image`.
+        title: { type: string, maxLength: 120 }
+        subtitle: { type: string, maxLength: 200 }
+        ctaLabel: { type: string, maxLength: 40 }
+        destinationType: { $ref: '#/components/schemas/BannerDestination' }
+        destinationValue:
+          type: string
+          maxLength: 2000
+          description: Required unless `destinationType` is `none`, which takes nothing.
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        placement: { $ref: '#/components/schemas/BannerPlacement' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        priority: { type: integer, minimum: 0, maximum: 1000 }
+
+    CmsBannerPatch:
+      type: object
+      description: Omitted fields are left alone.
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        imageKey: { type: string, maxLength: 300 }
+        title: { type: string, maxLength: 120 }
+        subtitle: { type: string, maxLength: 200 }
+        ctaLabel: { type: string, maxLength: 40 }
+        destinationType: { $ref: '#/components/schemas/BannerDestination' }
+        destinationValue: { type: string, maxLength: 2000 }
+        audience: { $ref: '#/components/schemas/ContentAudience' }
+        placement: { $ref: '#/components/schemas/BannerPlacement' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        priority: { type: integer, minimum: 0, maximum: 1000 }
+
+    CampaignStatus:
+      type: string
+      enum: [draft, scheduled, sending, sent, cancelled, failed]
+      description: >
+        `sending` has no way back — once the worker has started handing messages
+        to the provider, some are already delivered.
+
+    CampaignAudience:
+      type: string
+      enum: [all, couple, group, platform]
+      description: >
+        Only what the backend can resolve from data it holds. `city`,
+        `app_version` and `custom_segment` from the mockup are absent on
+        purpose: nothing stores a user's city or their app version, and a
+        campaign aimed at a segment the server has to guess at reaches the wrong
+        people — the one failure with no undo.
+
+    CampaignDestination:
+      type: string
+      enum: [home, place, recommendation, plan_template, saved, external_url]
+      description: >
+        `plan_template` rather than `plan`: a campaign points every recipient at
+        the same thing, and a plan belongs to one room.
+
+    CmsCampaign:
+      type: object
+      required:
+        [
+          id,
+          name,
+          title,
+          body,
+          audienceType,
+          audienceFilter,
+          destinationType,
+          status,
+          sentCount,
+          failedCount,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        name:
+          type: string
+          description: The editorial name. `title` is what lands on a screen.
+        title: { type: string }
+        body: { type: string }
+        imageKey:
+          type: string
+          description: Key from `POST /cms/uploads`, purpose `campaign_image`.
+        ctaLabel: { type: string }
+        audienceType: { $ref: '#/components/schemas/CampaignAudience' }
+        audienceFilter:
+          type: object
+          description: 'Closed per audience type. `platform` takes `{ platform }`; the rest take `{}`.'
+          additionalProperties: true
+        destinationType: { $ref: '#/components/schemas/CampaignDestination' }
+        destinationValue: { type: string }
+        status: { $ref: '#/components/schemas/CampaignStatus' }
+        scheduledAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        recipientCount:
+          type: integer
+          description: Resolved at send time, not at schedule time.
+        sentCount:
+          type: integer
+          description: >
+            How many the provider accepted. Not "seen", and not a guarantee of
+            delivery to a device.
+        failedCount: { type: integer }
+        lastError: { type: string }
+        testSendRequestedAt: { type: string, format: date-time }
+        testSendCompletedAt: { type: string, format: date-time }
+        createdByAdminId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CmsCampaignPage:
+      type: object
+      required: [items, nextCursor, totalCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsCampaign' }
+        nextCursor: { type: [string, 'null'] }
+        totalCount: { type: integer }
+
+    CmsCampaignAudienceEstimate:
+      type: object
+      required: [campaignId, audienceType, estimatedRecipients, estimatedAt]
+      properties:
+        campaignId: { type: string, format: uuid }
+        audienceType: { $ref: '#/components/schemas/CampaignAudience' }
+        estimatedRecipients:
+          type: integer
+          description: Accounts with a registered device that match right now.
+        estimatedAt: { type: string, format: date-time }
+
+    CmsCampaignCreate:
+      type: object
+      required: [name, title, body, audienceType]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        title: { type: string, maxLength: 80 }
+        body: { type: string, maxLength: 300 }
+        imageKey: { type: string, maxLength: 300 }
+        ctaLabel: { type: string, maxLength: 40 }
+        audienceType: { $ref: '#/components/schemas/CampaignAudience' }
+        audienceFilter: { type: object, additionalProperties: true }
+        destinationType: { $ref: '#/components/schemas/CampaignDestination' }
+        destinationValue:
+          type: string
+          maxLength: 2000
+          description: >
+            Required for `place`, `recommendation`, `plan_template` and
+            `external_url`; forbidden for `home` and `saved`.
+
+    CmsCampaignPatch:
+      type: object
+      description: Editable only while nothing has been sent.
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        title: { type: string, maxLength: 80 }
+        body: { type: string, maxLength: 300 }
+        imageKey: { type: string, maxLength: 300 }
+        ctaLabel: { type: string, maxLength: 40 }
+        audienceType: { $ref: '#/components/schemas/CampaignAudience' }
+        audienceFilter: { type: object, additionalProperties: true }
+        destinationType: { $ref: '#/components/schemas/CampaignDestination' }
+        destinationValue: { type: string, maxLength: 2000 }
+
+    CmsUpload:
+      type: object
+      required: [id, key, uploadUrl, expiresAt, maxBytes, contentType, readUrl]
+      properties:
+        id: { type: string, format: uuid }
+        key:
+          type: string
+          description: >
+            Server-generated — actor and a UUID, never anything the client
+            supplied — so a key cannot be steered at another object.
+        uploadUrl:
+          type: string
+          description: Presigned PUT. Signed for this key and this content type, and it expires.
+        expiresAt: { type: string, format: date-time }
+        maxBytes: { type: integer }
+        contentType: { type: string }
+        readUrl:
+          type: [string, 'null']
+          description: >
+            Where the object will be readable once uploaded. Null until media
+            hosting is configured — an honest absence rather than a URL that
+            would 404.
 
     CmsAuditEntry:
       type: object
@@ -4369,6 +8462,150 @@ components:
         nextCursor:
           type: [string, 'null']
           description: Keyset cursor over (occurredAt, id); the log is appended to while it is read.
+
+    CmsModerationCounts:
+      type: object
+      required: [reviews, reports, checkins, communityPlaces, total]
+      description: >
+        Counted over the whole backlog, not over a returned page. The console
+        used to sum four array lengths, which was only correct while every queue
+        fitted in one page.
+      properties:
+        reviews: { type: integer, description: Reviews in `pending`. }
+        reports: { type: integer, description: Reports in `open`. }
+        checkins: { type: integer, description: Check-ins in `pending`. }
+        communityPlaces: { type: integer, description: Places in `community_submitted`. }
+        total: { type: integer }
+
+    CmsModerationPageMeta:
+      type: object
+      required: [nextCursor, totalCount]
+      properties:
+        nextCursor:
+          type: [string, 'null']
+          description: >
+            Keyset cursor over (createdAt, id). Null only when there is
+            genuinely nothing more.
+        totalCount:
+          type: integer
+          description: Rows matching the filter, not rows in this page.
+
+    CmsModerationReview:
+      type: object
+      required: [id, status, rating, authorUserId, openReportCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, published, rejected, removed, hidden] }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        text: { type: string }
+        placeId: { type: string, format: uuid }
+        placeName: { type: string }
+        planId: { type: string, format: uuid }
+        authorUserId: { type: string, format: uuid }
+        authorDisplayName:
+          type: string
+          description: The name shown on the review. Email and phone are never returned here.
+        openReportCount:
+          type: integer
+          description: Undecided reports pointing at this review.
+        moderatedByAdminId: { type: string, format: uuid }
+        moderationReason: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CmsModerationReviewPage:
+      allOf:
+        - $ref: '#/components/schemas/CmsModerationPageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CmsModerationReview' }
+
+    CmsModerationReport:
+      type: object
+      required: [id, status, targetType, targetId, reasonCode, reporterKind, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [open, actioned, dismissed] }
+        targetType: { type: string, enum: [place, review, member] }
+        targetId: { type: string, format: uuid }
+        reasonCode: { type: string }
+        note: { type: string }
+        reporterKind:
+          type: string
+          enum: [user, guest, anonymous]
+          description: >
+            Where the report came from. The guest session id is internal and is
+            not returned.
+        reporterUserId: { type: string, format: uuid }
+        decidedByAdminId: { type: string, format: uuid }
+        decisionReason: { type: string }
+        decidedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    CmsModerationReportPage:
+      allOf:
+        - $ref: '#/components/schemas/CmsModerationPageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CmsModerationReport' }
+
+    CmsModerationCheckin:
+      type: object
+      required: [id, moderation, tags, photoCount, hasBill, planStopId, memberId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        moderation: { type: string, enum: [pending, approved, rejected] }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        note: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+          description: Stable `checkin_tag` taxonomy keys; labels resolve client-side.
+        photoCount: { type: integer }
+        hasBill:
+          type: boolean
+          description: A bill total is present, which FR-PLAN-009 only allows with its photo.
+        planStopId: { type: string, format: uuid }
+        placeId: { type: string, format: uuid }
+        placeName: { type: string }
+        memberId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+
+    CmsModerationCheckinPage:
+      allOf:
+        - $ref: '#/components/schemas/CmsModerationPageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CmsModerationCheckin' }
+
+    CmsCommunityPlace:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        addressText: { type: string }
+        areaKey: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CmsCommunityPlacePage:
+      allOf:
+        - $ref: '#/components/schemas/CmsModerationPageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CmsCommunityPlace' }
 
     RoomEvent:
       type: object
