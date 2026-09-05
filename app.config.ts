@@ -131,6 +131,15 @@ if (oneSignalApnsMode !== 'development' && oneSignalApnsMode !== 'production') {
   throw new Error('ONESIGNAL_APNS_MODE must explicitly select development or production signing')
 }
 
+const tenjinIosSdkKey = process.env.TENJIN_IOS_SDK_KEY?.trim()
+const tenjinAndroidSdkKey = process.env.TENJIN_ANDROID_SDK_KEY?.trim()
+if (process.env.TENJIN_CONFIG_ENV !== configEnvironment) {
+  throw new Error('TENJIN_CONFIG_ENV must match the build environment')
+}
+if (![tenjinIosSdkKey, tenjinAndroidSdkKey].every(key => key && /^[A-Za-z0-9_-]+$/.test(key))) {
+  throw new Error('Both TENJIN SDK keys are required in every environment')
+}
+
 const config: ExpoConfig = {
   name: identity.appName,
   slug: 'gogo',
@@ -213,6 +222,8 @@ const config: ExpoConfig = {
     flavor: identity.flavor,
     // Public App ID only. Never spread process.env into the client manifest.
     oneSignalAppId,
+    tenjinIosSdkKey,
+    tenjinAndroidSdkKey,
   },
 }
 

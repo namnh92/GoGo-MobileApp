@@ -13,6 +13,9 @@ async function loadConfig(flavor: string | undefined) {
   process.env.ONESIGNAL_APP_ID = '00000000-0000-4000-8000-000000000001'
   process.env.ONESIGNAL_CONFIG_ENV = flavor === 'stag' ? 'staging' : (flavor ?? 'dev')
   process.env.ONESIGNAL_APNS_MODE = 'production'
+  process.env.TENJIN_CONFIG_ENV = flavor === 'stag' ? 'staging' : (flavor ?? 'dev')
+  process.env.TENJIN_IOS_SDK_KEY = 'test-ios'
+  process.env.TENJIN_ANDROID_SDK_KEY = 'test-android'
   const module = (await import('../../../../app.config')) as { default: ExpoConfig }
   return module.default
 }

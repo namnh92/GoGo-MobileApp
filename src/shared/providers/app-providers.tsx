@@ -11,6 +11,7 @@ import {
 } from '@/shared/api/query-client'
 
 import { SessionProvider } from './session-provider'
+import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
 import { initializePushSdk } from '@/shared/notifications/bootstrap'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
@@ -21,6 +22,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   useEffect(() => bindAppStateToQueryClient(), [])
   useEffect(() => initializePushSdk(), [])
+  useEffect(() => initializeAcquisitionSdk(), [])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
