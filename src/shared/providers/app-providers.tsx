@@ -11,6 +11,7 @@ import {
 } from '@/shared/api/query-client'
 
 import { SessionProvider } from './session-provider'
+import { initializePushSdk } from '@/shared/notifications/bootstrap'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
 const CACHE_BUSTER = 'gogo.v1.0.0-alpha.1'
@@ -19,6 +20,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient)
 
   useEffect(() => bindAppStateToQueryClient(), [])
+  useEffect(() => initializePushSdk(), [])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

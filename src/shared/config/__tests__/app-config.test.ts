@@ -10,6 +10,9 @@ async function loadConfig(flavor: string | undefined) {
   vi.resetModules()
   if (flavor === undefined) delete process.env.EXPO_PUBLIC_ENV
   else process.env.EXPO_PUBLIC_ENV = flavor
+  process.env.ONESIGNAL_APP_ID = '00000000-0000-4000-8000-000000000001'
+  process.env.ONESIGNAL_CONFIG_ENV = flavor === 'stag' ? 'staging' : (flavor ?? 'dev')
+  process.env.ONESIGNAL_APNS_MODE = 'production'
   const module = (await import('../../../../app.config')) as { default: ExpoConfig }
   return module.default
 }
