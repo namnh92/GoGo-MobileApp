@@ -1,6 +1,8 @@
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Switch, Text, View } from 'react-native'
+
+import { pushPermission } from '@/shared/notifications/permission-bootstrap'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -102,9 +104,18 @@ export default function NotificationSettingsScreen() {
                       value={enabled}
                       // One PUT per toggle; the list refetches so the server
                       // stays the source of truth for what is actually set.
-                      onValueChange={next =>
+                      onValueChange={next => {
+                        // NTF-APP-003: the contextual moment. Someone turning a
+                        // push channel *on* has just told us why they want
+                        // notifications, which is the only point at which
+                        // spending the one OS prompt is defensible — and the
+                        // point at which sending them to Settings, if the
+                        // prompt is already spent, is help rather than
+                        // hostility. The preference is recorded either way:
+                        // permission governs delivery, not intent.
+                        if (channel === 'push' && next) void pushPermission.request({ fallbackToSettings: true })
                         setPreference.mutate({ channel, kind, enabled: next })
-                      }
+                      }}
                       disabled={setPreference.isPending}
                       trackColor={{ true: colors.brand.coral, false: colors.neutral[100] }}
                       accessibilityLabel={`${t(`notificationSettings.channel.${channel}`)} · ${t(`notifications.kind.${kind}`)}`}
