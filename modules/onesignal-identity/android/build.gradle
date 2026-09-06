@@ -1,0 +1,32 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'com.gogo.onesignalidentity'
+version = '0.1.0'
+
+android {
+  namespace 'com.gogo.onesignalidentity'
+  compileSdk 35
+
+  defaultConfig {
+    minSdk 24
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:${project.properties['kotlinVersion'] ?: '2.0.21'}"
+  // compileOnly: react-native-onesignal already brings the SDK into the app,
+  // and two copies would mean two user states. This module only needs the
+  // types at compile time.
+  compileOnly 'com.onesignal:OneSignal:5.9.9'
+}
