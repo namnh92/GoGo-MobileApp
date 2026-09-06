@@ -72,6 +72,8 @@ jobs:
         env:
           ONESIGNAL_APP_ID: '00000000-0000-4000-8000-000000000001'
           ONESIGNAL_APNS_MODE: production
+          TENJIN_IOS_SDK_KEY: ci-ios
+          TENJIN_ANDROID_SDK_KEY: ci-android
         run: |
           set -euo pipefail
           for flavor in dev stag prod; do
@@ -80,7 +82,7 @@ jobs:
             # line.
             provider_env="$flavor"
             if [ "$flavor" = stag ]; then provider_env=staging; fi
-            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" npx expo config --type prebuild --json \
+            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" TENJIN_CONFIG_ENV="$provider_env" npx expo config --type prebuild --json \
               | sed -n '/^{/,$p' > "/tmp/config.$flavor.json"
             echo "  $flavor: config resolves"
           done
