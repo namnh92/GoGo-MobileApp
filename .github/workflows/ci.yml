@@ -68,13 +68,19 @@ jobs:
       # lookups without generating anything, so the failure lands on the pull
       # request instead of in a developer's build.
       - name: app.config.ts resolves for every flavour
+        # Compile-only fixtures: this job never initializes a provider SDK.
+        env:
+          ONESIGNAL_APP_ID: '00000000-0000-4000-8000-000000000001'
+          ONESIGNAL_APNS_MODE: production
         run: |
           set -euo pipefail
           for flavor in dev stag prod; do
             # `expo config` prints "env: load .env" to stdout before the JSON,
             # so the object is taken from the first brace rather than the first
             # line.
-            EXPO_PUBLIC_ENV="$flavor" npx expo config --type prebuild --json \
+            provider_env="$flavor"
+            if [ "$flavor" = stag ]; then provider_env=staging; fi
+            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" npx expo config --type prebuild --json \
               | sed -n '/^{/,$p' > "/tmp/config.$flavor.json"
             echo "  $flavor: config resolves"
           done

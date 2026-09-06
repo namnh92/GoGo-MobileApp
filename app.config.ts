@@ -116,6 +116,21 @@ const WEB_LINK_PREFIXES = ['/l', '/r', '/plans', '/places', '/room']
  */
 const googleMapsIosApiKey = process.env.GOOGLE_MAPS_IOS_API_KEY?.trim() || undefined
 
+// Same required contract in every remote environment. The marker prevents a
+// DEV-generated file being reused accidentally for a staging/production build.
+const configEnvironment = flavor === 'stag' ? 'staging' : flavor
+const oneSignalAppId = process.env.ONESIGNAL_APP_ID?.trim()
+if (!oneSignalAppId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(oneSignalAppId)) {
+  throw new Error('ONESIGNAL_APP_ID is required and must be a UUID in every environment')
+}
+if (process.env.ONESIGNAL_CONFIG_ENV !== configEnvironment) {
+  throw new Error('ONESIGNAL_CONFIG_ENV must match the build environment')
+}
+const oneSignalApnsMode = process.env.ONESIGNAL_APNS_MODE
+if (oneSignalApnsMode !== 'development' && oneSignalApnsMode !== 'production') {
+  throw new Error('ONESIGNAL_APNS_MODE must explicitly select development or production signing')
+}
+
 const config: ExpoConfig = {
   name: identity.appName,
   slug: 'gogo',
@@ -128,6 +143,7 @@ const config: ExpoConfig = {
   icon: './assets/icon.png',
   ios: {
     bundleIdentifier: identity.bundleId,
+    buildNumber: process.env.IOS_BUILD_NUMBER || '1',
     supportsTablet: false,
     // Only the flavour the domain actually names can verify (see app-identity).
     ...(identity.claimsWebLinks ? { associatedDomains: [`applinks:${identity.webHost}`] } : {}),
@@ -159,6 +175,7 @@ const config: ExpoConfig = {
     },
   },
   plugins: [
+    ['onesignal-expo-plugin', { mode: oneSignalApnsMode, iPhoneDeploymentTarget: '15.1' }],
     'expo-router',
     'expo-dev-client',
     [
@@ -194,6 +211,8 @@ const config: ExpoConfig = {
     // Readable at runtime via `expo-constants`, so a bug report can say which
     // flavour it came from without guessing from the icon.
     flavor: identity.flavor,
+    // Public App ID only. Never spread process.env into the client manifest.
+    oneSignalAppId,
   },
 }
 
