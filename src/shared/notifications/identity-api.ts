@@ -1,5 +1,6 @@
 import { api } from '@/shared/api/client'
 import { ApiError } from '@/shared/api/errors'
+import type { OpResponse } from '@/shared/api/types'
 
 import type { IdentityFetchOutcome } from './identity-session'
 
@@ -19,9 +20,9 @@ import type { IdentityFetchOutcome } from './identity-session'
  */
 export async function fetchIdentityToken(): Promise<IdentityFetchOutcome> {
   try {
-    const token = await api.get<{ externalId: string; token: string; expiresAt: string }>(
-      '/notifications/identity',
-    )
+    // Typed from the generated schema, so a contract change fails the build
+    // rather than the device.
+    const token = await api.get<OpResponse<'getPushIdentityToken'>>('/notifications/identity')
     return { kind: 'ok', token }
   } catch (error) {
     if (error instanceof ApiError && error.code === 'PUSH_IDENTITY_UNAVAILABLE') {
