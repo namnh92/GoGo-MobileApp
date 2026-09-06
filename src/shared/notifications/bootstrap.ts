@@ -3,7 +3,9 @@ import { OneSignal } from 'react-native-onesignal'
 
 import { createOneSignalInitializer } from './initialize'
 
-const initialize = createOneSignalInitializer(OneSignal)
+const initialize = createOneSignalInitializer(OneSignal, () => {
+  console.warn('push_sdk_unavailable')
+})
 
 export function initializePushSdk() {
   const appId: unknown = Constants.expoConfig?.extra?.oneSignalAppId
