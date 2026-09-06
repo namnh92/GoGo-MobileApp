@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, glassFx, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, glassFx, glyph, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -23,8 +23,8 @@ export const styles = StyleSheet.create({
     borderColor: brand.coralDeep,
   },
   optionPressed: { transform: [{ scale: 0.99 }], opacity: 0.95 },
-  optionEmoji: { fontSize: 30 },
-  optionTitle: { ...type.title1, fontSize: 18, lineHeight: 24 },
+  optionEmoji: { fontSize: glyph.md },
+  optionTitle: { ...type.title2 },
   optionDesc: { ...type.bodySmall, marginTop: 4, lineHeight: 19 },
   check: {
     width: 24,

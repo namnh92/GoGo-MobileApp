@@ -15,7 +15,7 @@ import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { AvatarCircle } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './matching.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
@@ -110,7 +110,7 @@ export default function MatchingScreen() {
         </View>
       ) : hasRun && !isStale ? (
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 64, marginBottom: spacing[2] }}>🎉</Text>
+          <Text style={{ fontSize: glyph.mega, marginBottom: spacing[2] }}>🎉</Text>
           <Text style={styles.matched}>{t('matching.matched')}</Text>
           <Text style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
         </View>

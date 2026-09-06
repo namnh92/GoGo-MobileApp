@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
   },
-  chipIcon: { fontSize: 13 },
+  chipIcon: { ...type.bodySmall },
   chipLabel: {
     ...type.label,
   },

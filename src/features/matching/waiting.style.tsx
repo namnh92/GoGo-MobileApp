@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, glyph, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   root: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[6] },
-  eyes: { fontSize: 56, marginBottom: spacing[5] },
+  eyes: { fontSize: glyph.hero, marginBottom: spacing[5] },
   title: { ...type.display, color: neutral[900], textAlign: 'center' },
   body: { ...type.body, color: neutral[500], marginTop: spacing[3], textAlign: 'center' },
 

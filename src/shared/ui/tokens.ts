@@ -132,6 +132,25 @@ export const type = {
   label: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
 } as const
 
+/**
+ * Emoji and symbol sizes.
+ *
+ * These are set with `fontSize` because that is how React Native sizes a glyph,
+ * but they are pictures, not text: a 64pt 🎉 and a 64pt sentence have nothing to
+ * do with each other. Forcing them into the six-step type scale would either
+ * shrink the illustrations or add sizes to the scale no prose ever uses, and the
+ * scale stops meaning anything once it carries both jobs.
+ */
+export const glyph = {
+  xs: 18,
+  sm: 24,
+  md: 28,
+  lg: 34,
+  xl: 40,
+  hero: 56,
+  mega: 64,
+} as const
+
 export const spacing = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48] as const
 
 export const radius = {

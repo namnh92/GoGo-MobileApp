@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -11,13 +11,11 @@ export const styles = StyleSheet.create({
     borderRadius: radius.pill,
     marginBottom: spacing[4],
   },
-  badgeLabel: { fontSize: 12, fontWeight: '600', color: brand.coral },
+  badgeLabel: { ...type.label, color: brand.coral },
   title: {
-    fontSize: 24,
-    fontWeight: '800',
+    ...type.title1,
     color: neutral[900],
     textAlign: 'center',
-    lineHeight: 30,
   },
   pair: {
     flexDirection: 'row',
@@ -26,9 +24,9 @@ export const styles = StyleSheet.create({
     gap: spacing[3],
     marginBottom: spacing[6],
   },
-  pairName: { fontSize: 12, fontWeight: '600', color: neutral[900] },
+  pairName: { ...type.label, color: neutral[900] },
   details: { borderRadius: radius.hero, padding: spacing[5], marginBottom: spacing[6] },
-  detailsTitle: { fontSize: 14, fontWeight: '700', color: neutral[900], marginBottom: spacing[3] },
+  detailsTitle: { ...type.bodySmall, fontWeight: '700', color: neutral[900], marginBottom: spacing[3] },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -37,20 +35,20 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: neutral[100],
   },
-  detailLabel: { fontSize: 14, color: neutral[500] },
-  noAccount: { textAlign: 'center', fontSize: 13, color: neutral[500] },
+  detailLabel: { ...type.bodySmall, color: neutral[500] },
+  noAccount: { ...type.bodySmall, textAlign: 'center', color: neutral[500] },
   nameInput: {
+    ...type.body,
     minHeight: touchTarget.min,
     borderWidth: 1,
     borderColor: neutral[100],
     borderRadius: radius.pill,
     paddingHorizontal: spacing[4],
-    fontSize: 16,
     color: neutral[900],
     backgroundColor: neutral[0],
   },
   error: {
-    fontSize: 13,
+    ...type.bodySmall,
     color: brand.red,
     textAlign: 'center',
     marginBottom: spacing[4],

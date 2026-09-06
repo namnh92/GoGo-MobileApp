@@ -1,26 +1,26 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   card: { padding: spacing[5], marginTop: spacing[4], gap: spacing[3] },
-  label: { fontSize: 13, fontWeight: '600', color: neutral[700] },
+  label: { ...type.label, color: neutral[700] },
   input: {
+    ...type.body,
     minHeight: touchTarget.min,
     borderWidth: 1,
     borderColor: neutral[100],
     borderRadius: radius.pill,
     paddingHorizontal: spacing[4],
-    fontSize: 16,
     color: neutral[900],
     backgroundColor: neutral[0],
   },
-  email: { fontSize: 13, color: neutral[500] },
+  email: { ...type.bodySmall, color: neutral[500] },
   saveBtn: { marginTop: spacing[2] },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: neutral[900] },
-  sectionBody: { fontSize: 13, color: neutral[500], lineHeight: 19 },
+  sectionTitle: { ...type.body, fontWeight: '700', color: neutral[900] },
+  sectionBody: { ...type.bodySmall, color: neutral[500] },
   deleteBtn: {
     minHeight: touchTarget.min,
     alignItems: 'center',
@@ -29,6 +29,6 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: brand.red,
   },
-  deleteLabel: { fontSize: 15, fontWeight: '700', color: brand.red },
-  notice: { fontSize: 13, color: neutral[500], textAlign: 'center', marginTop: spacing[4] },
+  deleteLabel: { ...type.body, fontWeight: '700', color: brand.red },
+  notice: { ...type.bodySmall, color: neutral[500], textAlign: 'center', marginTop: spacing[4] },
 })

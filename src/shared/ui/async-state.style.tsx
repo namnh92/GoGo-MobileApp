@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -12,8 +12,8 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing[8],
     paddingHorizontal: spacing[5],
   },
-  title: { fontSize: 16, fontWeight: '700', color: neutral[900], textAlign: 'center' },
-  body: { fontSize: 14, color: neutral[500], textAlign: 'center', lineHeight: 20 },
+  title: { ...type.body, fontWeight: '700', color: neutral[900], textAlign: 'center' },
+  body: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
   staleBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -26,5 +26,5 @@ export const styles = StyleSheet.create({
     borderRadius: radius.compact,
     backgroundColor: colors.brand.amberSoft,
   },
-  staleLabel: { flex: 1, fontSize: 13, color: colors.brand.amber, lineHeight: 18 },
+  staleLabel: { ...type.bodySmall, flex: 1, color: colors.brand.amber },
 })

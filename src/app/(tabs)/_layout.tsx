@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconBookmark, IconCalendar, IconHome, IconUser } from '@/shared/ui/icons'
-import { colors, radius, spacing, glassFx, shadows } from '@/shared/ui/tokens'
+import { colors, radius, spacing, glassFx, shadows, type } from '@/shared/ui/tokens'
 
 // Floating glass dock (spec §45.1): detached from the screen edges, strong
 // glass over whatever scrolls underneath.
@@ -53,7 +53,9 @@ export default function TabsLayout() {
               <View style={styles.dockTint} />
             </View>
           ),
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', letterSpacing: 0.3 },
+        // Deliberately below `caption`: a tab label is chrome, sized by the
+        // platform's convention rather than the app's reading scale.
+        tabBarLabelStyle: { fontSize: type.caption.fontSize - 1, fontWeight: '600', letterSpacing: 0.3 },
       }}
     >
       <Tabs.Screen

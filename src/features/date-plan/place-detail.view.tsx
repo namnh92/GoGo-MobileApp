@@ -39,7 +39,7 @@ import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Chip, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
-import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './place-detail.style'
 
@@ -431,7 +431,7 @@ export default function PlaceDetailScreen() {
             accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
             style={[styles.saveBtn, currentlySaved && styles.saveBtnActive]}
           >
-            <Text style={{ fontSize: 18 }}>{currentlySaved ? '🔖' : '📑'}</Text>
+            <Text style={{ fontSize: glyph.xs }}>{currentlySaved ? '🔖' : '📑'}</Text>
           </Pressable>
         ) : null}
         <SecondaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} style={styles.addBtn} />

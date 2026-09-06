@@ -49,13 +49,13 @@ export const styles = StyleSheet.create({
   },
   sheetTitle: { ...type.title1, color: colors.neutral[900], marginBottom: spacing[3] },
   sheetInput: {
+    ...type.bodySmall,
     height: 46,
     borderRadius: radius.compact,
     backgroundColor: colors.neutral[50],
     borderWidth: 1,
     borderColor: colors.neutral[100],
     paddingHorizontal: spacing[4],
-    fontSize: 14,
     color: colors.neutral[900],
     marginBottom: spacing[2],
   },
@@ -71,9 +71,8 @@ export const styles = StyleSheet.create({
   },
   areaLabel: { ...type.body, color: colors.neutral[700] },
   locationFallback: {
-    fontSize: 13,
+    ...type.bodySmall,
     color: colors.brand.amber,
-    lineHeight: 19,
     marginTop: spacing[2],
   },
 })

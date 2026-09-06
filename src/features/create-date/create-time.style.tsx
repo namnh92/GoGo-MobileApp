@@ -3,7 +3,7 @@ import { colors, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tok
 
 export const styles = StyleSheet.create({
   title: { ...type.display, color: colors.neutral[900] },
-  body: { fontSize: 15, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
+  body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
     height: 56,
     borderRadius: radius.compact,
@@ -50,5 +50,5 @@ export const styles = StyleSheet.create({
   },
   slotLabel: { ...type.label, color: colors.neutral[700] },
   timeCaption: { ...type.caption, color: colors.neutral[500] },
-  timeValue: { ...type.title1, fontSize: 20, lineHeight: 26, color: colors.neutral[900], marginTop: 2 },
+  timeValue: { ...type.title1, color: colors.neutral[900], marginTop: 2 },
 })

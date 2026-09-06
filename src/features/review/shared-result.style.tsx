@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
     marginBottom: spacing[4],
     alignItems: 'center',
   },
-  score: { fontSize: 52, lineHeight: 58, fontWeight: '800', color: neutral[0] },
+  score: { ...type.display, color: neutral[0] },
   scoreMax: { ...type.body, color: onDark.medium },
   darkCard: {
     backgroundColor: night.surface,
@@ -40,7 +40,7 @@ export const styles = StyleSheet.create({
   statCard: { width: '47%', backgroundColor: night.raised, borderRadius: radius.compact, padding: spacing[3] },
   statLabel: { ...type.caption, color: onDark.soft, marginBottom: 4 },
   // Without an explicit colour this rendered as black text on a dark card.
-  statValue: { ...type.title1, fontSize: 20, lineHeight: 26, color: neutral[0] },
+  statValue: { ...type.title1, color: neutral[0] },
   shareBtn: {
     height: touchTarget.min + 12,
     borderRadius: radius.compact,

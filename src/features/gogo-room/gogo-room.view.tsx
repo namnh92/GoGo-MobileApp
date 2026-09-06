@@ -33,7 +33,7 @@ import {
 } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
@@ -198,7 +198,7 @@ export default function GoGoRoomScreen() {
         ) : (
           <View style={styles.couplePair}>
             <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={64} />
-            <Text style={{ fontSize: 24 }}>+</Text>
+            <Text style={{ fontSize: glyph.sm }}>+</Text>
             {members[1] ? (
               <AvatarCircle label={initial(members[1].displayName)} size={64} background={brand.lavender} />
             ) : (

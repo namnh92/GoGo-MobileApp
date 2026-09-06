@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, spacing, touchTarget } from '@/shared/ui/tokens'
+import { colors, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   sectionTitle: {
-    fontSize: 13,
+    ...type.label,
     fontWeight: '700',
     color: neutral[500],
     textTransform: 'uppercase',
@@ -25,7 +25,7 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: neutral[100],
   },
-  rowLabel: { flex: 1, fontSize: 15, color: neutral[900] },
-  note: { fontSize: 12, color: neutral[500], lineHeight: 18, marginTop: spacing[5] },
-  error: { fontSize: 13, color: brand.red, marginTop: spacing[3] },
+  rowLabel: { ...type.body, flex: 1, color: neutral[900] },
+  note: { ...type.caption, color: neutral[500], marginTop: spacing[5] },
+  error: { ...type.bodySmall, color: brand.red, marginTop: spacing[3] },
 })

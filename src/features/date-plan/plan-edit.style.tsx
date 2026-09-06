@@ -1,11 +1,11 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
-  body: { fontSize: 13, color: neutral[500], lineHeight: 19, marginBottom: spacing[3] },
+  body: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[3] },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -13,8 +13,8 @@ export const styles = StyleSheet.create({
     padding: spacing[3],
     marginBottom: spacing[2],
   },
-  name: { fontSize: 15, fontWeight: '600', color: neutral[900] },
-  meta: { fontSize: 12, color: neutral[500], marginTop: 2 },
+  name: { ...type.body, fontWeight: '600', color: neutral[900] },
+  meta: { ...type.caption, color: neutral[500], marginTop: 2 },
   iconBtn: {
     width: touchTarget.min,
     height: touchTarget.min,
@@ -24,8 +24,8 @@ export const styles = StyleSheet.create({
     backgroundColor: neutral[100],
   },
   iconBtnDisabled: { opacity: 0.35 },
-  iconLabel: { fontSize: 16, color: neutral[700] },
-  removeLabel: { fontSize: 15, color: brand.red },
-  error: { fontSize: 13, color: brand.red, marginTop: spacing[3] },
+  iconLabel: { ...type.body, color: neutral[700] },
+  removeLabel: { ...type.body, color: brand.red },
+  error: { ...type.bodySmall, color: brand.red, marginTop: spacing[3] },
   saveBtn: { marginTop: spacing[4] },
 })

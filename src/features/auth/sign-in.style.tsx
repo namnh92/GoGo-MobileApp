@@ -1,20 +1,18 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   title: {
-    fontSize: 26,
-    fontWeight: '800',
+    ...type.display,
     color: neutral[900],
     marginBottom: spacing[2],
   },
   body: {
-    fontSize: 14,
+    ...type.bodySmall,
     color: neutral[500],
-    lineHeight: 20,
     marginBottom: spacing[5],
   },
   tabs: {
@@ -33,29 +31,29 @@ export const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   tabActive: { backgroundColor: neutral[0] },
-  tabLabel: { fontSize: 14, fontWeight: '600', color: neutral[500] },
+  tabLabel: { ...type.bodySmall, fontWeight: '600', color: neutral[500] },
   tabLabelActive: { color: neutral[900], fontWeight: '700' },
   card: { padding: spacing[5], gap: spacing[4] },
   field: { gap: spacing[2] },
-  label: { fontSize: 13, fontWeight: '600', color: neutral[700] },
+  label: { ...type.label, color: neutral[700] },
   input: {
+    ...type.body,
     minHeight: touchTarget.min,
     borderWidth: 1,
     borderColor: neutral[100],
     borderRadius: radius.pill,
     paddingHorizontal: spacing[4],
-    fontSize: 16,
     color: neutral[900],
     backgroundColor: neutral[0],
   },
   inputInvalid: { borderColor: brand.red },
-  hint: { fontSize: 12, color: neutral[500] },
-  fieldError: { fontSize: 12, color: brand.red },
+  hint: { ...type.caption, color: neutral[500] },
+  fieldError: { ...type.caption, color: brand.red },
   formError: {
-    fontSize: 13,
+    ...type.bodySmall,
     color: brand.red,
     marginTop: spacing[4],
     textAlign: 'center',
   },
-  footnote: { fontSize: 12, color: neutral[500], textAlign: 'center' },
+  footnote: { ...type.caption, color: neutral[500], textAlign: 'center' },
 })

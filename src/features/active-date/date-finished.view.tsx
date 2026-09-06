@@ -1,3 +1,4 @@
+import { glyph } from '@/shared/ui/tokens'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Fragment, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -66,7 +67,7 @@ export default function DateFinishedScreen() {
           <Fragment key={stop.id}>
             {index > 0 && <View style={styles.connector} />}
             <View style={styles.stopRow}>
-              <Text style={{ fontSize: 20 }}>{stop.status === 'completed' ? '✅' : '⚪️'}</Text>
+              <Text style={{ fontSize: glyph.xs }}>{stop.status === 'completed' ? '✅' : '⚪️'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.stopName}>{places.byPlaceId.get(stop.placeId)?.name ?? ''}</Text>
                 <Text style={styles.stopRating}>

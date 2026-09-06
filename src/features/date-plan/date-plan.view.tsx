@@ -35,7 +35,7 @@ import {
 } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconNavigation } from '@/shared/ui/icons'
-import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './date-plan.style'
 
@@ -206,7 +206,7 @@ export default function DatePlanScreen() {
                       stop.isLocked && styles.timelineDotLocked,
                     ]}
                   >
-                    <Text style={{ fontSize: 18 }}>
+                    <Text style={{ fontSize: glyph.xs }}>
                       {stop.status === 'completed' ? '✅' : stop.isLocked ? '🔒' : '📍'}
                     </Text>
                   </View>
@@ -257,7 +257,7 @@ export default function DatePlanScreen() {
                                   : { backgroundColor: neutral[100] },
                               ]}
                             >
-                              <Text style={{ fontSize: 12 }}>{stop.isLocked ? '🔒' : '🔓'}</Text>
+                              <Text style={{ fontSize: glyph.xs }}>{stop.isLocked ? '🔒' : '🔓'}</Text>
                               <Text
                                 style={[
                                   styles.lockBtnLabel,
