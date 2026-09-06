@@ -93,7 +93,7 @@ export const styles = StyleSheet.create({
   summaryValue: { ...type.title2, color: neutral[900] },
   summaryUnit: { ...type.caption, color: neutral[500] },
   summarySecondary: { ...type.caption, color: neutral[500], flexShrink: 1 },
-  summaryOptional: { ...type.caption, color: neutral[300] },
+  summaryOptional: { ...type.caption, color: neutral[500] },
   goBtn: { alignSelf: 'stretch' },
   staleWarning: { ...type.bodySmall, color: brand.amber, marginBottom: spacing[3] },
   summaryOverBudget: { ...type.caption, color: brand.red, marginTop: 2 },
@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
   stopCardCompleted: { opacity: 0.75 },
   stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legRail: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legDistance: { ...type.bodySmall, color: neutral[300] },
+  legDistance: { ...type.bodySmall, color: neutral[500] },
   timelineDot: {
     width: 40,
     height: 40,

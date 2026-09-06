@@ -5,8 +5,14 @@
 export const colors = {
   brand: {
     coral: '#D84F4A',
-    /** Gradient end for the primary CTA (spec §45.2). */
+    /**
+     * Primary CTA gradient (spec §45.2). It used to run `coral → coralDeep`, so
+     * its lightest end put white on 4.09:1 — under AA for a 15px label. Both
+     * ends are now dark enough for white text: 4.77 and 5.46. `coral` itself is
+     * unchanged and stays the brand accent on light surfaces.
+     */
     coralDeep: '#C74552',
+    coralInk: '#B93E48',
     coralBright: '#FF746C',
     coralSoft: '#FFD8D4',
     /** Faint coral wash for badges on light surfaces. */
@@ -27,8 +33,14 @@ export const colors = {
     25: '#FCFBF8',
     50: '#F6F3EE',
     100: '#ECE8E1',
+    /** Lines, borders and disabled fills. Never text: 1.78:1 on white. */
     300: '#C8C1B8',
-    500: '#817B74',
+    /**
+     * Secondary text. Was #817B74, which measured 4.18:1 on white and 3.78:1 on
+     * the ivory app background — under WCAG 2.2 AA for body text, on the colour
+     * carrying most of the metadata in the product. This one is 5.03 and 4.55.
+     */
+    500: '#746E68',
     700: '#4A4641',
     900: '#211F1C',
   },

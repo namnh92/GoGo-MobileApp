@@ -120,6 +120,8 @@ export default function ProfileScreen() {
               accessibilityState={{ disabled: !row.route }}
               style={[styles.settingRow, index === SETTINGS_ROWS.length - 1 && { borderBottomWidth: 0 }]}
             >
+              {/* Genuinely disabled (`disabled={!row.route}` above), so the lighter
+                  neutral is the signal rather than a contrast failure. */}
               <Text style={[styles.settingLabel, !row.route && { color: colors.neutral[300] }]}>
                 {t(`profile.settings.${row.key}`)}
               </Text>

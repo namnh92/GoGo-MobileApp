@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
   name: { ...type.body, fontWeight: '600', color: neutral[900], flexShrink: 1 },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   doneLabel: { ...type.label, color: brand.mint },
-  notStarted: { ...type.bodySmall, color: neutral[300] },
+  notStarted: { ...type.bodySmall, color: neutral[500] },
 
   actions: { alignSelf: 'stretch', gap: spacing[2] },
   partialWarning: { ...type.caption, color: brand.amber, textAlign: 'center', marginTop: spacing[2] },

@@ -146,7 +146,7 @@ export default function SignInScreen() {
                       onChangeText={field.onChange}
                       onBlur={field.onBlur}
                       placeholder={t('auth.displayNamePlaceholder')}
-                      placeholderTextColor={colors.neutral[300]}
+                      placeholderTextColor={colors.neutral[500]}
                       autoCapitalize="words"
                       autoCorrect={false}
                       editable={!pending}
@@ -171,7 +171,7 @@ export default function SignInScreen() {
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
                     placeholder="you@example.com"
-                    placeholderTextColor={colors.neutral[300]}
+                    placeholderTextColor={colors.neutral[500]}
                     autoCapitalize="none"
                     autoComplete="email"
                     keyboardType="email-address"
@@ -196,7 +196,7 @@ export default function SignInScreen() {
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
                     placeholder="••••••••••"
-                    placeholderTextColor={colors.neutral[300]}
+                    placeholderTextColor={colors.neutral[500]}
                     autoCapitalize="none"
                     autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
                     secureTextEntry

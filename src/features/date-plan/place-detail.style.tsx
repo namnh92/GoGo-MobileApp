@@ -66,7 +66,7 @@ export const styles = StyleSheet.create({
   fact: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: spacing[2] },
   factDivider: { width: 1, backgroundColor: neutral[100], marginVertical: spacing[1] },
   factValue: { ...type.title2, color: neutral[900], textAlign: 'center' },
-  factValueMuted: { ...type.bodySmall, color: neutral[300], textAlign: 'center' },
+  factValueMuted: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
   factCaption: { ...type.caption, color: neutral[500], textAlign: 'center' },
 
   openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
@@ -119,7 +119,7 @@ export const styles = StyleSheet.create({
   ratingSource: { ...type.caption, color: neutral[500], fontWeight: '700' },
   ratingValue: { ...type.title1, color: neutral[900] },
   ratingCount: { ...type.caption, color: neutral[500] },
-  ratingEmpty: { ...type.bodySmall, color: neutral[300], lineHeight: 18 },
+  ratingEmpty: { ...type.bodySmall, color: neutral[500], lineHeight: 18 },
 
   // --- suitability ---------------------------------------------------------
   suitCard: {
@@ -152,7 +152,7 @@ export const styles = StyleSheet.create({
   factLabel: { ...type.bodySmall, color: neutral[700], flexShrink: 1 },
 
   // --- trust ---------------------------------------------------------------
-  attribution: { ...type.caption, color: neutral[300], marginTop: spacing[2] },
+  attribution: { ...type.caption, color: neutral[500], marginTop: spacing[2] },
   trustCard: {
     marginTop: spacing[6],
     borderRadius: radius.card,
@@ -165,7 +165,7 @@ export const styles = StyleSheet.create({
   updated: { ...type.bodySmall, color: neutral[500], flex: 1 },
   report: { ...type.label, color: neutral[500], textDecorationLine: 'underline' },
   reportDisabled: { ...type.label, color: neutral[300] },
-  reportHint: { ...type.caption, color: neutral[300] },
+  reportHint: { ...type.caption, color: neutral[500] },
 
   // --- sticky actions ------------------------------------------------------
   actionBar: {
@@ -193,7 +193,10 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveBtnActive: { borderColor: brand.coral, backgroundColor: brand.coralSoft },
-  addBtn: { flex: 1, height: touchTarget.min + 8 },
+  // Wider than the directions button because its label is: "Thêm vào kế hoạch"
+  // ellipsised to "Thêm vào kế ho..." at an even split, while "Chỉ đường" had
+  // room to spare. Splitting by content rather than in half fits both.
+  addBtn: { flex: 1.4, height: touchTarget.min + 8 },
   dirBtn: {
     flex: 1,
     height: touchTarget.min + 8,

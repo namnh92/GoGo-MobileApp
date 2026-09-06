@@ -184,7 +184,7 @@ export default function CreateLocationScreen() {
               value={areaQuery}
               onChangeText={setAreaQuery}
               placeholder={t('createLocation.searchOther')}
-              placeholderTextColor={colors.neutral[300]}
+              placeholderTextColor={colors.neutral[500]}
               autoCorrect={false}
               autoFocus
               style={styles.sheetInput}

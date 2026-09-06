@@ -79,7 +79,7 @@ export const styles = StyleSheet.create({
     gap: 2,
   },
   addPhotoLabel: { fontSize: 12, fontWeight: '600', color: neutral[500], textAlign: 'center' },
-  photoCount: { fontSize: 11, color: neutral[300] },
+  photoCount: { fontSize: 11, color: neutral[500] },
   billToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -111,7 +111,7 @@ export const styles = StyleSheet.create({
   billRow: { flexDirection: 'row', gap: spacing[2] },
   billInputTotal: { flex: 1.6 },
   billInputPeople: { flex: 1 },
-  billPeopleHint: { fontSize: 11, color: neutral[300] },
+  billPeopleHint: { fontSize: 11, color: neutral[500] },
   billPerPerson: { fontSize: 13, fontWeight: '700', color: brand.coral },
   billPhotoBtn: {
     height: 44,

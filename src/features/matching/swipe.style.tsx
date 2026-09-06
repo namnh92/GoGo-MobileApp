@@ -7,7 +7,7 @@ const { brand, neutral } = colors
 export const styles = StyleSheet.create({
   counter: { ...type.label, color: neutral[900] },
   header: { ...type.bodySmall, color: neutral[500], fontWeight: '600' },
-  subheader: { ...type.caption, color: neutral[300] },
+  subheader: { ...type.caption, color: neutral[500] },
 
   progressTrack: {
     marginHorizontal: spacing[5],
@@ -63,7 +63,7 @@ export const styles = StyleSheet.create({
   factRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
   price: { ...type.title2, color: neutral[900] },
   priceUnit: { ...type.bodySmall, color: neutral[500] },
-  priceUnknown: { ...type.bodySmall, color: neutral[300] },
+  priceUnknown: { ...type.bodySmall, color: neutral[500] },
   meta: { ...type.bodySmall, color: neutral[500] },
   openDot: { width: 6, height: 6, borderRadius: 3 },
   open: { ...type.caption, fontWeight: '700', color: brand.mint },

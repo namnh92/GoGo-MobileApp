@@ -59,7 +59,7 @@ export const styles = StyleSheet.create({
     color: colors.neutral[900],
     marginBottom: spacing[2],
   },
-  poweredBy: { ...type.caption, color: colors.neutral[300], marginBottom: spacing[2] },
+  poweredBy: { ...type.caption, color: colors.neutral[500], marginBottom: spacing[2] },
   noResults: { ...type.body, color: colors.neutral[500], textAlign: 'center', paddingVertical: spacing[5] },
   areaRow: {
     flexDirection: 'row',
