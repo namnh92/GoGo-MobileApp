@@ -129,7 +129,7 @@ export function PrimaryBtn({ label, onPress, disabled = false, loading = false, 
       style={({ pressed }) => [styles.primaryBtnShadow, pressed && styles.pressed, style]}
     >
       <LinearGradient
-        colors={inactive ? [neutral[100], neutral[100]] : [brand.coral, brand.coralDeep]}
+        colors={inactive ? [neutral[100], neutral[100]] : [brand.coralDeep, brand.coralInk]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.primaryBtn}
@@ -137,7 +137,12 @@ export function PrimaryBtn({ label, onPress, disabled = false, loading = false, 
         {loading ? (
           <ActivityIndicator color={neutral[500]} />
         ) : (
-          <Text style={[styles.primaryBtnLabel, inactive && { color: neutral[300] }]} numberOfLines={1}>
+          <Text
+            style={[styles.primaryBtnLabel, inactive && { color: neutral[300] }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+          >
             {label}
           </Text>
         )}
@@ -163,7 +168,14 @@ export function SecondaryBtn({ label, onPress, disabled = false, loading = false
       {loading ? (
         <ActivityIndicator color={brand.coral} />
       ) : (
-        <Text style={styles.secondaryBtnLabel} numberOfLines={1}>{label}</Text>
+        <Text
+          style={styles.secondaryBtnLabel}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
+          {label}
+        </Text>
       )}
     </Pressable>
   )

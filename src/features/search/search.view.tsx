@@ -198,7 +198,7 @@ export default function SearchScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder={t('search.placeholder')}
-          placeholderTextColor={colors.neutral[300]}
+          placeholderTextColor={colors.neutral[500]}
           autoCorrect={false}
           returnKeyType="search"
           style={styles.input}
@@ -308,7 +308,7 @@ export default function SearchScreen() {
                   value={maxKm}
                   onChangeText={setMaxKm}
                   placeholder={t('search.distancePlaceholder')}
-                  placeholderTextColor={colors.neutral[300]}
+                  placeholderTextColor={colors.neutral[500]}
                   keyboardType="numeric"
                   style={styles.sheetInput}
                 />
@@ -324,7 +324,7 @@ export default function SearchScreen() {
                   value={priceFrom}
                   onChangeText={setPriceFrom}
                   placeholder={t('search.priceFrom')}
-                  placeholderTextColor={colors.neutral[300]}
+                  placeholderTextColor={colors.neutral[500]}
                   keyboardType="numeric"
                   style={[styles.sheetInput, styles.priceInput]}
                 />
@@ -333,7 +333,7 @@ export default function SearchScreen() {
                   value={priceTo}
                   onChangeText={setPriceTo}
                   placeholder={t('search.priceTo')}
-                  placeholderTextColor={colors.neutral[300]}
+                  placeholderTextColor={colors.neutral[500]}
                   keyboardType="numeric"
                   style={[styles.sheetInput, styles.priceInput]}
                 />

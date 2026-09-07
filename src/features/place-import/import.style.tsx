@@ -63,7 +63,7 @@ export const styles = StyleSheet.create({
   tryAgain: { alignItems: 'center', paddingVertical: spacing[3], marginTop: spacing[2] },
   tryAgainLabel: { fontSize: 14, fontWeight: '600', color: neutral[500] },
   warning: { fontSize: 13, color: brand.amber, marginTop: spacing[2], lineHeight: 19 },
-  attribution: { fontSize: 11, color: neutral[300], marginTop: spacing[2] },
+  attribution: { fontSize: 11, color: neutral[500], marginTop: spacing[2] },
   candidateTitle: { fontSize: 14, fontWeight: '600', color: neutral[900], marginBottom: spacing[3] },
   candidateRow: {
     paddingVertical: spacing[3],

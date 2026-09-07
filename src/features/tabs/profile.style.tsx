@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shortcutValue: { ...type.title1, color: neutral[900] },
-  shortcutValueMuted: { ...type.title1, color: neutral[300] },
+  shortcutValueMuted: { ...type.title1, color: neutral[500] },
   shortcutLabel: { ...type.caption, color: neutral[500], textAlign: 'center' },
 
   settingRow: {

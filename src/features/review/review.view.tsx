@@ -135,7 +135,7 @@ export default function ReviewScreen() {
             value={text}
             onChangeText={value => setText(value.slice(0, MAX_TEXT))}
             placeholder={t('review.placeholder')}
-            placeholderTextColor={colors.neutral[300]}
+            placeholderTextColor={colors.neutral[500]}
             multiline
             accessibilityLabel={t('review.placeholder')}
             style={styles.input}

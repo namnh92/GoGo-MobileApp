@@ -97,7 +97,7 @@ export default function GuestJoinScreen() {
               if (error) setError(null)
             }}
             placeholder={t('guestJoin.namePlaceholder')}
-            placeholderTextColor={neutral[300]}
+            placeholderTextColor={neutral[500]}
             maxLength={MAX_DISPLAY_NAME}
             autoCapitalize="words"
             autoCorrect={false}

@@ -29,7 +29,7 @@ export const styles = StyleSheet.create({
   category: { ...type.bodySmall, color: neutral[500] },
   meta: { ...type.bodySmall, color: neutral[500] },
   price: { ...type.label, color: neutral[900] },
-  priceUnknown: { ...type.bodySmall, color: neutral[300] },
+  priceUnknown: { ...type.bodySmall, color: neutral[500] },
   priceFree: { ...type.label, color: brand.mint },
 
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -62,5 +62,5 @@ export const styles = StyleSheet.create({
   },
   saveGlyph: { fontSize: 15 },
 
-  attribution: { ...type.caption, color: neutral[300], marginTop: 2 },
+  attribution: { ...type.caption, color: neutral[500], marginTop: 2 },
 })

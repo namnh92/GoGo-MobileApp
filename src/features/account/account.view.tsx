@@ -120,7 +120,7 @@ export default function AccountScreen() {
             value={displayName}
             onChangeText={value => setName(value.slice(0, MAX_NAME))}
             placeholder={t('auth.displayNamePlaceholder')}
-            placeholderTextColor={colors.neutral[300]}
+            placeholderTextColor={colors.neutral[500]}
             autoCapitalize="words"
             accessibilityLabel={t('auth.displayName')}
             style={styles.input}

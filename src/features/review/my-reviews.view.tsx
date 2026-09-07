@@ -128,7 +128,7 @@ export default function MyReviewsScreen() {
                     value={draftText}
                     onChangeText={value => setDraftText(value.slice(0, MAX_TEXT))}
                     placeholder={t('review.placeholder')}
-                    placeholderTextColor={colors.neutral[300]}
+                    placeholderTextColor={colors.neutral[500]}
                     multiline
                     style={styles.input}
                   />

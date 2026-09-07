@@ -94,7 +94,7 @@ export default function JoinByCodeScreen() {
                 if (error) setError(null)
               }}
               placeholder={t('joinByCode.codePlaceholder')}
-              placeholderTextColor={colors.neutral[300]}
+              placeholderTextColor={colors.neutral[500]}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!pending}
@@ -109,7 +109,7 @@ export default function JoinByCodeScreen() {
                   value={displayName}
                   onChangeText={value => setDisplayName(value.slice(0, MAX_NAME))}
                   placeholder={t('guestJoin.namePlaceholder')}
-                  placeholderTextColor={colors.neutral[300]}
+                  placeholderTextColor={colors.neutral[500]}
                   autoCapitalize="words"
                   autoCorrect={false}
                   editable={!pending}

@@ -247,7 +247,7 @@ export default function PlaceImportScreen() {
             setInvalid(false)
           }}
           placeholder={t('placeImport.placeholder')}
-          placeholderTextColor={colors.neutral[300]}
+          placeholderTextColor={colors.neutral[500]}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
@@ -427,7 +427,7 @@ export default function PlaceImportScreen() {
                       value={priceMin}
                       onChangeText={setPriceMin}
                       placeholder={t('search.priceFrom')}
-                      placeholderTextColor={colors.neutral[300]}
+                      placeholderTextColor={colors.neutral[500]}
                       keyboardType="numeric"
                       style={[styles.input, styles.priceInput]}
                     />
@@ -435,7 +435,7 @@ export default function PlaceImportScreen() {
                       value={priceMax}
                       onChangeText={setPriceMax}
                       placeholder={t('search.priceTo')}
-                      placeholderTextColor={colors.neutral[300]}
+                      placeholderTextColor={colors.neutral[500]}
                       keyboardType="numeric"
                       style={[styles.input, styles.priceInput]}
                     />
@@ -445,7 +445,7 @@ export default function PlaceImportScreen() {
                     value={note}
                     onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
                     placeholder={t('placeImport.metaNote')}
-                    placeholderTextColor={colors.neutral[300]}
+                    placeholderTextColor={colors.neutral[500]}
                     multiline
                     style={[styles.input, styles.noteInput]}
                   />

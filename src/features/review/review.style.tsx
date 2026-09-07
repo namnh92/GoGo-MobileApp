@@ -24,7 +24,7 @@ export const styles = StyleSheet.create({
   inputCard: { padding: spacing[4], marginBottom: spacing[2] },
   input: { minHeight: 96, ...type.body, color: neutral[900], textAlignVertical: 'top' },
   counterRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing[4] },
-  counter: { ...type.caption, color: neutral[300] },
+  counter: { ...type.caption, color: neutral[500] },
   counterNear: { color: brand.amber, fontWeight: '700' },
 
   moderationNote: { ...type.caption, color: neutral[500], lineHeight: 17, marginTop: spacing[3] },

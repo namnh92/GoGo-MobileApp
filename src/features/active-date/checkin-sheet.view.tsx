@@ -171,7 +171,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
               value={note}
               onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
               placeholder={t('checkin.notePlaceholder')}
-              placeholderTextColor={colors.neutral[300]}
+              placeholderTextColor={colors.neutral[500]}
               multiline
               style={styles.input}
             />
