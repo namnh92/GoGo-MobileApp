@@ -168,6 +168,24 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       })
     },
 
+    /**
+     * Allow the refresh budget to be spent again.
+     *
+     * The cap stops a loop against a provider that is refusing every token, and
+     * the usual cause is a configuration only a person can correct — a key
+     * replaced in the dashboard, enforcement toggled. When that is fixed the
+     * app is typically still running, already given up, and would stay unbound
+     * until the next login or a restart.
+     *
+     * The caller decides when a retry is warranted; `identity-bootstrap` uses
+     * the app returning to the foreground, which is both a natural retry moment
+     * and rare enough that it cannot reconstitute the loop.
+     */
+    resetRefreshBudget(): void {
+      consecutiveRefreshes = 0
+      refreshGiveUpReported = false
+    },
+
     stop(): void {
       expirySubscription?.remove()
       expirySubscription = null

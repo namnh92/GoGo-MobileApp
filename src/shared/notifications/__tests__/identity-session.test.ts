@@ -268,3 +268,84 @@ describe('a token the provider keeps refusing', () => {
     expect(fetchToken.mock.calls.length).toBeGreaterThan(afterFirstUser + 1)
   })
 })
+
+describe('recovering the refresh budget', () => {
+  const token = { externalId: 'user-1', token: 'jwt', expiresAt: '2026-01-01T00:00:00.000Z' }
+
+  function refusing() {
+    let notify: ((externalId: string) => void) | undefined
+    const native = {
+      loginWithToken: vi.fn().mockResolvedValue(undefined),
+      loginWithoutToken: vi.fn().mockResolvedValue(undefined),
+      logout: vi.fn().mockResolvedValue(undefined),
+      respondToJwtExpired: vi.fn().mockImplementation(async () => { notify?.('user-1') }),
+      onJwtExpired: (h: (externalId: string) => void) => {
+        notify = h
+        return { remove: () => { notify = undefined } }
+      },
+    }
+    return { native, expire: () => notify?.('user-1') }
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 40))
+
+  it('spends again after the budget is reset — the dashboard fix case', async () => {
+    const { native, expire } = refusing()
+    const fetchToken = vi.fn().mockResolvedValue({ kind: 'ok' as const, token })
+    const session = createIdentitySession({ native, fetchToken })
+
+    session.start()
+    expire()
+    await settle()
+    const exhausted = fetchToken.mock.calls.length
+    expect(exhausted).toBe(MAX_CONSECUTIVE_JWT_REFRESHES)
+
+    // Nothing more, however many times the SDK asks.
+    expire()
+    await settle()
+    expect(fetchToken.mock.calls.length).toBe(exhausted)
+
+    // The provider configuration is corrected and the app returns to the
+    // foreground.
+    session.resetRefreshBudget()
+    expire()
+    await settle()
+    expect(fetchToken.mock.calls.length).toBeGreaterThan(exhausted)
+  })
+
+  it('recovers across logout then login as the same user', async () => {
+    const { native, expire } = refusing()
+    const fetchToken = vi.fn().mockResolvedValue({ kind: 'ok' as const, token })
+    const session = createIdentitySession({ native, fetchToken })
+
+    session.start()
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    expire()
+    await settle()
+    const exhausted = fetchToken.mock.calls.length
+
+    await session.apply(null)                                  // logout
+    await session.apply({ kind: 'user', userId: 'user-1' })    // back in
+    expire()
+    await settle()
+
+    expect(fetchToken.mock.calls.length).toBeGreaterThan(exhausted + 1)
+  })
+
+  it('a fresh start() also starts from a full budget', async () => {
+    const { native, expire } = refusing()
+    const fetchToken = vi.fn().mockResolvedValue({ kind: 'ok' as const, token })
+    const session = createIdentitySession({ native, fetchToken })
+
+    session.start()
+    expire()
+    await settle()
+    const exhausted = fetchToken.mock.calls.length
+
+    session.stop()
+    session.start()
+    expire()
+    await settle()
+    expect(fetchToken.mock.calls.length).toBeGreaterThan(exhausted)
+  })
+})

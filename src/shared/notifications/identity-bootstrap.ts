@@ -1,3 +1,5 @@
+import { AppState } from 'react-native'
+
 import { subscribeToSession, getSession } from '@/shared/api/session'
 
 import {
@@ -34,8 +36,19 @@ export function initializePushIdentity(): () => void {
   const unsubscribe = subscribeToSession((session) => {
     void identity.apply(session)
   })
+
+  // Coming back to the foreground is the retry moment. If the token was being
+  // refused because of a provider misconfiguration, the fix happens elsewhere
+  // — in a dashboard — while this app keeps running, and without this it would
+  // stay unbound until the next login. Rare enough that it cannot rebuild the
+  // loop the budget exists to stop.
+  const appState = AppState.addEventListener('change', (status) => {
+    if (status === 'active') identity.resetRefreshBudget()
+  })
+
   return () => {
     unsubscribe()
+    appState.remove()
     identity.stop()
   }
 }
