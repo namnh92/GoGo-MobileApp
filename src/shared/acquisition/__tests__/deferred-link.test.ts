@@ -138,3 +138,35 @@ describe('collecting the deferred link at startup', () => {
     expect(report).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('an SDK that answers nothing', () => {
+  /**
+   * DEV emulator, 2026-09-07: with no advertising id and no Play Store
+   * referrer, `getAttributionInfo` completed its native retrieval and called
+   * neither callback. Without a bound this promise never settles.
+   */
+  it('settles anyway, and says which it was', async () => {
+    const report = vi.fn()
+    await createDeferredLinkCollector({
+      sdk: { getAttributionInfo: () => {} },
+      store: { remember: vi.fn() },
+      report,
+      timeoutMs: 5,
+    })()
+    expect(report).toHaveBeenCalledWith('acquisition_attribution_timed_out')
+  })
+
+  it('does not report a timeout when the SDK answered in time', async () => {
+    const report = vi.fn()
+    await createDeferredLinkCollector({
+      sdk: sdkReturning({}),
+      store: { remember: vi.fn() },
+      report,
+      timeoutMs: 5,
+    })()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(report).toHaveBeenCalledWith('acquisition_no_deferred_link')
+    expect(report).not.toHaveBeenCalledWith('acquisition_attribution_timed_out')
+    expect(report).toHaveBeenCalledTimes(1)
+  })
+})

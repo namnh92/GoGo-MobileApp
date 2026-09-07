@@ -20,7 +20,12 @@
  *     navigate the app to somewhere that is not in the app;
  *   - **it never throws into startup.** Attribution failing is a lost
  *     attribution, never a failed launch — the same rule the initializer
- *     already follows.
+ *     already follows;
+ *   - **it always settles.** On the DEV emulator neither callback fired at
+ *     all: with no advertising id and no Play referrer, the native
+ *     `getAttributionInfo` completed its retrieval and answered nothing. A
+ *     promise that never settles is a leak and, worse, a caller that can never
+ *     learn "there is no deferred link". So the wait is bounded.
  *
  * Reported values are provider data about this install. Reason codes are
  * logged; the URL is not, because a ROOM_INVITE slug is the invite code.
@@ -62,7 +67,16 @@ export type DeferredLinkDeps = {
   store: DeferredLinkSink
   /** Reason codes only — never the URL. */
   report?: (event: string) => void
+  /**
+   * How long to wait for the SDK before calling it silence. Generous, because
+   * the answer arrives after a network round trip and a wrong "no link" is
+   * worse than a slow one — nothing is blocked on this.
+   */
+  timeoutMs?: number
 }
+
+/** Long enough for a cold-start attribution round trip, short enough to end. */
+export const ATTRIBUTION_TIMEOUT_MS = 10_000
 
 /**
  * Picks the deferred link out of an attribution payload, or null.
@@ -84,20 +98,27 @@ export function deferredLinkFrom(info: Record<string, unknown>): string | null {
 
 export function createDeferredLinkCollector(deps: DeferredLinkDeps) {
   const report = deps.report ?? (() => {})
+  const timeoutMs = deps.timeoutMs ?? ATTRIBUTION_TIMEOUT_MS
 
-  /** Resolves once the SDK has answered, whatever it answered. */
+  /** Resolves once the SDK has answered, or once it is clear it will not. */
   return function collect(): Promise<void> {
     return new Promise<void>((resolve) => {
       // One resolution only. The native side already guards its callback pair
       // with an AtomicBoolean, but a provider that called both would otherwise
       // leave this promise's contract depending on the SDK's good behaviour.
       let settled = false
+      let timer: ReturnType<typeof setTimeout> | undefined
       const finish = (event: string) => {
         if (settled) return
         settled = true
+        if (timer) clearTimeout(timer)
         report(event)
         resolve()
       }
+
+      // Observed on the DEV emulator: neither callback fires when there is no
+      // advertising id and no Play referrer.
+      timer = setTimeout(() => finish('acquisition_attribution_timed_out'), timeoutMs)
 
       try {
         deps.sdk.getAttributionInfo(
