@@ -211,10 +211,27 @@ export default function PlaceDetailScreen() {
 
       <StaleNotice error={place.isError ? place.error : null} onRetry={() => void place.refetch()} />
 
-      <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 160 }}>
+      {/* The sticky bar stacks two full-width buttons now, so it is taller than
+          the row it replaced; the old 160 left the last card underneath it. */}
+      <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 232 }}>
         <View style={styles.body}>
-          <Text style={styles.name}>{name}</Text>
-          {secondary ? <Text style={styles.meta}>{secondary}</Text> : null}
+          <View style={styles.identityRow}>
+            <View style={styles.identityText}>
+              <Text style={styles.name}>{name}</Text>
+              {secondary ? <Text style={styles.meta}>{secondary}</Text> : null}
+            </View>
+            {canSave ? (
+              <Pressable
+                onPress={onSave}
+                accessibilityRole="togglebutton"
+                accessibilityState={{ checked: currentlySaved }}
+                accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
+                style={[styles.saveBtn, currentlySaved && styles.saveBtnActive]}
+              >
+                <Text style={{ fontSize: glyph.xs }}>{currentlySaved ? '🔖' : '📑'}</Text>
+              </Pressable>
+            ) : null}
+          </View>
 
           {/* The three facts a decision actually turns on, side by side. */}
           <View style={styles.factStrip}>
@@ -423,17 +440,6 @@ export default function PlaceDetailScreen() {
       </ScrollView>
 
       <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing[4] }]}>
-        {canSave ? (
-          <Pressable
-            onPress={onSave}
-            accessibilityRole="togglebutton"
-            accessibilityState={{ checked: currentlySaved }}
-            accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
-            style={[styles.saveBtn, currentlySaved && styles.saveBtnActive]}
-          >
-            <Text style={{ fontSize: glyph.xs }}>{currentlySaved ? '🔖' : '📑'}</Text>
-          </Pressable>
-        ) : null}
         <SecondaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} style={styles.addBtn} />
         <Pressable
           accessibilityRole="button"
