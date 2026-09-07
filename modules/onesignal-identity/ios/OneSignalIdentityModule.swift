@@ -30,11 +30,32 @@ import OneSignalFramework
  the network, via JS. That cannot happen inside a non-escaping call.
 
  So the handler does what Android's `IUserJwtInvalidatedListener` does: it
- reports, and the fresh token is pushed in afterwards. iOS has no
- `updateUserJwt` — checked against the framework headers, it does not exist on
- this platform — so the push is `login(externalId:token:)`, the same call the
- initial bind uses. Supplying a new token for an external id is exactly what it
- means.
+ reports, and the fresh token is pushed in afterwards. The push is
+ `login(externalId:token:)`, the same call the initial bind uses — supplying a
+ new token for an external id is exactly what it means.
+
+ ## Why not `updateUserJwt`, which the documentation shows for iOS
+
+ Step 4 of OneSignal's Identity Verification guide shows an iOS/Swift sample
+ calling `addUserJwtInvalidatedListener` and `updateUserJwt(externalId:token:)`.
+ Neither exists on iOS. Verified three ways against the version we ship,
+ OneSignalXCFramework 5.5.6 — which is also the newest published release
+ (2026-08-01):
+
+   - `OneSignalUser-Swift.h` declares exactly one JWT API,
+     `onJwtExpiredWithExpiredHandler:`;
+   - `nm` on the `OneSignalUser` binary finds zero `updateUserJwt` and zero
+     `addUserJwtInvalidatedListener` symbols, and one `onJwtExpired`;
+   - GitHub code search over `OneSignal/OneSignal-iOS-SDK` returns 0 results for
+     each of those two names, against 19 for `onJwtExpired` and 49 for
+     `OneSignalUserManagerImpl` as controls, so the repository is indexed and
+     the zeroes are real.
+
+ Both symbols *do* exist on Android (`javap` on `com.onesignal:core:5.9.9`),
+ which is where this module uses them. The iOS sample in the guide appears to be
+ the Android API shown under the wrong tab. Implementing it as documented would
+ not compile, so this stays as it is until OneSignal confirms; it is raised with
+ them as a documentation question.
 
  The JS contract is therefore identical on both platforms — an `onJwtExpired`
  event, then `respondToJwtExpired` — and only the native call underneath
