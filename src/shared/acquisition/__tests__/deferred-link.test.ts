@@ -170,3 +170,42 @@ describe('an SDK that answers nothing', () => {
     expect(report).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('the two platforms fail differently, and both must settle', () => {
+  /**
+   * Verified against the wrappers' native code, 1.6.0:
+   *
+   *   Android (TenjinModule.kt) — `instance?.getAttributionInfo { data -> … }`.
+   *     With no advertising id and no Play referrer the SDK completes its
+   *     retrieval and invokes *neither* callback. Observed on the emulator.
+   *
+   *   iOS (Tenjin.mm) — the same SDK call, but the bridge turns a nil payload
+   *     into `errorCallback(@"No attribution info available")`. Observed on the
+   *     simulator, where AdServices is unavailable.
+   *
+   * Same product situation, two different shapes reaching JS. Both have to end
+   * with a settled promise and a reason code, or a caller can never learn that
+   * there is no deferred link.
+   */
+  it('settles on the iOS shape — an error string', async () => {
+    const report = vi.fn()
+    await createDeferredLinkCollector({
+      sdk: { getAttributionInfo: (_ok, fail) => fail('No attribution info available') },
+      store: { remember: vi.fn() },
+      report,
+      timeoutMs: 50,
+    })()
+    expect(report).toHaveBeenCalledWith('acquisition_attribution_failed')
+  })
+
+  it('settles on the Android shape — silence', async () => {
+    const report = vi.fn()
+    await createDeferredLinkCollector({
+      sdk: { getAttributionInfo: () => {} },
+      store: { remember: vi.fn() },
+      report,
+      timeoutMs: 5,
+    })()
+    expect(report).toHaveBeenCalledWith('acquisition_attribution_timed_out')
+  })
+})
