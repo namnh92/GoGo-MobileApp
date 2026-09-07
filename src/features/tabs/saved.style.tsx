@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
     marginLeft: 'auto',
     marginRight: spacing[2],
   },
-  addPlaceLabel: { fontSize: 20, fontWeight: '700', color: brand.coral, lineHeight: 24 },
+  addPlaceLabel: { ...type.title1, fontWeight: '700', color: brand.coral },
   title: { ...type.display, color: neutral[900] },
   toggle: { flexDirection: 'row', backgroundColor: neutral[100], borderRadius: 12, padding: 2 },
   toggleBtn: { paddingHorizontal: 12, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

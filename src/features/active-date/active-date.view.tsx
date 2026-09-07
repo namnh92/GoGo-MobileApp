@@ -21,7 +21,7 @@ import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Chip, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
-import { spacing } from '@/shared/ui/tokens'
+import { glyph, spacing } from '@/shared/ui/tokens'
 
 import { CheckinSheet, type CheckinDraft } from './checkin-sheet.view'
 import { styles } from './active-date.style'
@@ -240,7 +240,7 @@ export default function ActiveDateScreen() {
 
         {nextStop && (
           <GlassCard style={styles.nextCard}>
-            <Text style={{ fontSize: 24 }}>📍</Text>
+            <Text style={{ fontSize: glyph.sm }}>📍</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.nextCaption}>{t('activeDate.next')}</Text>
               <Text style={styles.nextName}>{places.byPlaceId.get(nextStop.placeId)?.name ?? ''}</Text>

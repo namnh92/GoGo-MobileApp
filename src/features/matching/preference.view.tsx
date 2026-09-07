@@ -16,7 +16,7 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './preference.style'
 
@@ -146,7 +146,7 @@ export default function PreferenceScreen() {
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
               >
-                {option.emoji ? <Text style={{ fontSize: 24 }}>{option.emoji}</Text> : null}
+                {option.emoji ? <Text style={{ fontSize: glyph.sm }}>{option.emoji}</Text> : null}
                 <Text style={[styles.optionLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>
                   {option.label}
                 </Text>

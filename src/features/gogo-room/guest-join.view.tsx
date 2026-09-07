@@ -8,7 +8,7 @@ import { isApiError } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { Atmosphere, AvatarCircle, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
 
@@ -81,7 +81,7 @@ export default function GuestJoinScreen() {
           <View style={{ alignItems: 'center', gap: 6 }}>
             <AvatarCircle emoji="🎉" size={64} />
           </View>
-          <Text style={{ fontSize: 24 }}>+</Text>
+          <Text style={{ fontSize: glyph.sm }}>+</Text>
           <View style={{ alignItems: 'center', gap: 6 }}>
             <AvatarCircle emoji="😊" size={64} />
             <Text style={[styles.pairName, { color: neutral[500] }]}>{t('guestJoin.you')}</Text>

@@ -29,7 +29,7 @@ import {
   useTabDockInset,
 } from '@/shared/ui/primitives'
 import { PlaceGridSkeleton } from '@/shared/ui/skeleton.view'
-import { hitSlop, spacing } from '@/shared/ui/tokens'
+import { glyph, hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './saved.style'
 
@@ -191,7 +191,7 @@ export default function SavedScreen() {
                     accessibilityState={{ checked: true }}
                     accessibilityLabel={t('saved.remove')}
                   >
-                    <Text style={{ fontSize: 15 }}>🔖</Text>
+                    <Text style={{ fontSize: glyph.xs }}>🔖</Text>
                   </Pressable>
                 </View>
                 <Text style={selected.openNow ? styles.sheetStatusOpen : styles.sheetStatusClosed}>

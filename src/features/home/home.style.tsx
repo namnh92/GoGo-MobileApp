@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, glassFx, onDark, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, glassFx, glyph, onDark, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -99,7 +99,7 @@ export const styles = StyleSheet.create({
   sectionHint: { ...type.bodySmall, color: neutral[500] },
 
   stateCard: { padding: spacing[6], alignItems: 'center' },
-  stateEmoji: { fontSize: 40, marginBottom: spacing[3] },
+  stateEmoji: { fontSize: glyph.xl, marginBottom: spacing[3] },
   stateTitle: { ...type.title2, color: neutral[900], textAlign: 'center' },
   stateBody: { ...type.bodySmall, color: neutral[500], marginTop: 4, textAlign: 'center', lineHeight: 19 },
   stateActions: { alignSelf: 'stretch', gap: spacing[2], marginTop: spacing[5] },

@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, onDark, shadows, spacing, type } from '@/shared/ui/tokens'
+import { colors, glyph, onDark, shadows, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -36,7 +36,7 @@ export const styles = StyleSheet.create({
   },
   wordmark: {
     ...type.display,
-    fontSize: 40,
+    fontSize: glyph.xl,
     lineHeight: 48,
     color: neutral[0],
     letterSpacing: -0.5,

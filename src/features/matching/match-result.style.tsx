@@ -83,12 +83,12 @@ export const styles = StyleSheet.create({
   },
   reasonBtnLabel: { ...type.label },
   input: {
+    ...type.bodySmall,
     height: 48,
     marginTop: spacing[2],
     borderRadius: radius.compact,
     backgroundColor: neutral[50],
     paddingHorizontal: spacing[4],
-    fontSize: 14,
     color: neutral[900],
   },
   charCount: { position: 'absolute', right: 12, bottom: 14, ...type.caption, color: neutral[500] },

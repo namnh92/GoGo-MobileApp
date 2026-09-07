@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -16,7 +16,7 @@ export const styles = StyleSheet.create({
   rowUnread: { borderWidth: 1, borderColor: brand.coralSoft },
   dotColumn: { width: 10, alignItems: 'center' },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.coral },
-  kind: { fontSize: 15, color: neutral[700] },
+  kind: { ...type.body, color: neutral[700] },
   kindUnread: { fontWeight: '700', color: neutral[900] },
-  time: { fontSize: 12, color: neutral[500], marginTop: 2 },
+  time: { ...type.caption, color: neutral[500], marginTop: 2 },
 })

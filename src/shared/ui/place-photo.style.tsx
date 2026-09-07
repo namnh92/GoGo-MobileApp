@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors } from '@/shared/ui/tokens'
+import { colors, glyph } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   image: { backgroundColor: colors.neutral[100] },
@@ -8,5 +8,5 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  placeholderGlyph: { fontSize: 28, opacity: 0.55 },
+  placeholderGlyph: { fontSize: glyph.md, opacity: 0.55 },
 })

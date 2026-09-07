@@ -35,7 +35,7 @@ import { haptic, useReducedMotion } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
-import { colors, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './swipe.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
@@ -363,7 +363,7 @@ export default function SwipeScreen() {
               hitSlop={hitSlop}
               style={({ pressed }) => [styles.actionBtn, glassStyles.card, pressed && { transform: [{ scale: 0.94 }] }]}
             >
-              <Text style={{ fontSize: 26 }}>✕</Text>
+              <Text style={{ fontSize: glyph.sm }}>✕</Text>
             </Pressable>
             <Text style={styles.actionCaption}>{t('swipe.passLabel')}</Text>
           </View>
@@ -379,7 +379,7 @@ export default function SwipeScreen() {
                 pressed && { transform: [{ scale: 0.94 }] },
               ]}
             >
-              <Text style={{ fontSize: 26 }}>❤️</Text>
+              <Text style={{ fontSize: glyph.sm }}>❤️</Text>
             </Pressable>
             <Text style={styles.actionCaption}>{t('swipe.likeLabel')}</Text>
           </View>
@@ -391,7 +391,7 @@ export default function SwipeScreen() {
               hitSlop={hitSlop}
               style={({ pressed }) => [styles.actionBtn, styles.actionBtnStar, pressed && { transform: [{ scale: 0.94 }] }]}
             >
-              <Text style={{ fontSize: 22 }}>⭐</Text>
+              <Text style={{ fontSize: glyph.sm }}>⭐</Text>
             </Pressable>
             <Text style={styles.actionCaption}>{t('swipe.starLabel')}</Text>
           </View>

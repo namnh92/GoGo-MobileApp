@@ -10,7 +10,7 @@ import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Atmosphere, Chip, GhostBtn, GlassCard, SecondaryBtn, useTabDockInset } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
-import { spacing } from '@/shared/ui/tokens'
+import { glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './plans.style'
 
@@ -77,7 +77,7 @@ export default function PlansScreen() {
       <Pressable accessibilityRole="button" onPress={() => openRoom(room)}>
         <GlassCard style={[styles.card, isPast && styles.cardPast]}>
           <View style={[styles.icon, isPast && styles.iconPast]}>
-            <Text style={{ fontSize: 24 }}>{room.type === 'group' ? '👥' : '💞'}</Text>
+            <Text style={{ fontSize: glyph.sm }}>{room.type === 'group' ? '👥' : '💞'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardTitle} numberOfLines={1}>

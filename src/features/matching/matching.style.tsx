@@ -18,7 +18,7 @@ export const styles = StyleSheet.create({
     gap: spacing[4],
     marginBottom: spacing[7],
   },
-  times: { color: onDark.soft, fontSize: 28 },
+  times: { ...type.display, color: onDark.soft },
 
   /** What is happening, and why it is taking a moment (spec §18). */
   message: { ...type.body, color: onDark.strong, fontWeight: '600', textAlign: 'center' },
@@ -33,7 +33,7 @@ export const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 2 },
 
-  matched: { ...type.display, fontSize: 34, lineHeight: 40, color: neutral[0], textAlign: 'center' },
+  matched: { ...type.display, color: neutral[0], textAlign: 'center' },
   matchedBody: { ...type.body, color: onDark.soft, marginTop: spacing[2], textAlign: 'center' },
   backLink: { ...type.label, color: brand.coral, textDecorationLine: 'underline' },
   retryBtn: {

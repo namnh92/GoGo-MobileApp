@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, glyph, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  star: { fontSize: 34 },
+  star: { fontSize: glyph.lg },
   starDim: { opacity: 0.25 },
   ratingLabel: { ...type.body, fontWeight: '600', color: neutral[700] },
 
@@ -39,7 +39,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[7],
     gap: spacing[3],
   },
-  successGlyph: { fontSize: 56 },
+  successGlyph: { fontSize: glyph.hero },
   successTitle: { ...type.title1, color: neutral[900], textAlign: 'center' },
   successBody: { ...type.body, color: neutral[500], textAlign: 'center', lineHeight: 22 },
   successActions: { alignSelf: 'stretch', marginTop: spacing[5] },

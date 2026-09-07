@@ -25,7 +25,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnLabel: { fontSize: 24, fontWeight: '700', lineHeight: 28 },
+  stepBtnLabel: { ...type.title1, fontWeight: '700' },
   count: { ...type.title1, color: neutral[900] },
   sectionTitle: {
     ...type.title2,

@@ -69,10 +69,8 @@ export const styles = StyleSheet.create({
    * code takes the room it needs and the button keeps its own.
    */
   code: {
+    ...type.title2,
     flex: 1,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '700',
     color: neutral[900],
     letterSpacing: 0.5,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),

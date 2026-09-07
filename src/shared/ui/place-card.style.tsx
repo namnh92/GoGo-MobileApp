@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
     right: spacing[2],
     backgroundColor: glassFx.solid,
   },
-  saveGlyph: { fontSize: 15 },
+  saveGlyph: { ...type.body },
 
   attribution: { ...type.caption, color: neutral[500], marginTop: 2 },
 })
