@@ -10,8 +10,8 @@ import OneSignalFramework
  The *native* SDK it vendors is a different story — OneSignalXCFramework 5.5.6
  declares:
 
-     + (void)login:(NSString *)externalId withToken:(NSString * _Nullable)token
-     - (void)onJwtExpiredWithExpiredHandler:(void (^)(NSString *, void (^)(NSString *)))h
+     - (void)loginWithExternalId:(NSString *)externalId token:(NSString * _Nullable)token
+     - (void)onJwtExpiredWithExpiredHandler:(void (^)(NSString *, SWIFT_NOESCAPE void (^)(NSString *)))h
 
  So identity verification is supported by the SDK in this binary; only the JS
  surface omits it. This module is that surface, and nothing more: it calls the
@@ -19,6 +19,26 @@ import OneSignalFramework
  `react-native-onesignal` and only login/logout come through here.
 
  The token is never logged, never stored, and never returned to JS.
+
+ ## Why the expiry handler does not use its completion
+
+ The header marks the inner block `SWIFT_NOESCAPE`: the SDK promises it will
+ not outlive the handler call, and holding it past that is a use-after-free —
+ not merely a compile error, though it is that too, which is how this was
+ caught. Answering it would mean producing a fresh token synchronously inside
+ the callback, and the token comes from `GET /v1/notifications/identity` over
+ the network, via JS. That cannot happen inside a non-escaping call.
+
+ So the handler does what Android's `IUserJwtInvalidatedListener` does: it
+ reports, and the fresh token is pushed in afterwards. iOS has no
+ `updateUserJwt` — checked against the framework headers, it does not exist on
+ this platform — so the push is `login(externalId:token:)`, the same call the
+ initial bind uses. Supplying a new token for an external id is exactly what it
+ means.
+
+ The JS contract is therefore identical on both platforms — an `onJwtExpired`
+ event, then `respondToJwtExpired` — and only the native call underneath
+ differs. `identity-session.ts` never has to know which one it is on.
  */
 public final class OneSignalIdentityModule: Module {
   public func definition() -> ModuleDefinition {
@@ -53,22 +73,26 @@ public final class OneSignalIdentityModule: Module {
       OneSignal.logout()
     }
 
-    /// The SDK asks for a fresh token when the one it holds expires or is
-    /// refused. JS answers with `respondToJwtExpired`; until it does, the SDK
-    /// holds the request open, which is the retry behaviour rather than a
-    /// silent logout.
+    /// The SDK reports that the token it holds expired or was refused. JS
+    /// answers later with `respondToJwtExpired`; see the note above for why the
+    /// handler's own completion cannot be the channel.
     OnStartObserving("onJwtExpired") { [weak self] in
-      OneSignal.User.onJwtExpired { [weak self] externalId, complete in
-        self?.pendingCompletions[externalId] = complete
+      OneSignal.User.onJwtExpired { [weak self] externalId, _ in
         self?.sendEvent("onJwtExpired", ["externalId": externalId])
       }
     }
 
+    /// The fresh token, pushed in after the fact. Android calls
+    /// `updateUserJwt`; iOS has no such method, and re-login with the new token
+    /// is the documented way to hand one over.
     AsyncFunction("respondToJwtExpired") { (externalId: String, token: String) in
-      guard let complete = self.pendingCompletions.removeValue(forKey: externalId) else { return }
-      complete(token)
+      guard !externalId.isEmpty else {
+        throw Exception(name: "ERR_EXTERNAL_ID", description: "externalId is required")
+      }
+      guard !token.isEmpty else {
+        throw Exception(name: "ERR_TOKEN", description: "identity token is required")
+      }
+      OneSignal.login(externalId: externalId, token: token)
     }
   }
-
-  private var pendingCompletions: [String: (String) -> Void] = [:]
 }

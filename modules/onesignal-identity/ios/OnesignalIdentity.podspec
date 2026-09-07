@@ -1,6 +1,10 @@
 require 'json'
 
-package = JSON.parse(File.read(File.join(__dir__, '..', '..', 'package.json')))
+# This module's own package.json, one level up. Expo's Apple autolinking only
+# scans a package's *subdirectories* for a podspec (listFilesInDirectories),
+# so this file has to live in ios/ — at the package root it is invisible and
+# the module silently never registers, which is exactly what happened.
+package = JSON.parse(File.read(File.join(__dir__, '..', 'package.json')))
 
 Pod::Spec.new do |s|
   s.name           = 'OnesignalIdentity'
@@ -23,5 +27,6 @@ Pod::Spec.new do |s|
     'SWIFT_COMPILATION_MODE' => 'wholemodule',
   }
 
+  # Relative to this file, so only the iOS sources.
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
 end

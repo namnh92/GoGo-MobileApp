@@ -76,5 +76,10 @@
     "test-renderer": "^1.2.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
+  },
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "./modules"
+    }
   }
 }
