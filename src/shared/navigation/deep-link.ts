@@ -32,7 +32,11 @@ export type DeepLinkAction =
   | { kind: 'saved' }
   | { kind: 'notifications' }
   | { kind: 'profile' }
-  /** Canonical share link. Resolving the slug needs GoGo-BE#205, which is open. */
+  /**
+   * Canonical share link. The slug names a target but does not reveal it, so the
+   * resolve happens on `/l/[slug]` against the BFF rather than here — this
+   * parser stays synchronous and free of network.
+   */
   | { kind: 'shareSlug'; slug: string }
   | { kind: 'unknown'; reason: 'empty' | 'unparseable' | 'unsupported' | 'invalid-params' }
 
@@ -141,9 +145,12 @@ export function routeForAction(action: DeepLinkAction): string {
       return '/notifications'
     case 'profile':
       return '/(tabs)/profile'
-    // Until the BFF can turn a slug into a resource (GoGo-BE#205), the honest
-    // destination is the home tab rather than a screen that cannot load.
+    // `/l/[slug]` resolves the slug through the BFF and replaces itself with the
+    // real destination. Sending the person home instead — which is what this did
+    // while `GET /share-links/{slug}` was still open work — loses the thing they
+    // were invited to without saying so.
     case 'shareSlug':
+      return `/l/${action.slug}`
     case 'unknown':
       return '/(tabs)'
   }

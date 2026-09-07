@@ -52,9 +52,9 @@ describe('parseDeepLink', () => {
   })
 
   it('parses a canonical share slug without pretending it can resolve one', () => {
-    // Resolving a slug needs GoGo-BE#205, which is still open.
+    // The slug resolves on `/l/[slug]` against the BFF; the parser stays offline.
     expect(parseDeepLink('https://go.gogo.id.vn/l/Af82Xc')).toEqual({ kind: 'shareSlug', slug: 'Af82Xc' })
-    expect(routeForLink('https://go.gogo.id.vn/l/Af82Xc')).toBe('/(tabs)')
+    expect(routeForLink('https://go.gogo.id.vn/l/Af82Xc')).toBe('/l/Af82Xc')
   })
 })
 
@@ -67,6 +67,9 @@ describe('routeForAction', () => {
     expect(routeForAction({ kind: 'saved' })).toBe('/(tabs)/saved')
     expect(routeForAction({ kind: 'notifications' })).toBe('/notifications')
     expect(routeForAction({ kind: 'profile' })).toBe('/(tabs)/profile')
+    // A share link claimed by AASA must land on a route that exists — it used to
+    // fall through to expo-router's developer 404 (GoGo-MobileApp#139).
+    expect(routeForAction({ kind: 'shareSlug', slug: 'Af82Xc' })).toBe('/l/Af82Xc')
   })
 
   it('never leaves a bad link without a destination', () => {
