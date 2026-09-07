@@ -1,5 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Text, View } from 'react-native'
 
@@ -39,66 +40,76 @@ type Phase =
 export default function ShareLinkScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  // The navigator is read through a ref so it stays out of `resolve`'s deps: a
-  // `useRouter()` that returns a fresh object each render would otherwise make
-  // the effect re-run forever, resolving the slug on every frame.
-  const routerRef = useRef(router)
-  routerRef.current = router
   const { slug } = useLocalSearchParams<{ slug: string }>()
-  const [phase, setPhase] = useState<Phase>({ kind: 'resolving' })
 
-  const resolve = useCallback(async () => {
-    if (!slug) {
-      setPhase({ kind: 'gone' })
-      return
-    }
-    setPhase({ kind: 'resolving' })
-    try {
-      const link = await resolveShareLink(slug)
-      // The slug itself is a credential for a room invite, so only the type goes
-      // to analytics — never the slug and never the target id.
-      track('deep_link_opened', { source: 'share_link', type: link.type })
+  /**
+   * Server state belongs to TanStack Query (CLAUDE.md), and this screen used to
+   * hand-roll the fetch in a `useEffect` with a `useState` phase machine and a
+   * router held in a ref to keep the effect from re-running forever. That shape
+   * is what `react-hooks/set-state-in-effect` and `react-hooks/refs` were both
+   * objecting to, and the objections were right: a ref written during render is
+   * unsafe under concurrent rendering, and setting state synchronously from an
+   * effect cascades a render before the effect has settled.
+   *
+   * The query owns resolving, retrying and caching. What is left below is the
+   * one thing that genuinely is a side effect: navigating away once the answer
+   * arrives.
+   */
+  const query = useQuery({
+    queryKey: ['share-link', slug],
+    queryFn: () => resolveShareLink(slug!),
+    enabled: Boolean(slug),
+    // A dead link stays dead; retrying 404/410 only delays telling the person.
+    retry: (count, error) => !(isApiError(error) && (error.status === 404 || error.status === 410)) && count < 2,
+    staleTime: 0,
+    gcTime: 0,
+  })
 
-      switch (link.type) {
-        case 'ROOM_INVITE': {
-          // The slug doubles as the invite code (LNK-BE-002), and `/r/[code]`
-          // already handles both the guest and the signed-in path.
-          const code = link.target?.inviteCode ?? slug
-          routerRef.current.replace(`/r/${code}`)
-          return
-        }
-        case 'PLAN': {
-          const planId = link.target?.planId
-          if (!planId) break
-          routerRef.current.replace(`/plans/${planId}`)
-          return
-        }
-        case 'PLACE': {
-          const placeId = link.target?.placeId
-          if (!placeId) break
-          routerRef.current.replace(`/places/${placeId}`)
-          return
-        }
-        default:
-          break
-      }
-      // COLLECTION and REFERRAL are reserved in the contract and no screen
-      // claims them yet. Saying so is honest; silently dropping to home is not.
-      setPhase({ kind: 'unsupported' })
-    } catch (caught) {
-      if (isApiError(caught) && (caught.status === 404 || caught.status === 410)) {
-        setPhase({ kind: 'gone' })
-        return
-      }
-      setPhase({ kind: 'failed' })
-    }
-  }, [slug])
+  const link = query.data
 
   useEffect(() => {
-    void resolve()
-  }, [resolve])
+    if (!link) return
+    // The slug itself is a credential for a room invite, so only the type goes
+    // to analytics — never the slug and never the target id.
+    track('deep_link_opened', { source: 'share_link', type: link.type })
 
-  if (phase.kind === 'resolving') {
+    switch (link.type) {
+      case 'ROOM_INVITE':
+        // The slug doubles as the invite code (LNK-BE-002), and `/r/[code]`
+        // already handles both the guest and the signed-in path.
+        router.replace(`/r/${link.target?.inviteCode ?? slug}`)
+        return
+      case 'PLAN':
+        if (link.target?.planId) router.replace(`/plans/${link.target.planId}`)
+        return
+      case 'PLACE':
+        if (link.target?.placeId) router.replace(`/places/${link.target.placeId}`)
+        return
+      default:
+        // COLLECTION and REFERRAL are reserved in the contract and no screen
+        // claims them yet. Saying so is honest; silently dropping to home is not.
+        return
+    }
+  }, [link, router, slug])
+
+  /**
+   * Derived, not stored. A route with no slug, a dead link and a network
+   * failure are all facts about this render, so none of them needs a state
+   * transition to describe it.
+   */
+  const shown: Phase = !slug
+    ? { kind: 'gone' }
+    : query.isPending
+      ? { kind: 'resolving' }
+      : query.isError
+        ? isApiError(query.error) && (query.error.status === 404 || query.error.status === 410)
+          ? { kind: 'gone' }
+          : { kind: 'failed' }
+        : link && !['ROOM_INVITE', 'PLAN', 'PLACE'].includes(link.type)
+          ? { kind: 'unsupported' }
+          : { kind: 'resolving' }
+
+  if (shown.kind === 'resolving') {
     return (
       <Atmosphere>
         <View style={styles.centre}>
@@ -117,7 +128,7 @@ export default function ShareLinkScreen() {
       title: t('shareLink.unsupportedTitle'),
       body: t('shareLink.unsupportedBody'),
     },
-  }[phase.kind]
+  }[shown.kind]
 
   return (
     <Atmosphere>
@@ -133,8 +144,8 @@ export default function ShareLinkScreen() {
         </GlassCard>
 
         <View style={styles.actions}>
-          {phase.kind === 'failed' ? (
-            <PrimaryBtn label={t('shareLink.retry')} onPress={() => void resolve()} />
+          {shown.kind === 'failed' ? (
+            <PrimaryBtn label={t('shareLink.retry')} onPress={() => void query.refetch()} />
           ) : null}
           <SecondaryBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} />
         </View>
