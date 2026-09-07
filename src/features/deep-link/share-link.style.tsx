@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, glyph, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -18,7 +18,7 @@ export const styles = StyleSheet.create({
     gap: spacing[3],
     alignSelf: 'stretch',
   },
-  emoji: { fontSize: 40 },
+  emoji: { fontSize: glyph.xl },
   title: { ...type.title1, color: neutral[900], textAlign: 'center' },
   body: { ...type.body, color: neutral[500], textAlign: 'center' },
   hint: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
