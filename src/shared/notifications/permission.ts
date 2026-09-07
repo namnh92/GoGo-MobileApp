@@ -41,7 +41,13 @@ export type PermissionOutcome =
   | { kind: 'unavailable' }
 
 export interface PushPermissionSdk {
-  hasPermission(): boolean
+  /**
+   * Async because the SDK's synchronous `hasPermission()` is deprecated in
+   * 5.5.9 and warns on every call — observed on the DEV emulator during the
+   * NTF-APP-003 device run, once per toggle. `getPermissionAsync()` is its
+   * replacement and reads the same state.
+   */
+  hasPermission(): Promise<boolean>
   canRequestPermission(): Promise<boolean>
   requestPermission(fallbackToSettings: boolean): Promise<boolean>
   optIn(): void
@@ -58,9 +64,9 @@ export function createPushPermission(deps: PushPermissionDeps) {
 
   return {
     /** What the OS thinks right now, without asking anyone anything. */
-    status(): 'granted' | 'askable' | 'unknown' {
+    async status(): Promise<'granted' | 'askable' | 'unknown'> {
       try {
-        return deps.sdk.hasPermission() ? 'granted' : 'askable'
+        return (await deps.sdk.hasPermission()) ? 'granted' : 'askable'
       } catch {
         return 'unknown'
       }
@@ -73,7 +79,7 @@ export function createPushPermission(deps: PushPermissionDeps) {
      */
     async request(options: { fallbackToSettings?: boolean } = {}): Promise<PermissionOutcome> {
       try {
-        if (deps.sdk.hasPermission()) {
+        if (await deps.sdk.hasPermission()) {
           // Opt in anyway: a device can hold the OS permission and still be
           // opted out of the provider, which is the state that produces
           // "granted but nothing arrives".

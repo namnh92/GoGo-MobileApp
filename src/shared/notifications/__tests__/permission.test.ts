@@ -9,7 +9,7 @@ import { createPushPermission, type PushPermissionSdk } from '../permission'
  */
 function sdk(over: Partial<PushPermissionSdk> = {}): PushPermissionSdk & { optIn: ReturnType<typeof vi.fn> } {
   return {
-    hasPermission: () => false,
+    hasPermission: async () => false,
     canRequestPermission: async () => true,
     requestPermission: async () => true,
     optIn: vi.fn(),
@@ -48,7 +48,7 @@ describe('contextual notification permission', () => {
   })
 
   it('does not re-prompt a granted device, but still opts it in', async () => {
-    const s = sdk({ hasPermission: () => true })
+    const s = sdk({ hasPermission: async () => true })
     const requestSpy = vi.fn()
     const p = createPushPermission({ sdk: { ...s, requestPermission: requestSpy as never } })
     await expect(p.request()).resolves.toEqual({ kind: 'already_granted' })
@@ -70,16 +70,16 @@ describe('contextual notification permission', () => {
     await expect(p.request()).resolves.toEqual({ kind: 'unavailable' })
   })
 
-  it('never asks on its own — status() shows without prompting', () => {
+  it('never asks on its own — status() shows without prompting', async () => {
     const requestSpy = vi.fn()
-    const s = sdk({ hasPermission: () => false, requestPermission: requestSpy as never })
+    const s = sdk({ hasPermission: async () => false, requestPermission: requestSpy as never })
     const p = createPushPermission({ sdk: s })
-    expect(p.status()).toBe('askable')
+    expect(await p.status()).toBe('askable')
     expect(requestSpy).not.toHaveBeenCalled()
   })
 
-  it('status survives an SDK that throws', () => {
-    const s = sdk({ hasPermission: () => { throw new Error('boom') } })
-    expect(createPushPermission({ sdk: s }).status()).toBe('unknown')
+  it('status survives an SDK that throws', async () => {
+    const s = sdk({ hasPermission: async () => { throw new Error('boom') } })
+    expect(await createPushPermission({ sdk: s }).status()).toBe('unknown')
   })
 })

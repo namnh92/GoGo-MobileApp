@@ -8,7 +8,7 @@ import { createPushPermission } from './permission'
  */
 export const pushPermission = createPushPermission({
   sdk: {
-    hasPermission: () => OneSignal.Notifications.hasPermission(),
+    hasPermission: () => OneSignal.Notifications.getPermissionAsync(),
     canRequestPermission: () => OneSignal.Notifications.canRequestPermission(),
     requestPermission: (fallbackToSettings: boolean) =>
       OneSignal.Notifications.requestPermission(fallbackToSettings),
