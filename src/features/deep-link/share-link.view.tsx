@@ -59,8 +59,12 @@ export default function ShareLinkScreen() {
     queryKey: ['share-link', slug],
     queryFn: () => resolveShareLink(slug!),
     enabled: Boolean(slug),
-    // A dead link stays dead; retrying 404/410 only delays telling the person.
-    retry: (count, error) => !(isApiError(error) && (error.status === 404 || error.status === 410)) && count < 2,
+    // No automatic retry, matching the behaviour this replaced. Someone is
+    // staring at a spinner on a redirector, and silent backoff only delays the
+    // moment they are offered the retry button — which is the affordance that
+    // belongs to them, not to the query. A dead link would not benefit from a
+    // retry anyway.
+    retry: false,
     staleTime: 0,
     gcTime: 0,
   })

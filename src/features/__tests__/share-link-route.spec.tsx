@@ -1,4 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react-native'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render as rtlRender, screen, waitFor } from '@testing-library/react-native'
+import type { ReactElement } from 'react'
 
 /**
  * GoGo-MobileApp#139. AASA claims `/l/*` and `app.config.ts` claims the domain,
@@ -41,6 +43,19 @@ function apiError(status: number): ApiError {
     request_id: 'test',
     retryable: false,
   })
+}
+
+/**
+ * The screen resolves through TanStack Query, so it needs a client. Retries are
+ * off here: the screen's own retry policy is a separate concern, and leaving
+ * them on would make a "transient failure" case wait for backoff before the
+ * assertion it is actually about.
+ */
+function render(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
 }
 
 beforeEach(() => {
