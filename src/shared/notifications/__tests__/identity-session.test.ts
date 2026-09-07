@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   createIdentitySession,
+  MAX_CONSECUTIVE_JWT_REFRESHES,
   type IdentityFetchOutcome,
   type OneSignalIdentity,
 } from '../identity-session'
@@ -183,5 +184,87 @@ describe('push identity follows the session', () => {
     expect(() => native.fire('user-1')).not.toThrow()
     await vi.waitFor(() => expect(events).toContain('push_identity_refresh_failed'))
     expect(native.respondToJwtExpired).not.toHaveBeenCalled()
+  })
+})
+
+describe('a token the provider keeps refusing', () => {
+  /**
+   * The DEV emulator, 2026-09-07: OneSignal answered 401 to a correctly-signed
+   * ES256 token, invalidated it and asked for another — every ~5.8 seconds,
+   * indefinitely, one API call each time.
+   */
+  function refusingProvider() {
+    let notify: ((externalId: string) => void) | undefined
+    const native = {
+      loginWithToken: vi.fn().mockResolvedValue(undefined),
+      loginWithoutToken: vi.fn().mockResolvedValue(undefined),
+      logout: vi.fn().mockResolvedValue(undefined),
+      // Refusing the replacement is what makes this a loop rather than a retry.
+      respondToJwtExpired: vi.fn().mockImplementation(async () => {
+        notify?.('user-1')
+      }),
+      onJwtExpired: (handler: (externalId: string) => void) => {
+        notify = handler
+        return { remove: () => { notify = undefined } }
+      },
+    }
+    return { native, expire: () => notify?.('user-1') }
+  }
+
+  const token = { externalId: 'user-1', token: 'jwt', expiresAt: '2026-01-01T00:00:00.000Z' }
+
+  it('stops after a bounded number of replacements', async () => {
+    const { native, expire } = refusingProvider()
+    const fetchToken = vi.fn().mockResolvedValue({ kind: 'ok' as const, token })
+    const report = vi.fn()
+    const session = createIdentitySession({ native, fetchToken, report })
+
+    session.start()
+    expire()
+    await vi.waitFor(() =>
+      expect(report).toHaveBeenCalledWith('push_identity_refresh_rejected_repeatedly'),
+    )
+    // Settle any work already scheduled before counting.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(fetchToken).toHaveBeenCalledTimes(MAX_CONSECUTIVE_JWT_REFRESHES)
+    expect(native.respondToJwtExpired).toHaveBeenCalledTimes(MAX_CONSECUTIVE_JWT_REFRESHES)
+  })
+
+  it('says so once, not on every attempt', async () => {
+    const { native, expire } = refusingProvider()
+    const report = vi.fn()
+    const session = createIdentitySession({
+      native,
+      fetchToken: vi.fn().mockResolvedValue({ kind: 'ok' as const, token }),
+      report,
+    })
+
+    session.start()
+    expire()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const complaints = report.mock.calls.filter(
+      ([event]) => event === 'push_identity_refresh_rejected_repeatedly',
+    )
+    expect(complaints).toHaveLength(1)
+  })
+
+  it('gives a newly signed-in user a fresh budget', async () => {
+    const { native, expire } = refusingProvider()
+    const fetchToken = vi.fn().mockResolvedValue({ kind: 'ok' as const, token })
+    const session = createIdentitySession({ native, fetchToken })
+
+    session.start()
+    expire()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const afterFirstUser = fetchToken.mock.calls.length
+
+    // A different person's refusals say nothing about this one.
+    await session.apply({ kind: 'user', userId: 'user-2' })
+    expire()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(fetchToken.mock.calls.length).toBeGreaterThan(afterFirstUser + 1)
   })
 })

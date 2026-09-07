@@ -52,10 +52,32 @@ export type IdentitySessionDeps = {
 
 export type IdentitySession = { kind: 'user' | 'guest'; userId?: string | undefined } | null
 
+/**
+ * How many times in a row a refused token is replaced before giving up.
+ *
+ * Observed on the DEV emulator, 2026-09-07: OneSignal answered 401 to a
+ * correctly-signed ES256 token, invalidated it, and asked for another. The
+ * handler minted one with the same key, which was refused identically — a loop
+ * firing every ~5.8 seconds for as long as the app stayed open, one call to
+ * GET /v1/notifications/identity each time.
+ *
+ * The point is that this failure is not transient. If the provider refuses a
+ * freshly-signed token, the next one signed with the same key is refused too;
+ * the environment is misconfigured and only a person can fix it. Retrying
+ * forever burns battery, hammers the API and — worst — hides the fault behind
+ * activity. Three attempts, then stop and say so.
+ *
+ * The counter resets whenever a bind succeeds or the user changes, so a
+ * genuinely expired token later in a long session still refreshes normally.
+ */
+export const MAX_CONSECUTIVE_JWT_REFRESHES = 3
+
 export function createIdentitySession(deps: IdentitySessionDeps) {
   const report = deps.report ?? (() => {})
   let boundUserId: string | null = null
   let expirySubscription: { remove(): void } | null = null
+  let consecutiveRefreshes = 0
+  let refreshGiveUpReported = false
 
   async function bind(userId: string): Promise<void> {
     const outcome = await deps.fetchToken()
@@ -64,6 +86,8 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       // Trusting the response over the argument keeps one source of truth.
       await deps.native.loginWithToken(outcome.token.externalId, outcome.token.token)
       boundUserId = userId
+      consecutiveRefreshes = 0
+      refreshGiveUpReported = false
       report('push_identity_bound')
       return
     }
@@ -93,6 +117,10 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
         return
       }
       if (boundUserId === userId) return
+      // A different person gets a fresh budget: the previous user's refusals
+      // say nothing about this one.
+      consecutiveRefreshes = 0
+      refreshGiveUpReported = false
       if (boundUserId !== null) {
         // Account switch: the previous user's subscription must be released
         // before the next one claims it, or one device answers to two people.
@@ -112,6 +140,23 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     start(): void {
       expirySubscription ??= deps.native.onJwtExpired((externalId) => {
         void (async () => {
+          if (consecutiveRefreshes >= MAX_CONSECUTIVE_JWT_REFRESHES) {
+            // Reported where the loop actually stops, and latched.
+            //
+            // The obvious place — after the last replacement is sent — is
+            // wrong, and a test caught it: `respondToJwtExpired` re-enters this
+            // handler synchronously, so several invocations are in flight at
+            // once and every one of them unwinds past the same check. That
+            // logged the give-up three times, which is the noise the cap
+            // exists to remove.
+            if (!refreshGiveUpReported) {
+              refreshGiveUpReported = true
+              report('push_identity_refresh_rejected_repeatedly')
+            }
+            return
+          }
+          consecutiveRefreshes += 1
+
           const outcome = await deps.fetchToken()
           if (outcome.kind !== 'ok') {
             report('push_identity_refresh_failed')
@@ -126,6 +171,8 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     stop(): void {
       expirySubscription?.remove()
       expirySubscription = null
+      consecutiveRefreshes = 0
+      refreshGiveUpReported = false
     },
 
     /** Test seam only. */
