@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { createDeferredLinkCollector } from '../deferred-link'
 import { createPendingDeepLinkStore, PENDING_DEEP_LINK_TTL_MS } from '../pending-deep-link'
