@@ -51,6 +51,10 @@ export const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing[5], paddingTop: spacing[5] },
 
   // --- identity ------------------------------------------------------------
+  // Saving belongs to the card, not to the action bar: it acts on the place
+  // being read, while the bar below is about what to do next.
+  identityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
+  identityText: { flex: 1 },
   name: { ...type.display, color: neutral[900] },
   meta: { ...type.body, color: neutral[500], marginTop: 4 },
 
@@ -178,9 +182,9 @@ export const styles = StyleSheet.create({
     borderTopColor: neutral[100],
     paddingHorizontal: spacing[5],
     paddingTop: spacing[4],
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
+    // Stacked, not split: each CTA gets the full width, so a Vietnamese label
+    // is never the reason a button has to shrink.
+    gap: spacing[3],
   },
   saveBtn: {
     width: touchTarget.min + 8,
@@ -193,15 +197,14 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveBtnActive: { borderColor: brand.coral, backgroundColor: brand.coralSoft },
-  // Wider than the directions button because its label is: "Thêm vào kế hoạch"
-  // ellipsised to "Thêm vào kế ho..." at an even split, while "Chỉ đường" had
-  // room to spare. Splitting by content rather than in half fits both.
-  addBtn: { flex: 1.4, height: touchTarget.min + 8 },
+  addBtn: { height: touchTarget.min + 8 },
   dirBtn: {
-    flex: 1,
     height: touchTarget.min + 8,
     borderRadius: radius.compact,
-    backgroundColor: brand.coral,
+    // coralDeep, not coral: white on #D84F4A is 4.09:1, under AA for this
+    // label. This button paints its own background rather than going through
+    // PrimaryBtn, so it was missed when the CTA gradient was fixed (#141).
+    backgroundColor: brand.coralDeep,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
