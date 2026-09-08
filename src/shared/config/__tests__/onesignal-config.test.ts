@@ -33,7 +33,7 @@ describe('provider build contract', () => {
     // OneSignalXCFramework constraint in order to rewrite it. Registered the
     // wrong way round it silently no-ops and the iOS module stops compiling.
     const nameOf = (plugin: unknown) => (Array.isArray(plugin) ? plugin[0] : plugin)
-    const betaPin = plugins.findIndex(p => nameOf(p) === './plugins/with-onesignal-identity-beta')
+    const betaPin = plugins.findIndex(p => nameOf(p) === './plugins/with-onesignal-identity-beta.js')
     const oneSignal = plugins.findIndex(p => nameOf(p) === 'onesignal-expo-plugin')
     expect(betaPin).toBeGreaterThanOrEqual(0)
     expect(betaPin).toBeLessThan(oneSignal)
