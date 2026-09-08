@@ -31,15 +31,18 @@ export async function createGuestSession(body: OpBody<'createGuestSession'>): Pr
 }
 
 /**
- * Revokes server-side, then wipes local credentials. The local wipe runs even
- * if the network call fails — a user who taps logout must not stay signed in.
+ * Revokes server-side, then wipes local credentials — in that order, and only
+ * on success.
+ *
+ * The wipe used to run in a `finally`, on the reasoning that someone who taps
+ * logout must not stay signed in. That is the wrong trade (NTF-APP-004 #160):
+ * clearing regardless leaves a device the server still considers signed in,
+ * and it destroys the session that confirming the push unsubscribe depends on.
+ * A logout that did not happen must be reported as one that did not happen.
  */
 export async function logout(allDevices = false): Promise<void> {
-  try {
-    await api.delete<OpResponse<'endCurrentSession'>>('/sessions/current', { allDevices })
-  } finally {
-    await clearSession()
-  }
+  await api.delete<OpResponse<'endCurrentSession'>>('/sessions/current', { allDevices })
+  await clearSession()
 }
 
 export function getMe(): Promise<OpResponse<'getMe'>> {

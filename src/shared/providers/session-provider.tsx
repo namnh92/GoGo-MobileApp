@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { setOnSessionExpired } from '@/shared/api/client'
 import * as roomsApi from '@/shared/api/endpoints/rooms'
 import * as sessionsApi from '@/shared/api/endpoints/sessions'
+import { unsubscribeCurrentDeviceAndConfirm } from '@/shared/notifications/logout-confirmation-bootstrap'
 import { purgeCachedUserData } from '@/shared/api/query-client'
 import {
   getSession,
@@ -82,6 +83,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(
     async (allDevices = false) => {
+      // NTF-APP-004 (#160). Order is the whole point:
+      //
+      //   1. unsubscribe this device and have the provider confirm it,
+      //   2. revoke the session server-side,
+      //   3. only then clear anything locally.
+      //
+      // Step 1 needs the session to make its authenticated check, so it cannot
+      // move after step 3 — which is where it effectively sat before, because
+      // clearing credentials is what used to trigger the SDK logout. Any step
+      // throwing leaves the user signed in and the caller reporting failure.
+      await unsubscribeCurrentDeviceAndConfirm()
       await sessionsApi.logout(allDevices)
       await purge()
     },
