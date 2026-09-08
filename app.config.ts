@@ -184,6 +184,11 @@ const config: ExpoConfig = {
     },
   },
   plugins: [
+    // Registered BEFORE onesignal-expo-plugin on purpose. Expo composes mods
+    // like middleware, so the last one registered runs first — and this has to
+    // run *after* onesignal-expo-plugin has written the extension target's
+    // OneSignalXCFramework constraint, in order to rewrite it (NTF-APP-004).
+    './plugins/with-onesignal-identity-beta',
     ['onesignal-expo-plugin', { mode: oneSignalApnsMode, iPhoneDeploymentTarget: '15.1' }],
     'expo-router',
     'expo-dev-client',

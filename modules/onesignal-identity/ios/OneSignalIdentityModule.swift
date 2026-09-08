@@ -1,5 +1,6 @@
 import ExpoModulesCore
 import OneSignalFramework
+import OneSignalUser
 
 /**
  NTF-APP-004 (#51) — identity-verified login.
@@ -7,61 +8,53 @@ import OneSignalFramework
  `react-native-onesignal` 5.5.9 declares `login(externalId: string): void` and
  nothing else: its TurboModule spec has no token parameter, and the string
  "jwt" does not appear anywhere in the wrapper's `src`, `ios` or `android`.
- The *native* SDK it vendors is a different story — OneSignalXCFramework 5.5.6
- declares:
-
-     - (void)loginWithExternalId:(NSString *)externalId token:(NSString * _Nullable)token
-     - (void)onJwtExpiredWithExpiredHandler:(void (^)(NSString *, SWIFT_NOESCAPE void (^)(NSString *)))h
-
- So identity verification is supported by the SDK in this binary; only the JS
- surface omits it. This module is that surface, and nothing more: it calls the
- same singleton the wrapper drives, so `initialize` still belongs to
- `react-native-onesignal` and only login/logout come through here.
+ The *native* SDK exposes the whole thing, so this module is that surface and
+ nothing more: it drives the same singleton the wrapper initialises, so
+ `initialize` still belongs to `react-native-onesignal` and only login/logout
+ come through here.
 
  The token is never logged, never stored, and never returned to JS.
 
- ## Why the expiry handler does not use its completion
+ ## Which iOS SDK this needs
 
- The header marks the inner block `SWIFT_NOESCAPE`: the SDK promises it will
- not outlive the handler call, and holding it past that is a use-after-free —
- not merely a compile error, though it is that too, which is how this was
- caught. Answering it would mean producing a fresh token synchronously inside
- the callback, and the token comes from `GET /v1/notifications/identity` over
- the network, via JS. That cannot happen inside a non-escaping call.
+ Identity Verification on iOS requires **OneSignalXCFramework 5.3.0-beta-03**.
+ OneSignal support confirmed on 2026-09-08 that the general 5.5.x releases do
+ not support it, and the framework bears that out: 5.5.6 declares only
+ `onJwtExpiredWithExpiredHandler:` and none of the identity APIs, while
+ 5.3.0-beta-03 declares `addUserJwtInvalidatedListener:`,
+ `removeUserJwtInvalidatedListener:` and `updateUserJwtWithExternalId:token:`
+ and drops `onJwtExpired` entirely. The two are mutually exclusive, so this file
+ only compiles against the beta — see the Podfile pin.
 
- So the handler does what Android's `IUserJwtInvalidatedListener` does: it
- reports, and the fresh token is pushed in afterwards. The push is
- `login(externalId:token:)`, the same call the initial bind uses — supplying a
- new token for an external id is exactly what it means.
-
- ## Why not `updateUserJwt`, which the documentation shows for iOS
-
- Step 4 of OneSignal's Identity Verification guide shows an iOS/Swift sample
- calling `addUserJwtInvalidatedListener` and `updateUserJwt(externalId:token:)`.
- Neither exists on iOS. Verified three ways against the version we ship,
- OneSignalXCFramework 5.5.6 — which is also the newest published release
- (2026-08-01):
-
-   - `OneSignalUser-Swift.h` declares exactly one JWT API,
-     `onJwtExpiredWithExpiredHandler:`;
-   - `nm` on the `OneSignalUser` binary finds zero `updateUserJwt` and zero
-     `addUserJwtInvalidatedListener` symbols, and one `onJwtExpired`;
-   - GitHub code search over `OneSignal/OneSignal-iOS-SDK` returns 0 results for
-     each of those two names, against 19 for `onJwtExpired` and 49 for
-     `OneSignalUserManagerImpl` as controls, so the repository is indexed and
-     the zeroes are real.
-
- Both symbols *do* exist on Android (`javap` on `com.onesignal:core:5.9.9`),
- which is where this module uses them. The iOS sample in the guide appears to be
- the Android API shown under the wrong tab. Implementing it as documented would
- not compile, so this stays as it is until OneSignal confirms; it is raised with
- them as a documentation question.
-
- The JS contract is therefore identical on both platforms — an `onJwtExpired`
- event, then `respondToJwtExpired` — and only the native call underneath
- differs. `identity-session.ts` never has to know which one it is on.
+ That also means the platforms now agree. Android's `IUserJwtInvalidatedListener`
+ + `updateUserJwt` and iOS's `OSUserJwtInvalidatedListener` + `updateUserJwt`
+ are the same shape, so `identity-session.ts` sees one contract: an
+ `onJwtExpired` event, then `respondToJwtExpired`. The earlier asymmetry existed
+ only because 5.5.6 had no other option.
  */
+
+/**
+ Bridges the SDK's listener protocol to a closure.
+
+ The protocol needs a class, and the SDK holds the listener weakly enough that
+ an inline object would be collected before the first event — so the module
+ keeps a strong reference and removes it when JS stops observing.
+ */
+private final class JwtInvalidatedForwarder: NSObject, OSUserJwtInvalidatedListener {
+  private let onInvalidated: (String) -> Void
+
+  init(onInvalidated: @escaping (String) -> Void) {
+    self.onInvalidated = onInvalidated
+  }
+
+  func onUserJwtInvalidated(event: OSUserJwtInvalidatedEvent) {
+    onInvalidated(event.externalId)
+  }
+}
+
 public final class OneSignalIdentityModule: Module {
+  private var jwtListener: JwtInvalidatedForwarder?
+
   public func definition() -> ModuleDefinition {
     Name("OneSignalIdentity")
 
@@ -95,17 +88,29 @@ public final class OneSignalIdentityModule: Module {
     }
 
     /// The SDK reports that the token it holds expired or was refused. JS
-    /// answers later with `respondToJwtExpired`; see the note above for why the
-    /// handler's own completion cannot be the channel.
+    /// answers with `respondToJwtExpired`; until it does, the device stays
+    /// bound to nothing, which is the honest state.
     OnStartObserving("onJwtExpired") { [weak self] in
-      OneSignal.User.onJwtExpired { [weak self] externalId, _ in
+      guard let self, self.jwtListener == nil else { return }
+      let forwarder = JwtInvalidatedForwarder { [weak self] externalId in
         self?.sendEvent("onJwtExpired", ["externalId": externalId])
       }
+      self.jwtListener = forwarder
+      // `OneSignal.User.addUserJwtInvalidatedListener` does not type-check: the
+      // JWT APIs live on `OneSignalUserManagerImpl`, while `OneSignal.User` is
+      // typed as the `OSUser` protocol, which does not declare them. The class
+      // method does, and it is NS_REFINED_FOR_SWIFT, which the SDK's Swift shim
+      // surfaces as `__add`/`__remove`.
+      OneSignal.__add(forwarder)
     }
 
-    /// The fresh token, pushed in after the fact. Android calls
-    /// `updateUserJwt`; iOS has no such method, and re-login with the new token
-    /// is the documented way to hand one over.
+    OnStopObserving("onJwtExpired") { [weak self] in
+      guard let self, let forwarder = self.jwtListener else { return }
+      OneSignal.__remove(forwarder)
+      self.jwtListener = nil
+    }
+
+    /// The fresh token, pushed in after the fact — the same call Android makes.
     AsyncFunction("respondToJwtExpired") { (externalId: String, token: String) in
       guard !externalId.isEmpty else {
         throw Exception(name: "ERR_EXTERNAL_ID", description: "externalId is required")
@@ -113,7 +118,9 @@ public final class OneSignalIdentityModule: Module {
       guard !token.isEmpty else {
         throw Exception(name: "ERR_TOKEN", description: "identity token is required")
       }
-      OneSignal.login(externalId: externalId, token: token)
+      // Carries NS_SWIFT_NAME(updateUserJwt(externalId:token:)), so this one
+      // needs no prefix.
+      OneSignal.updateUserJwt(externalId: externalId, token: token)
     }
   }
 }
