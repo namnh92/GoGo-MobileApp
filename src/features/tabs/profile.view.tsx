@@ -37,6 +37,7 @@ export default function ProfileScreen() {
   const { status, signOut } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const [signingOut, setSigningOut] = useState(false)
+  const [signOutFailed, setSignOutFailed] = useState(false)
 
   // Counts come from the same queries the destination screens use, so a
   // shortcut never promises a number the screen behind it does not have.
@@ -53,11 +54,19 @@ export default function ProfileScreen() {
 
   async function signOutNow() {
     setSigningOut(true)
+    setSignOutFailed(false)
     try {
-      // Revokes server-side, wipes the Keychain, and purges every cached room.
+      // Unsubscribes this device and has the provider confirm it, revokes
+      // server-side, and only then wipes the Keychain and cached rooms.
       await signOut()
       track('auth_signed_out')
       router.replace('/(tabs)')
+    } catch {
+      // NTF-APP-004 (#160): a sign-out that did not happen has to say so.
+      // Without this the rejection is unhandled — a dev-build toast, and in a
+      // release build nothing at all, leaving a button that silently does
+      // nothing while the person believes they signed out.
+      setSignOutFailed(true)
     } finally {
       setSigningOut(false)
     }
@@ -198,6 +207,11 @@ export default function ProfileScreen() {
               {signingOut ? t('profile.loggingOut') : t('profile.logout')}
             </Text>
           </Pressable>
+        )}
+        {signOutFailed && (
+          <Text accessibilityLiveRegion="polite" style={styles.logoutError}>
+            {t('profile.logoutFailed')}
+          </Text>
         )}
       </ScrollView>
     </Atmosphere>
