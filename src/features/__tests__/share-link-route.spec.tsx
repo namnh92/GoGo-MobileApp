@@ -138,4 +138,53 @@ describe('share link route', () => {
     )
     expect(mockReplace).not.toHaveBeenCalled()
   })
+
+  // GoGo-MobileApp#154. A route with no slug can only be a malformed link, and
+  // it is knowable without asking the server. It used to be pushed into state
+  // by the effect; now it is read at render, and this pins that the person
+  // still sees the dead-link screen rather than an indefinite spinner.
+  it('shows the dead-link screen for a route with no slug, without calling the API', async () => {
+    mockParams = {}
+
+    render(<ShareLinkScreen />)
+
+    await waitFor(() => expect(screen.getByText('Liên kết không còn dùng được')).toBeTruthy())
+    expect(mockResolveShareLink).not.toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  // GoGo-MobileApp#154. Resolving reports its outcome instead of writing state,
+  // so the effect can drop an answer that arrived after the screen was gone.
+  // Without the guard this set state on an unmounted component — which React
+  // warns about, and which this asserts is silent.
+  it('does not set state when the link resolves after the screen is gone', async () => {
+    const warn = jest.spyOn(console, 'error').mockImplementation(() => {})
+    let settle: (value: unknown) => void = () => {}
+    mockResolveShareLink.mockReturnValue(
+      new Promise(resolve => {
+        settle = resolve
+      }),
+    )
+
+    render(<ShareLinkScreen />)
+    await waitFor(() => expect(mockResolveShareLink).toHaveBeenCalled())
+    screen.unmount()
+
+    settle({
+      type: 'PLAN',
+      target: { planId: 'p1' },
+      expiresAt: null,
+      provider: 'NONE',
+      trackingUrl: null,
+      source: null,
+      campaign: null,
+    })
+    await waitFor(() => expect(warn).not.toHaveBeenCalled())
+
+    // Scope, stated so the next reader does not mistake it for a promise: the
+    // guard drops the *state update*, not the navigation. A link that resolves
+    // to a target after the screen is gone still calls `replace`, exactly as it
+    // did before — whether that is right is a product question, not a lint fix.
+    warn.mockRestore()
+  })
 })
