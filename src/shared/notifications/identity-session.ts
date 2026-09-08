@@ -37,8 +37,20 @@ export type IdentityFetchOutcome =
   /** 401/403, or a network failure. Worth retrying on the next session change. */
   | { kind: 'error' }
 
+/** Releasing this device's subscription. See `push-subscription.ts`. */
+export interface PushRelease {
+  release(): Promise<unknown>
+  invalidate(): void
+}
+
 export type IdentitySessionDeps = {
   native: OneSignalIdentity
+  /**
+   * Optional so existing callers and tests keep working: without it the
+   * service behaves exactly as before, which is the honest default rather than
+   * a silent half-release.
+   */
+  release?: PushRelease
   fetchToken: () => Promise<IdentityFetchOutcome>
   /** Reason codes only. Never a token, never a user id. */
   report?: (event: string) => void
@@ -80,6 +92,10 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   let refreshGiveUpReported = false
 
   async function bind(userId: string): Promise<void> {
+    // From here on this device belongs to `userId`. Any release still in
+    // flight from the previous account must not report against it, and must
+    // certainly not unsubscribe it.
+    deps.release?.invalidate()
     const outcome = await deps.fetchToken()
     if (outcome.kind === 'ok') {
       // The endpoint decides the external id from the session, not the client.
@@ -108,6 +124,11 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       const userId = session?.kind === 'user' ? session.userId : undefined
       if (!userId) {
         if (boundUserId !== null) {
+          // Unsubscribe first, then detach. `logout()` only removes the
+          // external_id — it leaves the subscription messageable — so doing it
+          // the other way round opens a window where the device is anonymous
+          // but still subscribed with the previous account's token.
+          await deps.release?.release()
           // Logout, then forget — in that order, so a failure leaves the
           // service believing the device is still bound and tries again.
           await deps.native.logout()
@@ -124,6 +145,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       if (boundUserId !== null) {
         // Account switch: the previous user's subscription must be released
         // before the next one claims it, or one device answers to two people.
+        await deps.release?.release()
         await deps.native.logout()
         boundUserId = null
         report('push_identity_switched')

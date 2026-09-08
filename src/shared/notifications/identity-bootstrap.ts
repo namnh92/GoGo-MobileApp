@@ -9,8 +9,11 @@ import {
   onJwtExpired,
   respondToJwtExpired,
 } from '../../../modules/onesignal-identity'
+import { OneSignal } from 'react-native-onesignal'
+
 import { fetchIdentityToken } from './identity-api'
 import { createIdentitySession } from './identity-session'
+import { createPushRelease } from './push-subscription'
 
 /**
  * NTF-APP-004 (#51) — the wiring, kept thin on purpose.
@@ -19,8 +22,22 @@ import { createIdentitySession } from './identity-session'
  * is pure and tested; this file only supplies the native module, the fetch and
  * the session stream. Same split as `bootstrap.ts`.
  */
+/**
+ * The wrapper already exposes this device's subscription, so releasing it needs
+ * no addition to the native bridge — only `login` with a token was missing from
+ * the JS surface.
+ */
+const release = createPushRelease({
+  subscription: {
+    optOut: () => OneSignal.User.pushSubscription.optOut(),
+    isOptedIn: () => OneSignal.User.pushSubscription.getOptedInAsync(),
+  },
+  report: (event) => console.warn(event),
+})
+
 const identity = createIdentitySession({
   native: { loginWithToken, loginWithoutToken, logout, respondToJwtExpired, onJwtExpired },
+  release,
   fetchToken: fetchIdentityToken,
   report: (event) => console.warn(event),
   // Identity is verified or it does not happen. An environment with no signing

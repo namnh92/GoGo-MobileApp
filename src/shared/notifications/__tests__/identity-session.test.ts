@@ -349,3 +349,75 @@ describe('recovering the refresh budget', () => {
     expect(fetchToken.mock.calls.length).toBeGreaterThan(exhausted)
   })
 })
+
+describe('releasing the device around logout and switching (#160)', () => {
+  const token = { externalId: 'user-1', token: 'jwt', expiresAt: '2026-01-01T00:00:00.000Z' }
+
+  function harness() {
+    const order: string[] = []
+    const native = {
+      loginWithToken: vi.fn(async () => { order.push('login') }),
+      loginWithoutToken: vi.fn().mockResolvedValue(undefined),
+      logout: vi.fn(async () => { order.push('logout') }),
+      respondToJwtExpired: vi.fn().mockResolvedValue(undefined),
+      onJwtExpired: () => ({ remove: () => {} }),
+    }
+    const release = {
+      release: vi.fn(async () => { order.push('release') }),
+      invalidate: vi.fn(() => { order.push('invalidate') }),
+    }
+    const session = createIdentitySession({
+      native,
+      release,
+      fetchToken: vi.fn().mockResolvedValue({ kind: 'ok' as const, token }),
+    })
+    return { session, native, release, order }
+  }
+
+  it('unsubscribes before detaching, not after', async () => {
+    // The other order leaves a window where the device is anonymous but still
+    // subscribed with the previous account's token.
+    const { session, order } = harness()
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.apply(null)
+
+    expect(order.indexOf('release')).toBeGreaterThan(-1)
+    expect(order.indexOf('release')).toBeLessThan(order.lastIndexOf('logout'))
+  })
+
+  it('releases on an account switch too', async () => {
+    const { session, release } = harness()
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.apply({ kind: 'user', userId: 'user-2' })
+    expect(release.release).toHaveBeenCalled()
+  })
+
+  it('invalidates any in-flight release before binding the next user', async () => {
+    // Without this, A's release can complete against B's subscription.
+    const { session, order } = harness()
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.apply({ kind: 'user', userId: 'user-2' })
+
+    const lastInvalidate = order.lastIndexOf('invalidate')
+    const lastLogin = order.lastIndexOf('login')
+    expect(lastInvalidate).toBeGreaterThan(-1)
+    expect(lastInvalidate).toBeLessThan(lastLogin)
+  })
+
+  it('still works without a release port — no silent half-release', async () => {
+    const native = {
+      loginWithToken: vi.fn().mockResolvedValue(undefined),
+      loginWithoutToken: vi.fn().mockResolvedValue(undefined),
+      logout: vi.fn().mockResolvedValue(undefined),
+      respondToJwtExpired: vi.fn().mockResolvedValue(undefined),
+      onJwtExpired: () => ({ remove: () => {} }),
+    }
+    const session = createIdentitySession({
+      native,
+      fetchToken: vi.fn().mockResolvedValue({ kind: 'ok' as const, token }),
+    })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await expect(session.apply(null)).resolves.toBeUndefined()
+    expect(native.logout).toHaveBeenCalled()
+  })
+})
