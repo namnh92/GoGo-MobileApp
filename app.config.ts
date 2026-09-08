@@ -184,6 +184,7 @@ const config: ExpoConfig = {
     },
   },
   plugins: [
+    './plugins/with-tenjin-android.js',
     // Registered BEFORE onesignal-expo-plugin on purpose. Expo composes mods
     // like middleware, so the last one registered runs first — and this has to
     // run *after* onesignal-expo-plugin has written the extension target's

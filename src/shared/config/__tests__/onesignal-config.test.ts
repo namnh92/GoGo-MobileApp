@@ -22,6 +22,7 @@ describe('provider build contract', () => {
     // moment another plugin was added, while what this guards — that every
     // flavour configures the OneSignal plugin identically — did not change.
     const plugins = config.plugins ?? []
+    expect(plugins).toContain('./plugins/with-tenjin-android.js')
     expect(plugins).toContainEqual([
       'onesignal-expo-plugin',
       { mode: 'production', iPhoneDeploymentTarget: '15.1' },
