@@ -1,0 +1,7 @@
+{
+  "name": "onesignal-identity",
+  "version": "0.1.0",
+  "description": "OneSignal identity-verified login (NTF-APP-004) — the native login(externalId, token) the JS wrapper omits",
+  "main": "index.ts",
+  "private": true
+}

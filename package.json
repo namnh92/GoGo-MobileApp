@@ -36,6 +36,7 @@
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-location": "~19.0.8",
+    "expo-modules-core": "3.0.30",
     "expo-network": "~8.0.8",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",
@@ -75,5 +76,10 @@
     "test-renderer": "^1.2.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
+  },
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "./modules"
+    }
   }
 }

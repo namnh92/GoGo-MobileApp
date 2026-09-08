@@ -1,0 +1,21 @@
+{
+  "platforms": [
+    "apple",
+    "android"
+  ],
+  "apple": {
+    "modules": [
+      "OneSignalIdentityModule"
+    ]
+  },
+  "ios": {
+    "modules": [
+      "OneSignalIdentityModule"
+    ]
+  },
+  "android": {
+    "modules": [
+      "com.gogo.onesignalidentity.OneSignalIdentityModule"
+    ]
+  }
+}
