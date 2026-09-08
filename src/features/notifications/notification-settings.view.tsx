@@ -1,6 +1,9 @@
 import { useRouter } from 'expo-router'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Switch, Text, View } from 'react-native'
+
+import { pushPermission } from '@/shared/notifications/permission-bootstrap'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -36,6 +39,25 @@ export default function NotificationSettingsScreen() {
   const canEdit = status === 'user'
   const preferences = useNotificationPreferences({ enabled: canEdit })
   const setPreference = useSetNotificationPreference()
+
+  /**
+   * What the note says has to come from the device, not from a sentence
+   * written at build time. The old copy asserted that APNs/FCM were
+   * unconfigured and no device token was registered; by 2026-09-07 both were
+   * false on DEV — the device held a token and received a push while the
+   * screen said it could not (#149). A screen that contradicts what just
+   * happened is worse than a silent one.
+   */
+  const [pushState, setPushState] = useState<'granted' | 'askable' | 'unknown'>('unknown')
+  useEffect(() => {
+    let cancelled = false
+    void pushPermission.status().then((next) => {
+      if (!cancelled) setPushState(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [setPreference.isSuccess])
 
   /** Absent means the server default applies, which is on. */
   function isEnabled(channel: (typeof CHANNELS)[number], kind: NotificationKind): boolean {
@@ -102,9 +124,18 @@ export default function NotificationSettingsScreen() {
                       value={enabled}
                       // One PUT per toggle; the list refetches so the server
                       // stays the source of truth for what is actually set.
-                      onValueChange={next =>
+                      onValueChange={next => {
+                        // NTF-APP-003: the contextual moment. Someone turning a
+                        // push channel *on* has just told us why they want
+                        // notifications, which is the only point at which
+                        // spending the one OS prompt is defensible — and the
+                        // point at which sending them to Settings, if the
+                        // prompt is already spent, is help rather than
+                        // hostility. The preference is recorded either way:
+                        // permission governs delivery, not intent.
+                        if (channel === 'push' && next) void pushPermission.request({ fallbackToSettings: true })
                         setPreference.mutate({ channel, kind, enabled: next })
-                      }
+                      }}
                       disabled={setPreference.isPending}
                       trackColor={{ true: colors.brand.coral, false: colors.neutral[100] }}
                       accessibilityLabel={`${t(`notificationSettings.channel.${channel}`)} · ${t(`notifications.kind.${kind}`)}`}
@@ -116,12 +147,10 @@ export default function NotificationSettingsScreen() {
           </View>
         ))}
 
-        {/*
-          Push delivery also needs a device token, which needs a real device and
-          APNs/FCM credentials — neither is configured yet, so the app registers
-          none. These switches record the preference regardless.
-        */}
-        <Text style={styles.note}>{t('notificationSettings.pushNote')}</Text>
+        {/* Preferences save regardless of permission; only delivery depends on it. */}
+        <Text style={styles.note}>
+          {t(pushState === 'granted' ? 'notificationSettings.pushReady' : 'notificationSettings.pushNote')}
+        </Text>
 
         {setPreference.isError ? (
           <Text accessibilityLiveRegion="polite" style={styles.error}>
