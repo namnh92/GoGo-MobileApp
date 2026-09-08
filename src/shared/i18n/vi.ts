@@ -623,6 +623,7 @@ export const viMessages = {
 
   'profile.logout': 'Đăng xuất',
   'profile.loggingOut': 'Đang đăng xuất…',
+  'profile.logoutFailed': 'Chưa đăng xuất được. Kiểm tra kết nối rồi thử lại.',
   'profile.guestName': 'Khách',
   'profile.guestSubtitle': 'Chưa có tài khoản',
   'profile.shortcut.saved': 'Đã lưu',

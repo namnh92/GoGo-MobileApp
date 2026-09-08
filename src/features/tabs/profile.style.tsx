@@ -77,4 +77,5 @@ export const styles = StyleSheet.create({
     marginBottom: spacing[6],
   },
   logoutLabel: { ...type.body, fontWeight: '700', color: brand.coral },
+  logoutError: { ...type.bodySmall, color: brand.coral, textAlign: 'center', paddingHorizontal: spacing[4] },
 })

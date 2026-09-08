@@ -615,6 +615,7 @@ export const enMessages: Record<MessageKey, string> = {
 
   'profile.logout': 'Log out',
   'profile.loggingOut': 'Logging out…',
+  'profile.logoutFailed': 'Could not sign out. Check your connection and try again.',
   'profile.guestName': 'Guest',
   'profile.guestSubtitle': 'No account yet',
   'profile.shortcut.saved': 'Saved',
