@@ -349,3 +349,144 @@ describe('recovering the refresh budget', () => {
     expect(fetchToken.mock.calls.length).toBeGreaterThan(exhausted)
   })
 })
+
+describe('ordered login: JWT -> confirmed identity -> eligible opt-in (#161)', () => {
+  const token = { externalId: 'user-1', token: 'jwt', expiresAt: '2026-01-01T00:00:00.000Z' }
+
+  function harness(overrides: Record<string, unknown> = {}) {
+    const order: string[] = []
+    const native = {
+      loginWithToken: vi.fn(async () => { order.push('login') }),
+      loginWithoutToken: vi.fn().mockResolvedValue(undefined),
+      logout: vi.fn(async () => { order.push('logout') }),
+      respondToJwtExpired: vi.fn().mockResolvedValue(undefined),
+      onJwtExpired: () => ({ remove: () => {} }),
+    }
+    const optIn = vi.fn(() => { order.push('optIn') })
+    const confirmIdentity = vi.fn(async () => { order.push('confirm'); return { kind: 'confirmed' } })
+    const eligible = vi.fn(async () => { order.push('eligible'); return true })
+    const report = vi.fn()
+    const session = createIdentitySession({
+      native,
+      fetchToken: vi.fn(async () => ({ kind: 'ok' as const, token })),
+      confirmIdentity, eligible, optIn, report,
+      ...overrides,
+    })
+    return { session, native, optIn, confirmIdentity, eligible, report, order }
+  }
+
+  it('opts in only after login and confirmation, in that order', async () => {
+    const { session, order } = harness()
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(order).toEqual(['login', 'confirm', 'eligible', 'optIn'])
+  })
+
+  it('does not opt in when identity is never confirmed', async () => {
+    // The refused-JWT shape. Opting in here is how a device ends up
+    // subscribed while belonging to nobody the backend agrees with.
+    const { session, optIn } = harness({
+      confirmIdentity: vi.fn(async () => ({ kind: 'unconfirmed' })),
+    })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(optIn).not.toHaveBeenCalled()
+  })
+
+  it('does not opt in when the identity was superseded mid-confirmation', async () => {
+    const { session, optIn } = harness({
+      confirmIdentity: vi.fn(async () => ({ kind: 'superseded' })),
+    })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(optIn).not.toHaveBeenCalled()
+  })
+
+  it('respects a denied permission or a disabled preference', async () => {
+    const { session, optIn, report } = harness({ eligible: vi.fn(async () => false) })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(optIn).not.toHaveBeenCalled()
+    expect(report).toHaveBeenCalledWith('push_resubscribe_not_eligible')
+  })
+
+  it('never opts in without both ports — fail closed', async () => {
+    // A caller that has not wired permission and preference must not decide
+    // someone is subscribed.
+    const { session, optIn } = harness({ confirmIdentity: undefined })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(optIn).not.toHaveBeenCalled()
+  })
+
+  it('an eligibility check that throws does not opt in', async () => {
+    const { session, optIn } = harness({
+      eligible: vi.fn(async () => { throw new Error('permission port gone') }),
+    })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(optIn).not.toHaveBeenCalled()
+  })
+
+  it("A's confirmation landing after B signs in does not opt in", async () => {
+    // The isolation property, at the seam where it actually breaks: a slow
+    // confirmation for A resolving once the session has moved to B.
+    //
+    // Each call gets its OWN gate. Sharing one promise would make the result
+    // depend on microtask ordering between the two continuations rather than on
+    // the supersede guard, and would pass even if the guard were deleted.
+    const gates = new Map<string, (v: { kind: string }) => void>()
+    const confirmIdentity = vi.fn(
+      (externalId: string) =>
+        new Promise<{ kind: string }>((resolve) => gates.set(externalId, resolve)),
+    )
+    const { session, optIn, report } = harness({ confirmIdentity })
+
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.apply({ kind: 'user', userId: 'user-2' })  // B takes over
+
+    // B completes first and legitimately opts in.
+    gates.get('user-2')!({ kind: 'confirmed' })
+    await vi.waitFor(() => expect(optIn).toHaveBeenCalledTimes(1))
+
+    // Only now does A's confirmation land — the case a generation guard on the
+    // JS callback alone would not catch.
+    gates.get('user-1')!({ kind: 'confirmed' })
+    await session.settled()
+
+    expect(optIn).toHaveBeenCalledTimes(1)  // still B's, and only B's
+    expect(report).toHaveBeenCalledWith('push_resubscribe_superseded')
+  })
+
+  it('a confirmation that rejects reports failure and does not opt in', async () => {
+    const { session, optIn, report } = harness({
+      confirmIdentity: vi.fn(async () => {
+        throw new Error('bridge gone')
+      }),
+    })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+
+    expect(optIn).not.toHaveBeenCalled()
+    expect(report).toHaveBeenCalledWith('push_resubscribe_failed')
+  })
+
+  it('logout during a pending confirmation leaves nobody opted in', async () => {
+    // Terminate/relaunch and offline both reduce to this: the confirmation is
+    // still in flight when the session ends.
+    const gates = new Map<string, (v: { kind: string }) => void>()
+    const confirmIdentity = vi.fn(
+      (externalId: string) =>
+        new Promise<{ kind: string }>((resolve) => gates.set(externalId, resolve)),
+    )
+    const { session, optIn, native } = harness({ confirmIdentity })
+
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.apply(null)
+    gates.get('user-1')!({ kind: 'confirmed' })
+    await session.settled()
+
+    expect(native.logout).toHaveBeenCalled()
+    expect(optIn).not.toHaveBeenCalled()
+  })
+})

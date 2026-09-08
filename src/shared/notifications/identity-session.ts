@@ -37,9 +37,32 @@ export type IdentityFetchOutcome =
   /** 401/403, or a network failure. Worth retrying on the next session change. */
   | { kind: 'error' }
 
+/**
+ * Whether this device may hold a push subscription right now. Supplied by the
+ * caller and **defaults to refusing**: a slice that has not wired permission
+ * and preference must not opt anyone in, and failing closed is the only safe
+ * default for a decision about someone's notifications.
+ */
+export type OptInEligibility = () => Promise<boolean>
+
+export type ConfirmIdentity = (
+  externalId: string,
+  isCurrent: () => boolean,
+) => Promise<{ kind: string }>
+
 export type IdentitySessionDeps = {
   native: OneSignalIdentity
   fetchToken: () => Promise<IdentityFetchOutcome>
+  /**
+   * Waits until the SDK agrees the device belongs to this user. Optional so
+   * existing callers keep their behaviour; without it nothing is opted in,
+   * which is the same fail-closed default as `eligible`.
+   */
+  confirmIdentity?: ConfirmIdentity
+  /** Called only after identity is confirmed, and only if this answers true. */
+  eligible?: OptInEligibility
+  /** Opting this device back in. Never called without confirmation. */
+  optIn?: () => void
   /** Reason codes only. Never a token, never a user id. */
   report?: (event: string) => void
   /**
@@ -78,6 +101,15 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   let expirySubscription: { remove(): void } | null = null
   let consecutiveRefreshes = 0
   let refreshGiveUpReported = false
+  /**
+   * Every resubscription started so far, settled or not.
+   *
+   * A set rather than a single slot: rapid A -> B leaves A's confirmation still
+   * polling when B's starts, and a single slot would drop A's promise on the
+   * floor — both losing the rejection handler and letting a test that awaits
+   * "the" resubscription pass on microtask ordering instead of on the guard.
+   */
+  const resubscriptions = new Set<Promise<void>>()
 
   async function bind(userId: string): Promise<void> {
     const outcome = await deps.fetchToken()
@@ -89,6 +121,22 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       consecutiveRefreshes = 0
       refreshGiveUpReported = false
       report('push_identity_bound')
+
+      // The ordered flow, and the order is the point:
+      //   session -> JWT login -> *confirmed* identity -> eligible opt-in.
+      //
+      // `push_identity_bound` above means the call was made. It does not mean
+      // the provider accepted it — under Identity Verification a refused JWT
+      // leaves the SDK on a `local-` id, looking otherwise identical. Opting in
+      // on the strength of the call returning is how a decision made for one
+      // account lands on another.
+      //
+      // Deliberately not awaited. Confirmation polls the SDK for up to fifteen
+      // seconds, and `apply` runs on every session emission — blocking it would
+      // hold up the *next* session change, so a logout arriving mid-confirmation
+      // would be queued behind the login it is cancelling. The supersede checks
+      // inside are what keep it safe, not the caller waiting.
+      track(resubscribeIfEligible(userId))
       return
     }
     if (outcome.kind === 'unavailable' && deps.allowUnverified) {
@@ -100,6 +148,58 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     // Unbound is the honest state: no subscription is attributed to this user,
     // so nothing is delivered to them rather than delivered unverified.
     report(outcome.kind === 'unavailable' ? 'push_identity_unavailable' : 'push_identity_failed')
+  }
+
+  /** Keeps a handle on an in-flight resubscription and swallows its rejection. */
+  function track(pending: Promise<void>): void {
+    const handled = pending.catch(() => {
+      // Resubscription is best-effort and off the session path; a throw here
+      // must not surface as an unhandled rejection in the app.
+      report('push_resubscribe_failed')
+    })
+    resubscriptions.add(handled)
+    void handled.finally(() => resubscriptions.delete(handled))
+  }
+
+  /**
+   * Restores the subscription, but only for a login that is still current and
+   * only where permission and preference allow it.
+   *
+   * Never prompts. `eligible` reports what the OS and the person have already
+   * decided; asking here would spend the one permission prompt at sign-in,
+   * which is exactly the moment it has not been earned.
+   */
+  async function resubscribeIfEligible(userId: string): Promise<void> {
+    if (!deps.confirmIdentity || !deps.optIn) return
+
+    const stillCurrent = () => boundUserId === userId
+    const confirmation = await deps.confirmIdentity(userId, stillCurrent)
+    if (confirmation.kind !== 'confirmed') return
+
+    // Re-checked after the await: confirmation can take seconds, and the
+    // account may have changed inside that window.
+    if (!stillCurrent()) {
+      report('push_resubscribe_superseded')
+      return
+    }
+
+    let allowed = false
+    try {
+      allowed = (await deps.eligible?.()) ?? false
+    } catch {
+      allowed = false
+    }
+    if (!stillCurrent()) {
+      report('push_resubscribe_superseded')
+      return
+    }
+    if (!allowed) {
+      report('push_resubscribe_not_eligible')
+      return
+    }
+
+    deps.optIn()
+    report('push_resubscribed')
   }
 
   return {
@@ -184,6 +284,21 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     resetRefreshBudget(): void {
       consecutiveRefreshes = 0
       refreshGiveUpReported = false
+    },
+
+    /**
+     * Resolves when every in-flight resubscription has settled, including ones
+     * started by a login that has since been superseded.
+     *
+     * For tests. Nothing in the app waits on this — resubscription is
+     * deliberately off the session-change path.
+     */
+    async settled(): Promise<void> {
+      // Loop: settling one can start nothing new here, but a pending A can
+      // resolve *after* B was added, and awaiting one snapshot would miss it.
+      while (resubscriptions.size > 0) {
+        await Promise.all([...resubscriptions])
+      }
     },
 
     stop(): void {
