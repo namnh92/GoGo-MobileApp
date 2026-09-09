@@ -6,12 +6,12 @@ Repo này chứa ứng dụng **React Native iOS/Android**: trải nghiệm nati
 
 ## Hệ sinh thái GoGo
 
-| Repo | Phạm vi |
-| --- | --- |
-| [GoGo-BE](https://github.com/namnh92/GoGo-BE) | API BFF, database, search, suggestion, workers, CMS APIs |
-| [GoGo-WebApp](https://github.com/namnh92/GoGo-WebApp) | Responsive Web/PWA và Mini Web App |
-| **GoGo-MobileApp** (repo này) | React Native iOS/Android |
-| [GoGo-Mockup](https://github.com/namnh92/GoGo-Mockup) | Prototype, UI/UX fixtures và design validation |
+| Repo                                                  | Phạm vi                                                  |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| [GoGo-BE](https://github.com/namnh92/GoGo-BE)         | API BFF, database, search, suggestion, workers, CMS APIs |
+| [GoGo-WebApp](https://github.com/namnh92/GoGo-WebApp) | Responsive Web/PWA và Mini Web App                       |
+| **GoGo-MobileApp** (repo này)                         | React Native iOS/Android                                 |
+| [GoGo-Mockup](https://github.com/namnh92/GoGo-Mockup) | Prototype, UI/UX fixtures và design validation           |
 
 ## Stack định hướng
 
@@ -50,11 +50,11 @@ GoGo-MobileApp/
 App ship ba flavour, chọn bằng `EXPO_PUBLIC_ENV`. `app.config.ts` là nguồn duy
 nhất; `ios/` và `android/` do `expo prebuild` sinh ra nên **không** sửa tay.
 
-| `EXPO_PUBLIC_ENV` | Bundle id (iOS + Android) | Tên trên máy | Scheme |
-| --- | --- | --- | --- |
-| `dev` | `max.gogo.dev` | GoGo Dev | `gogo-dev://` |
-| `stag` | `max.gogo.stag` | GoGo Staging | `gogo-stag://` |
-| `prod` | `max.gogo.prod` | GoGo | `gogo://` |
+| `EXPO_PUBLIC_ENV` | Bundle id (iOS + Android) | Tên trên máy | Scheme         |
+| ----------------- | ------------------------- | ------------ | -------------- |
+| `dev`             | `max.gogo.dev`            | GoGo Dev     | `gogo-dev://`  |
+| `stag`            | `max.gogo.stag`           | GoGo Staging | `gogo-stag://` |
+| `prod`            | `max.gogo.prod`           | GoGo         | `gogo://`      |
 
 Ba token này cũng là giá trị `EXPO_PUBLIC_ENV` mà app validate lúc chạy
 (`src/shared/config/env.ts`) — một từ vựng duy nhất, nên bản build và app chạy
@@ -125,6 +125,30 @@ Lệnh chuẩn mục tiêu: `pnpm lint` · `pnpm typecheck` · `pnpm test` · `p
 
 > Script sẽ được chốt khi Sprint 0 hoàn thành; README này không phải bằng chứng command đã tồn tại.
 
+### Trước mỗi lần build native: chạy prebuild, rồi `pnpm check:native`
+
+`ios/` và `android/` bị gitignore, nên chúng có thể **cũ hơn `app.config.ts`** mà
+không có gì báo. Khi đó plugin chưa từng chạy với project đang có trên máy — và
+kiểu hỏng này **im lặng**:
+
+- `plugins/with-onesignal-identity-beta.js` pin OneSignalXCFramework về bản beta
+  Identity Verification. Một `ios/` sinh trước khi plugin tồn tại vẫn giữ dải
+  `5.5.x`, vốn không export `OSUserJwtInvalidatedListener`, và module Swift
+  không compile được.
+- Nặng hơn: `Pods/` cũ **không chứa local Expo module**. `xcodebuild` in
+  **BUILD SUCCEEDED** mà chưa từng compile `OneSignalIdentityModule.swift`, ship
+  ra app thiếu hẳn native module, và app chết bằng SIGSEGV ngay lần gọi đầu.
+
+Vì bản build xanh chính là hình dạng của lỗi thứ hai, đừng tin exit code:
+
+```bash
+npx expo prebuild -p ios && (cd ios && pod install)
+npx expo prebuild -p android
+pnpm check:native     # khẳng định pin đã áp và mọi local module đã được link
+```
+
+`pnpm check:native` cũng chạy trong CI ngay sau prebuild (NTF-APP-009, #173).
+
 ## Git
 
 Git Flow: `master` (production, tag `vX.Y.Z`) · `develop` (integration) · `feature|bugfix/GOGO-<ticket>-<name>` · `hotfix/GOGO-<ticket>-<name>` · `release/x.y.z`. PR bắt buộc, CI xanh, ≥1 approval.
@@ -133,18 +157,18 @@ Git Flow: `master` (production, tag `vX.Y.Z`) · `develop` (integration) · `fea
 
 Backlog theo `GOGO_IMPLEMENTATION_WBS.md` §6, quản lý bằng GitHub issues (label `wbs`):
 
-| Task | Phạm vi | Size |
-| --- | --- | --- |
-| `APP-001` | App shell, navigation, theme/token | M |
-| `APP-002` | Auth, secure token storage, guest claim | M |
-| `APP-003` | Universal/App links, invite, native share | M |
-| `APP-004` | Create/join/lobby/preference flows | L |
-| `APP-005` | Search, native map, location permission | L |
-| `APP-006` | Place, vote, result, plan editor | L |
-| `APP-007` | Active date, local plan cache, external navigation | L |
-| `APP-008` | Push token, notification routing | M |
-| `APP-009` | Saved/review/profile/settings | M |
-| `APP-010` | Store build, crash/perf/a11y hardening | L |
+| Task      | Phạm vi                                            | Size |
+| --------- | -------------------------------------------------- | ---- |
+| `APP-001` | App shell, navigation, theme/token                 | M    |
+| `APP-002` | Auth, secure token storage, guest claim            | M    |
+| `APP-003` | Universal/App links, invite, native share          | M    |
+| `APP-004` | Create/join/lobby/preference flows                 | L    |
+| `APP-005` | Search, native map, location permission            | L    |
+| `APP-006` | Place, vote, result, plan editor                   | L    |
+| `APP-007` | Active date, local plan cache, external navigation | L    |
+| `APP-008` | Push token, notification routing                   | M    |
+| `APP-009` | Saved/review/profile/settings                      | M    |
+| `APP-010` | Store build, crash/perf/a11y hardening             | L    |
 
 Mobile core nằm ở Sprint 6; app shell (`APP-001`) có thể chạy song song ngay sau Sprint 0 theo mục "Công việc có thể chạy song song" của WBS.
 

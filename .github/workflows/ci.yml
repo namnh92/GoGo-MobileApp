@@ -121,6 +121,40 @@ jobs:
             "
           done
 
+      # NTF-APP-009 (#173) — resolving the config is still not enough. The
+      # plugin chain only *writes* the native projects during prebuild, and two
+      # defects lived in that gap:
+      #
+      #   - `with-onesignal-identity-beta.js` pins OneSignalXCFramework to the
+      #     Identity Verification beta. A native project generated before the
+      #     plugin existed kept the 5.5.x range, which does not export
+      #     `OSUserJwtInvalidatedListener`, and the Swift module stopped
+      #     compiling.
+      #   - The stale Pods omitted the local Expo module entirely. `xcodebuild`
+      #     printed BUILD SUCCEEDED without compiling it, shipped an app with no
+      #     native module, and the app died with SIGSEGV at first use.
+      #
+      # The second is the reason this is a check and not a build: a green build
+      # is exactly what that failure looks like. `--no-install` because pods
+      # need macOS; what is asserted here is what prebuild *generated*.
+      - name: prebuild generates a complete native project
+        env:
+          ONESIGNAL_APP_ID: '00000000-0000-4000-8000-000000000001'
+          ONESIGNAL_CONFIG_ENV: dev
+          ONESIGNAL_APNS_MODE: development
+          TENJIN_CONFIG_ENV: dev
+          TENJIN_IOS_SDK_KEY: ci-ios
+          TENJIN_ANDROID_SDK_KEY: ci-android
+          EXPO_PUBLIC_ENV: dev
+        # No `continue-on-error`, no `|| true`: prebuild's exit code is the
+        # step's. A masked failure here is how a broken native project reaches
+        # a developer's machine looking fine.
+        run: |
+          set -euo pipefail
+          npx expo prebuild -p ios --no-install --clean
+          npx expo prebuild -p android --no-install --clean
+          pnpm check:native
+
       # The app is configured entirely through EXPO_PUBLIC_* variables that Zod
       # validates at startup (FND-006), so a broken .env.example is a broken
       # first run for whoever clones the repo next. Nothing else checks it.

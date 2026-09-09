@@ -15,7 +15,8 @@
     "api:types": "openapi-typescript openapi/gogo.v1.yaml -o src/shared/api/schema.d.ts",
     "api:check": "openapi-typescript openapi/gogo.v1.yaml -o /tmp/gogo.mobile.v1.d.ts && diff -q /tmp/gogo.mobile.v1.d.ts src/shared/api/schema.d.ts",
     "test:ui": "jest",
-    "test:all": "pnpm test && pnpm test:ui"
+    "test:all": "pnpm test && pnpm test:ui",
+    "check:native": "node scripts/check-native-project.mjs"
   },
   "dependencies": {
     "@callstack/liquid-glass": "^0.8.1",
