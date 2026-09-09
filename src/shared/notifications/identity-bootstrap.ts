@@ -1,6 +1,7 @@
-import { AppState } from 'react-native'
+import { AppState, Platform } from 'react-native'
 import { OneSignal } from 'react-native-onesignal'
 
+import { registerPushSubscription } from '@/shared/api/endpoints/me'
 import { subscribeToSession, getSession } from '@/shared/api/session'
 
 import {
@@ -56,6 +57,33 @@ const identity = createIdentitySession({
 
   optIn: () => {
     OneSignal.User.pushSubscription.optIn()
+  },
+
+  /**
+   * NTF-APP-008 (#171) — the API learns this device can be reached.
+   *
+   * Reached only after identity is confirmed, the OS permits notifications and
+   * the device is opted in, so what is reported is a subscription that exists
+   * rather than an intention to have one. The server verifies the id against
+   * the provider before recording it, so a wrong or stale id is refused rather
+   * than believed.
+   *
+   * `web` is in the contract for the PWA; this build is only ever ios or
+   * android, and anything else is a platform this file has not been taught
+   * about — better to report nothing than to guess.
+   */
+  reportSubscription: async () => {
+    const subscriptionId = await OneSignal.User.pushSubscription.getIdAsync()
+    if (!subscriptionId) {
+      report('push_subscription_id_missing')
+      return
+    }
+    const platform = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null
+    if (!platform) {
+      report('push_subscription_platform_unsupported')
+      return
+    }
+    await registerPushSubscription({ platform, subscriptionId })
   },
   // Identity is verified or it does not happen. An environment with no signing
   // key leaves the device unbound, which is honest; an unverified login would

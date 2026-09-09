@@ -417,10 +417,26 @@ describe.skipIf(!enabled)('BFF contract', () => {
       expect(inbox).toHaveProperty('nextCursor')
     })
 
-    it('registers a device token', async () => {
-      await expect(
-        meApi.registerDeviceToken({ platform: 'ios', token: `contract-${stamp}` }),
-      ).resolves.not.toThrow()
+    it('refuses a push subscription the provider does not confirm', async () => {
+      // #171 / GoGo-BE#515. This account exists only for this run and has never
+      // bound a OneSignal identity, so the server must not take its word for it.
+      //
+      // The old version of this test called `PUT /me/device-tokens` and asserted
+      // it resolved — which is how three throwaway accounts became the entire
+      // audience of every DEV campaign. A registration that a real subscription
+      // cannot back has to be refused, and asserting the refusal is what keeps
+      // this suite from manufacturing recipients again.
+      const error = (await catchError(
+        meApi.registerPushSubscription({
+          platform: 'ios',
+          subscriptionId: `contract-${stamp}`,
+        }),
+      )) as ApiError
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect(['PUSH_SUBSCRIPTION_NOT_CONFIRMED', 'PUSH_SUBSCRIPTION_UNVERIFIED']).toContain(
+        error.code,
+      )
     })
   })
 
