@@ -363,23 +363,93 @@ describe('ordered login: JWT -> confirmed identity -> eligible opt-in (#161)', (
       onJwtExpired: () => ({ remove: () => {} }),
     }
     const optIn = vi.fn(() => { order.push('optIn') })
+    const reportSubscription = vi.fn(async () => { order.push('report') })
     const confirmIdentity = vi.fn(async () => { order.push('confirm'); return { kind: 'confirmed' } })
     const eligible = vi.fn(async () => { order.push('eligible'); return true })
     const report = vi.fn()
     const session = createIdentitySession({
       native,
       fetchToken: vi.fn(async () => ({ kind: 'ok' as const, token })),
-      confirmIdentity, eligible, optIn, report,
+      confirmIdentity, eligible, optIn, report, reportSubscription,
       ...overrides,
     })
-    return { session, native, optIn, confirmIdentity, eligible, report, order }
+    return { session, native, optIn, confirmIdentity, eligible, report, reportSubscription, order }
   }
 
   it('opts in only after login and confirmation, in that order', async () => {
     const { session, order } = harness()
     await session.apply({ kind: 'user', userId: 'user-1' })
     await session.settled()
-    expect(order).toEqual(['login', 'confirm', 'eligible', 'optIn'])
+    // #171 puts the API report last, after the subscription actually exists.
+    expect(order).toEqual(['login', 'confirm', 'eligible', 'optIn', 'report'])
+  })
+
+  it('reports the subscription to the API once the device really holds one', async () => {
+    // GoGo-BE#515: this report is what a campaign audience is built from. It
+    // used to come from a `device_tokens` table nothing wrote to, so every real
+    // user was in no audience at all.
+    const { session, reportSubscription, report } = harness()
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(reportSubscription).toHaveBeenCalledWith('user-1')
+    expect(report).toHaveBeenCalledWith('push_subscription_reported')
+  })
+
+  it('reports nothing when identity was never confirmed', async () => {
+    // Reporting here would put someone in an audience the provider cannot
+    // deliver to — the exact shape of the DEV failure, from the other side.
+    const { session, reportSubscription } = harness({
+      confirmIdentity: vi.fn(async () => ({ kind: 'unconfirmed' })),
+    })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(reportSubscription).not.toHaveBeenCalled()
+  })
+
+  it('reports nothing when the OS does not permit notifications', async () => {
+    const { session, reportSubscription } = harness({ eligible: vi.fn(async () => false) })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(reportSubscription).not.toHaveBeenCalled()
+  })
+
+  it('a failed report does not unbind the device or break the login', async () => {
+    const { session, native, report } = harness({
+      reportSubscription: vi.fn(async () => {
+        throw new Error('network')
+      }),
+    })
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.settled()
+    expect(native.loginWithToken).toHaveBeenCalled()
+    expect(native.logout).not.toHaveBeenCalled()
+    expect(report).toHaveBeenCalledWith('push_subscription_report_failed')
+  })
+
+  it("does not report A's device once B has signed in", async () => {
+    // Same seam as the opt-in isolation test below, one step further along: the
+    // report is an authenticated call, so a superseded one would tell the API
+    // about a device the caller no longer is. Per-call gates, so this fails if
+    // the guard is deleted rather than passing on microtask ordering.
+    const gates = new Map<string, (v: { kind: string }) => void>()
+    const confirmIdentity = vi.fn(
+      (externalId: string) =>
+        new Promise<{ kind: string }>((resolve) => gates.set(externalId, resolve)),
+    )
+    const { session, reportSubscription } = harness({ confirmIdentity })
+
+    await session.apply({ kind: 'user', userId: 'user-1' })
+    await session.apply({ kind: 'user', userId: 'user-2' })
+
+    gates.get('user-2')!({ kind: 'confirmed' })
+    await vi.waitFor(() => expect(reportSubscription).toHaveBeenCalledTimes(1))
+
+    gates.get('user-1')!({ kind: 'confirmed' })
+    await session.settled()
+
+    expect(reportSubscription).toHaveBeenCalledTimes(1)
+    expect(reportSubscription).toHaveBeenCalledWith('user-2')
+    expect(reportSubscription).not.toHaveBeenCalledWith('user-1')
   })
 
   it('does not opt in when identity is never confirmed', async () => {

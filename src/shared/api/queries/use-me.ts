@@ -184,8 +184,3 @@ export function useSetNotificationPreference() {
   })
 }
 
-export function useRegisterDeviceToken() {
-  return useMutation({
-    mutationFn: (body: OpBody<'registerDeviceToken'>) => meApi.registerDeviceToken(body),
-  })
-}

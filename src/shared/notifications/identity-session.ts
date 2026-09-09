@@ -63,6 +63,20 @@ export type IdentitySessionDeps = {
   eligible?: OptInEligibility
   /** Opting this device back in. Never called without confirmation. */
   optIn?: () => void
+  /**
+   * NTF-APP-008 (#171) — tells the API this device holds a live push
+   * subscription for this user, once that is actually true.
+   *
+   * Optional and best-effort. It is the last step of the ordered flow, never a
+   * precondition of any earlier one: a failure here must not unbind a device or
+   * break a login, so it is reported and dropped.
+   *
+   * The server is what a campaign audience is resolved from (GoGo-BE#515). It
+   * used to be resolved from a `device_tokens` table nothing wrote to, so real
+   * users were in no audience at all and three contract-test accounts were the
+   * whole of one.
+   */
+  reportSubscription?: (userId: string) => Promise<void>
   /** Reason codes only. Never a token, never a user id. */
   report?: (event: string) => void
   /**
@@ -200,6 +214,28 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
 
     deps.optIn()
     report('push_resubscribed')
+
+    // Only here, and only for a login that is still current. Everything above
+    // had to be true first: identity confirmed by the provider, the OS
+    // permitting notifications, and this device opted in. Reporting any earlier
+    // would put a user in a campaign audience the provider cannot deliver to,
+    // which is the failure this exists to end.
+    if (!deps.reportSubscription) return
+    // The report is an authenticated call, and the account can change while it
+    // is in flight; skipping a superseded one keeps the request off the wire
+    // rather than relying on the server to sort it out.
+    if (!stillCurrent()) {
+      report('push_resubscribe_superseded')
+      return
+    }
+    try {
+      await deps.reportSubscription(userId)
+      report('push_subscription_reported')
+    } catch {
+      // Best-effort: the device is bound and subscribed either way, and the
+      // next login or foreground bind reports again.
+      report('push_subscription_report_failed')
+    }
   }
 
   return {

@@ -57,7 +57,16 @@ export function setNotificationPreference(body: OpBody<'setNotificationPreferenc
   return api.put<void>('/me/notification-preferences', body)
 }
 
-/** Push is only a trigger — the app refetches from the API when opened. */
-export function registerDeviceToken(body: OpBody<'registerDeviceToken'>): Promise<void> {
-  return api.put<void>('/me/device-tokens', body)
+/**
+ * NTF-APP-008 (#171) — tell the API this device holds a live push subscription.
+ *
+ * Not a device token: `subscriptionId` is OneSignal's own id, the same one
+ * `POST /notifications/identity/logout` already takes, and the server verifies
+ * it against the provider before recording anything. It is what a campaign
+ * audience is built from — GoGo-BE#515.
+ */
+export function registerPushSubscription(
+  body: OpBody<'registerPushSubscription'>,
+): Promise<OpResponse<'registerPushSubscription'>> {
+  return api.put<OpResponse<'registerPushSubscription'>>('/me/push-subscriptions', body)
 }
