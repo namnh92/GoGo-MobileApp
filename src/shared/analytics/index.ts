@@ -33,6 +33,7 @@ export type AnalyticsEvent =
   | 'deep_link_opened'
   | 'profile_avatar_set'
   | 'profile_avatar_removed'
+  | 'profile_defaults_saved'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 

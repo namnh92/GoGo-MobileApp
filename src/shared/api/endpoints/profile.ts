@@ -15,3 +15,12 @@ export function setAvatar(body: OpBody<'setAvatar'>): Promise<OpResponse<'setAva
 export function removeAvatar(): Promise<OpResponse<'removeAvatar'>> {
   return api.delete<OpResponse<'removeAvatar'>>('/me/avatar')
 }
+
+/**
+ * The curated areas a profile may name as its home — the whole list, grouped
+ * by city on the client, cached an hour at the edge. Public: no session, no
+ * provider call, no billing session token (ADR-0022).
+ */
+export function listServiceAreas(): Promise<OpResponse<'listServiceAreas'>> {
+  return api.get<OpResponse<'listServiceAreas'>>('/service-areas', { anonymous: true })
+}

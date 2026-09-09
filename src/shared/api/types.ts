@@ -12,6 +12,8 @@ export type FieldError = ErrorEnvelope['field_errors'][number]
 export type Money = Schemas['Money']
 export type TokenGrant = Schemas['TokenGrant']
 
+export type Me = Schemas['Me']
+export type ServiceArea = Schemas['ServiceArea']
 export type RoomSummary = Schemas['RoomSummary']
 export type RoomMember = Schemas['RoomMember']
 export type RoomListItem = Schemas['RoomListItem']
