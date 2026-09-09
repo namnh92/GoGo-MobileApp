@@ -685,9 +685,19 @@ export const viMessages = {
   'profile.settings.inbox': '📬 Hộp thư',
   'profile.settings.reviews': '⭐ Đánh giá của tôi',
   'profile.settings.location': '📍 Vị trí',
-  'profile.settings.privacy': '🔒 Quyền riêng tư',
   'profile.settings.account': '⚙️ Tài khoản',
   'profile.settings.comingSoon': 'Chưa có màn này',
+  'locationSettings.title': 'Vị trí',
+  'locationSettings.statusTitle': 'Quyền vị trí trên máy này',
+  'locationSettings.status.checking': 'Đang kiểm tra…',
+  'locationSettings.status.granted': 'Đã cho phép.',
+  'locationSettings.status.undetermined': 'Chưa hỏi. GoGo chỉ hỏi đúng lúc bạn cần.',
+  'locationSettings.status.denied': 'Đang tắt trong Cài đặt. Bạn vẫn chọn khu vực thủ công được.',
+  'locationSettings.status.unavailable': 'Máy này chưa lấy được vị trí. Chọn khu vực thủ công nhé.',
+  'locationSettings.body': 'GoGo chỉ dùng vị trí khi bạn chạm "Vị trí hiện tại" lúc tạo kèo, để tìm địa điểm gần bạn. Hồ sơ chỉ lưu khu vực mặc định bạn tự chọn, không lưu vị trí.',
+  'locationSettings.openSettings': 'Mở Cài đặt',
+  'locationSettings.allow': 'Cho phép',
+  'locationSettings.note': 'Vị trí chính xác của một kèo chỉ giữ trong thời gian kèo diễn ra, rồi được xoá theo chính sách lưu trữ.',
 } as const
 
 // Locale-dependent option datasets (selectable UI content).

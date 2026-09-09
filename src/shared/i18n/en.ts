@@ -677,9 +677,19 @@ export const enMessages: Record<MessageKey, string> = {
   'profile.settings.inbox': '📬 Inbox',
   'profile.settings.reviews': '⭐ My reviews',
   'profile.settings.location': '📍 Location',
-  'profile.settings.privacy': '🔒 Privacy',
   'profile.settings.account': '⚙️ Account',
   'profile.settings.comingSoon': 'Not built yet',
+  'locationSettings.title': 'Location',
+  'locationSettings.statusTitle': 'Location permission on this device',
+  'locationSettings.status.checking': 'Checking…',
+  'locationSettings.status.granted': 'Allowed.',
+  'locationSettings.status.undetermined': 'Not asked yet. GoGo asks only when you need it.',
+  'locationSettings.status.denied': 'Turned off in Settings. You can still pick an area by hand.',
+  'locationSettings.status.unavailable': 'This device cannot provide a location. Pick an area by hand.',
+  'locationSettings.body': 'GoGo uses your location only when you tap "Current location" while creating a date, to find places near you. Your profile keeps a home area you choose, never a position.',
+  'locationSettings.openSettings': 'Open Settings',
+  'locationSettings.allow': 'Allow',
+  'locationSettings.note': "A date's exact starting point is kept only while the date is live, then cleared under the retention policy.",
 }
 
 export const enContent: LocaleContent = {

@@ -15,13 +15,17 @@ import { IconChevronRight } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { styles } from './profile.style'
 
-/** Only rows with a destination are tappable. */
+/**
+ * Only rows with a destination are tappable. Every row has one now: the
+ * location row leads to the permission state on this device (PROF-APP-005),
+ * and what the privacy row promised — export and delete — lives on the account
+ * screen, so a second row would have been a duplicate door.
+ */
 const SETTINGS_ROWS: readonly { key: string; route?: string }[] = [
   { key: 'inbox', route: '/notifications' },
   { key: 'notifications', route: '/settings/notifications' },
   { key: 'reviews', route: '/settings/reviews' },
-  { key: 'location' },
-  { key: 'privacy' },
+  { key: 'location', route: '/settings/location' },
   { key: 'account', route: '/settings/account' },
 ]
 
