@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -31,4 +31,19 @@ export const styles = StyleSheet.create({
   },
   deleteLabel: { ...type.body, fontWeight: '700', color: brand.red },
   notice: { ...type.bodySmall, color: neutral[500], textAlign: 'center', marginTop: spacing[4] },
+
+  /** ADR-0022 — the avatar block: picture, what it is for, change / remove. */
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[4] },
+  avatarWrap: { width: 80, height: 80 },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 40,
+    backgroundColor: overlay.backdrop,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { flex: 1, gap: spacing[1] },
+  avatarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  avatarChangeBtn: { flex: 1 },
+  avatarHint: { ...type.bodySmall, color: brand.amber },
 })

@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } f
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
 import * as placesApi from '../endpoints/places'
+import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
 import type { OpBody, SavedItem } from '../types'
@@ -23,6 +24,33 @@ export function useUpdateProfile() {
     mutationFn: (body: OpBody<'updateProfile'>) => sessionsApi.updateProfile(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.me() })
+    },
+  })
+}
+
+/**
+ * ADR-0022 — attach the uploaded original and publish the avatar. The server
+ * answers the whole profile, so it becomes the `me` cache directly; member
+ * lists show the same picture, so every room is refetched on next read.
+ */
+export function useSetAvatar() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (uploadKey: string) => profileApi.setAvatar({ uploadKey }),
+    onSuccess: profile => {
+      queryClient.setQueryData(queryKeys.me(), profile)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rooms() })
+    },
+  })
+}
+
+export function useRemoveAvatar() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => profileApi.removeAvatar(),
+    onSuccess: profile => {
+      queryClient.setQueryData(queryKeys.me(), profile)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rooms() })
     },
   })
 }
