@@ -3,11 +3,14 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useMe } from '@/shared/api'
+import { track } from '@/shared/analytics'
+import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { Atmosphere, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 import { colors, spacing, onDark } from '@/shared/ui/tokens'
-import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, type BudgetTier } from './budget-tiers'
+import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, tierForAmount, type BudgetTier } from './budget-tiers'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-budget.style'
 
@@ -17,7 +20,23 @@ export default function CreateBudgetScreen() {
   const insets = useSafeAreaInsets()
   const { roomType, budgetMode } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
+  const draftBudgetAmount = useRoomStore(state => state.budgetAmount)
+  const { status } = useSession()
   const [selected, setSelected] = useState<BudgetTier>(DEFAULT_BUDGET_TIER)
+
+  // ADR-0022: the profile's usual budget is per person, so it is offered only
+  // when this room counts per person, only while the draft holds no amount,
+  // and only by a tap — the tiers are the wizard's; the amount is mapped.
+  const me = useMe({ enabled: status === 'user' })
+  const usual = me.data?.usualBudget ?? null
+  const usualTier = usual ? tierForAmount(usual.perPerson) : null
+  const offerUsual = usualTier !== null && budgetMode === 'per_person' && draftBudgetAmount === null
+
+  function useUsualBudget() {
+    if (!usualTier) return
+    setSelected(usualTier)
+    track('profile_prefill_used', { field: 'usualBudget' })
+  }
 
   function next() {
     // The amount is what the API constrains on; the tier key is presentation.
@@ -37,6 +56,17 @@ export default function CreateBudgetScreen() {
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
         <Text style={styles.body}>{subtitle}</Text>
+
+        {offerUsual && usualTier ? (
+          <View style={styles.prefillRow}>
+            <Chip
+              icon="💸"
+              label={t('createBudget.useUsual', { tier: t(`createBudget.tier.${usualTier.key}`) })}
+              variant={selected.key === usualTier.key ? 'selected' : 'info'}
+              onPress={useUsualBudget}
+            />
+          </View>
+        ) : null}
 
         <View style={{ gap: spacing[2] }}>
           {BUDGET_TIERS.map(tier => {

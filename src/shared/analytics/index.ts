@@ -34,6 +34,7 @@ export type AnalyticsEvent =
   | 'profile_avatar_set'
   | 'profile_avatar_removed'
   | 'profile_defaults_saved'
+  | 'profile_prefill_used'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 

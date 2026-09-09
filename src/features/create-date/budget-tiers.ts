@@ -23,3 +23,12 @@ export const BUDGET_TIERS: readonly BudgetTier[] = [
 ] as const
 
 export const DEFAULT_BUDGET_TIER = BUDGET_TIERS[2]
+
+/**
+ * The tier a per-person amount falls into: the first whose upper bound covers
+ * it, or the open-ended one. A profile stores an amount (ADR-0022); the wizard
+ * offers tiers, so a default has to be mapped rather than matched.
+ */
+export function tierForAmount(perPerson: number): BudgetTier {
+  return BUDGET_TIERS.find(tier => tier.amount >= perPerson) ?? BUDGET_TIERS[BUDGET_TIERS.length - 1]!
+}

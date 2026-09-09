@@ -12,6 +12,7 @@ import {
   type ServiceArea,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { serviceAreaLabel } from '@/shared/location/area-label'
 import { haptic } from '@/shared/ui/feedback'
 import { Chip, GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
@@ -26,9 +27,7 @@ const INTEREST_KIND = 'mood'
 export const MAX_INTERESTS = 5
 
 /** `Quận 1, TP.HCM` — the city only when the area is not itself the city. */
-export function areaDisplayName(area: { name: string; city?: string | null }): string {
-  return area.city && area.city !== area.name ? `${area.name}, ${area.city}` : area.name
-}
+export const areaDisplayName = serviceAreaLabel
 
 /**
  * PROF-APP-003 (#178), ADR-0022 — the defaults a new date is pre-filled from:

@@ -75,4 +75,6 @@ export const styles = StyleSheet.create({
     color: colors.brand.amber,
     marginTop: spacing[2],
   },
+  /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
+  prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[4] },
 })

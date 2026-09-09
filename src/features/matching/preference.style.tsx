@@ -15,4 +15,6 @@ export const styles = StyleSheet.create({
   },
   optionLabel: { ...type.label },
   error: { ...type.bodySmall, color: colors.brand.red, marginTop: spacing[4] },
+  /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
+  prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[4] },
 })

@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useAreaAutocomplete } from '@/shared/api'
+import { useAreaAutocomplete, useMe, useServiceAreas } from '@/shared/api'
+import { track } from '@/shared/analytics'
+import { serviceAreaLabel } from '@/shared/location/area-label'
+import { useSession } from '@/shared/providers/session-provider'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { Atmosphere, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck, IconMapPin, IconSearch } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { WizardStep } from './wizard-step.view'
@@ -28,6 +31,9 @@ export default function CreateLocationScreen() {
   const insets = useSafeAreaInsets()
   const { area, setArea } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
+  const draftAreaKey = useRoomStore(state => state.areaKey)
+  const draftOriginLat = useRoomStore(state => state.originLat)
+  const { status } = useSession()
   const params = useLocalSearchParams<{ picker?: string }>()
   const location = useCurrentLocation()
   const [radiusM, setRadiusM] = useState<number | null>(5000)
@@ -52,6 +58,26 @@ export default function CreateLocationScreen() {
   const areas = useAreaAutocomplete(debouncedQuery, { enabled: pickerOpen })
   const predictions = areas.data?.predictions ?? []
   const usingCurrent = location.state.status === 'granted' && area === currentAreaLabel(location.state)
+
+  // ADR-0022: the profile's home area is a default, offered only while this
+  // draft has no area and no origin, and applied only by a tap. The centre
+  // comes from the curated list, the same fact the picker's fallback uses; a
+  // retired area is simply not offered.
+  const me = useMe({ enabled: status === 'user' })
+  const homeAreaKey = me.data?.homeArea?.key ?? null
+  const serviceAreas = useServiceAreas({ enabled: Boolean(homeAreaKey) })
+  const homeArea = homeAreaKey
+    ? (serviceAreas.data?.areas.find(candidate => candidate.key === homeAreaKey) ?? null)
+    : null
+  const offerHomeArea =
+    homeArea !== null && draftAreaKey === null && draftOriginLat === null && !usingCurrent
+
+  function useHomeArea() {
+    if (!homeArea) return
+    setArea(serviceAreaLabel(homeArea))
+    patchDraft({ areaKey: homeArea.key, originLat: homeArea.lat, originLng: homeArea.lng })
+    track('profile_prefill_used', { field: 'homeArea' })
+  }
 
   function pickArea(prediction: { key?: string; description?: string; lat?: number; lng?: number }) {
     setArea(prediction.description ?? '')
@@ -126,6 +152,17 @@ export default function CreateLocationScreen() {
               ? t('createLocation.permissionDenied')
               : t('createLocation.locationUnavailable')}
           </Text>
+        ) : null}
+
+        {offerHomeArea ? (
+          <View style={styles.prefillRow}>
+            <Chip
+              icon="🏠"
+              label={t('createLocation.useHomeArea', { area: serviceAreaLabel(homeArea) })}
+              variant="info"
+              onPress={useHomeArea}
+            />
+          </View>
         ) : null}
 
         {/* Other area — opens the picker sheet */}

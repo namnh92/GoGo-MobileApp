@@ -31,8 +31,17 @@ jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3 },
 }))
 
+// The location step reads the profile's home area as a default (ADR-0022);
+// an anonymous session has none, and the session provider would otherwise pull
+// the OneSignal native module into a renderer that has no native side.
+jest.mock('@/shared/providers/session-provider', () => ({
+  useSession: () => ({ status: 'anonymous' }),
+}))
+
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useMe: () => ({ data: undefined, isPending: false, isError: false }),
+  useServiceAreas: () => ({ data: undefined, isPending: false, isError: false }),
   useAreaAutocomplete: () => ({
     data: { predictions: [], attribution: '' },
     isPending: false,
