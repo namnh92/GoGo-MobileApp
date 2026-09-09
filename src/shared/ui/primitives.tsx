@@ -2,7 +2,7 @@ import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass
 import { BlurView } from 'expo-blur'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -363,17 +363,40 @@ export function BackHeader({ title, onBack, right }: { title?: string; onBack: (
   )
 }
 
-export function AvatarCircle({ label, size = 40, background = brand.coral, emoji }: {
+/**
+ * One avatar for every surface (RULE-CORE-015). `imageUri` is the profile
+ * picture the API composed (ADR-0022); when it is absent, or the bytes fail to
+ * load — a purged object, a dead edge cache, no network — the initials are
+ * drawn instead, so a broken image never ships. The failed URI is remembered
+ * rather than a boolean, so a fresh picture after a failure is tried again.
+ */
+export function AvatarCircle({ label, size = 40, background = brand.coral, emoji, imageUri }: {
   label?: string
   size?: number
   background?: string
   emoji?: string
+  /** Absolute URL from `GET /me` or `RoomMember.avatarUrl`; null or undefined = initials. */
+  imageUri?: string | null
 }) {
+  const [failedUri, setFailedUri] = useState<string | null>(null)
+  const uri = imageUri && imageUri !== failedUri ? imageUri : null
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: emoji ? neutral[100] : background }]}>
-      <Text style={emoji ? { fontSize: size * 0.45 } : [styles.avatarLabel, { fontSize: size * 0.38 }]}>
-        {emoji ?? label}
-      </Text>
+      {uri ? (
+        <Image
+          testID="avatar-image"
+          source={{ uri }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          contentFit="cover"
+          transition={150}
+          cachePolicy="memory-disk"
+          onError={() => setFailedUri(uri)}
+        />
+      ) : (
+        <Text style={emoji ? { fontSize: size * 0.45 } : [styles.avatarLabel, { fontSize: size * 0.38 }]}>
+          {emoji ?? label}
+        </Text>
+      )}
     </View>
   )
 }
@@ -545,6 +568,7 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   avatarLabel: {
     color: neutral[0],

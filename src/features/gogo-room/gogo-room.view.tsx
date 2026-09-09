@@ -182,6 +182,7 @@ export default function GoGoRoomScreen() {
                     label={initial(member.displayName)}
                     size={56}
                     background={AVATAR_COLORS[index % AVATAR_COLORS.length]}
+                    imageUri={member.avatarUrl}
                   />
                 </View>
               ))}
@@ -197,10 +198,15 @@ export default function GoGoRoomScreen() {
           </View>
         ) : (
           <View style={styles.couplePair}>
-            <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={64} />
+            <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={64} imageUri={members[0]?.avatarUrl} />
             <Text style={{ fontSize: glyph.sm }}>+</Text>
             {members[1] ? (
-              <AvatarCircle label={initial(members[1].displayName)} size={64} background={brand.lavender} />
+              <AvatarCircle
+                label={initial(members[1].displayName)}
+                size={64}
+                background={brand.lavender}
+                imageUri={members[1].avatarUrl}
+              />
             ) : (
               <View style={styles.emptySeat}>
                 <IconUserOutline />
@@ -260,6 +266,7 @@ export default function GoGoRoomScreen() {
                       label={initial(member.displayName)}
                       size={40}
                       background={AVATAR_COLORS[index % AVATAR_COLORS.length]}
+                      imageUri={member.avatarUrl}
                     />
                     <View style={styles.memberNameRow}>
                       <Text style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>

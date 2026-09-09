@@ -111,7 +111,11 @@ export default function WaitingScreen() {
       <GlassCard style={styles.card}>
         <View style={styles.row}>
           <View style={styles.rowLeft}>
-            <AvatarCircle label={(roster.find(m => m.id === myMemberId)?.displayName ?? '?').charAt(0).toUpperCase()} size={32} />
+            <AvatarCircle
+              label={(roster.find(m => m.id === myMemberId)?.displayName ?? '?').charAt(0).toUpperCase()}
+              size={32}
+              imageUri={roster.find(m => m.id === myMemberId)?.avatarUrl}
+            />
             <Text style={styles.name}>{t('waiting.you')}</Text>
           </View>
           <View style={styles.doneRow}>
@@ -123,7 +127,7 @@ export default function WaitingScreen() {
         {others.map(member => (
           <View key={member.id} style={styles.row}>
             <View style={styles.rowLeft}>
-              <AvatarCircle label={member.displayName.charAt(0).toUpperCase()} size={32} />
+              <AvatarCircle label={member.displayName.charAt(0).toUpperCase()} size={32} imageUri={member.avatarUrl} />
               <Text style={styles.name}>{member.displayName}</Text>
             </View>
             {/* The contract reports a status, not a count, so the UI shows the

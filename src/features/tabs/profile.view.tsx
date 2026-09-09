@@ -76,7 +76,11 @@ export default function ProfileScreen() {
     <Atmosphere>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: dockInset }}>
         <View style={styles.headerRow}>
-          <AvatarCircle label={(me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()} size={64} />
+          <AvatarCircle
+            label={(me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()}
+            size={64}
+            imageUri={me.data?.avatarUrl}
+          />
           <View>
             <Text style={styles.name}>{me.data?.displayName ?? t('profile.guestName')}</Text>
             {/* Guests have no email; showing a placeholder would be a lie. */}

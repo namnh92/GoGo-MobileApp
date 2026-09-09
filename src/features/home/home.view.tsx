@@ -105,7 +105,7 @@ export default function HomeScreen() {
             accessibilityLabel={t('profile.title')}
             hitSlop={8}
           >
-            <AvatarCircle label={initial || '·'} size={44} />
+            <AvatarCircle label={initial || '·'} size={44} imageUri={me.data?.avatarUrl} />
           </Pressable>
         </View>
 
