@@ -1,12 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest'
+import { useRoomStore } from '../roomStore'
+import { clearSavedRoomDraft, loadRoomDraft, restoreRoomDraft, saveRoomDraft, useSavedRoomDraft } from '../savedRoomDraft'
 const storage = vi.hoisted(() => ({ value: null as string | null }))
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   getItem: async () => storage.value,
   setItem: async (_key: string, value: string) => { storage.value = value },
   removeItem: async () => { storage.value = null },
 } }))
-import { useRoomStore } from '../roomStore'
-import { clearSavedRoomDraft, loadRoomDraft, restoreRoomDraft, saveRoomDraft, useSavedRoomDraft } from '../savedRoomDraft'
 
 beforeEach(async () => { await clearSavedRoomDraft(); useRoomStore.getState().resetDraft() })
 

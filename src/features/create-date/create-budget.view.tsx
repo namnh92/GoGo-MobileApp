@@ -22,7 +22,7 @@ export default function CreateBudgetScreen() {
   const patchDraft = useRoomStore(state => state.patchDraft)
   const draftBudgetAmount = useRoomStore(state => state.budgetAmount)
   const { status } = useSession()
-  const [selected, setSelected] = useState<BudgetTier>(() => tierForAmount(draftBudgetAmount ?? 0) ?? DEFAULT_BUDGET_TIER)
+  const [selected, setSelected] = useState<BudgetTier>(() => draftBudgetAmount == null ? DEFAULT_BUDGET_TIER : tierForAmount(draftBudgetAmount) ?? DEFAULT_BUDGET_TIER)
 
   // ADR-0022: the profile's usual budget is per person, so it is offered only
   // when this room counts per person, only while the draft holds no amount,
