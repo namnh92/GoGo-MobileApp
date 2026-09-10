@@ -25,12 +25,13 @@ it('filters by lifecycle, keeps overdue collecting rooms upcoming, and scopes ea
   await fireEvent.press(view.getByRole('tab', { name: 'Lịch sử' }))
   expect(view.getByText('Đã hoàn tất')).toBeTruthy()
   expect(view.queryByText('Chưa hoàn tất')).toBeNull()
-  expect(mockUseRooms).toHaveBeenLastCalledWith({ enabled: true, view: 'history' })
+  expect(mockUseRooms).toHaveBeenLastCalledWith({ enabled: true, status: 'completed,cancelled,expired' })
 })
 
-it('does not report empty while another page can contain rooms for the tab', async () => {
+it('keeps pagination available when the server has another page', async () => {
   mockQuery.data = { pages: [{ items: [] }] }
   mockQuery.hasNextPage = true
-  await renderScreen(<PlansScreen />)
+  const view = await renderScreen(<PlansScreen />)
+  await fireEvent.press(view.getByText('Xem thêm'))
   expect(mockFetch).toHaveBeenCalled()
 })

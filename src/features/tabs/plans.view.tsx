@@ -1,6 +1,6 @@
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -27,7 +27,7 @@ export default function PlansScreen() {
 
   const canRead = status === 'user' || status === 'guest'
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming')
-  const rooms = useMyRooms({ enabled: canRead, view: tab })
+  const rooms = useMyRooms({ enabled: canRead, status: tab === 'upcoming' ? UPCOMING.join(',') : 'completed,cancelled,expired' })
 
   // Kept only as an offline read: the server list is the source of truth, but a
   // launch with no connection should still show what this device has seen.
@@ -40,15 +40,6 @@ export default function PlansScreen() {
   const upcoming = items.filter(room => UPCOMING.includes(room.status))
   const past = items.filter(room => !UPCOMING.includes(room.status))
   const visible = tab === 'upcoming' ? upcoming : past
-  const { hasNextPage, isFetching, isFetchNextPageError, fetchNextPage } = rooms
-
-  // A page may contain only rooms belonging to the other tab. Keep looking
-  // before claiming this tab is empty; an error exposes an explicit retry.
-  useEffect(() => {
-    if (canRead && visible.length === 0 && hasNextPage && !isFetching && !isFetchNextPageError) {
-      void fetchNextPage()
-    }
-  }, [canRead, visible.length, hasNextPage, isFetching, isFetchNextPageError, fetchNextPage])
 
   function openRoom(room: RoomListItem) {
     // A finished room's plan is the thing worth reopening; an active one is not.
