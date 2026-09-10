@@ -82,6 +82,7 @@ export function useUpdateRoomConstraints(roomId: string) {
     mutationFn: (body: OpBody<'updateRoomConstraints'>) => roomsApi.updateRoomConstraints(roomId, body),
     onSuccess: room => {
       queryClient.setQueryData(queryKeys.room(roomId), room)
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomSuggestions(roomId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomCurrentPlan(roomId) })
     },

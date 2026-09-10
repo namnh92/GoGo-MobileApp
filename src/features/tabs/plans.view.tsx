@@ -1,4 +1,5 @@
 import { DraftResume } from '@/features/create-date/draft-resume.view'
+import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
 import { useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -55,7 +56,7 @@ export default function PlansScreen() {
    * the progress counts, never a written sentence (RULE-API-DTO).
    */
   function roomFacts(room: RoomListItem): string[] {
-    const scheduled = parseApiDate(room.scheduledDate)
+    const scheduled = roomScheduleLabel(room.scheduledDate, i18n.language)
     return [
       room.type === 'group'
         ? t('groupSetup.people', { n: room.participantCount })
@@ -63,7 +64,7 @@ export default function PlansScreen() {
       room.completedCount != null && room.memberCount != null
         ? t('gogoRoom.membersTitle', { joined: room.completedCount, total: room.memberCount })
         : null,
-      scheduled ? scheduled.toLocaleDateString(i18n.language) : null,
+      scheduled ?? t('roomSchedule.unset'),
       isOverdue(room) ? t('plans.overdue') : null,
     ].filter((fact): fact is string => Boolean(fact))
   }

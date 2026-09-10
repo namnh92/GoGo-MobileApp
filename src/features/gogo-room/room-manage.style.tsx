@@ -5,6 +5,7 @@ import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
+  scheduleInput: { ...type.body, color: neutral[900], borderWidth: 1, borderColor: neutral[300], borderRadius: radius.compact, padding: spacing[3], minHeight: touchTarget.min },
   card: { padding: spacing[5], marginTop: spacing[4], gap: spacing[3] },
   sectionTitle: { ...type.body, fontWeight: '700', color: neutral[900] },
   sectionBody: { ...type.bodySmall, color: neutral[500] },

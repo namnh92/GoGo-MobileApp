@@ -221,6 +221,7 @@ export function toCreateRoomBody(state: RoomStoreState): OpBody<'createRoom'> {
   return {
     type: roomType,
     ...(state.title.trim() ? { title: state.title.trim() } : {}),
+    ...(state.startAt ? { scheduledDate: state.startAt } : {}),
     decisionMode: roomType === 'couple' ? 'match' : 'vote',
     participantCount: roomType === 'couple' ? 2 : state.participantCount,
     constraint: {
