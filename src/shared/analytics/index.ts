@@ -31,6 +31,8 @@ export type AnalyticsEvent =
   | 'place_import_rejected'
   | 'place_import_added'
   | 'deep_link_opened'
+  | 'profile_avatar_set'
+  | 'profile_avatar_removed'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 
