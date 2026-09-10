@@ -78,3 +78,17 @@ export function restoreRoomDraft(ownerId: string): DraftStep | null {
   useRoomStore.setState(snapshot.fields)
   return snapshot.step
 }
+
+/**
+ * Every wizard route up to and including `step`, in the order the wizard
+ * walks them. A resumed draft pushes this whole path (not just its step) so
+ * Back returns to the previous step with restored data instead of leaving
+ * the wizard — the same shape the stack has when the user got there by hand.
+ */
+export function draftStepPath(step: DraftStep, audience: 'couple' | 'group-host' | 'group-guest'): DraftStep[] {
+  const order: DraftStep[] = audience === 'couple'
+    ? ['type', 'location', 'time', 'budget', 'mood']
+    : ['type', 'group-setup', 'location', 'time', 'budget', 'mood']
+  const index = order.indexOf(step)
+  return index < 0 ? ['type'] : order.slice(0, index + 1)
+}

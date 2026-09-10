@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { useRoomStore } from '../roomStore'
-import { clearSavedRoomDraft, loadRoomDraft, restoreRoomDraft, saveRoomDraft, useSavedRoomDraft } from '../savedRoomDraft'
+import { clearSavedRoomDraft, draftStepPath, loadRoomDraft, restoreRoomDraft, saveRoomDraft, useSavedRoomDraft } from '../savedRoomDraft'
 const storage = vi.hoisted(() => ({ value: null as string | null }))
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   getItem: async () => storage.value,
@@ -48,4 +48,12 @@ it('finishing resets the whole wizard but keeps preferences scoped to the create
   useRoomStore.setState({ title: 'Old', audience: 'group-host', participantCount: 9, startTime: '19:00', moodKeys: ['chill'] })
   useRoomStore.getState().finishDraft('room-1')
   expect(useRoomStore.getState()).toMatchObject({ title: '', audience: 'couple', startTime: null, moodKeys: [], preferenceSeed: { roomId: 'room-1', moodKeys: ['chill'] } })
+})
+
+it('re-enters every step before the resumed one so Back keeps the wizard order', () => {
+  expect(draftStepPath('budget', 'couple')).toEqual(['type', 'location', 'time', 'budget'])
+  expect(draftStepPath('location', 'group-host')).toEqual(['type', 'group-setup', 'location'])
+  expect(draftStepPath('type', 'couple')).toEqual(['type'])
+  // A couple draft cannot be on the group step; fall back to the first step.
+  expect(draftStepPath('group-setup', 'couple')).toEqual(['type'])
 })
