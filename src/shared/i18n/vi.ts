@@ -659,6 +659,7 @@ export const viMessages = {
   'saved.signInBody': 'Mục đã lưu gắn với tài khoản của bạn.',
   'saved.mapUnavailable': 'Chưa mở được bản đồ trên máy này.',
 
+  'profile.title': 'Hồ sơ của bạn',
   'profile.logout': 'Đăng xuất',
   'profile.loggingOut': 'Đang đăng xuất…',
   'profile.logoutFailed': 'Chưa đăng xuất được. Kiểm tra kết nối rồi thử lại.',
