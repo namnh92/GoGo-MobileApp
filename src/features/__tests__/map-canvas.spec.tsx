@@ -68,7 +68,7 @@ describe('MapCanvas', () => {
     const view = await renderScreen(<MapCanvas pins={PINS} interactive={false} />)
     const map = view.getByTestId('map:google')
     expect(map.props.pointerEvents).toBe('none')
-    for (const gesture of ['scrollEnabled', 'zoomEnabled', 'zoomTapEnabled', 'rotateEnabled', 'pitchEnabled']) {
+    for (const gesture of ['scrollEnabled', 'zoomEnabled', 'zoomTapEnabled', 'rotateEnabled', 'pitchEnabled', 'zoomControlEnabled']) {
       expect(map.props[gesture]).toBe(false)
     }
     expect(map.props.region).toBeDefined()
@@ -79,6 +79,7 @@ describe('MapCanvas', () => {
     const view = await renderScreen(<MapCanvas pins={PINS} />)
     expect(view.getByTestId('map:google').props.scrollEnabled).toBe(true)
     expect(view.getByTestId('map:google').props.pointerEvents).toBe('auto')
+    expect(view.getByTestId('map:google').props.zoomControlEnabled).toBeUndefined()
   })
 
   it('renders a marker per pin when the SDK is there', async () => {

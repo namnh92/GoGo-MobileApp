@@ -89,7 +89,9 @@ export function MapCanvas({ pins, onSelect, style, fallback, interactive = true 
       zoomTapEnabled={interactive}
       rotateEnabled={interactive}
       pitchEnabled={interactive}
-      zoomControlEnabled={false}
+      // Android draws +/- zoom buttons by default; a static preview hides
+      // them, an interactive map keeps whatever it had before.
+      zoomControlEnabled={interactive ? undefined : false}
       provider={maps.PROVIDER_GOOGLE}
       showsUserLocation={false}
       toolbarEnabled={false}
