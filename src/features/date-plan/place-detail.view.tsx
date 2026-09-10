@@ -316,6 +316,7 @@ export default function PlaceDetailScreen() {
             <View style={styles.addressCard}>
               {hasCoords ? (
                 <MapCanvas
+                  interactive={false}
                   pins={[{ id, lat: detail.lat as number, lng: detail.lng as number, title: name }]}
                   style={styles.mapPreview}
                   fallback={
