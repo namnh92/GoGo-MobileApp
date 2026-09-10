@@ -13,6 +13,9 @@ import { loaded, renderScreen, type QueryLike } from './harness'
  */
 
 const mockMe: { query: QueryLike } = { query: loaded(null) }
+// The defaults card below the avatar reads reference data; empty lists keep it
+// out of the way of these cases (it has its own spec).
+const mockRefData = { areas: loaded({ areas: [] }), taxonomies: loaded({ kinds: {} }) }
 const mockUpload = jest.fn()
 const mockSetAvatar = jest.fn()
 const mockRemoveAvatar = jest.fn()
@@ -35,6 +38,8 @@ jest.mock('@/shared/api', () => ({
   useUploadImage: () => ({ mutateAsync: mockUpload }),
   useSetAvatar: () => ({ mutateAsync: mockSetAvatar }),
   useRemoveAvatar: () => ({ mutateAsync: mockRemoveAvatar }),
+  useServiceAreas: () => mockRefData.areas,
+  useTaxonomies: () => mockRefData.taxonomies,
   exportMyData: jest.fn(),
 }))
 

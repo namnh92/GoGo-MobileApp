@@ -8,6 +8,7 @@ import type { PlaceSearchQuery } from './endpoints/places'
 export const queryKeys = {
   me: () => ['me'] as const,
   taxonomies: (kinds?: string) => ['taxonomies', kinds ?? 'all'] as const,
+  serviceAreas: () => ['service-areas'] as const,
 
   rooms: () => ['rooms'] as const,
   roomList: (status?: string) => ['rooms', 'list', status ?? 'all'] as const,

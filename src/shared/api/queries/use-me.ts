@@ -44,6 +44,19 @@ export function useSetAvatar() {
   })
 }
 
+/**
+ * Reference data like taxonomies: stable keys, changes when an editor changes
+ * it. Cached long; the edge caches it an hour too.
+ */
+export function useServiceAreas(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.serviceAreas(),
+    queryFn: () => profileApi.listServiceAreas(),
+    staleTime: 60 * 60 * 1000,
+    enabled: options?.enabled ?? true,
+  })
+}
+
 export function useRemoveAvatar() {
   const queryClient = useQueryClient()
   return useMutation({

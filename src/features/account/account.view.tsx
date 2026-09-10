@@ -23,6 +23,7 @@ import { Atmosphere, AvatarCircle, BackHeader, GhostBtn, GlassCard, PrimaryBtn, 
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './account.style'
+import { ProfileDefaultsCard } from './profile-defaults.view'
 
 const MAX_NAME = 50
 
@@ -260,6 +261,8 @@ export default function AccountScreen() {
             style={styles.saveBtn}
           />
         </GlassCard>
+
+        {me.data ? <ProfileDefaultsCard profile={me.data} /> : null}
 
         <GlassCard style={styles.card}>
           <Text style={styles.sectionTitle}>{t('account.dataTitle')}</Text>
