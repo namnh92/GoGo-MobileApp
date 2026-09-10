@@ -39,9 +39,9 @@ import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Chip, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
-import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
 
-import { styles } from './place-detail.style'
+import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
 
 const { brand, neutral } = colors
 
@@ -57,6 +57,9 @@ export default function PlaceDetailScreen() {
   const insets = useSafeAreaInsets()
   const { width, height } = useWindowDimensions()
   const [actionHeight, setActionHeight] = useState(0)
+  // The floating back button keeps a strip of its own above the page scroll,
+  // so an expanded sheet never slides underneath it.
+  const headerHeight = insets.top + touchTarget.min + spacing[4]
   const { placeId } = useLocalSearchParams<{ placeId: string }>()
   const { status } = useSession()
 
@@ -159,9 +162,11 @@ export default function PlaceDetailScreen() {
     <Atmosphere>
       <ScrollView
         testID="place-detail-scroll"
-        style={{ marginTop: insets.top + 44 + spacing[4] }}
+        style={{ marginTop: headerHeight }}
         contentContainerStyle={{ paddingBottom: actionHeight }}
-        snapToOffsets={[0, 252]}
+        // Two rests: the hero gallery, and the sheet's top edge — after that
+        // the content scrolls freely.
+        snapToOffsets={[0, GALLERY_HEIGHT - SHEET_OVERLAP]}
         snapToEnd={false}
         decelerationRate="fast"
       >
@@ -214,7 +219,7 @@ export default function PlaceDetailScreen() {
 
       {/* One vertical scroll surface lets the gallery leave the viewport as
           the sheet expands, then continues through the content naturally. */}
-      <View style={[styles.sheet, { minHeight: height - insets.top - 44 - spacing[4] - actionHeight }]}>
+      <View style={[styles.sheet, { minHeight: height - headerHeight - actionHeight }]}>
         <View style={styles.body}>
           <View style={styles.identityRow}>
             <View style={styles.identityText}>

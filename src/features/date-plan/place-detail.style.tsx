@@ -4,10 +4,15 @@ import { colors, glassFx, overlay, radius, spacing, touchTarget, type } from '@/
 
 const { brand, neutral } = colors
 
+/** The hero gallery's height and how far the sheet overlaps it — the view
+ * snaps the page scroll to exactly this seam, so both live here. */
+export const GALLERY_HEIGHT = 280
+export const SHEET_OVERLAP = 28
+
 export const styles = StyleSheet.create({
   // --- gallery -------------------------------------------------------------
-  gallery: { height: 280 },
-  galleryPage: { height: 280 },
+  gallery: { height: GALLERY_HEIGHT },
+  galleryPage: { height: GALLERY_HEIGHT },
   imageScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrimLight },
   galleryDots: {
     position: 'absolute',
@@ -42,7 +47,7 @@ export const styles = StyleSheet.create({
   backInline: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
 
   sheet: {
-    marginTop: -28,
+    marginTop: -SHEET_OVERLAP,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
     backgroundColor: glassFx.sheet,
