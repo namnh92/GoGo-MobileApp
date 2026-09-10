@@ -10,6 +10,8 @@ async function loadConfig(flavor: string | undefined) {
   vi.resetModules()
   if (flavor === undefined) delete process.env.EXPO_PUBLIC_ENV
   else process.env.EXPO_PUBLIC_ENV = flavor
+  process.env.GOOGLE_MAPS_IOS_API_KEY ??= 'ios-key-under-test'
+  process.env.GOOGLE_MAPS_ANDROID_API_KEY ??= 'android-key-under-test'
   process.env.ONESIGNAL_APP_ID = '00000000-0000-4000-8000-000000000001'
   process.env.ONESIGNAL_CONFIG_ENV = flavor === 'stag' ? 'staging' : (flavor ?? 'dev')
   process.env.ONESIGNAL_APNS_MODE = 'production'
@@ -95,12 +97,17 @@ describe('iOS map provider (ADR 0005)', () => {
     expect(JSON.stringify(config.extra)).not.toContain('ios-key-under-test')
   })
 
-  it('builds Apple Maps only when no key is set — including a blank placeholder', async () => {
-    delete process.env.GOOGLE_MAPS_IOS_API_KEY
-    expect((await loadConfig('dev')).ios?.config).toBeUndefined()
+  it.each(['GOOGLE_MAPS_IOS_API_KEY', 'GOOGLE_MAPS_ANDROID_API_KEY'])('rejects a blank %s', async key => {
+    process.env[key] = '   '
+    await expect(loadConfig('dev')).rejects.toThrow(/required for Expo commands and native builds/)
+    delete process.env[key]
+  })
 
-    // The line a developer copies from .env.example.
-    process.env.GOOGLE_MAPS_IOS_API_KEY = '   '
-    expect((await loadConfig('dev')).ios?.config).toBeUndefined()
+  it('embeds the Android key only in native configuration', async () => {
+    process.env.GOOGLE_MAPS_ANDROID_API_KEY = 'android-key-under-test'
+    const config = await loadConfig('dev')
+    expect(config.android?.config?.googleMaps?.apiKey).toBe('android-key-under-test')
+    expect(config.android?.allowBackup).toBe(false)
+    expect(JSON.stringify(config.extra)).not.toContain('android-key-under-test')
   })
 })

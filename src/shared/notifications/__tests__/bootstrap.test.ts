@@ -21,7 +21,7 @@ describe('bootstrap callers survive missing configuration', () => {
   it('the push bootstrap warns instead of throwing', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { initializePushSdk } = await import('../bootstrap')
-    expect(() => initializePushSdk()).not.toThrow()
+    await expect(initializePushSdk()).resolves.toBe('unconfigured')
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('push_sdk_unavailable'))
   })
 
@@ -29,7 +29,7 @@ describe('bootstrap callers survive missing configuration', () => {
     extra.oneSignalAppId = ''
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { initializePushSdk } = await import('../bootstrap')
-    expect(() => initializePushSdk()).not.toThrow()
+    await expect(initializePushSdk()).resolves.toBe('unconfigured')
     expect(warn).toHaveBeenCalled()
   })
 

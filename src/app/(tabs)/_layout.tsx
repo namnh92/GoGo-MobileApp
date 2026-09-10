@@ -2,7 +2,7 @@ import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass
 import { BlurView } from 'expo-blur'
 import { Tabs } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconBookmark, IconCalendar, IconHome, IconUser } from '@/shared/ui/icons'
@@ -33,13 +33,14 @@ export default function TabsLayout() {
           shadowOffset: { width: 0, height: 16 },
           shadowOpacity: 0.16,
           shadowRadius: 42,
-          elevation: 10,
           paddingTop: 8,
           paddingBottom: 10,
           marginHorizontal: spacing[4],
         },
         tabBarBackground: () =>
-          isLiquidGlassSupported ? (
+          Platform.OS === 'android' ? (
+            <View style={[styles.dock, styles.dockSolid]} />
+          ) : isLiquidGlassSupported ? (
             <LiquidGlassView
               effect="regular"
               colorScheme="light"
@@ -90,6 +91,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: glassFx.borderLight,
   },
+  dockSolid: { backgroundColor: colors.neutral[25] },
   dockTint: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: glassFx.dockTint,

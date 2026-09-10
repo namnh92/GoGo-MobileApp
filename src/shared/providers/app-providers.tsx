@@ -14,19 +14,27 @@ import { SessionProvider } from './session-provider'
 import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
 import { initializePushSdk } from '@/shared/notifications/bootstrap'
 import { initializePushIdentity } from '@/shared/notifications/identity-bootstrap'
+import { retryInitialization } from '@/shared/notifications/initialize'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
-const CACHE_BUSTER = 'gogo.v1.0.0-alpha.1'
+const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient)
 
   useEffect(() => bindAppStateToQueryClient(), [])
-  useEffect(() => initializePushSdk(), [])
   useEffect(() => initializeAcquisitionSdk(), [])
-  // After the SDK is initialised: login follows the session, and the teardown
-  // releases the JWT-expiry subscription.
-  useEffect(() => initializePushIdentity(), [])
+  useEffect(() => {
+    let cancelled = false
+    let stopIdentity: (() => void) | undefined
+    void retryInitialization(initializePushSdk).then(result => {
+      if (result === 'ready' && !cancelled) stopIdentity = initializePushIdentity()
+    })
+    return () => {
+      cancelled = true
+      stopIdentity?.()
+    }
+  }, [])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

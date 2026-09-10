@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Platform, UIManager, View } from 'react-native'
+
+import { isGoogleMapsConfigured } from '../../../modules/map-capability'
 
 import { regionForPins, type MapPin } from '@/shared/ui/map-region'
 import { mapColors } from '@/shared/ui/tokens'
@@ -41,25 +43,18 @@ function loadMaps(): MapsModule | null {
 }
 
 export function isMapAvailable(): boolean {
-  return loadMaps() !== null
+  return googleMapsLinked() && loadMaps() !== null
 }
 
-/**
- * Whether this binary linked Google Maps on iOS (ADR 0005).
- *
- * A fact about the build, not a setting: the `react-native-google-maps` pod is
- * in the binary only if `GOOGLE_MAPS_IOS_API_KEY` was set at prebuild. Asking
- * `react-native-maps` for Google on a binary without it renders the library's
- * "AirGoogleMaps dir must be added" placeholder instead of a map, and the
- * library decides that with this exact probe — so the adapter asks the same
- * question of the same binary. Not a manifest flag: a dev server evaluates the
- * manifest from whatever `.env` it was started with, the binary from the `.env`
- * at prebuild, and the two drift the moment someone edits the key without
- * rebuilding. Android has one provider, Google, and nothing to decide.
- */
+/** Probe the installed binary before mounting: a missing Android key throws
+ * on a native SDK thread, outside any JS error boundary. Old dev clients lack
+ * the capability module and safely show the caller's fallback until rebuilt. */
 function googleMapsLinked(): boolean {
-  if (Platform.OS !== 'ios') return false
   try {
+    if (Platform.OS === 'android') {
+      return isGoogleMapsConfigured()
+    }
+    if (Platform.OS !== 'ios') return false
     return UIManager.hasViewManagerConfig('AIRGoogleMap')
   } catch {
     return false
@@ -69,8 +64,12 @@ function googleMapsLinked(): boolean {
 export function MapCanvas({ pins, onSelect, style, fallback }: MapCanvasProps) {
   const maps = loadMaps()
   const region = regionForPins(pins)
+  // What the installed binary linked cannot change while it is running, but
+  // this component re-renders with its screen — `saved.view` re-renders on
+  // every pin tap. Read the binary once per mount, not once per render.
+  const [mapsLinked] = useState(googleMapsLinked)
 
-  if (!maps || !region) {
+  if (!maps || !region || !mapsLinked) {
     return <View style={[{ backgroundColor: mapColors.canvas }, style]}>{fallback}</View>
   }
 
@@ -81,7 +80,7 @@ export function MapCanvas({ pins, onSelect, style, fallback }: MapCanvasProps) {
     <MapView
       style={style}
       initialRegion={region}
-      provider={googleMapsLinked() ? maps.PROVIDER_GOOGLE : maps.PROVIDER_DEFAULT}
+      provider={maps.PROVIDER_GOOGLE}
       showsUserLocation={false}
       toolbarEnabled={false}
       accessibilityLabel={undefined}

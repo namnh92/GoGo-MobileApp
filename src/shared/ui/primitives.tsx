@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -34,7 +35,6 @@ export const glassStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
-    elevation: 3,
   },
   strong: {
     backgroundColor: glassFx.chip,
@@ -44,7 +44,6 @@ export const glassStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.13,
     shadowRadius: 24,
-    elevation: 6,
   },
 })
 
@@ -81,13 +80,20 @@ export function GlassCard({ children, style, strong = false, interactive = false
 export function Atmosphere({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[styles.atmosphereRoot, style]}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {Platform.OS === 'android' ? (
+        <LinearGradient
+          pointerEvents="none"
+          colors={[brand.coralSoft, neutral[50], brand.lavenderSoft]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <View style={[styles.blob, { top: -110, left: -90, width: 380, height: 380, borderRadius: 190, backgroundColor: brand.coralBright, opacity: 0.4 }]} />
         <View style={[styles.blob, { top: -40, right: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: brand.lavender, opacity: 0.3 }]} />
         <View style={[styles.blob, { top: '38%', right: -140, width: 300, height: 300, borderRadius: 150, backgroundColor: brand.lavenderSoft, opacity: 0.55 }]} />
         <View style={[styles.blob, { bottom: -120, left: '22%', width: 360, height: 360, borderRadius: 180, backgroundColor: brand.mint, opacity: 0.22 }]} />
         <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-      </View>
+      </View>}
       {children}
     </View>
   )

@@ -6,7 +6,7 @@ import * as placesApi from '../endpoints/places'
 import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
-import type { OpBody, SavedItem } from '../types'
+import type { OpBody, OpResponse, SavedItem } from '../types'
 import { detailToPlaceCard } from '../view-models'
 
 /** Current actor facts: `actorType` distinguishes a signed-in user from a guest. */
@@ -212,16 +212,54 @@ export function useNotificationPreferences(options?: { enabled?: boolean }) {
     queryKey: queryKeys.notificationPreferences(),
     queryFn: meApi.getNotificationPreferences,
     enabled: options?.enabled ?? true,
+    // Preferences change rarely and this query is persisted. Profile preloads
+    // it, so the settings screen can paint from cache without waiting on GET.
+    staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useSetNotificationPreference() {
   const queryClient = useQueryClient()
+  const key = queryKeys.notificationPreferences()
+
   return useMutation({
     mutationFn: (body: OpBody<'setNotificationPreference'>) => meApi.setNotificationPreference(body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notificationPreferences() })
+
+    // Apply the tap to the cached list immediately. If the PUT fails, restore
+    // the exact previous list; after it settles, reconcile with the server.
+    onMutate: async body => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<OpResponse<'getNotificationPreferences'>>(key)
+      const current = previous ?? []
+      const found = current.some(item => item.channel === body.channel && item.kind === body.kind)
+
+      queryClient.setQueryData<OpResponse<'getNotificationPreferences'>>(
+        key,
+        found
+          ? current.map(item =>
+              item.channel === body.channel && item.kind === body.kind
+                ? { ...item, enabled: body.enabled }
+                : item,
+            )
+          : [...current, body],
+      )
+
+      return {
+        previousEntry: current.find(item => item.channel === body.channel && item.kind === body.kind),
+      }
+    },
+
+    onError: (_error, body, context) => {
+      queryClient.setQueryData<OpResponse<'getNotificationPreferences'>>(key, current => {
+        const withoutFailed = (current ?? []).filter(
+          item => !(item.channel === body.channel && item.kind === body.kind),
+        )
+        return context?.previousEntry ? [...withoutFailed, context.previousEntry] : withoutFailed
+      })
+    },
+
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: key })
     },
   })
 }
-

@@ -94,27 +94,14 @@ const identity = {
 // product actually generates was the one path the app did not claim.
 const WEB_LINK_PREFIXES = ['/l', '/r', '/plans', '/places', '/room']
 
-/**
- * Google Maps SDK for iOS key (APP-040, ADR 0005).
- *
- * Read at prebuild, not at runtime. Expo's built-in `react-native-maps` plugin
- * turns `ios.config.googleMapsApiKey` into `GMSApiKey` in Info.plist, the
- * `react-native-google-maps` pod in the Podfile and `GMSServices.provideAPIKey`
- * in the AppDelegate. Without a key it adds none of that and the binary carries
- * Apple Maps only — a build never fails for want of a map key, and `MapCanvas`
- * asks the binary which SDK it got rather than trusting this file.
- *
- * Deliberately not `EXPO_PUBLIC_*`: that prefix inlines a value into the JS
- * bundle, and this one belongs to native code. It still ships in the binary
- * (Google's SDK reads it from Info.plist), so on the Google side the key is
- * restricted to this app's bundle ids and to the Maps SDK for iOS alone
- * (GoGo-Infra#101). Bundle-id restriction is the protection; secrecy is not
- * available to a client key.
- *
- * Blank counts as absent, so a copied `.env.example` line does not hand Google
- * an empty string.
- */
+/** Native Maps keys are required at prebuild; restrict them by app and SDK.
+ * Never expose keys through EXPO_PUBLIC_* or extra. See ADR 0008. */
 const googleMapsIosApiKey = process.env.GOOGLE_MAPS_IOS_API_KEY?.trim() || undefined
+const googleMapsAndroidApiKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY?.trim() || undefined
+// A map-enabled binary must not silently ship Apple Maps or crash on Android.
+if (!googleMapsIosApiKey || !googleMapsAndroidApiKey) {
+  throw new Error('GOOGLE_MAPS_IOS_API_KEY and GOOGLE_MAPS_ANDROID_API_KEY are required for Expo commands and native builds')
+}
 
 // Same required contract in every remote environment. The marker prevents a
 // DEV-generated file being reused accidentally for a staging/production build.
@@ -156,12 +143,12 @@ const config: ExpoConfig = {
     supportsTablet: false,
     // Only the flavour the domain actually names can verify (see app-identity).
     ...(identity.claimsWebLinks ? { associatedDomains: [`applinks:${identity.webHost}`] } : {}),
-    // Absent key → no `config` at all, so the plugin's "is Google wanted" check
-    // reads the same as a project that never heard of Google Maps.
-    ...(googleMapsIosApiKey ? { config: { googleMapsApiKey: googleMapsIosApiKey } } : {}),
+    config: { googleMapsApiKey: googleMapsIosApiKey },
   },
   android: {
     package: identity.bundleId,
+    config: { googleMaps: { apiKey: googleMapsAndroidApiKey } },
+    allowBackup: false,
     ...(identity.claimsWebLinks
       ? {
           intentFilters: [

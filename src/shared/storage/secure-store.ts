@@ -21,10 +21,11 @@ export async function setSecureItem(key: string, value: string): Promise<void> {
   await SecureStore.setItemAsync(key, value, OPTIONS)
 }
 
-export async function deleteSecureItem(key: string): Promise<void> {
+export async function deleteSecureItem(key: string, strict = false): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(key, OPTIONS)
-  } catch {
+  } catch (error) {
+    if (strict) throw error
     // Already gone — deleting a missing key is not a failure.
   }
 }

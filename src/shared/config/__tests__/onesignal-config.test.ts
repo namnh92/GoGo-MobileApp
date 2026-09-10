@@ -5,6 +5,8 @@ afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 function configure(environment: string) {
   vi.stubEnv('EXPO_PUBLIC_ENV', environment)
   vi.stubEnv('ONESIGNAL_CONFIG_ENV', environment === 'stag' ? 'staging' : environment)
+  vi.stubEnv('GOOGLE_MAPS_IOS_API_KEY', 'test-ios')
+  vi.stubEnv('GOOGLE_MAPS_ANDROID_API_KEY', 'test-android')
   vi.stubEnv('ONESIGNAL_APP_ID', '00000000-0000-4000-8000-000000000001')
   vi.stubEnv('ONESIGNAL_APNS_MODE', 'production')
   vi.stubEnv('TENJIN_CONFIG_ENV', environment === 'stag' ? 'staging' : environment)

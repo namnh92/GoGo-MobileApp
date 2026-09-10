@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react'
 import { Animated, Text, View } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
 
+import { useSession } from '@/shared/providers/session-provider'
+import { hasCompletedOnboarding, markOnboardingComplete } from '@/shared/storage/onboarding'
+
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { colors, motion } from '@/shared/ui/tokens'
 
@@ -12,16 +15,34 @@ const SPLASH_MS = 2200
 
 export default function SplashScreen() {
   const router = useRouter()
+  const { status } = useSession()
   const reducedMotion = useReducedMotion()
+  const [minimumElapsed, setMinimumElapsed] = useState(false)
 
   // Lazy initialiser, not a ref: the value must survive re-renders without
   // being read during render.
   const [entrance] = useState(() => new Animated.Value(0))
 
   useEffect(() => {
-    const timer = setTimeout(() => router.replace('/onboarding'), SPLASH_MS)
+    const timer = setTimeout(() => setMinimumElapsed(true), SPLASH_MS)
     return () => clearTimeout(timer)
-  }, [router])
+  }, [])
+
+  useEffect(() => {
+    if (!minimumElapsed || status === 'hydrating') return
+    let cancelled = false
+    if (status === 'user' || status === 'guest') {
+      // An existing account may predate onboarding storage. Preserve the
+      // once-per-install contract after that account signs out.
+      void markOnboardingComplete()
+      router.replace('/(tabs)')
+      return
+    }
+    void hasCompletedOnboarding().then(completed => {
+      if (!cancelled) router.replace(completed ? '/(tabs)' : '/onboarding')
+    })
+    return () => { cancelled = true }
+  }, [minimumElapsed, router, status])
 
   useEffect(() => {
     // Reduced motion gets the finished state immediately — a cut, not a slower

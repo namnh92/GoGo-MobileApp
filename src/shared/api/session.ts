@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
 import {
   deleteSecureItem,
   getSecureItem,
@@ -28,6 +30,8 @@ export interface Session {
   guestSessionId?: string
 }
 
+const INSTALL_KEY = 'gogo.install.v1'
+
 const KEY_ACCESS = 'gogo.access_token'
 const KEY_REFRESH = 'gogo.refresh_token'
 const KEY_GUEST = 'gogo.guest_token'
@@ -37,6 +41,7 @@ type SessionMeta = Omit<Session, 'accessToken' | 'refreshToken' | 'guestToken'>
 
 let current: Session | null = null
 let hydrated = false
+let hydration: Promise<Session | null> | null = null
 const listeners = new Set<(session: Session | null) => void>()
 
 function emit(): void {
@@ -58,7 +63,28 @@ export function isHydrated(): boolean {
 
 /** Read persisted credentials once at app start. Safe to call repeatedly. */
 export async function hydrateSession(): Promise<Session | null> {
+  if (hydration) return hydration
   if (hydrated) return current
+  hydration = hydratePersistedSession().finally(() => { hydration = null })
+  return hydration
+}
+
+async function hydratePersistedSession(): Promise<Session | null> {
+
+  // Keychain survives iOS uninstall; the app-container marker does not.
+  // Fail closed if local storage cannot confirm this installation.
+  try {
+    if (await AsyncStorage.getItem(INSTALL_KEY) !== '1') {
+      await clearSession(true)
+      await AsyncStorage.setItem(INSTALL_KEY, '1')
+      return null
+    }
+  } catch {
+    current = null
+    hydrated = true
+    emit()
+    return null
+  }
 
   const [accessToken, refreshToken, guestToken, rawMeta] = await Promise.all([
     getSecureItem(KEY_ACCESS),
@@ -101,18 +127,22 @@ export async function persistSession(session: Session): Promise<Session> {
     setOrDeleteSecureItem(KEY_GUEST, guestToken),
     setSecureItem(KEY_META, JSON.stringify(meta)),
   ])
+  // The authenticated session is already valid at this point. A temporary
+  // app-container storage failure must not turn a successful server login into
+  // a client error; hydration still fails closed on the next launch.
+  await AsyncStorage.setItem(INSTALL_KEY, '1').catch(() => {})
   current = session
   hydrated = true
   emit()
   return session
 }
 
-export async function clearSession(): Promise<void> {
+export async function clearSession(strict = false): Promise<void> {
   await Promise.all([
-    deleteSecureItem(KEY_ACCESS),
-    deleteSecureItem(KEY_REFRESH),
-    deleteSecureItem(KEY_GUEST),
-    deleteSecureItem(KEY_META),
+    deleteSecureItem(KEY_ACCESS, strict),
+    deleteSecureItem(KEY_REFRESH, strict),
+    deleteSecureItem(KEY_GUEST, strict),
+    deleteSecureItem(KEY_META, strict),
   ])
   current = null
   hydrated = true

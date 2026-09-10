@@ -87,7 +87,7 @@ if (!existsSync(podfile)) {
 const podfileLock = path.join(root, "ios", "Podfile.lock");
 if (existsSync(podfileLock)) {
   const lock = readFileSync(podfileLock, "utf8").toLowerCase();
-  for (const m of modules) {
+  for (const m of modules.filter((module) => module.appleClasses.length > 0)) {
     // CocoaPods normalises `onesignal-identity` to `OnesignalIdentity`.
     const pod = m.name
       .replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase())
@@ -121,7 +121,7 @@ if (existsSync(podfileLock)) {
     .find(existsSync);
   if (provider) {
     const swift = readFileSync(provider, "utf8");
-    for (const m of modules)
+    for (const m of modules.filter((module) => module.appleClasses.length > 0))
       for (const cls of m.appleClasses)
         if (!swift.includes(cls)) {
           problems.push(
@@ -151,7 +151,7 @@ if (!existsSync(path.join(root, "android"))) {
     );
     const resolved = JSON.parse(out.slice(out.indexOf("{")));
     const names = (resolved.modules ?? []).map((m) => m.packageName);
-    for (const m of modules)
+    for (const m of modules.filter((module) => module.androidClasses.length > 0))
       if (!names.includes(m.name)) {
         problems.push(
           `android autolinking does not resolve local module "${m.name}"`,

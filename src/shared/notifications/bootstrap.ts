@@ -1,7 +1,7 @@
 import Constants from 'expo-constants'
 import { OneSignal } from 'react-native-onesignal'
 
-import { createOneSignalInitializer } from './initialize'
+import { createOneSignalInitializer, type PushStartupResult } from './initialize'
 
 const initialize = createOneSignalInitializer(OneSignal, () => {
   console.warn('push_sdk_unavailable')
@@ -17,11 +17,11 @@ const initialize = createOneSignalInitializer(OneSignal, () => {
  * that is the rule the initializer below already follows, and the caller was
  * the one place breaking it.
  */
-export function initializePushSdk() {
+export function initializePushSdk(): Promise<PushStartupResult> {
   const appId: unknown = Constants.expoConfig?.extra?.oneSignalAppId
   if (typeof appId !== 'string' || appId.length === 0) {
     console.warn('push_sdk_unavailable: rebuild with OneSignal environment configuration')
-    return
+    return Promise.resolve('unconfigured')
   }
-  initialize(appId)
+  return initialize(appId).then(started => (started ? 'ready' : 'unavailable'))
 }

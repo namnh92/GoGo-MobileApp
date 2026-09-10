@@ -5,6 +5,15 @@ import { colors, spacing, touchTarget, type } from '@/shared/ui/tokens'
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
+  syncState: {
+    minHeight: touchTarget.min,
+    marginTop: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  syncText: { ...type.bodySmall, color: neutral[500] },
   sectionTitle: {
     ...type.label,
     fontWeight: '700',

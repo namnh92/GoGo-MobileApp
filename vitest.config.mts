@@ -11,6 +11,7 @@ export default defineConfig({
       // Stubbing only those lets the tests exercise the client the app ships,
       // rather than a Node-shaped copy of it.
       'expo-secure-store': resolve('./src/shared/api/__tests__/stubs/expo-secure-store.ts'),
+      '@react-native-async-storage/async-storage': resolve('./src/shared/api/__tests__/stubs/async-storage.ts'),
       'expo-crypto': resolve('./src/shared/api/__tests__/stubs/expo-crypto.ts'),
     },
   },

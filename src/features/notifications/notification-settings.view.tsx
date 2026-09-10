@@ -1,7 +1,7 @@
-import { useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, Switch, Text, View } from 'react-native'
+import { ActivityIndicator, AppState, Linking, ScrollView, Switch, Text, View } from 'react-native'
 
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -11,8 +11,9 @@ import {
   useSetNotificationPreference,
   type NotificationKind,
 } from '@/shared/api'
+import type { MessageKey } from '@/shared/i18n/types'
 import { useSession } from '@/shared/providers/session-provider'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { EmptyState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
@@ -29,6 +30,20 @@ const KINDS: readonly NotificationKind[] = [
 ]
 
 const CHANNELS = ['push', 'email'] as const
+
+/**
+ * `checking` is the first read still in flight; `unknown` is a read that came
+ * back unusable. Collapsing them made a normal screen open flash "could not be
+ * checked" and a Retry button before the SDK had answered at all.
+ */
+type PushState = 'checking' | 'granted' | 'askable' | 'unknown'
+
+const PUSH_NOTE: Record<PushState, MessageKey> = {
+  checking: 'notificationSettings.pushChecking',
+  granted: 'notificationSettings.pushReady',
+  askable: 'notificationSettings.pushNote',
+  unknown: 'notificationSettings.pushUnknown',
+}
 
 export default function NotificationSettingsScreen() {
   const { t } = useTranslation()
@@ -48,20 +63,48 @@ export default function NotificationSettingsScreen() {
    * screen said it could not (#149). A screen that contradicts what just
    * happened is worse than a silent one.
    */
-  const [pushState, setPushState] = useState<'granted' | 'askable' | 'unknown'>('unknown')
-  useEffect(() => {
-    let cancelled = false
-    void pushPermission.status().then((next) => {
-      if (!cancelled) setPushState(next)
+  const [pushState, setPushState] = useState<PushState>('checking')
+  const [settingsError, setSettingsError] = useState(false)
+  const permissionRevision = useRef(0)
+  const refreshPushState = useCallback(() => {
+    const currentRevision = ++permissionRevision.current
+    void pushPermission.status().then(next => {
+      if (currentRevision !== permissionRevision.current) return
+      // "Open Settings" failed is only true advice while Settings is still the
+      // way in. Once the read says anything else, the message is stale — a
+      // still-askable device keeps it, so a live failure is never swallowed.
+      if (next !== 'askable') setSettingsError(false)
+      setPushState(next)
+    })
+  }, [])
+  useFocusEffect(useCallback(() => {
+    refreshPushState()
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refreshPushState()
     })
     return () => {
-      cancelled = true
+      permissionRevision.current += 1
+      subscription.remove()
     }
-  }, [setPreference.isSuccess])
+  }, [refreshPushState]))
+
+  async function openNotificationSettings() {
+    setSettingsError(false)
+    try {
+      await Linking.openSettings()
+    } catch {
+      setSettingsError(true)
+    }
+  }
 
   /** Absent means the server default applies, which is on. */
   function isEnabled(channel: (typeof CHANNELS)[number], kind: NotificationKind): boolean {
-    const entry = preferences.data?.find(item => item.channel === channel && item.kind === kind)
+    // Until the first response arrives there is no truthful value to show.
+    // Keep the rows visible but safely off and disabled instead of flashing
+    // the contract default on before learning the stored choice.
+    if (!preferences.data) return false
+    if (channel === 'push' && pushState !== 'granted') return false
+    const entry = preferences.data.find(item => item.channel === channel && item.kind === kind)
     return entry?.enabled ?? true
   }
 
@@ -84,30 +127,28 @@ export default function NotificationSettingsScreen() {
     )
   }
 
-  if (preferences.isPending) {
-    return (
-      <Atmosphere>
-        {header}
-        <LoadingState />
-      </Atmosphere>
-    )
-  }
-
-  if (preferences.isError) {
-    return (
-      <Atmosphere>
-        {header}
-        <ErrorState error={preferences.error} onRetry={() => void preferences.refetch()} />
-      </Atmosphere>
-    )
-  }
-
   return (
     <Atmosphere>
       {header}
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
       >
+        {!preferences.data ? (
+          <View accessibilityLiveRegion="polite" style={styles.syncState}>
+            {preferences.isPending ? (
+              <>
+                <ActivityIndicator color={colors.brand.coral} size="small" />
+                <Text style={styles.syncText}>{t('common.loading')}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.error}>{t('notificationSettings.loadFailed')}</Text>
+                <GhostBtn label={t('common.retry')} onPress={() => void preferences.refetch()} />
+              </>
+            )}
+          </View>
+        ) : null}
+
         {CHANNELS.map(channel => (
           <View key={channel}>
             <Text style={styles.sectionTitle}>{t(`notificationSettings.channel.${channel}`)}</Text>
@@ -125,18 +166,10 @@ export default function NotificationSettingsScreen() {
                       // One PUT per toggle; the list refetches so the server
                       // stays the source of truth for what is actually set.
                       onValueChange={next => {
-                        // NTF-APP-003: the contextual moment. Someone turning a
-                        // push channel *on* has just told us why they want
-                        // notifications, which is the only point at which
-                        // spending the one OS prompt is defensible — and the
-                        // point at which sending them to Settings, if the
-                        // prompt is already spent, is help rather than
-                        // hostility. The preference is recorded either way:
-                        // permission governs delivery, not intent.
-                        if (channel === 'push' && next) void pushPermission.request({ fallbackToSettings: true })
+                        if (channel === 'push' && pushState !== 'granted') return
                         setPreference.mutate({ channel, kind, enabled: next })
                       }}
-                      disabled={setPreference.isPending}
+                      disabled={!preferences.data || setPreference.isPending || (channel === 'push' && pushState !== 'granted')}
                       trackColor={{ true: colors.brand.coral, false: colors.neutral[100] }}
                       accessibilityLabel={`${t(`notificationSettings.channel.${channel}`)} · ${t(`notifications.kind.${kind}`)}`}
                     />
@@ -147,10 +180,18 @@ export default function NotificationSettingsScreen() {
           </View>
         ))}
 
-        {/* Preferences save regardless of permission; only delivery depends on it. */}
-        <Text style={styles.note}>
-          {t(pushState === 'granted' ? 'notificationSettings.pushReady' : 'notificationSettings.pushNote')}
-        </Text>
+        {pushState === 'askable' ? (
+          <GhostBtn label={t('notificationSettings.openSettings')} onPress={() => void openNotificationSettings()} />
+        ) : pushState === 'unknown' ? (
+          <GhostBtn label={t('common.retry')} onPress={refreshPushState} />
+        ) : null}
+        <Text style={styles.note}>{t(PUSH_NOTE[pushState])}</Text>
+
+        {settingsError ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {t('notificationSettings.openSettingsFailed')}
+          </Text>
+        ) : null}
 
         {setPreference.isError ? (
           <Text accessibilityLiveRegion="polite" style={styles.error}>

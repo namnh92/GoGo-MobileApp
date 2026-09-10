@@ -8,10 +8,8 @@
  * The rules encode what the platforms actually do, and each one is a way this
  * goes wrong otherwise:
  *
- *   - **never at launch.** The OS prompt can be shown once. Spending it on a
- *     cold start, before the person has any reason to want notifications, is
- *     how an app gets denied permanently by someone who would have said yes
- *     later. Callers pass the moment; this module never fires on its own;
+ *   - **ask after intro.** The initial onboarding completion requests once;
+ *     ordinary launches and notification preferences never request implicitly.
  *   - **ask only when asking is possible.** `canRequestPermission()` is false
  *     once the OS prompt is spent. Calling `requestPermission` then does
  *     nothing on Android and silently resolves false, which reads as "the user
