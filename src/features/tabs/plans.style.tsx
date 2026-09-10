@@ -6,6 +6,11 @@ const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
   createAction: { paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
+  tabs: { flexDirection: 'row', gap: spacing[2], paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
+  tab: { flex: 1, minHeight: touchTarget.min, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: neutral[100] },
+  tabSelected: { backgroundColor: brand.coralSoft },
+  tabLabel: { ...type.label, color: neutral[700] },
+  tabLabelSelected: { color: brand.coralDeep },
   title: {
     ...type.display,
     color: neutral[900],

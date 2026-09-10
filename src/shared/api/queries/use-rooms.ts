@@ -64,6 +64,9 @@ export function useStartMatching(roomId: string) {
     },
     onSuccess: run => {
       queryClient.setQueryData(queryKeys.roomSuggestions(roomId), run)
+      // The Plans tabs filter by status on the server (#213); a moved room
+      // must reappear under the right tab without waiting for staleTime.
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
     },
   })
 }
@@ -89,7 +92,10 @@ export function useTransitionRoom(roomId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: OpBody<'transitionRoom'>) => roomsApi.transitionRoom(roomId, body),
-    onSuccess: room => queryClient.setQueryData(queryKeys.room(roomId), room),
+    onSuccess: room => {
+      queryClient.setQueryData(queryKeys.room(roomId), room)
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
+    },
   })
 }
 

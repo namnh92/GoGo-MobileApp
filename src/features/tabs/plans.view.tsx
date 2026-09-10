@@ -1,6 +1,6 @@
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -26,7 +26,8 @@ export default function PlansScreen() {
   const { status } = useSession()
 
   const canRead = status === 'user' || status === 'guest'
-  const rooms = useMyRooms({ enabled: canRead })
+  const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming')
+  const rooms = useMyRooms({ enabled: canRead, status: tab === 'upcoming' ? UPCOMING.join(',') : 'completed,cancelled,expired' })
 
   // Kept only as an offline read: the server list is the source of truth, but a
   // launch with no connection should still show what this device has seen.
@@ -38,6 +39,7 @@ export default function PlansScreen() {
   )
   const upcoming = items.filter(room => UPCOMING.includes(room.status))
   const past = items.filter(room => !UPCOMING.includes(room.status))
+  const visible = tab === 'upcoming' ? upcoming : past
 
   function openRoom(room: RoomListItem) {
     // A finished room's plan is the thing worth reopening; an active one is not.
@@ -62,14 +64,25 @@ export default function PlansScreen() {
         ? t('gogoRoom.membersTitle', { joined: room.completedCount, total: room.memberCount })
         : null,
       scheduled ? scheduled.toLocaleDateString(i18n.language) : null,
+      isOverdue(room) ? t('plans.overdue') : null,
     ].filter((fact): fact is string => Boolean(fact))
   }
 
+  /**
+   * A room whose date has passed but whose lifecycle has not ended stays in
+   * Upcoming (the server filters by status, never by date) — it just says so.
+   */
+  function isOverdue(room: RoomListItem): boolean {
+    const scheduled = parseApiDate(room.scheduledDate)
+    return UPCOMING.includes(room.status) && scheduled != null && scheduled.getTime() < Date.now()
+  }
+
   /** Status is the one fact that decides whether a room still needs the user. */
-  function statusVariant(s: RoomListItem['status']): 'default' | 'info' | 'positive' | 'warning' {
+  function statusVariant(room: RoomListItem): 'default' | 'info' | 'positive' | 'warning' {
+    const s = room.status
+    if (s === 'cancelled' || s === 'expired' || isOverdue(room)) return 'warning'
     if (s === 'ready' || s === 'active') return 'positive'
     if (s === 'collecting' || s === 'matching') return 'info'
-    if (s === 'cancelled' || s === 'expired') return 'warning'
     return 'default'
   }
 
@@ -95,14 +108,14 @@ export default function PlansScreen() {
           </View>
           <Chip
             label={t(`plans.status.${room.status}`, { defaultValue: room.status })}
-            variant={statusVariant(room.status)}
+            variant={statusVariant(room)}
           />
         </GlassCard>
       </Pressable>
     )
   }
 
-  const isEmpty = !rooms.isPending && items.length === 0
+  const isEmpty = !rooms.isPending && visible.length === 0 && !rooms.hasNextPage
 
   return (
     <Atmosphere>
@@ -115,7 +128,25 @@ export default function PlansScreen() {
         ) : null}
       </View>
 
-      <DraftResume />
+      <View style={styles.createAction}>
+        <DraftResume />
+      </View>
+
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {(['upcoming', 'history'] as const).map(value => (
+          <Pressable
+            key={value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === value }}
+            onPress={() => setTab(value)}
+            style={[styles.tab, tab === value && styles.tabSelected]}
+          >
+            <Text style={[styles.tabLabel, tab === value && styles.tabLabelSelected]}>
+              {t(value === 'upcoming' ? 'plans.upcoming' : 'plans.past')}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       {/* A failed refetch keeps the list that is already on screen. */}
       <StaleNotice
@@ -144,7 +175,7 @@ export default function PlansScreen() {
         ) : isEmpty ? (
           <EmptyState
             title={t('plans.emptyTitle')}
-            body={t('plans.emptyBody')}
+            body={t(tab === 'history' ? 'plans.emptyHistory' : 'plans.emptyBody')}
             action={
               <View style={{ gap: spacing[2], alignSelf: 'stretch' }}>
                 <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
@@ -154,22 +185,10 @@ export default function PlansScreen() {
           />
         ) : (
           <>
-            {upcoming.length > 0 ? (
-              <>
-                <Text style={styles.caption}>{t('plans.upcoming')}</Text>
-                {upcoming.map(room => (
-                  <RoomCard key={room.id} room={room} />
-                ))}
-              </>
-            ) : null}
-
-            {past.length > 0 ? (
-              <>
-                <Text style={styles.caption}>{t('plans.past')}</Text>
-                {past.map(room => (
-                  <RoomCard key={room.id} room={room} past />
-                ))}
-              </>
+            {visible.map(room => <RoomCard key={room.id} room={room} past={tab === 'history'} />)}
+            {rooms.isFetching && visible.length === 0 ? <RoomMemberSkeleton count={2} /> : null}
+            {rooms.isFetchNextPageError ? (
+              <ErrorState error={rooms.error} onRetry={() => void rooms.fetchNextPage()} />
             ) : null}
 
             {rooms.hasNextPage ? (

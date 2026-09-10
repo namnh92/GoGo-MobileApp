@@ -641,9 +641,11 @@ export const viMessages = {
   'saved.addPlace': 'Thêm địa điểm',
   'saved.newTag': 'Mới thêm',
 
+  'plans.emptyHistory': 'Chưa có kèo nào trong lịch sử.',
+  'plans.overdue': 'Đã qua ngày',
   'plans.title': 'Kế hoạch',
   'plans.upcoming': 'Sắp tới',
-  'plans.past': 'Đã qua',
+  'plans.past': 'Lịch sử',
   'plans.loadMore': 'Xem thêm',
   'plans.untitled': 'Kèo chưa đặt tên',
   'plans.emptyTitle': 'Chưa có kèo nào',

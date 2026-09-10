@@ -83,6 +83,7 @@ export function useFinalizeVotes(roomId: string) {
     mutationFn: (body: OpBody<'finalizeVotes'> = {}) => suggestionsApi.finalizeVotes(roomId, body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId) })
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomSuggestions(roomId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomCurrentPlan(roomId) })
     },
