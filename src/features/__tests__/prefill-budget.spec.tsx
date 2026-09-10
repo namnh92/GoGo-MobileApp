@@ -35,6 +35,10 @@ const CHIP = /Dùng ngân sách thường dùng: 300–500k/
 
 beforeEach(() => {
   useRoomStore.getState().resetDraft()
+  // APP-037 (#189): the saved amount is per person, so the chip belongs to a
+  // room whose budget is per person — a group whose host chose that unit. A
+  // couple room is a total for two and gets its own case below.
+  useRoomStore.getState().setAudience('group-host')
   useRoomStore.getState().setBudgetMode('per_person')
   mockMe.query = loaded({ usualBudget: { perPerson: 400_000, currency: 'VND' } })
   mockPush.mockClear()
@@ -61,6 +65,18 @@ describe('usual budget prefill on the budget step', () => {
 
   it('is not offered when the room budget is a group total', async () => {
     useRoomStore.getState().setBudgetMode('total')
+    const view = await renderScreen(<CreateBudgetScreen />)
+    expect(view.queryByText(/Dùng ngân sách thường dùng/)).toBeNull()
+  })
+
+  /**
+   * APP-037 (#189) — a couple is asked for a total for two, so a saved
+   * per-person amount is the wrong unit to offer, whatever the store default
+   * happens to be.
+   */
+  it('is never offered in a couple room, which asks for a total for two', async () => {
+    useRoomStore.getState().setAudience('couple')
+    useRoomStore.getState().setBudgetMode('per_person')
     const view = await renderScreen(<CreateBudgetScreen />)
     expect(view.queryByText(/Dùng ngân sách thường dùng/)).toBeNull()
   })
