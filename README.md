@@ -70,11 +70,18 @@ hiện sau khi upload.
 Đổi bundle id là đổi cấu hình bên ngoài repo: OneSignal (app theo bundle id),
 Tenjin, App Store Connect / Play Console, và ràng buộc key Google Maps.
 
-Bản đồ iOS là Google Maps khi build có `GOOGLE_MAPS_IOS_API_KEY` trong `.env`
-(ADR 0005). Key này chỉ được đọc lúc prebuild, nằm trong binary và được Google
-giới hạn theo đúng ba bundle id trên — đổi bundle id là key ngừng chạy. Không có
-key thì build vẫn xong và iOS dùng Apple Maps. Đổi key xong phải build lại:
-`npx expo prebuild --platform ios && pnpm ios`.
+Cả iOS và Android dùng Google Maps. Build yêu cầu `GOOGLE_MAPS_IOS_API_KEY`
+và `GOOGLE_MAPS_ANDROID_API_KEY` trong `.env.local` (ignored), lấy từ SSM mobile
+của đúng môi trường. Key iOS giới hạn theo bundle id; Android theo package +
+SHA-1 chứng chỉ ký. Không in hoặc commit key. Đổi key hoặc thêm native module:
+`npx expo prebuild && pnpm ios` / `pnpm android`; chỉ reload Metro không đủ.
+Binary cũ thiếu Google SDK/key hiển thị fallback và danh sách (ADR 0008).
+
+Intro hoàn tất một lần mỗi lượt cài; khi kết thúc sẽ hỏi quyền thông báo.
+Mở lại app giữ phiên; cài lại xóa phiên Keychain cũ. Bản nâng cấp đầu tiên có
+installation marker sẽ yêu cầu đăng nhập lại một lần. Android tắt backup app
+để reinstall không phục hồi marker cũ. Công tắc push hiển thị off/disabled
+khi máy chưa cấp quyền, và cập nhật lại khi quay về từ Settings.
 
 ## Deep link contract
 

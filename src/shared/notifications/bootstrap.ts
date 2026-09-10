@@ -21,7 +21,7 @@ export function initializePushSdk() {
   const appId: unknown = Constants.expoConfig?.extra?.oneSignalAppId
   if (typeof appId !== 'string' || appId.length === 0) {
     console.warn('push_sdk_unavailable: rebuild with OneSignal environment configuration')
-    return
+    return Promise.resolve(false)
   }
-  initialize(appId)
+  return initialize(appId)
 }

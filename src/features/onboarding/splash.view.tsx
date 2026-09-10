@@ -1,7 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Animated, Text, View } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
+
+import { useSession } from '@/shared/providers/session-provider'
 
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { colors, motion } from '@/shared/ui/tokens'
@@ -12,6 +15,7 @@ const SPLASH_MS = 2200
 
 export default function SplashScreen() {
   const router = useRouter()
+  const { status } = useSession()
   const reducedMotion = useReducedMotion()
 
   // Lazy initialiser, not a ref: the value must survive re-renders without
@@ -19,9 +23,15 @@ export default function SplashScreen() {
   const [entrance] = useState(() => new Animated.Value(0))
 
   useEffect(() => {
-    const timer = setTimeout(() => router.replace('/onboarding'), SPLASH_MS)
-    return () => clearTimeout(timer)
-  }, [router])
+    if (status === 'hydrating') return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      void AsyncStorage.getItem('gogo.onboarding.v1').catch(() => null).then(completed => {
+        if (!cancelled) router.replace(completed === '1' || status === 'user' || status === 'guest' ? '/(tabs)' : '/onboarding')
+      })
+    }, SPLASH_MS)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [router, status])
 
   useEffect(() => {
     // Reduced motion gets the finished state immediately — a cut, not a slower

@@ -28,6 +28,7 @@ expo-env.d.ts
 # Logs & coverage
 *.log
 coverage/
+**/build/
 
 # OS / editor
 .DS_Store

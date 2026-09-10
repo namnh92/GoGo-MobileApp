@@ -1,17 +1,14 @@
-import { Text, UIManager, View } from 'react-native'
+import { Platform, Text, UIManager, View } from 'react-native'
 
 import { renderScreen } from './harness'
 
-/**
- * The adapter picks one of two paths: a real map when the SDK is loadable, an
- * honest surface when it is not. Both are asserted here, because the fallback
- * is a designed state — Android renders it until a Google Maps API key exists
- * (ADR 0004) — not a console warning.
- *
- * On iOS there is a third decision: which SDK to ask for. Google is a fact
- * about the binary (ADR 0005), read through the same probe `react-native-maps`
- * gates on, so the tests set that probe rather than any config.
- */
+/** Regression coverage for SDK absence, native key gating and Google provider selection. */
+
+const mockNativeMap = { googleMapsConfigured: false }
+jest.mock('expo-modules-core', () => ({
+  ...jest.requireActual('expo-modules-core'),
+  requireOptionalNativeModule: () => mockNativeMap,
+}))
 
 const mockMapMissing = { value: false }
 
@@ -56,7 +53,8 @@ function binaryLinks(...viewManagers: string[]) {
 beforeEach(() => {
   mockMapMissing.value = false
   jest.resetModules()
-  binaryLinks()
+  binaryLinks('AIRGoogleMap')
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
 })
 
 describe('MapCanvas', () => {
@@ -97,13 +95,23 @@ describe('MapCanvas', () => {
       expect(view.queryAllByLabelText('Quán A')).toHaveLength(1)
     })
 
-    it('stays on Apple Maps in a binary built without a Google key', async () => {
-      // Asking for Google here would render the library's "AirGoogleMaps dir
-      // must be added" placeholder, not a map — the binary decides, not config.
+    it('shows fallback in an iOS binary without Google Maps', async () => {
+      // A stale binary uses the caller fallback until Google Maps is linked.
       binaryLinks()
-      const view = await renderScreen(<MapCanvas pins={PINS} />)
-      expect(view.queryAllByTestId('map:default')).toHaveLength(1)
+      const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>Map unavailable</Text>} />)
+      expect(view.queryAllByText('Map unavailable')).toHaveLength(1)
+      expect(view.queryAllByTestId('map:default')).toHaveLength(0)
       expect(view.queryAllByTestId('map:google')).toHaveLength(0)
     })
+  })
+})
+
+describe('Android native configuration', () => {
+  it.each([false, true])('only mounts Google Maps with a native key: %s', async configured => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' })
+    mockNativeMap.googleMapsConfigured = configured
+    const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>Map unavailable</Text>} />)
+    expect(view.queryAllByTestId('map:google')).toHaveLength(configured ? 1 : 0)
+    expect(view.queryAllByText('Map unavailable')).toHaveLength(configured ? 0 : 1)
   })
 })

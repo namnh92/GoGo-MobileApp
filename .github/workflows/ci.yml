@@ -72,6 +72,8 @@ jobs:
         env:
           ONESIGNAL_APP_ID: '00000000-0000-4000-8000-000000000001'
           ONESIGNAL_APNS_MODE: production
+          GOOGLE_MAPS_IOS_API_KEY: ci-ios-map-fixture
+          GOOGLE_MAPS_ANDROID_API_KEY: ci-android-map-fixture
           TENJIN_IOS_SDK_KEY: ci-ios
           TENJIN_ANDROID_SDK_KEY: ci-android
         run: |
