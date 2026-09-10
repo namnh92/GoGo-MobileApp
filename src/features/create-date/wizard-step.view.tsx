@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BackHeader, ProgressDots } from '@/shared/ui/primitives'
 
-import { SaveDraftButton } from './save-draft.view'
+import { WizardActions } from './wizard-actions.view'
 import { styles } from './wizard-step.style'
 
 /**
@@ -18,6 +18,11 @@ export const WIZARD_STEPS = ['location', 'time', 'budget', 'mood'] as const
 
 export type WizardStepKey = (typeof WIZARD_STEPS)[number]
 
+/**
+ * Back is always a plain pop: the previous step is below on the stack whether
+ * the user walked here or resumed a draft (`DraftResume` pushes the whole
+ * path). Leaving the wizard in one move is `WizardActions`' job.
+ */
 export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () => void }) {
   const insets = useSafeAreaInsets()
   const index = WIZARD_STEPS.indexOf(step)
@@ -33,7 +38,7 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
               <Text style={styles.stepLabel} accessibilityLabel={`${index + 1}/${total}`}>
                 {index + 1} / {total}
               </Text>
-              <SaveDraftButton step={step} />
+              <WizardActions step={step} />
             </View>
           }
         />
