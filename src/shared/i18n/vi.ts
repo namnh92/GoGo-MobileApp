@@ -157,6 +157,7 @@ export const viMessages = {
   'createLocation.locatedNoLabel': 'Đã lấy được vị trí của bạn',
   'createLocation.permissionDenied': 'Chưa có quyền vị trí. Chọn khu vực thủ công bên dưới nhé.',
   'createLocation.locationUnavailable': 'Chưa lấy được vị trí. Chọn khu vực thủ công bên dưới nhé.',
+  'createLocation.useHomeArea': 'Dùng khu vực mặc định: {{area}}',
 
   'createTime.title': 'Các bạn có\nbao nhiêu thời gian?',
   'createTime.title_couple': 'Hai đứa có\nbao nhiêu thời gian?',
@@ -180,6 +181,7 @@ export const viMessages = {
   'createBudget.tier.to1500.sub': 'Nhà hàng · workshop',
   'createBudget.tier.flexible': 'Không quan trọng',
   'createBudget.tier.flexible.sub': 'Miễn là vui là được',
+  'createBudget.useUsual': 'Dùng ngân sách thường dùng: {{tier}}',
 
   'createMood.title': 'Mood\ntối nay?',
   'createMood.body': 'Chọn tối đa {{max}} mood.',
@@ -285,6 +287,7 @@ export const viMessages = {
   'preference.body': 'Chọn 2–3 thứ phù hợp nhất với tối nay của bạn.',
   'preference.saveFailed': 'Chưa lưu được lựa chọn. Thử lại nhé.',
   'preference.conflict': 'Lựa chọn của bạn đã được cập nhật ở thiết bị khác. Tải lại rồi chọn lại nhé.',
+  'preference.useSaved': 'Dùng sở thích đã lưu',
 
   'suggestion.reason.MATCHES_PREFERENCES': 'Hợp gu các bạn',
   'suggestion.reason.LIKED_BY_EVERYONE': 'Ai cũng thích',

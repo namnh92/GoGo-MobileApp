@@ -7,14 +7,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   isApiError,
   useCompleteMyPreferences,
+  useMe,
   useMyPreferences,
   useSaveMyPreferences,
   useTaxonomies,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
@@ -61,6 +63,27 @@ export default function PreferenceScreen() {
       emoji: taxonomyEmoji(entry.key ?? ''),
     }))
   }, [taxonomies.data, i18n.language])
+
+  // ADR-0022: the profile's saved interests are offered as a chip, only while
+  // nothing is chosen here and nothing was ever saved for this room, and they
+  // fill the local draft only — autosave runs when the person continues, as it
+  // always did. A guest has no profile and never sees the chip.
+  const { status } = useSession()
+  const me = useMe({ enabled: status === 'user' })
+  const savedInterests = useMemo(
+    () => (me.data?.interests?.mood ?? []).filter(key => options.some(option => option.key === key)),
+    [me.data, options],
+  )
+  const offerSaved =
+    edited === null &&
+    selected.length === 0 &&
+    (preferences.data?.version ?? 0) === 0 &&
+    savedInterests.length > 0
+
+  function useSavedInterests() {
+    setEdited(savedInterests.slice(0, MAX_PREFS))
+    track('profile_prefill_used', { field: 'interests' })
+  }
 
   function toggle(key: string) {
     setEdited(prev => {
@@ -134,6 +157,12 @@ export default function PreferenceScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{t('preference.title')}</Text>
         <Text style={styles.body}>{t('preference.body')}</Text>
+
+        {offerSaved ? (
+          <View style={styles.prefillRow}>
+            <Chip icon="⭐" label={t('preference.useSaved')} variant="info" onPress={useSavedInterests} />
+          </View>
+        ) : null}
 
         <View style={styles.grid}>
           {options.map(option => {

@@ -156,6 +156,7 @@ export const enMessages: Record<MessageKey, string> = {
   'createLocation.locatedNoLabel': 'Got your location',
   'createLocation.permissionDenied': 'No location permission. Pick an area below instead.',
   'createLocation.locationUnavailable': "Couldn't get your location. Pick an area below instead.",
+  'createLocation.useHomeArea': 'Use my home area: {{area}}',
 
   'createTime.title': 'How much time\ndo you all have?',
   'createTime.title_couple': 'How much time\ndo you two have?',
@@ -179,6 +180,7 @@ export const enMessages: Record<MessageKey, string> = {
   'createBudget.tier.to1500.sub': 'Restaurant · workshop',
   'createBudget.tier.flexible': "Doesn't matter",
   'createBudget.tier.flexible.sub': 'As long as it is fun',
+  'createBudget.useUsual': 'Use my usual budget: {{tier}}',
 
   'createMood.title': "Tonight's\nmood?",
   'createMood.body': 'Pick up to {{max}} moods.',
@@ -282,6 +284,7 @@ export const enMessages: Record<MessageKey, string> = {
   'preference.body': 'Pick the 2–3 things that fit your evening best.',
   'preference.saveFailed': 'Could not save your picks. Please try again.',
   'preference.conflict': 'Your picks changed on another device. Reload and choose again.',
+  'preference.useSaved': 'Use my saved interests',
 
   'suggestion.reason.MATCHES_PREFERENCES': 'Matches your picks',
   'suggestion.reason.LIKED_BY_EVERYONE': 'Everyone likes it',

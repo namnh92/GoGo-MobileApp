@@ -22,3 +22,11 @@ export function areaLabelFrom(place: ReverseGeocodedPlace | undefined): string |
   const unique = parts.filter((part, index) => parts.indexOf(part) === index)
   return unique.length > 0 ? unique.join(', ') : null
 }
+
+/**
+ * A curated service area as a picker shows it — `Quận 1, TP.HCM`, or just the
+ * name when the area is itself the city. Display only; the key is the fact.
+ */
+export function serviceAreaLabel(area: { name: string; city?: string | null }): string {
+  return area.city && area.city !== area.name ? `${area.name}, ${area.city}` : area.name
+}

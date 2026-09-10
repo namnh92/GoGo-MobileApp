@@ -20,4 +20,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
+  prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[4] },
 })
