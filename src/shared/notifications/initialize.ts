@@ -35,6 +35,14 @@ export function createOneSignalInitializer(sdk: OneSignalBootstrap, onUnavailabl
   }
 }
 
+/**
+ * How a push start attempt ended. Only `unavailable` — the native SDK refused
+ * to start — can change by trying again. `unconfigured` is a property of the
+ * build: this binary carries no App ID, and retrying only delays startup while
+ * repeating the same warning.
+ */
+export type PushStartupResult = 'ready' | 'unconfigured' | 'unavailable'
+
 interface InitializationRetryOptions {
   attempts?: number
   delayMs?: number
@@ -43,16 +51,17 @@ interface InitializationRetryOptions {
 
 /** Retry transient native startup failures without keeping a provider loop alive forever. */
 export async function retryInitialization(
-  initialize: () => Promise<boolean>,
+  initialize: () => Promise<PushStartupResult>,
   options: InitializationRetryOptions = {},
-): Promise<boolean> {
+): Promise<PushStartupResult> {
   const attempts = Math.max(1, options.attempts ?? 3)
   const delayMs = options.delayMs ?? 750
   const sleep = options.sleep ?? (ms => new Promise<void>(resolve => setTimeout(resolve, ms)))
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    if (await initialize()) return true
+    const result = await initialize()
+    if (result !== 'unavailable') return result
     if (attempt < attempts) await sleep(delayMs * attempt)
   }
-  return false
+  return 'unavailable'
 }

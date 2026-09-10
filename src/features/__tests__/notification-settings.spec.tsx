@@ -103,6 +103,41 @@ it('describes an unavailable permission read without claiming notifications are 
   expect(screen.queryByText(/Thông báo trên máy này đang tắt/)).toBeNull()
 })
 
+it('does not claim the permission check failed while the first read is pending', async () => {
+  let resolveStatus!: (state: 'granted') => void
+  mockStatus.mockReturnValueOnce(new Promise(resolve => { resolveStatus = resolve }))
+  const screen = await renderScreen(<NotificationSettings />)
+
+  // Pending is not failed. The failure copy and its Retry belong to a read that
+  // came back unusable, not to one that has not come back yet.
+  expect(screen.queryByText(/Không kiểm tra được quyền thông báo/)).toBeNull()
+  expect(screen.queryByText('Thử lại')).toBeNull()
+  for (const toggle of screen.getAllByRole('switch').slice(0, 6)) {
+    expect(toggle.props.value).toBe(false)
+    expect(toggle.props.disabled).toBe(true)
+  }
+
+  await act(async () => { resolveStatus('granted') })
+  expect(screen.getAllByRole('switch')[0].props.value).toBe(true)
+})
+
+it('drops a stale Settings error once permission is granted through another path', async () => {
+  let resume: ((state: AppStateStatus) => void) | undefined
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, callback) => {
+    resume = callback
+    return { remove: jest.fn() }
+  })
+  mockStatus.mockResolvedValue('askable')
+  jest.spyOn(Linking, 'openSettings').mockRejectedValueOnce(new Error('unavailable'))
+  const screen = await renderScreen(<NotificationSettings />)
+  await fireEvent.press(screen.getByText('Mở Cài đặt thông báo'))
+  expect(screen.getByText(/Không mở được Cài đặt/)).toBeTruthy()
+
+  mockStatus.mockResolvedValue('granted')
+  await act(async () => { resume?.('active') })
+  expect(screen.queryByText(/Không mở được Cài đặt/)).toBeNull()
+})
+
 it('shows a recoverable error when system Settings cannot be opened', async () => {
   mockStatus.mockResolvedValue('askable')
   jest.spyOn(Linking, 'openSettings').mockRejectedValueOnce(new Error('unavailable'))

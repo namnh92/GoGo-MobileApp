@@ -27,8 +27,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     let stopIdentity: (() => void) | undefined
-    void retryInitialization(initializePushSdk).then(ready => {
-      if (ready && !cancelled) stopIdentity = initializePushIdentity()
+    void retryInitialization(initializePushSdk).then(result => {
+      if (result === 'ready' && !cancelled) stopIdentity = initializePushIdentity()
     })
     return () => {
       cancelled = true

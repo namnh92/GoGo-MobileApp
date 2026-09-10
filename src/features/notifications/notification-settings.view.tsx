@@ -11,6 +11,7 @@ import {
   useSetNotificationPreference,
   type NotificationKind,
 } from '@/shared/api'
+import type { MessageKey } from '@/shared/i18n/types'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
@@ -30,6 +31,20 @@ const KINDS: readonly NotificationKind[] = [
 
 const CHANNELS = ['push', 'email'] as const
 
+/**
+ * `checking` is the first read still in flight; `unknown` is a read that came
+ * back unusable. Collapsing them made a normal screen open flash "could not be
+ * checked" and a Retry button before the SDK had answered at all.
+ */
+type PushState = 'checking' | 'granted' | 'askable' | 'unknown'
+
+const PUSH_NOTE: Record<PushState, MessageKey> = {
+  checking: 'notificationSettings.pushChecking',
+  granted: 'notificationSettings.pushReady',
+  askable: 'notificationSettings.pushNote',
+  unknown: 'notificationSettings.pushUnknown',
+}
+
 export default function NotificationSettingsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -48,12 +63,18 @@ export default function NotificationSettingsScreen() {
    * screen said it could not (#149). A screen that contradicts what just
    * happened is worse than a silent one.
    */
-  const [pushState, setPushState] = useState<'granted' | 'askable' | 'unknown'>('unknown')
+  const [pushState, setPushState] = useState<PushState>('checking')
+  const [settingsError, setSettingsError] = useState(false)
   const permissionRevision = useRef(0)
   const refreshPushState = useCallback(() => {
     const currentRevision = ++permissionRevision.current
     void pushPermission.status().then(next => {
-      if (currentRevision === permissionRevision.current) setPushState(next)
+      if (currentRevision !== permissionRevision.current) return
+      // "Open Settings" failed is only true advice while Settings is still the
+      // way in. Once the read says anything else, the message is stale — a
+      // still-askable device keeps it, so a live failure is never swallowed.
+      if (next !== 'askable') setSettingsError(false)
+      setPushState(next)
     })
   }, [])
   useFocusEffect(useCallback(() => {
@@ -67,7 +88,6 @@ export default function NotificationSettingsScreen() {
     }
   }, [refreshPushState]))
 
-  const [settingsError, setSettingsError] = useState(false)
   async function openNotificationSettings() {
     setSettingsError(false)
     try {
@@ -165,15 +185,7 @@ export default function NotificationSettingsScreen() {
         ) : pushState === 'unknown' ? (
           <GhostBtn label={t('common.retry')} onPress={refreshPushState} />
         ) : null}
-        <Text style={styles.note}>
-          {t(
-            pushState === 'granted'
-              ? 'notificationSettings.pushReady'
-              : pushState === 'askable'
-                ? 'notificationSettings.pushNote'
-                : 'notificationSettings.pushUnknown',
-          )}
-        </Text>
+        <Text style={styles.note}>{t(PUSH_NOTE[pushState])}</Text>
 
         {settingsError ? (
           <Text accessibilityLiveRegion="polite" style={styles.error}>

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Platform, UIManager, View } from 'react-native'
 
 import { isGoogleMapsConfigured } from '../../../modules/map-capability'
@@ -64,8 +64,12 @@ function googleMapsLinked(): boolean {
 export function MapCanvas({ pins, onSelect, style, fallback }: MapCanvasProps) {
   const maps = loadMaps()
   const region = regionForPins(pins)
+  // What the installed binary linked cannot change while it is running, but
+  // this component re-renders with its screen — `saved.view` re-renders on
+  // every pin tap. Read the binary once per mount, not once per render.
+  const [mapsLinked] = useState(googleMapsLinked)
 
-  if (!maps || !region || !googleMapsLinked()) {
+  if (!maps || !region || !mapsLinked) {
     return <View style={[{ backgroundColor: mapColors.canvas }, style]}>{fallback}</View>
   }
 

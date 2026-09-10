@@ -641,6 +641,7 @@ export const enMessages: Record<MessageKey, string> = {
   'notificationSettings.pushNote': 'Notifications are off on this device. Allow notifications in Settings to enable the push options above.',
   'notificationSettings.openSettings': 'Open notification settings',
   'notificationSettings.openSettingsFailed': 'Could not open Settings. Open system Settings and select GoGo.',
+  'notificationSettings.pushChecking': 'Checking notification permission on this device…',
   'notificationSettings.pushReady': 'This device is set up to receive push.',
   'notificationSettings.pushUnknown': 'Notification permission could not be checked on this device. Push options are temporarily locked.',
   'profile.settings.notifications': '🔔 Notifications',

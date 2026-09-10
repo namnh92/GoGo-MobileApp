@@ -4,7 +4,10 @@ import { renderScreen } from './harness'
 
 /** Regression coverage for SDK absence, native key gating and Google provider selection. */
 
-const mockNativeMap = { configured: false, isGoogleMapsConfigured() { return this.configured } }
+const mockNativeMap = {
+  configured: false,
+  isGoogleMapsConfigured: jest.fn((): boolean => mockNativeMap.configured),
+}
 jest.mock('expo-modules-core', () => ({
   ...jest.requireActual('expo-modules-core'),
   requireOptionalNativeModule: () => mockNativeMap,
@@ -52,6 +55,7 @@ function binaryLinks(...viewManagers: string[]) {
 
 beforeEach(() => {
   mockMapMissing.value = false
+  mockNativeMap.isGoogleMapsConfigured.mockClear()
   jest.resetModules()
   binaryLinks('AIRGoogleMap')
   Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
@@ -113,5 +117,18 @@ describe('Android native configuration', () => {
     const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>Map unavailable</Text>} />)
     expect(view.queryAllByTestId('map:google')).toHaveLength(configured ? 1 : 0)
     expect(view.queryAllByText('Map unavailable')).toHaveLength(configured ? 0 : 1)
+  })
+
+  // The manifest key cannot change inside a running process, but `MapCanvas`
+  // re-renders whenever its screen does — `saved.view` re-renders on every pin
+  // tap. Reading the binary is a per-mount fact, not a per-render one.
+  it('reads the native capability once per mount, not on every render', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' })
+    mockNativeMap.configured = true
+    const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>Map unavailable</Text>} />)
+    expect(mockNativeMap.isGoogleMapsConfigured).toHaveBeenCalledTimes(1)
+
+    await view.rerender(<MapCanvas pins={PINS} fallback={<Text>Map unavailable</Text>} />)
+    expect(mockNativeMap.isGoogleMapsConfigured).toHaveBeenCalledTimes(1)
   })
 })

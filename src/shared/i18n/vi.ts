@@ -649,6 +649,7 @@ export const viMessages = {
   'notificationSettings.pushNote': 'Thông báo trên máy này đang tắt. Cho phép thông báo trong Cài đặt để bật các tuỳ chọn bên trên.',
   'notificationSettings.openSettings': 'Mở Cài đặt thông báo',
   'notificationSettings.openSettingsFailed': 'Không mở được Cài đặt. Vui lòng mở Cài đặt hệ thống và chọn GoGo.',
+  'notificationSettings.pushChecking': 'Đang kiểm tra quyền thông báo trên máy này…',
   'notificationSettings.pushReady': 'Máy này đã sẵn sàng nhận thông báo đẩy.',
   'notificationSettings.pushUnknown': 'Không kiểm tra được quyền thông báo trên máy này. Các tuỳ chọn push tạm thời bị khoá.',
   'profile.settings.notifications': '🔔 Thông báo',

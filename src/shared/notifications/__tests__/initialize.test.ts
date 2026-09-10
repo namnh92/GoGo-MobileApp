@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createOneSignalInitializer, retryInitialization } from '../initialize'
+import {
+  createOneSignalInitializer,
+  retryInitialization,
+  type PushStartupResult,
+} from '../initialize'
 
 describe('OneSignal bootstrap', () => {
   it('initializes once across repeat mounts, with logging/location collection off', async () => {
@@ -55,14 +59,38 @@ it('waits for the native initialization queue before allowing identity startup',
 })
 
 it('retries transient initialization failures with a finite backoff', async () => {
-  const initialize = vi.fn()
-    .mockResolvedValueOnce(false)
-    .mockResolvedValueOnce(false)
-    .mockResolvedValueOnce(true)
+  const initialize = vi.fn<() => Promise<PushStartupResult>>()
+    .mockResolvedValueOnce('unavailable')
+    .mockResolvedValueOnce('unavailable')
+    .mockResolvedValueOnce('ready')
   const sleep = vi.fn(async () => {})
 
-  await expect(retryInitialization(initialize, { attempts: 3, delayMs: 10, sleep })).resolves.toBe(true)
+  await expect(retryInitialization(initialize, { attempts: 3, delayMs: 10, sleep })).resolves.toBe('ready')
   expect(initialize).toHaveBeenCalledTimes(3)
   expect(sleep).toHaveBeenNthCalledWith(1, 10)
   expect(sleep).toHaveBeenNthCalledWith(2, 20)
+})
+
+// A binary with no App ID will not grow one by being asked again: retrying it
+// only spends startup time and repeats the same warning in a dev client.
+it('does not retry a build that carries no push configuration', async () => {
+  const initialize = vi.fn<() => Promise<PushStartupResult>>().mockResolvedValue('unconfigured')
+  const sleep = vi.fn(async () => {})
+
+  await expect(retryInitialization(initialize, { attempts: 3, delayMs: 10, sleep })).resolves.toBe(
+    'unconfigured',
+  )
+  expect(initialize).toHaveBeenCalledTimes(1)
+  expect(sleep).not.toHaveBeenCalled()
+})
+
+it('gives up after the last attempt rather than looping forever', async () => {
+  const initialize = vi.fn<() => Promise<PushStartupResult>>().mockResolvedValue('unavailable')
+  const sleep = vi.fn(async () => {})
+
+  await expect(retryInitialization(initialize, { attempts: 2, delayMs: 10, sleep })).resolves.toBe(
+    'unavailable',
+  )
+  expect(initialize).toHaveBeenCalledTimes(2)
+  expect(sleep).toHaveBeenCalledTimes(1)
 })
