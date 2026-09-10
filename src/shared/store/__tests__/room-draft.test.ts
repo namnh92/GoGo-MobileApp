@@ -34,8 +34,8 @@ describe('toCreateRoomBody', () => {
     expect(body.participantCount).toBe(5)
   })
 
-  it('sends the budget in integer minor units with its mode', () => {
-    useRoomStore.setState({ budgetMode: 'total' })
+  it('sends the budget in integer minor units with the mode the host chose', () => {
+    useRoomStore.setState({ audience: 'group-host', budgetMode: 'total' })
     useRoomStore.getState().patchDraft({ budgetAmount: 1_500_000, currency: 'VND' })
 
     const body = toCreateRoomBody(draft())
@@ -43,6 +43,30 @@ describe('toCreateRoomBody', () => {
     expect(body.constraint.budgetMode).toBe('total')
     expect(body.constraint.budgetAmount).toBe(1_500_000)
     expect(body.constraint.currency).toBe('VND')
+  })
+
+  /**
+   * APP-037 (#189) — the couple budget step asks for a total for two and the
+   * store defaulted to per_person, so the amount was stored in the wrong unit
+   * and the backend read it as a per-head ceiling: twice the intent.
+   */
+  it('sends a couple budget as a total whatever the store holds', () => {
+    useRoomStore.setState({ audience: 'couple', budgetMode: 'per_person' })
+    useRoomStore.getState().patchDraft({ budgetAmount: 500_000, currency: 'VND' })
+
+    const body = toCreateRoomBody(draft())
+
+    expect(body.type).toBe('couple')
+    expect(body.constraint.budgetMode).toBe('total')
+    expect(body.constraint.budgetAmount).toBe(500_000)
+  })
+
+  it('leaves a group host with either unit', () => {
+    for (const mode of ['per_person', 'total'] as const) {
+      useRoomStore.setState({ audience: 'group-host', budgetMode: mode })
+      useRoomStore.getState().patchDraft({ budgetAmount: 250_000 })
+      expect(toCreateRoomBody(draft()).constraint.budgetMode).toBe(mode)
+    }
   })
 
   it('omits optional constraint fields rather than sending nulls', () => {

@@ -1,5 +1,6 @@
 import * as Clipboard from 'expo-clipboard'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Share, Text, View } from 'react-native'
@@ -19,6 +20,7 @@ import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { formatMoney } from '@/shared/pricing/money'
+import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
 import {
   Atmosphere,
@@ -230,11 +232,11 @@ export default function GoGoRoomScreen() {
               />
               {summary.constraints.budgetAmount ? (
                 <Chip
-                  label={`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${
-                    summary.constraints.budgetMode === 'per_person'
-                      ? t('datePlan.perPerson')
-                      : t('price.groupTotal')
-                  }`}
+                  label={`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(
+                    summary.constraints.budgetMode,
+                    roomType,
+                    t,
+                  )}`}
                   icon="💰"
                   variant="default"
                 />

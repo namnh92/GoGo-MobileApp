@@ -158,6 +158,10 @@ export function useRoom(): RoomView {
   return {
     ...state,
     roomType: state.audience === 'couple' ? 'couple' : 'group',
+    // APP-037 (#189): screens read the unit the room is actually in, not the
+    // store's default. One derivation, so the wizard, the prefill gate and the
+    // payload cannot disagree about what the number means.
+    budgetMode: budgetModeFor(state.audience, state.budgetMode),
     isGuest,
     canRegenerate: !isGuest,
     canEditConstraints: !isGuest,
@@ -173,6 +177,21 @@ export function missingDraftFields(state: RoomStoreState): string[] {
 }
 
 /**
+ * APP-037 (#189) — which unit a room's budget is in, decided by room type
+ * rather than by whatever the store happens to hold.
+ *
+ * A couple is asked "Ngân sách cho cả hai?" and answers with a total for two
+ * (spec §23.3: couple prices read "cho 2 người"); only the group setup screen
+ * offers the per-person/total choice. The store defaulted to `per_person` and
+ * nothing on the couple path ever changed it, so a total-shaped answer was
+ * stored as a per-person one — and the backend's per-person ceiling is the
+ * amount itself, which made the effective budget twice what the person chose.
+ */
+export function budgetModeFor(audience: DemoAudience, stored: BudgetMode): BudgetMode {
+  return audience === 'couple' ? 'total' : stored
+}
+
+/**
  * The single place that turns the wizard draft into the create-room contract.
  * A couple room decides by mutual match, a group by vote — the host can change
  * it later, but the default follows the room type rather than the route.
@@ -184,7 +203,7 @@ export function toCreateRoomBody(state: RoomStoreState): OpBody<'createRoom'> {
     decisionMode: roomType === 'couple' ? 'match' : 'vote',
     participantCount: roomType === 'couple' ? 2 : state.participantCount,
     constraint: {
-      budgetMode: state.budgetMode,
+      budgetMode: budgetModeFor(state.audience, state.budgetMode),
       budgetAmount: state.budgetAmount ?? 0,
       currency: state.currency,
       ...(state.areaKey ? { areaKey: state.areaKey } : {}),

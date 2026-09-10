@@ -124,3 +124,42 @@ describe('room hub × audience', () => {
     ).toBeGreaterThan(0)
   })
 })
+
+/**
+ * APP-037 (#189) — the budget chip states the unit the room is actually in.
+ * A couple room created before the fix holds a per-person amount, and calling
+ * that "cho 2 người" would restate a wrong number in friendlier words.
+ */
+describe('room hub × budget unit', () => {
+  it('says per person when that is what the API stored, even for a couple', async () => {
+    const room = roomFor('couple')
+    mockRoom.query = loaded({
+      ...room,
+      constraints: { ...room.constraints, budgetMode: 'per_person', budgetAmount: 300_000 },
+    })
+    const view = await renderScreen(<GoGoRoomScreen />)
+    expect(view.getByText(/\/người/)).toBeTruthy()
+    expect(view.queryByText(/cho 2 người/)).toBeNull()
+  })
+
+  it('phrases a couple total for two people, not as a group total', async () => {
+    const room = roomFor('couple')
+    mockRoom.query = loaded({
+      ...room,
+      constraints: { ...room.constraints, budgetMode: 'total', budgetAmount: 500_000 },
+    })
+    const view = await renderScreen(<GoGoRoomScreen />)
+    expect(view.getByText(/cho 2 người/)).toBeTruthy()
+    expect(view.queryByText(/tổng nhóm/)).toBeNull()
+  })
+
+  it('phrases a group total as a group total', async () => {
+    const room = roomFor('group-host')
+    mockRoom.query = loaded({
+      ...room,
+      constraints: { ...room.constraints, budgetMode: 'total', budgetAmount: 1_500_000 },
+    })
+    const view = await renderScreen(<GoGoRoomScreen />)
+    expect(view.getByText(/tổng nhóm/)).toBeTruthy()
+  })
+})
