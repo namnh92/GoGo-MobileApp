@@ -35,8 +35,6 @@ export const glassStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
-    // Android elevation leaves child-shaped patches on translucent surfaces.
-    elevation: Platform.OS === 'android' ? 0 : 3,
   },
   strong: {
     backgroundColor: glassFx.chip,
@@ -46,7 +44,6 @@ export const glassStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.13,
     shadowRadius: 24,
-    elevation: Platform.OS === 'android' ? 0 : 6,
   },
 })
 

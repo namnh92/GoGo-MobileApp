@@ -45,4 +45,11 @@ describe('installation-scoped session', () => {
     expect(await api.hydrateSession()).toBeNull()
     expect(api.isHydrated()).toBe(true)
   })
+
+  it('keeps a successful login when writing the installation marker fails', async () => {
+    vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('storage unavailable'))
+    const api = await import('../session')
+    await expect(api.persistSession(session)).resolves.toEqual(session)
+    expect(api.getSession()).toEqual(session)
+  })
 })

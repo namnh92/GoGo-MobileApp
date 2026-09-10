@@ -34,3 +34,25 @@ export function createOneSignalInitializer(sdk: OneSignalBootstrap, onUnavailabl
     return readiness
   }
 }
+
+interface InitializationRetryOptions {
+  attempts?: number
+  delayMs?: number
+  sleep?: (ms: number) => Promise<void>
+}
+
+/** Retry transient native startup failures without keeping a provider loop alive forever. */
+export async function retryInitialization(
+  initialize: () => Promise<boolean>,
+  options: InitializationRetryOptions = {},
+): Promise<boolean> {
+  const attempts = Math.max(1, options.attempts ?? 3)
+  const delayMs = options.delayMs ?? 750
+  const sleep = options.sleep ?? (ms => new Promise<void>(resolve => setTimeout(resolve, ms)))
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (await initialize()) return true
+    if (attempt < attempts) await sleep(delayMs * attempt)
+  }
+  return false
+}

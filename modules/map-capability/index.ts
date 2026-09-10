@@ -1,10 +1,10 @@
 import { requireOptionalNativeModule } from 'expo-modules-core'
 
 interface MapCapabilityNativeModule {
-  googleMapsConfigured: boolean
+  isGoogleMapsConfigured(): boolean
 }
 
 /** The installed Android binary has a non-empty Google Maps manifest key. */
 export function isGoogleMapsConfigured(): boolean {
-  return requireOptionalNativeModule<MapCapabilityNativeModule>('GoGoMapCapability')?.googleMapsConfigured === true
+  return requireOptionalNativeModule<MapCapabilityNativeModule>('GoGoMapCapability')?.isGoogleMapsConfigured() === true
 }

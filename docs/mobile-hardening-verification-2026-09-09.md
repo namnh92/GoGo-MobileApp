@@ -1,7 +1,7 @@
 # Mobile hardening — 2026-09-09
 
 Scope: APP-010 (#21), six user-reported startup/UI/Maps/notification issues.
-Branch: `bugfix/GOGO-21-mobile-startup-permissions`. Changes are local, not merged.
+Branch: `bugfix/GOGO-21-mobile-startup-permissions`. PR #187, not merged.
 
 ## Evidence
 
@@ -14,8 +14,8 @@ Branch: `bugfix/GOGO-21-mobile-startup-permissions`. Changes are local, not merg
 - Android `:app:assembleDebug`: BUILD SUCCESSFUL, including `gogo-map-capability`.
   Updated APK installed successfully on the connected Android test phone.
 - Typecheck, lint, API schema drift check: passed.
-- Vitest: 219 passed; 39 live contract cases skipped without a backend test run.
-- Jest: 64 passed across 11 suites. Used `--forceExit` after completion because the
+- Vitest: 252 passed; 39 live contract cases skipped without a backend test run.
+- Jest: 70 passed across 11 suites. Used `--forceExit` after completion because the
   existing suite retains open handles (tracked separately in #133).
 - Notification preferences preload from Profile, render immediately from persisted
   cache, and update optimistically with rollback. On a first uncached load, all rows

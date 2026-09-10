@@ -120,7 +120,6 @@ async function hydratePersistedSession(): Promise<Session | null> {
 }
 
 export async function persistSession(session: Session): Promise<Session> {
-  await AsyncStorage.setItem(INSTALL_KEY, '1')
   const { accessToken, refreshToken, guestToken, ...meta } = session
   await Promise.all([
     setSecureItem(KEY_ACCESS, accessToken),
@@ -128,6 +127,10 @@ export async function persistSession(session: Session): Promise<Session> {
     setOrDeleteSecureItem(KEY_GUEST, guestToken),
     setSecureItem(KEY_META, JSON.stringify(meta)),
   ])
+  // The authenticated session is already valid at this point. A temporary
+  // app-container storage failure must not turn a successful server login into
+  // a client error; hydration still fails closed on the next launch.
+  await AsyncStorage.setItem(INSTALL_KEY, '1').catch(() => {})
   current = session
   hydrated = true
   emit()

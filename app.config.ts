@@ -100,7 +100,7 @@ const googleMapsIosApiKey = process.env.GOOGLE_MAPS_IOS_API_KEY?.trim() || undef
 const googleMapsAndroidApiKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY?.trim() || undefined
 // A map-enabled binary must not silently ship Apple Maps or crash on Android.
 if (!googleMapsIosApiKey || !googleMapsAndroidApiKey) {
-  throw new Error('GOOGLE_MAPS_IOS_API_KEY and GOOGLE_MAPS_ANDROID_API_KEY are required before prebuild')
+  throw new Error('GOOGLE_MAPS_IOS_API_KEY and GOOGLE_MAPS_ANDROID_API_KEY are required for Expo commands and native builds')
 }
 
 // Same required contract in every remote environment. The marker prevents a

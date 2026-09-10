@@ -14,6 +14,7 @@ import { SessionProvider } from './session-provider'
 import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
 import { initializePushSdk } from '@/shared/notifications/bootstrap'
 import { initializePushIdentity } from '@/shared/notifications/identity-bootstrap'
+import { retryInitialization } from '@/shared/notifications/initialize'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
 const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
@@ -26,7 +27,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     let stopIdentity: (() => void) | undefined
-    void initializePushSdk().then(ready => {
+    void retryInitialization(initializePushSdk).then(ready => {
       if (ready && !cancelled) stopIdentity = initializePushIdentity()
     })
     return () => {

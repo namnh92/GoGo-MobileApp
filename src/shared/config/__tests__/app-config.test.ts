@@ -99,7 +99,7 @@ describe('iOS map provider (ADR 0005)', () => {
 
   it.each(['GOOGLE_MAPS_IOS_API_KEY', 'GOOGLE_MAPS_ANDROID_API_KEY'])('rejects a blank %s', async key => {
     process.env[key] = '   '
-    await expect(loadConfig('dev')).rejects.toThrow(/required before prebuild/)
+    await expect(loadConfig('dev')).rejects.toThrow(/required for Expo commands and native builds/)
     delete process.env[key]
   })
 

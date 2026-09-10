@@ -33,7 +33,6 @@ export default function TabsLayout() {
           shadowOffset: { width: 0, height: 16 },
           shadowOpacity: 0.16,
           shadowRadius: 42,
-          elevation: Platform.OS === 'android' ? 0 : 10,
           paddingTop: 8,
           paddingBottom: 10,
           marginHorizontal: spacing[4],

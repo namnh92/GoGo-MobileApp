@@ -1,10 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
+import { markOnboardingComplete } from '@/shared/storage/onboarding'
 import type { MessageKey } from '@/shared/i18n/types'
 import { Atmosphere, GhostBtn, GlassCard, PrimaryBtn, ProgressDots } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
@@ -40,13 +40,9 @@ export default function OnboardingScreen() {
   async function finish() {
     if (finishing) return
     setFinishing(true)
-    try {
-      await AsyncStorage.setItem('gogo.onboarding.v1', '1')
-      await pushPermission.request()
-      router.replace('/(tabs)')
-    } catch {
-      setFinishing(false)
-    }
+    await markOnboardingComplete()
+    await pushPermission.request().catch(() => undefined)
+    router.replace('/(tabs)')
   }
 
   return (

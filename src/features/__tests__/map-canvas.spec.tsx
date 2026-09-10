@@ -4,7 +4,7 @@ import { renderScreen } from './harness'
 
 /** Regression coverage for SDK absence, native key gating and Google provider selection. */
 
-const mockNativeMap = { googleMapsConfigured: false }
+const mockNativeMap = { configured: false, isGoogleMapsConfigured() { return this.configured } }
 jest.mock('expo-modules-core', () => ({
   ...jest.requireActual('expo-modules-core'),
   requireOptionalNativeModule: () => mockNativeMap,
@@ -109,7 +109,7 @@ describe('MapCanvas', () => {
 describe('Android native configuration', () => {
   it.each([false, true])('only mounts Google Maps with a native key: %s', async configured => {
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' })
-    mockNativeMap.googleMapsConfigured = configured
+    mockNativeMap.configured = configured
     const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>Map unavailable</Text>} />)
     expect(view.queryAllByTestId('map:google')).toHaveLength(configured ? 1 : 0)
     expect(view.queryAllByText('Map unavailable')).toHaveLength(configured ? 0 : 1)

@@ -14,9 +14,18 @@ import Onboarding from '@/features/onboarding/onboarding.view'
 import Splash from '@/features/onboarding/splash.view'
 
 beforeEach(async () => {
+  jest.restoreAllMocks()
   jest.clearAllMocks()
   await AsyncStorage.clear()
   mockSessionStatus = 'anonymous'
+})
+
+it('enters the app when the onboarding marker cannot be written', async () => {
+  jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('storage unavailable'))
+  const screen = await renderScreen(<Onboarding />)
+  await fireEvent.press(screen.getByText('Bỏ qua'))
+  expect(mockPermission).toHaveBeenCalledTimes(1)
+  expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)')
 })
 afterEach(() => { jest.useRealTimers() })
 
@@ -41,6 +50,21 @@ it.each([
   await act(async () => { jest.advanceTimersByTime(2300) })
   expect(mockRouter.replace).toHaveBeenCalledWith(route)
   expect(mockPermission).not.toHaveBeenCalled()
+  if (status === 'user' || status === 'guest') {
+    expect(await AsyncStorage.getItem('gogo.onboarding.v1')).toBe('1')
+  }
+})
+
+it('navigates immediately when hydration finishes after the minimum splash time', async () => {
+  jest.useFakeTimers()
+  mockSessionStatus = 'hydrating'
+  const screen = await renderScreen(<Splash />)
+  await act(async () => { jest.advanceTimersByTime(2300) })
+  expect(mockRouter.replace).not.toHaveBeenCalled()
+
+  mockSessionStatus = 'user'
+  await screen.rerender(<Splash />)
+  expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)')
 })
 
 it('does not navigate while credentials are hydrating', async () => {

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, AppState, Linking, ScrollView, Switch, Text, View } from 'react-native'
 
@@ -49,25 +49,33 @@ export default function NotificationSettingsScreen() {
    * happened is worse than a silent one.
    */
   const [pushState, setPushState] = useState<'granted' | 'askable' | 'unknown'>('unknown')
+  const permissionRevision = useRef(0)
+  const refreshPushState = useCallback(() => {
+    const currentRevision = ++permissionRevision.current
+    void pushPermission.status().then(next => {
+      if (currentRevision === permissionRevision.current) setPushState(next)
+    })
+  }, [])
   useFocusEffect(useCallback(() => {
-    let cancelled = false
-    let revision = 0
-    const refresh = () => {
-      const currentRevision = ++revision
-      setPushState('unknown')
-      void pushPermission.status().then(next => {
-        if (!cancelled && currentRevision === revision) setPushState(next)
-      })
-    }
-    refresh()
+    refreshPushState()
     const subscription = AppState.addEventListener('change', state => {
-      if (state === 'active') refresh()
+      if (state === 'active') refreshPushState()
     })
     return () => {
-      cancelled = true
+      permissionRevision.current += 1
       subscription.remove()
     }
-  }, []))
+  }, [refreshPushState]))
+
+  const [settingsError, setSettingsError] = useState(false)
+  async function openNotificationSettings() {
+    setSettingsError(false)
+    try {
+      await Linking.openSettings()
+    } catch {
+      setSettingsError(true)
+    }
+  }
 
   /** Absent means the server default applies, which is on. */
   function isEnabled(channel: (typeof CHANNELS)[number], kind: NotificationKind): boolean {
@@ -152,10 +160,26 @@ export default function NotificationSettingsScreen() {
           </View>
         ))}
 
-        {pushState !== 'granted' && <GhostBtn label={t('notificationSettings.openSettings')} onPress={() => { void Linking.openSettings().catch(() => {}) }} />}
+        {pushState === 'askable' ? (
+          <GhostBtn label={t('notificationSettings.openSettings')} onPress={() => void openNotificationSettings()} />
+        ) : pushState === 'unknown' ? (
+          <GhostBtn label={t('common.retry')} onPress={refreshPushState} />
+        ) : null}
         <Text style={styles.note}>
-          {t(pushState === 'granted' ? 'notificationSettings.pushReady' : 'notificationSettings.pushNote')}
+          {t(
+            pushState === 'granted'
+              ? 'notificationSettings.pushReady'
+              : pushState === 'askable'
+                ? 'notificationSettings.pushNote'
+                : 'notificationSettings.pushUnknown',
+          )}
         </Text>
+
+        {settingsError ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {t('notificationSettings.openSettingsFailed')}
+          </Text>
+        ) : null}
 
         {setPreference.isError ? (
           <Text accessibilityLiveRegion="polite" style={styles.error}>

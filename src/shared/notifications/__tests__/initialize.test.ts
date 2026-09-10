@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createOneSignalInitializer } from '../initialize'
+import { createOneSignalInitializer, retryInitialization } from '../initialize'
 
 describe('OneSignal bootstrap', () => {
   it('initializes once across repeat mounts, with logging/location collection off', async () => {
@@ -52,4 +52,17 @@ it('waits for the native initialization queue before allowing identity startup',
   acknowledge(false) // A denied permission still means SDK initialization completed.
   await pending
   expect(startIdentity).toHaveBeenCalledTimes(1)
+})
+
+it('retries transient initialization failures with a finite backoff', async () => {
+  const initialize = vi.fn()
+    .mockResolvedValueOnce(false)
+    .mockResolvedValueOnce(false)
+    .mockResolvedValueOnce(true)
+  const sleep = vi.fn(async () => {})
+
+  await expect(retryInitialization(initialize, { attempts: 3, delayMs: 10, sleep })).resolves.toBe(true)
+  expect(initialize).toHaveBeenCalledTimes(3)
+  expect(sleep).toHaveBeenNthCalledWith(1, 10)
+  expect(sleep).toHaveBeenNthCalledWith(2, 20)
 })

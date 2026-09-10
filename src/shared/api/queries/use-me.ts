@@ -203,11 +203,18 @@ export function useSetNotificationPreference() {
           : [...current, body],
       )
 
-      return { previous }
+      return {
+        previousEntry: current.find(item => item.channel === body.channel && item.kind === body.kind),
+      }
     },
 
-    onError: (_error, _body, context) => {
-      if (context?.previous !== undefined) queryClient.setQueryData(key, context.previous)
+    onError: (_error, body, context) => {
+      queryClient.setQueryData<OpResponse<'getNotificationPreferences'>>(key, current => {
+        const withoutFailed = (current ?? []).filter(
+          item => !(item.channel === body.channel && item.kind === body.kind),
+        )
+        return context?.previousEntry ? [...withoutFailed, context.previousEntry] : withoutFailed
+      })
     },
 
     onSettled: () => {
@@ -215,4 +222,3 @@ export function useSetNotificationPreference() {
     },
   })
 }
-
