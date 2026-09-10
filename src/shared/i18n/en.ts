@@ -649,6 +649,7 @@ export const enMessages: Record<MessageKey, string> = {
   'saved.signInBody': 'Saved items belong to your account.',
   'saved.mapUnavailable': "The map can't open on this device.",
 
+  'profile.title': 'Your profile',
   'profile.logout': 'Log out',
   'profile.loggingOut': 'Logging out…',
   'profile.logoutFailed': 'Could not sign out. Check your connection and try again.',
