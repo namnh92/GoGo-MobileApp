@@ -35,7 +35,8 @@ export function WizardActions({ step }: { step: DraftStep }) {
     const draft = useRoomStore.getState()
     const dirty = Boolean(draft.title || draft.areaKey || draft.originLat != null || draft.startTime
       || draft.budgetAmount != null || draft.moodKeys.length || draft.settingKeys.length
-      || draft.seedPlaces.length || draft.audience !== 'couple' || draft.participantCount !== 4)
+      || draft.spendingStyleKey || draft.seedPlaces.length || draft.audience !== 'couple'
+      || draft.participantCount !== 4)
     if (!dirty) { router.dismissTo('/(tabs)'); return }
     Alert.alert(t('draft.exitTitle'), t('draft.exitBody'), [
       { text: t('draft.keepEditing'), style: 'cancel' },

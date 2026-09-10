@@ -1,5 +1,3 @@
-import { useRouter } from 'expo-router'
-import { useRoom } from '@/shared/store/roomStore'
 import { Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -20,19 +18,21 @@ export const WIZARD_STEPS = ['location', 'time', 'budget', 'mood'] as const
 
 export type WizardStepKey = (typeof WIZARD_STEPS)[number]
 
-export function WizardStep({ step }: { step: WizardStepKey; onBack: () => void }) {
-  const router = useRouter()
-  const { roomType } = useRoom()
+/**
+ * Back is always a plain pop: the previous step is below on the stack whether
+ * the user walked here or resumed a draft (`DraftResume` pushes the whole
+ * path). Leaving the wizard in one move is `WizardActions`' job.
+ */
+export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () => void }) {
   const insets = useSafeAreaInsets()
   const index = WIZARD_STEPS.indexOf(step)
   const total = WIZARD_STEPS.length
-  const previous = index === 0 ? (roomType === 'group' ? 'group-setup' : 'type') : WIZARD_STEPS[index - 1]
 
   return (
     <>
       <View style={{ paddingTop: insets.top }}>
         <BackHeader
-          onBack={() => router.dismissTo(`/create/${previous}`)}
+          onBack={onBack}
           right={
             <View>
               <Text style={styles.stepLabel} accessibilityLabel={`${index + 1}/${total}`}>

@@ -64,7 +64,7 @@ export default function CreateTypeScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.dismissTo('/(tabs)')} right={<WizardActions step="type" />} />
+        <BackHeader onBack={() => router.back()} right={<WizardActions step="type" />} />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Text style={styles.title}>{t('createType.title')}</Text>

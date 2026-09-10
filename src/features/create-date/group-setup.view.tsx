@@ -35,7 +35,7 @@ export default function GroupSetupScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.dismissTo('/create/type')} right={<WizardActions step="group-setup" />} />
+        <BackHeader onBack={() => router.back()} right={<WizardActions step="group-setup" />} />
       </View>
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{t('groupSetup.title')}</Text>
