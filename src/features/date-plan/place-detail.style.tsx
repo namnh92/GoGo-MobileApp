@@ -32,9 +32,9 @@ export const styles = StyleSheet.create({
   backBtn: {
     position: 'absolute',
     left: spacing[4],
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: glassFx.solid,
     alignItems: 'center',
     justifyContent: 'center',
@@ -42,13 +42,12 @@ export const styles = StyleSheet.create({
   backInline: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
 
   sheet: {
-    flex: 1,
     marginTop: -28,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
     backgroundColor: glassFx.sheet,
   },
-  body: { paddingHorizontal: spacing[5], paddingTop: spacing[5] },
+  body: { paddingHorizontal: spacing[5], paddingTop: spacing[7], paddingBottom: spacing[5] },
 
   // --- identity ------------------------------------------------------------
   // Saving belongs to the card, not to the action bar: it acts on the place
