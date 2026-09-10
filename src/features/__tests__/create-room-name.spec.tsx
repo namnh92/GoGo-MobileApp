@@ -3,6 +3,7 @@ import { renderScreen } from './harness'
 
 const mockPush = jest.fn()
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, back: jest.fn() }) }))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'user-1' } }) }))
 import CreateTypeScreen from '@/features/create-date/create-type.view'
 import { toCreateRoomBody, useRoomStore } from '@/shared/store/roomStore'
 

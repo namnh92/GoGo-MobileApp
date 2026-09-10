@@ -1,3 +1,4 @@
+import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -72,6 +73,7 @@ export default function HomeScreen() {
   )
 
   function startCreate() {
+    useRoomStore.getState().resetDraft()
     track('date_create_started', { preset: quickPreset })
     router.push('/create/type')
   }
@@ -108,6 +110,8 @@ export default function HomeScreen() {
             <AvatarCircle label={initial || '·'} size={44} imageUri={me.data?.avatarUrl} />
           </Pressable>
         </View>
+
+        <DraftResume />
 
         {/* Search entry — full discovery lives at /places/search */}
         <Pressable

@@ -168,11 +168,11 @@ export default function CreateLocationScreen() {
         {/* Other area — opens the picker sheet */}
         <Pressable onPress={() => setPickerOpen(true)} accessibilityRole="button">
           <GlassCard style={styles.rowCard}>
-            <View style={[styles.rowIcon, { backgroundColor: usingCurrent ? colors.neutral[100] : colors.brand.lavenderSoft }]}>
+            <View style={[styles.rowIcon, { backgroundColor: usingCurrent || !area ? colors.neutral[100] : colors.brand.lavenderSoft }]}>
               <IconSearch />
             </View>
             <View style={{ flex: 1 }}>
-              {usingCurrent ? (
+              {usingCurrent || !area ? (
                 <Text style={[styles.rowTitle, { color: colors.neutral[500], fontWeight: '600' }]}>
                   {t('createLocation.searchOther')}
                 </Text>
@@ -183,7 +183,9 @@ export default function CreateLocationScreen() {
                 </>
               )}
             </View>
-            {!usingCurrent && <IconCheck />}
+            {/* A fresh draft starts with no area (#206): nothing is selected
+                until the user picks, so no check mark either. */}
+            {!usingCurrent && area ? <IconCheck /> : null}
           </GlassCard>
         </Pressable>
 

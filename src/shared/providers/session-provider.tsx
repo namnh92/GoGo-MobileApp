@@ -13,6 +13,8 @@ import {
   type Session,
 } from '@/shared/api/session'
 import type { OpBody } from '@/shared/api/types'
+import { clearSavedRoomDraft, loadRoomDraft } from '@/shared/store/savedRoomDraft'
+import { useRoomStore } from '@/shared/store/roomStore'
 import { clearRecentRooms } from '@/shared/store/recentRoomsStore'
 
 export type SessionStatus = 'hydrating' | 'anonymous' | 'user' | 'guest'
@@ -43,9 +45,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return unsubscribe
   }, [])
 
+  useEffect(() => {
+    if (!hydrating) void loadRoomDraft(session?.kind === 'user' ? session.userId ?? null : null)
+  }, [hydrating, session?.kind, session?.userId])
+
   /** Server cache, persisted cache and the local room list, in one place. */
-  const purge = useCallback(async () => {
+  const purge = useCallback(async (preserveAnonymousDraft = false) => {
     clearRecentRooms()
+    if (!preserveAnonymousDraft) {
+      useRoomStore.getState().resetDraft()
+      useRoomStore.setState({ preferenceSeed: null })
+    }
+    await clearSavedRoomDraft()
     await purgeCachedUserData(queryClient)
   }, [queryClient])
 
@@ -59,7 +70,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (body: OpBody<'login'>) => {
-      await purge()
+      await purge(!getSession())
       return sessionsApi.login(body)
     },
     [purge],
@@ -67,7 +78,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async (body: OpBody<'register'>) => {
-      await purge()
+      await purge(!getSession())
       return sessionsApi.register(body)
     },
     [purge],
@@ -95,6 +106,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // throwing leaves the user signed in and the caller reporting failure.
       await unsubscribeCurrentDeviceAndConfirm()
       await sessionsApi.logout(allDevices)
+      useRoomStore.getState().resetDraft()
+      useRoomStore.setState({ preferenceSeed: null })
       await purge()
     },
     [purge],
@@ -102,6 +115,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     await sessionsApi.deleteAccount()
+    useRoomStore.getState().resetDraft()
+    useRoomStore.setState({ preferenceSeed: null })
     await purge()
   }, [purge])
 

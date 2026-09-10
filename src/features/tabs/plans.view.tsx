@@ -1,3 +1,4 @@
+import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -113,6 +114,8 @@ export default function PlansScreen() {
           </View>
         ) : null}
       </View>
+
+      <DraftResume />
 
       {/* A failed refetch keeps the list that is already on screen. */}
       <StaleNotice

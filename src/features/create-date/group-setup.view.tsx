@@ -8,6 +8,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
 
+import { SaveDraftButton } from './save-draft.view'
 import { styles } from './group-setup.style'
 
 const MIN_PEOPLE = 3
@@ -34,7 +35,7 @@ export default function GroupSetupScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} />
+        <BackHeader onBack={() => router.back()} right={<SaveDraftButton step="group-setup" />} />
       </View>
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text style={styles.title}>{t('groupSetup.title')}</Text>
