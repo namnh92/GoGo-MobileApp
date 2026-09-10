@@ -96,8 +96,10 @@ export function removeRoomMember(roomId: string, memberId: string): Promise<void
 export function createRoomInvite(
   roomId: string,
   body: OpBody<'createRoomInvite'>,
+  idempotencyKey = newIdempotencyKey(),
 ): Promise<OpResponse<'createRoomInvite'>> {
   return api.post<OpResponse<'createRoomInvite'>>('/rooms/{id}/invites', body, {
+    idempotencyKey,
     pathParams: { id: roomId },
   })
 }
