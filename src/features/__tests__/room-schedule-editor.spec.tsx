@@ -6,7 +6,7 @@ jest.mock('@/shared/api', () => ({
   useUpdateRoomConstraints: () => ({ mutateAsync: mockMutate, isPending: false }),
 }))
 import { RoomScheduleEditor } from '@/features/gogo-room/room-schedule-editor.view'
-import { localScheduleToIso } from '@/features/gogo-room/room-schedule'
+import { isoToLocalSchedule, localScheduleToIso } from '@/features/gogo-room/room-schedule'
 
 beforeEach(() => mockMutate.mockClear())
 
@@ -28,6 +28,24 @@ it('rejects an end before the start without sending a request', async () => {
   await fireEvent.press(view.getByText('Lưu'))
   await waitFor(() => expect(view.getByText(/Kiểm tra ngày giờ hợp lệ/)).toBeTruthy())
   expect(mockMutate).not.toHaveBeenCalled()
+})
+
+it('clears an existing end when the host empties the field, and keeps it otherwise', async () => {
+  const room = roomFor('group-host', {
+    constraintVersion: 7,
+    constraints: { budgetMode: 'per_person', budgetAmount: 300_000, currency: 'VND', startAt: '2026-09-10T12:00:00Z', endAt: '2026-09-10T15:00:00Z' },
+  })
+  const view = await renderScreen(<RoomScheduleEditor room={room} />)
+  // Still before the prefilled end in any time zone the test may run in.
+  await fireEvent.changeText(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-09-10T13:00:00Z'))
+  await fireEvent.press(view.getByText('Lưu'))
+  await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(1))
+  expect(mockMutate.mock.calls[0][0]).toMatchObject({ startAt: '2026-09-10T13:00:00.000Z', endAt: '2026-09-10T15:00:00.000Z' })
+
+  await fireEvent.changeText(view.getByLabelText('Kết thúc (không bắt buộc)'), '')
+  await fireEvent.press(view.getByText('Lưu'))
+  await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(2))
+  expect(mockMutate.mock.calls[1][0]).not.toHaveProperty('endAt')
 })
 
 it('does not allow an active room to be rescheduled', async () => {

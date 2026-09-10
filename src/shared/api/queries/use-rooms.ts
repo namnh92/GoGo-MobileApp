@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as roomsApi from '../endpoints/rooms'
+import { isApiError } from '../errors'
 import * as suggestionsApi from '../endpoints/suggestions'
 import { queryKeys } from '../query-keys'
 import type { OpBody, RoomSummary } from '../types'
@@ -82,9 +83,17 @@ export function useUpdateRoomConstraints(roomId: string) {
     mutationFn: (body: OpBody<'updateRoomConstraints'>) => roomsApi.updateRoomConstraints(roomId, body),
     onSuccess: room => {
       queryClient.setQueryData(queryKeys.room(roomId), room)
+      // The list carries the schedule too (GoGo-BE#574), so it is stale now.
       void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomSuggestions(roomId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomCurrentPlan(roomId) })
+    },
+    // A version conflict means the cached summary is behind: refetch it so the
+    // editor can rebase onto what the room actually holds now.
+    onError: error => {
+      if (isApiError(error) && error.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId) })
+      }
     },
   })
 }
