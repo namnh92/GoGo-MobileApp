@@ -1,6 +1,6 @@
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -26,7 +26,8 @@ export default function PlansScreen() {
   const { status } = useSession()
 
   const canRead = status === 'user' || status === 'guest'
-  const rooms = useMyRooms({ enabled: canRead })
+  const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming')
+  const rooms = useMyRooms({ enabled: canRead, view: tab })
 
   // Kept only as an offline read: the server list is the source of truth, but a
   // launch with no connection should still show what this device has seen.
@@ -38,6 +39,16 @@ export default function PlansScreen() {
   )
   const upcoming = items.filter(room => UPCOMING.includes(room.status))
   const past = items.filter(room => !UPCOMING.includes(room.status))
+  const visible = tab === 'upcoming' ? upcoming : past
+  const { hasNextPage, isFetching, isFetchNextPageError, fetchNextPage } = rooms
+
+  // A page may contain only rooms belonging to the other tab. Keep looking
+  // before claiming this tab is empty; an error exposes an explicit retry.
+  useEffect(() => {
+    if (canRead && visible.length === 0 && hasNextPage && !isFetching && !isFetchNextPageError) {
+      void fetchNextPage()
+    }
+  }, [canRead, visible.length, hasNextPage, isFetching, isFetchNextPageError, fetchNextPage])
 
   function openRoom(room: RoomListItem) {
     // A finished room's plan is the thing worth reopening; an active one is not.
@@ -102,7 +113,7 @@ export default function PlansScreen() {
     )
   }
 
-  const isEmpty = !rooms.isPending && items.length === 0
+  const isEmpty = !rooms.isPending && visible.length === 0 && !rooms.hasNextPage
 
   return (
     <Atmosphere>
@@ -115,7 +126,25 @@ export default function PlansScreen() {
         ) : null}
       </View>
 
-      <DraftResume />
+      <View style={styles.createAction}>
+        <DraftResume />
+      </View>
+
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {(['upcoming', 'history'] as const).map(value => (
+          <Pressable
+            key={value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === value }}
+            onPress={() => setTab(value)}
+            style={[styles.tab, tab === value && styles.tabSelected]}
+          >
+            <Text style={[styles.tabLabel, tab === value && styles.tabLabelSelected]}>
+              {t(value === 'upcoming' ? 'plans.upcoming' : 'plans.past')}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       {/* A failed refetch keeps the list that is already on screen. */}
       <StaleNotice
@@ -144,7 +173,7 @@ export default function PlansScreen() {
         ) : isEmpty ? (
           <EmptyState
             title={t('plans.emptyTitle')}
-            body={t('plans.emptyBody')}
+            body={t(tab === 'history' ? 'plans.emptyHistory' : 'plans.emptyBody')}
             action={
               <View style={{ gap: spacing[2], alignSelf: 'stretch' }}>
                 <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
@@ -154,22 +183,10 @@ export default function PlansScreen() {
           />
         ) : (
           <>
-            {upcoming.length > 0 ? (
-              <>
-                <Text style={styles.caption}>{t('plans.upcoming')}</Text>
-                {upcoming.map(room => (
-                  <RoomCard key={room.id} room={room} />
-                ))}
-              </>
-            ) : null}
-
-            {past.length > 0 ? (
-              <>
-                <Text style={styles.caption}>{t('plans.past')}</Text>
-                {past.map(room => (
-                  <RoomCard key={room.id} room={room} past />
-                ))}
-              </>
+            {visible.map(room => <RoomCard key={room.id} room={room} past={tab === 'history'} />)}
+            {rooms.isFetching && visible.length === 0 ? <RoomMemberSkeleton count={2} /> : null}
+            {rooms.isFetchNextPageError ? (
+              <ErrorState error={rooms.error} onRetry={() => void rooms.fetchNextPage()} />
             ) : null}
 
             {rooms.hasNextPage ? (

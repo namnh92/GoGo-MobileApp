@@ -176,9 +176,9 @@ export function roomCapabilities(room: RoomSummary | undefined) {
  * a member of. Paging is keyset, so a room whose timestamp moves mid-read
  * cannot duplicate onto a later page.
  */
-export function useMyRooms(options?: { status?: string; enabled?: boolean }) {
+export function useMyRooms(options?: { status?: string; enabled?: boolean; view?: 'upcoming' | 'history' }) {
   return useInfiniteQuery({
-    queryKey: queryKeys.roomList(options?.status),
+    queryKey: [...queryKeys.roomList(options?.status), options?.view ?? 'all'],
     queryFn: ({ pageParam }) =>
       roomsApi.listRooms({
         ...(options?.status ? { status: options.status } : {}),

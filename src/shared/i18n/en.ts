@@ -625,9 +625,10 @@ export const enMessages: Record<MessageKey, string> = {
   'saved.addPlace': 'Add place',
   'saved.newTag': 'Just added',
 
+  'plans.emptyHistory': 'No plans in your history yet.',
   'plans.title': 'Plans',
   'plans.upcoming': 'Upcoming',
-  'plans.past': 'Past',
+  'plans.past': 'History',
   'plans.loadMore': 'Load more',
   'plans.untitled': 'Untitled plan',
   'plans.emptyTitle': 'No plans yet',
