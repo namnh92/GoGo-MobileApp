@@ -26,7 +26,16 @@ export function areaLabelFrom(place: ReverseGeocodedPlace | undefined): string |
 /**
  * A curated service area as a picker shows it — `Quận 1, TP.HCM`, or just the
  * name when the area is itself the city. Display only; the key is the fact.
+ *
+ * APP-039 (#193): several curated names already carry their city
+ * (`Quận 1, TP.HCM` with `city: 'TP.HCM'`), so appending it produced
+ * `Quận 1, TP.HCM, TP.HCM`. The old guard only caught a name that *equalled*
+ * the city, never one that contained it. Compare segment by segment: the city
+ * is added only when the name does not already name it.
  */
 export function serviceAreaLabel(area: { name: string; city?: string | null }): string {
-  return area.city && area.city !== area.name ? `${area.name}, ${area.city}` : area.name
+  const city = area.city?.trim()
+  if (!city) return area.name
+  const segments = area.name.split(',').map(part => part.trim())
+  return segments.includes(city) ? area.name : `${area.name}, ${city}`
 }
