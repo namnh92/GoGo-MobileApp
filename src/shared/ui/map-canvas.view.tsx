@@ -24,6 +24,8 @@ export interface MapCanvasProps {
   style?: object
   /** Shown when no map is available; keeps the surface from reading as broken. */
   fallback?: ReactNode
+  /** Detail previews leave gestures to the surrounding scroll view. */
+  interactive?: boolean
 }
 
 interface MapsModule {
@@ -61,7 +63,7 @@ function googleMapsLinked(): boolean {
   }
 }
 
-export function MapCanvas({ pins, onSelect, style, fallback }: MapCanvasProps) {
+export function MapCanvas({ pins, onSelect, style, fallback, interactive = true }: MapCanvasProps) {
   const maps = loadMaps()
   const region = regionForPins(pins)
   // What the installed binary linked cannot change while it is running, but
@@ -80,6 +82,14 @@ export function MapCanvas({ pins, onSelect, style, fallback }: MapCanvasProps) {
     <MapView
       style={style}
       initialRegion={region}
+      region={interactive ? undefined : region}
+      pointerEvents={interactive ? 'auto' : 'none'}
+      scrollEnabled={interactive}
+      zoomEnabled={interactive}
+      zoomTapEnabled={interactive}
+      rotateEnabled={interactive}
+      pitchEnabled={interactive}
+      zoomControlEnabled={false}
       provider={maps.PROVIDER_GOOGLE}
       showsUserLocation={false}
       toolbarEnabled={false}
@@ -91,7 +101,7 @@ export function MapCanvas({ pins, onSelect, style, fallback }: MapCanvasProps) {
           identifier={pin.id}
           coordinate={{ latitude: pin.lat, longitude: pin.lng }}
           title={pin.title}
-          onPress={() => onSelect?.(pin.id)}
+          onPress={interactive ? () => onSelect?.(pin.id) : undefined}
           accessibilityLabel={pin.title}
           tracksViewChanges={false}
         >
