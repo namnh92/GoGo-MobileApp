@@ -182,7 +182,12 @@ export default function AccountScreen() {
   function onDelete() {
     // Irreversible, so it asks in the platform's own dialog rather than
     // relying on a button the thumb can reach by accident.
-    Alert.alert(t('account.deleteTitle'), t('account.deleteBody'), [
+    // ADR-0023: the dialog states both halves. Promising to delete everything
+    // and then keeping reviews is the one thing this confirmation must not do.
+    Alert.alert(
+      t('account.deleteTitle'),
+      `${t('account.deleteBody')}\n\n${t('account.deleteKept')}`,
+      [
       { text: t('account.deleteCancel'), style: 'cancel' },
       {
         text: t('account.deleteConfirm'),
@@ -195,7 +200,8 @@ export default function AccountScreen() {
             .finally(() => setBusy(null))
         },
       },
-    ])
+      ],
+    )
   }
 
   return (
@@ -276,6 +282,7 @@ export default function AccountScreen() {
         <GlassCard style={styles.card}>
           <Text style={styles.sectionTitle}>{t('account.deleteTitle')}</Text>
           <Text style={styles.sectionBody}>{t('account.deleteBody')}</Text>
+          <Text style={styles.sectionBody}>{t('account.deleteKept')}</Text>
           <Pressable
             onPress={onDelete}
             disabled={busy === 'delete'}

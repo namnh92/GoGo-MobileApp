@@ -51,7 +51,10 @@ export const enMessages: Record<MessageKey, string> = {
   'account.exporting': 'Preparing…',
   'account.exportFailed': 'Could not export. Try again later.',
   'account.deleteTitle': 'Delete account',
-  'account.deleteBody': 'Permanently deletes your account and personal data. This cannot be undone.',
+  'account.deleteBody':
+    'Your account can no longer be signed in to, and GoGo removes your personal data: name, avatar, home area, budget, interests, saved items and notifications. This cannot be undone.',
+  'account.deleteKept':
+    'Reviews and photos you contributed to places stay on GoGo, no longer showing your name.',
   'account.deleteConfirm': 'Delete account',
   'account.deleteCancel': 'Cancel',
   'account.deleting': 'Deleting…',

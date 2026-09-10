@@ -52,7 +52,12 @@ export const viMessages = {
   'account.exporting': 'Đang chuẩn bị…',
   'account.exportFailed': 'Chưa xuất được. Thử lại sau nhé.',
   'account.deleteTitle': 'Xoá tài khoản',
-  'account.deleteBody': 'Xoá vĩnh viễn tài khoản và thông tin cá nhân. Không hoàn tác được.',
+  // ADR-0023: nói đúng cả hai nửa. Câu cũ hứa xoá vĩnh viễn mọi thứ, trong khi
+  // đánh giá và ảnh đã đóng góp vẫn ở lại theo quyết định sản phẩm.
+  'account.deleteBody':
+    'Tài khoản ngừng đăng nhập được, và GoGo xoá thông tin cá nhân của bạn: tên, ảnh đại diện, khu vực, ngân sách, sở thích, mục đã lưu và thông báo. Không hoàn tác được.',
+  'account.deleteKept':
+    'Đánh giá và ảnh bạn đã đóng góp cho địa điểm vẫn ở lại GoGo, nhưng không còn hiện tên bạn.',
   'account.deleteConfirm': 'Xoá tài khoản',
   'account.deleteCancel': 'Huỷ',
   'account.deleting': 'Đang xoá…',
