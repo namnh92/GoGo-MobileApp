@@ -132,6 +132,8 @@ export const enMessages: Record<MessageKey, string> = {
 
   'createLocation.title': 'Where do\nwe start?',
   'createLocation.body': 'GoGo will find places near you that are still open.',
+  'createType.roomName': 'Plan name (optional)',
+  'createType.roomNameHint': 'e.g. Weekend coffee',
   'createType.title': 'Who is this\nplan for?',
   'createType.couple': 'Two people',
   'createType.coupleDesc': 'Pick separately — GoGo finds what you both like.',

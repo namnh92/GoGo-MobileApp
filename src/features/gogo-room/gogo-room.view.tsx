@@ -217,7 +217,7 @@ export default function GoGoRoomScreen() {
           </View>
         )}
 
-        <Text style={styles.title}>{t('gogoRoom.title', { context: roomType })}</Text>
+        <Text style={styles.title}>{summary.title?.trim() || t('gogoRoom.title', { context: roomType })}</Text>
         <Text style={styles.body}>{t('gogoRoom.body', { context: roomType })}</Text>
 
         {/* What the room is actually constrained by — facts, composed here. */}

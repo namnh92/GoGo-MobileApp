@@ -107,6 +107,11 @@ export default function PlansScreen() {
     <Atmosphere>
       <View style={{ paddingTop: insets.top + spacing[2] }}>
         <Text style={styles.title}>{t('plans.title')}</Text>
+        {status === 'user' ? (
+          <View style={styles.createAction}>
+            <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
+          </View>
+        ) : null}
       </View>
 
       {/* A failed refetch keeps the list that is already on screen. */}

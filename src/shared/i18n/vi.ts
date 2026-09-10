@@ -135,6 +135,8 @@ export const viMessages = {
 
   'createLocation.title': 'Bắt đầu\ntừ đâu?',
   'createLocation.body': 'GoGo sẽ tìm địa điểm gần bạn và còn đang mở cửa.',
+  'createType.roomName': 'Tên kèo (không bắt buộc)',
+  'createType.roomNameHint': 'Ví dụ: Hẹn cà phê cuối tuần',
   'createType.title': 'Bạn đang tạo kèo\ncho ai?',
   'createType.couple': 'Hai người',
   'createType.coupleDesc': 'Cùng chọn riêng, GoGo tìm phần cả hai đều thích.',
