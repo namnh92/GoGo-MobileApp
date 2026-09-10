@@ -50,14 +50,14 @@ describe('usual budget prefill on the budget step', () => {
     expect(view.getByText(CHIP)).toBeTruthy()
   })
 
-  it('selects that tier on a tap, and the amount lands in the draft on continue', async () => {
+  it('keeps a tapped tier in the resumable draft before continuing', async () => {
     const view = await renderScreen(<CreateBudgetScreen />)
     await act(async () => {
-      fireEvent.press(view.getByText(CHIP))
+      await fireEvent.press(view.getByText(CHIP))
     })
-    expect(useRoomStore.getState().budgetAmount).toBeNull()
+    expect(useRoomStore.getState().budgetAmount).toBe(500_000)
     await act(async () => {
-      fireEvent.press(view.getByText('Tiếp tục'))
+      await fireEvent.press(view.getByText('Tiếp tục'))
     })
     expect(useRoomStore.getState().budgetAmount).toBe(500_000)
     expect(mockPush).toHaveBeenCalledWith('/create/mood')

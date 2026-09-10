@@ -34,7 +34,9 @@ export default function PreferenceScreen() {
 
   // Whatever the host picked in the create wizard seeds their own preferences,
   // so the choice is not silently thrown away between the two screens.
-  const draftMoodKeys = useRoomStore(state => state.moodKeys)
+  const draftMoodKeys = useRoomStore(state =>
+    state.preferenceSeed?.roomId === roomId ? state.preferenceSeed.moodKeys : state.moodKeys,
+  )
 
   const taxonomies = useTaxonomies({ kinds: TAXONOMY_KIND })
   const preferences = useMyPreferences(roomId)

@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BackHeader, ProgressDots } from '@/shared/ui/primitives'
 
+import { SaveDraftButton } from './save-draft.view'
 import { styles } from './wizard-step.style'
 
 /**
@@ -28,9 +29,12 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
         <BackHeader
           onBack={onBack}
           right={
-            <Text style={styles.stepLabel} accessibilityLabel={`${index + 1}/${total}`}>
-              {index + 1} / {total}
-            </Text>
+            <View>
+              <Text style={styles.stepLabel} accessibilityLabel={`${index + 1}/${total}`}>
+                {index + 1} / {total}
+              </Text>
+              <SaveDraftButton step={step} />
+            </View>
           }
         />
       </View>

@@ -48,6 +48,8 @@ export interface RoomDraft {
 }
 
 interface RoomStoreState extends RoomDraft {
+  creationPending: boolean
+  creationAttempt: { key: string; fingerprint: string } | null
   audience: DemoAudience
   uiState: DemoUIState
   participantCount: number
@@ -75,6 +77,16 @@ interface RoomStoreState extends RoomDraft {
   removeSeedPlace: (placeId: string) => void
   patchDraft: (patch: Partial<RoomDraft>) => void
   resetDraft: () => void
+  preferenceSeed: { roomId: string; moodKeys: string[] } | null
+  finishDraft: (roomId: string) => void
+}
+
+const emptyFlow = {
+  creationPending: false,
+  creationAttempt: null,
+  audience: 'couple' as const, uiState: 'default' as const,
+  participantCount: 4, budgetMode: 'per_person' as const, quickPreset: 'tonight' as const,
+  area: '', startTime: null, endTime: null, seedPlaces: [] as SeedPlaceRef[],
 }
 
 const emptyDraft: RoomDraft = {
@@ -95,17 +107,23 @@ const emptyDraft: RoomDraft = {
 
 export const useRoomStore = create<RoomStoreState>()(set => ({
   ...emptyDraft,
+  creationPending: false,
+  creationAttempt: null,
   audience: 'couple',
   uiState: 'default',
   participantCount: 4,
   budgetMode: 'per_person',
   quickPreset: 'tonight',
-  area: 'Thảo Điền, TP.HCM',
+  area: '',
   startTime: null,
   endTime: null,
   seedPlaces: [],
   patchDraft: patch => set(patch),
-  resetDraft: () => set({ ...emptyDraft, seedPlaces: [] }),
+  preferenceSeed: null,
+  resetDraft: () => set({ ...emptyDraft, ...emptyFlow }),
+  finishDraft: roomId => set(state => ({
+    ...emptyDraft, ...emptyFlow, preferenceSeed: { roomId, moodKeys: state.moodKeys },
+  })),
   setAudience: audience => set({ audience }),
   setUiState: uiState => set({ uiState }),
   setParticipantCount: participantCount => set({ participantCount }),

@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, useCreateRoom, useTaxonomies } from '@/shared/api'
+import { newIdempotencyKey } from '@/shared/api/idempotency'
+import { clearSavedRoomDraft, saveRoomDraft } from '@/shared/store/savedRoomDraft'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStore'
@@ -54,17 +56,21 @@ export default function CreateMoodScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { status } = useSession()
+  const { status, session } = useSession()
   const { seedPlaces, removeSeedPlace } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
   const rememberRoom = useRecentRoomsStore(state => state.remember)
 
   const taxonomies = useTaxonomies({ kinds: TAXONOMY_KINDS })
-  const createRoom = useCreateRoom()
+  const createRoom = useCreateRoom({ idempotencyKey: () => useRoomStore.getState().creationAttempt!.key })
 
-  const [moods, setMoods] = useState<string[]>([])
-  const [settings, setSettings] = useState<string[]>([])
-  const [spending, setSpending] = useState<string | null>(null)
+  const moods = useRoomStore(state => state.moodKeys)
+  const setMoods = (value: React.SetStateAction<string[]>) => patchDraft({ moodKeys: typeof value === 'function' ? value(moods) : value })
+  const settings = useRoomStore(state => state.settingKeys)
+  const setSettings = (value: React.SetStateAction<string[]>) => patchDraft({ settingKeys: typeof value === 'function' ? value(settings) : value })
+  const spending = useRoomStore(state => state.spendingStyleKey)
+  const setSpending = (value: React.SetStateAction<string | null>) => patchDraft({ spendingStyleKey: typeof value === 'function' ? value(spending) : value })
+  const submitting = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   const locale = i18n.language
@@ -91,13 +97,32 @@ export default function CreateMoodScreen() {
       return
     }
 
+    if (submitting.current) return
+    submitting.current = true
+    useRoomStore.setState({ creationPending: true })
     setError(null)
     // Carried into the first preference save so the picks are not lost.
     patchDraft({ moodKeys: moods, settingKeys: settings, spendingStyleKey: spending })
 
     try {
-      const room = await createRoom.mutateAsync(toCreateRoomBody(useRoomStore.getState()))
+      const valid = moods.every(key => toOptions('mood').some(option => option.key === key))
+        && settings.every(key => toOptions('setting').some(option => option.key === key))
+        && (!spending || toOptions('spending_style').some(option => option.key === spending))
+      if (!valid) { setError(t('draft.reviewSelections')); return }
+      const body = toCreateRoomBody(useRoomStore.getState())
+      const fingerprint = JSON.stringify(body)
+      const attempt = useRoomStore.getState().creationAttempt
+      if (attempt?.fingerprint !== fingerprint) {
+        useRoomStore.setState({ creationAttempt: { key: newIdempotencyKey(), fingerprint } })
+      }
+      // Persist the request identity before sending, so a timeout or restart
+      // retries the same room creation instead of publishing a second room.
+      if (session?.userId) await saveRoomDraft(session.userId, 'mood')
+      const room = await createRoom.mutateAsync(body)
       rememberRoom(room)
+      // Keep only a room-scoped preference handoff; the create draft is done.
+      useRoomStore.getState().finishDraft(room.id)
+      await clearSavedRoomDraft().catch(() => undefined)
       track('date_context_completed', {
         moods: moods.join(','),
         settings: settings.join(','),
@@ -111,7 +136,7 @@ export default function CreateMoodScreen() {
           ? caught.fieldErrors[0].message
           : t('createMood.createFailed'),
       )
-    }
+    } finally { submitting.current = false; useRoomStore.setState({ creationPending: false }) }
   }
 
   return (
@@ -188,7 +213,7 @@ export default function CreateMoodScreen() {
           label={createRoom.isPending ? t('createMood.creating') : t('createMood.cta')}
           onPress={submit}
           loading={createRoom.isPending}
-          disabled={taxonomies.isPending}
+          disabled={taxonomies.isPending || taxonomies.isError}
         />
       </View>
     </Atmosphere>

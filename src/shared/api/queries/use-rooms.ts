@@ -38,12 +38,13 @@ export function useRoomInvites(roomId: string | undefined) {
 }
 
 /** Creates the room and opens it for joining — see `createAndOpenRoom`. */
-export function useCreateRoom() {
+export function useCreateRoom(options?: { idempotencyKey?: () => string }) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: OpBody<'createRoom'>) => roomsApi.createAndOpenRoom(body),
+    mutationFn: (body: OpBody<'createRoom'>) => roomsApi.createAndOpenRoom(body, options?.idempotencyKey?.()),
     onSuccess: room => {
       queryClient.setQueryData(queryKeys.room(room.id), room)
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
     },
   })
 }
