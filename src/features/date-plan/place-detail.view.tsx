@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Dimensions,
+  useWindowDimensions,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,16 +39,15 @@ import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Chip, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
-import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
+import { colors, glyph, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
 
-import { styles } from './place-detail.style'
+import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
 
 const { brand, neutral } = colors
 
 /** Suitability scores are 0..1 from the ranking pipeline. */
 const SUITABILITY_MAX = 1
 const SUITABILITY_STARS = 5
-const SCREEN_WIDTH = Dimensions.get('window').width
 /** Monday-first day order for the opening-hours table; `Date#getDay` is 0=Sun. */
 const WEEK = [1, 2, 3, 4, 5, 6, 0]
 
@@ -56,6 +55,11 @@ export default function PlaceDetailScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { width, height } = useWindowDimensions()
+  const [actionHeight, setActionHeight] = useState(0)
+  // The floating back button keeps a strip of its own above the page scroll,
+  // so an expanded sheet never slides underneath it.
+  const headerHeight = insets.top + touchTarget.min + spacing[4]
   const { placeId } = useLocalSearchParams<{ placeId: string }>()
   const { status } = useSession()
 
@@ -141,7 +145,7 @@ export default function PlaceDetailScreen() {
   }
 
   function onGalleryScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    const next = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH)
+    const next = Math.round(event.nativeEvent.contentOffset.x / width)
     if (next !== photoIndex) setPhotoIndex(next)
   }
 
@@ -156,6 +160,16 @@ export default function PlaceDetailScreen() {
 
   return (
     <Atmosphere>
+      <ScrollView
+        testID="place-detail-scroll"
+        style={{ marginTop: headerHeight }}
+        contentContainerStyle={{ paddingBottom: actionHeight }}
+        // Two rests: the hero gallery, and the sheet's top edge — after that
+        // the content scrolls freely.
+        snapToOffsets={[0, GALLERY_HEIGHT - SHEET_OVERLAP]}
+        snapToEnd={false}
+        decelerationRate="fast"
+      >
       <View style={styles.gallery}>
         {photos.length > 1 ? (
           <ScrollView
@@ -171,7 +185,7 @@ export default function PlaceDetailScreen() {
                 placeId={id}
                 name={name}
                 uri={photo.url}
-                style={[styles.galleryPage, { width: SCREEN_WIDTH }]}
+                style={[styles.galleryPage, { width }]}
               />
             ))}
           </ScrollView>
@@ -198,22 +212,14 @@ export default function PlaceDetailScreen() {
           </>
         ) : null}
 
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityLabel={t('common.back')}
-          accessibilityRole="button"
-          hitSlop={hitSlop}
-          style={[styles.backBtn, { top: insets.top + spacing[2] }]}
-        >
-          <IconChevronLeft />
-        </Pressable>
+
       </View>
 
       <StaleNotice error={place.isError ? place.error : null} onRetry={() => void place.refetch()} />
 
-      {/* The sticky bar stacks two full-width buttons now, so it is taller than
-          the row it replaced; the old 160 left the last card underneath it. */}
-      <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 232 }}>
+      {/* One vertical scroll surface lets the gallery leave the viewport as
+          the sheet expands, then continues through the content naturally. */}
+      <View style={[styles.sheet, { minHeight: height - headerHeight - actionHeight }]}>
         <View style={styles.body}>
           <View style={styles.identityRow}>
             <View style={styles.identityText}>
@@ -438,9 +444,23 @@ export default function PlaceDetailScreen() {
             ) : null}
           </View>
         </View>
+      </View>
       </ScrollView>
 
-      <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing[4] }]}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityLabel={t('common.back')}
+          accessibilityRole="button"
+          hitSlop={hitSlop}
+          style={[styles.backBtn, { top: insets.top + spacing[2] }]}
+        >
+          <IconChevronLeft />
+        </Pressable>
+
+      <View
+        onLayout={event => setActionHeight(event.nativeEvent.layout.height)}
+        style={[styles.actionBar, { paddingBottom: insets.bottom + spacing[4] }]}
+      >
         <SecondaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} style={styles.addBtn} />
         <Pressable
           accessibilityRole="button"
