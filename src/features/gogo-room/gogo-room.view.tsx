@@ -37,6 +37,7 @@ import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
+import { roomScheduleLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -61,7 +62,7 @@ const STATUS_CHIP: Record<MemberSelectionStatus, { key: string; variant: 'defaul
 }
 
 export default function GoGoRoomScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
@@ -225,6 +226,10 @@ export default function GoGoRoomScreen() {
           <GlassCard style={styles.constraintsCard}>
             <Text style={styles.constraintsTitle}>{t('gogoRoom.constraints')}</Text>
             <View style={styles.constraintsRow}>
+              <Chip
+                icon="📅"
+                label={roomScheduleLabel(summary.constraints.startAt ?? summary.scheduledDate, i18n.language) ?? t('roomSchedule.unset')}
+              />
               <Chip
                 label={t('groupSetup.people', { n: participantCount })}
                 icon="👥"
