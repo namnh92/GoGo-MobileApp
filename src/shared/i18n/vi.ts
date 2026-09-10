@@ -636,6 +636,7 @@ export const viMessages = {
   'saved.newTag': 'Mới thêm',
 
   'plans.emptyHistory': 'Chưa có kèo nào trong lịch sử.',
+  'plans.overdue': 'Đã qua ngày',
   'plans.title': 'Kế hoạch',
   'plans.upcoming': 'Sắp tới',
   'plans.past': 'Lịch sử',

@@ -626,6 +626,7 @@ export const enMessages: Record<MessageKey, string> = {
   'saved.newTag': 'Just added',
 
   'plans.emptyHistory': 'No plans in your history yet.',
+  'plans.overdue': 'Past its date',
   'plans.title': 'Plans',
   'plans.upcoming': 'Upcoming',
   'plans.past': 'History',

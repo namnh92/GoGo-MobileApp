@@ -64,14 +64,25 @@ export default function PlansScreen() {
         ? t('gogoRoom.membersTitle', { joined: room.completedCount, total: room.memberCount })
         : null,
       scheduled ? scheduled.toLocaleDateString(i18n.language) : null,
+      isOverdue(room) ? t('plans.overdue') : null,
     ].filter((fact): fact is string => Boolean(fact))
   }
 
+  /**
+   * A room whose date has passed but whose lifecycle has not ended stays in
+   * Upcoming (the server filters by status, never by date) — it just says so.
+   */
+  function isOverdue(room: RoomListItem): boolean {
+    const scheduled = parseApiDate(room.scheduledDate)
+    return UPCOMING.includes(room.status) && scheduled != null && scheduled.getTime() < Date.now()
+  }
+
   /** Status is the one fact that decides whether a room still needs the user. */
-  function statusVariant(s: RoomListItem['status']): 'default' | 'info' | 'positive' | 'warning' {
+  function statusVariant(room: RoomListItem): 'default' | 'info' | 'positive' | 'warning' {
+    const s = room.status
+    if (s === 'cancelled' || s === 'expired' || isOverdue(room)) return 'warning'
     if (s === 'ready' || s === 'active') return 'positive'
     if (s === 'collecting' || s === 'matching') return 'info'
-    if (s === 'cancelled' || s === 'expired') return 'warning'
     return 'default'
   }
 
@@ -97,7 +108,7 @@ export default function PlansScreen() {
           </View>
           <Chip
             label={t(`plans.status.${room.status}`, { defaultValue: room.status })}
-            variant={statusVariant(room.status)}
+            variant={statusVariant(room)}
           />
         </GlassCard>
       </Pressable>
