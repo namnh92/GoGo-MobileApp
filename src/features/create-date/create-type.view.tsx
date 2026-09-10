@@ -14,7 +14,7 @@ import { IconCheck } from '@/shared/ui/icons'
 import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { colors, onDark, spacing } from '@/shared/ui/tokens'
 
-import { SaveDraftButton } from './save-draft.view'
+import { WizardActions } from './wizard-actions.view'
 import { styles } from './create-type.style'
 
 const nameSchema = z.object({ title: z.string().trim().max(80) })
@@ -64,7 +64,7 @@ export default function CreateTypeScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} right={<SaveDraftButton step="type" />} />
+        <BackHeader onBack={() => router.dismissTo('/(tabs)')} right={<WizardActions step="type" />} />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Text style={styles.title}>{t('createType.title')}</Text>

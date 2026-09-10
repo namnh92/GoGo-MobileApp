@@ -1,9 +1,11 @@
+import { useRouter } from 'expo-router'
+import { useRoom } from '@/shared/store/roomStore'
 import { Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BackHeader, ProgressDots } from '@/shared/ui/primitives'
 
-import { SaveDraftButton } from './save-draft.view'
+import { WizardActions } from './wizard-actions.view'
 import { styles } from './wizard-step.style'
 
 /**
@@ -18,22 +20,25 @@ export const WIZARD_STEPS = ['location', 'time', 'budget', 'mood'] as const
 
 export type WizardStepKey = (typeof WIZARD_STEPS)[number]
 
-export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () => void }) {
+export function WizardStep({ step }: { step: WizardStepKey; onBack: () => void }) {
+  const router = useRouter()
+  const { roomType } = useRoom()
   const insets = useSafeAreaInsets()
   const index = WIZARD_STEPS.indexOf(step)
   const total = WIZARD_STEPS.length
+  const previous = index === 0 ? (roomType === 'group' ? 'group-setup' : 'type') : WIZARD_STEPS[index - 1]
 
   return (
     <>
       <View style={{ paddingTop: insets.top }}>
         <BackHeader
-          onBack={onBack}
+          onBack={() => router.dismissTo(`/create/${previous}`)}
           right={
             <View>
               <Text style={styles.stepLabel} accessibilityLabel={`${index + 1}/${total}`}>
                 {index + 1} / {total}
               </Text>
-              <SaveDraftButton step={step} />
+              <WizardActions step={step} />
             </View>
           }
         />
