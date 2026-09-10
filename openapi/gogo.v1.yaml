@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: GoGo API
-  version: 1.0.0-alpha.1
+  version: 1.0.0-alpha.26
   description: |
     Public contract for GoGo clients (Mobile, Web, Mini App). This page is the
     integration guide — every rule below is enforced by the API, not advisory.
@@ -365,47 +365,129 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /me:
+    get:
+      operationId: getMe
+      tags: [me]
+      summary: Current actor — the private profile for a user, session facts for a guest
+      description: >
+        ADR-0022. A user receives the whole profile, including the fields
+        nobody else ever sees (email, home area, interests, usual budget), and
+        `capabilities.avatarUpload`, which says before a picker opens whether
+        this environment can take an avatar at all. A guest receives its
+        session facts: `roomId`, `displayName`, `expiresAt`.
+      responses:
+        '200':
+          description: Actor profile (shape depends on actorType)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
     patch:
       operationId: updateProfile
       tags: [me]
-      summary: Update display name / locale
+      summary: Update the profile — null clears an optional field, omitted keeps it
+      description: >
+        `displayName` and `locale` are never null. `homeAreaKey` must be an
+        active service area. `interests` carries stable taxonomy keys by kind
+        and only `mood` is accepted (ADR-0022); an unknown key or an
+        unsupported kind is `INVALID_TAXONOMY_KEYS`. `usualBudget.perPerson` is
+        integer minor units, a create-room default, never a room constraint.
+        Users only: a guest gets 403.
       requestBody:
         content:
           application/json:
-            schema:
-              type: object
-              properties:
-                displayName: { type: string, minLength: 1, maxLength: 50 }
-                locale: { type: string, enum: [vi, en] }
+            schema: { $ref: '#/components/schemas/ProfilePatch' }
       responses:
-        '200': { description: Updated profile facts }
+        '200':
+          description: The updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
     delete:
       operationId: deleteAccount
       tags: [me]
       summary: Delete account — PII nulled, sessions revoked, content pseudonymized
       responses:
         '200': { description: '{ deleted: true }' }
-    get:
-      operationId: getMe
+
+  /me/avatar:
+    put:
+      operationId: setAvatar
       tags: [me]
-      summary: Current actor profile facts
+      summary: Attach an uploaded original, process it, publish the avatar
+      description: >
+        ADR-0022. `uploadKey` is what `POST /uploads { purpose: 'avatar' }`
+        returned, after the bytes were PUT to its URL. The key must belong to
+        this user, for this purpose, and be pending and unexpired — or already
+        attached to this same user, so a retry is idempotent; every miss is
+        `INVALID_UPLOAD_KEY` without saying which condition failed. The
+        original is decoded under a 16-megapixel cap and a 3-second clock,
+        oriented, centre-cropped to 512×512 WebP with all metadata dropped,
+        and published under a random immutable key in the public bucket. The
+        previous avatar and the original are scheduled for deletion in the
+        same transaction that stores the new key.
+
+
+        A failed request is never left dangling: the original and any public
+        object already written are scheduled away with a grace period, so a
+        retry with the same `uploadKey` still works.
+
+
+        Users only; guests get 403. Five calls a minute per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uploadKey]
+              additionalProperties: false
+              properties:
+                uploadKey: { type: string, maxLength: 300 }
       responses:
         '200':
-          description: Actor profile (shape depends on actorType)
+          description: The profile with the new `avatarUrl`
           content:
             application/json:
-              schema:
-                type: object
-                required: [actorType, id]
-                properties:
-                  actorType: { type: string, enum: [user, guest] }
-                  id: { type: string, format: uuid }
-                  displayName: { type: string }
-                  email: { type: string }
-                  locale: { type: string }
-                  roomId: { type: string, format: uuid }
-                  expiresAt: { type: string, format: date-time }
+              schema: { $ref: '#/components/schemas/Me' }
+        '400':
+          description: >
+            `INVALID_UPLOAD_KEY` (not yours, wrong purpose, expired),
+            `AVATAR_UPLOAD_MISSING` (nothing was PUT to the key),
+            `FILE_TOO_LARGE`.
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: >
+            `AVATAR_UNPROCESSABLE` — undecodable, over the pixel cap, over the
+            clock, or not the type it was declared as. Choose another image.
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: >
+            `AVATAR_BUSY` (retryable, too many concurrent processings) or
+            `AVATAR_STORAGE_UNAVAILABLE` (retryable, storage not answering).
+    delete:
+      operationId: removeAvatar
+      tags: [me]
+      summary: Remove the avatar — idempotent
+      description: >
+        Clears the key and schedules the public object for deletion and an
+        edge purge in the same transaction. A purge cannot revoke a copy a
+        device already holds; what is guaranteed is that no new fetch of the
+        old URL succeeds once the edge cache lifetime (one day) has passed.
+      responses:
+        '200':
+          description: 'The profile with `avatarUrl: null`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /rooms:
     get:
@@ -919,6 +1001,13 @@ paths:
         Content type and size are enforced server-side and the content type is
         part of what is signed, so storage refuses an upload that does not
         match what was authorized.
+
+
+        Purpose `avatar` (ADR-0022): users only, `image/jpeg`, `image/png`
+        or `image/webp` — never HEIC, which the client converts first. The
+        key lands in a private, one-day-lifetime prefix and is attached with
+        `PUT /me/avatar`, which processes it and publishes the result. Answers
+        503 where `GET /me` reports `capabilities.avatarUpload: unavailable`.
       requestBody:
         required: true
         content:
@@ -929,10 +1018,11 @@ paths:
               properties:
                 purpose:
                   type: string
-                  enum: [checkin_photo, bill_photo, place_photo]
+                  enum: [checkin_photo, bill_photo, place_photo, avatar]
                 contentType:
                   type: string
                   enum: [image/jpeg, image/png, image/webp, image/heic]
+                  description: HEIC is refused for purpose `avatar`.
                 contentLength:
                   type: integer
                   description: Declared up front, so an oversized file is refused before a URL exists.
@@ -952,8 +1042,1244 @@ paths:
                   expiresAt: { type: string, format: date-time }
                   maxBytes: { type: integer }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '503':
-          description: Object storage is not configured in this environment
+          description: Object storage (or, for `avatar`, the public bucket) is not configured in this environment
+
+  /administrative/version:
+    get:
+      operationId: getAdministrativeVersion
+      tags: [administrative]
+      summary: Active administrative dataset version (the cheap poll)
+      description: >
+        ADM-003 / ADR-0019. A client holds a snapshot and refetches only when
+        datasetVersion changes. Serves the one PUBLISHED dataset; 503 when none
+        is published, which is an operational fault rather than an empty result.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Active dataset version and record counts
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeVersion' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '503': { $ref: '#/components/responses/AdministrativeUnavailable' }
+
+  /administrative/provinces:
+    get:
+      operationId: listAdministrativeProvinces
+      tags: [administrative]
+      summary: Current provinces and municipalities, ordered by code
+      description: >
+        ADM-003. The 34 current province-level units. Legacy district-level
+        units are never returned here — they were dissolved on 2025-07-01.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AdministrativeLimit'
+        - $ref: '#/components/parameters/AdministrativeCursor'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Province page
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeUnitPage' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '503': { $ref: '#/components/responses/AdministrativeUnavailable' }
+
+  /administrative/provinces/{provinceCode}/communes:
+    get:
+      operationId: listAdministrativeCommunes
+      tags: [administrative]
+      summary: Current communes of one province, ordered by code
+      description: >
+        ADM-003. A province code that names no current province answers 404
+        PROVINCE_NOT_FOUND rather than an empty page — "no communes" and "no
+        such province" are different answers.
+      security: []
+      parameters:
+        - name: provinceCode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9]{2,5}$' }
+        - $ref: '#/components/parameters/AdministrativeLimit'
+        - $ref: '#/components/parameters/AdministrativeCursor'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Commune page
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeUnitPage' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/AdministrativeUnavailable' }
+
+  /administrative/search:
+    get:
+      operationId: searchAdministrativeUnits
+      tags: [administrative]
+      summary: Accent-insensitive search over unit names
+      description: >
+        ADM-003. Matches both the short name ("Ba Đình") and the full name
+        ("Phường Ba Đình"), accented or not, through the same Vietnamese
+        normalizer the place search uses. Legacy units require includeLegacy.
+      security: []
+      parameters:
+        - {
+            name: query,
+            in: query,
+            required: true,
+            schema: { type: string, minLength: 1, maxLength: 120 },
+          }
+        - { name: provinceCode, in: query, schema: { type: string, pattern: '^[0-9]{2,5}$' } }
+        - $ref: '#/components/parameters/AdministrativeIncludeLegacy'
+        - $ref: '#/components/parameters/AdministrativeLimit'
+        - $ref: '#/components/parameters/AdministrativeCursor'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Matching units, current first, then legacy when asked for
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeUnitPage' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/AdministrativeUnavailable' }
+
+  /administrative/resolve:
+    get:
+      operationId: resolveAdministrativeCode
+      tags: [administrative]
+      summary: What a code meant on a date, and where the unit went
+      description: >
+        ADM-003 / ADR-0019 §2. Codes are reused: 2,212 of the 3,321 current
+        commune codes named a different unit before 2025-07-01, so `at` selects
+        the effective period. Successors come from canonical changes only — a
+        divided commune is quarantined, never resolved, and is reported with
+        unresolved=true rather than the source's guess.
+      security: []
+      parameters:
+        - {
+            name: code,
+            in: query,
+            required: true,
+            schema: { type: string, pattern: '^[0-9]{2,5}$' },
+          }
+        - name: at
+          in: query
+          description: ISO date. Absent means "the current unit".
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The unit effective on that date, plus canonical successors
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeResolution' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/AdministrativeUnavailable' }
+
+  /administrative/units/{code}:
+    get:
+      operationId: getAdministrativeUnit
+      tags: [administrative]
+      summary: One code and its effective periods
+      description: >
+        ADM-003. Without includeLegacy only the current period is returned, and
+        a code naming no current unit answers 404 UNIT_NOT_CURRENT.
+      security: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9]{2,5}$' }
+        - $ref: '#/components/parameters/AdministrativeIncludeLegacy'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The current unit and the periods this code has had
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeUnitDetail' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/AdministrativeUnavailable' }
+
+  /cms/administrative-datasets:
+    get:
+      operationId: listAdministrativeDatasets
+      tags: [cms, administrative]
+      summary: 'Ops: every imported dataset version, newest first (ADM-005)'
+      description: >
+        ADM-005 (#458). Read needs rank >= ops_admin; every write on this
+        resource needs the exact ops_admin role (or the audited super-admin
+        bypass), so an on-call operator can inspect a dataset without being able
+        to publish it. `validation` is the stored result summary — absent means
+        the version has never been validated, which is itself a refusal reason
+        for publication.
+      parameters:
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        '200':
+          description: A page of dataset versions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, limit, offset]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdministrativeDatasetSummary' }
+                  total: { type: integer }
+                  limit: { type: integer }
+                  offset: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/capability:
+    get:
+      operationId: getAdministrativeCapability
+      tags: [cms, administrative]
+      summary: 'Ops: what this environment can currently do (ADM-010)'
+      description: >
+        Deliberately separate from readiness. An environment with no
+        administrative dataset still serves rooms, search and plans; it simply
+        cannot publish a place, which the domain guard already refuses. Taking
+        the whole API out of the load balancer for that would turn a
+        configuration gap into an outage.
+
+
+        This is also where the exact dataset and boundary versions live. They
+        are not Prometheus labels: a label whose values grow with every
+        publication is a series set that never stops growing, so the numbers go
+        on a dashboard and the identities go here.
+
+
+        `resolver` is `FULL` with polygons loaded, `PARTIAL` without them — the
+        resolver still answers from explicit codes, stored names and the change
+        mapping, which is less of the catalogue rather than none of it.
+      responses:
+        '200':
+          description: Current administrative capability
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeCapability' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/import:
+    post:
+      operationId: importAdministrativeDataset
+      tags: [cms, administrative]
+      summary: 'Ops: import the pinned snapshot set into staging (ADM-005)'
+      description: >
+        Writes a STAGED version and nothing else — no path here can touch the
+        active dataset. One transaction: a failure leaves nothing behind, so a
+        retry is a clean import rather than a half-written version that the
+        checksum guard would then call a duplicate. Re-importing byte-identical
+        sources at the same override revision is 409 DATASET_ALREADY_IMPORTED,
+        because the same inputs are the same dataset.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                overrideRevision:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+                  default: 0
+                  description: >
+                    Bumped by a reviewer decision rather than an upstream
+                    release. It is a component of the combined version, so
+                    bumping it mints a new dataset from unchanged sources.
+      responses:
+        '201':
+          description: A new STAGED dataset version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeImportReport' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/restorable:
+    get:
+      operationId: listRestorableAdministrativeDatasets
+      tags: [cms, administrative]
+      summary: 'Ops: versions a rollback could restore (ADM-005)'
+      description: >
+        Previously published, not active now. A version that was never published
+        never appears here: rollback restores an earlier active dataset, it does
+        not publish a new one.
+      responses:
+        '200':
+          description: Restorable versions, most recently published first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdministrativeDatasetSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}:
+    get:
+      operationId: getAdministrativeDataset
+      tags: [cms, administrative]
+      summary: 'Ops: one dataset version with its stored validation and diff'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The dataset version
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AdministrativeDatasetSummary'
+                  - type: object
+                    properties:
+                      validationReport:
+                        $ref: '#/components/schemas/AdministrativeValidationReport'
+                      diffSummary:
+                        type: object
+                        nullable: true
+                        additionalProperties: true
+                        description: >
+                          The diff stored when this version was last validated.
+                          It describes the baseline that was active *then* —
+                          GET /diff recomputes against today's.
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/diff:
+    get:
+      operationId: getAdministrativeDatasetDiff
+      tags: [cms, administrative]
+      summary: 'Ops: this version against whatever is published now (ADM-005)'
+      description: >
+        Recomputed on read, never written. A first publication compares against
+        an explicitly empty baseline, so `fromVersion` is null rather than the
+        request being an error. Entries are paged; `countsByCategory` is always
+        complete, so a reviewer walking a 14,000-entry diff never sees a total
+        that shrinks to the page. A change to nothing but `overrideRevision`
+        yields exactly one SOURCE_DRIFT entry rather than replaying every
+        migration the dataset already asserted.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 500, default: 100 },
+          }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        '200':
+          description: The diff, with complete counts and a bounded entry page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeDatasetDiff' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/validate:
+    post:
+      operationId: validateAdministrativeDataset
+      tags: [cms, administrative]
+      summary: 'Ops: run every gate against this exact snapshot (ADM-005)'
+      description: >
+        Runs the ADM-004 gates and stores the result bound to the dataset's
+        identity, checksum, staged-row digest, override revision and validator
+        version. Re-validating replaces the previous result rather than adding
+        to it. A publishable result moves the version to VALIDATED; a failing one
+        leaves it STAGED, because it failed a check — nobody rejected it.
+
+
+        Because it writes that status, validation is a transition and is
+        serialised behind publish and rollback on the same advisory lock. Only a
+        STAGED or VALIDATED version may be validated: applied to the active
+        dataset the status write would demote it out of PUBLISHED and leave the
+        environment with no active version, and applied to a ROLLED_BACK one it
+        would take it out of the restorable set. Both are refused with
+        DATASET_STATE_NOT_VALIDATABLE and nothing is written.
+
+
+        The row is re-read under the lock before the write. If the version, its
+        checksum, its override revision or its staged rows moved while the gates
+        were running, the report describes rows that are no longer there, so it
+        is discarded with DATASET_CHANGED_DURING_VALIDATION rather than stored.
+      responses:
+        '201':
+          description: The validation result and the diff computed with it
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [validation, diff]
+                properties:
+                  validation: { $ref: '#/components/schemas/AdministrativeValidationReport' }
+                  diff: { $ref: '#/components/schemas/AdministrativeDatasetDiff' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Refused, and audited with its reason as
+            `administrative_dataset.validate_rejected`. Nothing is written:
+            not the lifecycle status, not the previous validation, not the
+            active-version pointer, not the restorable set, not a place, not the
+            cache. DATASET_STATE_NOT_VALIDATABLE when the version is not STAGED
+            or VALIDATED, or DATASET_CHANGED_DURING_VALIDATION when it moved
+            while the gates were running.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+
+  /cms/administrative-datasets/{id}/publish:
+    post:
+      operationId: publishAdministrativeDataset
+      tags: [cms, administrative]
+      summary: 'Ops: make this version the active dataset (ADM-005)'
+      description: >
+        Takes a dataset id and nothing else. No `publishable` flag, no checksum
+        and no warning acknowledgement is accepted from the caller: inside the
+        publishing transaction the server re-reads the lifecycle status, the
+        stored checksum, the checksum the pinned files produce now, the digest of
+        the staged rows and the validation bound to them, and refuses on the
+        first disagreement.
+
+
+        `publishable === errors === 0`. An ERROR can never be overridden; a
+        WARNING never blocks and stays visible and audited.
+
+
+        Demote and promote are one transaction serialised by an advisory lock, so
+        there are never two active versions and never zero. The previous version
+        is retained — it is what a rollback restores. Publishing the already
+        active version is 409 DATASET_ALREADY_PUBLISHED, not a silent no-op;
+        replaying the same `Idempotency-Key` returns the original result. The
+        in-process cache pointer is refreshed only after commit and a failure to
+        refresh it is reported in `cacheWarmed`, never rolled back: PostgreSQL is
+        authoritative and other processes converge within the 60-second TTL.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: The version is now active
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeTransitionResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Refused, and audited with its reason. DATASET_NOT_VALIDATED,
+            DATASET_REJECTED, DATASET_ALREADY_PUBLISHED, VALIDATION_MISSING,
+            VALIDATION_STALE, VALIDATION_HAS_ERRORS, SNAPSHOT_CHECKSUM_MISMATCH,
+            or ACTIVE_VERSION_CHANGED when another publication won the race
+            while this one was being prepared.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/rollback:
+    post:
+      operationId: rollbackAdministrativeDataset
+      tags: [cms, administrative]
+      summary: 'Ops: re-activate a previously published version (ADM-005)'
+      description: >
+        A forward act with its own audit row, not an undo. Nothing is deleted, no
+        migration is reversed, no stored address text is rewritten and no place
+        mapping is changed — stale mappings against the restored version are
+        reported, not written, because whether a claim a person verified should
+        be demoted is the mapping work's decision (#459/#461/#462).
+
+
+        Refuses a version that was never published, one that is already active,
+        and one whose stored rows no longer match the snapshot that was
+        validated. It deliberately does not re-verify the pinned source files: a
+        version published long ago may have been built from a snapshot no longer
+        vendored, and refusing on that ground would remove the escape hatch
+        exactly when it is needed.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: The earlier version is active again
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeTransitionResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Refused, and audited with its reason. DATASET_NEVER_PUBLISHED,
+            DATASET_ALREADY_PUBLISHED, DATASET_NOT_RESTORABLE, VALIDATION_MISSING,
+            DATASET_CORRUPTED, or ACTIVE_VERSION_CHANGED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/quarantine:
+    get:
+      operationId: listAdministrativeQuarantine
+      tags: [cms, administrative]
+      summary: 'Ops: the source-drift review queue for this dataset (ADM-011)'
+      description: >
+        The advisory change-mapping upstream is never authoritative. Rows whose
+        source or target does not resolve — overwhelmingly divided communes,
+        where the source offers a default successor ADR-0019 forbids trusting —
+        are quarantined at import and wait here for a person.
+
+
+        Counts come back in three groups because they answer three questions.
+        `canonical` is every edge the dataset asserts, by change type.
+        `backlog` is the quarantine rows themselves, by classification — this is
+        the review queue. `decisions` is those rows by the state of their
+        effective decision in the current draft set. They are deliberately not
+        one map: `AdministrativeImportReport.classification` counts every
+        advisory row including the ones the importer promoted, so a backlog read
+        from it is nine times too large.
+
+
+        Ordering is `(source code, id)`, so the candidates of one divided
+        commune sit together and a page boundary cannot drift when a decision is
+        appended mid-review.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: classification
+          in: query
+          schema: { type: string }
+          description: Comma-separated quarantine classifications.
+        - name: decisionState
+          in: query
+          schema: { type: string }
+          description: >
+            Comma-separated subset of UNDECIDED, ACCEPTED_DRAFT, REJECTED_DRAFT,
+            SUPERSEDED.
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of the review queue, with complete counts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeQuarantinePage' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/quarantine/{rowId}:
+    get:
+      operationId: getAdministrativeQuarantineRow
+      tags: [cms, administrative]
+      summary: 'Ops: one quarantined advisory row and everything behind it'
+      description: >
+        The raw payload verbatim (bounded), the source and every candidate as
+        full identities with their effective periods, whether each candidate's
+        hierarchy resolves in this dataset, how many places carry the source
+        code, the effective decision, and the whole append-only decision
+        history.
+
+
+        `proposedByUpstream` marks the successor the source guessed. It is
+        reported so a reviewer can see what the source said and never
+        pre-selected: accepting it by position would launder that guess through
+        a person's click.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: rowId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The quarantined row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeQuarantineDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/override-set:
+    get:
+      operationId: getAdministrativeOverrideSet
+      tags: [cms, administrative]
+      summary: 'Ops: the draft decision set for this dataset (ADM-011)'
+      description: >
+        At most one DRAFT set exists per base dataset, held by a partial unique
+        index. Its `revision` increments with every appended decision and is
+        what a mutation sends back as `expectedRevision` — two reviewers
+        deciding the same row a second apart both succeed without it, and the
+        second silently wins.
+
+
+        `draft` is null until the first decision opens one.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The draft set, its counts, and earlier materialisations
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeOverrideSet' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/quarantine/{rowId}/accept:
+    post:
+      operationId: acceptAdministrativeQuarantineRow
+      tags: [cms, administrative]
+      summary: 'Ops: accept the advisory edge onto a named target (ADM-011)'
+      description: >
+        Appends a decision to the draft set. It changes nothing that is running:
+        the resolver reaches its quarantine branch only when no canonical edge
+        exists for a source code, and a draft decision creates no edge, so a
+        draft ACCEPT cannot outrank published data by construction.
+
+
+        The target is named — code **and** effective date — because a code alone
+        is not an identity: 2,212 of the 3,321 current commune codes changed
+        meaning on 2025-07-01. There is deliberately no way to accept "the first
+        candidate".
+
+
+        Correcting an earlier decision appends a new one that supersedes it. The
+        previous decision is never edited and never deleted.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: rowId, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [targetCode, targetEffectiveFrom, reason, expectedRevision]
+              properties:
+                targetCode: { type: string, minLength: 1, maxLength: 20 }
+                targetEffectiveFrom: { type: string, format: date }
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  description: Required. A decision nobody explained cannot be reviewed later.
+                expectedRevision:
+                  type: integer
+                  minimum: 0
+                  description: The draft set revision the reviewer was looking at.
+      responses:
+        '201':
+          description: The appended decision
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeOverrideDecisionResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Refused, and audited. OVERRIDE_SET_NOT_DRAFT,
+            OVERRIDE_SET_REVISION_CONFLICT when somebody else decided a row
+            first, QUARANTINE_ROW_NOT_IN_DATASET, QUARANTINE_ROW_HAS_NO_SOURCE,
+            OVERRIDE_TARGET_NOT_FOUND when the named identity is not in this
+            dataset, OVERRIDE_TARGET_NOT_CURRENT, OVERRIDE_TARGET_HIERARCHY_INVALID,
+            OVERRIDE_TARGET_IS_SOURCE, or OVERRIDE_EDGE_ALREADY_CANONICAL.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/quarantine/{rowId}/reject:
+    post:
+      operationId: rejectAdministrativeQuarantineRow
+      tags: [cms, administrative]
+      summary: 'Ops: refuse the advisory edge (ADM-011)'
+      description: >
+        The advisory relation should not become a canonical change. It deletes
+        no evidence — the row keeps its raw payload and travels into the derived
+        dataset with the decision recorded beside it — and it rejects no place:
+        this is the mapping source, not the catalogue.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: rowId, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason, expectedRevision]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+                expectedRevision: { type: integer, minimum: 0 }
+      responses:
+        '201':
+          description: The appended decision
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeOverrideDecisionResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Refused, and audited. OVERRIDE_SET_NOT_DRAFT,
+            OVERRIDE_SET_REVISION_CONFLICT or QUARANTINE_ROW_NOT_IN_DATASET.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/override-set/materialize:
+    post:
+      operationId: materializeAdministrativeOverrideSet
+      tags: [cms, administrative]
+      summary: 'Ops: turn the decisions into one new STAGED dataset (ADM-011)'
+      description: >
+        The only act in this feature that produces something the resolver will
+        eventually answer from — and it still answers from nothing until the
+        derived version is published.
+
+
+        One transaction, serialised behind publish, rollback and validate on the
+        same advisory lock. The base dataset is **copied, never moved**: its
+        units, canonical changes and quarantine rows are byte-identical
+        afterwards. The copies carry each row's effective decision, and accepted
+        decisions additionally become canonical edges bound to the decision that
+        made them.
+
+
+        The derived version is STAGED and nothing more. It is not validated and
+        not published as a side effect: it goes through the ordinary
+        validate → diff → publish path, because a reviewer decision that
+        published itself would be a publication nobody reviewed. Its
+        `overrideRevision` is the base's plus one, which mints a new combined
+        version and checksum deterministically.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason, expectedRevision]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+                expectedRevision: { type: integer, minimum: 0 }
+      responses:
+        '201':
+          description: The derived STAGED dataset version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeMaterializeResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Refused, and audited. OVERRIDE_SET_NOT_FOUND,
+            OVERRIDE_SET_NOT_DRAFT, OVERRIDE_SET_REVISION_CONFLICT,
+            OVERRIDE_SET_EMPTY, BASE_DATASET_CHANGED, or
+            SNAPSHOT_CHECKSUM_MISMATCH when a pinned file no longer matches the
+            manifest and the derived version cannot be named.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-datasets/{id}/override-set/abandon:
+    post:
+      operationId: abandonAdministrativeOverrideSet
+      tags: [cms, administrative]
+      summary: 'Ops: close a draft nobody is going to materialise (ADM-011)'
+      description: >
+        The set stops accepting decisions and can never be materialised. The
+        decisions themselves stay exactly where they are — abandoning a round of
+        review is not a reason to lose the record of what was considered.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason, expectedRevision]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+                expectedRevision: { type: integer, minimum: 0 }
+      responses:
+        '201':
+          description: The set is abandoned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [overrideSetId, status, abandonedAt]
+                properties:
+                  overrideSetId: { type: string, format: uuid }
+                  status: { type: string, enum: [ABANDONED] }
+                  abandonedAt: { type: string, format: date-time, nullable: true }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Refused, and audited. OVERRIDE_SET_NOT_FOUND,
+            OVERRIDE_SET_NOT_DRAFT or OVERRIDE_SET_REVISION_CONFLICT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-mappings:
+    get:
+      operationId: listAdministrativeMappings
+      tags: [cms, administrative]
+      summary: 'Moderation: places by administrative mapping status (ADM-009)'
+      description: >
+        The review queue. NEEDS_REVIEW and STALE are the actionable states — the
+        ones where a person has something to decide — but nothing is hidden:
+        every status is one filter away and all of them are in `counts`.
+
+
+        `blockedApprovalOnly=true` is the view that matters most: places waiting
+        for approval that cannot get it because of their mapping, including
+        UNMAPPED ones. A place stuck on a mapping nobody can see is exactly the
+        case a queue ordered by "what looks actionable" would bury.
+
+
+        Cursor pagination orders by place id, not by `updated_at`: ordering by a
+        column reviewers are changing would let a place they just touched jump
+        pages under them.
+      parameters:
+        - name: status
+          in: query
+          description: Comma-separated mapping statuses.
+          schema: { type: string, example: 'NEEDS_REVIEW,STALE' }
+        - name: placeStatus
+          in: query
+          description: Comma-separated place statuses.
+          schema: { type: string, example: 'review,community_submitted' }
+        - name: blockedApprovalOnly
+          in: query
+          schema: { type: string, enum: ['true', 'false'] }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 200, default: 50 },
+          }
+        - { name: cursor, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: A page of mappings, with complete counts per status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor, counts]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdministrativeMappingListItem' }
+                  nextCursor: { type: string, format: uuid, nullable: true }
+                  counts:
+                    type: object
+                    additionalProperties: { type: integer }
+                    description: One per mapping status plus `actionable`.
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/administrative-mappings/remediation:
+    get:
+      operationId: getAdministrativeRemediation
+      tags: [cms, administrative]
+      summary: 'Moderation: approved places that would not pass the policy today'
+      description: >
+        Reporting only. Nothing here un-approves anything: these places were
+        approved before the policy existed, and taking a working catalogue off
+        the air to satisfy a rule written afterwards would do more harm than the
+        gap it closes.
+
+
+        `verified_against_older_version` is not a defect. The approval gate tests
+        the identity — does this commune still exist, is it still current, does
+        it still sit under this province — not the version string, because
+        otherwise every publication would un-approve the catalogue. The category
+        exists because "who verified this, and against what" is what a reviewer
+        asks before deciding whether to look again.
+      responses:
+        '200':
+          description: Counts per remediation category with bounded samples
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [activeDatasetVersion, counts, samples]
+                properties:
+                  activeDatasetVersion: { type: string }
+                  counts:
+                    type: object
+                    required:
+                      [
+                        unmapped,
+                        auto_matched,
+                        needs_review,
+                        rejected,
+                        stale,
+                        verified_against_older_version,
+                        compliant,
+                      ]
+                    properties:
+                      unmapped: { type: integer }
+                      auto_matched: { type: integer }
+                      needs_review: { type: integer }
+                      rejected: { type: integer }
+                      stale: { type: integer }
+                      verified_against_older_version: { type: integer }
+                      compliant: { type: integer }
+                  samples:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string, format: uuid }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/places/{id}/administrative-mapping:
+    get:
+      operationId: getPlaceAdministrativeMapping
+      tags: [cms, administrative]
+      summary: 'Moderation: one mapping, its evidence and what may be done to it'
+      description: >
+        Everything the console needs on one screen, recomputed on read rather
+        than served from a cache of what the resolver once thought: current
+        codes and their resolved names, the resolver's evidence and alternative
+        candidates, the unresolved reason, hierarchy validity, the staleness
+        verdict, whether this mapping blocks approving the place and why, and
+        which actions this role may take.
+
+
+        The place's own address text, `city` and `district` are returned because
+        a reviewer judges the mapping against what the address actually says.
+        They are read here and never written by any endpoint in this group.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The mapping and its evidence
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeMappingDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/AdministrativeUnavailable' }
+
+  /cms/places/{id}/administrative-mapping/verify:
+    post:
+      operationId: verifyPlaceAdministrativeMapping
+      tags: [cms, administrative]
+      summary: 'Moderation: a reviewer verifies these codes (ADM-009)'
+      description: >
+        The only path that writes VERIFIED. Inside the write transaction the
+        server re-reads the place under a row lock, re-reads the *active*
+        dataset, and checks that the province and commune are both current in it
+        and that the commune belongs to the province — a code is not an
+        identity, so the period is part of the check.
+
+
+        No confidence number is written. A person's judgement is not a
+        probability; VERIFIED plus their identity is the whole claim.
+
+
+        `expectedUpdatedAt` is required: a reviewer decides about a row they saw,
+        and a publication, another reviewer or a backfill can move it in
+        between.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [provinceCode, communeCode, expectedUpdatedAt]
+              properties:
+                provinceCode: { type: string, pattern: '^[0-9]{2,5}$' }
+                communeCode: { type: string, pattern: '^[0-9]{2,5}$' }
+                legacyDistrictCode:
+                  type: string
+                  pattern: '^[0-9]{2,5}$'
+                  nullable: true
+                  description: Pre-2025-07-01 evidence. Checked against the historical set.
+                note: { type: string, maxLength: 500 }
+                expectedUpdatedAt: { type: string, format: date-time }
+      responses:
+        '201':
+          description: The mapping is verified
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [placeId, status, datasetVersion]
+                properties:
+                  placeId: { type: string, format: uuid }
+                  status: { type: string, enum: [VERIFIED] }
+                  datasetVersion: { type: string }
+        '400':
+          description: >
+            PROVINCE_NOT_CURRENT, COMMUNE_NOT_CURRENT, HIERARCHY_INVALID or
+            LEGACY_DISTRICT_UNKNOWN — the selection does not describe a real
+            unit in the active dataset.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: PLACE_MODIFIED — the place changed since it was read.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/places/{id}/administrative-mapping/reject:
+    post:
+      operationId: rejectPlaceAdministrativeMapping
+      tags: [cms, administrative]
+      summary: 'Moderation: reject the mapping — not the place (ADM-009)'
+      description: >
+        Rejecting a mapping says this answer is wrong. It does not touch the
+        place's own moderation state, its address, or its geometry; it blocks
+        approval until somebody produces a mapping that is right.
+
+
+        The rejected codes and the resolver's evidence are kept on the record,
+        because what was rejected is the most useful thing the next reviewer can
+        be told.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdministrativeMappingReason' }
+      responses:
+        '201':
+          description: The mapping is rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [placeId, status]
+                properties:
+                  placeId: { type: string, format: uuid }
+                  status: { type: string, enum: [REJECTED] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/places/{id}/administrative-mapping/rematch:
+    post:
+      operationId: rematchPlaceAdministrativeMapping
+      tags: [cms, administrative]
+      summary: 'Moderation: re-run the resolver on one rejected mapping (ADM-009)'
+      description: >
+        The only route that reopens a REJECTED mapping — one place, a reason, and
+        an authenticated person to attribute it to. The bulk backfill (#461) has
+        no such option, because it has nobody to name.
+
+
+        Asking for a rematch is not verifying anything. The resolver's answer is
+        written under the ordinary transition rules, the previous reviewer's
+        attribution is cleared because their decision no longer stands, and the
+        requester is recorded in the audit as the requester — never in
+        `administrative_mapped_by`.
+
+
+        A VERIFIED mapping is refused: correcting one is an explicit reviewer
+        act that names both people, not a re-derivation.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdministrativeMappingReason' }
+      responses:
+        '201':
+          description: The resolver ran and its result was persisted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [placeId, status, communeCode]
+                properties:
+                  placeId: { type: string, format: uuid }
+                  status:
+                    type: string
+                    enum: [UNMAPPED, AUTO_MATCHED, NEEDS_REVIEW]
+                  communeCode: { type: string, nullable: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: VERIFIED_NOT_REMATCHABLE, or PLACE_MODIFIED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/places/{id}/administrative-mapping/correct:
+    post:
+      operationId: correctPlaceAdministrativeMapping
+      tags: [cms, administrative]
+      summary: 'Moderation: correct a mapping somebody already verified (ADM-009)'
+      description: >
+        Separate from verify on purpose. Changing a decision a person recorded is
+        an act that must name both of them, and the audit row does: the previous
+        reviewer, their codes, the corrector, the reason, and the new codes.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [provinceCode, communeCode, reason, expectedUpdatedAt]
+              properties:
+                provinceCode: { type: string, pattern: '^[0-9]{2,5}$' }
+                communeCode: { type: string, pattern: '^[0-9]{2,5}$' }
+                legacyDistrictCode: { type: string, pattern: '^[0-9]{2,5}$', nullable: true }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+                expectedUpdatedAt: { type: string, format: date-time }
+      responses:
+        '201':
+          description: The mapping is corrected and re-verified
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [placeId, status, datasetVersion]
+                properties:
+                  placeId: { type: string, format: uuid }
+                  status: { type: string, enum: [VERIFIED] }
+                  datasetVersion: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: NOT_VERIFIED, or PLACE_MODIFIED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /cms/places/{id}/administrative-mapping/reconcile:
+    post:
+      operationId: reconcilePlaceAdministrativeMapping
+      tags: [cms, administrative]
+      summary: 'Ops: re-evaluate one mapping against the active dataset (ADM-009)'
+      description: >
+        System reconciliation, and `ops_admin` rather than `moderator` because it
+        belongs to whoever published the dataset that changed — and because it is
+        emphatically not a verification.
+
+
+        A version change alone never makes a mapping stale. If the same commune
+        still exists, is still current and still sits under the same province,
+        nothing is written and the older version stays as provenance. When the
+        identity really has failed, STALE is written and the codes and
+        `administrative_mapped_by` are **kept**: that column names who verified
+        the stored mapping, and they did — STALE says that verification is no
+        longer current. The audit row names the reconciler separately, so the log
+        can never be read as "this person verified it".
+
+
+        Idempotent: reconciling an already-stale mapping writes nothing.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: The verdict, and whether anything was written
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [placeId, changed, verdict]
+                properties:
+                  placeId: { type: string, format: uuid }
+                  changed: { type: boolean }
+                  verdict: { $ref: '#/components/schemas/AdministrativeStaleVerdict' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /taxonomies:
     get:
@@ -1378,6 +2704,29 @@ paths:
         '200': { description: '{ id, status, reasonCode?, placeId? }' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /service-areas:
+    get:
+      operationId: listServiceAreas
+      tags: [places]
+      summary: The curated service areas — a profile's home area comes from here
+      description: >
+        ADR-0022. The same table the areas autocomplete falls back to, whole,
+        ordered for a picker and grouped by `city` on the client. Only active
+        areas. No PII, no provider call, cached at the edge for an hour. A
+        `homeAreaKey` sent to `PATCH /me` must be one of these keys.
+      security: []
+      responses:
+        '200':
+          description: Active service areas in display order
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              description: 'public, max-age=3600'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceAreaList' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
   /places/areas:
     get:
       operationId: suggestAreas
@@ -1462,6 +2811,12 @@ paths:
       operationId: exportMyData
       tags: [me]
       summary: Export all actor-owned data (privacy rule)
+      description: >
+        Everything the account owns, as JSON, from an explicit allowlist:
+        profile (display name, email, locale, avatar URL, home area, interests,
+        usual budget — ADR-0022), memberships, preferences, votes, saved
+        items, reviews. Never a credential, a session, or an upload key.
+        Audit-logged and recorded in the privacy ledger.
       responses:
         '200': { description: JSON export; audit-logged }
         '429': { $ref: '#/components/responses/RateLimited' }
@@ -1728,6 +3083,139 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /cms/place-submissions/{id}:
+    get:
+      operationId: cmsGetPlaceSubmission
+      tags: [cms]
+      summary: 'Moderator/editor: everything a submission decision needs (PI-BE-031)'
+      description: >
+        GoGo-BE#528. The queue lists; this is what a decision is made on.
+
+
+        Stored facts only — the contributor's input, any reviewer supplement,
+        whether the catalogue already holds this Google record, and how the
+        submission has been handled. **No provider request**, so opening a
+        submission costs nothing; ask Google explicitly with
+        `POST /cms/place-submissions/{id}/provider-preview` when you need its
+        name, address, rating or hours.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The submission, its review draft and its history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlaceSubmissionDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cms/place-submissions/{id}/provider-preview:
+    post:
+      operationId: cmsPreviewSubmissionProvider
+      tags: [cms]
+      summary: "Moderator/editor: Google's current answer about this place (PI-BE-031)"
+      description: >
+        GoGo-BE#528. One `quality` Place Details, rendered and discarded —
+        nothing is stored, in either the row or a cache (ADR-0006 §9.5).
+
+
+        An action rather than a side effect of opening a screen, because it
+        costs money: it is counted under
+        `place_submission_provider_preview_total`, separately from the fetch
+        `decide` makes at approval, so preview spend and approval spend are two
+        numbers. A page of the queue makes none of these calls.
+
+
+        Same roles as the rest of the queue. `POST /cms/places/resolve-link`
+        returns the same shape but requires `editor`, and a moderator who cannot
+        look at the place is not able to moderate it.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: >-
+            Provider facts plus the administrative preview for the coordinate.
+            Nothing here is stored by this request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResolveLinkResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503':
+          description: '`PLACE_PROVIDER_UNAVAILABLE` — retryable; the submission is untouched.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/place-submissions/{id}/review:
+    put:
+      operationId: cmsSavePlaceSubmissionReview
+      tags: [cms]
+      summary: 'Moderator/editor: supplement a submission before deciding (PI-BE-031)'
+      description: >
+        GoGo-BE#528. Saves the reviewer's edits to the GoGo-owned fields and
+        **decides nothing** — no place is created, no status changes.
+
+
+        Two requests rather than one because they are two intentions: a reviewer
+        halfway through a description must be able to keep it without approving,
+        and a reviewer who approves must not find their unsaved edits were
+        applied as part of the decision. The console refuses to navigate away
+        from unsaved edits.
+
+
+        The contributor's own input is never overwritten. Their category, price
+        estimate, vibes and note stay on the submission exactly as sent; the
+        draft is a separate record of what staff made of it, and the approval
+        applies the draft over the provider's answer.
+
+
+        Only a `pending` submission accepts a review. Once decided, the place
+        exists and `PATCH /cms/places/{id}` is where it is edited.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [draft]
+              properties:
+                draft: { $ref: '#/components/schemas/SubmissionReviewDraft' }
+                expectedUpdatedAt:
+                  type: string
+                  format: date-time
+                  description: >
+                    The submission's `updatedAt` when the form was loaded. When
+                    it no longer matches, another moderator has written since
+                    and the save is refused with `409 SUBMISSION_MODIFIED`
+                    rather than silently winning. Omitting it skips the check.
+      responses:
+        '200':
+          description: The stored draft and the new `updatedAt`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, draft, updatedAt]
+                properties:
+                  id: { type: string, format: uuid }
+                  draft: { $ref: '#/components/schemas/SubmissionReviewDraft' }
+                  reviewedAt: { type: string, format: date-time }
+                  updatedAt: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `SUBMISSION_MODIFIED` — somebody wrote since the form was loaded;
+            the current `updatedAt` is in `field_errors`. `ALREADY_DECIDED` —
+            the submission is no longer pending.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
   /cms/place-submissions/{id}/decide:
     post:
       operationId: decidePlaceSubmission
@@ -1745,10 +3233,39 @@ paths:
               properties:
                 decision: { type: string, enum: [approved, rejected, merged] }
                 reason: { type: string, minLength: 3, maxLength: 500 }
-                mergeIntoPlaceId: { type: string, format: uuid }
+                mergeIntoPlaceId:
+                  type: string
+                  format: uuid
+                  description: >
+                    Required for `merged`, and the place must exist —
+                    `404 MERGE_TARGET_NOT_FOUND` otherwise (GoGo-BE#528).
+                    Merging records where this proposal went; nothing about the
+                    target place is written.
+      description: >
+        `approved` creates the catalogue place and applies whatever a reviewer
+        supplemented through `PUT /cms/place-submissions/{id}/review` over the
+        provider's answer (GoGo-BE#528). Fields the reviewer typed are recorded
+        `editorial` in `place_field_provenance` and carry their id; fields left
+        as Google answered them are `google_derived` and carry the Place ID — so
+        a later provider refresh can tell what it may overwrite.
+
+
+        `rejected` creates no place. `merged` points the proposal at an existing
+        one and writes nothing to it.
+
+
+        Approval is not verification and not publication: the administrative
+        mapping is resolved from the new place's own coordinate and is never
+        `VERIFIED`, and the publication blocker stays until somebody confirms it
+        (ADM-017, GoGo-BE#525).
       responses:
         '201': { description: Decision applied; audited + reindex event emitted }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: '`SUBMISSION_NOT_FOUND`, or `MERGE_TARGET_NOT_FOUND` for a merge.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '409': { $ref: '#/components/responses/Conflict' }
 
   /cms/place-imports:
@@ -1764,6 +3281,74 @@ paths:
         Re-uploading identical bytes in the same mode returns the existing job
         (`reused: true`) instead of re-billing the provider. `dry_run` validates
         only and never calls the provider.
+
+
+        **Row identity (PI-BE-024).** A row identifies its place with
+        `google_place_id`, `google_maps_url`, both, or neither:
+
+
+        - **id only** — Details is fetched for that id directly. No URL parsing,
+          no text search.
+
+        - **url only** — the link is parsed and a short link expanded; a link
+          carrying a Place ID resolves by it, otherwise the row falls to text
+          search.
+
+        - **both** — the two must agree, and agreement is established rather
+          than assumed. A URL carrying an explicit Places id (`place_id`,
+          `placeid`, `query_place_id`), including one a short link expands to,
+          is compared locally and costs no Places request. A URL carrying none —
+          which is most real share links, since `/maps/place/<name>/data=…`
+          holds a hex feature id and not a Places id — is resolved through the
+          ordinary provider path and the **resolved** id is compared instead.
+          A disagreement fails the row with `PLACE_ID_URL_MISMATCH`. A link
+          whose identity cannot be settled at all fails with
+          `PLACE_ID_URL_UNVERIFIABLE`: finding no second id is not agreement.
+
+        - **neither** — `google_maps_query`, or `name` plus `city`/`district` as
+          search hints.
+
+
+        `city` is required only in that last case. A row carrying an id or a
+        link needs none: the administrative identity comes from the coordinate,
+        not from a typed city, and `district` is never administrative evidence.
+
+
+        The canonical `googleMapsUri` is whatever Google returns; the submitted
+        URL is never stored or treated as canonical.
+
+
+        **GoGo-owned columns (PI-BE-025).** `phone`, `website`,
+        `avg_visit_minutes`, `is_lodging` and `curated_rank` are accepted and
+        persisted, validated by the same rules the console uses: phone
+        normalises to E.164, website to `http(s)`, `avg_visit_minutes` is
+        10–720. Every one of them fails the row explicitly rather than being
+        dropped on commit. Values from the file are recorded `editorial` in
+        `place_field_provenance`.
+
+
+        `places.suitability` is deliberately **not** an import column.
+        `audiences` is the operator-facing vocabulary for the same product
+        concept — who a place suits — and `suitability` is the weighted score
+        GoGo derives from it and from editorial curation. Asking a spreadsheet
+        to author both would be asking one person to write the same fact at two
+        levels of abstraction and keep them consistent. The column and every
+        other API path that writes it are unchanged.
+
+
+        `phone` and `website` are no longer retired mapping values; `address`
+        still is, because `address_text` is written from the provider's
+        formatted address and a sheet's own address string has no writer.
+
+
+        **Price units (PI-BE-026).** `place_prices.unit` is `per_person`,
+        `per_item`, `per_hour` or `per_night`. A row that states a price must
+        state a unit this table can hold: `per_group` fails with
+        `PRICE_UNIT_UNSUPPORTED` and `unknown` — which is also the default when
+        the column is absent — fails with `PRICE_UNIT_REQUIRED`. Both used to be
+        accepted and then dropped the price on commit without a word. `free` is
+        stored as `per_person` with a zero amount. A row with no price at all is
+        unaffected.
       requestBody:
         required: true
         content:
@@ -3516,6 +5101,13 @@ paths:
         is null only when there is genuinely nothing more. Text search runs on
         the normalized name — accent-insensitive, same behaviour as the
         consumer-facing search.
+
+
+        **Archived places are excluded unless `status=archived` asks for them**
+        (ADM-018). This endpoint previously had no default status filter, so an
+        archived place — the closest thing this schema has to a soft delete —
+        appeared in the ordinary catalogue and in anything that counted it. Every
+        other status behaves as before.
       parameters:
         - name: status
           in: query
@@ -3543,6 +5135,40 @@ paths:
           in: query
           description: Freshness last verified more than N days ago, or never.
           schema: { type: integer, minimum: 0, maximum: 3650 }
+        - name: provinceCode
+          in: query
+          description: >
+            ADM-018 — the canonical province code the place stores. Free-text
+            `city`, `district` and the curated `areaKey` have no bearing on this
+            filter; only the code does.
+          schema: { type: string, pattern: '^[0-9]{2,5}$' }
+        - name: communeCode
+          in: query
+          description: >
+            The canonical commune code. Requires `provinceCode`, and the pair is
+            validated against the published dataset — two codes that are each
+            real but do not belong together are refused with a `400` naming the
+            field, rather than answered with an empty page that reads as "this
+            commune has no places".
+          schema: { type: string, pattern: '^[0-9]{2,5}$' }
+        - name: administrativeState
+          in: query
+          description: >
+            ADM-018 — which side of the canonical hierarchy to list.
+
+
+            `grouped` is a place that can honestly appear under a province and a
+            commune: both codes present, both units current, the commune under
+            the stored province, and the mapping `AUTO_MATCHED` or `VERIFIED`.
+            `review` is every other place — `NEEDS_REVIEW`, `UNMAPPED`,
+            `REJECTED`, `STALE`, or a mapping whose units no longer fit
+            together.
+
+
+            Omitted applies no administrative constraint at all. These two
+            values are what the counts in `cmsPlaceAdministrativeSummary`
+            reconcile against.
+          schema: { type: string, enum: [grouped, review] }
         - name: sort
           in: query
           schema:
@@ -3577,6 +5203,360 @@ paths:
                     description: Null when this is the last page.
         '400':
           description: INVALID_CURSOR or a rejected filter value
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      operationId: cmsCreatePlace
+      tags: [cms]
+      summary: 'Editor: create a place by hand (GoGo-BE#452)'
+      description: >
+        The third way a place enters the catalogue, and the only one where the
+        facts are a person's own. Bulk import resolves rows against a provider;
+        a community submission arrives from the app for review; this is an
+        editor typing what they know from a menu, a phone call or a visit.
+
+
+        Always created `draft`. Entering the catalogue and being visible are two
+        decisions, and `cmsTransitionPlace` already owns the second.
+
+
+        **Provenance.** A value the editor typed is recorded `editorial`,
+        including one they read off a preview and retyped — copying does not
+        transfer ownership (GOGO_PRODUCT_DATA_ARCHITECTURE.md). A value
+        *applied* from `cmsResolvePlaceLink` and left alone is recorded
+        `google_derived` with the Google Place ID as its reference, and
+        `googleDerivedFields` says which. Coordinates carry provenance too,
+        under the field name `geom`.
+
+
+        **Provider facts (PI-BE-021).** Given a `googlePlaceId`, this endpoint
+        makes exactly one `quality` Place Details call and stores what it
+        returns as the *provider's* facts: `ratings.provider`, `priceLevel`, the
+        weekly `hours` at `source: provider`, and the canonical `googleMapsUri`
+        on the place's Google source row. They are attributed to the provider,
+        never presented as GoGo-owned, and never read as recommendation input
+        (`docs/adr/0020-provider-facts-on-editor-created-places.md`).
+
+
+        The call is made here rather than replaying the preview because a
+        preview's content may not be carried across requests (ADR-0006 §9.5) —
+        the same reason the submission approve step re-verifies. The request
+        body accepts none of these values: they come from the provider answer,
+        so an editor cannot store their own number wearing Google's attribution.
+
+
+        A provider that is unreachable, out of quota, does not know the id, or
+        answers about a *different* id (a place that moved) costs the
+        enrichment, not the place: the row is created with its Google identity
+        and no provider facts, exactly as every place created before this
+        change. The outcome is counted as
+        `cms_place_create_provider_enrichment_total`.
+
+
+        **Identity beats similarity.** Given a `googlePlaceId`, the catalogue is
+        asked first whether that Google record already belongs to a place — it
+        does, and the answer is `409 PLACE_ALREADY_LINKED` naming it; two places
+        already claim it, and the answer is `409 PLACE_IDENTITY_CONFLICT` naming
+        both. `allowDuplicate` does not open this gate: two GoGo places may
+        share a name and a street corner, but never one Google record.
+
+
+        **Duplicate check.** Before inserting, the same rule the duplicate queue
+        uses — within 150 m and name similarity above 0.5 — runs against the
+        catalogue. A hit answers `409 PLACE_DUPLICATE_SUSPECTED` with the
+        candidates in `field_errors` (name and distance in metres), so the
+        console can offer the merge screen it already has. `allowDuplicate:
+        true` is how an editor says they looked and these are different places;
+        two cafés of one chain on the same street are real.
+
+
+        Field limits follow `cmsUpdatePlace` exactly and are stated there.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, lat, lng]
+              properties:
+                name:
+                  type: string
+                  description: 'Enforced: trimmed, 1..200 characters.'
+                lat:
+                  type: number
+                  description: 'Enforced: -90..90. Required — a place with no position cannot be searched, routed to, or checked for duplicates.'
+                lng: { type: number, description: 'Enforced: -180..180.' }
+                description: { type: [string, 'null'] }
+                addressText: { type: [string, 'null'] }
+                areaKey: { type: [string, 'null'] }
+                city:
+                  type: [string, 'null']
+                  maxLength: 120
+                  description: >
+                    ADR-0016 legacy free text, kept for rows that carry it and
+                    read by the resolver as one piece of evidence. It is **not**
+                    the administrative identity and selects no code — send
+                    `provinceCode`/`communeCode` for that.
+                district:
+                  type: [string, 'null']
+                  maxLength: 120
+                  description: >
+                    Legacy only. District-level units were dissolved on
+                    2025-07-01, so nothing current is expressed here. Accepted
+                    so an existing value survives, and read by the resolver as
+                    historical name evidence. Consoles must not offer it as a
+                    current administrative level.
+                provinceCode:
+                  type: [string, 'null']
+                  pattern: '^[0-9]{2,5}$'
+                  description: >
+                    ADM-016 / ADR-0019 — the canonical administrative address,
+                    with `communeCode`. See `cmsUpdatePlace` for the pair rule
+                    and the errors.
+                communeCode:
+                  type: [string, 'null']
+                  pattern: '^[0-9]{2,5}$'
+                  description: >
+                    The ward / commune / special zone, from
+                    `getAdministrativeCommunes` or `searchAdministrativeUnits`.
+                    Send the code the API returned; never rebuild one from a
+                    name or a list position.
+                phone:
+                  type: [string, 'null']
+                  maxLength: 40
+                  description: Normalized to E.164 on write, same as `cmsUpdatePlace`.
+                website: { type: [string, 'null'], maxLength: 500 }
+                avgVisitMinutes:
+                  type: [integer, 'null']
+                  description: 'Enforced: 10..720, or `null` when unknown.'
+                suitability: { type: object, additionalProperties: { type: number } }
+                isLodging: { type: boolean }
+                curatedRank: { type: [integer, 'null'] }
+                taxonomyIds:
+                  type: array
+                  items: { type: string, format: uuid }
+                allowDuplicate:
+                  type: boolean
+                  description: >
+                    Skip the duplicate check. Send it only after showing the
+                    editor the candidates from a previous 409.
+                googlePlaceId:
+                  type: string
+                  pattern: '^[\w-]{6,255}$'
+                  description: >
+                    The Google record this place is the GoGo copy of, from the
+                    preceding `cmsResolvePlaceLink`. Stored as a `place_sources`
+                    row — identity only, which is what puts the place inside
+                    provider dedup and makes a later refresh possible at all.
+                    ADR-0006 §9.3 permits storing the id indefinitely.
+                googleDerivedFields:
+                  type: array
+                  maxItems: 8
+                  items: { type: string, enum: [name, addressText, lat, lng] }
+                  description: >
+                    Which fields still hold the value the resolution filled in —
+                    the ones the editor looked at and left alone. Their
+                    provenance is recorded `google_derived` with `googlePlaceId`
+                    as the reference; everything else is `editorial`.
+
+
+                    Only the client knows this. The server keeps no snapshot of
+                    the preview to diff against, deliberately (ADR-0006 §9.5 —
+                    no cross-request provider content), so an editor who retypes
+                    a name over Google's owns it and the console drops that
+                    field from the list.
+
+
+                    The enum is short on purpose. `cmsResolvePlaceLink` also
+                    returns a rating and a review count, and neither may be
+                    applied: per GOGO_PRODUCT_DATA_ARCHITECTURE.md §2 canonical
+                    name/address/geo are GoGo-owned and persist, while Google
+                    rating/review/photo/hours are "No by default". The preview
+                    shows them so an editor can tell two branches of one chain
+                    apart, and nothing writes them.
+
+
+                    Requires `googlePlaceId` when non-empty — provenance
+                    pointing at nothing is worse than no provenance.
+      responses:
+        '201':
+          description: Created as draft; the body is the record the editor screen loads.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlaceDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: >
+            `PLACE_DUPLICATE_SUSPECTED` — near-identical places already in the
+            catalogue, listed in `field_errors`; `allowDuplicate: true` proceeds
+            anyway.
+
+
+            `PLACE_ALREADY_LINKED` — the `googlePlaceId` already belongs to a
+            GoGo place, whose id is the single `field_errors` message. The
+            console opens that place rather than creating a second one.
+
+
+            `PLACE_IDENTITY_CONFLICT` — two places already claim that Google ID.
+            Nothing may be added against it until an editor merges them; both
+            ids are in `field_errors`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/places/resolve-link:
+    post:
+      operationId: cmsResolvePlaceLink
+      tags: [cms]
+      summary: 'Editor: resolve a Google Maps link for the create form (GoGo-BE#465)'
+      description: >
+        PI-BE-020. The same resolution the app has used since #337, behind the
+        console's own door — identical body (minus `roomId`; the console adds to
+        no one's plan) and identical `ResolveLinkResult`.
+
+
+        It is a separate route from `resolveGoogleMapsLink` for two reasons,
+        neither of them the response shape. **Who pays:** the public route is
+        unauthenticated and rate-limited on IP without an edge-client-IP hop, so
+        behind Cloudflare every caller in the world shares one bucket of
+        10/minute, and an editor entering a morning's worth of places would be
+        throttled by strangers. This route keys on `ip+actor`, 20/minute.
+        **Who is asking:** a resolution that misses cache costs a provider
+        request, and a request that costs money should name the person who spent
+        it.
+
+
+        Requires `place.write`. Nothing is written — this is a preview, and the
+        place is created by `cmsCreatePlace` carrying the `googlePlaceId` this
+        returned.
+
+
+        Takes either a link or a Place ID; see the request body. A
+        `CANDIDATE_SELECTION` answer is meant to be resolved by sending one of
+        its `candidates[].googlePlaceId` straight back here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                Exactly one of `url` and `googlePlaceId`. Both would be two
+                questions in one request with no way to say which was answered;
+                neither is an empty request wearing a 201. Either way the
+                answer is the same `ResolveLinkResult`.
+              properties:
+                url: { type: string, format: uri, maxLength: 2000 }
+                googlePlaceId:
+                  type: string
+                  pattern: '^[\w-]{6,255}$'
+                  description: >
+                    The branch the editor picked out of a previous
+                    `CANDIDATE_SELECTION` (GoGo-BE#469).
+
+
+                    That answer is usually right — three places inside one tower
+                    are three places, and the matcher deliberately refuses to
+                    auto-pick between candidates within 0.05 of each other — but
+                    until this field existed the client received three real
+                    Place IDs and had no way to act on one. Choosing is a
+                    resolution, so it goes through the same route: same DB-first
+                    check, same dedup verdict, same `resolutionToken`.
+                cityHint: { type: string, maxLength: 80 }
+      responses:
+        '201':
+          description: >-
+            Resolution outcome with candidate + attribution facts. UNRESOLVED here always
+            means the provider answered and there was no match — never that GoGo could not
+            reach it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResolveLinkResult' }
+        '400':
+          description: >-
+            `VALIDATION_FAILED` — neither `url` nor `googlePlaceId`, or both.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: >-
+            PLACE_PROVIDER_UNAVAILABLE — GoGo cannot verify places right now. A statement
+            about this deployment, not about the link, so the console must not present it
+            as "không tìm thấy địa điểm" (GoGo-BE#279). `retryable` is true.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/places/administrative-summary:
+    get:
+      operationId: cmsPlaceAdministrativeSummary
+      tags: [cms]
+      summary: 'Editor: how many places sit under each current administrative unit (ADM-018)'
+      description: >
+        The canonical hierarchy for the catalogue: Tỉnh/Thành phố →
+        Phường/Xã/Đặc khu → the places filed under that commune. There is no
+        district level; district-level units were dissolved on 2025-07-01 and
+        are never current data.
+
+
+        One level per call. Without `provinceCode` this returns provinces; with
+        it, the communes of that province. The console renders one of those at a
+        time, and the alternative — the whole tree — is 3,321 communes to draw 34
+        rows.
+
+
+        **What may be grouped.** A place appears under a province and a commune
+        only when it holds both codes, both units are current in the published
+        dataset, the commune's parent is the province the place stores, and the
+        mapping is `AUTO_MATCHED` or `VERIFIED`. Everything else is `review`,
+        split by why. `AUTO_MATCHED` groups geographically and still does not
+        authorise publication — that gate is unchanged.
+
+
+        **What has no bearing on it.** Free-text `city`, `district`,
+        `addressText`, and the curated `areaKey`, which is a discovery bucket
+        rather than an address. Grouping reads the canonical codes and nothing
+        else.
+
+
+        **Counts reconcile with the list.** `totals.grouped` and `totals.review`
+        are `GET /cms/places` with the same filters plus
+        `administrativeState=grouped` / `review`; a unit's `placeCount` is that
+        plus its `provinceCode`/`communeCode`; a province's `reviewCount` is
+        `administrativeState=review` with that `provinceCode`. Archived places
+        are outside all of it unless `status=archived` asked for them.
+      parameters:
+        - name: provinceCode
+          in: query
+          description: >
+            List this province's communes instead of the provinces. A code that
+            is not a current province is refused with
+            `ADMINISTRATIVE_UNIT_NOT_CURRENT` rather than answered with an empty
+            list, which would read as "this province has no places".
+          schema: { type: string, pattern: '^[0-9]{2,5}$' }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, community_submitted, review, published, suspended, archived]
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: areaKey, in: query, schema: { type: string, maxLength: 64 } }
+        - { name: category, in: query, schema: { type: string, maxLength: 64 } }
+        - { name: source, in: query, schema: { type: string, enum: [google, community, manual] } }
+        - { name: staleDays, in: query, schema: { type: integer, minimum: 0, maximum: 3650 } }
+      responses:
+        '200':
+          description: One level of the hierarchy, with its counts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsPlaceAdministrativeSummary' }
+        '400':
+          description: ADMINISTRATIVE_UNIT_NOT_CURRENT — no such current province
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -3734,14 +5714,71 @@ paths:
                 city:
                   type: [string, 'null']
                   maxLength: 120
-                  description: Administrative address; free text, never a code.
+                  description: >
+                    ADR-0016 legacy free text. It was the closest thing to an
+                    administrative address before ADR-0019 and it is not one
+                    now: it selects no code, overrides no resolver evidence, and
+                    is read only as one piece of evidence among five. Kept
+                    because rows carry it and because an editor must be able to
+                    write an address no catalog holds.
                 district:
                   type: [string, 'null']
                   maxLength: 120
                   description: >
-                    Optional. An address with no district is valid — Vietnamese
-                    administrative units are reorganised and not every place has
-                    one.
+                    **Legacy only.** District-level units were dissolved on
+                    2025-07-01, so this names no current level of the Vietnamese
+                    hierarchy. It is still accepted, still stored, and still read
+                    by the resolver as historical name evidence — a dissolved
+                    unit with exactly one canonical successor is how a place
+                    mapped before the reorganisation gets found. A console must
+                    not present it as a current administrative field.
+                provinceCode:
+                  type: [string, 'null']
+                  pattern: '^[0-9]{2,5}$'
+                  description: >
+                    ADM-016 / ADR-0019 — the canonical administrative address,
+                    as codes, and one half of a pair.
+
+
+                    **The pair travels together.** A province with no commune is
+                    not an address, and a commune with no province is a code with
+                    no hierarchy to check it against; either alone is `400
+                    ADMINISTRATIVE_CODES_INCOMPLETE`. An absent key leaves the
+                    stored value in place, which means sending one half against a
+                    stored other half is checked as the pair it forms — that is
+                    what makes a cross-province combination `400
+                    HIERARCHY_INVALID` rather than a silent half-write.
+
+
+                    Validated against the dataset published **at commit time**,
+                    inside the transaction that stores them: `400
+                    PROVINCE_NOT_CURRENT` / `400 COMMUNE_NOT_CURRENT` when a code
+                    is not a current unit of that release, and `503
+                    ADMINISTRATIVE_DATASET_UNAVAILABLE` when the deployment has
+                    no published dataset to check a claim against.
+
+
+                    The codes are **evidence, not an instruction**. They enter the
+                    resolver as `trusted_code` and are weighed against the
+                    geometry in the same request; two sources naming different
+                    communes produce `NEEDS_REVIEW` with both candidates rather
+                    than whichever one the code happened to trust. Nothing here
+                    verifies anything: `AUTO_MATCHED` is a resolver result, and
+                    only a moderator's `VERIFIED` permits publication.
+                communeCode:
+                  type: [string, 'null']
+                  pattern: '^[0-9]{2,5}$'
+                  description: >
+                    The ward / commune / special zone. Take it from
+                    `getAdministrativeCommunes` or `searchAdministrativeUnits`
+                    and send it back unchanged — a code rebuilt from a display
+                    name or a list position is a different claim.
+
+
+                    A code is not an identity: 2,212 of the 3,321 current commune
+                    codes named a different unit before 2025-07-01, which is why
+                    every check here names the dataset version it was made
+                    against.
                 phone:
                   type: [string, 'null']
                   maxLength: 40
@@ -6764,6 +8801,37 @@ components:
       in: cookie
       name: gogo_at
   parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: >
+        ADM-003 / ADR-0019 §8. The ETag a client already holds. The tag is
+        derived from the active datasetVersion plus the resolved request, so it
+        carries no clock and no process-local state: two instances serving the
+        same version answer with the same tag, and a restart does not invalidate
+        anyone's cache.
+      schema: { type: string, maxLength: 256 }
+    AdministrativeIncludeLegacy:
+      name: includeLegacy
+      in: query
+      required: false
+      description: >
+        District-level units were dissolved on 2025-07-01 and are excluded from
+        every response unless this is `true`. A form offering "Quận Ba Đình"
+        would be offering something that no longer exists.
+      schema: { type: string, enum: ['true', 'false'] }
+    AdministrativeLimit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    AdministrativeCursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous page's `nextCursor`.
+      schema: { type: string, maxLength: 64 }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -6823,6 +8891,986 @@ components:
         maximum: 100
         default: 20
   schemas:
+    AdministrativeUnit:
+      type: object
+      required: [code, name, fullName, unitType, level, status, effectiveFrom, isCurrent]
+      properties:
+        code:
+          { type: string, description: Official GSO code. Not unique on its own — see ADR-0019 §2. }
+        name: { type: string, description: Short name without its type prefix ("Ba Đình"). }
+        fullName: { type: string, description: The source's own string ("Phường Ba Đình"). }
+        nameEn: { type: string, nullable: true }
+        codeName: { type: string, nullable: true }
+        unitType:
+          type: string
+          enum: [PROVINCE, MUNICIPALITY, WARD, COMMUNE, SPECIAL_ZONE, LEGACY_DISTRICT]
+        level: { type: string, enum: [PROVINCE, COMMUNE, LEGACY_DISTRICT] }
+        parentCode:
+          { type: string, nullable: true, description: Province code; null for a province. }
+        status: { type: string, enum: [ACTIVE, INACTIVE, FUTURE] }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: string, format: date, nullable: true }
+        isCurrent: { type: boolean }
+    AdministrativeUnitPage:
+      type: object
+      required: [datasetVersion, items, nextCursor, total]
+      properties:
+        datasetVersion: { type: string }
+        items: { type: array, items: { $ref: '#/components/schemas/AdministrativeUnit' } }
+        nextCursor: { type: string, nullable: true }
+        total: { type: integer }
+    AdministrativeUnitDetail:
+      type: object
+      required: [datasetVersion, current, periods]
+      properties:
+        datasetVersion: { type: string }
+        current:
+          allOf: [{ $ref: '#/components/schemas/AdministrativeUnit' }]
+          nullable: true
+        periods:
+          type: array
+          description: Every effective period this code has had, oldest first.
+          items: { $ref: '#/components/schemas/AdministrativeUnit' }
+    AdministrativeResolution:
+      type: object
+      required: [datasetVersion, requested, unit, successors, unresolved]
+      properties:
+        datasetVersion: { type: string }
+        requested:
+          type: object
+          required: [code, at]
+          properties:
+            code: { type: string }
+            at: { type: string, format: date, nullable: true }
+        unit: { $ref: '#/components/schemas/AdministrativeUnit' }
+        successors:
+          type: array
+          description: Canonical changes only. A quarantined split never appears here.
+          items:
+            type: object
+            required: [code, changeType, effectiveDate]
+            properties:
+              code: { type: string, nullable: true }
+              changeType:
+                type: string
+                enum: [CREATED, RENAMED, MERGED, SPLIT, REASSIGNED, DISSOLVED]
+              effectiveDate: { type: string, format: date }
+              legalReference: { type: string, nullable: true }
+        unresolved:
+          type: boolean
+          description: >
+            True when the unit is not current and GoGo holds no canonical
+            successor — typically an ambiguous split awaiting CMS review. Said
+            in a field rather than left to be inferred from an empty list.
+    AdministrativeVersion:
+      type: object
+      required: [datasetVersion, effectiveDate, publishedAt, counts]
+      properties:
+        datasetVersion: { type: string }
+        effectiveDate: { type: string, format: date }
+        publishedAt: { type: string, format: date-time, nullable: true }
+        counts:
+          type: object
+          required: [provinces, communes, legacyDistricts, legacyCommunes, changes]
+          properties:
+            provinces: { type: integer }
+            communes: { type: integer }
+            legacyDistricts: { type: integer }
+            legacyCommunes: { type: integer }
+            changes: { type: integer }
+    AdministrativeDatasetSummary:
+      type: object
+      required:
+        [
+          id,
+          combinedDatasetVersion,
+          combinedChecksum,
+          status,
+          effectiveDate,
+          overrideRevision,
+          sources,
+          importedAt,
+          publishedAt,
+          validation,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        combinedDatasetVersion:
+          type: string
+          description: >
+            The identity of a GoGo dataset is the tuple of its pinned upstreams
+            plus the override revision, not any single source version.
+        combinedChecksum: { type: string }
+        status:
+          type: string
+          enum: [STAGED, VALIDATED, REJECTED, PUBLISHED, ROLLED_BACK]
+          description: >
+            At most one version is PUBLISHED, held by a partial unique index.
+            A version demoted by a later publication becomes ROLLED_BACK and is
+            retained — that is what a rollback restores.
+        effectiveDate: { type: string, format: date }
+        overrideRevision: { type: integer }
+        sources:
+          type: object
+          required:
+            [
+              currentSourceVersion,
+              historicalSourceVersion,
+              mappingSourceCommit,
+              boundarySourceVersion,
+            ]
+          properties:
+            currentSourceVersion: { type: string }
+            historicalSourceVersion: { type: string, nullable: true }
+            mappingSourceCommit: { type: string, nullable: true }
+            boundarySourceVersion: { type: string, nullable: true }
+        importedAt: { type: string, format: date-time }
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            Non-null means this version was active at some point, which is what
+            makes it a legitimate rollback target.
+        validation:
+          type: object
+          nullable: true
+          required:
+            [validationId, validatorVersion, ranAt, errors, warnings, publishable, warningGates]
+          properties:
+            validationId: { type: string }
+            validatorVersion: { type: string }
+            ranAt: { type: string, format: date-time }
+            errors: { type: integer }
+            warnings: { type: integer }
+            publishable:
+              type: boolean
+              description: Exactly `errors === 0`. Warnings never affect it.
+            warningGates:
+              type: array
+              items: { type: string }
+    AdministrativeImportReport:
+      type: object
+      required:
+        [
+          datasetVersionId,
+          combinedDatasetVersion,
+          combinedChecksum,
+          counts,
+          classification,
+          warnings,
+        ]
+      properties:
+        datasetVersionId: { type: string, format: uuid }
+        combinedDatasetVersion: { type: string }
+        combinedChecksum: { type: string }
+        counts:
+          type: object
+          required:
+            [provinces, communes, legacyDistricts, legacyCommunes, canonicalChanges, quarantined]
+          properties:
+            provinces: { type: integer }
+            communes: { type: integer }
+            legacyDistricts: { type: integer }
+            legacyCommunes: { type: integer }
+            canonicalChanges: { type: integer }
+            quarantined: { type: integer }
+        classification:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            Count per quarantine class. An advisory mapping row is promoted to a
+            canonical change only when both endpoints resolve; the rest are
+            quarantined with their raw payload, never guessed.
+        warnings:
+          type: array
+          items: { type: string }
+    AdministrativeValidationReport:
+      type: object
+      nullable: true
+      required:
+        [
+          datasetVersion,
+          ranAt,
+          findings,
+          errors,
+          warnings,
+          publishable,
+          counts,
+          validationId,
+          validatorVersion,
+          boundTo,
+        ]
+      properties:
+        datasetVersion: { type: string }
+        ranAt: { type: string, format: date-time }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [gate, severity, message, count, samples]
+            properties:
+              gate: { type: string }
+              severity: { type: string, enum: [ERROR, WARNING] }
+              message: { type: string }
+              count: { type: integer }
+              samples:
+                type: array
+                items: { type: string }
+        errors: { type: integer }
+        warnings: { type: integer }
+        publishable:
+          type: boolean
+          description: >
+            `errors === 0`. The only thing publication consults, and it is
+            re-checked server-side against a freshly re-read result.
+        counts:
+          type: object
+          required:
+            [
+              currentProvinces,
+              currentCommunes,
+              historicalProvinces,
+              historicalDistricts,
+              historicalCommunes,
+              canonicalChanges,
+              quarantined,
+            ]
+          properties:
+            currentProvinces: { type: integer }
+            currentCommunes: { type: integer }
+            historicalProvinces: { type: integer }
+            historicalDistricts: { type: integer }
+            historicalCommunes: { type: integer }
+            canonicalChanges: { type: integer }
+            quarantined: { type: integer }
+        validationId:
+          type: string
+          description: >
+            Deterministic in what was checked and what was found, so an audit row
+            can name the exact validation a publication relied on.
+        validatorVersion: { type: string }
+        boundTo:
+          type: object
+          description: >
+            What this result is evidence about. Publication re-derives every one
+            of these and refuses as VALIDATION_STALE on any disagreement — which
+            is what makes "validated, then someone edited a staged row" a refusal
+            rather than a silent publication of unvalidated data.
+          required:
+            [
+              datasetVersionId,
+              combinedDatasetVersion,
+              combinedChecksum,
+              snapshotFingerprint,
+              overrideRevision,
+            ]
+          properties:
+            datasetVersionId: { type: string, format: uuid }
+            combinedDatasetVersion: { type: string }
+            combinedChecksum: { type: string }
+            snapshotFingerprint:
+              type: string
+              description: >
+                Digest of the stored rows themselves. The combined checksum is
+                computed from the pinned files, so it cannot see a row edited
+                directly in the database; this can.
+            overrideRevision: { type: integer }
+    AdministrativeAffectedPlaces:
+      type: object
+      required: [total, samples, truncated, sampleLimit]
+      properties:
+        total:
+          type: integer
+          description: >
+            Counted in the database. Places with no administrative claim
+            (UNMAPPED) are excluded — a place with no claim is not affected by a
+            change to administrative data.
+        samples:
+          type: array
+          items:
+            type: object
+            required: [placeId, name, code, status]
+            properties:
+              placeId: { type: string, format: uuid }
+              name: { type: string }
+              code: { type: string }
+              status: { type: string }
+        truncated: { type: boolean }
+        sampleLimit: { type: integer }
+    AdministrativeDatasetDiff:
+      type: object
+      required:
+        [
+          fromVersion,
+          toVersion,
+          countsByCategory,
+          entries,
+          entriesTruncated,
+          entryLimit,
+          affectedPlaces,
+        ]
+      properties:
+        fromVersion:
+          type: string
+          nullable: true
+          description: Null for a first publication, which compares against an empty baseline.
+        toVersion: { type: string }
+        countsByCategory:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            Always complete, never paged. Categories: CREATED, DISSOLVED,
+            RENAMED, PARENT_CHANGED, STATUS_CHANGED, EFFECTIVE_PERIOD_CHANGED,
+            MERGED, SPLIT, REASSIGNED, UNRESOLVED, SOURCE_DRIFT.
+        entries:
+          type: array
+          items:
+            type: object
+            required: [key, category, from, to, detail, provenance, validation]
+            properties:
+              key: { type: string }
+              category: { type: string }
+              from:
+                type: object
+                nullable: true
+                properties:
+                  code: { type: string }
+                  effectiveFrom: { type: string, format: date }
+              to:
+                type: object
+                nullable: true
+                properties:
+                  code: { type: string }
+                  effectiveFrom: { type: string, format: date }
+              detail: { type: string }
+              provenance: { type: string, nullable: true }
+              validation:
+                type: array
+                items: { type: string }
+        entriesTruncated: { type: boolean }
+        entryLimit: { type: integer }
+        affectedPlaces: { $ref: '#/components/schemas/AdministrativeAffectedPlaces' }
+        pagination:
+          type: object
+          required: [offset, limit, totalEntries, hasMore]
+          properties:
+            offset: { type: integer }
+            limit: { type: integer }
+            totalEntries: { type: integer }
+            hasMore: { type: boolean }
+    AdministrativeUnitIdentity:
+      type: object
+      description: >
+        A code and the effective date that makes it mean something. 2,212 of the
+        3,321 current commune codes named a different unit before 2025-07-01, so
+        a code on its own is ambiguous rather than merely terse.
+      required: [code, name, unitType, level, effectiveFrom, effectiveTo, parentCode, status]
+      properties:
+        code: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        unitType: { type: string, nullable: true }
+        level: { type: string, nullable: true }
+        effectiveFrom: { type: string, format: date, nullable: true }
+        effectiveTo: { type: string, format: date, nullable: true }
+        parentCode: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+    AdministrativeQuarantineCounts:
+      type: object
+      required: [canonical, backlog, decisions]
+      properties:
+        canonical:
+          type: object
+          additionalProperties: { type: integer }
+          description: Every canonical edge this dataset asserts, by change type.
+        backlog:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            Quarantine rows only, by classification. This is the review queue,
+            and it is deliberately not derivable from the import report's
+            `classification`, which counts promoted rows too.
+        decisions:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            Rows by the state of their effective decision: UNDECIDED,
+            ACCEPTED_DRAFT, REJECTED_DRAFT, SUPERSEDED.
+    AdministrativeQuarantineItem:
+      type: object
+      required:
+        [
+          id,
+          classification,
+          validationReason,
+          source,
+          proposedTarget,
+          upstreamFlags,
+          candidateCount,
+          affectedPlaceCount,
+          decisionState,
+          decidedAt,
+          sourceProvenance,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        classification: { type: string }
+        validationReason: { type: string }
+        source:
+          type: object
+          properties:
+            code: { type: string, nullable: true }
+            name: { type: string, nullable: true }
+        proposedTarget:
+          type: object
+          description: What the upstream guessed. Reported, never pre-selected.
+          properties:
+            code: { type: string, nullable: true }
+            name: { type: string, nullable: true }
+        upstreamFlags:
+          type: object
+          additionalProperties: true
+        candidateCount: { type: integer }
+        affectedPlaceCount: { type: integer }
+        decisionState:
+          type: string
+          enum: [UNDECIDED, ACCEPTED_DRAFT, REJECTED_DRAFT, SUPERSEDED]
+        decidedAt: { type: string, format: date-time, nullable: true }
+        sourceProvenance: { type: string }
+    AdministrativeQuarantinePage:
+      type: object
+      required: [items, nextCursor, counts]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdministrativeQuarantineItem' }
+        nextCursor: { type: string, nullable: true }
+        counts: { $ref: '#/components/schemas/AdministrativeQuarantineCounts' }
+    AdministrativeOverrideDecisionRecord:
+      type: object
+      required: [id, sequence, decision, targetCode, targetEffectiveFrom, reason, decidedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sequence: { type: integer }
+        decision: { type: string, enum: [ACCEPT, REJECT] }
+        targetCode: { type: string, nullable: true }
+        targetEffectiveFrom: { type: string, format: date, nullable: true }
+        reason: { type: string }
+        supersedesDecisionId: { type: string, format: uuid, nullable: true }
+        supersededById: { type: string, format: uuid, nullable: true }
+        decidedAt: { type: string, format: date-time }
+    AdministrativeQuarantineDetail:
+      type: object
+      required:
+        [
+          id,
+          datasetVersionId,
+          classification,
+          validationReason,
+          sourceProvenance,
+          combinedDatasetVersion,
+          rawPayload,
+          source,
+          candidates,
+          affectedPlaces,
+          overrideSet,
+          decision,
+          decisionState,
+          history,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        datasetVersionId: { type: string, format: uuid }
+        classification: { type: string }
+        validationReason: { type: string }
+        sourceProvenance: { type: string }
+        combinedDatasetVersion: { type: string }
+        upstreamFlags:
+          type: object
+          additionalProperties: true
+        rawPayload:
+          type: object
+          description: >
+            The advisory row verbatim, capped. It is evidence a reviewer reads,
+            not an archive to stream, so `truncated` says when the cap applied.
+          required: [value, truncated]
+          properties:
+            value: {}
+            truncated: { type: boolean }
+        source: { $ref: '#/components/schemas/AdministrativeUnitIdentity' }
+        candidates:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/AdministrativeUnitIdentity'
+              - type: object
+                properties:
+                  proposedByUpstream:
+                    type: boolean
+                    description: The successor the source guessed. Never a default.
+                  hierarchyValid: { type: boolean }
+                  selectable: { type: boolean }
+        affectedPlaces: { $ref: '#/components/schemas/AdministrativeAffectedPlaces' }
+        overrideSet:
+          type: object
+          required: [id, revision, status]
+          properties:
+            id: { type: string, format: uuid, nullable: true }
+            revision: { type: integer }
+            status: { type: string }
+        decision:
+          allOf: [{ $ref: '#/components/schemas/AdministrativeOverrideDecisionRecord' }]
+          nullable: true
+        decisionState:
+          type: string
+          enum: [UNDECIDED, ACCEPTED_DRAFT, REJECTED_DRAFT, SUPERSEDED]
+        history:
+          type: array
+          description: Append-only, newest first. Nothing here is ever rewritten.
+          items: { $ref: '#/components/schemas/AdministrativeOverrideDecisionRecord' }
+    AdministrativeOverrideSet:
+      type: object
+      required: [draft, counts, materialized]
+      properties:
+        draft:
+          type: object
+          nullable: true
+          description: Null until the first decision opens one. At most one per base dataset.
+          required: [id, revision, status, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            revision:
+              type: integer
+              description: >
+                Increments with every appended decision, and is what a mutation
+                sends back as `expectedRevision`.
+            status: { type: string, enum: [DRAFT] }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+        counts: { $ref: '#/components/schemas/AdministrativeQuarantineCounts' }
+        materialized:
+          type: array
+          items:
+            type: object
+            required: [id, revision, datasetVersionId, materializedAt]
+            properties:
+              id: { type: string, format: uuid }
+              revision: { type: integer }
+              datasetVersionId: { type: string, format: uuid, nullable: true }
+              materializedAt: { type: string, format: date-time, nullable: true }
+    AdministrativeOverrideDecisionResult:
+      type: object
+      required:
+        [
+          decisionId,
+          overrideSetId,
+          overrideSetRevision,
+          decision,
+          quarantineRowId,
+          supersededDecisionId,
+          decidedAt,
+        ]
+      properties:
+        decisionId: { type: string, format: uuid }
+        overrideSetId: { type: string, format: uuid }
+        overrideSetRevision:
+          type: integer
+          description: Send this back as `expectedRevision` on the next decision.
+        decision: { type: string, enum: [ACCEPT, REJECT] }
+        quarantineRowId: { type: string, format: uuid }
+        supersededDecisionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The decision this one replaces. The replaced row is never edited.
+        decidedAt: { type: string, format: date-time }
+    AdministrativeMaterializeResult:
+      type: object
+      required:
+        [
+          overrideSetId,
+          overrideSetRevision,
+          datasetVersionId,
+          combinedDatasetVersion,
+          combinedChecksum,
+          overrideRevision,
+          status,
+          decisions,
+        ]
+      properties:
+        overrideSetId: { type: string, format: uuid }
+        overrideSetRevision: { type: integer }
+        datasetVersionId:
+          type: string
+          format: uuid
+          description: The derived version. STAGED, and served to nobody until it is published.
+        combinedDatasetVersion: { type: string }
+        combinedChecksum: { type: string }
+        overrideRevision:
+          type: integer
+          description: The base's plus one, which is what mints a new identity deterministically.
+        status: { type: string, enum: [STAGED] }
+        decisions:
+          type: object
+          required: [effective, accepted, rejected, edges]
+          properties:
+            effective: { type: integer }
+            accepted: { type: integer }
+            rejected: { type: integer }
+            edges:
+              type: integer
+              description: >
+                Canonical edges written. A rejection produces none — it changes
+                the derived dataset's provenance, not its content.
+    AdministrativeStaleMappings:
+      type: object
+      description: >
+        Places whose administrative claim does not resolve against the dataset
+        being activated. Reported, never written: whether a claim a person
+        verified should be demoted is the mapping work's decision (#459/#461/#462).
+      required: [total, samples, truncated, sampleLimit]
+      properties:
+        total: { type: integer }
+        samples:
+          type: array
+          items:
+            type: object
+            required: [placeId, name, code, status]
+            properties:
+              placeId: { type: string, format: uuid }
+              name: { type: string }
+              code: { type: string }
+              status: { type: string }
+        truncated: { type: boolean }
+        sampleLimit: { type: integer }
+    AdministrativeTransitionResult:
+      type: object
+      required:
+        [
+          datasetVersionId,
+          combinedDatasetVersion,
+          previousActiveVersion,
+          previousActiveVersionId,
+          publishedAt,
+          validationId,
+          warnings,
+          warningGates,
+          diff,
+          staleMappings,
+          cacheWarmed,
+        ]
+      properties:
+        datasetVersionId: { type: string, format: uuid }
+        combinedDatasetVersion: { type: string }
+        previousActiveVersion:
+          type: string
+          nullable: true
+          description: Retained, not deleted. This is what a rollback restores.
+        previousActiveVersionId: { type: string, format: uuid, nullable: true }
+        publishedAt: { type: string, format: date-time }
+        validationId:
+          type: string
+          description: The exact validation result this transition relied on.
+        warnings: { type: integer }
+        warningGates:
+          type: array
+          items: { type: string }
+          description: Visible and audited; they never blocked the publication.
+        diff: { $ref: '#/components/schemas/AdministrativeDatasetDiff' }
+        staleMappings: { $ref: '#/components/schemas/AdministrativeStaleMappings' }
+        cacheWarmed:
+          type: boolean
+          description: >
+            Whether this process refilled its own active-version pointer after
+            the commit. False is not a failed publication — PostgreSQL is
+            authoritative and every process converges within the 60-second TTL.
+    AdministrativeCapability:
+      type: object
+      required: [dataset, boundaries, resolver, publication, mappings, remediation, observedAt]
+      properties:
+        dataset:
+          type: object
+          required:
+            [state, version, publishedAt, ageSeconds, counts, quarantined, unresolved, validation]
+          properties:
+            state: { type: string, enum: [AVAILABLE, MISSING, ERROR] }
+            version: { type: string, nullable: true }
+            publishedAt: { type: string, format: date-time, nullable: true }
+            ageSeconds: { type: integer, nullable: true }
+            counts:
+              type: object
+              additionalProperties: { type: integer }
+              description: One per lifecycle status.
+            quarantined: { type: integer }
+            unresolved: { type: integer }
+            validation:
+              type: object
+              nullable: true
+              required: [errors, warnings]
+              properties:
+                errors: { type: integer }
+                warnings: { type: integer }
+        boundaries:
+          type: object
+          required: [state, version, loadedAt, ageSeconds, provinces, communes]
+          properties:
+            state: { type: string, enum: [AVAILABLE, MISSING, ERROR] }
+            version: { type: string, nullable: true }
+            loadedAt: { type: string, format: date-time, nullable: true }
+            ageSeconds: { type: integer, nullable: true }
+            provinces: { type: integer }
+            communes: { type: integer }
+        resolver:
+          type: string
+          enum: [FULL, PARTIAL, UNAVAILABLE]
+          description: >
+            PARTIAL means no boundary release is loaded: the resolver still
+            answers from explicit codes, stored names and the change mapping.
+        publication:
+          type: string
+          enum: [ENABLED, BLOCKED]
+          description: >
+            BLOCKED when no dataset is published — nothing to validate a mapping
+            against, so no place may be approved. Enforced by the domain guard,
+            not by taking the service offline.
+        mappings:
+          type: object
+          additionalProperties: { type: integer }
+          description: Places per administrative mapping status.
+        remediation:
+          type: object
+          additionalProperties: { type: integer }
+          description: Approved places per remediation category.
+        observedAt: { type: string, format: date-time }
+    AdministrativeMappingReason:
+      type: object
+      additionalProperties: false
+      required: [reason, expectedUpdatedAt]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required. A decision with no stated reason cannot be reviewed later.
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: >
+            The place's `updatedAt` as the reviewer saw it. A mismatch is 409
+            PLACE_MODIFIED rather than a lost update.
+    AdministrativeMappingListItem:
+      type: object
+      required:
+        [
+          placeId,
+          name,
+          placeStatus,
+          mappingStatus,
+          provinceCode,
+          communeCode,
+          datasetVersion,
+          updatedAt,
+          blocksApproval,
+        ]
+      properties:
+        placeId: { type: string, format: uuid }
+        name: { type: string }
+        placeStatus: { type: string }
+        mappingStatus: { $ref: '#/components/schemas/AdministrativeMappingStatus' }
+        provinceCode: { type: string, nullable: true }
+        communeCode: { type: string, nullable: true }
+        datasetVersion: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+        blocksApproval:
+          type: boolean
+          description: >
+            True for anything that is not VERIFIED. The precise reason is
+            per place and comes from the detail endpoint.
+    AdministrativeMappingStatus:
+      type: string
+      enum: [UNMAPPED, AUTO_MATCHED, NEEDS_REVIEW, VERIFIED, REJECTED, STALE]
+      description: >
+        VERIFIED and REJECTED are reviewer-owned: no automatic path writes them.
+        AUTO_MATCHED is the resolver's answer, which is why it does not permit
+        approval — the point of a review queue is that the machine's answer is
+        not the decision.
+    AdministrativeStaleVerdict:
+      type: object
+      required:
+        [stale, reason, reviewerOwned, requiresReview, storedDatasetVersion, activeDatasetVersion]
+      properties:
+        stale: { type: boolean }
+        reason:
+          type: string
+          enum:
+            [
+              NO_MAPPING,
+              CURRENT,
+              REVALIDATED,
+              UNIT_NOT_IN_ACTIVE_DATASET,
+              UNIT_NOT_CURRENT,
+              HIERARCHY_CHANGED,
+            ]
+          description: >
+            `REVALIDATED` is the healthy case: the mapping is labelled with an
+            older dataset version and is still true. It is not stale, and
+            nothing is written for it.
+        reviewerOwned: { type: boolean }
+        requiresReview: { type: boolean }
+        storedDatasetVersion: { type: string, nullable: true }
+        activeDatasetVersion: { type: string }
+    AdministrativeMappingEvidence:
+      type: object
+      required: [method, provinceCode, communeCode, hierarchyValid, deterministic, detail]
+      properties:
+        method: { type: string }
+        provinceCode: { type: string, nullable: true }
+        communeCode: { type: string, nullable: true }
+        legacyDistrictCode: { type: string, nullable: true }
+        hierarchyValid: { type: boolean }
+        deterministic:
+          type: boolean
+          description: False for anything that may only ever be offered to a person.
+        onEdge:
+          type: boolean
+          description: Boundary evidence only — the point sits on the polygon's own edge.
+        detail: { type: string }
+    AdministrativeMappingDetail:
+      type: object
+      required:
+        [
+          placeId,
+          place,
+          mapping,
+          activeDatasetVersion,
+          evidence,
+          candidates,
+          unresolvedReason,
+          hierarchyValid,
+          staleness,
+          approval,
+          permittedActions,
+        ]
+      properties:
+        placeId: { type: string, format: uuid }
+        place:
+          type: object
+          description: >
+            Read here so a reviewer can judge the mapping against what the
+            address actually says. No endpoint in this group writes any of it.
+          required: [name, status, addressText, city, district, geometry, updatedAt]
+          properties:
+            name: { type: string }
+            status: { type: string }
+            addressText: { type: string, nullable: true }
+            city: { type: string, nullable: true }
+            district: { type: string, nullable: true }
+            geometry:
+              type: object
+              required: [lng, lat]
+              properties:
+                lng: { type: number }
+                lat: { type: number }
+            updatedAt:
+              type: string
+              format: date-time
+              description: Send this back as `expectedUpdatedAt` on any decision.
+        mapping:
+          type: object
+          required:
+            [
+              status,
+              provinceCode,
+              communeCode,
+              legacyDistrictCode,
+              provinceName,
+              communeName,
+              legacyDistrictName,
+              method,
+              confidence,
+              datasetVersion,
+              boundaryVersion,
+              mappedAt,
+              reviewer,
+            ]
+          properties:
+            status: { $ref: '#/components/schemas/AdministrativeMappingStatus' }
+            provinceCode: { type: string, nullable: true }
+            communeCode: { type: string, nullable: true }
+            legacyDistrictCode: { type: string, nullable: true }
+            provinceName: { type: string, nullable: true }
+            communeName: { type: string, nullable: true }
+            legacyDistrictName: { type: string, nullable: true }
+            method: { type: string, nullable: true }
+            confidence:
+              type: string
+              nullable: true
+              description: >
+                1.00 or absent. Only an official code or a strictly-inside
+                containment is definitional; a manual verification writes none,
+                because a person's judgement is not a probability.
+            datasetVersion: { type: string, nullable: true }
+            boundaryVersion: { type: string, nullable: true }
+            mappedAt: { type: string, format: date-time, nullable: true }
+            reviewer:
+              type: object
+              nullable: true
+              description: >
+                Who is responsible for the mapping the row carries now. Retained
+                on a STALE row — they did verify it; STALE says that
+                verification is no longer current.
+              required: [id, displayName]
+              properties:
+                id: { type: string, format: uuid }
+                displayName: { type: string }
+        activeDatasetVersion: { type: string }
+        evidence:
+          type: array
+          items: { $ref: '#/components/schemas/AdministrativeMappingEvidence' }
+        candidates:
+          type: array
+          description: Alternatives the resolver refused to choose between.
+          items:
+            type: object
+            required: [method, provinceCode, communeCode, detail]
+            properties:
+              method: { type: string }
+              provinceCode: { type: string, nullable: true }
+              communeCode: { type: string, nullable: true }
+              detail: { type: string }
+        unresolvedReason: { type: string, nullable: true }
+        hierarchyValid: { type: boolean }
+        staleness: { $ref: '#/components/schemas/AdministrativeStaleVerdict' }
+        approval:
+          type: object
+          required: [blocked, block]
+          properties:
+            blocked: { type: boolean }
+            block:
+              type: object
+              nullable: true
+              required: [code, message]
+              properties:
+                code:
+                  type: string
+                  enum:
+                    [
+                      MAPPING_UNMAPPED,
+                      MAPPING_NOT_VERIFIED,
+                      MAPPING_REJECTED,
+                      MAPPING_STALE,
+                      MAPPING_INCOMPLETE,
+                      MAPPING_UNIT_NOT_CURRENT,
+                      MAPPING_HIERARCHY_INVALID,
+                    ]
+                message: { type: string }
+        permittedActions:
+          type: array
+          description: >
+            What this role may do, so the console renders buttons it knows will
+            work. The server still enforces it: hiding a button is not
+            authorization.
+          items: { type: string }
     RoomConstraintInput:
       type: object
       required: [budgetMode, budgetAmount]
@@ -6846,8 +9894,102 @@ components:
         accessibilityKeys:
           type: array
           items: { type: string }
+    ServiceArea:
+      type: object
+      description: A curated service area with its centre — a map fact, so a client can set a room origin from it.
+      required: [key, name, lat, lng]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        city: { type: string, nullable: true }
+        lat: { type: number }
+        lng: { type: number }
+    ServiceAreaList:
+      type: object
+      required: [areas]
+      properties:
+        areas:
+          type: array
+          items: { $ref: '#/components/schemas/ServiceArea' }
+    HomeArea:
+      type: object
+      description: A curated service area (`GET /service-areas`), never a provider prediction key.
+      required: [key, name]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        city: { type: string, nullable: true }
+    ProfileInterests:
+      type: object
+      description: Stable taxonomy keys by kind. Only `mood` is accepted in this wave (ADR-0022).
+      required: [mood]
+      properties:
+        mood:
+          type: array
+          maxItems: 20
+          items: { type: string }
+    UsualBudget:
+      type: object
+      description: Per-person upper bound in integer minor units. A create-room default, never a room constraint.
+      required: [perPerson, currency]
+      properties:
+        perPerson: { type: integer, minimum: 0 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+    Me:
+      type: object
+      description: >
+        Shape depends on `actorType`. A user carries the private profile; a
+        guest carries `roomId`, `displayName`, `expiresAt` and none of the
+        profile fields.
+      required: [actorType, id]
+      properties:
+        actorType: { type: string, enum: [user, guest] }
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+        email: { type: string }
+        locale: { type: string }
+        roomId: { type: string, format: uuid }
+        expiresAt: { type: string, format: date-time }
+        avatarUrl:
+          type: string
+          nullable: true
+          description: Null while media hosting is not configured, even if an avatar is stored.
+        homeArea:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/HomeArea' }]
+        interests: { $ref: '#/components/schemas/ProfileInterests' }
+        usualBudget:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/UsualBudget' }]
+        capabilities:
+          type: object
+          required: [avatarUpload]
+          properties:
+            avatarUpload:
+              type: string
+              enum: [available, unavailable]
+              description: Known before a picker opens; the server still enforces it.
+    ProfilePatch:
+      type: object
+      description: Omitted keeps a field, null clears it. `displayName` and `locale` cannot be null.
+      additionalProperties: false
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 50 }
+        locale: { type: string, enum: [vi, en] }
+        homeAreaKey: { type: string, minLength: 1, maxLength: 64, nullable: true }
+        interests:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/ProfileInterests' }]
+        usualBudget:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/UsualBudget' }]
     RoomMember:
       type: object
+      description: >
+        What co-members see of each other, and nothing more: no email, no home
+        area, no interests, no budget (ADR-0022). `avatarUrl` is present for a
+        user who set one and media hosting is configured; guests never carry
+        one.
       required: [id, displayName, role, selectionStatus, isGuest]
       properties:
         id: { type: string, format: uuid }
@@ -6856,6 +9998,7 @@ components:
         selectionStatus: { type: string, enum: [pending, in_progress, completed] }
         isGuest: { type: boolean }
         joinedAt: { type: string, format: date-time }
+        avatarUrl: { type: string, nullable: true }
     RoomSummary:
       type: object
       description: Facts only — audience copy is composed client-side from type/participantCount/budgetMode.
@@ -9038,6 +12181,32 @@ components:
         reasonCodes:
           type: array
           items: { type: string }
+          description: >
+            Why the answer is what it is. Open-ended by design — a client shows
+            what it recognises and ignores the rest — but these are the ones a
+            link resolution emits today.
+
+
+            Scoring: `EXACT_PROVIDER_ID`, `EXACT_NAME_CITY`, `MULTIPLE_BRANCHES`,
+            `DISTRICT_MISMATCH`, `CITY_MISMATCH`, `TYPE_MISMATCH`,
+            `LOW_CONFIDENCE`. Catalogue: `PLACE_ALREADY_LINKED`, `DB_FIRST`,
+            `PLACE_IDENTITY_CONFLICT`, `NOT_FOUND`, `NO_QUERY`.
+
+
+            Identity, from the Google feature id a share link carries
+            (GoGo-BE#505): `CID_EXACT_MATCH` — a candidate's own
+            `googleMapsUri` names the same CID as the link, so the two are the
+            same Google record and no name or distance score can say otherwise.
+            `CID_OVERRODE_SCORE` accompanies it when that candidate was not the
+            one the text score ranked first; the full `candidates` list is still
+            returned, so the disagreement is visible rather than hidden.
+            `LINK_IDENTITY_CONFLICT` (with `UNRESOLVED`) — the link names one
+            place by `place_id` and a different one by `ftid`, which nobody can
+            act on and nothing here guesses at. `CID_NOT_IN_CANDIDATES` — the
+            link named a place by CID, the candidates published CIDs of their
+            own, and none of them was it: the search did not return the place
+            the link points at, so a person picks rather than GoGo
+            auto-resolving onto an identity the link contradicts.
         existingPlaceId: { type: string, format: uuid }
         resolutionToken:
           type: string
@@ -9050,6 +12219,26 @@ components:
             carries no provider content and authorises nothing — an expired or
             edited token is rejected with a retryable `RESOLUTION_TOKEN_INVALID`
             and the client resolves again.
+        administrative:
+          oneOf:
+            - { $ref: '#/components/schemas/ImportAdministrativeIdentity' }
+            - { type: 'null' }
+          description: >
+            ADM-017 — the two current administrative levels the candidate's
+            coordinate falls in, so a create form can open on a real identity
+            instead of two empty boxes.
+
+
+            A preview: this request stores nothing, and the mapping is written
+            when the place is created. Absent when the deployment has no
+            published administrative dataset — a link still resolves, GoGo just
+            cannot say anything about units, and saying nothing is the honest
+            form of that.
+
+
+            `requiresReview` and `blocksPublication` mean what they mean
+            everywhere: `AUTO_MATCHED` here permits nothing, and the place
+            created from it is still a draft awaiting a moderator.
         candidate:
           type: object
           properties:
@@ -9072,6 +12261,53 @@ components:
             attributions:
               type: array
               items: { type: string }
+            googleMapsUri:
+              type: [string, 'null']
+              description: >
+                PI-BE-021 — the provider's own canonical link to the place.
+
+
+                Not the URL that was submitted. A `maps.app.goo.gl` share link
+                resolves *to* this value and never replaces it, so a client that
+                stores or renders "the Google link" must use this one.
+
+
+                Absent (rather than null) on an answer built from a stored row
+                without a live provider fetch: absent means this request did not
+                look, `null` means the provider published none.
+            priceLevel:
+              type: [integer, 'null']
+              description: 0–4, as the provider grades it.
+            primaryType:
+              type: [string, 'null']
+              description: The provider's own primary category token.
+            types:
+              type: array
+              items: { type: string }
+              description: >
+                Every type the provider assigns, `primaryType` included. Order is
+                not meaningful — read `categoryKey` rather than position.
+            categoryKey:
+              type: [string, 'null']
+              description: >
+                The GoGo category the provider's types imply, already checked
+                against the live taxonomy. `null` when the provider described the
+                place in terms GoGo has no category for — an ordinary answer, not
+                a failure. Resolve it to a taxonomy id before saving.
+            openingHours:
+              type: array
+              description: >
+                The weekly hours the provider publishes, in GoGo's own
+                representation — the same shape `PlaceHours` uses. An empty array
+                means the provider published none; it never means "closed".
+              items:
+                type: object
+                required: [dayOfWeek, openMinute, closeMinute, isOvernight]
+                properties:
+                  dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
+                  openMinute: { type: integer, minimum: 0, maximum: 1439 }
+                  closeMinute: { type: integer, minimum: 0, maximum: 1439 }
+                  isOvernight: { type: boolean }
         candidates:
           type: array
           items:
@@ -9207,6 +12443,7 @@ components:
         - district
         - google_maps_url
         - google_maps_query
+        - google_place_id
         - category
         - category_raw
         - price_min
@@ -9219,6 +12456,11 @@ components:
         - vibes_raw
         - highlight
         - note
+        - phone
+        - website
+        - avg_visit_minutes
+        - is_lodging
+        - curated_rank
     ImportJob:
       allOf:
         - $ref: '#/components/schemas/ImportJobSummary'
@@ -9228,6 +12470,45 @@ components:
             rowsByStatus:
               type: object
               additionalProperties: { type: integer }
+            publication:
+              type: object
+              description: >
+                ADM-009 (#462) — what happened to the publication this mode asked
+                for. Kept apart from `rowsByStatus` because they answer different
+                questions: a row can be `imported` and not published, and folding
+                the two together would tell an operator their places are live
+                when they are waiting for a reviewer.
+
+
+                A newly imported place has never been verified by anybody, so its
+                publication is always deferred and the place lands in `review`.
+                The one row that can publish is one matching an existing place
+                whose mapping a reviewer already verified and which is still
+                valid against the active administrative dataset.
+              required:
+                [
+                  requested,
+                  published,
+                  deferred,
+                  mappingUnverified,
+                  mappingInvalid,
+                  noActiveAdministrativeDataset,
+                ]
+              properties:
+                requested:
+                  type: integer
+                  description: Rows whose mode asked for publication.
+                published: { type: integer }
+                deferred: { type: integer }
+                mappingUnverified:
+                  type: integer
+                  description: No mapping, or one no reviewer has verified.
+                mappingInvalid:
+                  type: integer
+                  description: Verified, but the unit or hierarchy no longer holds.
+                noActiveAdministrativeDataset:
+                  type: integer
+                  description: Nothing to validate a mapping against in this environment.
             startedAt: { type: string, format: date-time }
             cancelledAt: { type: string, format: date-time }
             reused:
@@ -9255,6 +12536,103 @@ components:
         confidence: { type: number, format: float, minimum: 0, maximum: 1 }
         lat: { type: number }
         lng: { type: number }
+    ImportAdministrativeIdentity:
+      type: object
+      description: >
+        ADM-017 — which of Vietnam's two current administrative levels a place
+        falls in: a province/municipality and a ward/commune/special zone. The
+        district tier was dissolved on 2025-07-01 and is not represented here at
+        all; the legacy `city`/`district` cells of a spreadsheet are free text
+        the resolver reads as evidence, not an identity.
+
+
+        Resolved from geometry against GoGo's pinned boundary release. No
+        provider is asked — that is what makes these GoGo facts rather than
+        provider content (ADR-0019 §10).
+
+
+        The sheet's own `city` and `district` cells play no part in it
+        (ADR-0019 §7b). `city` is a provider **search hint** — the string an
+        operator wrote to help Google find the place — and `district` names a
+        tier dissolved on 2025-07-01. Both are still accepted and still stored;
+        neither selects a code.
+      required: [status, requiresReview, blocksPublication]
+      properties:
+        provinceCode: { type: [string, 'null'] }
+        provinceName: { type: [string, 'null'] }
+        communeCode: { type: [string, 'null'] }
+        communeName: { type: [string, 'null'] }
+        status:
+          type: [string, 'null']
+          enum: [UNMAPPED, AUTO_MATCHED, NEEDS_REVIEW, VERIFIED, REJECTED, STALE, null]
+          description: >
+            `AUTO_MATCHED` — the evidence decided it. `NEEDS_REVIEW` — the
+            evidence disagreed with itself, or was ambiguous, and a person has to
+            choose. `UNMAPPED` — nothing placed it. `null` — the row has not been
+            resolved against the provider yet, so there is no coordinate to
+            classify.
+        datasetVersion:
+          type: [string, 'null']
+          description: >
+            The administrative release this was decided against. A code is not an
+            identity across releases — 2,212 of the 3,321 current commune codes
+            named a different unit before 2025-07-01 — so a mapping without its
+            version cannot be compared with anything.
+        requiresReview:
+          type: boolean
+          description: >
+            About the **mapping** rather than the place — the resolver could not
+            decide, and a person has to.
+        blocksPublication:
+          type: boolean
+          description: >
+            About **publication**, and read from the shared approval policy — the
+            same `approvalBlock` the publish transaction runs — rather than
+            asserted by the import.
+
+
+            In practice an import result almost always blocks: only a moderator's
+            `VERIFIED` mapping that still holds against the active dataset
+            permits publishing, and no import path writes `VERIFIED`. The one row
+            that does not block is one matching an **existing** place a reviewer
+            already verified. That case is why this is derived and not a
+            constant: a hardcoded "a mapping exists, so it blocks" gave the right
+            answer for the wrong reason and would have reported that row as
+            blocked while the server went on to publish it.
+
+
+            False, with a null `approvalBlock`, while `status` is null — the row
+            has not resolved, so there is no mapping to judge and calling it
+            blocked would report a decision nobody has made.
+
+
+            A screen that renders `AUTO_MATCHED` as "đã xác minh" is claiming
+            something the server will refuse to act on.
+        approvalBlock:
+          type: [object, 'null']
+          description: >
+            Why this mapping does not permit publishing, in the policy's own
+            closed vocabulary, or null. Preview and result compute it over the
+            same four stored columns, so they cannot disagree with each other —
+            and neither can disagree with `settlePublication`, which asks the
+            same policy about the place those columns became.
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  ADMINISTRATIVE_DATASET_UNAVAILABLE,
+                  MAPPING_UNMAPPED,
+                  MAPPING_NOT_VERIFIED,
+                  MAPPING_REJECTED,
+                  MAPPING_STALE,
+                  MAPPING_INCOMPLETE,
+                  MAPPING_UNIT_NOT_CURRENT,
+                  MAPPING_HIERARCHY_INVALID,
+                ]
+            message: { type: string }
+
     ImportRow:
       type: object
       properties:
@@ -9288,6 +12666,28 @@ components:
           type: array
           description: Present on PLACE_MATCH_AMBIGUOUS rows (spec §10.4).
           items: { $ref: '#/components/schemas/ImportCandidate' }
+        administrative:
+          oneOf:
+            - { $ref: '#/components/schemas/ImportAdministrativeIdentity' }
+            - { type: 'null' }
+          description: >
+            ADM-017 — the preview while the job is reviewable, and what was
+            actually stored once the row is `imported`.
+
+
+            The two are produced by the same resolver over the same coordinate,
+            which is what makes comparing them worth anything; a preview that
+            agreed by construction would prove nothing. Null until the row has
+            resolved against the provider, and on any deployment with no
+            published administrative dataset.
+
+
+            A row matched to an existing place reports **that place's** stored
+            mapping rather than a preview of the coordinate, because the row is
+            about that place. It is the case where the distinction is load
+            bearing: a duplicate row pointing at a place a reviewer already
+            verified must not be reported as blocked while the publish step —
+            asking the same policy about the same place — goes ahead.
         errors:
           type: array
           items: { $ref: '#/components/schemas/IngestMessage' }
@@ -9302,12 +12702,86 @@ components:
         resolvedGooglePlaceId: { type: string, nullable: true }
         matchedPlaceId: { type: string, format: uuid, nullable: true }
         matchConfidence: { type: number, format: float, nullable: true }
+        administrative:
+          oneOf:
+            - { $ref: '#/components/schemas/ImportAdministrativeIdentity' }
+            - { type: 'null' }
+          description: ADM-017 — the same identity the row carries in `listPlaceImportRows`.
         errors:
           type: array
           items: { $ref: '#/components/schemas/IngestMessage' }
         warnings:
           type: array
           items: { $ref: '#/components/schemas/IngestMessage' }
+    CmsPlaceAdministrativeSummary:
+      type: object
+      required: [datasetVersion, level, province, units, totals, review]
+      properties:
+        datasetVersion:
+          type: [string, 'null']
+          description: >
+            The dataset the codes and names were read from. Null means none is
+            published, in which case nothing can be grouped and every place is
+            under review — which is the truth, not an error.
+        level: { type: string, enum: [province, commune] }
+        province:
+          type: [object, 'null']
+          description: The province whose communes these are; null at province level.
+          properties:
+            code: { type: string }
+            name: { type: string }
+        units:
+          type: array
+          items:
+            type: object
+            required: [code, name, placeCount, reviewCount]
+            properties:
+              code: { type: string }
+              name:
+                type: [string, 'null']
+                description: Null when the dataset has no name for a stored code. Never invented.
+              placeCount:
+                type: integer
+                description: >
+                  Places that may be grouped under this unit. A province's total
+                  is the sum of its communes' totals — both come from the same
+                  predicate over the same rows, so no place is counted twice.
+              reviewCount:
+                type: [integer, 'null']
+                description: >
+                  Places filed against this province whose mapping cannot enter
+                  the hierarchy. A subset of `totals.review`, never part of
+                  `placeCount`. Null on a commune row: a place under review has
+                  no commune anyone should trust it under.
+        totals:
+          type: object
+          required: [grouped, review]
+          properties:
+            grouped: { type: integer }
+            review: { type: integer }
+          description: >
+            `grouped + review` is every place the filters select. Each half is a
+            real list query, which is what makes these numbers checkable.
+        review:
+          type: object
+          required: [byStatus]
+          properties:
+            byStatus:
+              type: object
+              required: [UNMAPPED, NEEDS_REVIEW, REJECTED, STALE, INVALID_HIERARCHY]
+              properties:
+                UNMAPPED: { type: integer }
+                NEEDS_REVIEW: { type: integer }
+                REJECTED: { type: integer }
+                STALE: { type: integer }
+                INVALID_HIERARCHY:
+                  type: integer
+                  description: >
+                    `AUTO_MATCHED` or `VERIFIED`, but against a commune that is
+                    no longer current or no longer sits under the stored
+                    province. The mapping status alone cannot say this, and
+                    reporting it as `AUTO_MATCHED` would claim the mapping is
+                    fine while the place is uncountable.
     CmsPlaceListItem:
       type: object
       required: [id, name, status, confidence, createdAt, updatedAt]
@@ -9323,6 +12797,22 @@ components:
         freshnessCheckedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        provinceCode:
+          type: string
+          description: >
+            ADM-018 — the canonical administrative address as stored, so the
+            list, the detail and the forms all name a place's units the same
+            way. Absent when the place has none.
+        provinceName:
+          type: string
+          description: >
+            The unit's full name in the published dataset. Absent when the
+            dataset has no name for the stored code — never invented, and never
+            derived from the free-text `city`.
+        communeCode: { type: string }
+        communeName: { type: string }
+        administrativeMappingStatus:
+          $ref: '#/components/schemas/AdministrativeMappingStatus'
     EmergencyTakedownRequest:
       type: object
       required: [reason]
@@ -9384,8 +12874,170 @@ components:
           type: boolean
           description: Whether it came from an account rather than a guest session.
         createdAt: { type: string, format: date-time }
+        updatedAt:
+          type: string
+          format: date-time
+          description: >
+            Moves on every review save and on the decision. Send it back as
+            `expectedUpdatedAt` when saving a review (GoGo-BE#528).
         decidedAt: { type: string, format: date-time }
         decisionReason: { type: string }
+        displayName:
+          type: string
+          description: >
+            A human-readable name for the row, when GoGo has one (GoGo-BE#528).
+
+
+            Absent for a fresh proposal, and deliberately so: Google's name for
+            a place is not stored (ADR-0006 §9.5), and fetching Details once per
+            list row to fill a column would bill a page of twenty-five to open
+            a queue. A console shows the Place ID and an honest "no name yet"
+            with the review action beside it. `displayNameSource` says where the
+            name came from when there is one.
+        displayNameSource:
+          type: string
+          enum: [review, catalogue]
+          description: >
+            `review` — a reviewer typed it on this submission. `catalogue` — the
+            Google record already belongs to a GoGo place, and this is that
+            place's name.
+        hasReview:
+          type: boolean
+          description: Whether a reviewer has supplemented this submission.
+        reviewedAt: { type: string, format: date-time }
+        linkedPlaceId:
+          type: string
+          format: uuid
+          description: >
+            The catalogue place this Google record already belongs to, if any —
+            the duplicate indicator, from GoGo's own rows and no provider call.
+        identityConflict:
+          type: boolean
+          description: >
+            Two GoGo places claim this Google id and the conflict is open.
+            Approving would attach the proposal to an ambiguous identity.
+    SubmissionReviewDraft:
+      type: object
+      description: >
+        PI-BE-031 (GoGo-BE#528) — the GoGo-owned fields a reviewer may
+        supplement before approving a contribution.
+
+
+        The Place editor's own vocabulary and nothing beyond it: the same
+        fields, lengths and units `PATCH /cms/places/{id}` writes. Nothing
+        provider-owned appears here — a rating or a review count is the
+        provider's figure and is never typed by a person, and opening hours keep
+        their editorial endpoint on the place once it exists.
+
+
+        An absent key means the reviewer said nothing about that field, and the
+        provider's answer stands at approval. An explicit `null` clears it. That
+        difference is load-bearing, so send only the fields you mean.
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 4000, nullable: true }
+        addressText: { type: string, maxLength: 400, nullable: true }
+        phone: { type: string, maxLength: 40, nullable: true }
+        website: { type: string, maxLength: 500, nullable: true }
+        avgVisitMinutes: { type: integer, minimum: 10, maximum: 720, nullable: true }
+        suitability:
+          type: object
+          additionalProperties: { type: number, minimum: 0, maximum: 1 }
+          description: Audience fit, the same 0..1 record the place row carries.
+        taxonomyIds:
+          type: array
+          maxItems: 30
+          items: { type: string, format: uuid }
+          description: Category, moods and every other taxonomy chip, as ids.
+        isLodging: { type: boolean }
+        curatedRank: { type: integer, minimum: 0, nullable: true }
+        priceMin:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: >
+            Editorial price, integer minor units. Replaces nothing the
+            contributor sent — their estimate stays on the submission — but is
+            what the place is created with, at editor confidence.
+        priceMax: { type: integer, minimum: 0, nullable: true }
+        priceUnit:
+          type: string
+          enum: [per_person, per_item, per_hour, per_night]
+          nullable: true
+    PlaceSubmissionDetail:
+      type: object
+      description: >
+        PI-BE-031 (GoGo-BE#528) — everything a decision needs that GoGo already
+        holds. No provider request: this endpoint costs nothing to open, and
+        `POST /cms/place-submissions/{id}/provider-preview` is the explicit,
+        separately-counted way to ask Google.
+      required:
+        [id, googlePlaceId, status, submissionCount, createdAt, updatedAt, contribution, history]
+      properties:
+        id: { type: string, format: uuid }
+        googlePlaceId: { type: string }
+        googleMapsUrl:
+          type: string
+          description: >
+            The canonical `?q=place_id:…` link for this record, built from the
+            id GoGo stores. Not the URL the contributor pasted, and not
+            Google's `googleMapsUri` — that is provider content and arrives with
+            the preview.
+        status: { type: string, enum: [pending, approved, rejected, merged] }
+        submissionCount: { type: integer }
+        fromRegisteredUser: { type: boolean }
+        roomId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        decidedAt: { type: string, format: date-time }
+        decisionReason: { type: string }
+        contribution:
+          type: object
+          description: What the contributor sent, untouched by any review.
+          properties:
+            categoryKey: { type: string }
+            estimatedPrice:
+              type: object
+              properties:
+                min: { type: integer }
+                max: { type: integer }
+                unit: { type: string }
+            vibeKeys: { type: array, items: { type: string } }
+            note: { type: string }
+        review:
+          type: object
+          description: What staff have supplemented so far, and who last did.
+          properties:
+            draft: { $ref: '#/components/schemas/SubmissionReviewDraft' }
+            reviewedAt: { type: string, format: date-time }
+            reviewedByAdminId: { type: string, format: uuid }
+        existingPlace:
+          type: object
+          description: >
+            The catalogue place this Google record belongs to — a duplicate
+            before the decision, the result after it. Same question, one field.
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            status: { type: string }
+            addressText: { type: string }
+        identityConflict:
+          type: array
+          items: { type: string, format: uuid }
+          description: Two GoGo places claim this Google id; merge before approving.
+        history:
+          type: array
+          description: Decisions and review saves, oldest first, from the audit log.
+          items:
+            type: object
+            required: [action, at]
+            properties:
+              action: { type: string }
+              actorId: { type: string, format: uuid }
+              actorName: { type: string }
+              at: { type: string, format: date-time }
+              detail: { type: object, additionalProperties: true }
     PlacePhoto:
       type: object
       required: [id, url, source]
@@ -9465,6 +13117,86 @@ components:
         sourceType: { type: string, enum: [editorial, provider, community, google_derived] }
         createdAt: { type: [string, 'null'], format: date-time }
 
+    PlaceAdministrativeSummary:
+      type: object
+      description: >
+        ADM-016 / ADR-0019 — the two current administrative levels this place is
+        mapped to, **as stored**, plus why that mapping does or does not permit
+        publishing it.
+
+
+        Two levels, not three. Vietnam's district tier was dissolved on
+        2025-07-01, so a current address is a province/municipality and a
+        ward/commune/special zone and nothing between them. The legacy
+        `city`/`district` strings on the same record are free text kept for
+        compatibility and are not this.
+
+
+        This is the *stored* mapping, deliberately. The moderation surface
+        (`cmsAdministrativeMappingDetail`) recomputes the resolver on every read
+        — a point-in-polygon query, an evidence sweep, a staleness evaluation —
+        because a reviewer needs to know what the machine says now. An editor
+        opening a place to fix its phone number does not, and buying that work
+        on the most-opened screen in the console would be paying for an answer
+        nobody asked for.
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [UNMAPPED, AUTO_MATCHED, NEEDS_REVIEW, VERIFIED, REJECTED, STALE]
+          description: >
+            `AUTO_MATCHED` is the resolver's answer, not a person's, and it does
+            **not** permit publication — only a moderator's `VERIFIED` does. A
+            console that renders it as "đã xác minh" is saying something the
+            server will refuse to act on.
+        provinceCode: { type: [string, 'null'] }
+        provinceName:
+          type: [string, 'null']
+          description: >
+            Resolved from the active dataset, latest period first, so a code
+            whose unit has since ended still has a name to show. Null when the
+            active dataset does not carry the code at all — which is itself the
+            reason `approvalBlock` will be set.
+        communeCode: { type: [string, 'null'] }
+        communeName: { type: [string, 'null'] }
+        method:
+          type: [string, 'null']
+          description: >
+            How the stored mapping was arrived at. `editor` means a person
+            decided it; everything else is machine evidence.
+        datasetVersion:
+          type: [string, 'null']
+          description: >
+            The release the mapping was decided against — provenance, not a
+            gate. Every publication mints a new version, and requiring a match
+            would un-approve the whole catalogue on every release.
+        activeDatasetVersion:
+          type: [string, 'null']
+          description: What is published now. Null when this deployment has no dataset.
+        mappedAt: { type: [string, 'null'], format: date-time }
+        approvalBlock:
+          type: [object, 'null']
+          description: >
+            Why this mapping does not permit publishing the place, or null. The
+            same policy the publish transaction enforces, so the screen cannot
+            promise a publish the server will refuse.
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  ADMINISTRATIVE_DATASET_UNAVAILABLE,
+                  MAPPING_UNMAPPED,
+                  MAPPING_NOT_VERIFIED,
+                  MAPPING_REJECTED,
+                  MAPPING_STALE,
+                  MAPPING_INCOMPLETE,
+                  MAPPING_UNIT_NOT_CURRENT,
+                  MAPPING_HIERARCHY_INVALID,
+                ]
+            message: { type: string }
+
     CmsPlaceDetail:
       type: object
       required:
@@ -9494,8 +13226,20 @@ components:
           description: >
             Discovery area — a `service_areas` key, the same vocabulary the
             place-list filter sends. Not the postal address.
-        city: { type: [string, 'null'], description: Administrative address. }
-        district: { type: [string, 'null'], description: Administrative address; optional. }
+        city:
+          type: [string, 'null']
+          description: >
+            ADR-0016 legacy free text, as it was written. Not the administrative
+            identity — `administrative` below is.
+        district:
+          type: [string, 'null']
+          description: >
+            **Legacy only.** District-level units were dissolved on 2025-07-01.
+            Returned so an existing value is not silently lost, and because a
+            free-text address may still read that way; a console must not render
+            it as a current administrative level.
+        administrative:
+          $ref: '#/components/schemas/PlaceAdministrativeSummary'
         lat: { type: number }
         lng: { type: number }
         phone: { type: [string, 'null'], description: E.164. }
@@ -10849,7 +14593,27 @@ components:
               runId: { type: string, format: uuid }
               reason: { type: string }
 
+  headers:
+    ETag:
+      description: Deterministic entity tag over datasetVersion + the resolved request.
+      schema: { type: string }
+    CacheControl:
+      description: Always `public, max-age=0, must-revalidate` — immutable per version, but the active version can change.
+      schema: { type: string }
+
   responses:
+    NotModified:
+      description: >
+        The client's ETag still matches. No body, by definition — this is the
+        whole saving the tag exists for.
+    AdministrativeUnavailable:
+      description: >
+        No administrative dataset is PUBLISHED. Deliberately not an empty list,
+        which would read as "Vietnam has no provinces"; this is an operational
+        fault and #463 alerts on it.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     BadRequest:
       description: Validation or business rule failure
       content:
