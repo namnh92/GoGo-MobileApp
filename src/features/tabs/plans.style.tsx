@@ -5,6 +5,7 @@ import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
+  createAction: { paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
   title: {
     ...type.display,
     color: neutral[900],

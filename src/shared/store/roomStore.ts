@@ -28,6 +28,7 @@ export type QuickPreset = 'tonight' | 'weekend' | 'special'
  * facts.
  */
 export interface RoomDraft {
+  title: string
   decisionMode: DecisionMode
   /** Budget in integer minor units (RULE-CORE-004); null until the user picks. */
   budgetAmount: number | null
@@ -77,6 +78,7 @@ interface RoomStoreState extends RoomDraft {
 }
 
 const emptyDraft: RoomDraft = {
+  title: '',
   decisionMode: 'match',
   budgetAmount: null,
   currency: 'VND',
@@ -200,6 +202,7 @@ export function toCreateRoomBody(state: RoomStoreState): OpBody<'createRoom'> {
   const roomType = state.audience === 'couple' ? 'couple' : 'group'
   return {
     type: roomType,
+    ...(state.title.trim() ? { title: state.title.trim() } : {}),
     decisionMode: roomType === 'couple' ? 'match' : 'vote',
     participantCount: roomType === 'couple' ? 2 : state.participantCount,
     constraint: {
