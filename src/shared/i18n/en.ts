@@ -350,6 +350,11 @@ export const enMessages: Record<MessageKey, string> = {
   'matching.reason': 'Filtering by the room\'s budget, opening hours and distance.',
   'matching.retrying': 'Retrying…',
 
+  'swipe.saveFailed': 'Your vote was not saved. Please retry this card.',
+  'matchResult.waitingMatch': 'No mutual choice yet. You can review and change your votes.',
+  'matchResult.vote': 'Review and vote',
+  'matchResult.noVotes': 'No votes yet. Vote before finalizing.',
+  'matchResult.roomNotMatching': 'The room state changed. Return to the room for the latest status.',
   'matchResult.whyTitle': 'Why did GoGo pick this?',
   'matchResult.matchBadge': 'GREAT FIT',
   'matchResult.viewPlan': 'View the plan',

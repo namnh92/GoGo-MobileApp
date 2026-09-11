@@ -72,6 +72,7 @@ export default function SwipeScreen() {
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
 
   const [cardIndex, setCardIndex] = useState(0)
+  const committing = useSharedValue(false)
 
   // Reanimated + gesture-handler: the drag runs on the UI thread, so the card
   // keeps up with the finger even while the next place detail is being fetched
@@ -92,28 +93,34 @@ export default function SwipeScreen() {
   // The visible card is the only state the deck has; the gesture is rebuilt for
   // each one, which is what keeps the vote and the card in step without a ref.
   const advance = useCallback(
-    (action: Action) => {
+    async (action: Action) => {
       const current = candidates[cardIndex]
-      if (current) {
-        // The vote is optimistic and idempotent, so the deck never waits on it.
-        castVote.mutate({ placeId: current.placeId, value: ACTION_VOTES[action] })
+      try {
+        if (!current || suggestions.data?.run?.stale) return
+        const result = await castVote.mutateAsync({ placeId: current.placeId, value: ACTION_VOTES[action] })
         track(action === 'pass' ? 'swipe_dislike' : 'swipe_like', { placeId: current.placeId })
-      }
-
-      const next = cardIndex + 1
-      setCardIndex(next)
-      translateX.set(0)
-      translateY.set(0)
-
-      if (next >= candidates.length) {
-        setTimeout(() => router.replace(`/room/${roomId}/waiting`), reducedMotion ? 0 : 300)
+        if (result.matched && result.planId) {
+          router.replace(`/plans/${result.planId}`)
+          return
+        }
+        const next = cardIndex + 1
+        setCardIndex(next)
+        if (next >= candidates.length) router.replace(`/room/${roomId}/match-result`)
+      } catch {
+        // Keep the failed card visible so the same vote can be retried.
+      } finally {
+        committing.set(false)
+        translateX.set(0)
+        translateY.set(0)
       }
     },
-    [candidates, cardIndex, castVote, reducedMotion, roomId, router, translateX, translateY],
+    [candidates, cardIndex, castVote, roomId, router, translateX, translateY, suggestions.data?.run?.stale, committing],
   )
 
   const commit = useCallback(
     (action: Action) => {
+      if (committing.get() || suggestions.data?.run?.stale) return
+      committing.set(true)
       // One tick per committed vote — the phone must not buzz through a drag.
       haptic(action === 'star' ? 'success' : 'select')
 
@@ -135,7 +142,7 @@ export default function SwipeScreen() {
         }),
       )
     },
-    [advance, reducedMotion, translateX, translateY],
+    [advance, reducedMotion, translateX, translateY, suggestions.data?.run?.stale, committing],
   )
 
   const pan = useMemo(
@@ -213,7 +220,7 @@ export default function SwipeScreen() {
 
   // No run yet is an empty state, not an error: the room is still collecting,
   // or the host has not started matching.
-  if (!suggestions.data?.run || candidates.length === 0) {
+  if (!suggestions.data?.run || suggestions.data.run.stale || candidates.length === 0) {
     return (
       <Atmosphere>
         {header}
@@ -257,6 +264,9 @@ export default function SwipeScreen() {
         <Text style={styles.subheader}>{t('swipe.subheader')}</Text>
       </View>
 
+      {castVote.isError ? (
+        <Text accessibilityLiveRegion="polite" style={styles.subheader}>{t('swipe.saveFailed')}</Text>
+      ) : null}
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${(cardIndex / candidates.length) * 100}%` }]} />
       </View>
@@ -360,6 +370,8 @@ export default function SwipeScreen() {
               onPress={() => commit('pass')}
               accessibilityRole="button"
               accessibilityLabel={t('swipe.passLabel')}
+              disabled={castVote.isPending}
+              accessibilityState={{ disabled: castVote.isPending, busy: castVote.isPending }}
               hitSlop={hitSlop}
               style={({ pressed }) => [styles.actionBtn, glassStyles.card, pressed && { transform: [{ scale: 0.94 }] }]}
             >
@@ -372,6 +384,8 @@ export default function SwipeScreen() {
               onPress={() => commit('yes')}
               accessibilityRole="button"
               accessibilityLabel={t('swipe.likeLabel')}
+              disabled={castVote.isPending}
+              accessibilityState={{ disabled: castVote.isPending, busy: castVote.isPending }}
               hitSlop={hitSlop}
               style={({ pressed }) => [
                 styles.actionBtn,
@@ -388,6 +402,8 @@ export default function SwipeScreen() {
               onPress={() => commit('star')}
               accessibilityRole="button"
               accessibilityLabel={t('swipe.starLabel')}
+              disabled={castVote.isPending}
+              accessibilityState={{ disabled: castVote.isPending, busy: castVote.isPending }}
               hitSlop={hitSlop}
               style={({ pressed }) => [styles.actionBtn, styles.actionBtnStar, pressed && { transform: [{ scale: 0.94 }] }]}
             >
