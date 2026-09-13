@@ -1,3 +1,5 @@
+jest.mock('@/shared/administrative/queries', () => ({ useAdministrativeVersion: () => ({ data: { datasetVersion: 'v1' } }) }))
+jest.mock('@/shared/administrative/administrative-picker.view', () => ({ AdministrativePicker: () => null }))
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'

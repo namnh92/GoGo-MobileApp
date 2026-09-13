@@ -27,6 +27,13 @@ jest.mock('@/shared/api', () => ({
   useTaxonomies: () => mockTaxonomies.query,
 }))
 
+jest.mock('@/shared/administrative/queries', () => ({
+  useAdministrativeVersion: () => ({ data: { datasetVersion: 'v1' }, isError: false }),
+  useAdministrativeUnits: (_version: string, province?: string) => ({ ...mockAreas.query, data: mockAreas.query.isError ? undefined : (province
+    ? [{ code: '00001', fullName: 'Phường Hoàn Kiếm', parentCode: '01' }]
+    : [{ code: '01', fullName: 'Thành phố Hà Nội' }]) }),
+}))
+
 import { ProfileDefaultsCard, areaDisplayName } from '@/features/account/profile-defaults.view'
 import type { Me } from '@/shared/api'
 
@@ -106,20 +113,19 @@ describe('profile defaults card', () => {
     )
     await press(view.getByText('Bỏ chọn'))
     await press(view.getByText('Không đặt'))
-    expect(view.getByText('Chưa chọn')).toBeTruthy()
+    expect(view.getByText('Chọn tỉnh/thành phố')).toBeTruthy()
     await press(view.getByText('Lưu mặc định'))
-    expect(mockUpdate).toHaveBeenCalledWith({ homeAreaKey: null, usualBudget: null })
+    expect(mockUpdate).toHaveBeenCalledWith({ homeAdministrativeArea: null, usualBudget: null })
   })
 
-  it('picks an area from the curated list, grouped by city, and sends its key', async () => {
+  it('sends the canonical province, commune and version without display labels', async () => {
     const view = await renderScreen(<ProfileDefaultsCard profile={profile()} />)
-    await press(view.getByText('Chọn khu vực'))
-    expect(view.getByText('Hà Nội')).toBeTruthy()
-    expect(view.getByText('TP.HCM')).toBeTruthy()
-    await press(view.getByText('Hoàn Kiếm'))
-    expect(view.getByText('Hoàn Kiếm, Hà Nội')).toBeTruthy()
+    await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Thành phố Hà Nội'))
+    await press(view.getByText('Toàn tỉnh/thành phố'))
+    await press(view.getByText('Phường Hoàn Kiếm'))
     await press(view.getByText('Lưu mặc định'))
-    expect(mockUpdate).toHaveBeenCalledWith({ homeAreaKey: 'hn_hk' })
+    expect(mockUpdate).toHaveBeenCalledWith({ homeAdministrativeArea: { datasetVersion: 'v1', provinceCode: '01', communeCode: '00001' } })
   })
 
   it('a budget tier sends the per-person amount in minor units', async () => {
@@ -143,8 +149,8 @@ describe('profile defaults card', () => {
     mockAreas.query = failed()
     const view = await renderScreen(<ProfileDefaultsCard profile={profile()} />)
     expect(view.getByText('Không tải được danh sách sở thích.')).toBeTruthy()
-    await press(view.getByText('Chọn khu vực'))
-    expect(view.getByText('Không tải được danh sách khu vực.')).toBeTruthy()
+    await press(view.getByText('Chọn tỉnh/thành phố'))
+    expect(view.getByText('Có lỗi xảy ra')).toBeTruthy()
   })
 
   it('names a city once when the area is the city', () => {

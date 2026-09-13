@@ -48,6 +48,7 @@ export const viMessages = {
   'auth.genericError': 'Có lỗi xảy ra. Thử lại nhé.',
   'auth.guestFootnote': 'Tham gia phòng bằng link mời thì không cần tài khoản.',
 
+  'account.legacyArea': 'Khu vực cũ chưa được ánh xạ. Hãy chọn tỉnh và phường/xã để cập nhật.',
   'account.title': 'Tài khoản',
   'account.signInBody': 'Đăng nhập để quản lý hồ sơ và dữ liệu của bạn.',
   'account.save': 'Lưu',
