@@ -221,6 +221,10 @@ export const enMessages: Record<MessageKey, string> = {
 
   'gogoRoom.createInvite': 'Create invite code',
   'gogoRoom.inviteFailed': 'Could not create an invite code. You can still manage the room and choose preferences.',
+  'gogoRoom.partialTitle': 'Continue with current responses?',
+  'gogoRoom.partialBody': '{{n}} members have not finished. They remain in the room and can vote; party size and budget stay unchanged.',
+  'gogoRoom.partialContinue': 'Continue with current responses',
+  'gogoRoom.quorumRequired': 'At least 2 members must finish their preferences before matching.',
   'gogoRoom.title': 'Now pull the other one in',
   'gogoRoom.title_group': 'Now pull the crew in',
   'gogoRoom.body': "You'll each pick separately. Nobody sees the other's choices until you match.",

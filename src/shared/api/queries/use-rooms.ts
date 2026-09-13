@@ -58,9 +58,9 @@ export function useCreateRoom(options?: { idempotencyKey?: () => string }) {
 export function useStartMatching(roomId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: { allowIncompletePreferences?: boolean }) => {
       const room = await roomsApi.getRoom(roomId)
-      const matching = await roomsApi.ensureRoomMatching(room)
+      const matching = await roomsApi.ensureRoomMatching(room, options?.allowIncompletePreferences)
       queryClient.setQueryData(queryKeys.room(roomId), matching)
       return suggestionsApi.generateSuggestions(roomId)
     },

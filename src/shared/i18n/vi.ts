@@ -224,6 +224,10 @@ export const viMessages = {
 
   'gogoRoom.createInvite': 'Tạo mã mời',
   'gogoRoom.inviteFailed': 'Chưa tạo được mã mời. Bạn vẫn có thể quản lý phòng và chọn sở thích.',
+  'gogoRoom.partialTitle': 'Tiếp tục với các lựa chọn hiện có?',
+  'gogoRoom.partialBody': 'Còn {{n}} người chưa chọn xong. Họ vẫn ở trong kèo và được bình chọn; số người và ngân sách giữ nguyên.',
+  'gogoRoom.partialContinue': 'Tiếp tục với lựa chọn hiện có',
+  'gogoRoom.quorumRequired': 'Cần ít nhất 2 người hoàn tất sở thích để bắt đầu ghép.',
   'gogoRoom.title': 'Giờ kéo người kia vào',
   'gogoRoom.title_group': 'Giờ kéo cả nhóm vào',
   'gogoRoom.body': 'Hai người sẽ chọn riêng. Không ai thấy lựa chọn của người kia cho tới khi match.',

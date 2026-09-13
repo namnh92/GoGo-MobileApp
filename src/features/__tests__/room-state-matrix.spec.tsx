@@ -1,3 +1,5 @@
+import { Alert } from 'react-native'
+import { fireEvent } from '@testing-library/react-native'
 import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
 
 /**
@@ -161,5 +163,38 @@ describe('room hub × budget unit', () => {
     })
     const view = await renderScreen(<GoGoRoomScreen />)
     expect(view.getByText(/tổng nhóm/)).toBeTruthy()
+  })
+})
+
+
+describe('partial preference capability', () => {
+  it('only offers partial matching when the API permits it, and sends explicit acknowledgement', async () => {
+    mockRoom.query = loaded(roomFor('group-host', {
+      matching: { completedCount: 2, pendingCount: 2, canStart: false, canStartWithIncomplete: true, blockedReason: null },
+    }))
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+    try {
+      const view = await renderScreen(<GoGoRoomScreen />)
+      await fireEvent.press(view.getByText('Tiếp tục với lựa chọn hiện có'))
+      expect(alert).toHaveBeenCalled()
+      const confirm = alert.mock.calls[0][2]?.[1]
+      await confirm?.onPress?.()
+      expect(mockIdleMutation.mutateAsync).toHaveBeenCalledWith({ allowIncompletePreferences: true })
+    } finally { alert.mockRestore() }
+  })
+  it('does not offer partial matching to a member even if capability data is malformed', async () => {
+    mockRoom.query = loaded(roomFor('group-guest', {
+      matching: { completedCount: 2, pendingCount: 2, canStart: false, canStartWithIncomplete: true, blockedReason: null },
+    }))
+    const view = await renderScreen(<GoGoRoomScreen />)
+    expect(view.queryByText('Tiếp tục với lựa chọn hiện có')).toBeNull()
+  })
+  it('explains the minimum quorum without offering a bypass', async () => {
+    mockRoom.query = loaded(roomFor('group-host', {
+      matching: { completedCount: 1, pendingCount: 3, canStart: false, canStartWithIncomplete: false, blockedReason: 'MATCHING_QUORUM_REQUIRED' },
+    }))
+    const view = await renderScreen(<GoGoRoomScreen />)
+    expect(view.getByText('Cần ít nhất 2 người hoàn tất sở thích để bắt đầu ghép.')).toBeTruthy()
+    expect(view.queryByText('Tiếp tục với lựa chọn hiện có')).toBeNull()
   })
 })

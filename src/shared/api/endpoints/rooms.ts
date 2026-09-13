@@ -45,13 +45,13 @@ export async function createAndOpenRoom(
  * runs inside a completion and will not re-run afterwards. `matching` has no
  * self-loop, so an already-matching room is returned untouched.
  */
-export async function ensureRoomMatching(room: OpResponse<'getRoom'>): Promise<OpResponse<'getRoom'>> {
+export async function ensureRoomMatching(room: OpResponse<'getRoom'>, allowIncompletePreferences = false): Promise<OpResponse<'getRoom'>> {
   let current = room
   if (current.status === 'draft') {
     current = await transitionRoom(current.id, { status: 'collecting' })
   }
   if (current.status === 'collecting') {
-    current = await transitionRoom(current.id, { status: 'matching' })
+    current = await transitionRoom(current.id, { status: 'matching', allowIncompletePreferences })
   }
   return current
 }
