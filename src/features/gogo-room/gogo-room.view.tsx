@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, Share, Text, View } from 'react-native'
+import { Alert, ScrollView, Share, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -79,6 +79,7 @@ export default function GoGoRoomScreen() {
   useRoomRealtime(roomId, 'lobby', { enabled: useScreenFocused() })
   const createInvite = useCreateRoomInvite(roomId)
   const startMatching = useStartMatching(roomId)
+  const starting = useRef(false)
 
   const summary = room.data
   const capabilities = roomCapabilities(summary)
@@ -168,13 +169,24 @@ export default function GoGoRoomScreen() {
     }
   }
 
-  async function beginMatching() {
+  async function beginMatching(allowIncompletePreferences = false) {
+    if (starting.current) return
+    starting.current = true
     try {
-      await startMatching.mutateAsync()
+      await startMatching.mutateAsync({ allowIncompletePreferences })
       router.push(`/room/${roomId}/matching`)
     } catch {
       // The mutation's error state renders below; the room stays usable.
+    } finally {
+      starting.current = false
     }
+  }
+
+  function confirmPartialMatching() {
+    Alert.alert(t('gogoRoom.partialTitle'), t('gogoRoom.partialBody', { n: summary?.matching?.pendingCount }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('gogoRoom.partialContinue'), onPress: () => { void beginMatching(true) } },
+    ])
   }
 
   return (
@@ -340,11 +352,11 @@ export default function GoGoRoomScreen() {
           them is the job; once everyone has finished, starting the match is.
           Host-only either way, and server-enforced.
         */}
-        {capabilities.isHost && progress.completed >= 2 && progress.completed === progress.total ? (
+        {capabilities.isHost && (summary.matching?.canStart ?? (progress.completed >= 2 && progress.completed === progress.total)) ? (
           <>
             <PrimaryBtn
               label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-              onPress={beginMatching}
+              onPress={() => { void beginMatching() }}
               loading={startMatching.isPending}
             />
             {capabilities.canInvite ? (
@@ -362,6 +374,13 @@ export default function GoGoRoomScreen() {
             onPress={invite}
             disabled={!inviteUrl}
           />
+        ) : null}
+
+        {capabilities.isHost && summary.matching?.canStartWithIncomplete ? (
+          <SecondaryBtn label={t('gogoRoom.partialContinue')} onPress={confirmPartialMatching} loading={startMatching.isPending} />
+        ) : null}
+        {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
+          <Text style={styles.body}>{t('gogoRoom.quorumRequired')}</Text>
         ) : null}
 
         {startMatching.isError ? (
