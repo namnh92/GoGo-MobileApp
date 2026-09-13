@@ -358,6 +358,11 @@ export const viMessages = {
   'matching.reason': 'Đang lọc theo ngân sách, giờ mở cửa và khoảng cách của cả phòng.',
   'matching.retrying': 'Đang thử lại…',
 
+  'swipe.saveFailed': 'Chưa lưu được lựa chọn. Hãy thử lại trên thẻ này.',
+  'matchResult.waitingMatch': 'Chưa có lựa chọn chung. Bạn có thể xem và đổi lựa chọn.',
+  'matchResult.vote': 'Xem và bình chọn',
+  'matchResult.noVotes': 'Chưa có phiếu. Hãy bình chọn trước khi chốt.',
+  'matchResult.roomNotMatching': 'Phòng đã đổi trạng thái. Quay lại phòng để xem cập nhật.',
   'matchResult.whyTitle': 'Vì sao GoGo chọn cái này?',
   'matchResult.matchBadge': 'RẤT HỢP',
   'matchResult.viewPlan': 'Xem kế hoạch',

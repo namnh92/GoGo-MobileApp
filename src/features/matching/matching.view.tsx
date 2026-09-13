@@ -66,11 +66,15 @@ export default function MatchingScreen() {
     })
   }, [capabilities.isHost, suggestions.isPending, hasRun, isStale, startMatching])
 
+  const decisionMode = room.data?.decisionMode
+  const ballotComplete = Boolean(suggestions.data?.candidates?.length) &&
+    suggestions.data!.candidates!.every(candidate => candidate.placeId && suggestions.data?.votes?.mine?.[candidate.placeId])
   useEffect(() => {
-    if (!hasRun || isStale) return
-    const timer = setTimeout(() => router.replace(`/room/${roomId}/match-result`), 800)
+    if (!hasRun || isStale || !decisionMode) return
+    const destination = decisionMode === 'host' || ballotComplete || room.data?.status === 'ready' ? 'match-result' : 'swipe'
+    const timer = setTimeout(() => router.replace(`/room/${roomId}/${destination}`), 800)
     return () => clearTimeout(timer)
-  }, [hasRun, isStale, roomId, router])
+  }, [hasRun, isStale, roomId, router, decisionMode, ballotComplete, room.data?.status])
 
   const failed = startMatching.isError
   const notReady = isApiError(startMatching.error) && startMatching.error.status === 409

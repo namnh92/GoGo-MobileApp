@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  isApiError,
   detailToPlaceCard,
   formatDistance,
   formatMinuteOfDay,
@@ -52,11 +53,25 @@ export default function MatchResultScreen() {
   const roomType = room.data?.type ?? 'couple'
   const participantCount = room.data?.participantCount ?? 2
 
+  const decisionMode = room.data?.decisionMode
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
+  const finalizing = useRef(false)
   const candidates = useMemo(
     () => (suggestions.data?.candidates ?? []).map(toCandidateCard).sort((a, b) => a.rank - b.rank),
     [suggestions.data],
   )
-  const winner: CandidateCard | undefined = candidates[0]
+  const winner: CandidateCard | undefined = decisionMode === 'host'
+    ? candidates.find(candidate => candidate.placeId === selectedPlaceId) ?? candidates[0]
+    : decisionMode === 'vote'
+      ? [...candidates].filter(candidate => {
+          const row = suggestions.data?.votes?.progress?.find(v => v.placeId === candidate.placeId)
+          return row && (row.yes ?? 0) + (row.no ?? 0) + (row.star ?? 0) > 0
+        }).sort((a, b) => {
+          const votes = suggestions.data?.votes?.progress ?? []
+          return (votes.find(v => v.placeId === b.placeId)?.points ?? 0) -
+            (votes.find(v => v.placeId === a.placeId)?.points ?? 0) || a.rank - b.rank
+        })[0] ?? candidates[0]
+      : candidates[0]
   // The candidate carries a name and a score; price, distance and opening
   // hours are place facts, so the winner's detail is fetched for them.
   const winnerDetail = usePlaceDetail(winner?.placeId)
@@ -66,13 +81,20 @@ export default function MatchResultScreen() {
     return new Map(progress.map(entry => [entry.placeId, entry]))
   }, [suggestions.data])
 
+  const isStale = Boolean(suggestions.data?.run?.stale || candidates.some(candidate => candidate.stale))
+  const hasVotes = (suggestions.data?.votes?.progress ?? []).some(entry => (entry.yes ?? 0) + (entry.no ?? 0) + (entry.star ?? 0) > 0)
   async function onFinalize() {
+    if (finalizing.current || isStale || room.data?.status !== 'matching' || !capabilities.isHost || !winner) return
+    if (decisionMode !== 'host' && (decisionMode !== 'vote' || !hasVotes)) return
+    finalizing.current = true
     try {
-      const result = await finalize.mutateAsync({})
+      const result = await finalize.mutateAsync(decisionMode === 'host' ? { placeId: winner.placeId } : {})
       track('match_generated', { finalized: true })
       if (result.planId) router.replace(`/plans/${result.planId}`)
     } catch {
       // The error state renders below; the ranking stays usable.
+    } finally {
+      finalizing.current = false
     }
   }
 
@@ -152,7 +174,7 @@ export default function MatchResultScreen() {
   }
   // A run built before the last constraint edit is stale and must not be shown
   // as the current answer (RULE-CORE-006).
-  const isStale = suggestions.data?.run?.stale ?? false
+
 
   return (
     <Atmosphere>
@@ -220,14 +242,14 @@ export default function MatchResultScreen() {
         {candidates.length > 1 ? (
           <View style={styles.runnersUp}>
             <Text style={styles.runnersUpTitle}>{t('matchResult.runnersUp')}</Text>
-            {candidates.slice(1, 5).map(candidate => {
+            {candidates.filter(candidate => candidate.placeId !== winner.placeId).slice(0, 4).map(candidate => {
               const entry = tally.get(candidate.placeId)
               return (
                 <Pressable
                   key={candidate.placeId}
                   accessibilityRole="button"
                   accessibilityLabel={candidate.name}
-                  onPress={() => router.push(`/places/${candidate.placeId}`)}
+                  onPress={() => decisionMode === 'host' ? setSelectedPlaceId(candidate.placeId) : router.push(`/places/${candidate.placeId}`)}
                   style={styles.runnerAction}
                 >
                   <GlassCard style={styles.runnerRow}>
@@ -248,17 +270,22 @@ export default function MatchResultScreen() {
         <View style={{ paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] }}>
           {existingPlanId ? (
             <PrimaryBtn label={t('matchResult.viewPlan')} onPress={() => viewPlan(existingPlanId)} />
-          ) : capabilities.canFinalize ? (
+          ) : capabilities.canFinalize && decisionMode !== 'match' ? (
             // Host-only, and server-enforced: a member sending this gets 403.
             <PrimaryBtn
               label={finalize.isPending ? t('matchResult.finalizing') : t('matchResult.finalize')}
               onPress={onFinalize}
               loading={finalize.isPending}
+              disabled={isStale || room.data?.status !== 'matching' || (decisionMode === 'vote' && !hasVotes)}
             />
           ) : (
-            <Text style={styles.waitingHost}>{t('matchResult.waitingHost')}</Text>
+            <Text style={styles.waitingHost}>{t(decisionMode === 'match' ? 'matchResult.waitingMatch' : 'matchResult.waitingHost')}</Text>
           )}
 
+          {!existingPlanId && decisionMode !== 'host' ? (
+            <SecondaryBtn label={t('matchResult.vote')} disabled={isStale || room.data?.status !== 'matching'}
+              onPress={() => router.push(`/room/${roomId}/swipe`)} />
+          ) : null}
           {capabilities.canRegenerate ? (
             <SecondaryBtn
               label={regenerate.isPending ? t('matchResult.regenerating') : t('matchResult.another')}
@@ -267,9 +294,15 @@ export default function MatchResultScreen() {
             />
           ) : null}
 
+          <GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />
           {finalize.isError ? (
             <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {t('matchResult.finalizeFailed')}
+              {t(isApiError(finalize.error) ? ({
+                NO_VOTES: 'matchResult.noVotes',
+                NO_SUGGESTIONS: 'matchResult.emptyBody',
+                ROOM_NOT_MATCHING: 'matchResult.roomNotMatching',
+                NOT_A_CANDIDATE: 'matchResult.stale',
+              }[finalize.error.code] ?? 'matchResult.finalizeFailed') : 'matchResult.finalizeFailed')}
             </Text>
           ) : null}
         </View>

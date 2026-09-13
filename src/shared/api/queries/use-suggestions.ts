@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as suggestionsApi from '../endpoints/suggestions'
@@ -37,10 +38,14 @@ export function useGenerateSuggestions(roomId: string) {
 export function useCastVote(roomId: string) {
   const queryClient = useQueryClient()
   const key = queryKeys.roomSuggestions(roomId)
+  const intents = useRef(new WeakMap<object, string>())
 
   return useMutation({
-    mutationFn: ({ placeId, value }: { placeId: string; value: VoteValue }) =>
-      suggestionsApi.castVote(roomId, placeId, value, newIdempotencyKey()),
+    mutationFn: (body: { placeId: string; value: VoteValue }) => {
+      const intent = intents.current.get(body) ?? newIdempotencyKey()
+      intents.current.set(body, intent)
+      return suggestionsApi.castVote(roomId, body.placeId, body.value, intent)
+    },
 
     onMutate: async ({ placeId, value }) => {
       await queryClient.cancelQueries({ queryKey: key })
@@ -79,8 +84,15 @@ export function useCastVote(roomId: string) {
 /** Host-only. Produces plan v1 and moves the room forward. */
 export function useFinalizeVotes(roomId: string) {
   const queryClient = useQueryClient()
+  const intents = useRef(new Map<string, string>())
   return useMutation({
-    mutationFn: (body: OpBody<'finalizeVotes'> = {}) => suggestionsApi.finalizeVotes(roomId, body),
+    mutationFn: (body: OpBody<'finalizeVotes'> = {}) => {
+      const run = queryClient.getQueryData<SuggestionsCurrent>(queryKeys.roomSuggestions(roomId))?.run?.id
+      const fingerprint = JSON.stringify([roomId, run, body.placeId ?? null])
+      const intent = intents.current.get(fingerprint) ?? newIdempotencyKey()
+      intents.current.set(fingerprint, intent)
+      return suggestionsApi.finalizeVotes(roomId, body, intent)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId) })
       void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
