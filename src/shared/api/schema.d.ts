@@ -182,7 +182,16 @@ export interface paths {
         get: operations["getMe"];
         put?: never;
         post?: never;
-        /** Delete account — PII nulled, sessions revoked, content pseudonymized */
+        /**
+         * Delete account — login disabled, personal data removed, contributions kept
+         * @description ADR-0023. A soft delete with a named retention list, and clients must describe it as such rather than as erasing everything.
+         *
+         *     Removed: login (status `deleted`, email and password hash nulled, so no credential addresses the account again), every session, device tokens and push subscriptions, the profile (display name replaced, avatar, home area, usual budget, interests), the processed avatar in the public bucket and its edge cache entry, saved items, notifications and notification preferences. The name on room membership rows is replaced.
+         *
+         *     Kept: the technical account record and its id, reviews written by the account, and photos contributed to a place. A room keeps the membership row so it still adds up for the people left in it.
+         *
+         *     Irreversible from the application. Idempotent on an account already deleted.
+         */
         delete: operations["deleteAccount"];
         options?: never;
         head?: never;
@@ -2500,7 +2509,7 @@ export interface paths {
         put?: never;
         /**
          * Super admin: erase an account on its holder's behalf
-         * @description Runs the same erasure as the consumer `DELETE /me` — PII nulled, sessions revoked, content pseudonymized, address freed. One implementation, not two: two versions of "erase this person" drift, and the one that drifts is the one that leaves a table behind.
+         * @description Runs the same erasure as the consumer `DELETE /me`, with the same retention list (ADR-0023): login disabled, personal data removed, technical account record and contributions kept. One implementation, not two: two versions of "erase this person" drift, and the one that drifts is the one that leaves a table behind.
          *
          *     `super_admin` only. It is the only action here that cannot be undone, and the account it destroys belongs to someone else.
          */
@@ -5193,7 +5202,10 @@ export interface components {
             startAt?: string;
             /** Format: date-time */
             endAt?: string;
-            /** @enum {string} */
+            /**
+             * @description A couple room must be `total`: its budget is a total for two people and the client asks for it that way (GoGo-BE#559). `per_person` there is refused with `INVALID_BUDGET_MODE`, on create and on an explicit constraint edit alike. A group host picks either unit. Rooms stored as `per_person` before this rule keep their value and are never converted behind anyone's back.
+             * @enum {string}
+             */
             budgetMode: "total" | "per_person";
             /** @description Integer minor units, interpreted per budgetMode. */
             budgetAmount: number;
@@ -7854,6 +7866,12 @@ export interface components {
             body: string;
             /** @description Key from `POST /cms/uploads`, purpose `campaign_image`. */
             imageKey?: string;
+            /**
+             * @description Where the image is readable, as `CmsBanner.imageUrl` is. Null when media hosting is not configured, and null for a key that predates the public-bucket routing (ADR-0005) and therefore is not on the public host — an honest absence rather than a URL that would 404.
+             *
+             *     This is also the URL the push provider fetches at delivery time, so it is durable by construction: never the presigned upload URL, which is signed for PUT and expires in fifteen minutes.
+             */
+            imageUrl?: string | null;
             ctaLabel?: string;
             audienceType: components["schemas"]["CampaignAudience"];
             /** @description Closed per audience type. `platform` takes `{ platform }`; the rest take `{}`. */

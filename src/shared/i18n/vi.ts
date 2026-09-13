@@ -2,6 +2,14 @@ import type { Mood } from '@/data/types'
 
 // Vietnamese is the source locale: message keys are derived from this object.
 export const viMessages = {
+  'administrative.province': 'Tỉnh/Thành phố',
+  'administrative.commune': 'Phường/Xã',
+  'administrative.selectProvince': 'Chọn tỉnh/thành phố',
+  'administrative.wholeProvince': 'Toàn tỉnh/thành phố',
+  'administrative.clear': 'Xóa khu vực',
+  'administrative.search': 'Tìm theo tên',
+  'administrative.empty': 'Không có đơn vị phù hợp',
+  'administrative.changed': 'Dữ liệu hành chính đã thay đổi. Hãy chọn lại tỉnh và phường/xã.',
   'common.continue': 'Tiếp tục',
   'common.back': 'Quay lại',
   'common.details': 'Chi tiết',
