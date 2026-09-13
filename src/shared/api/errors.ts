@@ -11,10 +11,14 @@ export class ApiError extends Error {
   readonly fieldErrors: FieldError[]
   readonly requestId?: string
   readonly retryable: boolean
+  readonly retryAt: number
 
-  constructor(status: number, envelope: Partial<ErrorEnvelope> & { code: string; message: string }) {
+  constructor(status: number, envelope: Partial<ErrorEnvelope> & { code: string; message: string }, retryAfter?: string | null) {
     super(envelope.message)
     this.name = 'ApiError'
+    const seconds = retryAfter?.trim() ? Number(retryAfter) : NaN
+    const deadline = Number.isFinite(seconds) ? Date.now() + Math.max(0, seconds) * 1000 : Date.parse(retryAfter ?? "")
+    this.retryAt = Number.isFinite(deadline) ? deadline : 0
     this.status = status
     this.code = envelope.code
     this.fieldErrors = envelope.field_errors ?? []

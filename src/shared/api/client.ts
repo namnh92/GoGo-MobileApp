@@ -146,7 +146,7 @@ async function toApiError(response: Response): Promise<ApiError> {
     field_errors: envelope.field_errors,
     request_id: envelope.request_id,
     retryable: envelope.retryable,
-  })
+  }, response.headers.get('retry-after'))
 }
 
 async function parseBody<T>(response: Response): Promise<T> {

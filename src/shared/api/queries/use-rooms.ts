@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 
 import * as roomsApi from '../endpoints/rooms'
 import { isApiError } from '../errors'
+import { newIdempotencyKey } from '../idempotency'
 import * as suggestionsApi from '../endpoints/suggestions'
 import { queryKeys } from '../query-keys'
 import type { OpBody, RoomSummary } from '../types'
@@ -119,22 +120,48 @@ export function useRemoveRoomMember(roomId: string) {
   })
 }
 
-/** The invite `code` is returned exactly once — persist it in screen state now. */
+const inviteCodeKey = (roomId: string) => ['session-invite-code', roomId] as const
+
+/** Plaintext codes stay in memory only, outside persisted room query keys. */
 export function useCreateRoomInvite(roomId: string) {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (body: OpBody<'createRoomInvite'>) => roomsApi.createRoomInvite(roomId, body),
-    onSuccess: () => {
+  const cached = useQuery({
+    queryKey: inviteCodeKey(roomId),
+    queryFn: async (): Promise<Awaited<ReturnType<typeof roomsApi.createRoomInvite>> | null> => null,
+    enabled: false,
+    gcTime: Infinity,
+  })
+  const mutation = useMutation({
+    retry: false,
+    mutationFn: async (body: OpBody<'createRoomInvite'>) => {
+      const attemptKey = ['session-invite-attempt', roomId] as const
+      const previous = queryClient.getQueryData<{ key: string; error?: unknown }>(attemptKey)
+      if (isApiError(previous?.error) && previous.error.retryAt > Date.now()) throw previous.error
+      const key = previous?.key ?? newIdempotencyKey()
+      queryClient.setQueryData(attemptKey, { key })
+      try {
+        return await roomsApi.createRoomInvite(roomId, body, key)
+      } catch (error) {
+        queryClient.setQueryData(attemptKey, { key, error })
+        throw error
+      }
+    },
+    onSuccess: invite => {
+      queryClient.setQueryData(inviteCodeKey(roomId), invite)
+      queryClient.removeQueries({ queryKey: ['session-invite-attempt', roomId] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomInvites(roomId) })
     },
   })
+  return { ...mutation, data: cached.data ?? undefined }
 }
 
 export function useRevokeRoomInvite(roomId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (inviteId: string) => roomsApi.revokeRoomInvite(roomId, inviteId),
-    onSuccess: () => {
+    onSuccess: (_result, inviteId) => {
+      const cached = queryClient.getQueryData<Awaited<ReturnType<typeof roomsApi.createRoomInvite>>>(inviteCodeKey(roomId))
+      if (cached?.inviteId === inviteId) queryClient.setQueryData(inviteCodeKey(roomId), null)
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomInvites(roomId) })
     },
   })

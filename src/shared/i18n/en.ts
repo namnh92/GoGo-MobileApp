@@ -211,6 +211,8 @@ export const enMessages: Record<MessageKey, string> = {
   'createMood.creating': 'Creating room…',
   'createMood.createFailed': 'Could not create the room. Please try again.',
 
+  'gogoRoom.createInvite': 'Create invite code',
+  'gogoRoom.inviteFailed': 'Could not create an invite code. You can still manage the room and choose preferences.',
   'gogoRoom.title': 'Now pull the other one in',
   'gogoRoom.title_group': 'Now pull the crew in',
   'gogoRoom.body': "You'll each pick separately. Nobody sees the other's choices until you match.",

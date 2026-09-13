@@ -214,6 +214,8 @@ export const viMessages = {
   'createMood.creating': 'Đang tạo phòng…',
   'createMood.createFailed': 'Không tạo được phòng. Thử lại nhé.',
 
+  'gogoRoom.createInvite': 'Tạo mã mời',
+  'gogoRoom.inviteFailed': 'Chưa tạo được mã mời. Bạn vẫn có thể quản lý phòng và chọn sở thích.',
   'gogoRoom.title': 'Giờ kéo người kia vào',
   'gogoRoom.title_group': 'Giờ kéo cả nhóm vào',
   'gogoRoom.body': 'Hai người sẽ chọn riêng. Không ai thấy lựa chọn của người kia cho tới khi match.',

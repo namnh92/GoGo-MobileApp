@@ -7,6 +7,7 @@ import { ScrollView, Share, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  isRetryable,
   memberProgress,
   roomCapabilities,
   type MemberSelectionStatus,
@@ -68,7 +69,6 @@ export default function GoGoRoomScreen() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
 
   const rememberRoom = useRecentRoomsStore(state => state.remember)
-  const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -89,20 +89,28 @@ export default function GoGoRoomScreen() {
     if (summary) rememberRoom(summary)
   }, [summary, rememberRoom])
 
-  // The invite code is returned exactly once, so it is created on entry and
-  // held in screen state — refetching the room will never bring it back.
-  const requestedInvite = useRef(false)
+  const [inviteClock, setInviteClock] = useState(() => Date.now())
   useEffect(() => {
-    if (!capabilities.canInvite || requestedInvite.current || inviteCode) return
-    requestedInvite.current = true
-    createInvite
-      .mutateAsync({ maxUses: 20 })
-      .then(invite => setInviteCode(invite.code))
-      .catch(() => {
-        // Sharing stays unavailable; the room itself still works.
-        requestedInvite.current = false
-      })
-  }, [capabilities.canInvite, inviteCode, createInvite])
+    if (!createInvite.data) return
+    if (Date.parse(createInvite.data.expiresAt) <= inviteClock) return
+    const remaining = Date.parse(createInvite.data.expiresAt) - Date.now()
+    const timer = setTimeout(() => setInviteClock(Date.now()), Math.min(Math.max(0, remaining), 2_147_483_647))
+    return () => clearTimeout(timer)
+  }, [createInvite.data, inviteClock])
+  const inviteCode = createInvite.data && Date.parse(createInvite.data.expiresAt) > inviteClock
+    ? createInvite.data.code : null
+  const creatingInvite = useRef(false)
+  async function generateInvite() {
+    if (!capabilities.canInvite || creatingInvite.current || inviteCode) return
+    creatingInvite.current = true
+    try {
+      await createInvite.mutateAsync({ maxUses: 20 })
+    } catch {
+      // Never retry from render, polling or foreground events.
+    } finally {
+      creatingInvite.current = false
+    }
+  }
 
   if (room.isPending) {
     return (
@@ -299,6 +307,13 @@ export default function GoGoRoomScreen() {
         {capabilities.canInvite ? (
           <GlassCard style={styles.codeCard}>
             <Text style={styles.codeCaption}>{t('gogoRoom.codeLabel')}</Text>
+            {!inviteCode ? (
+              <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite}
+                loading={createInvite.isPending} disabled={createInvite.isPending || (createInvite.isError && !isRetryable(createInvite.error))} />
+            ) : null}
+            {createInvite.isError ? (
+              <Text accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.inviteFailed')}</Text>
+            ) : null}
             <View style={styles.codeRow}>
               {/* `selectable` so the code can still be lifted by hand if the
                   clipboard write is refused. */}
