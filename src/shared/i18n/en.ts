@@ -1,6 +1,14 @@
 import type { MessageKey, LocaleContent } from '@/shared/i18n/types'
 
 export const enMessages: Record<MessageKey, string> = {
+  'administrative.province': 'Province/City',
+  'administrative.commune': 'Ward/Commune',
+  'administrative.selectProvince': 'Choose province/city',
+  'administrative.wholeProvince': 'Entire province/city',
+  'administrative.clear': 'Clear area',
+  'administrative.search': 'Search by name',
+  'administrative.empty': 'No matching administrative units',
+  'administrative.changed': 'Administrative data changed. Please reselect your province and ward/commune.',
   'common.continue': 'Continue',
   'common.back': 'Back',
   'common.details': 'Details',

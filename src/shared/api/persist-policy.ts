@@ -6,7 +6,7 @@
  * Kept free of React Native imports so the policy can be tested on its own; the
  * persister that uses it lives in `query-client.ts`.
  */
-const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me']
+const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me', 'administrative']
 
 /**
  * List keys put their discriminator right after the root — `['places',
