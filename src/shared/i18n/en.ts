@@ -47,6 +47,7 @@ export const enMessages: Record<MessageKey, string> = {
   'auth.genericError': 'Something went wrong. Please try again.',
   'auth.guestFootnote': 'Joining a room by invite link needs no account.',
 
+  'account.legacyArea': 'This legacy area has no canonical mapping. Select a province and ward/commune to update it.',
   'account.title': 'Account',
   'account.signInBody': 'Sign in to manage your profile and data.',
   'account.save': 'Save',

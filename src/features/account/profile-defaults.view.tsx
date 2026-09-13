@@ -1,22 +1,21 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ActivityIndicator, Text, View } from 'react-native'
+import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
+import { useAdministrativeVersion } from '@/shared/administrative/queries'
+import type { AdministrativeSelection } from '@/shared/administrative/snapshot'
 
 import {
-  useServiceAreas,
   useTaxonomies,
   useUpdateProfile,
   type Me,
   type OpBody,
-  type ServiceArea,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { serviceAreaLabel } from '@/shared/location/area-label'
 import { haptic } from '@/shared/ui/feedback'
 import { Chip, GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
-import { IconCheck } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors } from '@/shared/ui/tokens'
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 
@@ -38,35 +37,19 @@ export const areaDisplayName = serviceAreaLabel
  */
 export function ProfileDefaultsCard({ profile }: { profile: Me }) {
   const { t, i18n } = useTranslation()
-  const insets = useSafeAreaInsets()
   const update = useUpdateProfile()
-  const areas = useServiceAreas()
+  const administrativeVersion = useAdministrativeVersion()
   const taxonomies = useTaxonomies({ kinds: INTEREST_KIND })
 
-  const [areaKey, setAreaKey] = useState<string | null | undefined>(undefined)
+  const [area, setArea] = useState<AdministrativeSelection | null | undefined>(undefined)
   const [moods, setMoods] = useState<string[] | undefined>(undefined)
   const [budget, setBudget] = useState<number | null | undefined>(undefined)
-  const [pickerOpen, setPickerOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
-  const currentAreaKey = areaKey === undefined ? (profile.homeArea?.key ?? null) : areaKey
+  const currentArea = area === undefined ? (profile.homeAdministrativeArea ?? null) : area
   const currentMoods = moods ?? profile.interests?.mood ?? []
   const currentBudget = budget === undefined ? (profile.usualBudget?.perPerson ?? null) : budget
-  const dirty = areaKey !== undefined || moods !== undefined || budget !== undefined
-
-  const areaList = useMemo(() => areas.data?.areas ?? [], [areas.data])
-  const byCity = useMemo(() => {
-    const groups = new Map<string, ServiceArea[]>()
-    for (const area of areaList) {
-      const city = area.city ?? area.name
-      groups.set(city, [...(groups.get(city) ?? []), area])
-    }
-    return [...groups.entries()]
-  }, [areaList])
-
-  const currentArea =
-    areaList.find(area => area.key === currentAreaKey) ??
-    (areaKey === undefined && profile.homeArea ? profile.homeArea : null)
+  const dirty = area !== undefined || moods !== undefined || budget !== undefined
 
   const moodOptions = useMemo(() => {
     const entries = taxonomies.data?.kinds?.[INTEREST_KIND] ?? []
@@ -89,14 +72,22 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
   async function save() {
     setNotice(null)
     const patch: OpBody<'updateProfile'> = {}
-    if (areaKey !== undefined) patch.homeAreaKey = areaKey
+    if (area !== undefined) {
+      if (area && area.datasetVersion !== administrativeVersion.data?.datasetVersion) {
+        setNotice(t('administrative.changed'))
+        return
+      }
+      patch.homeAdministrativeArea = area === null ? null : {
+        datasetVersion: area.datasetVersion, provinceCode: area.provinceCode, communeCode: area.communeCode,
+      }
+    }
     // An empty list is a cleared field, and a cleared field is null, so the
     // server drops the row rather than keeping an empty one.
     if (moods !== undefined) patch.interests = moods.length > 0 ? { mood: moods } : null
     if (budget !== undefined) patch.usualBudget = budget === null ? null : { perPerson: budget, currency: 'VND' }
     try {
       await update.mutateAsync(patch)
-      setAreaKey(undefined)
+      setArea(undefined)
       setMoods(undefined)
       setBudget(undefined)
       haptic('success')
@@ -116,15 +107,14 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
 
       <View style={styles.field}>
         <Text style={styles.fieldLabel}>{t('account.homeArea')}</Text>
-        <View style={styles.valueRow}>
-          <Text style={currentArea ? styles.value : styles.valueMuted} numberOfLines={1}>
-            {currentArea ? areaDisplayName(currentArea) : t('account.homeAreaNone')}
-          </Text>
-          {currentArea ? (
-            <GhostBtn label={t('account.homeAreaClear')} onPress={() => setAreaKey(null)} />
-          ) : null}
-          <SecondaryBtn label={t('account.homeAreaPick')} onPress={() => setPickerOpen(true)} />
-        </View>
+        {area === undefined && !profile.homeAdministrativeArea && profile.homeArea ? (
+          <View>
+            <Text style={styles.value}>{areaDisplayName(profile.homeArea)}</Text>
+            <Text style={styles.hint}>{t('account.legacyArea')}</Text>
+            <GhostBtn label={t('account.homeAreaClear')} onPress={() => setArea(null)} />
+          </View>
+        ) : null}
+        <AdministrativePicker value={currentArea} onChange={setArea} />
       </View>
 
       <View style={styles.field}>
@@ -183,51 +173,6 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
         </Text>
       ) : null}
 
-      <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={() => setPickerOpen(false)} accessibilityRole="button" accessibilityLabel={t('common.back')} />
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>{t('account.areaPickerTitle')}</Text>
-            <ScrollView bounces={false} contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}>
-              {areas.isPending ? (
-                <ActivityIndicator color={colors.brand.coral} style={{ marginVertical: spacing[4] }} />
-              ) : areas.isError ? (
-                <View>
-                  <Text style={styles.sheetState}>{t('account.areaPickerFailed')}</Text>
-                  <GhostBtn label={t('common.retry')} onPress={() => void areas.refetch()} />
-                </View>
-              ) : byCity.length === 0 ? (
-                <Text style={styles.sheetState}>{t('account.areaPickerEmpty')}</Text>
-              ) : (
-                byCity.map(([city, list]) => (
-                  <View key={city}>
-                    <Text style={styles.cityHeader}>{city}</Text>
-                    {list.map(area => {
-                      const active = area.key === currentAreaKey
-                      return (
-                        <Pressable
-                          key={area.key}
-                          onPress={() => {
-                            setAreaKey(area.key)
-                            setPickerOpen(false)
-                          }}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
-                          style={styles.areaRow}
-                        >
-                          <Text style={[styles.areaLabel, active && styles.areaLabelSelected]}>{area.name}</Text>
-                          {active ? <IconCheck /> : null}
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </GlassCard>
   )
 }
