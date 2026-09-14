@@ -110,6 +110,18 @@ export function useTransitionRoom(roomId: string) {
   })
 }
 
+/** APP-049 (#202): the list shows the name too, so it refetches; nothing goes stale. */
+export function useRenameRoom(roomId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (title: string | null) => roomsApi.renameRoom(roomId, { title }),
+    onSuccess: room => {
+      queryClient.setQueryData(queryKeys.room(roomId), room)
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
+    },
+  })
+}
+
 export function useRemoveRoomMember(roomId: string) {
   const queryClient = useQueryClient()
   return useMutation({

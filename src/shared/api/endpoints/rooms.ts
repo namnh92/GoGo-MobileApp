@@ -83,6 +83,15 @@ export function transitionRoom(
   })
 }
 
+/**
+ * BE-BFF-022 — host-only while the room is being planned. `null` (or an empty
+ * string) clears the name. A name is not a constraint, so there is no version
+ * to send and nothing goes stale.
+ */
+export function renameRoom(roomId: string, body: OpBody<'renameRoom'>): Promise<OpResponse<'renameRoom'>> {
+  return api.patch<OpResponse<'renameRoom'>>('/rooms/{id}/title', body, { pathParams: { id: roomId } })
+}
+
 export function listRoomMembers(roomId: string): Promise<OpResponse<'listRoomMembers'>> {
   return api.get<OpResponse<'listRoomMembers'>>('/rooms/{id}/members', { pathParams: { id: roomId } })
 }
