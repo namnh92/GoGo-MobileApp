@@ -42,6 +42,7 @@ import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
 import { colors, glyph, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
 
 import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
+import { PlaceReviews } from './place-reviews.view'
 
 const { brand, neutral } = colors
 
@@ -366,6 +367,10 @@ export default function PlaceDetailScreen() {
               <Text style={styles.ratingEmpty}>{t('rating.gogoInsufficient')}</Text>
             </View>
           </View>
+
+          {/* APP-056 — real, moderated GoGo reviews with their own loading and
+              error states, so the facts above never wait on them. */}
+          <PlaceReviews placeId={id} />
 
           {vibes.length > 0 ? (
             <>

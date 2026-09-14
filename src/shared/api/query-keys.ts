@@ -24,6 +24,7 @@ export const queryKeys = {
   places: () => ['places'] as const,
   placeSearch: (query: PlaceSearchQuery) => ['places', 'search', query] as const,
   place: (placeId: string) => ['places', placeId] as const,
+  placeReviews: (placeId: string) => ['places', placeId, 'public-reviews'] as const,
   areas: (query: string) => ['places', 'areas', query] as const,
   placeImport: (importId: string) => ['places', 'imports', importId] as const,
   placeSubmission: (id: string) => ['place-submissions', id] as const,

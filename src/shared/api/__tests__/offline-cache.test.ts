@@ -38,6 +38,12 @@ describe('shouldPersistQuery', () => {
     expect(shouldPersistQuery(['places', 'search', { q: 'cafe' }])).toBe(false)
   })
 
+  it('drops the public review preview — a hidden review must not return from disk (APP-056)', () => {
+    expect(shouldPersistQuery(queryKeys.placeReviews('place-1'))).toBe(false)
+    // Own reviews under `me` are a different key and keep their policy.
+    expect(shouldPersistQuery(queryKeys.myReviews())).toBe(true)
+  })
+
   it('drops anything outside the allowed roots', () => {
     expect(shouldPersistQuery(['suggestions', 'room-1'])).toBe(false)
     expect(shouldPersistQuery(['taxonomies'])).toBe(false)

@@ -17,6 +17,17 @@ export function getPlaceDetail(placeId: string): Promise<OpResponse<'getPlaceDet
 }
 
 /**
+ * BE-BFF-018 — at most three published GoGo reviews, newest first. Public like
+ * Place Detail; carries no provider rating.
+ */
+export function listPlaceReviews(placeId: string): Promise<OpResponse<'listPlaceReviews'>> {
+  return api.get<OpResponse<'listPlaceReviews'>>('/places/{id}/reviews', {
+    pathParams: { id: placeId },
+    anonymous: true,
+  })
+}
+
+/**
  * Area autocomplete via the BFF proxy — the provider key stays server-side.
  * `sessionToken` groups keystrokes of one autocomplete session into a single
  * billable provider request, so it must stay stable until a pick is made.
