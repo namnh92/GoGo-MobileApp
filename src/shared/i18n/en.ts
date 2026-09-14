@@ -283,6 +283,7 @@ export const enMessages: Record<MessageKey, string> = {
   'guestJoin.detailsTitle': 'Date details',
   'guestJoin.join': 'Join 🙌',
   'guestJoin.noAccount': 'No account needed.',
+  'guestJoin.asAccount': "You'll join with the account you're signed in with.",
   'guestJoin.you': 'You',
   'guestJoin.nameLabel': 'Display name',
   'guestJoin.namePlaceholder': 'Enter your name',

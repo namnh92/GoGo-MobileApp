@@ -288,6 +288,7 @@ export const viMessages = {
   'guestJoin.detailsTitle': 'Chi tiết buổi date',
   'guestJoin.join': 'Tham gia 🙌',
   'guestJoin.noAccount': 'Không cần tạo tài khoản.',
+  'guestJoin.asAccount': 'Bạn sẽ vào phòng bằng tài khoản đang đăng nhập.',
   'guestJoin.you': 'Bạn',
   'guestJoin.nameLabel': 'Tên hiển thị',
   'guestJoin.namePlaceholder': 'Nhập tên của bạn',

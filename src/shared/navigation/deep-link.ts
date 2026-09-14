@@ -160,3 +160,45 @@ export function routeForAction(action: DeepLinkAction): string {
 export function routeForLink(url: string | null | undefined): string {
   return routeForAction(parseDeepLink(url))
 }
+
+/** A room, plan or place id as the contract hands it out. */
+export function isUuid(value: unknown): value is string {
+  return uuid.safeParse(value).success
+}
+
+/**
+ * GoGo-MobileApp#203 — the one rewrite a system link needs before Expo Router
+ * matches it.
+ *
+ * Expo Router maps an incoming URL straight onto a route; it never runs the
+ * parser above. So `gogo-dev://room/<inviteCode>` became `room/[roomId]` with a
+ * code where the room id belongs, and the lobby asked for `GET /rooms/<code>` —
+ * a 400, and a dead end for someone holding a good invite. An invite has its
+ * own route, which joins through the invite endpoints.
+ *
+ * Only that shape is rewritten: exactly `room/<x>` (or `rooms/<x>`) where `x` is
+ * not a UUID but is a well-formed invite code. Real room ids, nested room
+ * routes and every other path pass through untouched — Expo Router already
+ * routes them, and a second router would drift from the first. The rewrite
+ * keeps the input's form (scheme URL, web URL or bare path), and it never
+ * throws: a link this cannot read is handed back as it came.
+ */
+export function systemPathFor(path: string): string {
+  try {
+    const hasScheme = path.includes('://')
+    const segments = segmentsOf(hasScheme ? path : `gogo://${path.replace(/^\/+/, '')}`)
+    if (!segments || segments.length !== 2) return path
+    const [head, param] = segments
+    if (head !== 'room' && head !== 'rooms') return path
+    if (uuid.safeParse(param).success || !inviteCode.safeParse(param).success) return path
+
+    if (!hasScheme) return `/r/${param}`
+    const scheme = path.slice(0, path.indexOf('://'))
+    const lower = scheme.toLowerCase()
+    if (lower !== 'http' && lower !== 'https') return `${scheme}://r/${param}`
+    const host = path.slice(path.indexOf('://') + 3).split(/[/?#]/)[0]
+    return `${scheme}://${host}/r/${param}`
+  } catch {
+    return path
+  }
+}

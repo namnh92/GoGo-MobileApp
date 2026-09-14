@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseDeepLink, routeForAction, routeForLink } from '../deep-link'
+import { isUuid, parseDeepLink, routeForAction, routeForLink, systemPathFor } from '../deep-link'
 
 const ID = '311f5bd8-f853-4ced-af68-e04398d1451a'
 
@@ -74,5 +74,50 @@ describe('routeForAction', () => {
 
   it('never leaves a bad link without a destination', () => {
     expect(routeForAction({ kind: 'unknown', reason: 'unsupported' })).toBe('/(tabs)')
+  })
+})
+
+describe('isUuid', () => {
+  it('accepts only contract ids', () => {
+    expect(isUuid(ID)).toBe(true)
+    for (const bad of ['room-1', 'YDi_00PB1z4FSQZjpLbgdw', '', undefined, null, 42, 'undefined']) {
+      expect(isUuid(bad)).toBe(false)
+    }
+  })
+})
+
+describe('systemPathFor (GoGo-MobileApp#203)', () => {
+  const CODE = 'YDi_00PB1z4FSQZjpLbgdw'
+
+  it('sends a room link that carries an invite code to the invite route, keeping its form', () => {
+    expect(systemPathFor(`gogo-dev://room/${CODE}`)).toBe(`gogo-dev://r/${CODE}`)
+    expect(systemPathFor(`gogo://room/${CODE}`)).toBe(`gogo://r/${CODE}`)
+    expect(systemPathFor(`gogo-stag://rooms/${CODE}`)).toBe(`gogo-stag://r/${CODE}`)
+    expect(systemPathFor(`https://go-dev.gogo.id.vn/room/${CODE}?utm_source=zalo`)).toBe(`https://go-dev.gogo.id.vn/r/${CODE}`)
+    expect(systemPathFor(`/room/${CODE}`)).toBe(`/r/${CODE}`)
+  })
+
+  it('passes a real room id and every other link through untouched', () => {
+    for (const path of [
+      `gogo-dev://room/${ID}`,
+      `https://go-dev.gogo.id.vn/room/${ID}`,
+      `gogo-dev://room/${ID}/preference`,
+      `gogo-dev://room/${CODE}/preference`,
+      `gogo-dev://r/${CODE}`,
+      `https://go-dev.gogo.id.vn/r/${CODE}`,
+      'https://go-dev.gogo.id.vn/l/Af82Xc',
+      `gogo://plans/${ID}`,
+      'gogo-dev://room/has spaces!',
+      'gogo-dev://room/',
+      'exp+gogo-dev://expo-development-client/?url=http%3A%2F%2F192.168.1.2%3A8081',
+      '',
+      'not a url at all',
+    ]) {
+      expect(systemPathFor(path)).toBe(path)
+    }
+  })
+
+  it('never routes a rewritten link anywhere but the invite screen', () => {
+    expect(routeForLink(systemPathFor(`gogo-dev://room/${CODE}`))).toBe(`/r/${CODE}`)
   })
 })

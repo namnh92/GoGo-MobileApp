@@ -79,8 +79,8 @@ export default function ShareLinkScreen() {
 
       switch (link.type) {
         case 'ROOM_INVITE': {
-          // The slug doubles as the invite code (LNK-BE-002), and `/r/[code]`
-          // already handles both the guest and the signed-in path.
+          // The slug doubles as the invite code (LNK-BE-002). `/r/[code]` joins a
+          // signed-in person as themselves and anyone else as a guest (#203).
           const code = link.target?.inviteCode ?? slug
           routerRef.current.replace(`/r/${code}`)
           return null
