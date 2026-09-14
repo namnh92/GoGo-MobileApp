@@ -3,11 +3,12 @@ import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } f
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
 import * as placesApi from '../endpoints/places'
+import * as plansApi from '../endpoints/plans'
 import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
-import type { OpBody, OpResponse, SavedItem } from '../types'
-import { detailToPlaceCard } from '../view-models'
+import type { OpBody, OpResponse, SavedItem, Plan } from '../types'
+import { detailToPlaceCard, type PlaceCard } from '../view-models'
 
 /** Current actor facts: `actorType` distinguishes a signed-in user from a guest. */
 export function useMe(options?: { enabled?: boolean }) {
@@ -129,33 +130,63 @@ export function isSaved(items: SavedItem[] | undefined, type: SavedTargetType, i
   return Boolean(items?.some(item => item.targetType === type && item.targetId === id))
 }
 
+/** A saved item with its area facts and, once loaded, what it points at. */
+export type SavedEntry = {
+  key: string
+  type: 'place' | 'plan'
+  id: string
+  area: SavedItem['area']
+  place?: PlaceCard
+  plan?: Plan
+}
+
 /**
- * `GET /me/saved` returns ids only and the contract has no batch place lookup,
- * so each saved place is fetched individually. Saved lists are small and the
- * details are cached and shared with the place-detail screen, so this stays
- * cheap — but it is the reason a large saved list would need a batch endpoint.
+ * ADM-205 (#214) — every saved place and plan with its area facts. The list is
+ * one response, so grouping sees all of it; details load per item and are
+ * shared with the place and plan screens' caches.
  */
-export function useSavedPlaces(options?: { enabled?: boolean }) {
+export function useSavedEntries(options?: { enabled?: boolean }) {
   const saved = useSaved({ enabled: options?.enabled ?? true })
+  const items = saved.data ?? []
+  const placeIds = items.filter(item => item.targetType === 'place').map(item => item.targetId)
+  const planIds = items.filter(item => item.targetType === 'plan').map(item => item.targetId)
 
-  const placeIds = (saved.data ?? [])
-    .filter(item => item.targetType === 'place' && item.targetId)
-    .map(item => item.targetId as string)
-
-  const details = useQueries({
+  const places = useQueries({
     queries: placeIds.map(id => ({
       queryKey: queryKeys.place(id),
       queryFn: () => placesApi.getPlaceDetail(id),
       staleTime: 5 * 60 * 1000,
     })),
   })
+  const plans = useQueries({
+    queries: planIds.map(id => ({
+      queryKey: queryKeys.plan(id),
+      queryFn: () => plansApi.getPlan(id),
+      staleTime: 60 * 1000,
+    })),
+  })
+
+  const placeById = new Map<string, PlaceCard>()
+  places.forEach((query, index) => {
+    if (query.data) placeById.set(placeIds[index]!, detailToPlaceCard(query.data))
+  })
+  const planById = new Map<string, Plan>()
+  plans.forEach((query, index) => {
+    if (query.data) planById.set(planIds[index]!, query.data)
+  })
+
+  const entries: SavedEntry[] = items.map(item => ({
+    key: `${item.targetType}:${item.targetId}`,
+    type: item.targetType,
+    id: item.targetId,
+    area: item.area,
+    ...(item.targetType === 'place' && placeById.has(item.targetId) ? { place: placeById.get(item.targetId) } : {}),
+    ...(item.targetType === 'plan' && planById.has(item.targetId) ? { plan: planById.get(item.targetId) } : {}),
+  }))
 
   return {
-    places: details.flatMap(query => (query.data ? [detailToPlaceCard(query.data)] : [])),
-    savedPlanIds: (saved.data ?? [])
-      .filter(item => item.targetType === 'plan' && item.targetId)
-      .map(item => item.targetId as string),
-    isPending: saved.isPending || details.some(query => query.isPending),
+    entries,
+    isPending: saved.isPending || places.some(query => query.isPending) || plans.some(query => query.isPending),
     isError: saved.isError,
     error: saved.error,
     refetch: saved.refetch,
