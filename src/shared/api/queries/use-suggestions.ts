@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as suggestionsApi from '../endpoints/suggestions'
+import { isApiError, isStaleRanking } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
 import { queryKeys } from '../query-keys'
 import type { OpBody, SuggestionsCurrent, VoteValue } from '../types'
@@ -26,6 +27,13 @@ export function useGenerateSuggestions(roomId: string) {
     onSuccess: run => {
       queryClient.setQueryData(queryKeys.roomSuggestions(roomId), run)
       void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId) })
+    },
+    // Someone changed their answers while the run was ranking (#198): the
+    // server kept the previous ranking, which is now stale too — show that.
+    onError: error => {
+      if (isApiError(error) && error.code === 'STALE_SUGGESTIONS') {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomSuggestions(roomId) })
+      }
     },
   })
 }
@@ -98,6 +106,14 @@ export function useFinalizeVotes(roomId: string) {
       void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomSuggestions(roomId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomCurrentPlan(roomId) })
+    },
+    // A stale refusal means the cached ranking is behind the server; refetch it
+    // so the screen shows the stale state instead of a finalize that cannot land.
+    onError: error => {
+      if (isStaleRanking(error)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomSuggestions(roomId) })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId) })
+      }
     },
   })
 }

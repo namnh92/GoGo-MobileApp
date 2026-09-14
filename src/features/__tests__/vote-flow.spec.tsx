@@ -6,6 +6,8 @@ const mockReplace = jest.fn()
 const mockPush = jest.fn()
 const mockFinalize = jest.fn()
 const mockVote = jest.fn()
+const mockRegenerate = jest.fn()
+const mockReset = jest.fn()
 const mockState = {
   room: roomFor('group-host', { status: 'matching', decisionMode: 'vote' }),
   suggestions: { run: { id: 'run-1', stale: false }, candidates: [
@@ -13,6 +15,7 @@ const mockState = {
     { placeId: 'place-2', name: 'Place Two', rank: 2 },
   ], votes: { mine: {}, progress: [] as { placeId: string; points: number; yes: number }[] } },
   error: null as Error | null,
+  regenerateError: null as Error | null,
 }
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
@@ -29,8 +32,8 @@ jest.mock('@/shared/api', () => ({
   usePlaceDetail: () => mockLoaded(null),
   useRoomRealtime: jest.fn(),
   useTaxonomyLabel: () => ({ resolve: () => null }),
-  useFinalizeVotes: () => ({ mutateAsync: (...args: unknown[]) => mockFinalize(...args), isPending: false, isError: Boolean(mockState.error), error: mockState.error }),
-  useGenerateSuggestions: () => ({ mutate: jest.fn(), isPending: false }),
+  useFinalizeVotes: () => ({ mutateAsync: (...args: unknown[]) => mockFinalize(...args), reset: mockReset, isPending: false, isError: Boolean(mockState.error), error: mockState.error }),
+  useGenerateSuggestions: () => ({ mutate: (...args: unknown[]) => mockRegenerate(...args), isPending: false, isError: Boolean(mockState.regenerateError), error: mockState.regenerateError }),
   useStartMatching: () => ({ mutate: jest.fn(), isPending: false }),
   useCastVote: () => ({ mutateAsync: (...args: unknown[]) => mockVote(...args), isPending: false, isError: Boolean(mockState.error) }),
 }))
@@ -44,6 +47,7 @@ beforeEach(() => {
   mockState.suggestions.run.stale = false
   mockState.suggestions.votes = { mine: {}, progress: [] }
   mockState.error = null
+  mockState.regenerateError = null
   mockFinalize.mockResolvedValue({ planId: 'plan-1' })
   mockVote.mockResolvedValue({ matched: false })
 })
@@ -116,4 +120,39 @@ it('ignores a second finalize tap while the first is unresolved', async () => {
   await fireEvent.press(view.getByText('Chốt phương án này'))
   expect(mockFinalize).toHaveBeenCalledTimes(1)
   await act(async () => { finish({ planId: 'plan-1' }) })
+})
+
+describe('stale ranking recovery (#198)', () => {
+  it('turns a STALE_SUGGESTIONS refusal into the host refreshing the ranking', async () => {
+    mockState.suggestions.votes.progress = [{ placeId: 'place-1', points: 1, yes: 1 }]
+    mockState.error = new ApiError(409, { code: 'STALE_SUGGESTIONS', message: 'stale' })
+    const view = await renderScreen(<MatchResult />)
+    expect(view.getByText(/gợi ý này đã cũ/)).toBeTruthy()
+    // No blind retry: neither the generic failure nor a finalize that would be refused again.
+    expect(view.queryByText('Chưa chốt được. Thử lại nhé.')).toBeNull()
+    expect(view.queryByText('Chốt phương án này')).toBeNull()
+    expect(view.queryByText('Cho phương án khác')).toBeNull()
+    await fireEvent.press(view.getByText('Tạo lại gợi ý'))
+    expect(mockRegenerate).toHaveBeenCalledTimes(1)
+    const options = mockRegenerate.mock.calls[0][1] as { onSuccess: () => void }
+    options.onSuccess()
+    expect(mockReset).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells a member to wait for the host instead of offering the refresh', async () => {
+    mockState.room.myRole = 'member'
+    mockState.suggestions.run.stale = true
+    const view = await renderScreen(<MatchResult />)
+    expect(view.getByText(/gợi ý này đã cũ/)).toBeTruthy()
+    expect(view.getByText('Đợi chủ phòng tạo lại gợi ý.')).toBeTruthy()
+    expect(view.queryByText('Tạo lại gợi ý')).toBeNull()
+    expect(view.queryByText('Cho phương án khác')).toBeNull()
+  })
+
+  it('explains a refresh that lost a race with a preference change', async () => {
+    mockState.suggestions.run.stale = true
+    mockState.regenerateError = new ApiError(409, { code: 'STALE_SUGGESTIONS', message: 'changed' })
+    const view = await renderScreen(<MatchResult />)
+    expect(view.getByText('Có người vừa đổi lựa chọn trong lúc tạo gợi ý. Thử lại nhé.')).toBeTruthy()
+  })
 })
