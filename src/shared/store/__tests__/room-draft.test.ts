@@ -75,6 +75,7 @@ describe('toCreateRoomBody', () => {
     const constraint = toCreateRoomBody(draft()).constraint
 
     expect(constraint).not.toHaveProperty('areaKey')
+    expect(constraint).not.toHaveProperty('administrativeArea')
     expect(constraint).not.toHaveProperty('radiusM')
     expect(constraint).not.toHaveProperty('startAt')
     expect(constraint).not.toHaveProperty('originLat')
@@ -86,6 +87,25 @@ describe('toCreateRoomBody', () => {
 
     useRoomStore.getState().patchDraft({ originLng: 106.7 })
     expect(toCreateRoomBody(draft()).constraint).toMatchObject({ originLat: 10.77, originLng: 106.7 })
+  })
+
+  it('sends a canonical area as codes and dataset version, never its labels', () => {
+    useRoomStore.getState().patchDraft({
+      budgetAmount: 300_000,
+      administrativeArea: {
+        datasetVersion: 'ds-2026',
+        provinceCode: '79',
+        provinceName: 'Thành phố Hồ Chí Minh',
+        communeCode: null,
+        communeName: null,
+      },
+    })
+
+    const constraint = toCreateRoomBody(draft()).constraint
+
+    expect(constraint.administrativeArea).toEqual({ datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null })
+    expect(constraint).not.toHaveProperty('areaKey')
+    expect(constraint).not.toHaveProperty('originLat')
   })
 
   it('sends seed places as ids, not names', () => {
@@ -119,19 +139,31 @@ describe('missingDraftFields', () => {
     expect(missingDraftFields(draft())).toEqual(['budget', 'area'])
   })
 
-  it('accepts an origin in place of an area key', () => {
+  it('accepts a device position in place of an area', () => {
     useRoomStore.getState().patchDraft({ budgetAmount: 300_000, originLat: 10.77, originLng: 106.7 })
+    expect(missingDraftFields(draft())).toEqual([])
+  })
+
+  it('accepts a canonical area', () => {
+    useRoomStore.getState().patchDraft({
+      budgetAmount: 300_000,
+      administrativeArea: { datasetVersion: 'ds', provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null },
+    })
     expect(missingDraftFields(draft())).toEqual([])
   })
 })
 
 describe('resetDraft', () => {
   it('clears the draft once the room exists', () => {
-    useRoomStore.getState().patchDraft({ budgetAmount: 300_000, areaKey: 'hcm_q1', moodKeys: ['chill'] })
+    useRoomStore.getState().patchDraft({
+      budgetAmount: 300_000,
+      administrativeArea: { datasetVersion: 'ds', provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null },
+      moodKeys: ['chill'],
+    })
     useRoomStore.getState().resetDraft()
 
     expect(draft().budgetAmount).toBeNull()
-    expect(draft().areaKey).toBeNull()
+    expect(draft().administrativeArea).toBeNull()
     expect(draft().moodKeys).toEqual([])
   })
 })

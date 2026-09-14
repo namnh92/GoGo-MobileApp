@@ -45,7 +45,7 @@ export function roomFor(
     decisionMode: 'match',
     participantCount: audience === 'couple' ? 2 : 4,
     currency: 'VND',
-    constraints: { budgetMode: 'per_person', budgetAmount: 300_000, currency: 'VND' },
+    constraints: { budgetMode: 'per_person', budgetAmount: 300_000, currency: 'VND', administrativeArea: null },
     myMemberId: 'me',
     // `memberProgress` reads this roster, and the host's start-matching action
     // only appears once every member has finished picking.

@@ -1,7 +1,9 @@
 import { StyleSheet } from 'react-native'
-import { colors, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
+  content: { paddingHorizontal: spacing[5], paddingBottom: spacing[6] },
+  footer: { paddingHorizontal: spacing[5], paddingTop: spacing[4] },
   title: { ...type.display, color: colors.neutral[900] },
   body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
   rowCard: {
@@ -20,7 +22,7 @@ export const styles = StyleSheet.create({
   },
   rowTitle: { ...type.body, fontWeight: '700', color: colors.neutral[900] },
   rowSub: { ...type.bodySmall, color: colors.neutral[500] },
-  sectionTitle: { ...type.title2, color: colors.neutral[900], marginTop: spacing[2], marginBottom: spacing[3] },
+  sectionTitle: { ...type.title2, color: colors.neutral[900], marginTop: spacing[4], marginBottom: spacing[3] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   radiusBtn: {
     width: '48%',
@@ -30,51 +32,11 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radiusLabel: { ...type.label },
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
-  sheet: {
-    backgroundColor: glassFx.sheet,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[5],
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.neutral[100],
-    alignSelf: 'center',
-    marginBottom: spacing[4],
-  },
-  sheetTitle: { ...type.title1, color: colors.neutral[900], marginBottom: spacing[3] },
-  sheetInput: {
-    ...type.bodySmall,
-    height: 46,
-    borderRadius: radius.compact,
-    backgroundColor: colors.neutral[50],
-    borderWidth: 1,
-    borderColor: colors.neutral[100],
-    paddingHorizontal: spacing[4],
-    color: colors.neutral[900],
-    marginBottom: spacing[2],
-  },
-  poweredBy: { ...type.caption, color: colors.neutral[500], marginBottom: spacing[2] },
-  noResults: { ...type.body, color: colors.neutral[500], textAlign: 'center', paddingVertical: spacing[5] },
-  areaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  areaLabel: { ...type.body, color: colors.neutral[700] },
   locationFallback: {
     ...type.bodySmall,
     color: colors.brand.amber,
     marginTop: spacing[2],
   },
   /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
-  prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[4] },
+  prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[3] },
 })

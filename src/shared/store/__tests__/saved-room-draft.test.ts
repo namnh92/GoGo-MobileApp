@@ -57,3 +57,55 @@ it('re-enters every step before the resumed one so Back keeps the wizard order',
   // A couple draft cannot be on the group step; fall back to the first step.
   expect(draftStepPath('group-setup', 'couple')).toEqual(['type'])
 })
+
+const AREA = {
+  datasetVersion: 'ds-2026',
+  provinceCode: '79',
+  provinceName: 'Thành phố Hồ Chí Minh',
+  communeCode: '26734',
+  communeName: 'Phường Bến Thành',
+}
+
+it('ADM-202: restores the canonical area with codes, dataset version and labels', async () => {
+  useRoomStore.setState({ administrativeArea: AREA, budgetAmount: 300000 })
+  await saveRoomDraft('alice', 'time')
+  useRoomStore.getState().resetDraft()
+  useSavedRoomDraft.setState({ draft: null })
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('time')
+  expect(useRoomStore.getState().administrativeArea).toEqual(AREA)
+  expect(JSON.parse(storage.value!).version).toBe(2)
+})
+
+function legacyDraft(step: string, fields: Record<string, unknown>) {
+  return JSON.stringify({
+    version: 1,
+    ownerId: 'alice',
+    step,
+    fields: {
+      creationAttempt: null, title: 'Cũ', audience: 'couple', participantCount: 4, budgetMode: 'per_person',
+      quickPreset: 'tonight', decisionMode: 'match', budgetAmount: 500000, currency: 'VND',
+      area: 'Thảo Điền, TP.HCM', areaKey: 'places:thao-dien', originLat: 10.803, originLng: 106.735, radiusM: 5000,
+      startAt: null, endAt: null, startTime: '19:00', endTime: null,
+      moodKeys: [], settingKeys: [], spendingStyleKey: null, seedPlaces: [],
+      ...fields,
+    },
+  })
+}
+
+it('ADM-202: a pre-canonical area pick is dropped, with its centre, and resumes at the location step', async () => {
+  storage.value = legacyDraft('budget', {})
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('location')
+  expect(useRoomStore.getState()).toMatchObject({
+    administrativeArea: null, originLat: null, originLng: null, area: '', title: 'Cũ', budgetAmount: 500000,
+  })
+})
+
+it('ADM-202: a pre-canonical device position is kept where it was', async () => {
+  storage.value = legacyDraft('budget', { areaKey: null, area: 'Vị trí của tôi', originLat: 10.77, originLng: 106.7 })
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('budget')
+  expect(useRoomStore.getState()).toMatchObject({ administrativeArea: null, originLat: 10.77, originLng: 106.7 })
+})
+

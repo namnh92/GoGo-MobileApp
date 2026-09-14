@@ -11,6 +11,11 @@ export type AdministrativeSelection = {
   communeName: string | null
 }
 
+/** "Phường X, Thành phố Y", or the province alone for a whole-province area. */
+export function administrativeAreaLabel(area: Pick<AdministrativeSelection, 'provinceName' | 'communeName'>): string {
+  return area.communeName ? `${area.communeName}, ${area.provinceName}` : area.provinceName
+}
+
 export function foldName(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').toLocaleLowerCase('vi').trim()
 }

@@ -33,7 +33,7 @@ it('rejects an end before the start without sending a request', async () => {
 it('clears an existing end when the host empties the field, and keeps it otherwise', async () => {
   const room = roomFor('group-host', {
     constraintVersion: 7,
-    constraints: { budgetMode: 'per_person', budgetAmount: 300_000, currency: 'VND', startAt: '2026-09-10T12:00:00Z', endAt: '2026-09-10T15:00:00Z' },
+    constraints: { budgetMode: 'per_person', budgetAmount: 300_000, currency: 'VND', administrativeArea: null, startAt: '2026-09-10T12:00:00Z', endAt: '2026-09-10T15:00:00Z' },
   })
   const view = await renderScreen(<RoomScheduleEditor room={room} />)
   // Still before the prefilled end in any time zone the test may run in.
