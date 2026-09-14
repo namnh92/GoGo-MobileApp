@@ -57,7 +57,7 @@ function deferred() {
 beforeEach(() => {
   // Retries would mask a rollback: restored and re-applied before the assertion.
   queryClient = new QueryClient({
-    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    defaultOptions: { mutations: { retry: false, gcTime: Infinity }, queries: { retry: false, gcTime: Infinity } },
   })
   jest.clearAllMocks()
   queryClient.setQueryData(latestKey, { source: 'gogo', order: 'latest', reviews: [review('r1', 2)] })
