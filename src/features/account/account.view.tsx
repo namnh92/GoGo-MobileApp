@@ -23,6 +23,7 @@ import { Atmosphere, AvatarCircle, BackHeader, GhostBtn, GlassCard, PrimaryBtn, 
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './account.style'
+import { DateOfBirthCard } from './date-of-birth.view'
 import { ProfileDefaultsCard } from './profile-defaults.view'
 
 const MAX_NAME = 50
@@ -267,6 +268,9 @@ export default function AccountScreen() {
             style={styles.saveBtn}
           />
         </GlassCard>
+
+        {/* Keyed by account: a different sign-in never inherits the last one's typing. */}
+        {me.data ? <DateOfBirthCard key={me.data.id} profile={me.data} /> : null}
 
         {me.data ? <ProfileDefaultsCard profile={me.data} /> : null}
 

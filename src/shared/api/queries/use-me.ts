@@ -19,6 +19,45 @@ export function useMe(options?: { enabled?: boolean }) {
   })
 }
 
+/**
+ * PROF-APP-006 (#217) — set or clear the date of birth. The `me` cache shows
+ * the new value at once; a refused save puts the previous profile back, and
+ * the server's answer wins once it lands. Every write checks the cached
+ * profile is still the same account, so a save that settles after a sign-out
+ * and a sign-in never paints one person's date onto another's profile.
+ */
+export function useUpdateDateOfBirth() {
+  const queryClient = useQueryClient()
+  const key = queryKeys.me()
+  type Profile = OpResponse<'getMe'>
+  const sameAccount = (id: string | undefined) => queryClient.getQueryData<Profile>(key)?.id === id
+
+  return useMutation({
+    mutationFn: (dateOfBirth: string | null) => sessionsApi.updateProfile({ dateOfBirth }),
+
+    onMutate: async dateOfBirth => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<Profile>(key)
+      if (previous) queryClient.setQueryData<Profile>(key, { ...previous, dateOfBirth })
+      return { previous }
+    },
+
+    onError: (_error, _dateOfBirth, context) => {
+      if (context?.previous && sameAccount(context.previous.id)) {
+        queryClient.setQueryData(key, context.previous)
+      }
+    },
+
+    onSuccess: profile => {
+      if (sameAccount(profile.id)) queryClient.setQueryData(key, profile)
+    },
+
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: key })
+    },
+  })
+}
+
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
   return useMutation({
