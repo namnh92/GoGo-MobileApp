@@ -186,6 +186,44 @@ describe('date of birth in account information', () => {
     expect(view.getByLabelText(INPUT).props.value).toBe('01/01/2000')
   })
 
+  it('a fast double press on save or clear sends one request', async () => {
+    let answer: (profile: Me) => void = () => {}
+    mockUpdateProfile.mockImplementation(
+      (body: Partial<Me>) =>
+        new Promise<Me>(resolve => {
+          answer = next => {
+            server.profile = { ...server.profile!, ...body, ...next }
+            resolve(server.profile)
+          }
+        }),
+    )
+    const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+    await typeDate(view, '01/01/2000')
+    const save = view.getByText(SAVE)
+    // Both presses land before React re-renders the disabled button.
+    await act(async () => {
+      fireEvent.press(save)
+      fireEvent.press(save)
+    })
+    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalled())
+    await act(async () => {
+      answer({ ...server.profile!, dateOfBirth: '2000-01-01' })
+    })
+    expect(await view.findByText('Đã lưu: 1 tháng 1, 2000')).toBeTruthy()
+    expect(mockUpdateProfile).toHaveBeenCalledTimes(1)
+
+    const clear = view.getByText(CLEAR)
+    await act(async () => {
+      fireEvent.press(clear)
+      fireEvent.press(clear)
+    })
+    await act(async () => {
+      answer({ ...server.profile!, dateOfBirth: null })
+    })
+    expect(mockUpdateProfile).toHaveBeenCalledTimes(2)
+    expect(mockUpdateProfile).toHaveBeenLastCalledWith({ dateOfBirth: null })
+  })
+
   it('after signing in as someone else, shows that account’s date and never the previous one’s late answer', async () => {
     let answer: (profile: Me) => void = () => {}
     mockUpdateProfile.mockImplementation(

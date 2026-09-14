@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Text, TextInput, View } from 'react-native'
@@ -53,7 +53,13 @@ export function DateOfBirthCard({ profile }: { profile: Me }) {
   const reason = (form.formState.errors.text?.message as Reason | undefined) ?? serverError
   const busy = action !== null
 
+  // A second press that lands before the re-render disabling the buttons (a fast
+  // double tap) must not send a second request; state updates are too late.
+  const inFlight = useRef(false)
+
   async function commit(next: string | null) {
+    if (inFlight.current) return
+    inFlight.current = true
     setNotice(null)
     setServerError(null)
     setAction(next === null ? 'clear' : 'save')
@@ -70,6 +76,7 @@ export function DateOfBirthCard({ profile }: { profile: Me }) {
       if (refused) setServerError(refused)
       else setNotice(t(isOffline(error) ? 'common.offlineBody' : 'account.dobFailed'))
     } finally {
+      inFlight.current = false
       setAction(null)
     }
   }
