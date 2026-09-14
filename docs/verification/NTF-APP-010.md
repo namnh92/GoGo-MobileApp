@@ -6,6 +6,6 @@ Notification settings show one account switch instead of twelve per-kind toggles
 
 The account switch is deliberately not locked behind this device's OS permission: it applies to every device of the account.
 
-Validation: `api:check`, `tsc --noEmit`, `expo lint` pass; vitest 281 passed / 39 skipped; jest 29 suites / 165 tests passed, and the process exited on its own (rc 0, no watchdog kill). Includes 11 screen tests and 3 hook tests (optimistic move, rollback leaving the inbox untouched, stored answer, purge prefix).
+Validation: `api:check`, `tsc --noEmit`, `expo lint` pass; vitest 281 passed / 39 skipped; jest 29 suites / 165 tests passed; the jest process exited rc 0 without the watchdog, but jest reported one worker it force-exited after the run (Mobile #133 leak class). Includes 11 screen tests and 3 hook tests (optimistic move, rollback leaving the inbox untouched, stored answer, purge prefix).
 
 Not run: Android/iOS devices, DEV deploy, real push delivery.
