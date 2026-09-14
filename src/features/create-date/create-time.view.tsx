@@ -4,10 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useLocaleContent } from '@/shared/i18n'
-import { useRoom, useRoomStore } from '@/shared/store/roomStore'
+import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { Atmosphere, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
+import { DURATION_PRESETS, presetEnd } from './duration-presets'
 import { endSlotToIso, slotToIso } from './schedule'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-time.style'
@@ -20,18 +20,25 @@ const TIME_SLOTS = Array.from({ length: 32 }, (_, i) => {
 
 type PickerTarget = 'start' | 'end' | null
 
+/**
+ * APP-051 (#204): a length preset is not an alternative to a start time — the
+ * contract has no duration field (see `duration-presets.ts`). It fills in the
+ * end once a start exists, and Continue is never unlocked by an invented time.
+ */
 export default function CreateTimeScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const content = useLocaleContent()
   const { roomType, startTime, endTime, setStartTime, setEndTime } = useRoom()
+  const durationPreset = useRoomStore(state => state.durationPreset)
+  const setDurationPreset = useRoomStore(state => state.setDurationPreset)
   const patchDraft = useRoomStore(state => state.patchDraft)
-  const [selectedIndex, setSelectedIndex] = useState(1)
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null)
 
   // Start time is mandatory (per SRS room constraints) — end stays optional.
   const canContinue = startTime !== null
+  // "01:00" after "23:00" is tomorrow; `endSlotToIso` rolls it forward the same way.
+  const endsNextDay = startTime !== null && endTime !== null && endTime <= startTime
 
   function next() {
     const startAt = startTime ? slotToIso(startTime) : null
@@ -39,12 +46,26 @@ export default function CreateTimeScreen() {
     router.push('/create/budget')
   }
 
+  function choosePreset(key: DurationPresetKey) {
+    if (durationPreset === key) {
+      setDurationPreset(null)
+      // Only an end this preset produced leaves with it; a hand-picked one stays.
+      if (startTime && endTime === presetEnd(startTime, key)) setEndTime(null)
+      return
+    }
+    setDurationPreset(key)
+    if (startTime) setEndTime(presetEnd(startTime, key))
+  }
+
   function pickSlot(slot: string) {
     if (pickerFor === 'start') {
       setStartTime(slot)
-      if (endTime && endTime <= slot) setEndTime(null)
+      if (durationPreset) setEndTime(presetEnd(slot, durationPreset))
+      else if (endTime && endTime <= slot) setEndTime(null)
     } else if (pickerFor === 'end') {
       setEndTime(slot)
+      // A hand-picked end replaces whatever length was chosen.
+      setDurationPreset(null)
     }
     setPickerFor(null)
   }
@@ -58,18 +79,23 @@ export default function CreateTimeScreen() {
         <Text style={styles.title}>{t('createTime.title', { context: roomType })}</Text>
         <Text style={styles.body}>{t('createTime.body')}</Text>
 
+        <Text style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
         <View style={{ gap: spacing[2], marginBottom: spacing[6] }}>
-          {content.timeOptions.map((o, i) => {
-            const active = selectedIndex === i
+          {DURATION_PRESETS.map(preset => {
+            const active = durationPreset === preset.key
+            const label = t(`createTime.preset.${preset.key}`)
             return (
               <Pressable
-                key={o}
-                onPress={() => setSelectedIndex(i)}
+                key={preset.key}
+                onPress={() => choosePreset(preset.key)}
                 accessibilityRole="button"
+                accessibilityLabel={label}
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
               >
-                <Text style={[styles.optionLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{o}</Text>
+                <Text style={[styles.optionLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{label}</Text>
+                {/* Selection is never colour alone. */}
+                {active ? <Text style={[styles.optionCheck, { color: colors.neutral[0] }]}>✓</Text> : null}
               </Pressable>
             )
           })}
@@ -91,10 +117,17 @@ export default function CreateTimeScreen() {
             <Text style={{ color: colors.neutral[500] }}>→</Text>
             <Pressable onPress={() => setPickerFor('end')} accessibilityRole="button" style={styles.timeBox}>
               <Text style={styles.timeCaption}>{t('createTime.end')}</Text>
-              <Text style={styles.timeValue}>{endTime ?? t('createTime.notSet')}</Text>
+              <Text style={styles.timeValue}>
+                {endTime ?? t(durationPreset === 'evening' ? 'createTime.openEnd' : 'createTime.notSet')}
+              </Text>
+              {endsNextDay ? <Text style={styles.timeCaption}>{t('createTime.nextDay')}</Text> : null}
             </Pressable>
           </View>
-          {!canContinue && <Text style={styles.requiredHint}>{t('createTime.startRequired')}</Text>}
+          {!canContinue && (
+            <Text style={styles.requiredHint}>
+              {t(durationPreset ? 'createTime.presetNeedsStart' : 'createTime.startRequired')}
+            </Text>
+          )}
         </GlassCard>
       </View>
       <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>

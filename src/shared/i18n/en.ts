@@ -183,12 +183,20 @@ export const enMessages: Record<MessageKey, string> = {
   'createTime.title': 'How much time\ndo you all have?',
   'createTime.title_couple': 'How much time\ndo you two have?',
   'createTime.body': 'GoGo only suggests places still open within this window.',
-  'createTime.specificTime': 'Or pick exact times',
+  'createTime.specificTime': 'Start and end time',
   'createTime.start': 'Start',
   'createTime.pickTime': 'Pick a time',
   'createTime.notSet': '--:--',
   'createTime.startRequired': 'Pick a start time to continue.',
   'createTime.end': 'End',
+  'createTime.durationLabel': 'Expected length (optional)',
+  'createTime.preset.upTo2h': '1–2 hrs',
+  'createTime.preset.upTo3h': '2–3 hrs',
+  'createTime.preset.upTo4h': '3–4 hrs',
+  'createTime.preset.evening': 'All evening',
+  'createTime.presetNeedsStart': 'Pick a start time — GoGo works out the end from this length.',
+  'createTime.openEnd': 'Open',
+  'createTime.nextDay': '(next day)',
 
   'createBudget.title': 'Budget\nfor both?',
   'createBudget.body': 'Estimated total for two people.',
@@ -747,7 +755,6 @@ export const enMessages: Record<MessageKey, string> = {
 }
 
 export const enContent: LocaleContent = {
-  timeOptions: ['1–2 hrs', '2–3 hrs', '3–4 hrs', 'All evening'],
   budgetOptions: [
     { label: 'Under 300k', sub: 'Coffee · a walk' },
     { label: '300–500k', sub: 'Light bites · bubble tea' },

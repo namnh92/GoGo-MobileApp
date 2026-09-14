@@ -33,7 +33,7 @@ export function WizardActions({ step }: { step: DraftStep }) {
 
   function close() {
     const draft = useRoomStore.getState()
-    const dirty = Boolean(draft.title || draft.administrativeArea || draft.originLat != null || draft.startTime
+    const dirty = Boolean(draft.title || draft.administrativeArea || draft.originLat != null || draft.startTime || draft.durationPreset
       || draft.budgetAmount != null || draft.moodKeys.length || draft.settingKeys.length
       || draft.spendingStyleKey || draft.seedPlaces.length || draft.audience !== 'couple'
       || draft.participantCount !== 4)
