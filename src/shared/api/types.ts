@@ -47,6 +47,7 @@ export type Review = Schemas['Review']
 export type SavedItem = Schemas['SavedItem']
 export type Notification = Schemas['Notification']
 export type NotificationKind = Schemas['NotificationKind']
+export type NotificationSettings = Schemas['NotificationSettings']
 export type ResolveLinkResult = Schemas['ResolveLinkResult']
 export type SubmissionResult = Schemas['SubmissionResult']
 

@@ -49,12 +49,19 @@ export function markNotificationRead(id: string): Promise<void> {
   return api.post<void>('/me/notifications/{id}/read', undefined, { pathParams: { id } })
 }
 
-export function getNotificationPreferences(): Promise<OpResponse<'getNotificationPreferences'>> {
-  return api.get<OpResponse<'getNotificationPreferences'>>('/me/notification-preferences')
+/**
+ * NTF-APP-010 (#215) — the account's one push switch (GoGo-BE#572, ADR-0025).
+ * An app preference only: not this device's OS permission, not a registered
+ * subscription, never evidence of delivery.
+ */
+export function getNotificationSettings(): Promise<OpResponse<'getNotificationSettings'>> {
+  return api.get<OpResponse<'getNotificationSettings'>>('/me/notification-settings')
 }
 
-export function setNotificationPreference(body: OpBody<'setNotificationPreference'>): Promise<void> {
-  return api.put<void>('/me/notification-preferences', body)
+export function setNotificationSettings(
+  body: OpBody<'setNotificationSettings'>,
+): Promise<OpResponse<'setNotificationSettings'>> {
+  return api.put<OpResponse<'setNotificationSettings'>>('/me/notification-settings', body)
 }
 
 /**
