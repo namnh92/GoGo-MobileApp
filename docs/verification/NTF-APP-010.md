@@ -6,6 +6,6 @@ Notification settings show one account switch instead of twelve per-kind toggles
 
 The account switch is deliberately not locked behind this device's OS permission: it applies to every device of the account.
 
-Validation: `api:check`, `tsc --noEmit`, `expo lint` pass; vitest 281 passed / 39 skipped; jest 29 suites / 165 tests passed; the jest process exited rc 0 without the watchdog, but jest reported one worker it force-exited after the run (Mobile #133 leak class). Includes 11 screen tests and 3 hook tests (optimistic move, rollback leaving the inbox untouched, stored answer, purge prefix).
+Validation: command output against the exact head is in the pull request. Jest worker force-exit: this change's hook spec (`notification-settings-hook.spec.tsx`) built its QueryClient with the default 5-minute `gcTime`. Unmounting a mutation observer schedules a garbage-collection timeout that `client.clear()` does not cancel, so the Jest process stayed alive after the suite (run alone in band: still running after 180 s). The spec now uses an infinite `gcTime` (run alone in band: exits after 4 s). Full runs still print the warning because two suites inherited from develop, `optimistic-rollback.spec.tsx` and `room-invite.spec.tsx`, keep the same timer; with only those two patched locally and not committed, the full run on this branch prints no warning. That develop leak belongs to Mobile #133 and is not fixed here.
 
 Not run: Android/iOS devices, DEV deploy, real push delivery.
