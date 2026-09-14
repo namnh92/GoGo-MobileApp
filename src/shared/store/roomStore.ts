@@ -21,6 +21,8 @@ export type RoomType = 'couple' | 'group'
 export type BudgetMode = 'per_person' | 'total'
 /** Home quick presets (spec §8.3) — a draft context filter, not a create action. */
 export type QuickPreset = 'tonight' | 'weekend' | 'special'
+/** APP-051 — a length the host picked on the time step; it only derives `endTime`. */
+export type DurationPresetKey = 'upTo2h' | 'upTo3h' | 'upTo4h' | 'evening'
 
 /**
  * The wizard collects everything `POST /rooms` needs before the room exists, so
@@ -66,6 +68,7 @@ interface RoomStoreState extends RoomDraft {
   /** Giờ bắt đầu (bắt buộc trước khi qua bước sau) và kết thúc dự kiến. */
   startTime: string | null
   endTime: string | null
+  durationPreset: DurationPresetKey | null
   /**
    * Host-suggested places attached to the room draft. Holds real place ids —
    * the name is carried only so the chip can be labelled without a fetch.
@@ -79,6 +82,7 @@ interface RoomStoreState extends RoomDraft {
   setArea: (area: string) => void
   setStartTime: (t: string | null) => void
   setEndTime: (t: string | null) => void
+  setDurationPreset: (key: DurationPresetKey | null) => void
   addSeedPlace: (place: SeedPlaceRef) => void
   removeSeedPlace: (placeId: string) => void
   patchDraft: (patch: Partial<RoomDraft>) => void
@@ -92,7 +96,8 @@ const emptyFlow = {
   creationAttempt: null,
   audience: 'couple' as const, uiState: 'default' as const,
   participantCount: 4, budgetMode: 'per_person' as const, quickPreset: 'tonight' as const,
-  area: '', startTime: null, endTime: null, seedPlaces: [] as SeedPlaceRef[],
+  area: '', startTime: null, endTime: null, durationPreset: null as DurationPresetKey | null,
+  seedPlaces: [] as SeedPlaceRef[],
 }
 
 const emptyDraft: RoomDraft = {
@@ -123,6 +128,7 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   area: '',
   startTime: null,
   endTime: null,
+  durationPreset: null,
   seedPlaces: [],
   patchDraft: patch => set(patch),
   preferenceSeed: null,
@@ -138,6 +144,7 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   setArea: area => set({ area }),
   setStartTime: startTime => set({ startTime }),
   setEndTime: endTime => set({ endTime }),
+  setDurationPreset: durationPreset => set({ durationPreset }),
   addSeedPlace: place =>
     set(state =>
       // The contract caps seed places at 10; adding an eleventh silently would

@@ -19,6 +19,8 @@ const commonFields = {
   radiusM: nullableNumber,
   startAt: z.string().datetime().nullable(), endAt: z.string().datetime().nullable(),
   startTime: z.string().nullable(), endTime: z.string().nullable(),
+  // APP-051 (#204): optional length preset. Drafts written before it existed (v1 or v2) restore with none.
+  durationPreset: z.enum(['upTo2h', 'upTo3h', 'upTo4h', 'evening']).nullable().default(null),
   moodKeys: z.array(z.string()).max(3), settingKeys: z.array(z.string()).max(2),
   spendingStyleKey: z.string().nullable(),
   seedPlaces: z.array(z.object({ placeId: z.string(), name: z.string() })).max(10),

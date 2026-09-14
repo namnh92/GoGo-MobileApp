@@ -77,6 +77,25 @@ it('ADM-202: restores the canonical area with codes, dataset version and labels'
   expect(JSON.parse(storage.value!).version).toBe(2)
 })
 
+it('keeps the chosen length through save and resume, and reads older drafts without one (#204)', async () => {
+  useRoomStore.setState({ startTime: '19:00', endTime: '22:00', durationPreset: 'upTo3h' })
+  await saveRoomDraft('alice', 'time')
+  useRoomStore.getState().resetDraft()
+  useSavedRoomDraft.setState({ draft: null })
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('time')
+  expect(useRoomStore.getState()).toMatchObject({ startTime: '19:00', endTime: '22:00', durationPreset: 'upTo3h' })
+
+  // A snapshot written before the field existed still restores.
+  const older = JSON.parse(storage.value as string)
+  delete older.fields.durationPreset
+  storage.value = JSON.stringify(older)
+  useRoomStore.getState().resetDraft()
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('time')
+  expect(useRoomStore.getState()).toMatchObject({ startTime: '19:00', durationPreset: null })
+})
+
 function legacyDraft(step: string, fields: Record<string, unknown>) {
   return JSON.stringify({
     version: 1,
@@ -109,3 +128,21 @@ it('ADM-202: a pre-canonical device position is kept where it was', async () => 
   expect(useRoomStore.getState()).toMatchObject({ administrativeArea: null, originLat: 10.77, originLng: 106.7 })
 })
 
+it('ADM-202 + #204: a v1 draft carrying a length preset migrates to v2 and keeps the preset', async () => {
+  storage.value = legacyDraft('mood', { endTime: '22:00', durationPreset: 'upTo3h' })
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('location')
+  expect(useRoomStore.getState()).toMatchObject({
+    administrativeArea: null, originLat: null, originLng: null, area: '',
+    startTime: '19:00', endTime: '22:00', durationPreset: 'upTo3h',
+  })
+  await saveRoomDraft('alice', 'location')
+  expect(JSON.parse(storage.value!)).toMatchObject({ version: 2, fields: { durationPreset: 'upTo3h' } })
+})
+
+it('ADM-202 + #204: a v1 draft without a preset migrates with none', async () => {
+  storage.value = legacyDraft('time', { areaKey: null, area: 'Vị trí của tôi', originLat: 10.77, originLng: 106.7 })
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('time')
+  expect(useRoomStore.getState()).toMatchObject({ durationPreset: null, originLat: 10.77 })
+})

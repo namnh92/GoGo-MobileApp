@@ -34,3 +34,18 @@ export function endSlotToIso(endSlot: string, startIso: string | null, now = new
   }
   return endDate.toISOString()
 }
+
+/**
+ * A wall-clock slot moved forward by a length, wrapping past midnight
+ * ("23:00" + 120 → "01:00"). Which calendar day that lands on is decided later
+ * by `endSlotToIso`, which rolls an end at or before the start to the next day.
+ */
+export function addMinutesToSlot(slot: string, minutes: number): string | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(slot)
+  if (!match || !Number.isInteger(minutes) || minutes < 0) return null
+  const hours = Number(match[1])
+  const mins = Number(match[2])
+  if (hours > 23 || mins > 59) return null
+  const total = (hours * 60 + mins + minutes) % (24 * 60)
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}

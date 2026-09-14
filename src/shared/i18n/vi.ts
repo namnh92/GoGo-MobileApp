@@ -186,12 +186,20 @@ export const viMessages = {
   'createTime.title': 'Các bạn có\nbao nhiêu thời gian?',
   'createTime.title_couple': 'Hai đứa có\nbao nhiêu thời gian?',
   'createTime.body': 'GoGo chỉ gợi ý nơi còn mở trong khoảng này.',
-  'createTime.specificTime': 'Hoặc chọn giờ cụ thể',
+  'createTime.specificTime': 'Giờ bắt đầu và kết thúc',
   'createTime.start': 'Bắt đầu',
   'createTime.pickTime': 'Chọn giờ',
   'createTime.notSet': '--:--',
   'createTime.startRequired': 'Chọn giờ bắt đầu để tiếp tục.',
   'createTime.end': 'Kết thúc',
+  'createTime.durationLabel': 'Thời lượng dự kiến (không bắt buộc)',
+  'createTime.preset.upTo2h': '1–2 giờ',
+  'createTime.preset.upTo3h': '2–3 giờ',
+  'createTime.preset.upTo4h': '3–4 giờ',
+  'createTime.preset.evening': 'Cả tối',
+  'createTime.presetNeedsStart': 'Chọn giờ bắt đầu — GoGo sẽ tính giờ kết thúc theo thời lượng này.',
+  'createTime.openEnd': 'Không cố định',
+  'createTime.nextDay': '(hôm sau)',
 
   'createBudget.title': 'Ngân sách\ncho cả hai?',
   'createBudget.body': 'Tổng chi phí dự kiến cho hai người.',
@@ -758,7 +766,6 @@ export const viMessages = {
 
 // Locale-dependent option datasets (selectable UI content).
 export const viContent = {
-  timeOptions: ['1–2 giờ', '2–3 giờ', '3–4 giờ', 'Cả tối'],
   budgetOptions: [
     { label: 'Dưới 300k', sub: 'Cà phê · đi dạo' },
     { label: '300–500k', sub: 'Bữa nhẹ · trà sữa' },

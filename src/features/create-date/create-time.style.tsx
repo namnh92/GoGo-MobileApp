@@ -7,10 +7,13 @@ export const styles = StyleSheet.create({
   option: {
     height: 56,
     borderRadius: radius.compact,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing[5],
   },
   optionLabel: { ...type.title2, fontWeight: '600' },
+  optionCheck: { ...type.title2, fontWeight: '700' },
   exactLabel: { ...type.bodySmall, color: colors.neutral[500], marginBottom: spacing[3] },
   timeBox: {
     flex: 1,

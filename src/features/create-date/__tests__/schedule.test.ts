@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { endSlotToIso, slotToIso } from '../schedule'
+import { addMinutesToSlot, endSlotToIso, slotToIso } from '../schedule'
 
 // Fixed local reference point: 2026-08-27 20:00 local.
 const now = new Date(2026, 7, 27, 20, 0, 0, 0)
@@ -49,5 +49,27 @@ describe('endSlotToIso', () => {
 
   it('returns the plain slot when there is no start yet', () => {
     expect(endSlotToIso('23:00', null, now)).toBe(slotToIso('23:00', now))
+  })
+})
+
+describe('addMinutesToSlot (#204)', () => {
+  it('moves a slot forward by a length', () => {
+    expect(addMinutesToSlot('19:00', 180)).toBe('22:00')
+    expect(addMinutesToSlot('19:30', 120)).toBe('21:30')
+  })
+
+  it('wraps past midnight, leaving the day to endSlotToIso', () => {
+    expect(addMinutesToSlot('23:00', 120)).toBe('01:00')
+    expect(addMinutesToSlot('23:30', 30)).toBe('00:00')
+    const start = slotToIso('23:00', now) as string
+    const end = new Date(endSlotToIso(addMinutesToSlot('23:00', 120) as string, start, now) as string)
+    expect(end.getTime() - new Date(start).getTime()).toBe(2 * 3_600_000)
+  })
+
+  it('rejects malformed input instead of guessing', () => {
+    expect(addMinutesToSlot('9:00', 60)).toBeNull()
+    expect(addMinutesToSlot('24:00', 60)).toBeNull()
+    expect(addMinutesToSlot('19:00', -30)).toBeNull()
+    expect(addMinutesToSlot('19:00', 1.5)).toBeNull()
   })
 })
