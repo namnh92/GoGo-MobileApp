@@ -44,6 +44,11 @@ describe('shouldPersistQuery', () => {
     expect(shouldPersistQuery(queryKeys.myReviews())).toBe(true)
   })
 
+  it('drops helpful marks and both preview orders with them (APP-060)', () => {
+    expect(shouldPersistQuery(queryKeys.placeReviews('place-1', 'helpful'))).toBe(false)
+    expect(shouldPersistQuery(queryKeys.myReviewReactions('place-1'))).toBe(false)
+  })
+
   it('drops anything outside the allowed roots', () => {
     expect(shouldPersistQuery(['suggestions', 'room-1'])).toBe(false)
     expect(shouldPersistQuery(['taxonomies'])).toBe(false)

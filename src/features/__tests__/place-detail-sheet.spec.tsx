@@ -10,7 +10,9 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded({ id: 'place-1', name: 'Quán thử', photos: [] }),
-  usePlaceReviews: () => mockLoaded({ source: 'gogo', reviews: [] }),
+  usePlaceReviews: () => mockLoaded({ source: 'gogo', order: 'latest', reviews: [] }),
+  useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
+  useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
   useSaved: () => mockLoaded([]),
   useToggleSaved: () => ({ mutate: jest.fn() }),
   useTaxonomyLabel: () => ({ resolve: (_kind: string, key: string) => key }),

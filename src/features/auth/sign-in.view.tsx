@@ -13,6 +13,7 @@ import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primi
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
+import { postAuthRoute } from './post-auth-route'
 import { styles } from './sign-in.style'
 
 type Mode = 'signIn' | 'signUp'
@@ -47,16 +48,8 @@ export default function SignInScreen() {
    * created an account.
    */
   function done() {
-    if (next === 'create') {
-      // Returns to the wizard's last step so the draft is not lost.
-      router.replace('/create/mood')
-      return
-    }
-    if (next === 'saved') {
-      router.replace('/(tabs)/saved')
-      return
-    }
-    router.replace('/(tabs)')
+    // `create` returns to the wizard's last step so the draft is not lost.
+    router.replace(postAuthRoute(next))
   }
 
   function toApiMessage(error: unknown): string {

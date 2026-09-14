@@ -17,9 +17,10 @@ const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me',
  *
  * `public-reviews` (APP-056) is a place's moderated review preview. It is not
  * what an active date needs offline, and a review a moderator hid must not
- * come back from disk on the next cold start.
+ * come back from disk on the next cold start. `review-reactions` (APP-060) is
+ * the caller's own helpful marks, which follow the same reviews.
  */
-const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'public-reviews']
+const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'public-reviews', 'review-reactions']
 
 export function shouldPersistQuery(queryKey: readonly unknown[]): boolean {
   const [root] = queryKey

@@ -1,5 +1,5 @@
 import { api } from '../client'
-import type { OpBody, OpQuery, OpResponse } from '../types'
+import type { OpBody, OpQuery, OpResponse, ReviewOrder } from '../types'
 
 export type PlaceSearchQuery = OpQuery<'searchPlaces'>
 
@@ -18,11 +18,16 @@ export function getPlaceDetail(placeId: string): Promise<OpResponse<'getPlaceDet
 
 /**
  * BE-BFF-018 — at most three published GoGo reviews, newest first. Public like
- * Place Detail; carries no provider rating.
+ * Place Detail; carries no provider rating. BE-BFF-019 adds `order=helpful`,
+ * which falls back to newest when nothing has a mark.
  */
-export function listPlaceReviews(placeId: string): Promise<OpResponse<'listPlaceReviews'>> {
+export function listPlaceReviews(
+  placeId: string,
+  order: ReviewOrder = 'latest',
+): Promise<OpResponse<'listPlaceReviews'>> {
   return api.get<OpResponse<'listPlaceReviews'>>('/places/{id}/reviews', {
     pathParams: { id: placeId },
+    query: { order },
     anonymous: true,
   })
 }
