@@ -13,15 +13,15 @@ export const styles = StyleSheet.create({
     gap: spacing[2],
   },
   syncText: { ...type.bodySmall, color: neutral[500] },
-  sectionTitle: {
+  subTitle: {
     ...type.label,
     fontWeight: '700',
     color: neutral[500],
     textTransform: 'uppercase',
-    marginTop: spacing[5],
+    marginTop: spacing[4],
     marginBottom: spacing[2],
   },
-  card: { paddingHorizontal: spacing[4], paddingVertical: spacing[3], marginTop: spacing[4], gap: spacing[2] },
+  card: { paddingHorizontal: spacing[4], paddingVertical: spacing[3], marginTop: spacing[3], gap: spacing[2] },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -36,6 +36,6 @@ export const styles = StyleSheet.create({
   deviceCard: { padding: spacing[4], gap: spacing[3] },
   note: { ...type.bodySmall, color: neutral[700] },
   warning: { ...type.bodySmall, color: brand.amber },
-  caption: { ...type.caption, color: neutral[500], marginTop: spacing[4] },
+  caption: { ...type.caption, color: neutral[500], marginTop: spacing[3] },
   error: { ...type.bodySmall, color: brand.red, marginTop: spacing[3] },
 })

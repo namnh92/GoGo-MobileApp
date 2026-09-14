@@ -1,1 +1,1 @@
-export { default } from '@/features/settings/location.view'
+export { default } from '@/features/settings/permissions.view'
