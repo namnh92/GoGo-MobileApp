@@ -217,59 +217,55 @@ export function useMarkNotificationRead() {
   })
 }
 
-export function useNotificationPreferences(options?: { enabled?: boolean }) {
+/**
+ * NTF-APP-010 (#215) — the account's one push switch. Persisted under `me`, so
+ * Profile warms it and the screen paints from cache; signing in or out purges
+ * `me` before another account can read it.
+ */
+export function useNotificationSettings(options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: queryKeys.notificationPreferences(),
-    queryFn: meApi.getNotificationPreferences,
+    queryKey: queryKeys.notificationSettings(),
+    queryFn: meApi.getNotificationSettings,
     enabled: options?.enabled ?? true,
-    // Preferences change rarely and this query is persisted. Profile preloads
-    // it, so the settings screen can paint from cache without waiting on GET.
     staleTime: 5 * 60 * 1000,
   })
 }
 
-export function useSetNotificationPreference() {
+/**
+ * Optimistic: the switch moves on tap and moves back if the PUT fails, then the
+ * server's answer wins. It writes the preference and nothing else — no push
+ * subscription, no inbox — so a toggle cannot duplicate a device registration
+ * or empty the inbox.
+ */
+export function useSetNotificationSettings() {
   const queryClient = useQueryClient()
-  const key = queryKeys.notificationPreferences()
+  const key = queryKeys.notificationSettings()
 
   return useMutation({
-    mutationFn: (body: OpBody<'setNotificationPreference'>) => meApi.setNotificationPreference(body),
+    mutationFn: (body: OpBody<'setNotificationSettings'>) => meApi.setNotificationSettings(body),
 
-    // Apply the tap to the cached list immediately. If the PUT fails, restore
-    // the exact previous list; after it settles, reconcile with the server.
     onMutate: async body => {
-      await queryClient.cancelQueries({ queryKey: key })
-      const previous = queryClient.getQueryData<OpResponse<'getNotificationPreferences'>>(key)
-      const current = previous ?? []
-      const found = current.some(item => item.channel === body.channel && item.kind === body.kind)
-
-      queryClient.setQueryData<OpResponse<'getNotificationPreferences'>>(
-        key,
-        found
-          ? current.map(item =>
-              item.channel === body.channel && item.kind === body.kind
-                ? { ...item, enabled: body.enabled }
-                : item,
-            )
-          : [...current, body],
-      )
-
-      return {
-        previousEntry: current.find(item => item.channel === body.channel && item.kind === body.kind),
+      await queryClient.cancelQueries({ queryKey: key, exact: true })
+      const previous = queryClient.getQueryData<OpResponse<'getNotificationSettings'>>(key)
+      if (previous) {
+        queryClient.setQueryData<OpResponse<'getNotificationSettings'>>(key, {
+          ...previous,
+          pushEnabled: body.pushEnabled,
+        })
       }
+      return { previous }
     },
 
-    onError: (_error, body, context) => {
-      queryClient.setQueryData<OpResponse<'getNotificationPreferences'>>(key, current => {
-        const withoutFailed = (current ?? []).filter(
-          item => !(item.channel === body.channel && item.kind === body.kind),
-        )
-        return context?.previousEntry ? [...withoutFailed, context.previousEntry] : withoutFailed
-      })
+    onError: (_error, _body, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous)
+    },
+
+    onSuccess: settings => {
+      queryClient.setQueryData(key, settings)
     },
 
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key })
+      void queryClient.invalidateQueries({ queryKey: key, exact: true })
     },
   })
 }

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useMe, useMyReviews, useNotificationPreferences, useSaved } from '@/shared/api'
+import { useMe, useMyReviews, useNotificationSettings, useSaved } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useSession } from '@/shared/providers/session-provider'
@@ -50,7 +50,7 @@ export default function ProfileScreen() {
   const reviews = useMyReviews({ enabled: canRead })
   // Warm the persisted cache while the person is already on Profile. Opening
   // notification settings then has data on the first frame in the usual flow.
-  useNotificationPreferences({ enabled: canRead })
+  useNotificationSettings({ enabled: canRead })
   const recentRooms = useRecentRoomsStore(state => state.rooms)
 
   const shortcuts: { key: string; route: string; count: number | null }[] = [
