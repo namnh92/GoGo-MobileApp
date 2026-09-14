@@ -22,7 +22,8 @@ import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { formatMoney } from '@/shared/pricing/money'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
-import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { isUuid } from '@/shared/navigation/deep-link'
+import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
 import {
   Atmosphere,
   AvatarCircle,
@@ -67,16 +68,21 @@ export default function GoGoRoomScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
+  // GoGo-MobileApp#203: a param that is not a room id — an invite code in a room
+  // link, or an id that never arrived — must not reach the API as
+  // `GET /rooms/<junk>`. Every read below is keyed off the checked id.
+  const validRoomId = isUuid(roomId) ? roomId : undefined
 
   const rememberRoom = useRecentRoomsStore(state => state.remember)
   const [codeCopied, setCodeCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
-  const room = useRoom(roomId)
+  const room = useRoom(validRoomId)
   // Members join and finish picking while this screen is open; the realtime
   // layer owns how that freshness arrives.
-  useRoomRealtime(roomId, 'lobby', { enabled: useScreenFocused() })
+  const focused = useScreenFocused()
+  useRoomRealtime(validRoomId, 'lobby', { enabled: focused && validRoomId !== undefined })
   const createInvite = useCreateRoomInvite(roomId)
   const startMatching = useStartMatching(roomId)
   const starting = useRef(false)
@@ -111,6 +117,21 @@ export default function GoGoRoomScreen() {
     } finally {
       creatingInvite.current = false
     }
+  }
+
+  if (!validRoomId) {
+    return (
+      <Atmosphere>
+        <View style={{ paddingTop: insets.top }}>
+          <BackHeader onBack={() => router.back()} />
+        </View>
+        <EmptyState
+          title={t('guestJoin.notFoundTitle')}
+          body={t('guestJoin.notFoundBody')}
+          action={<SecondaryBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} />}
+        />
+      </Atmosphere>
+    )
   }
 
   if (room.isPending) {

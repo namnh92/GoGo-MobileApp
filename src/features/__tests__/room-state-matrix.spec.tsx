@@ -24,20 +24,26 @@ const mockIdleMutation = {
 }
 
 const mockRoom: { query: QueryLike } = { query: loaded(roomFor('couple')) }
+// A room id is a UUID in the contract; the lobby refuses anything else (#203).
+const mockParams = { roomId: '311f5bd8-f853-4ced-af68-e04398d1451a' }
+const mockRoomIds: unknown[] = []
 const mockMembers: { query: QueryLike } = { query: loaded([]) }
 
 jest.mock('expo-router', () => ({
   // A screen under test is the one on top; the focus effect is a no-op.
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
-  useLocalSearchParams: () => ({ roomId: 'room-1' }),
+  useLocalSearchParams: () => mockParams,
 }))
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }))
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  useRoom: () => mockRoom.query,
+  useRoom: (id: unknown) => {
+    mockRoomIds.push(id)
+    return mockRoom.query
+  },
   useRoomMembers: () => mockMembers.query,
   useRoomRealtime: jest.fn(),
   // Inlined rather than pulled from the harness: a jest.mock factory is
@@ -55,6 +61,8 @@ const AUDIENCES: Audience[] = ['couple', 'group-host', 'group-guest']
 const START_MATCHING = /Bắt đầu ghép|Tìm điểm chung|ghép/i
 
 beforeEach(() => {
+  mockParams.roomId = '311f5bd8-f853-4ced-af68-e04398d1451a'
+  mockRoomIds.length = 0
   mockRoom.query = loaded(roomFor('couple'))
   mockMembers.query = loaded([])
   mockPush.mockClear()
@@ -196,5 +204,24 @@ describe('partial preference capability', () => {
     const view = await renderScreen(<GoGoRoomScreen />)
     expect(view.getByText('Cần ít nhất 2 người hoàn tất sở thích để bắt đầu ghép.')).toBeTruthy()
     expect(view.queryByText('Tiếp tục với lựa chọn hiện có')).toBeNull()
+  })
+})
+
+describe('room hub × route param (GoGo-MobileApp#203)', () => {
+  it.each(['YDi_00PB1z4FSQZjpLbgdw', 'undefined', 'room-1'])(
+    'never asks for a room with %s where the id belongs',
+    async junk => {
+      mockParams.roomId = junk
+      const view = await renderScreen(<GoGoRoomScreen />)
+      expect(view.getByText('Link mời không đúng hoặc phòng đã bị xoá.')).toBeTruthy()
+      expect(mockRoomIds.length).toBeGreaterThan(0)
+      expect(mockRoomIds.every(id => id === undefined)).toBe(true)
+      expect(view.queryAllByText(START_MATCHING)).toHaveLength(0)
+    },
+  )
+
+  it('reads the room when the id is one', async () => {
+    await renderScreen(<GoGoRoomScreen />)
+    expect(mockRoomIds).toContain('311f5bd8-f853-4ced-af68-e04398d1451a')
   })
 })

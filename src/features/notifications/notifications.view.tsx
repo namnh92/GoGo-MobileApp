@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
+import { isUuid } from '@/shared/navigation/deep-link'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
@@ -15,8 +16,10 @@ import { styles } from './notifications.style'
 /** Where each notification kind should take the reader. */
 function routeFor(notification: Notification): string | null {
   const payload = (notification.payload ?? {}) as Record<string, unknown>
-  const roomId = typeof payload.roomId === 'string' ? payload.roomId : null
-  const planId = typeof payload.planId === 'string' ? payload.planId : null
+  // A payload is data from outside this build; an id that is not a UUID would
+  // build a route every read on the next screen answers with 400 (#203).
+  const roomId = isUuid(payload.roomId) ? payload.roomId : null
+  const planId = isUuid(payload.planId) ? payload.planId : null
 
   switch (notification.kind) {
     case 'invite':
