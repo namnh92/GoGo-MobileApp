@@ -49,6 +49,34 @@ describe('readFreshPosition (ADM-204)', () => {
     ).toBeNull()
   })
 
+  it('with location services off it has no position and never asks for a fix, so no settings dialog can appear', async () => {
+    let fixRequests = 0
+    const location = reader({
+      hasServicesEnabledAsync: async () => false,
+      getLastKnownPositionAsync: async () => fix(60_000),
+      getCurrentPositionAsync: async () => {
+        fixRequests += 1
+        return fix(0)
+      },
+    })
+    expect(await readFreshPosition(location, () => NOW)).toBeNull()
+    expect(fixRequests).toBe(0)
+  })
+
+  it('asks for a new fix without the Android location-settings dialog', async () => {
+    const options: unknown[] = []
+    const location = reader({
+      hasServicesEnabledAsync: async () => true,
+      getLastKnownPositionAsync: async () => null,
+      getCurrentPositionAsync: async (opts?: unknown) => {
+        options.push(opts)
+        return fix(0, 21.03, 105.85)
+      },
+    })
+    expect(await readFreshPosition(location, () => NOW)).toEqual({ lat: 21.03, lng: 105.85 })
+    expect(options).toEqual([{ accuracy: 3, mayShowUserSettingsDialog: false }])
+  })
+
   it('refuses a new fix that is itself stale', async () => {
     const location = reader({
       getLastKnownPositionAsync: async () => null,

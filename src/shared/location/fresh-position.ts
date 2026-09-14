@@ -20,7 +20,9 @@ type Fix = { coords: { latitude: number; longitude: number }; timestamp: number 
 export interface LocationReader {
   getForegroundPermissionsAsync: () => Promise<{ status: string }>
   getLastKnownPositionAsync: (options?: { maxAge?: number }) => Promise<Fix | null>
-  getCurrentPositionAsync: (options?: { accuracy?: number }) => Promise<Fix>
+  getCurrentPositionAsync: (options?: { accuracy?: number; mayShowUserSettingsDialog?: boolean }) => Promise<Fix>
+  /** Whether device location services are on; optional so a reader without it still works. */
+  hasServicesEnabledAsync?: () => Promise<boolean>
   Accuracy: { Balanced: number }
 }
 
@@ -48,12 +50,16 @@ export async function readFreshPosition(
   try {
     const permission = await Location.getForegroundPermissionsAsync()
     if (permission.status !== 'granted') return null
+    // Location services off means the device does not know where it is now, and
+    // on Android a fix request would raise Google's "turn on device location"
+    // dialog — a prompt Home must never show on its own.
+    if (Location.hasServicesEnabledAsync && !(await Location.hasServicesEnabledAsync())) return null
     const last = await Location.getLastKnownPositionAsync({ maxAge: MAX_FIX_AGE_MS })
     if (last && now() - last.timestamp <= MAX_FIX_AGE_MS) {
       return { lat: last.coords.latitude, lng: last.coords.longitude }
     }
     const current = await withTimeout(
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, mayShowUserSettingsDialog: false }),
       FIX_TIMEOUT_MS,
     )
     if (!current || now() - current.timestamp > MAX_FIX_AGE_MS) return null
