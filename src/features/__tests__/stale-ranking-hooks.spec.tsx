@@ -18,7 +18,7 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 beforeEach(() => {
-  client = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } })
+  client = new QueryClient({ defaultOptions: { mutations: { retry: false, gcTime: Infinity }, queries: { retry: false, gcTime: Infinity } } })
   jest.clearAllMocks()
 })
 afterEach(() => client.clear())
