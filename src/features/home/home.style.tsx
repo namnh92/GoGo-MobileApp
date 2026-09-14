@@ -103,4 +103,9 @@ export const styles = StyleSheet.create({
   stateTitle: { ...type.title2, color: neutral[900], textAlign: 'center' },
   stateBody: { ...type.bodySmall, color: neutral[500], marginTop: 4, textAlign: 'center', lineHeight: 19 },
   stateActions: { alignSelf: 'stretch', gap: spacing[2], marginTop: spacing[5] },
+  /** ADM-204 — which location scoped the suggestions, said in words. */
+  scopeLabel: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[3] },
+  scopeCard: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[2] },
+  scopeTitle: { ...type.title2, color: neutral[900] },
+  scopeBody: { ...type.bodySmall, color: neutral[500] },
 })

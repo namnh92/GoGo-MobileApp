@@ -12,7 +12,10 @@ import {
   usePlaceSearch,
   useSaved,
   useToggleSaved,
+  isApiError,
 } from '@/shared/api'
+import { useCurrentLocation } from '@/shared/location/use-current-location'
+import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
 import { useSession } from '@/shared/providers/session-provider'
@@ -55,17 +58,48 @@ export default function HomeScreen() {
   const saved = useSaved({ enabled: canSave })
   const toggleSaved = useToggleSaved()
 
-  // The wizard's area pick is the only origin available without a location
-  // permission; without it the rail is ranked by curation rather than distance.
-  const originLat = useRoomStore(state => state.originLat)
-  const originLng = useRoomStore(state => state.originLng)
-  const hasOrigin = originLat != null && originLng != null
-
-  const search = usePlaceSearch({
-    sort: 'curated',
-    limit: RAIL_SIZE,
-    ...(hasOrigin ? { lat: originLat as number, lng: originLng as number } : {}),
+  // ADM-204 (#209): a fresh device position first, else the account's canonical
+  // area, else no location — never the create wizard's draft, which is about a
+  // room rather than about where the user is. Search waits until the scope is
+  // known, so one scope means one request.
+  const profileArea = status === 'user' ? me.data?.homeAdministrativeArea : null
+  const { scope, recheck } = useDiscoveryScope({
+    profileArea,
+    profilePending: status === 'hydrating' || (status === 'user' && me.isPending),
   })
+  const location = useCurrentLocation()
+
+  const search = usePlaceSearch(
+    { sort: 'curated', limit: RAIL_SIZE, ...scopeSearchParams(scope) },
+    { enabled: scope.status === 'ready' },
+  )
+
+  // What the server says scoped the page, not what was asked: an older server
+  // ignores area parameters and reports nothing, and then nothing is claimed.
+  const served = search.data?.pages[0]?.meta?.location
+  const scopeLabel =
+    served?.source === 'gps'
+      ? t('home.scopeGps')
+      : served?.source === 'administrative_area' && served.area
+        ? t('home.scopeArea', {
+            area: served.area.communeName
+              ? `${served.area.communeName}, ${served.area.provinceName}`
+              : served.area.provinceName,
+          })
+        : null
+  const areaVersionChanged =
+    isApiError(search.error) && search.error.code === 'ADMINISTRATIVE_VERSION_CHANGED'
+
+  async function requestDeviceLocation() {
+    // Asked here, on tap, never on launch.
+    const result = await location.request()
+    if (result.status === 'granted') await recheck()
+  }
+
+  function chooseArea() {
+    // The account area lives in account information; a guest needs an account first.
+    router.push(status === 'user' ? '/settings/account' : '/auth/sign-in')
+  }
 
   const places = useMemo(
     () => (search.data?.pages ?? []).flatMap(page => page.results.map(toPlaceCard)).slice(0, RAIL_SIZE),
@@ -189,6 +223,32 @@ export default function HomeScreen() {
             ) : null}
           </View>
 
+          {scope.status === 'ready' && scope.source === 'none' ? (
+            <GlassCard style={styles.scopeCard}>
+              <Text style={styles.scopeTitle}>{t('home.scopeNoneTitle')}</Text>
+              <Text style={styles.scopeBody}>
+                {t(scope.reason === 'area_needs_reselection' ? 'home.scopeReselectBody' : 'home.scopeNoneBody')}
+              </Text>
+              {location.state.status === 'denied' || location.state.status === 'unavailable' ? (
+                <Text accessibilityLiveRegion="polite" style={styles.scopeBody}>
+                  {t(location.state.status === 'denied' ? 'home.locationDenied' : 'home.locationUnavailable')}
+                </Text>
+              ) : null}
+              <View style={styles.stateActions}>
+                <SecondaryBtn
+                  label={t('home.useLocation')}
+                  onPress={() => void requestDeviceLocation()}
+                  loading={location.state.status === 'asking'}
+                />
+                <GhostBtn label={t('home.chooseArea')} onPress={chooseArea} />
+              </View>
+            </GlassCard>
+          ) : scopeLabel ? (
+            <Text accessibilityLiveRegion="polite" style={styles.scopeLabel}>
+              {scopeLabel}
+            </Text>
+          ) : null}
+
           {/* A skeleton in the shape of the list, not a spinner (spec §30). */}
           {visualState === 'loading' && <PlaceListSkeleton count={3} />}
 
@@ -208,7 +268,9 @@ export default function HomeScreen() {
             <GlassCard style={styles.stateCard}>
               <Text style={styles.stateEmoji}>📡</Text>
               <Text style={styles.stateTitle}>{t('home.error')}</Text>
-              <Text style={styles.stateBody}>{t('home.errorBody')}</Text>
+              <Text style={styles.stateBody}>
+                {areaVersionChanged ? t('administrative.changed') : t('home.errorBody')}
+              </Text>
               <View style={styles.stateActions}>
                 <SecondaryBtn
                   label={t('home.retry')}
@@ -217,7 +279,11 @@ export default function HomeScreen() {
                     void search.refetch()
                   }}
                 />
-                <GhostBtn label={t('home.createManual')} onPress={startCreate} />
+                {areaVersionChanged ? (
+                  <GhostBtn label={t('home.chooseArea')} onPress={chooseArea} />
+                ) : (
+                  <GhostBtn label={t('home.createManual')} onPress={startCreate} />
+                )}
               </View>
             </GlassCard>
           )}
