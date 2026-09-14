@@ -36,6 +36,20 @@ export function usePlaceDetail(placeId: string | undefined) {
 }
 
 /**
+ * APP-056 (#212) — the latest published GoGo reviews of a place. A query of its
+ * own, so a slow or failed review read never costs Place Detail its facts. A
+ * short stale time: a moderator's takedown should not linger on screen.
+ */
+export function usePlaceReviews(placeId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.placeReviews(placeId ?? ''),
+    queryFn: () => placesApi.listPlaceReviews(placeId as string),
+    enabled: Boolean(placeId),
+    staleTime: 30 * 1000,
+  })
+}
+
+/**
  * Area autocomplete. The provider bills per session, so one `sessionToken`
  * covers every keystroke until a prediction is picked — `endSession()` starts
  * a fresh one.
