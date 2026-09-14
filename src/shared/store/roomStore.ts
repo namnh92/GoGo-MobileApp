@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import type { AdministrativeSelection } from '@/shared/administrative/snapshot'
 import type { DecisionMode, OpBody } from '@/shared/api'
 
 /** A host-suggested place on the room draft: the id is what the API needs. */
@@ -33,8 +34,13 @@ export interface RoomDraft {
   /** Budget in integer minor units (RULE-CORE-004); null until the user picks. */
   budgetAmount: number | null
   currency: string
-  /** Stable area key from the Places proxy — never the display label. */
-  areaKey: string | null
+  /**
+   * ADM-202 (#207): the canonical province/commune the room is scoped to, with
+   * the dataset version it came from. The labels are carried only so a resumed
+   * draft can show the choice without a fetch; the API receives codes.
+   */
+  administrativeArea: AdministrativeSelection | null
+  /** A device fix only — never an area's centre standing in for a position. */
   originLat: number | null
   originLng: number | null
   radiusM: number | null
@@ -94,7 +100,7 @@ const emptyDraft: RoomDraft = {
   decisionMode: 'match',
   budgetAmount: null,
   currency: 'VND',
-  areaKey: null,
+  administrativeArea: null,
   originLat: null,
   originLng: null,
   radiusM: null,
@@ -192,7 +198,7 @@ export function useRoom(): RoomView {
 export function missingDraftFields(state: RoomStoreState): string[] {
   const missing: string[] = []
   if (state.budgetAmount == null) missing.push('budget')
-  if (!state.areaKey && state.originLat == null) missing.push('area')
+  if (!state.administrativeArea && state.originLat == null) missing.push('area')
   return missing
 }
 
@@ -227,7 +233,15 @@ export function toCreateRoomBody(state: RoomStoreState): OpBody<'createRoom'> {
       budgetMode: budgetModeFor(state.audience, state.budgetMode),
       budgetAmount: state.budgetAmount ?? 0,
       currency: state.currency,
-      ...(state.areaKey ? { areaKey: state.areaKey } : {}),
+      ...(state.administrativeArea
+        ? {
+            administrativeArea: {
+              datasetVersion: state.administrativeArea.datasetVersion,
+              provinceCode: state.administrativeArea.provinceCode,
+              communeCode: state.administrativeArea.communeCode,
+            },
+          }
+        : {}),
       ...(state.originLat != null && state.originLng != null
         ? { originLat: state.originLat, originLng: state.originLng }
         : {}),

@@ -79,6 +79,16 @@ export function useSaved(options?: { enabled?: boolean }) {
   })
 }
 
+/** A just-saved item's area is unknown until the server answers — never guessed. */
+const PENDING_AREA: SavedItem['area'] = {
+  scope: 'unknown',
+  datasetVersion: null,
+  provinceCode: null,
+  provinceName: null,
+  communeCode: null,
+  communeName: null,
+}
+
 /**
  * Optimistic save/unsave — bookmarking must feel instant. Server state wins on
  * settle, so a rejected save snaps back rather than lying.
@@ -99,7 +109,7 @@ export function useToggleSaved() {
           key,
           saved
             ? previous.filter(item => !(item.targetType === type && item.targetId === id))
-            : [{ targetType: type, targetId: id, savedAt: new Date().toISOString() }, ...previous],
+            : [{ targetType: type, targetId: id, savedAt: new Date().toISOString(), area: PENDING_AREA }, ...previous],
         )
       }
       return { previous }

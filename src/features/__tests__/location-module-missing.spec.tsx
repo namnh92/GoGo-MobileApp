@@ -34,13 +34,13 @@ jest.mock('@/shared/providers/session-provider', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useMe: () => ({ data: undefined, isPending: false, isError: false }),
-  useServiceAreas: () => ({ data: undefined, isPending: false, isError: false }),
-  useAreaAutocomplete: () => ({
-    data: { predictions: [], attribution: '' },
-    isPending: false,
-    isError: false,
-    endSession: jest.fn(),
-  }),
+}))
+
+// ADM-202: the area choice is the shared administrative picker; its queries
+// need a QueryClient the harness does not provide.
+jest.mock('@/shared/administrative/queries', () => ({
+  useAdministrativeVersion: () => ({ data: { datasetVersion: 'ds' }, isPending: false, isError: false, error: null, refetch: jest.fn() }),
+  useAdministrativeUnits: () => ({ data: [], isPending: false, isError: false, error: null, refetch: jest.fn() }),
 }))
 
 import CreateLocationScreen from '@/features/create-date/create-location.view'

@@ -177,7 +177,7 @@ export interface paths {
         };
         /**
          * Current actor — the private profile for a user, session facts for a guest
-         * @description ADR-0022. A user receives the whole profile, including the fields nobody else ever sees (email, home area, interests, usual budget), and `capabilities.avatarUpload`, which says before a picker opens whether this environment can take an avatar at all. A guest receives its session facts: `roomId`, `displayName`, `expiresAt`.
+         * @description ADR-0022. A user receives the whole profile, including the fields nobody else ever sees (email, home area, interests, usual budget, date of birth), and `capabilities.avatarUpload`, which says before a picker opens whether this environment can take an avatar at all. A guest receives its session facts: `roomId`, `displayName`, `expiresAt`.
          */
         get: operations["getMe"];
         put?: never;
@@ -186,7 +186,7 @@ export interface paths {
          * Delete account — login disabled, personal data removed, contributions kept
          * @description ADR-0023. A soft delete with a named retention list, and clients must describe it as such rather than as erasing everything.
          *
-         *     Removed: login (status `deleted`, email and password hash nulled, so no credential addresses the account again), every session, device tokens and push subscriptions, the profile (display name replaced, avatar, home area, usual budget, interests), the processed avatar in the public bucket and its edge cache entry, saved items, notifications and notification preferences. The name on room membership rows is replaced.
+         *     Removed: login (status `deleted`, email and password hash nulled, so no credential addresses the account again), every session, device tokens and push subscriptions, the profile (display name replaced, avatar, home area, usual budget, interests, date of birth), the processed avatar in the public bucket and its edge cache entry, saved items, notifications and notification preferences. The name on room membership rows is replaced.
          *
          *     Kept: the technical account record and its id, reviews written by the account, and photos contributed to a place. A room keeps the membership row so it still adds up for the people left in it.
          *
@@ -197,7 +197,7 @@ export interface paths {
         head?: never;
         /**
          * Update the profile — null clears an optional field, omitted keeps it
-         * @description `displayName` and `locale` are never null. `homeAreaKey` must be an active service area. `interests` carries stable taxonomy keys by kind and only `mood` is accepted (ADR-0022); an unknown key or an unsupported kind is `INVALID_TAXONOMY_KEYS`. `usualBudget.perPerson` is integer minor units, a create-room default, never a room constraint. Users only: a guest gets 403.
+         * @description `displayName` and `locale` are never null. `homeAreaKey` must be an active service area. `interests` carries stable taxonomy keys by kind and only `mood` is accepted (ADR-0022); an unknown key or an unsupported kind is `INVALID_TAXONOMY_KEYS`. `usualBudget.perPerson` is integer minor units, a create-room default, never a room constraint. `dateOfBirth` (PROF-BE-013) is a calendar date `YYYY-MM-DD`: a date that does not exist is `VALIDATION_FAILED` with field error code `invalid_date`, and a date after today in `Asia/Ho_Chi_Minh` is `VALIDATION_FAILED` with field error code `too_big`; today itself is accepted. No minimum age applies. It is returned only on the owner's `/me` and export, never in a member or public summary. Users only: a guest gets 403.
          */
         patch: operations["updateProfile"];
         trace?: never;
@@ -300,6 +300,26 @@ export interface paths {
         head?: never;
         /** Host-only: validated room state transition (SRS §7.2) */
         patch: operations["transitionRoom"];
+        trace?: never;
+    };
+    "/rooms/{id}/title": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Host-only: rename the room or clear its name
+         * @description BE-BFF-022. Allowed while the room is `draft`, `collecting`, `matching` or `ready` — the same window as constraint edits; any other state answers `409 ROOM_NOT_EDITABLE`. The title is trimmed and limited to 80 characters like a name given at creation; an empty string or `null` clears it, and clients show their own untitled fallback. A name is not a constraint: suggestions and plans are not marked stale and `constraintVersion` does not move. Last write wins — there is no version to send.
+         */
+        patch: operations["renameRoom"];
         trace?: never;
     };
     "/rooms/{id}/events": {
@@ -624,6 +644,26 @@ export interface paths {
          * @description ADM-003 / ADR-0019 §2. Codes are reused: 2,212 of the 3,321 current commune codes named a different unit before 2025-07-01, so `at` selects the effective period. Successors come from canonical changes only — a divided commune is quarantined, never resolved, and is reported with unresolved=true rather than the source's guess.
          */
         get: operations["resolveAdministrativeCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/administrative/locate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The current commune or province containing a position
+         * @description ADM-022 (#569). Point-in-polygon against the boundary release bound to the published dataset. A single containing commune whose unit agrees with its polygon's province is `commune`; a point claimed by one province only (including a shared commune edge inside it) is `province`; anything else is `unknown`, never a guess. The position is not stored, and the answer is `Cache-Control: private, no-store`.
+         */
+        get: operations["locateAdministrativeArea"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1207,7 +1247,7 @@ export interface paths {
         };
         /**
          * Place search — Vietnamese-normalized text, filters, ranking, cursor
-         * @description FR-SEARCH-001..004/009 + SE-010. Accent-insensitive FTS + trigram typo tolerance + synonym expansion; hard filters in SQL; weighted versioned ranking (meta.weightsVersion); stable keyset cursor. Lodging excluded unless requested. Zero-results emit telemetry without raw PII.
+         * @description FR-SEARCH-001..004/009 + SE-010. Accent-insensitive FTS + trigram typo tolerance + synonym expansion; hard filters in SQL; weighted versioned ranking (meta.weightsVersion); stable keyset cursor. Lodging excluded unless requested. Zero-results emit telemetry without raw PII. ADM-021: scope by a position (lat/lng, radiusM defaults to 10 km) or by a canonical area (datasetVersion + provinceCode, optional communeCode for a single commune). A position wins when both are sent; the two are never intersected, and meta.location says which one scoped the results. An area matches only places with a VERIFIED mapping from the same dataset. A code that is not current or not under its province is 400; a dataset that is not the published one is 409 ADMINISTRATIVE_VERSION_CHANGED.
          */
         get: operations["searchPlaces"];
         put?: never;
@@ -1227,6 +1267,28 @@ export interface paths {
         };
         /** Place detail with sources, freshness, hours, verified prices */
         get: operations["getPlaceDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/places/{id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Latest or most helpful published GoGo reviews of a place (at most three)
+         * @description BE-BFF-018. GoGo community reviews only, never Google's: the provider rating stays on `PlaceDetail.rating`/`ratingCount` with its attribution and is never merged with these. Only reviews a moderator published are listed; `pending`, `rejected`, `removed` and emergency-`hidden` reviews never appear. Ordered newest first by `createdAt`, ties broken by `id` descending, so repeated reads agree. Answers for the same places `getPlaceDetail` does (404 otherwise) and is served `Cache-Control: no-store`, so a takedown holds on the next read.
+         *
+         *     BE-BFF-019 (ADR-0026, proposal): `order=helpful` ranks by `helpfulCount` descending, then the same newest-first order, so with no reactions it answers exactly what `latest` does. Counts only; no response names who reacted.
+         */
+        get: operations["listPlaceReviews"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1499,7 +1561,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Saved places/plans (FR-USER-001) */
+        /**
+         * Saved places/plans (FR-USER-001)
+         * @description The whole list, newest first, each with ADM-022 area facts (see SavedItemArea). Grouping and ordering are the client's, over the full list rather than a page.
+         */
         get: operations["listSaved"];
         put?: never;
         post?: never;
@@ -1553,7 +1618,7 @@ export interface paths {
         };
         /**
          * Export all actor-owned data (privacy rule)
-         * @description Everything the account owns, as JSON, from an explicit allowlist: profile (display name, email, locale, avatar URL, home area, interests, usual budget — ADR-0022), memberships, preferences, votes, saved items, reviews. Never a credential, a session, or an upload key. Audit-logged and recorded in the privacy ledger.
+         * @description Everything the account owns, as JSON, from an explicit allowlist: profile (display name, email, locale, avatar URL, home area, interests, usual budget — ADR-0022, date of birth — PROF-BE-013), memberships, preferences, votes, saved items, reviews, review reactions given (ADR-0026), and the push switch (`notificationSettings`, ADR-0025). Never a credential, a session, or an upload key. Audit-logged and recorded in the privacy ledger.
          */
         get: operations["exportMyData"];
         put?: never;
@@ -2079,6 +2144,50 @@ export interface paths {
         patch: operations["updateReview"];
         trace?: never;
     };
+    "/reviews/{id}/reactions/helpful": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark a published review helpful (idempotent; ADR-0026 proposal)
+         * @description BE-BFF-019. One `helpful` per account per review: repeating the call changes nothing and answers the same state. Signed-in accounts only (guests get `403 USER_ONLY`), never on your own review (`403 OWN_REVIEW`). A review that is not published on a place Place Detail opens answers `404 REVIEW_NOT_FOUND`, exactly like a missing one.
+         */
+        put: operations["markReviewHelpful"];
+        post?: never;
+        /**
+         * Remove your helpful mark from a review (idempotent; ADR-0026 proposal)
+         * @description BE-BFF-019. Removing a mark that is not there changes nothing and answers the same state. Same permissions and not-found rule as marking.
+         */
+        delete: operations["unmarkReviewHelpful"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/review-reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which published reviews of a place the caller marked helpful
+         * @description BE-BFF-019. The caller's own marks only — how a client shows its toggle state while the public list stays free of reactor identities. Signed-in accounts only (guests get `403 USER_ONLY`).
+         */
+        get: operations["listMyReviewReactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/notifications/{id}/read": {
         parameters: {
             query?: never;
@@ -2187,10 +2296,40 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Per-channel, per-kind notification opt-ins */
+        /**
+         * Per-channel, per-kind notification opt-ins (legacy clients)
+         * @description Kept for clients released before NTF-BE-014 (#572). Push is now one switch per account (`GET /me/notification-settings`, ADR-0025), so every push kind here reports that switch's value; email rows are returned as stored. New clients read the settings resource instead.
+         */
         get: operations["getNotificationPreferences"];
-        /** Opt in/out of one notification kind on one channel */
+        /**
+         * Opt in/out of one notification kind on one channel (legacy clients)
+         * @description Kept for clients released before NTF-BE-014 (#572). The row is stored, but only a push opt-out changes delivery: it turns the account's push switch off (`source: legacy`), since a single kind can no longer be stopped on its own. `enabled: true` never turns push back on — that is `PUT /me/notification-settings`.
+         */
         put: operations["setNotificationPreference"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notification-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The account's one push switch (NTF-BE-014)
+         * @description ADR-0025. `pushEnabled` is what this account asked GoGo to do and nothing more: it is not this device's OS notification permission, not a registered push subscription (`PUT /me/push-subscriptions`), and never evidence that anything was delivered. The in-app inbox is written whatever it says.
+         */
+        get: operations["getNotificationSettings"];
+        /**
+         * Turn every push notification kind on or off
+         * @description Idempotent. `true` allows every push kind GoGo sends, CMS campaigns included; `false` stops all of them. Once set, per-kind rows written by older clients no longer affect delivery (ADR-0025). A client should keep showing the previous value until this returns, and restore it on failure.
+         */
+        put: operations["setNotificationSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5199,6 +5338,35 @@ export interface components {
             originText?: string;
             originLat?: number;
             originLng?: number;
+            /** @description ADM-020 — the room's canonical area: a province with an optional commune (a null commune means the whole province), validated against the published administrative dataset. On create, omitted or null means no area. On a constraint update, omitted keeps the stored area, null clears it, and the same datasetVersion/provinceCode/communeCode as stored keeps the stored snapshot unchanged even when that dataset is no longer published; any other value is a new selection and must name the published dataset (409 ADMINISTRATIVE_VERSION_CHANGED otherwise, 400 for a code that is not current or not under its province). The server ignores provinceName/communeName/status echoed from RoomSummary. Independent of originLat/originLng/radiusM: no position is ever inferred from the area. Setting an area replaces areaKey. */
+            administrativeArea?: components["schemas"]["AdministrativeAreaInput"] | null;
+            /** @description Legacy service-area key. Cleared and ignored while administrativeArea is set. */
+            areaKey?: string;
+            radiusM?: number;
+            /** Format: date-time */
+            startAt?: string;
+            /** Format: date-time */
+            endAt?: string;
+            /**
+             * @description A couple room must be `total`: its budget is a total for two people and the client asks for it that way (GoGo-BE#559). `per_person` there is refused with `INVALID_BUDGET_MODE`, on create and on an explicit constraint edit alike. A group host picks either unit. Rooms stored as `per_person` before this rule keep their value and are never converted behind anyone's back.
+             * @enum {string}
+             */
+            budgetMode: "total" | "per_person";
+            /** @description Integer minor units, interpreted per budgetMode. */
+            budgetAmount: number;
+            /** @default VND */
+            currency: string;
+            dietaryKeys?: string[];
+            accessibilityKeys?: string[];
+        };
+        /** @description A room's current constraint version as read back (RoomSummary.constraints). */
+        RoomConstraints: {
+            originText?: string;
+            originLat?: number;
+            originLng?: number;
+            /** @description ADM-020 — the stored canonical area with the labels saved when it was chosen, or null. status is needs_reselection when its dataset is no longer the published one; the room keeps its labels, and suggestions are refused with 409 ADMINISTRATIVE_VERSION_CHANGED until the host chooses again or clears it. */
+            administrativeArea: components["schemas"]["AdministrativeArea"] | null;
+            /** @description Legacy service-area key. Cleared and ignored while administrativeArea is set. */
             areaKey?: string;
             radiusM?: number;
             /** Format: date-time */
@@ -5243,6 +5411,19 @@ export interface components {
             perPerson: number;
             currency: string;
         };
+        /** @description ADM-021 — the scope that produced the results. gps: the request's position. administrative_area: the canonical area, with server labels. none: neither was sent, so results are not location-scoped. */
+        SearchLocation: {
+            /** @enum {string} */
+            source: "gps" | "administrative_area" | "none";
+            /** @description Present only when source is administrative_area. */
+            area?: {
+                datasetVersion: string;
+                provinceCode: string;
+                provinceName: string;
+                communeCode: string | null;
+                communeName: string | null;
+            };
+        };
         AdministrativeAreaInput: {
             datasetVersion: string;
             provinceCode: string;
@@ -5276,6 +5457,11 @@ export interface components {
             homeArea?: components["schemas"]["HomeArea"] | null;
             interests?: components["schemas"]["ProfileInterests"];
             usualBudget?: components["schemas"]["UsualBudget"] | null;
+            /**
+             * Format: date
+             * @description PROF-BE-013. Calendar date `YYYY-MM-DD`, never shifted by a time zone; null when unset. Owner-only; a guest carries no such field.
+             */
+            dateOfBirth?: string | null;
             capabilities?: {
                 /**
                  * @description Known before a picker opens; the server still enforces it.
@@ -5292,6 +5478,11 @@ export interface components {
             /** @description Canonical area; null clears. Cannot be sent with legacy homeAreaKey. A successful write clears the legacy field. */
             homeAdministrativeArea?: components["schemas"]["AdministrativeAreaInput"] | null;
             homeAreaKey?: string | null;
+            /**
+             * Format: date
+             * @description PROF-BE-013. Calendar date `YYYY-MM-DD`; null clears, omitted keeps. It must exist (`2027-02-29` is `invalid_date`) and must not be after today in Asia/Ho_Chi_Minh (`too_big`). No minimum age.
+             */
+            dateOfBirth?: string | null;
             interests?: components["schemas"]["ProfileInterests"] | null;
             usualBudget?: components["schemas"]["UsualBudget"] | null;
         };
@@ -5340,7 +5531,7 @@ export interface components {
                 /** @enum {string|null} */
                 blockedReason: "HOST_ONLY" | "ROOM_NOT_MATCHING" | "MATCHING_QUORUM_REQUIRED" | null;
             };
-            constraints?: components["schemas"]["RoomConstraintInput"];
+            constraints?: components["schemas"]["RoomConstraints"];
             members?: components["schemas"]["RoomMember"][];
             seedPlaces?: {
                 /** Format: uuid */
@@ -6383,6 +6574,21 @@ export interface components {
             decision: "published" | "rejected" | "approved" | "actioned" | "dismissed";
             reason: string;
         };
+        /** @description ADR-0025. One app-level push switch per account. Deliberately carries no OS permission, subscription or delivery field: the device knows its own permission, `PUT /me/push-subscriptions` records reachability, and only the provider knows about delivery. */
+        NotificationSettings: {
+            /** @description Whether GoGo may ask the provider to push to this account, for every kind. */
+            pushEnabled: boolean;
+            /**
+             * @description `default` — never chosen, so on. `explicit` — set through `PUT /me/notification-settings`. `migrated` — derived once by migration 0064 from per-kind choices: on only if every stored push kind was on. `legacy` — an older client turned one kind off, which turns push off.
+             * @enum {string}
+             */
+            source: "default" | "explicit" | "migrated" | "legacy";
+            /**
+             * Format: date-time
+             * @description When the switch was last stored; null while it is the default.
+             */
+            updatedAt: string | null;
+        };
         /** @enum {string} */
         NotificationKind: "invite" | "preference_reminder" | "plan_ready" | "plan_changed" | "date_reminder" | "moderation_update";
         Review: {
@@ -6404,11 +6610,33 @@ export interface components {
         };
         SavedItem: {
             /** @enum {string} */
-            targetType?: "place" | "plan";
+            targetType: "place" | "plan";
             /** Format: uuid */
-            targetId?: string;
+            targetId: string;
             /** Format: date-time */
-            savedAt?: string;
+            savedAt: string;
+            area: components["schemas"]["SavedItemArea"];
+        };
+        /** @description ADM-022 (#569) — facts to group a saved item by, never a composed label. A place is `commune` only through a VERIFIED mapping in the published dataset. A plan is `commune` when every stop is in one commune, `province` when every stop is in one province across communes, `multiple_provinces` when stops span provinces, and `unknown` when any stop has no such mapping (a plan is never placed by its first stop). Labels come from the published dataset. */
+        SavedItemArea: {
+            /** @enum {string} */
+            scope: "commune" | "province" | "multiple_provinces" | "unknown";
+            datasetVersion: string | null;
+            provinceCode: string | null;
+            provinceName: string | null;
+            communeCode: string | null;
+            communeName: string | null;
+        };
+        AdministrativeLocation: {
+            datasetVersion: string;
+            area: {
+                /** @enum {string} */
+                scope: "commune" | "province" | "unknown";
+                provinceCode: string | null;
+                provinceName: string | null;
+                communeCode: string | null;
+                communeName: string | null;
+            };
         };
         DeviceUnsubscribeConfirmation: {
             /** @description True when the named subscription is absent from the caller's user or present and not enabled. False means the provider still has it enabled, and the caller must keep its session. */
@@ -7205,6 +7433,50 @@ export interface components {
                     [key: string]: unknown;
                 };
             }[];
+        };
+        ReviewReactionState: {
+            /** Format: uuid */
+            reviewId: string;
+            helpfulCount: number;
+            reactedByMe: boolean;
+        };
+        MyReviewReactions: {
+            /** Format: uuid */
+            placeId: string;
+            /** @description Ids of the place's published reviews the caller marked helpful. Never anyone else's marks. */
+            helpful: string[];
+        };
+        PlaceReviewPreview: {
+            /**
+             * @description The order the server applied, echoing the request (default `latest`).
+             * @enum {string}
+             */
+            order: "latest" | "helpful";
+            /**
+             * @description Always `gogo`. These are GoGo community reviews; they never share a number with a provider rating.
+             * @enum {string}
+             */
+            source: "gogo";
+            reviews: components["schemas"]["PublicPlaceReview"][];
+        };
+        /** @description A published review as anyone may read it. Carries no user id, email or avatar. */
+        PublicPlaceReview: {
+            /** Format: uuid */
+            id: string;
+            rating: number;
+            /** @description How many accounts marked this review helpful. A count only (ADR-0026). */
+            helpfulCount: number;
+            /** @description Omitted when the review has no text. */
+            text?: string;
+            /**
+             * Format: date-time
+             * @description When the review was written. An edit keeps it.
+             */
+            createdAt: string;
+            author: {
+                /** @description The name the author shows other people; `null` once the account is deleted (ADR-0023). Clients render their own label for it. */
+                displayName: string | null;
+            };
         };
         PlacePhoto: {
             /** Format: uuid */
@@ -8931,6 +9203,38 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    renameRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Renamed; the updated summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     streamRoomEvents: {
         parameters: {
             query?: {
@@ -9541,6 +9845,32 @@ export interface operations {
             };
             304: components["responses"]["NotModified"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["AdministrativeUnavailable"];
+        };
+    };
+    locateAdministrativeArea: {
+        parameters: {
+            query: {
+                lat: number;
+                lng: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The containing area, or unknown */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministrativeLocation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["RateLimited"];
             503: components["responses"]["AdministrativeUnavailable"];
         };
     };
@@ -10516,6 +10846,12 @@ export interface operations {
                 /** @description CSV */
                 accessibility?: string;
                 includeLodging?: boolean;
+                /** @description Administrative dataset of provinceCode/communeCode. Required with provinceCode. */
+                datasetVersion?: string;
+                /** @description Canonical province code. Ignored when lat/lng are sent. */
+                provinceCode?: string;
+                /** @description Canonical commune code under provinceCode; omit for the whole province. */
+                communeCode?: string;
                 sort?: "relevance" | "distance" | "rating" | "price" | "curated";
                 /** @description Opaque cursor from a previous page. */
                 cursor?: components["parameters"]["Cursor"];
@@ -10539,11 +10875,13 @@ export interface operations {
                         meta: {
                             weightsVersion?: string;
                             sort?: string;
+                            location?: components["schemas"]["SearchLocation"];
                         };
                     };
                 };
             };
             400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
         };
     };
@@ -10568,6 +10906,32 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    listPlaceReviews: {
+        parameters: {
+            query?: {
+                order?: "latest" | "helpful";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to three reviews; an empty list when none is published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceReviewPreview"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
         };
     };
     generateSuggestions: {
@@ -11966,6 +12330,82 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    markReviewHelpful: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state this request produced */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewReactionState"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    unmarkReviewHelpful: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state this request produced */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewReactionState"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listMyReviewReactions: {
+        parameters: {
+            query: {
+                placeId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review ids, most recent mark first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyReviewReactions"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     markNotificationRead: {
         parameters: {
             query?: never;
@@ -12178,7 +12618,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Preferences (absent rows default to enabled) */
+            /** @description Every push kind carrying the switch's value, then stored email rows */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12214,6 +12654,67 @@ export interface operations {
         responses: {
             /** @description { updated: true } */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The switch as the server applies it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+            /** @description USER_ONLY — guests have no account to hold a switch. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    setNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    pushEnabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The switch as stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description USER_ONLY — guests have no account to hold a switch. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -132,9 +132,13 @@ export default function CreateMoodScreen() {
       router.replace(`/room/${room.id}`)
     } catch (caught) {
       setError(
-        isApiError(caught) && caught.fieldErrors.length > 0
-          ? caught.fieldErrors[0].message
-          : t('createMood.createFailed'),
+        // ADM-020: the area was chosen from a dataset that has since been
+        // replaced — say so, instead of a generic failure the retry cannot fix.
+        isApiError(caught) && caught.code === 'ADMINISTRATIVE_VERSION_CHANGED'
+          ? t('administrative.changed')
+          : isApiError(caught) && caught.fieldErrors.length > 0
+            ? caught.fieldErrors[0].message
+            : t('createMood.createFailed'),
       )
     } finally { submitting.current = false; useRoomStore.setState({ creationPending: false }) }
   }
