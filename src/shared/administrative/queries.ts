@@ -27,3 +27,22 @@ export function useAdministrativeUnits(version: string | undefined, provinceCode
     ),
   })
 }
+
+/**
+ * ADM-205 (#214) — the commune or province containing a position. Keyed under
+ * `location`, which is not a persisted query prefix: a position is never
+ * written to storage, and the answer lives in memory for a few minutes only.
+ */
+export function useLocatedArea(position: { lat: number; lng: number } | null) {
+  return useQuery({
+    queryKey: ['location', 'administrative-area', position?.lat.toFixed(4) ?? null, position?.lng.toFixed(4) ?? null],
+    enabled: position !== null,
+    staleTime: 5 * 60_000,
+    gcTime: 5 * 60_000,
+    queryFn: () =>
+      api.get<OpResponse<'locateAdministrativeArea'>>('/administrative/locate', {
+        query: { lat: position!.lat, lng: position!.lng },
+        anonymous: true,
+      }),
+  })
+}

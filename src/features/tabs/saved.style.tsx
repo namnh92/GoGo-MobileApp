@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, glassFx, mapColors, shadows, touchTarget, type } from '@/shared/ui/tokens'
+
+import { colors, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -8,57 +9,19 @@ export const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   addPlaceBtn: {
     marginLeft: 'auto',
-    marginRight: spacing[2],
   },
   addPlaceLabel: { ...type.title1, fontWeight: '700', color: brand.coral },
   title: { ...type.display, color: neutral[900] },
-  toggle: { flexDirection: 'row', backgroundColor: neutral[100], borderRadius: 12, padding: 2 },
-  toggleBtn: { paddingHorizontal: 12, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  toggleBtnActive: { backgroundColor: glassFx.solid },
-  toggleLabel: { ...type.label, color: neutral[500] },
-  toggleLabelActive: { color: neutral[900] },
   filterRow: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
+  list: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
+  /** ADM-205 — province, then commune; each header is a screen-reader heading. */
+  group: { marginBottom: spacing[6] },
+  groupHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
+  groupTitle: { ...type.title2, color: neutral[900] },
+  subgroup: { marginBottom: spacing[4] },
+  subgroupTitle: { ...type.label, color: neutral[700] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
-  // Map mock
-  mapRoot: { flex: 1, overflow: 'hidden' },
-  mapCanvas: { ...StyleSheet.absoluteFillObject, backgroundColor: mapColors.canvas },
-  mapUnavailable: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[3], padding: spacing[5] },
-  mapUnavailableLabel: { ...type.body, color: neutral[500], textAlign: 'center' },
-  searchArea: {
-    position: 'absolute',
-    top: spacing[3],
-    alignSelf: 'center',
-    height: 36,
-    paddingHorizontal: spacing[4],
-    borderRadius: radius.pill,
-    backgroundColor: glassFx.solid,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: shadows.warm,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  searchAreaLabel: { ...type.label, color: neutral[900] },
-  sheet: {
-    position: 'absolute',
-    left: spacing[4],
-    right: spacing[4],
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  sheetThumb: { width: 96 },
-  sheetTitle: { ...type.title2, color: neutral[900], flexShrink: 1 },
-  sheetStatusOpen: { ...type.caption, fontWeight: '600', color: brand.mint },
-  sheetStatusClosed: { ...type.caption, fontWeight: '600', color: neutral[500] },
-  sheetMeta: { ...type.bodySmall, color: neutral[500] },
-  sheetActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2] },
-  sheetBtn: { height: touchTarget.min, paddingHorizontal: spacing[4] },
-  sheetBtnGrow: { flex: 1 },
-  sheetBtnLabel: { ...type.label, color: neutral[500] },
-  sheetAddBtn: { backgroundColor: brand.coral, borderColor: brand.coral },
-  sheetAddDisabled: { backgroundColor: neutral[100], borderColor: neutral[100] },
-  sheetAddLabel: { ...type.label, color: neutral[0] },
-  sheetAddLabelDisabled: { color: neutral[300] },
+  gridItem: { width: '48%' },
+  unavailable: { width: '48%', padding: spacing[3], gap: spacing[2] },
+  unavailableLabel: { ...type.bodySmall, color: neutral[500] },
 })
