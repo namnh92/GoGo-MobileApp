@@ -7,7 +7,8 @@ import * as plansApi from '../endpoints/plans'
 import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
-import type { OpBody, OpResponse, SavedItem, Plan } from '../types'
+import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState } from '../review-reactions'
+import type { MyReviewReactions, OpBody, OpResponse, PlaceReviewPreview, Plan, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 
 /** Current actor facts: `actorType` distinguishes a signed-in user from a guest. */
@@ -260,6 +261,70 @@ export function useUpdateReview() {
       meApi.updateReview(id, body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.myReviews() })
+    },
+  })
+}
+
+/** APP-060 (#219) — the caller's own helpful marks on one place. Accounts only. */
+export function useMyReviewReactions(placeId: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.myReviewReactions(placeId),
+    queryFn: () => meApi.listMyReviewReactions(placeId),
+    enabled: (options?.enabled ?? true) && Boolean(placeId),
+    staleTime: 30 * 1000,
+  })
+}
+
+/**
+ * APP-060 (#219) — mark or unmark a review helpful, optimistically. The count
+ * and the toggle move on tap; a failure puts back exactly what was there; a
+ * success writes the server's count; either way both reads refetch, because a
+ * mark can change the helpful order. A tap that asks for the state the review
+ * is already in changes nothing, and the server would not count it either.
+ */
+export function useToggleReviewHelpful(placeId: string) {
+  const queryClient = useQueryClient()
+  const previewsKey = queryKeys.placeReviewsAll(placeId)
+  const mineKey = queryKeys.myReviewReactions(placeId)
+
+  return useMutation({
+    mutationFn: ({ reviewId, helpful }: { reviewId: string; helpful: boolean }) =>
+      helpful ? meApi.markReviewHelpful(reviewId) : meApi.unmarkReviewHelpful(reviewId),
+
+    onMutate: async ({ reviewId, helpful }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: previewsKey }),
+        queryClient.cancelQueries({ queryKey: mineKey }),
+      ])
+      const previews = queryClient.getQueriesData<PlaceReviewPreview>({ queryKey: previewsKey })
+      const mine = queryClient.getQueryData<MyReviewReactions>(mineKey)
+      const delta = helpfulDelta(mine, reviewId, helpful)
+      if (delta !== 0) {
+        for (const [key, data] of previews) queryClient.setQueryData(key, withHelpfulDelta(data, reviewId, delta))
+        queryClient.setQueryData(mineKey, withMyMark(mine, placeId, reviewId, helpful))
+      }
+      return { previews, mine }
+    },
+
+    onError: (_error, _variables, context) => {
+      if (!context) return
+      for (const [key, data] of context.previews) queryClient.setQueryData(key, data)
+      queryClient.setQueryData(mineKey, context.mine)
+    },
+
+    onSuccess: state => {
+      for (const [key, data] of queryClient.getQueriesData<PlaceReviewPreview>({ queryKey: previewsKey })) {
+        queryClient.setQueryData(key, withServerState(data, state))
+      }
+      queryClient.setQueryData(
+        mineKey,
+        withMyMark(queryClient.getQueryData<MyReviewReactions>(mineKey), placeId, state.reviewId, state.reactedByMe),
+      )
+    },
+
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: previewsKey })
+      void queryClient.invalidateQueries({ queryKey: mineKey })
     },
   })
 }

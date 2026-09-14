@@ -39,6 +39,28 @@ export function listMyReviews(): Promise<OpResponse<'listMyReviews'>> {
 
 // --- notifications ---------------------------------------------------------
 
+/**
+ * BE-BFF-019 (ADR-0026, proposal) — one `helpful` mark per account per review.
+ * Both calls are idempotent and answer the state the request produced, so a
+ * retry can never count twice.
+ */
+export function markReviewHelpful(reviewId: string): Promise<OpResponse<'markReviewHelpful'>> {
+  return api.put<OpResponse<'markReviewHelpful'>>('/reviews/{id}/reactions/helpful', undefined, {
+    pathParams: { id: reviewId },
+  })
+}
+
+export function unmarkReviewHelpful(reviewId: string): Promise<OpResponse<'unmarkReviewHelpful'>> {
+  return api.delete<OpResponse<'unmarkReviewHelpful'>>('/reviews/{id}/reactions/helpful', undefined, {
+    pathParams: { id: reviewId },
+  })
+}
+
+/** The caller's own marks on one place — the public list never names a reactor. */
+export function listMyReviewReactions(placeId: string): Promise<OpResponse<'listMyReviewReactions'>> {
+  return api.get<OpResponse<'listMyReviewReactions'>>('/me/review-reactions', { query: { placeId } })
+}
+
 export function listNotifications(
   query?: OpQuery<'listNotifications'>,
 ): Promise<OpResponse<'listNotifications'>> {

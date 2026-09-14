@@ -5,7 +5,7 @@ import * as placesApi from '../endpoints/places'
 import type { PlaceSearchQuery } from '../endpoints/places'
 import { newIdempotencyKey } from '../idempotency'
 import { queryKeys } from '../query-keys'
-import type { OpBody } from '../types'
+import type { OpBody, ReviewOrder } from '../types'
 
 /** Server caps `limit` at 50 regardless of what the spec's 100 suggests. */
 const PAGE_SIZE = 20
@@ -40,10 +40,10 @@ export function usePlaceDetail(placeId: string | undefined) {
  * own, so a slow or failed review read never costs Place Detail its facts. A
  * short stale time: a moderator's takedown should not linger on screen.
  */
-export function usePlaceReviews(placeId: string | undefined) {
+export function usePlaceReviews(placeId: string | undefined, order: ReviewOrder = 'latest') {
   return useQuery({
-    queryKey: queryKeys.placeReviews(placeId ?? ''),
-    queryFn: () => placesApi.listPlaceReviews(placeId as string),
+    queryKey: queryKeys.placeReviews(placeId ?? '', order),
+    queryFn: () => placesApi.listPlaceReviews(placeId as string, order),
     enabled: Boolean(placeId),
     staleTime: 30 * 1000,
   })

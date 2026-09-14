@@ -24,13 +24,16 @@ export const queryKeys = {
   places: () => ['places'] as const,
   placeSearch: (query: PlaceSearchQuery) => ['places', 'search', query] as const,
   place: (placeId: string) => ['places', placeId] as const,
-  placeReviews: (placeId: string) => ['places', placeId, 'public-reviews'] as const,
+  placeReviewsAll: (placeId: string) => ['places', placeId, 'public-reviews'] as const,
+  placeReviews: (placeId: string, order: 'latest' | 'helpful' = 'latest') =>
+    ['places', placeId, 'public-reviews', order] as const,
   areas: (query: string) => ['places', 'areas', query] as const,
   placeImport: (importId: string) => ['places', 'imports', importId] as const,
   placeSubmission: (id: string) => ['place-submissions', id] as const,
 
   saved: () => ['me', 'saved'] as const,
   myReviews: () => ['me', 'reviews'] as const,
+  myReviewReactions: (placeId: string) => ['me', 'review-reactions', placeId] as const,
   notifications: () => ['me', 'notifications'] as const,
   /** Under `me`, so an account switch purges it with the rest of the profile. */
   notificationSettings: () => ['me', 'notification-settings'] as const,

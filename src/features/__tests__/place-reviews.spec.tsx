@@ -15,13 +15,15 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'guest' }) }))
 
 let mockReviews: QueryLike
-const mockUsePlaceReviews = jest.fn((_placeId: string) => mockReviews)
+const mockUsePlaceReviews = jest.fn((_placeId: string, _order?: string) => mockReviews)
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () =>
     mockLoaded({ id: 'place-1', name: 'Quán thử', rating: 4.6, ratingCount: 812, photos: [] }),
-  usePlaceReviews: (placeId: string) => mockUsePlaceReviews(placeId),
+  usePlaceReviews: (placeId: string, order?: string) => mockUsePlaceReviews(placeId, order),
+  useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
+  useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
   useSaved: () => mockLoaded([]),
   useToggleSaved: () => ({ mutate: jest.fn() }),
   useTaxonomyLabel: () => ({ resolve: (_kind: string, key: string) => key }),
@@ -36,10 +38,11 @@ function review(n: number, over: { displayName?: string | null; rating?: number 
     createdAt: `2026-09-1${n}T05:00:00.000Z`,
     text: `Nội dung ${n}`,
     author: { displayName: over.displayName === undefined ? `Người viết ${n}` : over.displayName },
+    helpfulCount: 0,
   }
 }
 
-const preview = (...reviews: ReturnType<typeof review>[]) => mockLoaded({ source: 'gogo', reviews })
+const preview = (...reviews: ReturnType<typeof review>[]) => mockLoaded({ source: 'gogo', order: 'latest', reviews })
 const section = () => within(screen.getByTestId('place-reviews'))
 
 beforeEach(() => {
@@ -50,7 +53,7 @@ beforeEach(() => {
 it('reads this place and says honestly when no GoGo review is published', async () => {
   await renderScreen(<PlaceDetailScreen />)
 
-  expect(mockUsePlaceReviews).toHaveBeenCalledWith('place-1')
+  expect(mockUsePlaceReviews).toHaveBeenCalledWith('place-1', 'latest')
   expect(section().getByText('Đánh giá gần nhất trên GoGo')).toBeTruthy()
   expect(section().getByText('Chưa có đánh giá GoGo nào được duyệt cho địa điểm này.')).toBeTruthy()
   expect(section().queryByText(/^★/)).toBeNull()
