@@ -84,7 +84,7 @@ beforeEach(() => {
   queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: Infinity, gcTime: Infinity },
-      mutations: { retry: false },
+      mutations: { retry: false, gcTime: Infinity },
     },
   })
   mockUpdateProfile.mockReset()
