@@ -22,6 +22,7 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { RoomScheduleEditor } from './room-schedule-editor.view'
+import { RoomTitleEditor } from './room-title-editor.view'
 import { styles } from './room-manage.style'
 
 export default function RoomManageScreen() {
@@ -143,6 +144,7 @@ export default function RoomManageScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
+        <RoomTitleEditor room={summary} />
         <RoomScheduleEditor room={summary} />
         <GlassCard style={styles.card}>
           <Text style={styles.sectionTitle}>{t('roomManage.budgetTitle')}</Text>
