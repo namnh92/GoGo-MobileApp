@@ -24,7 +24,12 @@ function wrapper({ children }: { children: ReactNode }) {
 const inbox = { pages: [{ notifications: [{ id: 'n1', kind: 'invite' }] }] }
 
 beforeEach(() => {
-  client = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } })
+  // gcTime Infinity: a mutation schedules a 5-minute garbage-collection timer
+  // when its observer unmounts, and `client.clear()` does not cancel it, so a
+  // finite gcTime leaves a live timer that keeps the Jest worker running.
+  client = new QueryClient({
+    defaultOptions: { mutations: { retry: false, gcTime: Infinity }, queries: { retry: false, gcTime: Infinity } },
+  })
   client.setQueryData(queryKeys.notificationSettings(), { pushEnabled: true, source: 'default', updatedAt: null })
   client.setQueryData(queryKeys.notifications(), inbox)
   jest.clearAllMocks()
