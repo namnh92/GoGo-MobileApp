@@ -78,3 +78,13 @@ export function isRetryable(error: unknown): boolean {
   if (error.status >= 500) return true
   return error.status === 408 || error.status === 425 || error.status === 429
 }
+
+/**
+ * #198 — the ranking the client holds no longer matches the room: preferences
+ * or constraints changed after it was built. Finalize answers
+ * `STALE_SUGGESTIONS`; a pick or vote on a candidate from that ranking answers
+ * `NOT_A_CANDIDATE`. Both are answered by a fresh run, never by a retry.
+ */
+export function isStaleRanking(error: unknown): boolean {
+  return isApiError(error) && (error.code === 'STALE_SUGGESTIONS' || error.code === 'NOT_A_CANDIDATE')
+}

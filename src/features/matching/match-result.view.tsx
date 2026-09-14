@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isApiError,
+  isStaleRanking,
   detailToPlaceCard,
   formatDistance,
   formatMinuteOfDay,
@@ -34,6 +35,15 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './match-result.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
+
+/** The host's refresh can itself be refused; say why instead of a blind retry. */
+function regenerateErrorKey(
+  error: unknown,
+): 'matchResult.regenerateRace' | 'gogoRoom.quorumRequired' | 'matchResult.regenerateFailed' {
+  if (isApiError(error) && error.code === 'STALE_SUGGESTIONS') return 'matchResult.regenerateRace'
+  if (isApiError(error) && error.code === 'MATCHING_QUORUM_REQUIRED') return 'gogoRoom.quorumRequired'
+  return 'matchResult.regenerateFailed'
+}
 
 export default function MatchResultScreen() {
   const { t } = useTranslation()
@@ -81,7 +91,12 @@ export default function MatchResultScreen() {
     return new Map(progress.map(entry => [entry.placeId, entry]))
   }, [suggestions.data])
 
-  const isStale = Boolean(suggestions.data?.run?.stale || candidates.some(candidate => candidate.stale))
+  // Stale when the server says so on read, or when it refused a finalize for
+  // that reason before this screen's copy of the ranking caught up (#198).
+  const staleRejected = isStaleRanking(finalize.error)
+  const isStale = Boolean(
+    suggestions.data?.run?.stale || candidates.some(candidate => candidate.stale) || staleRejected,
+  )
   const hasVotes = (suggestions.data?.votes?.progress ?? []).some(entry => (entry.yes ?? 0) + (entry.no ?? 0) + (entry.star ?? 0) > 0)
   async function onFinalize() {
     if (finalizing.current || isStale || room.data?.status !== 'matching' || !capabilities.isHost || !winner) return
@@ -101,6 +116,11 @@ export default function MatchResultScreen() {
   function viewPlan(planId: string) {
     track('date_plan_viewed')
     router.push(`/plans/${planId}`)
+  }
+
+  function onRegenerate() {
+    // A fresh run answers the refusal; the old finalize error must not outlive it.
+    regenerate.mutate(undefined, { onSuccess: () => finalize.reset() })
   }
 
   if (room.isPending || suggestions.isPending) {
@@ -217,7 +237,9 @@ export default function MatchResultScreen() {
         ) : null}
 
         {isStale ? (
-          <Text style={styles.staleWarning}>⚠️ {t('matchResult.stale')}</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.staleWarning}>
+            ⚠️ {t('matchResult.staleCause')}
+          </Text>
         ) : null}
 
         {/* Why this one — the explainable part of the score, straight from the
@@ -270,6 +292,14 @@ export default function MatchResultScreen() {
         <View style={{ paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] }}>
           {existingPlanId ? (
             <PrimaryBtn label={t('matchResult.viewPlan')} onPress={() => viewPlan(existingPlanId)} />
+          ) : isStale && capabilities.canRegenerate ? (
+            // Finalizing a stale ranking is refused (STALE_SUGGESTIONS), so the
+            // host's one way forward is a fresh run, offered as the primary action.
+            <PrimaryBtn
+              label={regenerate.isPending ? t('matchResult.regenerating') : t('matchResult.refreshStale')}
+              onPress={onRegenerate}
+              loading={regenerate.isPending}
+            />
           ) : capabilities.canFinalize && decisionMode !== 'match' ? (
             // Host-only, and server-enforced: a member sending this gets 403.
             <PrimaryBtn
@@ -279,30 +309,43 @@ export default function MatchResultScreen() {
               disabled={isStale || room.data?.status !== 'matching' || (decisionMode === 'vote' && !hasVotes)}
             />
           ) : (
-            <Text style={styles.waitingHost}>{t(decisionMode === 'match' ? 'matchResult.waitingMatch' : 'matchResult.waitingHost')}</Text>
+            <Text style={styles.waitingHost}>
+              {t(
+                isStale
+                  ? 'matchResult.staleWaiting'
+                  : decisionMode === 'match'
+                    ? 'matchResult.waitingMatch'
+                    : 'matchResult.waitingHost',
+              )}
+            </Text>
           )}
 
           {!existingPlanId && decisionMode !== 'host' ? (
             <SecondaryBtn label={t('matchResult.vote')} disabled={isStale || room.data?.status !== 'matching'}
               onPress={() => router.push(`/room/${roomId}/swipe`)} />
           ) : null}
-          {capabilities.canRegenerate ? (
+          {/* Hidden while the refresh is already the primary action above. */}
+          {capabilities.canRegenerate && !(isStale && !existingPlanId) ? (
             <SecondaryBtn
               label={regenerate.isPending ? t('matchResult.regenerating') : t('matchResult.another')}
-              onPress={() => regenerate.mutate()}
+              onPress={onRegenerate}
               loading={regenerate.isPending}
             />
           ) : null}
 
           <GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />
-          {finalize.isError ? (
+          {finalize.isError && !staleRejected ? (
             <Text accessibilityLiveRegion="polite" style={styles.error}>
               {t(isApiError(finalize.error) ? ({
                 NO_VOTES: 'matchResult.noVotes',
                 NO_SUGGESTIONS: 'matchResult.emptyBody',
                 ROOM_NOT_MATCHING: 'matchResult.roomNotMatching',
-                NOT_A_CANDIDATE: 'matchResult.stale',
               }[finalize.error.code] ?? 'matchResult.finalizeFailed') : 'matchResult.finalizeFailed')}
+            </Text>
+          ) : null}
+          {regenerate.isError ? (
+            <Text accessibilityLiveRegion="polite" style={styles.error}>
+              {t(regenerateErrorKey(regenerate.error))}
             </Text>
           ) : null}
         </View>
