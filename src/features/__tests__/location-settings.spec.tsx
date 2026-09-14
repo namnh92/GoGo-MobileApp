@@ -1,5 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native'
-import { Linking } from 'react-native'
+import { AppState, Linking, type AppStateStatus } from 'react-native'
 
 import { renderScreen } from './harness'
 
@@ -14,10 +14,13 @@ const mockPermission = { status: 'granted' as string, granted: true }
 const mockModuleMissing = { value: false }
 const mockRequest = jest.fn()
 
+const mockPush = jest.fn()
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
 }))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
+jest.mock('@/features/notifications/notification-switch.view', () => ({ NotificationSwitchSection: () => null }))
 
 jest.mock('expo-location', () => ({
   getForegroundPermissionsAsync: async () => {
@@ -32,7 +35,7 @@ jest.mock('expo-location', () => ({
   },
 }))
 
-import LocationSettingsScreen from '@/features/settings/location.view'
+import LocationSettingsScreen from '@/features/settings/permissions.view'
 
 function permission(status: string) {
   mockPermission.status = status
@@ -43,6 +46,7 @@ beforeEach(() => {
   permission('granted')
   mockModuleMissing.value = false
   mockRequest.mockClear()
+  mockPush.mockClear()
   jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined)
 })
 
@@ -85,6 +89,31 @@ describe('location settings', () => {
     expect(await view.findByText(/Máy này chưa lấy được vị trí/)).toBeTruthy()
     expect(view.queryByText('Cho phép')).toBeNull()
     expect(view.queryByText('Mở Cài đặt')).toBeNull()
+  })
+
+  it('re-reads the permission when the app returns from Settings', async () => {
+    let resume: ((state: AppStateStatus) => void) | undefined
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, callback) => {
+      resume = callback
+      return { remove: jest.fn() }
+    })
+    permission('denied')
+    const view = await renderScreen(<LocationSettingsScreen />)
+    expect(await view.findByText(/Đang tắt trong Cài đặt/)).toBeTruthy()
+
+    permission('granted')
+    await act(async () => {
+      resume?.('active')
+    })
+    expect(await view.findByText('Đã cho phép.')).toBeTruthy()
+  })
+
+  it('keeps the default area in Account, not in a permission', async () => {
+    const view = await renderScreen(<LocationSettingsScreen />)
+    await act(async () => {
+      fireEvent.press(view.getByText('Chọn khu vực mặc định trong Tài khoản'))
+    })
+    expect(mockPush).toHaveBeenCalledWith('/settings/account')
   })
 
   it('explains that a profile keeps an area, never a position', async () => {

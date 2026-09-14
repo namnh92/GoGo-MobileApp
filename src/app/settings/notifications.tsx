@@ -1,1 +1,1 @@
-export { default } from '@/features/notifications/notification-settings.view'
+export { default } from '@/features/settings/permissions.view'

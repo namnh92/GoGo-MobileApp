@@ -5,7 +5,7 @@ import { colors, spacing, type } from '@/shared/ui/tokens'
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create({
-  card: { padding: spacing[5], marginTop: spacing[4], gap: spacing[4] },
+  card: { padding: spacing[5], marginTop: spacing[3], gap: spacing[4] },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   statusIcon: {
     width: 40,

@@ -13,21 +13,8 @@ import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roo
 import { Atmosphere, AvatarCircle, GlassCard, useTabDockInset } from '@/shared/ui/primitives'
 import { IconChevronRight } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
+import { SETTINGS_ROWS } from './profile-settings-rows'
 import { styles } from './profile.style'
-
-/**
- * Only rows with a destination are tappable. Every row has one now: the
- * location row leads to the permission state on this device (PROF-APP-005),
- * and what the privacy row promised — export and delete — lives on the account
- * screen, so a second row would have been a duplicate door.
- */
-const SETTINGS_ROWS: readonly { key: string; route?: string }[] = [
-  { key: 'inbox', route: '/notifications' },
-  { key: 'notifications', route: '/settings/notifications' },
-  { key: 'reviews', route: '/settings/reviews' },
-  { key: 'location', route: '/settings/location' },
-  { key: 'account', route: '/settings/account' },
-]
 
 const audiences: DemoAudience[] = ['couple', 'group-host', 'group-guest']
 const uiStates: DemoUIState[] = ['default', 'loading', 'empty', 'error']

@@ -4,7 +4,7 @@ import { renderScreen } from './harness'
 
 /**
  * NTF-APP-010 (#215) — one switch for the account, device permission shown
- * beside it and never merged into it.
+ * beside it and never merged into it; rendered inside APP-058's combined screen.
  */
 
 const mockStatus = jest.fn()
@@ -18,6 +18,7 @@ jest.mock('@/shared/api', () => ({
   useNotificationSettings: () => mockSettings,
   useSetNotificationSettings: () => mockSave,
 }))
+jest.mock('@/features/settings/location-permission.view', () => ({ LocationPermissionSection: () => null }))
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
   useFocusEffect: (effect: () => void) => {
@@ -25,7 +26,7 @@ jest.mock('expo-router', () => ({
     require('react').useEffect(effect, [effect])
   },
 }))
-import NotificationSettings from '@/features/notifications/notification-settings.view'
+import NotificationSettings from '@/features/settings/permissions.view'
 
 const loaded = (settings: Partial<Settings> = {}) => ({
   data: { pushEnabled: true, source: 'explicit', updatedAt: '2026-09-14T00:00:00Z', ...settings },
