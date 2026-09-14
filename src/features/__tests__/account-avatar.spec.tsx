@@ -37,6 +37,7 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useMe: () => mockMe.query,
   useUpdateProfile: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useUpdateDateOfBirth: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useUploadImage: () => ({ mutateAsync: mockUpload }),
   useSetAvatar: () => ({ mutateAsync: mockSetAvatar }),
   useRemoveAvatar: () => ({ mutateAsync: mockRemoveAvatar }),

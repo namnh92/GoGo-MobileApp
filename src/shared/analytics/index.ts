@@ -34,6 +34,9 @@ export type AnalyticsEvent =
   | 'profile_avatar_set'
   | 'profile_avatar_removed'
   | 'profile_defaults_saved'
+  // PROF-APP-006: that a date of birth was set or cleared, never the date.
+  | 'profile_date_of_birth_saved'
+  | 'profile_date_of_birth_cleared'
   | 'profile_prefill_used'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
