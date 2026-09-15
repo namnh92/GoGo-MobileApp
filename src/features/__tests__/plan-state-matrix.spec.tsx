@@ -159,4 +159,27 @@ describe('plan × connectivity (GoGo-MobileApp#253)', () => {
     const view = await renderScreen(<DatePlanScreen />)
     expect(view.queryByText(/bản đã lưu trên máy/)).toBeNull()
   })
+
+  it('shows the offline state instead of an endless skeleton when nothing is cached, and keeps loading online', async () => {
+    const NO_CONNECTION = 'Không có kết nối'
+    mockPlan.query = { ...pending(), isPaused: true }
+    const view = await renderScreen(<DatePlanScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    // Paused while online means the app was only in the background: still loading.
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+
+    await act(async () => {
+      onlineManager.setOnline(false)
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    expect(view.getByText(NO_CONNECTION)).toBeTruthy()
+    expect(view.queryAllByText(/Thử lại/)).toHaveLength(0)
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+  })
 })

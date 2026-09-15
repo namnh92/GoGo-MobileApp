@@ -19,7 +19,8 @@ import {
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { formatMoney, formatRange, perPerson } from '@/shared/pricing/money'
-import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import {
@@ -48,6 +49,7 @@ export default function DatePlanScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>()
 
   const plan = usePlan(planId)
+  const waitingForNetwork = useWaitingForNetwork(plan)
   const summary = useMemo(() => (plan.data ? toPlanSummary(plan.data) : null), [plan.data])
   const places = usePlanStopPlaces(summary?.stops ?? [])
   const room = useRoom(summary?.roomId)
@@ -113,9 +115,14 @@ export default function DatePlanScreen() {
     return (
       <Atmosphere>
         {header}
-        <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[4] }}>
-          <PlanSkeleton count={3} />
-        </View>
+        {/* Nothing cached and offline: the paused read would keep the skeleton forever (#253). */}
+        {waitingForNetwork ? (
+          <OfflineState />
+        ) : (
+          <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[4] }}>
+            <PlanSkeleton count={3} />
+          </View>
+        )}
       </Atmosphere>
     )
   }

@@ -1,7 +1,7 @@
 import { act } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
 
-import { loaded, renderScreen, type QueryLike } from './harness'
+import { loaded, pausedOffline, renderScreen, type QueryLike } from './harness'
 
 import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 
@@ -79,5 +79,29 @@ describe('active date × connectivity', () => {
   it('says nothing about a fresh plan online', async () => {
     const view = await renderScreen(<ActiveDateScreen />)
     expect(view.queryByText(/bản đã lưu trên máy/)).toBeNull()
+  })
+
+  it('shows the offline state instead of an endless skeleton when nothing is cached, and keeps loading online', async () => {
+    const NO_CONNECTION = 'Không có kết nối'
+    mockPlan.query = pausedOffline()
+    const view = await renderScreen(<ActiveDateScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    // Paused while online means the app was only in the background: still loading.
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+
+    await act(async () => {
+      onlineManager.setOnline(false)
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    expect(view.getByText(NO_CONNECTION)).toBeTruthy()
+    expect(view.queryAllByText('Quán A')).toHaveLength(0)
+    expect(view.queryByText('Thử lại')).toBeNull()
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
   })
 })

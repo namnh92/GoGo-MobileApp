@@ -23,7 +23,8 @@ import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { formatMoney } from '@/shared/pricing/money'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { isUuid } from '@/shared/navigation/deep-link'
-import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import {
   Atmosphere,
   AvatarCircle,
@@ -79,6 +80,7 @@ export default function GoGoRoomScreen() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const room = useRoom(validRoomId)
+  const waitingForNetwork = useWaitingForNetwork(room)
   // Members join and finish picking while this screen is open; the realtime
   // layer owns how that freshness arrives.
   const focused = useScreenFocused()
@@ -140,9 +142,14 @@ export default function GoGoRoomScreen() {
         <View style={{ paddingTop: insets.top }}>
           <BackHeader onBack={() => router.back()} />
         </View>
-        <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[6] }}>
-          <RoomMemberSkeleton count={3} />
-        </View>
+        {/* Nothing cached and offline: the paused read would keep the skeleton forever (#253). */}
+        {waitingForNetwork ? (
+          <OfflineState />
+        ) : (
+          <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[6] }}>
+            <RoomMemberSkeleton count={3} />
+          </View>
+        )}
       </Atmosphere>
     )
   }
