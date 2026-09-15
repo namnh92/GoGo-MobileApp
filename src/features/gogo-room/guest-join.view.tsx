@@ -9,7 +9,7 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, AvatarCircle, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
@@ -97,11 +97,29 @@ export default function GuestJoinScreen() {
     }
   }
 
+  /**
+   * GoGo-MobileApp#203 — the way out. An invite is often the first screen of a
+   * cold start, with nothing behind it: iOS offers no edge swipe there and
+   * `router.back()` alone does nothing, so someone holding a dead invite was
+   * stuck until they relaunched the app. With no previous route, Home is it.
+   */
+  function leave() {
+    if (router.canGoBack()) router.back()
+    else router.replace('/(tabs)')
+  }
+
+  const header = (
+    <View style={{ paddingTop: insets.top }}>
+      <BackHeader onBack={leave} />
+    </View>
+  )
+
   // A cold start can deliver the link before the stored session has been read.
   // Offering to join then would send a signed-in person down the guest path.
   if (status === 'hydrating') {
     return (
       <Atmosphere>
+        {header}
         <LoadingState />
       </Atmosphere>
     )
@@ -109,10 +127,11 @@ export default function GuestJoinScreen() {
 
   return (
     <Atmosphere>
+      {header}
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          paddingTop: insets.top + spacing[8],
+          paddingTop: spacing[4],
           paddingHorizontal: spacing[5],
           paddingBottom: insets.bottom + spacing[6],
         }}
