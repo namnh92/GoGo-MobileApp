@@ -32,7 +32,8 @@ import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
-import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
@@ -66,6 +67,7 @@ export default function PlaceDetailScreen() {
 
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const place = usePlaceDetail(placeId)
+  const waitingForNetwork = useWaitingForNetwork(place)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
   const canSave = status === 'user'
   const saved = useSaved({ enabled: canSave })
@@ -81,6 +83,15 @@ export default function PlaceDetailScreen() {
       </Pressable>
     </View>
   )
+
+  if (waitingForNetwork) {
+    return (
+      <Atmosphere>
+        {backButton}
+        <OfflineState />
+      </Atmosphere>
+    )
+  }
 
   if (place.isPending) {
     return (

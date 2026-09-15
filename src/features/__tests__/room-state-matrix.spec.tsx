@@ -1,6 +1,8 @@
 import { Alert } from 'react-native'
 import { act, fireEvent } from '@testing-library/react-native'
-import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
+import { onlineManager } from '@tanstack/react-query'
+import { failed, loaded, pausedOffline, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
+import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 
 /**
  * The quality gates ask for `screen × audience × state` to actually render —
@@ -228,5 +230,48 @@ describe('room hub × route param (GoGo-MobileApp#203)', () => {
   it('reads the room when the id is one', async () => {
     await renderScreen(<GoGoRoomScreen />)
     expect(mockRoomIds).toContain('311f5bd8-f853-4ced-af68-e04398d1451a')
+  })
+})
+
+/**
+ * GoGo-MobileApp#253 — a room opened offline that this device never loaded: the
+ * paused read used to keep the skeleton on screen forever.
+ */
+describe('room hub × connectivity', () => {
+  const NO_CONNECTION = 'Không có kết nối'
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    jest.useRealTimers()
+  })
+
+  it('shows the offline state instead of an endless skeleton when nothing is cached, and keeps loading online', async () => {
+    mockRoom.query = pausedOffline()
+    const view = await renderScreen(<GoGoRoomScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    // Paused while online means the app was only in the background: still loading.
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+
+    await act(async () => {
+      onlineManager.setOnline(false)
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    expect(view.getByText(NO_CONNECTION)).toBeTruthy()
+    expect(view.getByLabelText('Quay lại')).toBeTruthy()
+    expect(view.queryAllByText(/Thử lại/)).toHaveLength(0)
+    expect(view.queryAllByText(START_MATCHING)).toHaveLength(0)
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
   })
 })

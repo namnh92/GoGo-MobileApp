@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Text, View } from 'react-native'
 
 import { isForbidden, isOffline } from '@/shared/api'
+import { currentOfflineSpell, useOnlineStatus } from '@/shared/api/queries/use-online-status'
 import { GhostBtn } from '@/shared/ui/primitives'
 
 import { styles } from './async-state.style'
@@ -60,20 +62,88 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   )
 }
 
+/** The offline spell already announced; one announcement per spell, app-wide. */
+let announcedSpell = 0
+
 /**
- * A refetch that failed while cached data is on screen. The data stays — it is
- * what the user came back for — and this says how much to trust it (APP-007).
- * Showing the error screen instead throws away a perfectly readable plan.
+ * Speaks `message` once when the offline signal turns on (GoGo-MobileApp#253).
+ * `accessibilityLiveRegion` only exists on Android, so VoiceOver heard nothing.
+ * Every screen with a notice mounts this, which is why it is keyed to the
+ * offline spell rather than to the component: a stack of screens, a rerender or
+ * a second notice must not repeat it.
  */
-export function StaleNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+export function useOfflineAnnouncement(active: boolean, message: string) {
+  const online = useOnlineStatus()
+  const speak = active && !online
+  useEffect(() => {
+    if (!speak) return
+    const spell = currentOfflineSpell()
+    if (spell === announcedSpell) return
+    announcedSpell = spell
+    AccessibilityInfo.announceForAccessibility(message)
+  }, [speak, message])
+}
+
+/**
+ * Nothing cached, and the query is waiting for the network (GoGo-MobileApp#253).
+ * Offline TanStack Query keeps such a query pending, so without this the screen
+ * shows its skeleton forever. No retry: it would pause again, and the query
+ * resumes by itself on reconnect.
+ */
+export function OfflineState() {
   const { t } = useTranslation()
-  if (!error) return null
+  useOfflineAnnouncement(true, t('common.offlineBody'))
+  return (
+    <View accessibilityLiveRegion="polite" style={styles.container}>
+      <Text style={styles.title}>{t('common.offlineTitle')}</Text>
+      <Text style={styles.body}>{t('common.offlineBody')}</Text>
+    </View>
+  )
+}
+
+/**
+ * Cached data on screen that may be old. The data stays — it is what the user
+ * came back for — and this says how much to trust it (APP-007). Showing the
+ * error screen instead throws away a perfectly readable plan.
+ *
+ * Two causes, one signal (GoGo-MobileApp#253): the last refresh failed, or the
+ * device is offline. Offline has to come from connectivity, not from `error`:
+ * while offline TanStack Query pauses a refetch instead of failing it, so a
+ * notice that waited for an error never appeared in airplane mode.
+ *
+ * `hasData` says whether cached data is actually on screen; with nothing cached
+ * the screen's own loading/error state speaks instead. `reportOffline={false}`
+ * is for a section inside a screen that already carries the offline bar: it
+ * keeps only the failed-refresh variant, so a screen never shows two bars.
+ * Retry is offered only online — offline it would pause again and do nothing.
+ */
+export function StaleNotice({
+  error,
+  onRetry,
+  hasData = true,
+  reportOffline = true,
+}: {
+  error: unknown
+  onRetry?: () => void
+  hasData?: boolean
+  reportOffline?: boolean
+}) {
+  const { t } = useTranslation()
+  const online = useOnlineStatus()
+  const offline = !online || isOffline(error)
+  // `reportOffline={false}` means the screen already shows the offline bar, and
+  // that bar is up only while the device is offline. A request that timed out
+  // or dropped while the device is online is this section's own failure: no
+  // other bar mentions it, so it keeps its notice and Retry.
+  const shown = hasData && (offline ? reportOffline || online : Boolean(error))
+  useOfflineAnnouncement(shown, t('common.staleOffline'))
+  if (!shown) return null
   return (
     <View style={styles.staleBar} accessibilityLiveRegion="polite">
       <Text style={styles.staleLabel} numberOfLines={2}>
-        {isOffline(error) ? t('common.staleOffline') : t('common.staleError')}
+        {offline ? t('common.staleOffline') : t('common.staleError')}
       </Text>
-      {onRetry ? <GhostBtn label={t('common.retry')} onPress={onRetry} /> : null}
+      {onRetry && online ? <GhostBtn label={t('common.retry')} onPress={onRetry} /> : null}
     </View>
   )
 }
