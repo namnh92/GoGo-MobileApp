@@ -74,14 +74,13 @@ describe('useStartDate', () => {
     const invalidate = jest.spyOn(client, 'invalidateQueries')
     // Screens observe the room and the plan; a refetch is what they see.
     const { result } = await renderHook(
-      () => {
-        useRoom('room-1')
-        usePlan('plan-1')
-        return useStartDate('room-1', 'plan-1')
-      },
+      () => ({ room: useRoom('room-1'), plan: usePlan('plan-1'), startDate: useStartDate('room-1', 'plan-1') }),
       { wrapper },
     )
-    await act(async () => {})
+    await waitFor(() => {
+      expect(result.current.room.isSuccess).toBe(true)
+      expect(result.current.plan.isSuccess).toBe(true)
+    })
     const roomReads = () => mockGet.mock.calls.filter(([path]) => path === '/rooms/{id}').length
     const planReads = () => mockGet.mock.calls.filter(([path]) => path === '/plans/{id}').length
     const [roomBefore, planBefore] = [roomReads(), planReads()]
@@ -89,7 +88,7 @@ describe('useStartDate', () => {
 
     let started: unknown
     await act(async () => {
-      started = await result.current.start()
+      started = await result.current.startDate.start()
     })
 
     expect(started).toEqual(activeRoom)
@@ -100,8 +99,12 @@ describe('useStartDate', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.roomCurrentPlan('room-1') })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.plan('plan-1') })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['rooms', 'list'] })
-    expect(roomReads()).toBeGreaterThan(roomBefore)
-    expect(planReads()).toBeGreaterThan(planBefore)
+    await waitFor(() => {
+      expect(roomReads()).toBeGreaterThan(roomBefore)
+      expect(planReads()).toBeGreaterThan(planBefore)
+      expect(result.current.room.isFetching).toBe(false)
+      expect(result.current.plan.isFetching).toBe(false)
+    })
   })
 
   it('sends one request when start is called twice before the first answers', async () => {
@@ -199,6 +202,7 @@ describe('stop writes on a room that is not active', () => {
     await act(async () => {
       await result.current.mutateAsync('stop-1').catch(() => undefined)
     })
+    await waitFor(() => expect(result.current.isError).toBe(true))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.room('room-1'), exact: true })
   })
 
@@ -211,6 +215,7 @@ describe('stop writes on a room that is not active', () => {
     await act(async () => {
       await result.current.mutateAsync({ stopId: 'stop-1', tags: [], photoKeys: [] }).catch(() => undefined)
     })
+    await waitFor(() => expect(result.current.isError).toBe(true))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.room('room-1'), exact: true })
   })
 
@@ -223,6 +228,7 @@ describe('stop writes on a room that is not active', () => {
     await act(async () => {
       await result.current.mutateAsync('stop-1').catch(() => undefined)
     })
+    await waitFor(() => expect(result.current.isError).toBe(true))
     expect(invalidate).not.toHaveBeenCalled()
   })
 })

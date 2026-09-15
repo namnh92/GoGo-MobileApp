@@ -86,12 +86,13 @@ async function renderPlan() {
   )
 }
 
-/** Mutation state reaches the screen on a scheduled notify, so find, then press. */
+/**
+ * Mutation state reaches the screen on a scheduled notify, so find, then press.
+ * RNTL 14's `fireEvent` runs its own async act; awaiting it (as in
+ * place-reviews-helpful.spec) avoids overlapping act() calls.
+ */
 async function press(view: Awaited<ReturnType<typeof renderPlan>>, label: string) {
-  const target = await view.findByText(label)
-  await act(async () => {
-    fireEvent.press(target)
-  })
+  await fireEvent.press(await view.findByText(label))
 }
 
 function deferred<T>() {
@@ -133,7 +134,7 @@ describe('host starts the date', () => {
       answer.resolve({ ...roomFor('group-host'), status: 'active' })
       await answer.promise
     })
-    expect(mockPush).toHaveBeenCalledWith('/plans/plan-1/active')
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/plans/plan-1/active'))
     expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
@@ -142,18 +143,19 @@ describe('host starts the date', () => {
     mockPatch.mockReturnValue(answer.promise)
     const view = await renderPlan()
 
-    await act(async () => {
-      const button = view.getByText(GO)
-      fireEvent.press(button)
-      fireEvent.press(button)
-    })
+    // The Pressable itself, which stays mounted while its label becomes a spinner.
+    const button = view.getByRole('button', { name: GO })
+    await fireEvent.press(button)
+    // The same control again while the first start is still out. The hook's
+    // single-flight guard is pinned separately in start-date-hook.spec.
+    await fireEvent.press(button)
     await act(async () => {
       answer.resolve({ ...roomFor('group-host'), status: 'active' })
       await answer.promise
     })
 
+    await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1))
     expect(mockPatch).toHaveBeenCalledTimes(1)
-    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
   it('says why a start failed and retries from the same button', async () => {
