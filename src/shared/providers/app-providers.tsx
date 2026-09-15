@@ -33,7 +33,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
       if (result !== 'ready' || cancelled) return
       // #256 — first, so the tap that launched the app is routed without
       // waiting on identity; `NotificationClickRouter` holds it until ready.
-      stopClicks = startNotificationClicks()
+      // A listener that cannot register costs tap routing, never identity.
+      try {
+        stopClicks = startNotificationClicks()
+      } catch {
+        if (__DEV__) console.warn('push_click_listener_unavailable')
+      }
       stopIdentity = initializePushIdentity()
     })
     return () => {

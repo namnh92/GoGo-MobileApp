@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
@@ -44,9 +44,16 @@ export default function NotificationsScreen() {
   const { notice } = useLocalSearchParams<{ notice?: string }>()
   const pushUnavailable = notice === PUSH_UNAVAILABLE_NOTICE
   // `accessibilityLiveRegion` below is Android-only; VoiceOver needs an
-  // announcement to hear why the inbox opened instead.
+  // announcement to hear why the inbox opened instead. Queued on iOS, so the
+  // screen change VoiceOver is still speaking does not cut it off.
   useEffect(() => {
-    if (pushUnavailable) AccessibilityInfo.announceForAccessibility(t('notifications.pushUnavailable'))
+    if (!pushUnavailable) return
+    const message = t('notifications.pushUnavailable')
+    if (Platform.OS === 'ios' && typeof AccessibilityInfo.announceForAccessibilityWithOptions === 'function') {
+      AccessibilityInfo.announceForAccessibilityWithOptions(message, { queue: true })
+    } else {
+      AccessibilityInfo.announceForAccessibility(message)
+    }
   }, [pushUnavailable, t])
 
   // Guests get 403 USER_ONLY on the inbox.

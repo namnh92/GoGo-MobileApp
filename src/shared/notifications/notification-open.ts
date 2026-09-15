@@ -48,11 +48,22 @@ type Read<T> = { state: 'fresh'; data: T } | { state: 'refused' } | { state: 'un
  * resource's query tree is marked stale — members, suggestions, the current
  * plan — so every screen refetches what it reads, and the resource itself is
  * read here so a refusal is answered before a screen that cannot load opens.
+ *
+ * `networkMode: 'always'`: with the default (`online`), a read made while the
+ * query client believes the device is offline pauses instead of running, and
+ * the tap sat on Home for the whole budget before the target opened. Run, the
+ * request fails fast and the target opens in its own offline state.
  */
 async function read<T>(queryClient: QueryClient, queryKey: QueryKey, queryFn: () => Promise<T>): Promise<Read<T>> {
   try {
     await queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
-    const data = await queryClient.fetchQuery({ queryKey, queryFn, staleTime: 0, retry: false })
+    const data = await queryClient.fetchQuery({
+      queryKey,
+      queryFn,
+      staleTime: 0,
+      retry: false,
+      networkMode: 'always',
+    })
     return { state: 'fresh', data }
   } catch (error) {
     return isApiError(error) && REFUSED.has(error.status) ? { state: 'refused' } : { state: 'unknown' }

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { router, Stack } from 'expo-router'
 import { act, renderRouter, waitFor } from 'expo-router/testing-library'
 import { Text } from 'react-native'
@@ -106,6 +106,7 @@ beforeEach(() => {
 afterEach(() => {
   stopClicks()
   client.clear()
+  onlineManager.setOnline(true)
   jest.useRealTimers()
 })
 
@@ -349,13 +350,22 @@ describe('when a push cannot be opened', () => {
     expect(mockGetRoom).not.toHaveBeenCalled()
   })
 
-  it('still opens the room when the refetch fails offline; the screen has its own state', async () => {
-    mockGetRoom.mockRejectedValue(new NetworkError())
+  it('opens the room at once on an offline device, where the screen shows its offline state', async () => {
+    // The API client with no network: the request fails fast. What the test
+    // turns off is the network, as the app's online manager reports it.
+    mockGetRoom.mockImplementation(async () => {
+      if (!onlineManager.isOnline()) throw new NetworkError()
+      return { id: ROOM, status: 'collecting' }
+    })
     const { view } = await launch()
+    await act(async () => onlineManager.setOnline(false))
 
     await act(async () => tap({ kind: 'invite', roomId: ROOM }))
+    await advance(100)
 
-    await waitFor(() => expect(view.getPathname()).toBe(`/room/${ROOM}`))
+    // Well inside the 4 s budget: the read ran instead of pausing for a network.
+    expect(mockGetRoom).toHaveBeenCalledWith(ROOM)
+    expect(view.getPathname()).toBe(`/room/${ROOM}`)
   })
 
   it('opens the named room once the refetch budget runs out', async () => {
@@ -421,6 +431,7 @@ describe('taps close together', () => {
   })
 
   it('lets the latest tap win when an older one finishes its refetch later', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     const reads = new Map<string, ReturnType<typeof deferred<unknown>>>()
     mockGetRoom.mockImplementation((id: string) => {
       const read = deferred<unknown>()
@@ -442,9 +453,12 @@ describe('taps close together', () => {
     await waitFor(() => expect(view.getPathname()).toBe(`/room/${OTHER_ROOM}`))
     await advance(0)
     expect(view.getPathname()).toBe(`/room/${OTHER_ROOM}`)
+    expect(warn).toHaveBeenCalledWith('push_open_superseded')
+    warn.mockRestore()
   })
 
   it('leaves someone where they went while the refetch ran', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     const room = deferred<unknown>()
     mockGetRoom.mockReturnValue(room.promise)
     const { view } = await launch()
@@ -455,5 +469,7 @@ describe('taps close together', () => {
     await advance(0)
 
     expect(view.getPathname()).toBe('/notifications')
+    expect(warn).toHaveBeenCalledWith('push_open_skipped_navigated')
+    warn.mockRestore()
   })
 })
