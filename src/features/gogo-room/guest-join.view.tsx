@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, TextInput, View } from 'react-native'
@@ -30,6 +30,7 @@ const MAX_DISPLAY_NAME = 50
 export default function GuestJoinScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const navigation = useNavigation()
   const insets = useSafeAreaInsets()
   const { status, joinAsGuest } = useSession()
   const joinRoom = useJoinRoom()
@@ -42,6 +43,16 @@ export default function GuestJoinScreen() {
 
   const asUser = status === 'user'
   const trimmedName = displayName.trim()
+
+  /**
+   * GoGo-MobileApp#203 — a join can finish after the person has left: the back
+   * control, Android hardware back or a swipe all stay available while it is in
+   * flight. Leaving pops or replaces this screen, so it is no longer focused, and
+   * a late `replace` would pull them into the room from wherever they went.
+   */
+  function stillHere(): boolean {
+    return navigation.isFocused()
+  }
 
   function toMessage(caught: unknown): string {
     // 410 covers expired, revoked and spent invites — all mean "ask for a new
@@ -75,7 +86,7 @@ export default function GuestJoinScreen() {
         }
         // A room the actor was previously removed from would be stale here.
         forget(result.roomId)
-        router.replace(`/room/${result.roomId}`)
+        if (stillHere()) router.replace(`/room/${result.roomId}`)
         return
       }
 
@@ -89,7 +100,7 @@ export default function GuestJoinScreen() {
         setError(t('guestJoin.failed'))
         return
       }
-      router.replace(`/room/${session.roomId}/preference`)
+      if (stillHere()) router.replace(`/room/${session.roomId}/preference`)
     } catch (caught) {
       setError(toMessage(caught))
     } finally {
@@ -101,11 +112,13 @@ export default function GuestJoinScreen() {
    * GoGo-MobileApp#203 — the way out. An invite is often the first screen of a
    * cold start, with nothing behind it: iOS offers no edge swipe there and
    * `router.back()` alone does nothing, so someone holding a dead invite was
-   * stuck until they relaunched the app. With no previous route, Home is it.
+   * stuck until they relaunched the app. With no previous route it goes to `/`,
+   * the start screen, which still decides between onboarding and Home — going
+   * straight to the tabs skipped onboarding on a fresh install.
    */
   function leave() {
     if (router.canGoBack()) router.back()
-    else router.replace('/(tabs)')
+    else router.replace('/')
   }
 
   const header = (
