@@ -5,7 +5,8 @@ export type NotificationClick = {
   notification?: { notificationId?: string | null; additionalData?: unknown } | null
 }
 
-export type NotificationOpener = (target: NotificationTarget) => Promise<void> | void
+/** `queued`: the tap arrived before the app could open anything — a cold start. */
+export type NotificationOpener = (target: NotificationTarget, context: { queued: boolean }) => Promise<void> | void
 
 /** Recent notifications remembered, to drop a click event repeated for one of them. */
 const REMEMBERED_NOTIFICATIONS = 20
@@ -29,14 +30,14 @@ export function createNotificationClicks(deps: { report?: (event: string) => voi
   let pending: NotificationTarget | null = null
   const seen: string[] = []
 
-  function open(target: NotificationTarget): void {
+  function open(target: NotificationTarget, queued: boolean): void {
     const current = opener
     if (!current) {
       pending = target
       return
     }
     try {
-      void Promise.resolve(current(target)).catch(() => report('push_click_open_failed'))
+      void Promise.resolve(current(target, { queued })).catch(() => report('push_click_open_failed'))
     } catch {
       report('push_click_open_failed')
     }
@@ -54,7 +55,7 @@ export function createNotificationClicks(deps: { report?: (event: string) => voi
         seen.push(target.key)
         if (seen.length > REMEMBERED_NOTIFICATIONS) seen.shift()
       }
-      open(target)
+      open(target, false)
     },
 
     /** Set once navigation and session are ready; cleared when they stop being. */
@@ -63,7 +64,7 @@ export function createNotificationClicks(deps: { report?: (event: string) => voi
       if (!next || !pending) return
       const queued = pending
       pending = null
-      open(queued)
+      open(queued, true)
     },
   }
 }
@@ -71,4 +72,10 @@ export function createNotificationClicks(deps: { report?: (event: string) => voi
 export type NotificationClicks = ReturnType<typeof createNotificationClicks>
 
 /** The app's one instance: the SDK listener feeds it, the root layout drains it. */
-export const notificationClicks = createNotificationClicks({ report: event => console.warn(event) })
+export const notificationClicks = createNotificationClicks({
+  // Diagnostics only (a repeated click is expected, not a fault), so never in
+  // a release build.
+  report: event => {
+    if (__DEV__) console.warn(event)
+  },
+})

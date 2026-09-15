@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
@@ -42,6 +42,12 @@ export default function NotificationsScreen() {
   const { status } = useSession()
   // GoGo-MobileApp#256 — a tapped push that could not be opened lands here.
   const { notice } = useLocalSearchParams<{ notice?: string }>()
+  const pushUnavailable = notice === PUSH_UNAVAILABLE_NOTICE
+  // `accessibilityLiveRegion` below is Android-only; VoiceOver needs an
+  // announcement to hear why the inbox opened instead.
+  useEffect(() => {
+    if (pushUnavailable) AccessibilityInfo.announceForAccessibility(t('notifications.pushUnavailable'))
+  }, [pushUnavailable, t])
 
   // Guests get 403 USER_ONLY on the inbox.
   const canRead = status === 'user'
@@ -62,7 +68,7 @@ export default function NotificationsScreen() {
   const header = (
     <View style={{ paddingTop: insets.top }}>
       <BackHeader onBack={() => router.back()} title={t('notifications.title')} />
-      {notice === PUSH_UNAVAILABLE_NOTICE ? (
+      {pushUnavailable ? (
         <Text accessibilityLiveRegion="polite" style={styles.notice}>
           {t('notifications.pushUnavailable')}
         </Text>
