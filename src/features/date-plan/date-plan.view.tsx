@@ -116,7 +116,13 @@ export default function DatePlanScreen() {
     if (!start) return t('datePlan.titleUndated', { context: facts.type, n: facts.participantCount })
     const { relative, ...parts } = planWhen(start, new Date())
     const when = t(
-      relative === 'today' ? 'datePlan.when.today' : relative === 'tomorrow' ? 'datePlan.when.tomorrow' : 'datePlan.when.other',
+      relative === 'today'
+        ? 'datePlan.when.today'
+        : relative === 'tomorrow'
+          ? 'datePlan.when.tomorrow'
+          : relative === 'otherYear'
+            ? 'datePlan.when.otherYear'
+            : 'datePlan.when.other',
       parts,
     )
     return t('datePlan.title', { context: facts.type, n: facts.participantCount, when })

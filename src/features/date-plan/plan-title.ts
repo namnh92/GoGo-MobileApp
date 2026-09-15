@@ -6,13 +6,15 @@ import { parseApiDate } from '@/shared/api/view-models'
  * the catalogs, so no day, daypart or audience is baked in here.
  */
 
-export type PlanRelativeDay = 'today' | 'tomorrow' | 'other'
+/** `otherYear` is any other day outside the current year, which then names its year. */
+export type PlanRelativeDay = 'today' | 'tomorrow' | 'other' | 'otherYear'
 
 export interface PlanWhen {
   relative: PlanRelativeDay
   /** Zero-padded calendar parts on the device clock; the catalog orders them. */
   day: string
   month: string
+  year: string
   time: string
 }
 
@@ -37,9 +39,11 @@ export function planWhen(start: Date, now: Date): PlanWhen {
   const days = Math.round((midnight(start) - midnight(now)) / DAY_MS)
   const pad = (value: number) => String(value).padStart(2, '0')
   return {
-    relative: days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'other',
+    relative:
+      days === 0 ? 'today' : days === 1 ? 'tomorrow' : start.getFullYear() === now.getFullYear() ? 'other' : 'otherYear',
     day: pad(start.getDate()),
     month: pad(start.getMonth() + 1),
+    year: String(start.getFullYear()),
     time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
   }
 }

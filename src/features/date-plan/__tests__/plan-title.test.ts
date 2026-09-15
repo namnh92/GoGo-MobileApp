@@ -7,19 +7,28 @@ const now = new Date(2026, 8, 15, 20, 30)
 
 describe('planWhen', () => {
   it('calls any time on the same calendar day today, whatever the daypart', () => {
-    expect(planWhen(new Date(2026, 8, 15, 0, 5), now)).toEqual({ relative: 'today', day: '15', month: '09', time: '00:05' })
+    expect(planWhen(new Date(2026, 8, 15, 0, 5), now)).toEqual({ relative: 'today', day: '15', month: '09', year: '2026', time: '00:05' })
     expect(planWhen(new Date(2026, 8, 15, 23, 59), now).relative).toBe('today')
   })
 
   it('switches to tomorrow at local midnight, not 24 hours on', () => {
-    expect(planWhen(new Date(2026, 8, 16, 0, 1), now)).toEqual({ relative: 'tomorrow', day: '16', month: '09', time: '00:01' })
+    expect(planWhen(new Date(2026, 8, 16, 0, 1), now)).toEqual({ relative: 'tomorrow', day: '16', month: '09', year: '2026', time: '00:01' })
     expect(planWhen(new Date(2026, 8, 16, 23, 0), now).relative).toBe('tomorrow')
   })
 
-  it('gives any other day its date, past or future', () => {
-    expect(planWhen(new Date(2026, 8, 17, 9, 0), now)).toEqual({ relative: 'other', day: '17', month: '09', time: '09:00' })
+  it('gives any other day in this year its date, past or future', () => {
+    expect(planWhen(new Date(2026, 8, 17, 9, 0), now)).toEqual({ relative: 'other', day: '17', month: '09', year: '2026', time: '09:00' })
     expect(planWhen(new Date(2026, 8, 14, 19, 0), now).relative).toBe('other')
-    expect(planWhen(new Date(2027, 0, 3, 19, 0), now)).toMatchObject({ relative: 'other', day: '03', month: '01' })
+  })
+
+  it('names the year for a day outside the current one, past or future', () => {
+    expect(planWhen(new Date(2027, 0, 3, 19, 0), now)).toEqual({ relative: 'otherYear', day: '03', month: '01', year: '2027', time: '19:00' })
+    expect(planWhen(new Date(2025, 11, 20, 19, 0), now)).toMatchObject({ relative: 'otherYear', year: '2025' })
+  })
+
+  it('still says tomorrow across new year', () => {
+    const newYearsEve = new Date(2026, 11, 31, 22, 0)
+    expect(planWhen(new Date(2027, 0, 1, 10, 0), newYearsEve)).toMatchObject({ relative: 'tomorrow', year: '2027' })
   })
 })
 

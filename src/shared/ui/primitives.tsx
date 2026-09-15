@@ -363,7 +363,7 @@ export function BackHeader({ title, onBack, right }: { title?: string; onBack: (
       >
         <IconChevronLeft />
       </Pressable>
-      {title ? <Text style={styles.backTitle} numberOfLines={2}>{title}</Text> : null}
+      {title ? <Text style={styles.backTitle}>{title}</Text> : null}
       {right ?? <View style={{ width: 36 }} />}
     </View>
   )

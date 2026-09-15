@@ -168,12 +168,25 @@ describe('plan title × room facts', () => {
   })
 
   it('names another day by its date', async () => {
+    // Three days back instead when three days on would cross into next year.
     const start = noonIn(3)
+    if (start.getFullYear() !== new Date().getFullYear()) start.setDate(start.getDate() - 6)
     mockRoom.query = loaded(roomFor('group-host', { participantCount: 6 }))
     mockPlan.query = loaded(planStarting(start))
     const view = await renderScreen(<DatePlanScreen />)
     expect(view.getByText(`Nhóm 6 người · ${pad(start.getDate())}/${pad(start.getMonth() + 1)} 12:00`)).toBeTruthy()
     expect(view.queryByText(/hôm nay/)).toBeNull()
+  })
+
+  it('names the year for a date outside the current one', async () => {
+    const start = noonIn(0)
+    start.setFullYear(start.getFullYear() + 1)
+    mockRoom.query = loaded(roomFor('group-host'))
+    mockPlan.query = loaded(planStarting(start))
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(
+      view.getByText(`Nhóm 4 người · ${pad(start.getDate())}/${pad(start.getMonth() + 1)}/${start.getFullYear()} 12:00`),
+    ).toBeTruthy()
   })
 
   it('uses the room schedule when the stops carry no time', async () => {
