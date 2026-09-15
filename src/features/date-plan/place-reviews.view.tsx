@@ -111,7 +111,12 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
   } else {
     body = (
       <>
-        <StaleNotice error={reviews.isError ? reviews.error : null} onRetry={() => void reviews.refetch()} />
+        {/* Place Detail already carries the offline bar; this section adds only its own failed refresh. */}
+        <StaleNotice
+          error={reviews.isError ? reviews.error : null}
+          reportOffline={false}
+          onRetry={() => void reviews.refetch()}
+        />
         {isHelpfulFallback(reviews.data) ? (
           <Text style={styles.fallback}>{t('placeReviews.helpfulFallback')}</Text>
         ) : null}

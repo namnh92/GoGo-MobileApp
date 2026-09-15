@@ -46,13 +46,23 @@ export function bindAppStateToQueryClient(): () => void {
     focusManager.setFocused(status === 'active')
   })
 
+  // The listener is the live source. The one-off read below only seeds the
+  // state until the first event: on iOS it can time out (reporting offline) or
+  // resolve after a newer event, and applying it then would pause every query
+  // and raise a false offline signal at launch (GoGo-MobileApp#253).
+  let sawEvent = false
   const networkSub = Network.addNetworkStateListener(state => {
+    sawEvent = true
     onlineManager.setOnline(Boolean(state.isInternetReachable ?? state.isConnected))
   })
 
   void Network.getNetworkStateAsync()
-    .then(state => onlineManager.setOnline(Boolean(state.isInternetReachable ?? state.isConnected)))
-    .catch(() => onlineManager.setOnline(true))
+    .then(state => {
+      if (!sawEvent) onlineManager.setOnline(Boolean(state.isInternetReachable ?? state.isConnected))
+    })
+    .catch(() => {
+      if (!sawEvent) onlineManager.setOnline(true)
+    })
 
   return () => {
     appStateSub.remove()

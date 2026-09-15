@@ -1,8 +1,9 @@
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Text, View } from 'react-native'
 
 import { isForbidden, isOffline } from '@/shared/api'
-import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
+import { currentOfflineSpell, useOnlineStatus } from '@/shared/api/queries/use-online-status'
 import { GhostBtn } from '@/shared/ui/primitives'
 
 import { styles } from './async-state.style'
@@ -61,6 +62,45 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   )
 }
 
+/** The offline spell already announced; one announcement per spell, app-wide. */
+let announcedSpell = 0
+
+/**
+ * Speaks `message` once when the offline signal turns on (GoGo-MobileApp#253).
+ * `accessibilityLiveRegion` only exists on Android, so VoiceOver heard nothing.
+ * Every screen with a notice mounts this, which is why it is keyed to the
+ * offline spell rather than to the component: a stack of screens, a rerender or
+ * a second notice must not repeat it.
+ */
+export function useOfflineAnnouncement(active: boolean, message: string) {
+  const online = useOnlineStatus()
+  const speak = active && !online
+  useEffect(() => {
+    if (!speak) return
+    const spell = currentOfflineSpell()
+    if (spell === announcedSpell) return
+    announcedSpell = spell
+    AccessibilityInfo.announceForAccessibility(message)
+  }, [speak, message])
+}
+
+/**
+ * Nothing cached, and the query is waiting for the network (GoGo-MobileApp#253).
+ * Offline TanStack Query keeps such a query pending, so without this the screen
+ * shows its skeleton forever. No retry: it would pause again, and the query
+ * resumes by itself on reconnect.
+ */
+export function OfflineState() {
+  const { t } = useTranslation()
+  useOfflineAnnouncement(true, t('common.offlineBody'))
+  return (
+    <View accessibilityLiveRegion="polite" style={styles.container}>
+      <Text style={styles.title}>{t('common.offlineTitle')}</Text>
+      <Text style={styles.body}>{t('common.offlineBody')}</Text>
+    </View>
+  )
+}
+
 /**
  * Cached data on screen that may be old. The data stays — it is what the user
  * came back for — and this says how much to trust it (APP-007). Showing the
@@ -72,22 +112,28 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
  * notice that waited for an error never appeared in airplane mode.
  *
  * `hasData` says whether cached data is actually on screen; with nothing cached
- * the screen's own loading/error state speaks instead. Retry is offered only
- * online — offline it would pause again and do nothing.
+ * the screen's own loading/error state speaks instead. `reportOffline={false}`
+ * is for a section inside a screen that already carries the offline bar: it
+ * keeps only the failed-refresh variant, so a screen never shows two bars.
+ * Retry is offered only online — offline it would pause again and do nothing.
  */
 export function StaleNotice({
   error,
   onRetry,
   hasData = true,
+  reportOffline = true,
 }: {
   error: unknown
   onRetry?: () => void
   hasData?: boolean
+  reportOffline?: boolean
 }) {
   const { t } = useTranslation()
   const online = useOnlineStatus()
-  if (!hasData || (online && !error)) return null
   const offline = !online || isOffline(error)
+  const shown = hasData && (offline ? reportOffline : Boolean(error))
+  useOfflineAnnouncement(shown, t('common.staleOffline'))
+  if (!shown) return null
   return (
     <View style={styles.staleBar} accessibilityLiveRegion="polite">
       <Text style={styles.staleLabel} numberOfLines={2}>

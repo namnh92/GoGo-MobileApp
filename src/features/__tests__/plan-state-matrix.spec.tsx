@@ -3,6 +3,8 @@ import { onlineManager } from '@tanstack/react-query'
 
 import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
 
+import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
+
 /**
  * The plan screen is where two release-gate rules become visible: a member must
  * never get the host's regenerate action, and a plan the server has replaced
@@ -128,15 +130,23 @@ describe('plan × audience', () => {
 describe('plan × connectivity (GoGo-MobileApp#253)', () => {
   const OFFLINE = 'Đang ngoại tuyến — đây là bản đã lưu trên máy.'
 
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
   afterEach(async () => {
     await act(async () => {
       onlineManager.setOnline(true)
     })
+    jest.useRealTimers()
   })
 
   it('marks a cached plan as the saved copy while offline, and clears it on reconnect', async () => {
     onlineManager.setOnline(false)
     const view = await renderScreen(<DatePlanScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
     expect(view.getByText(OFFLINE)).toBeTruthy()
 
     await act(async () => {

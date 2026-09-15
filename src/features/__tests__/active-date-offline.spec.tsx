@@ -3,6 +3,8 @@ import { onlineManager } from '@tanstack/react-query'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
 
+import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
+
 /**
  * GoGo-MobileApp#253 — the active date is where a flaky connection is most
  * likely (Mobile CLAUDE.md: the current plan is cached for it). The cached plan
@@ -46,6 +48,7 @@ const PLAN = {
 }
 
 beforeEach(() => {
+  jest.useFakeTimers()
   mockPlan.query = loaded(PLAN)
 })
 
@@ -53,12 +56,16 @@ afterEach(async () => {
   await act(async () => {
     onlineManager.setOnline(true)
   })
+  jest.useRealTimers()
 })
 
 describe('active date × connectivity', () => {
   it('keeps the cached plan on screen offline and says it is the saved copy', async () => {
     onlineManager.setOnline(false)
     const view = await renderScreen(<ActiveDateScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
     expect(view.queryAllByText('Quán A').length).toBeGreaterThan(0)
     expect(view.getByText(OFFLINE)).toBeTruthy()
 
