@@ -19,7 +19,8 @@ const mockRefetchRoom = jest.fn()
 const mockFocus: { blur: (() => void) | undefined } = { blur: undefined }
 
 const mockPlan: { query: QueryLike } = { query: loaded(null) }
-const mockRoom: { query: QueryLike } = { query: loaded(null) }
+/** `live` reads the room through the real query, so a start's answer reaches the screen. */
+const mockRoom: { query: QueryLike; live: boolean } = { query: loaded(null), live: false }
 
 jest.mock('expo-router', () => {
   const { useEffect } = jest.requireActual<typeof import('react')>('react')
@@ -62,7 +63,8 @@ const mockIdleMutation = {
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlan: () => mockPlan.query,
-  useRoom: () => mockRoom.query,
+  useRoom: (roomId: string | undefined) =>
+    mockRoom.live ? jest.requireActual('@/shared/api').useRoom(roomId) : mockRoom.query,
   useRoomRealtime: jest.fn(),
   usePlanStopPlaces: () => ({ byPlaceId: new Map(), isPending: false }),
   useLockPlanStop: () => mockIdleMutation,
@@ -71,6 +73,7 @@ jest.mock('@/shared/api', () => ({
 
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { createQueryClient } from '@/shared/api/query-client'
+import { queryKeys } from '@/shared/api/query-keys'
 import DatePlanScreen from '@/features/date-plan/date-plan.view'
 
 const GO = 'Bắt đầu đi →'
@@ -79,6 +82,7 @@ const SUMMARY = 'Xem tổng kết →'
 const RETRY = 'Thử lại'
 const WAITING = /Đang đợi chủ phòng bắt đầu buổi đi chơi/
 const CONNECTIVITY = /Kiểm tra kết nối/
+const NOT_READY = 'Phòng chưa ở bước sẵn sàng nên chưa bắt đầu buổi đi chơi được.'
 
 const plan = {
   id: 'plan-1',
@@ -139,6 +143,7 @@ beforeEach(() => {
   mockPatch.mockReset()
   mockGet.mockReset()
   mockFocus.blur = undefined
+  mockRoom.live = false
   mockPlan.query = loaded(plan)
   mockRoom.query = roomAs('group-host', 'ready')
 })
@@ -205,15 +210,18 @@ describe('host starts the date', () => {
     expect(mockPatch).toHaveBeenCalledTimes(2)
   })
 
-  it('never reports a room-state conflict as a connection problem', async () => {
+  it('says the room is not ready, never a connection problem, when a 409 re-reads a room that did not start', async () => {
     mockPatch.mockRejectedValue(new ApiError(409, { code: 'INVALID_ROOM_TRANSITION', message: 'no' }))
     mockGet.mockResolvedValue({ ...roomFor('group-host'), status: 'matching' })
     await renderPlan()
 
     await press(GO)
-    expect(await screen.findByText(/Trạng thái phòng vừa thay đổi/)).toBeTruthy()
+    expect(await screen.findByText(NOT_READY)).toBeTruthy()
+    // The button stays as the retry while the cached room still reads ready.
+    expect(screen.getByText(RETRY)).toBeTruthy()
     expect(screen.queryByText(CONNECTIVITY)).toBeNull()
     expect(mockPush).not.toHaveBeenCalled()
+    expect(tracked('date_started')).toBe(0)
   })
 
   it.each([
@@ -356,5 +364,63 @@ describe('room status the date cannot start from', () => {
     expect(screen.queryByText(GO)).toBeNull()
     await press(RETRY)
     expect(mockRefetchRoom).toHaveBeenCalled()
+  })
+})
+
+/**
+ * GoGo-BE #601 makes a repeated start idempotent, so one that races the end of
+ * the date answers 200 with a `completed` or `cancelled` room. The screen acts
+ * on that status, and a 409 whose re-read finds the same room is handled alike.
+ */
+describe('a start answered with a room that is not active', () => {
+  const server: { room: unknown } = { room: null }
+
+  function answer(kind: '200' | '409', status: string) {
+    mockRoom.live = true
+    client.setQueryData(queryKeys.room('room-1'), roomFor('group-host', { status: 'ready' } as never))
+    server.room = roomFor('group-host', { status } as never)
+    mockGet.mockImplementation(async (path: string) => (path === '/rooms/{id}' ? server.room : plan))
+    if (kind === '200') mockPatch.mockResolvedValue(server.room)
+    else mockPatch.mockRejectedValue(new ApiError(409, { code: 'INVALID_ROOM_TRANSITION', message: 'no' }))
+  }
+
+  it.each(['200', '409'] as const)('%s with a completed room opens the summary, never the live screen', async kind => {
+    answer(kind, 'completed')
+    await renderPlan()
+
+    await press(GO)
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/plans/plan-1/finished'))
+    expect(mockPush).not.toHaveBeenCalledWith('/plans/plan-1/active')
+    expect(tracked('date_started')).toBe(0)
+    expect(await screen.findByText(SUMMARY)).toBeTruthy()
+  })
+
+  it.each([
+    ['200', 'cancelled', 'Phòng này đã bị huỷ nên không bắt đầu được nữa.'],
+    ['409', 'cancelled', 'Phòng này đã bị huỷ nên không bắt đầu được nữa.'],
+    ['200', 'expired', 'Phòng này đã hết hạn nên không bắt đầu được nữa.'],
+    ['409', 'expired', 'Phòng này đã hết hạn nên không bắt đầu được nữa.'],
+  ] as const)('%s with a %s room shows its copy in place of the button', async (kind, status, copy) => {
+    answer(kind, status)
+    await renderPlan()
+
+    await press(GO)
+    expect(await screen.findByText(copy)).toBeTruthy()
+    expect(screen.queryByText(GO)).toBeNull()
+    expect(screen.queryByText(RETRY)).toBeNull()
+    expect(screen.queryByText(CONNECTIVITY)).toBeNull()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(tracked('date_started')).toBe(0)
+  })
+
+  it('reads the room again and says it is not ready when a 409 finds it still matching', async () => {
+    answer('409', 'matching')
+    await renderPlan()
+
+    await press(GO)
+    expect(await screen.findByText(NOT_READY)).toBeTruthy()
+    expect(screen.queryByText(GO)).toBeNull()
+    expect(mockGet).toHaveBeenCalledWith('/rooms/{id}', { pathParams: { id: 'room-1' } })
+    expect(mockPush).not.toHaveBeenCalled()
   })
 })

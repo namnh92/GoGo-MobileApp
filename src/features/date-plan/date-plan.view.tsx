@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   formatDistance,
   isApiError,
-  isConflict,
   isForbidden,
   isOffline,
   roomCapabilities,
@@ -65,6 +64,9 @@ export default function DatePlanScreen() {
   const capabilities = roomCapabilities(room.data)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The start answered with a room that neither started nor ended; the reason
+  // stays under the button until the next press.
+  const [notStarted, setNotStarted] = useState(false)
 
   // #251 — a start that answers after the user left this screen, or opened
   // another one on top of it, must not pull them into the active date.
@@ -122,6 +124,7 @@ export default function DatePlanScreen() {
    * nothing, so a double tap is one request and one navigation.
    */
   async function onStart() {
+    setNotStarted(false)
     let started
     try {
       started = await startDate.start({ onSend: () => track('date_plan_accepted') })
@@ -130,8 +133,19 @@ export default function DatePlanScreen() {
       return
     }
     if (!started) return
-    track('date_started')
-    if (focused.current) router.push(`/plans/${planId}/active`)
+    // Act on the status the server answered with, never on "it succeeded": a
+    // repeated start that races the end of the date answers with a finished or
+    // cancelled room (GoGo-BE #601), and that room must not open a live screen.
+    if (started.status === 'active') {
+      track('date_started')
+      if (focused.current) router.push(`/plans/${planId}/active`)
+    } else if (started.status === 'completed') {
+      if (focused.current) router.push(`/plans/${planId}/finished`)
+    } else if (started.status !== 'cancelled' && started.status !== 'expired') {
+      setNotStarted(true)
+    }
+    // Cancelled or expired: the start wrote that room to the cache, and the bar
+    // below renders its copy in place of the button.
   }
 
   function openActiveDate() {
@@ -209,7 +223,7 @@ export default function DatePlanScreen() {
             label={
               startDate.isPending
                 ? t('datePlan.starting')
-                : startDate.isError
+                : startDate.isError || notStarted
                   ? t('common.retry')
                   : t('datePlan.go')
             }
@@ -217,17 +231,17 @@ export default function DatePlanScreen() {
             loading={startDate.isPending}
             style={styles.goBtn}
           />
-          {startDate.isError ? (
+          {startDate.isError || notStarted ? (
             <Text accessibilityLiveRegion="polite" style={styles.startError}>
               {t(
-                isOffline(startDate.error)
-                  ? 'datePlan.startOffline'
-                  : isApiError(startDate.error) && startDate.error.code === 'HOST_ONLY'
-                    ? 'datePlan.startHostOnly'
-                    : isForbidden(startDate.error)
-                      ? 'common.permissionDenied'
-                      : isConflict(startDate.error)
-                        ? 'datePlan.startConflict'
+                notStarted
+                  ? 'datePlan.notStartable'
+                  : isOffline(startDate.error)
+                    ? 'datePlan.startOffline'
+                    : isApiError(startDate.error) && startDate.error.code === 'HOST_ONLY'
+                      ? 'datePlan.startHostOnly'
+                      : isForbidden(startDate.error)
+                        ? 'common.permissionDenied'
                         : 'datePlan.startFailed',
               )}
             </Text>

@@ -497,7 +497,6 @@ export const viMessages = {
   'datePlan.notStartable': 'Phòng chưa ở bước sẵn sàng nên chưa bắt đầu buổi đi chơi được.',
   'datePlan.roomUnavailable': 'Chưa tải được trạng thái phòng.',
   'datePlan.startOffline': 'Chưa bắt đầu được. Kiểm tra kết nối rồi thử lại.',
-  'datePlan.startConflict': 'Trạng thái phòng vừa thay đổi nên chưa bắt đầu được. Đang tải lại phòng.',
   'datePlan.startHostOnly': 'Chỉ chủ phòng bắt đầu được buổi đi chơi.',
   'datePlan.startFailed': 'Chưa bắt đầu được. Thử lại nhé.',
   'datePlan.roomCancelled': 'Phòng này đã bị huỷ nên không bắt đầu được nữa.',

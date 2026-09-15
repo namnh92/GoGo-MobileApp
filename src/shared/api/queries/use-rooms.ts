@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { useCallback, useRef } from 'react'
 
 import * as roomsApi from '../endpoints/rooms'
-import { isApiError, isConflict, isForbidden } from '../errors'
+import { isApiError, isForbidden } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
 import * as suggestionsApi from '../endpoints/suggestions'
 import { queryKeys } from '../query-keys'
@@ -118,12 +118,13 @@ export function useTransitionRoom(roomId: string) {
  * resolves `null` and sends nothing, so one press is one transition and one
  * `date_reminder` push to the members. `onSend` runs only for the call that
  * actually sends, so a joined tap is not a second analytics event either. It
- * resolves the active room once the server agrees, and rejects with the API
- * error otherwise.
+ * resolves the room as the server holds it after the attempt — `active`, or
+ * whatever a race left it in — and the caller acts on that status. It rejects
+ * with the API error when there is no room to report.
  *
- * Success refreshes the room, its plan and the Plans tabs, which filter by room
- * status (#213). A 403 or 409 means the cached role or status is behind, so the
- * room is refetched and the screen re-renders from what the server holds.
+ * Any answer refreshes the room, its plan and the Plans tabs, which filter by
+ * room status (#213). A 403 means the cached role is behind, so the room is
+ * refetched and the screen re-renders from what the server holds.
  */
 export function useStartDate(roomId: string | undefined, planId?: string) {
   const queryClient = useQueryClient()
@@ -143,7 +144,7 @@ export function useStartDate(roomId: string | undefined, planId?: string) {
       void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
     },
     onError: error => {
-      if (roomId && (isConflict(error) || isForbidden(error))) {
+      if (roomId && isForbidden(error)) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId), exact: true })
       }
     },

@@ -187,19 +187,36 @@ describe('useStartDate', () => {
     expect(result.current.room.data).toEqual(activeRoom)
   })
 
-  it('rethrows a 409 when the room is not active, and the room reads again', async () => {
-    mockPatch.mockRejectedValue(invalidTransition)
-    server.room = { ...readyRoom, status: 'matching' }
-    const { result } = await renderObserved()
-    const before = reads(ROOM)
+  it.each(['completed', 'cancelled', 'matching'])(
+    'hands back a room re-read as %s after a 409, never as started',
+    async status => {
+      mockPatch.mockRejectedValue(invalidTransition)
+      server.room = { ...readyRoom, status }
+      const { result } = await renderObserved()
+      const before = reads(ROOM)
 
-    let caught: unknown
+      let started: unknown
+      await act(async () => {
+        started = await result.current.startDate.start()
+      })
+      // The caller acts on the status; the hook never turns it into "active".
+      expect(started).toMatchObject({ status })
+      await waitFor(() => expect(result.current.room.data).toMatchObject({ status }))
+      expect(reads(ROOM)).toBeGreaterThan(before)
+    },
+  )
+
+  it('hands back a 200 whose room is not active as it is (GoGo-BE #601)', async () => {
+    mockPatch.mockResolvedValue({ ...readyRoom, status: 'completed' })
+    server.room = { ...readyRoom, status: 'completed' }
+    const { result } = await renderObserved()
+
+    let started: unknown
     await act(async () => {
-      caught = await result.current.startDate.start().catch((error: unknown) => error)
+      started = await result.current.startDate.start()
     })
-    expect(caught).toBe(invalidTransition)
-    await waitFor(() => expect(result.current.room.data).toMatchObject({ status: 'matching' }))
-    expect(reads(ROOM)).toBeGreaterThan(before)
+    expect(started).toMatchObject({ status: 'completed' })
+    await waitFor(() => expect(result.current.room.data).toMatchObject({ status: 'completed' }))
   })
 
   it('reads the room again when the caller is refused as not the host', async () => {

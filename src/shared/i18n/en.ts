@@ -491,7 +491,6 @@ export const enMessages: Record<MessageKey, string> = {
   'datePlan.notStartable': 'The room is not ready yet, so the outing cannot start.',
   'datePlan.roomUnavailable': 'Could not load the room status.',
   'datePlan.startOffline': 'Could not start. Check your connection and try again.',
-  'datePlan.startConflict': 'The room status just changed, so the date did not start. Reloading the room.',
   'datePlan.startHostOnly': 'Only the host can start the outing.',
   'datePlan.startFailed': 'Could not start. Please try again.',
   'datePlan.roomCancelled': 'This room was cancelled, so it can no longer start.',
