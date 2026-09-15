@@ -32,6 +32,7 @@ import {
   SecondaryBtn,
   useTabDockInset,
 } from '@/shared/ui/primitives'
+import { StaleNotice } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
 import { colors, spacing } from '@/shared/ui/tokens'
 
@@ -144,6 +145,13 @@ export default function HomeScreen() {
             <AvatarCircle label={initial || '·'} size={44} imageUri={me.data?.avatarUrl} />
           </Pressable>
         </View>
+
+        {/* Suggestions still on screen from an earlier search (GoGo-MobileApp#253). */}
+        <StaleNotice
+          error={search.isError ? search.error : null}
+          hasData={visualState === 'default'}
+          onRetry={() => void search.refetch()}
+        />
 
         <DraftResume />
 

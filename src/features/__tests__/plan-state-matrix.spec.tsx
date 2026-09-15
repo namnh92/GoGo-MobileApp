@@ -1,3 +1,6 @@
+import { act } from '@testing-library/react-native'
+import { onlineManager } from '@tanstack/react-query'
+
 import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
 
 /**
@@ -119,5 +122,31 @@ describe('plan × audience', () => {
     mockRoom.query = loaded(roomFor('group-guest'))
     const view = await renderScreen(<DatePlanScreen />)
     expect(view.queryAllByText(REGENERATE)).toHaveLength(0)
+  })
+})
+
+describe('plan × connectivity (GoGo-MobileApp#253)', () => {
+  const OFFLINE = 'Đang ngoại tuyến — đây là bản đã lưu trên máy.'
+
+  afterEach(async () => {
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+  })
+
+  it('marks a cached plan as the saved copy while offline, and clears it on reconnect', async () => {
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.getByText(OFFLINE)).toBeTruthy()
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(OFFLINE)).toBeNull()
+  })
+
+  it('says nothing about a fresh plan online', async () => {
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.queryByText(/bản đã lưu trên máy/)).toBeNull()
   })
 })

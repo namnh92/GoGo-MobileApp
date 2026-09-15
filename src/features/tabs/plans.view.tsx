@@ -151,7 +151,8 @@ export default function PlansScreen() {
 
       {/* A failed refetch keeps the list that is already on screen. */}
       <StaleNotice
-        error={rooms.isError && items.length > 0 ? rooms.error : null}
+        error={rooms.isError ? rooms.error : null}
+        hasData={items.length > 0}
         onRetry={() => void rooms.refetch()}
       />
 

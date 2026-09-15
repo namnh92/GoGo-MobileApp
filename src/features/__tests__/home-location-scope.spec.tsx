@@ -1,4 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native'
+import { onlineManager } from '@tanstack/react-query'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
@@ -152,5 +153,56 @@ describe('Home discovery scope', () => {
     expect(view.getByText(/Dữ liệu hành chính đã thay đổi/)).toBeTruthy()
     await press(view.getAllByText('Chọn khu vực').at(-1)!)
     expect(mockPush).toHaveBeenCalledWith('/settings/account')
+  })
+})
+
+/**
+ * GoGo-MobileApp#253 — suggestions from an earlier search stay on Home when the
+ * device goes offline; the screen has to say they are the saved copy.
+ */
+describe('Home × connectivity', () => {
+  const OFFLINE = 'Đang ngoại tuyến — đây là bản đã lưu trên máy.'
+  const RESULT = {
+    id: 'place-1',
+    name: 'Quán Gần Nhà',
+    addressText: 'Quận 1',
+    lat: 10.77,
+    lng: 106.7,
+    rating: 4.5,
+    ratingCount: 12,
+    distanceM: 300,
+    reasonCodes: [],
+    isLodging: false,
+  }
+
+  afterEach(async () => {
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+  })
+
+  it('marks suggestions still on screen as the saved copy while offline, and clears it on reconnect', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = {
+      ...page({ source: 'gps' }),
+      data: { pages: [{ results: [RESULT], nextCursor: null, meta: { location: { source: 'gps' } } }] },
+    }
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<HomeScreen />)
+    expect(view.queryAllByText('Quán Gần Nhà').length).toBeGreaterThan(0)
+    expect(view.getByText(OFFLINE)).toBeTruthy()
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(OFFLINE)).toBeNull()
+  })
+
+  it('claims no saved copy offline when there are no suggestions on screen', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = page({ source: 'gps' })
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<HomeScreen />)
+    expect(view.queryByText(OFFLINE)).toBeNull()
   })
 })
