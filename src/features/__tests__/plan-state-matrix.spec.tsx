@@ -1,4 +1,9 @@
+import { act } from '@testing-library/react-native'
+import { onlineManager } from '@tanstack/react-query'
+
 import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
+
+import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 
 /**
  * The plan screen is where two release-gate rules become visible: a member must
@@ -121,6 +126,63 @@ describe('plan × audience', () => {
     mockRoom.query = loaded(roomFor('group-guest'))
     const view = await renderScreen(<DatePlanScreen />)
     expect(view.queryAllByText(REGENERATE)).toHaveLength(0)
+  })
+})
+
+describe('plan × connectivity (GoGo-MobileApp#253)', () => {
+  const OFFLINE = 'Đang ngoại tuyến — đây là bản đã lưu trên máy.'
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    jest.useRealTimers()
+  })
+
+  it('marks a cached plan as the saved copy while offline, and clears it on reconnect', async () => {
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<DatePlanScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    expect(view.getByText(OFFLINE)).toBeTruthy()
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(OFFLINE)).toBeNull()
+  })
+
+  it('says nothing about a fresh plan online', async () => {
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.queryByText(/bản đã lưu trên máy/)).toBeNull()
+  })
+
+  it('shows the offline state instead of an endless skeleton when nothing is cached, and keeps loading online', async () => {
+    const NO_CONNECTION = 'Không có kết nối'
+    mockPlan.query = { ...pending(), isPaused: true }
+    const view = await renderScreen(<DatePlanScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    // Paused while online means the app was only in the background: still loading.
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+
+    await act(async () => {
+      onlineManager.setOnline(false)
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    expect(view.getByText(NO_CONNECTION)).toBeTruthy()
+    expect(view.queryAllByText(/Thử lại/)).toHaveLength(0)
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
   })
 })
 
