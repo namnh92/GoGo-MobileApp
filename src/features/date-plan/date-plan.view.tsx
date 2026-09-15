@@ -15,10 +15,11 @@ import {
   useRoom,
   useRoomRealtime,
   type PlanStopRow,
+  toRoomAudience,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
-import { formatMoney, formatRange, perPerson } from '@/shared/pricing/money'
+import { planCost, stopCostLabel } from '@/shared/pricing/plan-cost'
 import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
@@ -131,16 +132,10 @@ export default function DatePlanScreen() {
     )
   }
 
-  const participantCount = room.data?.participantCount ?? 2
-  const roomType = room.data?.type ?? 'couple'
-  const budgetMode = room.data?.constraints?.budgetMode ?? 'total'
-
-  /** Group rooms always carry both scopes; the per-person figure is approximate. */
-  const totalLabel = formatMoney(summary.costMax, summary.currency)
-  const perPersonLabel =
-    roomType === 'group'
-      ? formatMoney(perPerson(summary.costMax, participantCount, summary.currency), summary.currency)
-      : null
+  // GoGo-MobileApp#249 — the amounts carry their scope; the room only decides
+  // how the other scope is phrased. Until the room loads, only the scope the API
+  // stated is shown, never an assumed couple.
+  const cost = planCost(summary, room.data ? toRoomAudience(room.data) : null, t)
 
   return (
     <Atmosphere>
@@ -174,7 +169,7 @@ export default function DatePlanScreen() {
         {summary.stops.map((stop, index) => {
           const place = places.byPlaceId.get(stop.placeId)
           const name = place?.name ?? ''
-          const stopCost = formatRange(stop.costMin, stop.costMax, summary.currency)
+          const stopCost = stopCostLabel(stop, summary.currency, t)
 
           return (
             <View key={stop.id}>
@@ -311,18 +306,14 @@ export default function DatePlanScreen() {
         <View style={styles.summaryRow}>
           <View style={styles.summaryColMain}>
             <Text style={styles.summaryCaption}>{t('datePlan.total')}</Text>
+            {/* One formatter owns the amount, its scope, and the `~` of a total
+                with an uncertain stop price (GoGo-MobileApp#249). */}
             <Text style={styles.summaryValue} numberOfLines={1}>
-              {/* `uncertain` means a stop has an unknown price — say so rather
-                  than presenting an estimate as the total. */}
-              {summary.uncertain ? `~${totalLabel}` : totalLabel}{' '}
-              <Text style={styles.summaryUnit}>
-                {budgetMode === 'per_person' && perPersonLabel ? t('price.groupTotal') : t('datePlan.for2')}
-              </Text>
+              {cost.primary}
             </Text>
-            {perPersonLabel ? (
+            {cost.secondary ? (
               <Text style={styles.summarySecondary} numberOfLines={1}>
-                ~{perPersonLabel}
-                {t('datePlan.perPerson')}
+                {cost.secondary}
               </Text>
             ) : null}
             {/* Computed from the upper bound — never soften it. */}

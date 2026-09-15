@@ -22,9 +22,11 @@ import {
   useRoom,
   useRoomRealtime,
   type CandidateCard,
+  toPlanSummary,
+  toRoomAudience,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { formatMoney } from '@/shared/pricing/money'
+import { planCost } from '@/shared/pricing/plan-cost'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
@@ -221,7 +223,7 @@ export default function MatchResultScreen() {
             {plan.data?.totals ? (
               <Text style={styles.heroMeta}>
                 ⏱ {Math.round((plan.data.totals.durationMinutes ?? 0) / 60)}h · 💰{' '}
-                {formatMoney(plan.data.totals.costMax ?? 0, plan.data.totals.currency ?? 'VND')}
+                {planCost(toPlanSummary(plan.data), room.data ? toRoomAudience(room.data) : null, t).primary}
               </Text>
             ) : null}
           </View>

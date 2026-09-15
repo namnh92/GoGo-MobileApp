@@ -12,8 +12,9 @@ import {
   useCurrentSuggestions,
   usePlaceDetail,
   useRoom,
+  toRoomAudience,
 } from '@/shared/api'
-import { formatMoney, perPerson } from '@/shared/pricing/money'
+import { planCost } from '@/shared/pricing/plan-cost'
 import { ErrorState } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
@@ -65,6 +66,8 @@ export default function SharedResultScreen() {
 
   const roomType = room.data.type
   const participantCount = room.data.participantCount
+  // GoGo-MobileApp#249 — the stats and the share line use the same scoped amounts.
+  const cost = summary ? planCost(summary, toRoomAudience(room.data), t) : null
 
   /**
    * The pipeline's own explainable score parts, rendered as they are. The
@@ -83,7 +86,7 @@ export default function SharedResultScreen() {
     // Plain share via the native sheet (spec: no story/social-specific CTA).
     haptic('select')
     try {
-      const line = [winner?.name, summary ? formatMoney(summary.costMax, summary.currency) : null]
+      const line = [winner?.name, cost?.primary ?? null]
         .filter(Boolean)
         .join(' · ')
       await Share.share({ message: `${t('sharedResult.title')}${line ? ` — ${line}` : ''}` })
@@ -173,17 +176,15 @@ export default function SharedResultScreen() {
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>{t('datePlan.total')}</Text>
-                <Text style={styles.statValue}>
-                  {summary.uncertain ? '~' : ''}
-                  {formatMoney(summary.costMax, summary.currency)}
-                </Text>
+                <Text style={styles.statValue}>{cost?.whole ?? cost?.primary}</Text>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>{t('sharedResult.perPerson')}</Text>
-                <Text style={styles.statValue}>
-                  ~{formatMoney(perPerson(summary.costMax, participantCount, summary.currency), summary.currency)}
-                </Text>
-              </View>
+              {/* Only a per-person amount the API stated — never a total divided up. */}
+              {cost?.perPerson ? (
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>{t('sharedResult.perPerson')}</Text>
+                  <Text style={styles.statValue}>{cost.perPerson}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
         ) : null}

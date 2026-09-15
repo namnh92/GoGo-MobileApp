@@ -20,19 +20,6 @@ export function toMajorUnits(amount: number, currency: string): number {
 }
 
 /**
- * Per-person figures round UP to the nearest 5,000 dong: an estimate must never
- * look more precise than it is (spec v3 §23).
- */
-const VND_ROUNDING = 5_000
-
-export function perPerson(totalMinor: number, participantCount: number, currency = DEFAULT_CURRENCY): number {
-  if (participantCount <= 0) return totalMinor
-  const exact = totalMinor / participantCount
-  if (currency.toUpperCase() !== 'VND') return Math.ceil(exact)
-  return Math.ceil(exact / VND_ROUNDING) * VND_ROUNDING
-}
-
-/**
  * "450k", "1.2tr" — the compact Vietnamese money style the screens use.
  * Never called with a raw major-unit number; always minor units + currency.
  */

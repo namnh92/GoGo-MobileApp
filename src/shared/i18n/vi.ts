@@ -439,6 +439,7 @@ export const viMessages = {
   'datePlan.lockedToast': 'Đã giữ {{name}} khi đổi phương án',
   'datePlan.unlockedToast': 'Đã bỏ giữ {{name}}',
   'price.groupTotal': 'tổng nhóm',
+  'price.groupTotalOf': 'tổng nhóm {{n}} người',
   'price.unit.per_person': '/người',
   'price.unit.per_group': ' · tổng nhóm',
   'price.unit.per_item': '/món',
