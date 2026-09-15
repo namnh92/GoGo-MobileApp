@@ -1,7 +1,8 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 
 import * as placesApi from '../endpoints/places'
 import * as plansApi from '../endpoints/plans'
+import { isRoomNotActive } from '../errors'
 import { queryKeys } from '../query-keys'
 import type { OpBody, Plan } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
@@ -113,13 +114,36 @@ export function useLockPlanStop(planId: string) {
   })
 }
 
+/**
+ * #251 — `409 ROOM_NOT_ACTIVE` means the cached room status is what was wrong.
+ * Refetch the room so the plan screen the user goes back to shows where it
+ * really is.
+ */
+function refreshRoomIfNotActive(queryClient: QueryClient, planId: string, error: unknown) {
+  if (!isRoomNotActive(error)) return
+  const roomId = queryClient.getQueryData<Plan>(queryKeys.plan(planId))?.roomId
+  if (roomId) void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId), exact: true })
+}
+
 export function useCompletePlanStop(planId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (stopId: string) => plansApi.completePlanStop(planId, stopId),
-    onSuccess: () => {
+    // #278 — the answer carries no plan, and the refetch lands after the caller
+    // has moved on. Until then the cached plan still shows this stop in
+    // progress, and another tap would complete it a second time.
+    onSuccess: (_answer, stopId) => {
+      queryClient.setQueryData<Plan>(queryKeys.plan(planId), plan =>
+        plan
+          ? {
+              ...plan,
+              stops: plan.stops?.map(stop => (stop.id === stopId ? { ...stop, status: 'completed' as const } : stop)),
+            }
+          : plan,
+      )
       void queryClient.invalidateQueries({ queryKey: queryKeys.plan(planId) })
     },
+    onError: error => refreshRoomIfNotActive(queryClient, planId, error),
   })
 }
 
@@ -135,5 +159,6 @@ export function useCheckinPlanStop(planId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.plan(planId) })
     },
+    onError: error => refreshRoomIfNotActive(queryClient, planId, error),
   })
 }

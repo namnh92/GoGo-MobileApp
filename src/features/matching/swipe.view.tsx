@@ -39,6 +39,8 @@ import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { colors, glyph, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
+import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
+
 import { suggestionRunState } from './run-state'
 import { SuggestionRunNotice } from './suggestion-run-notice.view'
 import { styles } from './swipe.style'
@@ -73,6 +75,9 @@ export default function SwipeScreen() {
   const suggestions = useCurrentSuggestions(roomId)
   // Who may refresh an empty or stale run is the host (#199).
   const room = useRoom(roomId)
+  // The lobby sends people here once per run (#198); back there, it must not again.
+  const shownRunId = suggestions.data?.run?.id
+  useRoomStepShown(roomId, shownRunId ? runStep(shownRunId) : null)
   useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
   const castVote = useCastVote(roomId)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()

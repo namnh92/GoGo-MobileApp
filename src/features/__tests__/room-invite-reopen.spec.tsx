@@ -22,6 +22,8 @@ jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({ roomId: '311f5bd8-f853-4ced-af68-e04398d1451a' }),
+  // #276 — the lobby waits for a ready navigator before it routes.
+  useNavigationContainerRef: () => ({ isReady: () => true }),
 }))
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }))
 // A cold start: while the provider says 'hydrating' there is no session yet.
@@ -42,6 +44,9 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockRoom.query,
   useRoomRealtime: jest.fn(),
+  // #276 — the lobby reads the run and the plan once the room has them.
+  useCurrentSuggestions: () => ({ data: undefined, isPending: false, isError: false, error: null, isFetchedAfterMount: false, dataUpdatedAt: 0, refetch: jest.fn() }),
+  useCurrentPlan: () => ({ data: undefined, isPending: false, isError: false, error: null, isFetchedAfterMount: false, dataUpdatedAt: 0, refetch: jest.fn() }),
   useStartMatching: () => ({ mutateAsync: jest.fn(), isPending: false, isError: false, error: null }),
 }))
 

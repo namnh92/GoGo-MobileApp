@@ -7,6 +7,7 @@ import { AppState, type AppStateStatus } from 'react-native'
 import { isRetryable, isUnauthorized } from './errors'
 import { shouldPersistQuery } from './persist-policy'
 import { queryKeys } from './query-keys'
+import { forgetRoomSteps } from '@/shared/navigation/room-steps'
 
 const MAX_RETRIES = 3
 
@@ -73,6 +74,9 @@ export const queryPersister = createAsyncStoragePersister({
  * in-memory cache and the persisted copy.
  */
 export async function purgeCachedUserData(queryClient: QueryClient): Promise<void> {
+  // Which rooms' runs and plans were already shown belongs to the account too:
+  // the next one to sign in on this device has seen none of them (#198).
+  forgetRoomSteps()
   queryClient.removeQueries({ queryKey: queryKeys.rooms() })
   queryClient.removeQueries({ queryKey: ['plans'] })
   queryClient.removeQueries({ queryKey: ['me'] })

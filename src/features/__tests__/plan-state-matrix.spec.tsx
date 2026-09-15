@@ -37,9 +37,11 @@ jest.mock('@/shared/api', () => ({
   }),
   useLockPlanStop: () => mockIdleMutation,
   useRegeneratePlan: () => mockIdleMutation,
+  useStartDate: () => ({ ...mockIdleMutation, start: jest.fn(async () => null) }),
 }))
 
 import DatePlanScreen from '@/features/date-plan/date-plan.view'
+import { forgetRoomSteps, planStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
 
 function planWith(overrides: Record<string, unknown> = {}) {
   return {
@@ -119,5 +121,13 @@ describe('plan × audience', () => {
     mockRoom.query = loaded(roomFor('group-guest'))
     const view = await renderScreen(<DatePlanScreen />)
     expect(view.queryAllByText(REGENERATE)).toHaveLength(0)
+  })
+})
+
+describe('plan × the room it belongs to (#198)', () => {
+  it("records itself for its room, so the lobby's routing never bounces back here", async () => {
+    forgetRoomSteps()
+    await renderScreen(<DatePlanScreen />)
+    expect(wasRoomStepShown('room-1', planStep('plan-1'))).toBe(true)
   })
 })
