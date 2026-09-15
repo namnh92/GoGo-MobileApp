@@ -22,7 +22,7 @@ const mockPlan: { query: QueryLike } = { query: loaded(null) }
 const mockRoom: { query: QueryLike } = { query: loaded(null) }
 
 jest.mock('expo-router', () => {
-  const { useEffect } = require('react')
+  const { useEffect } = jest.requireActual<typeof import('react')>('react')
   return {
     // Focus follows mount here; a test blurs the screen through `mockFocus`.
     useFocusEffect: (effect: () => undefined | (() => void)) => {
