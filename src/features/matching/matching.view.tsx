@@ -17,6 +17,7 @@ import { useReducedMotion } from '@/shared/ui/feedback'
 import { AvatarCircle } from '@/shared/ui/primitives'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
+import { decisionScreen } from './decision-screen'
 import { styles } from './matching.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -66,15 +67,13 @@ export default function MatchingScreen() {
     })
   }, [capabilities.isHost, suggestions.isPending, hasRun, isStale, startMatching])
 
-  const decisionMode = room.data?.decisionMode
-  const ballotComplete = Boolean(suggestions.data?.candidates?.length) &&
-    suggestions.data!.candidates!.every(candidate => candidate.placeId && suggestions.data?.votes?.mine?.[candidate.placeId])
+  // The same rule the lobby follows for a member (#198).
+  const destination = decisionScreen(room.data?.decisionMode, room.data?.status, suggestions.data)
   useEffect(() => {
-    if (!hasRun || isStale || !decisionMode) return
-    const destination = decisionMode === 'host' || ballotComplete || room.data?.status === 'ready' ? 'match-result' : 'swipe'
+    if (!destination) return
     const timer = setTimeout(() => router.replace(`/room/${roomId}/${destination}`), 800)
     return () => clearTimeout(timer)
-  }, [hasRun, isStale, roomId, router, decisionMode, ballotComplete, room.data?.status])
+  }, [destination, roomId, router])
 
   const failed = startMatching.isError
   const notReady = isApiError(startMatching.error) && startMatching.error.status === 409

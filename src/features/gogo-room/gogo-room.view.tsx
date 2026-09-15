@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, ScrollView, Share, Text, View } from 'react-native'
+import { AccessibilityInfo, Alert, ScrollView, Share, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -13,6 +13,8 @@ import {
   type MemberSelectionStatus,
   type RoomMember,
   useCreateRoomInvite,
+  useCurrentPlan,
+  useCurrentSuggestions,
   useRoom,
   useRoomRealtime,
   useStartMatching,
@@ -22,7 +24,15 @@ import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { formatMoney } from '@/shared/pricing/money'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
+import { decisionScreen } from '@/features/matching/decision-screen'
 import { isUuid } from '@/shared/navigation/deep-link'
+import {
+  markRoomStepShown,
+  PLAN_UNAVAILABLE_NOTICE,
+  planStep,
+  runStep,
+  wasRoomStepShown,
+} from '@/shared/navigation/room-steps'
 import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
 import {
   Atmosphere,
@@ -67,7 +77,7 @@ export default function GoGoRoomScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { roomId } = useLocalSearchParams<{ roomId: string }>()
+  const { roomId, notice } = useLocalSearchParams<{ roomId: string; notice?: string }>()
   // GoGo-MobileApp#203: a param that is not a room id — an invite code in a room
   // link, or an id that never arrived — must not reach the API as
   // `GET /rooms/<junk>`. Every read below is keyed off the checked id.
@@ -95,6 +105,53 @@ export default function GoGoRoomScreen() {
   useEffect(() => {
     if (summary) rememberRoom(summary)
   }, [summary, rememberRoom])
+
+  // GoGo-MobileApp#198 — where the room is decides where everyone belongs, a
+  // member as much as the host. The lobby only ever showed who had picked, so a
+  // member sat here while the host's run and plan landed. The status comes from
+  // the poll above; the run and the plan are read only once the room has them.
+  const status = summary?.status
+  const suggestions = useCurrentSuggestions(status === 'matching' ? validRoomId : undefined)
+  const decided = status === 'ready' || status === 'active'
+  const currentPlan = useCurrentPlan(decided ? validRoomId : undefined)
+  const runId = suggestions.data?.run?.id
+  const screen = status === 'matching' ? decisionScreen(summary?.decisionMode, status, suggestions.data) : null
+  const planId = decided && isUuid(currentPlan.data?.id) ? currentPlan.data.id : undefined
+  const next = !validRoomId
+    ? null
+    : screen && runId
+      ? { step: runStep(runId), path: `/room/${validRoomId}/${screen}` }
+      : planId
+        ? { step: planStep(planId), path: `/plans/${planId}` }
+        : null
+  // A share sheet or a confirmation is up: the person is mid-action here.
+  const [holding, setHolding] = useState(false)
+  const nextStep = next?.step
+  const nextPath = next?.path
+  useEffect(() => {
+    if (!validRoomId || !nextStep || !nextPath) return
+    // Only the screen on top moves anyone, and a host starting the run moves
+    // themselves (`beginMatching`).
+    if (!focused || holding || starting.current) return
+    // Once per change. The screen that shows a step records it, so coming back
+    // here — Back, "Về phòng chờ", a superseded plan — never sends anyone round.
+    if (wasRoomStepShown(validRoomId, nextStep)) return
+    // A tick later, not in this commit: a room opened cold (a link, a
+    // notification) renders its lobby in the same pass that mounts the
+    // navigator, and expo-router refuses a push before that pass has finished.
+    const timer = setTimeout(() => {
+      if (starting.current || wasRoomStepShown(validRoomId, nextStep)) return
+      markRoomStepShown(validRoomId, nextStep)
+      router.push(nextPath)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [validRoomId, nextStep, nextPath, focused, holding, router])
+
+  const planUnavailable = notice === PLAN_UNAVAILABLE_NOTICE
+  useEffect(() => {
+    // The live region below is Android-only; VoiceOver needs the announcement.
+    if (planUnavailable) AccessibilityInfo.announceForAccessibility(t('gogoRoom.planUnavailable'))
+  }, [planUnavailable, t])
 
   const [inviteClock, setInviteClock] = useState(() => Date.now())
   useEffect(() => {
@@ -181,12 +238,15 @@ export default function GoGoRoomScreen() {
   async function invite() {
     if (!inviteUrl) return
     track('gogo_invite_shared', { channel: 'native_share', roomType })
+    setHolding(true)
     try {
       // Single share CTA → native share sheet; no hard-coded social buttons.
       await Share.share({ message: `${t('gogoRoom.title', { context: roomType })} ${inviteUrl}`, url: inviteUrl })
     } catch {
       await Clipboard.setStringAsync(inviteUrl).catch(() => {})
       flash(setLinkCopied)
+    } finally {
+      setHolding(false)
     }
   }
 
@@ -194,7 +254,9 @@ export default function GoGoRoomScreen() {
     if (starting.current) return
     starting.current = true
     try {
-      await startMatching.mutateAsync({ allowIncompletePreferences })
+      const started = await startMatching.mutateAsync({ allowIncompletePreferences })
+      // The host's own way on; the run it opens must not send them a second time.
+      if (validRoomId && started?.run?.id) markRoomStepShown(validRoomId, runStep(started.run.id))
       router.push(`/room/${roomId}/matching`)
     } catch {
       // The mutation's error state renders below; the room stays usable.
@@ -204,10 +266,11 @@ export default function GoGoRoomScreen() {
   }
 
   function confirmPartialMatching() {
+    setHolding(true)
     Alert.alert(t('gogoRoom.partialTitle'), t('gogoRoom.partialBody', { n: summary?.matching?.pendingCount }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('gogoRoom.partialContinue'), onPress: () => { void beginMatching(true) } },
-    ])
+      { text: t('common.cancel'), style: 'cancel', onPress: () => setHolding(false) },
+      { text: t('gogoRoom.partialContinue'), onPress: () => { setHolding(false); void beginMatching(true) } },
+    ], { onDismiss: () => setHolding(false) })
   }
 
   return (
@@ -216,6 +279,9 @@ export default function GoGoRoomScreen() {
         <BackHeader onBack={() => router.back()} />
       </View>
       <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
+      {planUnavailable ? (
+        <Text accessibilityLiveRegion="polite" style={styles.notice}>{t('gogoRoom.planUnavailable')}</Text>
+      ) : null}
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[8] }}>
         {roomType === 'group' ? (
           <View style={{ alignItems: 'center', marginTop: spacing[4], marginBottom: spacing[6] }}>

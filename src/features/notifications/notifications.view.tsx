@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router'
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
+import { getCurrentPlan, parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
 import { isUuid } from '@/shared/navigation/deep-link'
+import { PLAN_UNAVAILABLE_NOTICE } from '@/shared/navigation/room-steps'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
@@ -34,6 +35,27 @@ function routeFor(notification: Notification): string | null {
   }
 }
 
+const PLAN_KINDS: ReadonlySet<string> = new Set(['plan_ready', 'plan_changed', 'date_reminder'])
+
+/**
+ * GoGo-MobileApp#198 — a plan notification that names only its room (every one
+ * DEV sends: `{ eventType, roomId, resourceId }`) opens the room's current plan,
+ * as a tapped push does (#256), instead of the lobby. With no plan to open it
+ * still opens the room, and the room says why.
+ */
+async function resolveRoute(notification: Notification): Promise<string | null> {
+  const payload = (notification.payload ?? {}) as Record<string, unknown>
+  const roomId = isUuid(payload.roomId) ? payload.roomId : null
+  if (!roomId || isUuid(payload.planId) || !PLAN_KINDS.has(notification.kind ?? '')) return routeFor(notification)
+  try {
+    const plan = await getCurrentPlan(roomId)
+    if (isUuid(plan?.id)) return `/plans/${plan.id}`
+  } catch {
+    // No current plan, or it could not be read right now: the room is the way in.
+  }
+  return `/room/${roomId}?notice=${PLAN_UNAVAILABLE_NOTICE}`
+}
+
 export default function NotificationsScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -50,10 +72,21 @@ export default function NotificationsScreen() {
     [inbox.data],
   )
 
-  function open(notification: Notification) {
+  // Resolving a plan is a request: one row at a time, and the row says it is busy.
+  const opening = useRef(false)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+  async function open(notification: Notification) {
+    if (opening.current) return
+    opening.current = true
+    setOpeningId(notification.id ?? null)
     if (notification.id && !notification.readAt) markRead.mutate(notification.id)
-    const route = routeFor(notification)
-    if (route) router.push(route)
+    try {
+      const route = await resolveRoute(notification)
+      if (route) router.push(route)
+    } finally {
+      opening.current = false
+      setOpeningId(null)
+    }
   }
 
   const header = (
@@ -113,8 +146,13 @@ export default function NotificationsScreen() {
         renderItem={({ item }) => {
           const unread = !item.readAt
           const created = parseApiDate(item.createdAt)
+          const busy = openingId !== null && openingId === item.id
           return (
-            <Pressable onPress={() => open(item)} accessibilityRole="button">
+            <Pressable
+              onPress={() => void open(item)}
+              accessibilityRole="button"
+              accessibilityState={{ busy }}
+            >
               <GlassCard style={[styles.row, unread && styles.rowUnread]}>
                 {/* Unread is marked by more than colour (RULE-DS-COLOR). */}
                 <View style={styles.dotColumn}>
@@ -128,6 +166,7 @@ export default function NotificationsScreen() {
                     <Text style={styles.time}>{created.toLocaleString(i18n.language)}</Text>
                   ) : null}
                 </View>
+                {busy ? <ActivityIndicator /> : null}
               </GlassCard>
             </Pressable>
           )

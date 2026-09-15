@@ -76,6 +76,20 @@ describe('pollingTransport', () => {
     teardown()
   })
 
+  it('keeps the lobby at one room refresh per tick while it watches the run and the plan (#198)', async () => {
+    const { activity } = fakeActivity()
+    const { client, keysPerTick } = fakeClient()
+    const transport = createPollingTransport(activity)
+
+    const teardown = transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: client })
+    await advance(POLL_INTERVAL_MS.lobby)
+
+    // Suggestions and the current plan sit under room(id): one invalidation
+    // refetches whichever of them a screen is actually reading.
+    expect(keysPerTick()).toEqual([JSON.stringify(queryKeys.room(ROOM_ID))])
+    teardown()
+  })
+
   it('runs one poller per room however many screens subscribe', async () => {
     const { activity } = fakeActivity()
     const { client, keysPerTick } = fakeClient()

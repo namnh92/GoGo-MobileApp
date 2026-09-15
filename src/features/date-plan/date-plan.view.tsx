@@ -37,6 +37,8 @@ import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconNavigation } from '@/shared/ui/icons'
 import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
 
+import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
+
 import { styles } from './date-plan.style'
 
 const { brand, neutral } = colors
@@ -53,6 +55,9 @@ export default function DatePlanScreen() {
   const room = useRoom(summary?.roomId)
   // Another member can regenerate or lock while this screen is open.
   useRoomRealtime(summary?.roomId, 'plan')
+  // The lobby opens a room's plan once (#198). Its "go to the room" below must
+  // not bounce straight back here — only to a newer plan, when this one is superseded.
+  useRoomStepShown(summary?.roomId, summary?.id ? planStep(summary.id) : null)
   const lockStop = useLockPlanStop(planId)
   const regenerate = useRegeneratePlan(planId)
 

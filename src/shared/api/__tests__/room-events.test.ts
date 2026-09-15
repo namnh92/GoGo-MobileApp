@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
 import { queryKeys } from '../query-keys'
-import { applyRoomEvent, ROOM_PHASE_EVENTS, type RoomEventType } from '../realtime/room-events'
+import { applyRoomEvent, eventQueryKeys, ROOM_PHASE_EVENTS, type RoomEventType } from '../realtime/room-events'
 
 const ROOM_ID = 'room-1'
 
@@ -85,9 +85,19 @@ describe('ROOM_PHASE_EVENTS', () => {
     }
   })
 
-  it('keeps the lobby off suggestion and plan traffic', () => {
-    // Polling costs a request per event per tick; a lobby has no ranking yet.
+  it('lets the lobby see the run and the plan land, but not the tally (#198)', () => {
+    // The lobby sends a member on once the host's run or plan exists; on DEV it
+    // refreshed only the room and a member sat there while both landed. The
+    // polling transport folds these keys into the room's (see
+    // polling-transport.test.ts), so watching them costs no extra request.
+    const keys = ROOM_PHASE_EVENTS.lobby
+      .flatMap(type => eventQueryKeys({ type, roomId: ROOM_ID }))
+      .map(key => JSON.stringify(key))
+
+    expect(keys).toContain(JSON.stringify(queryKeys.room(ROOM_ID)))
+    expect(keys).toContain(JSON.stringify(queryKeys.roomSuggestions(ROOM_ID)))
+    expect(keys).toContain(JSON.stringify(queryKeys.roomCurrentPlan(ROOM_ID)))
+    expect(ROOM_PHASE_EVENTS.lobby).not.toContain('vote.changed')
     expect(ROOM_PHASE_EVENTS.lobby).not.toContain('suggestions.updated')
-    expect(ROOM_PHASE_EVENTS.lobby).not.toContain('plan.updated')
   })
 })

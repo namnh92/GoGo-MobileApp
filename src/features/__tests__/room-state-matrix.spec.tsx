@@ -45,6 +45,10 @@ jest.mock('@/shared/api', () => ({
     return mockRoom.query
   },
   useRoomMembers: () => mockMembers.query,
+  // The lobby reads the run and the plan once the room has them (#198); these
+  // rooms are still collecting.
+  useCurrentSuggestions: () => ({ isPending: false, isError: false, data: undefined, error: null }),
+  useCurrentPlan: () => ({ isPending: false, isError: false, data: undefined, error: null }),
   useRoomRealtime: jest.fn(),
   // Inlined rather than pulled from the harness: a jest.mock factory is
   // hoisted, so it can only close over `mock`-prefixed bindings.

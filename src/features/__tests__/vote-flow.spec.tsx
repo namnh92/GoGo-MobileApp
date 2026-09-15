@@ -40,6 +40,7 @@ jest.mock('@/shared/api', () => ({
 import MatchResult from '@/features/matching/match-result.view'
 import Swipe from '@/features/matching/swipe.view'
 import Matching from '@/features/matching/matching.view'
+import { resetRoomStepsForTests, runStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -154,5 +155,13 @@ describe('stale ranking recovery (#198)', () => {
     mockState.regenerateError = new ApiError(409, { code: 'STALE_SUGGESTIONS', message: 'changed' })
     const view = await renderScreen(<MatchResult />)
     expect(view.getByText('Có người vừa đổi lựa chọn trong lúc tạo gợi ý. Thử lại nhé.')).toBeTruthy()
+  })
+})
+
+describe('the run a decision screen shows (#198)', () => {
+  it.each([['deck', Swipe], ['result', MatchResult]] as const)('the %s records it, so the lobby never sends anyone back to it', async (_name, Screen) => {
+    resetRoomStepsForTests()
+    await renderScreen(<Screen />)
+    expect(wasRoomStepShown('room-1', runStep('run-1'))).toBe(true)
   })
 })
