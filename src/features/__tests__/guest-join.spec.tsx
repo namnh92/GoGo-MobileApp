@@ -48,9 +48,12 @@ const ROOM = '311f5bd8-f853-4ced-af68-e04398d1451a'
 const JOIN = 'Tham gia 🙌'
 const NAME = 'Tên hiển thị'
 
-function apiError(status: number): ApiError {
-  return new ApiError(status, { code: 'X', message: 'x', field_errors: [], request_id: 'test', retryable: false })
+function apiError(status: number, code = 'X'): ApiError {
+  return new ApiError(status, { code, message: 'x', field_errors: [], request_id: 'test', retryable: false })
 }
+
+const INVITE_GONE = 'Lời mời này không còn dùng được. Hỏi người tạo phòng gửi link mới nhé.'
+const ROOM_CLOSED = 'Phòng này không nhận thêm người nữa, nên link mới cũng không giúp được. Hỏi chủ phòng nếu bạn cần vào.'
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -98,11 +101,14 @@ describe('invite screen × session', () => {
   })
 
   it.each([
-    [410, 'Lời mời này không còn dùng được. Hỏi người tạo phòng gửi link mới nhé.'],
-    [404, 'Link mời không đúng hoặc phòng đã bị xoá.'],
-    [429, 'Thử quá nhiều lần. Đợi một chút rồi thử lại.'],
-  ])('tells a signed-in user what HTTP %s means and stays put', async (status, message) => {
-    mockJoinRoom.mockRejectedValue(apiError(status))
+    [410, 'INVITE_NOT_USABLE', INVITE_GONE],
+    // GoGo-MobileApp#248: a room that stopped taking members is not an expired invite.
+    [410, 'ROOM_NOT_JOINABLE', ROOM_CLOSED],
+    [410, 'SOMETHING_ELSE_GONE', INVITE_GONE],
+    [404, 'INVITE_NOT_FOUND', 'Link mời không đúng hoặc phòng đã bị xoá.'],
+    [429, 'RATE_LIMITED', 'Thử quá nhiều lần. Đợi một chút rồi thử lại.'],
+  ])('tells a signed-in user what HTTP %s %s means and stays put', async (status, code, message) => {
+    mockJoinRoom.mockRejectedValue(apiError(status, code))
     const view = await renderScreen(<GuestJoinScreen />)
 
     await fireEvent.press(view.getByText(JOIN))
@@ -121,6 +127,31 @@ describe('invite screen × session', () => {
 
     expect(await view.findByText('Lời mời này không còn dùng được. Hỏi người tạo phòng gửi link mới nhé.')).toBeTruthy()
     expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('tells a guest when the room no longer takes members, not that the invite expired (#248)', async () => {
+    mockSession.status = 'anonymous'
+    mockJoinAsGuest.mockRejectedValue(apiError(410, 'ROOM_NOT_JOINABLE'))
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.changeText(view.getByLabelText(NAME), 'Lan')
+    await fireEvent.press(view.getByText(JOIN))
+
+    expect(await view.findByText(ROOM_CLOSED)).toBeTruthy()
+    expect(view.queryByText(INVITE_GONE)).toBeNull()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('takes a member who reopens the invite of a finalised room straight into it (#248)', async () => {
+    // What the backend answers an existing member once it recognises them.
+    mockJoinRoom.mockResolvedValue({ roomId: ROOM, memberId: 'member-1', role: 'member' })
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.press(view.getByText(JOIN))
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM}`))
+    expect(view.queryByText(ROOM_CLOSED)).toBeNull()
+    expect(view.queryByText(INVITE_GONE)).toBeNull()
   })
 
   it('offers no join while a cold start is still reading the session', async () => {
