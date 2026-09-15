@@ -12,8 +12,11 @@ import {
   roomCapabilities,
   type MemberSelectionStatus,
   type RoomMember,
+  type RoomSummary,
   useCreateRoomInvite,
+  useRevokeRoomInvite,
   useRoom,
+  useRoomInvites,
   useRoomRealtime,
   useStartMatching,
 } from '@/shared/api'
@@ -39,6 +42,7 @@ import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
+import { resolveInviteDisplay } from './invite-state'
 import { roomScheduleLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
@@ -47,6 +51,8 @@ const { brand } = colors
 
 const AVATAR_COLORS = [brand.coral, brand.lavender, brand.mint, brand.amber]
 const VISIBLE_AVATARS = 3
+/** The API mints invites only while a room still takes members (GoGo-BE `createInvite`). */
+const JOINABLE: readonly RoomSummary['status'][] = ['draft', 'collecting']
 
 function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?'
@@ -79,16 +85,20 @@ export default function GoGoRoomScreen() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const room = useRoom(validRoomId)
+  const summary = room.data
+  const capabilities = roomCapabilities(summary)
   // Members join and finish picking while this screen is open; the realtime
   // layer owns how that freshness arrives.
   const focused = useScreenFocused()
   useRoomRealtime(validRoomId, 'lobby', { enabled: focused && validRoomId !== undefined })
-  const createInvite = useCreateRoomInvite(roomId)
+  // Invites are host-only on the server; a member's device neither lists them
+  // nor reads a stored code (#199).
+  const inviteRoomId = capabilities.canInvite ? validRoomId : undefined
+  const invites = useRoomInvites(inviteRoomId)
+  const createInvite = useCreateRoomInvite(inviteRoomId)
+  const revokeInvite = useRevokeRoomInvite(validRoomId ?? '')
   const startMatching = useStartMatching(roomId)
   const starting = useRef(false)
-
-  const summary = room.data
-  const capabilities = roomCapabilities(summary)
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
@@ -97,18 +107,34 @@ export default function GoGoRoomScreen() {
   }, [summary, rememberRoom])
 
   const [inviteClock, setInviteClock] = useState(() => Date.now())
+  // The API lists invites without codes; this device holds the code it created.
+  const storedInvite = createInvite.stored
+  const { display: inviteDisplay, forget: forgetStoredInvite } = resolveInviteDisplay({
+    stored: inviteRoomId ? storedInvite : null,
+    invites: invites.data,
+    invitesFailed: invites.isError,
+    listIsCurrent: invites.status === 'success' && !invites.isFetching
+      && invites.dataUpdatedAt > (storedInvite?.savedAt ?? 0),
+    now: inviteClock,
+  })
+  const shownExpiry = inviteDisplay.kind === 'code' || inviteDisplay.kind === 'active-elsewhere'
+    ? inviteDisplay.expiresAt : null
   useEffect(() => {
-    if (!createInvite.data) return
-    if (Date.parse(createInvite.data.expiresAt) <= inviteClock) return
-    const remaining = Date.parse(createInvite.data.expiresAt) - Date.now()
+    if (!shownExpiry) return
+    const remaining = Date.parse(shownExpiry) - Date.now()
     const timer = setTimeout(() => setInviteClock(Date.now()), Math.min(Math.max(0, remaining), 2_147_483_647))
     return () => clearTimeout(timer)
-  }, [createInvite.data, inviteClock])
-  const inviteCode = createInvite.data && Date.parse(createInvite.data.expiresAt) > inviteClock
-    ? createInvite.data.code : null
+  }, [shownExpiry, inviteClock])
+  // Revoked, expired, used up or no longer listed: the code can never let anyone in.
+  const deadInviteId = forgetStoredInvite ? storedInvite?.inviteId : undefined
+  const forgetInvite = createInvite.forget
+  useEffect(() => {
+    if (deadInviteId) void forgetInvite(deadInviteId)
+  }, [deadInviteId, forgetInvite])
+  const inviteCode = inviteDisplay.kind === 'code' ? inviteDisplay.code : null
   const creatingInvite = useRef(false)
   async function generateInvite() {
-    if (!capabilities.canInvite || creatingInvite.current || inviteCode) return
+    if (!capabilities.canInvite || creatingInvite.current || inviteDisplay.kind !== 'none') return
     creatingInvite.current = true
     try {
       await createInvite.mutateAsync({ maxUses: 20 })
@@ -117,6 +143,33 @@ export default function GoGoRoomScreen() {
     } finally {
       creatingInvite.current = false
     }
+  }
+
+  const [reissueFailed, setReissueFailed] = useState(false)
+  /** Another device holds the code: revoke it, then mint exactly one new one. */
+  async function reissueInvite(inviteId: string) {
+    if (!capabilities.canInvite || creatingInvite.current) return
+    creatingInvite.current = true
+    setReissueFailed(false)
+    try {
+      try {
+        await revokeInvite.mutateAsync(inviteId)
+      } catch {
+        setReissueFailed(true)
+        return
+      }
+      // One create per confirmed re-issue; a failure shows below and waits for the host.
+      await createInvite.mutateAsync({ maxUses: 20 }).catch(() => undefined)
+    } finally {
+      creatingInvite.current = false
+    }
+  }
+
+  function confirmReissue(inviteId: string) {
+    Alert.alert(t('gogoRoom.reissueTitle'), t('gogoRoom.reissueBody'), [
+      { text: t('gogoRoom.reissueCancel'), style: 'cancel' },
+      { text: t('gogoRoom.reissueConfirm'), style: 'destructive', onPress: () => { void reissueInvite(inviteId) } },
+    ])
   }
 
   if (!validRoomId) {
@@ -340,9 +393,32 @@ export default function GoGoRoomScreen() {
         {capabilities.canInvite ? (
           <GlassCard style={styles.codeCard}>
             <Text style={styles.codeCaption}>{t('gogoRoom.codeLabel')}</Text>
-            {!inviteCode ? (
+            {inviteDisplay.kind === 'none' ? (
               <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite}
                 loading={createInvite.isPending} disabled={createInvite.isPending || (createInvite.isError && !isRetryable(createInvite.error))} />
+            ) : null}
+            {inviteDisplay.kind === 'active-elsewhere' ? (
+              <>
+                <Text style={styles.inviteNote}>
+                  {t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })}
+                </Text>
+                {JOINABLE.includes(summary.status) ? (
+                  <SecondaryBtn
+                    label={t('gogoRoom.reissueInvite')}
+                    onPress={() => confirmReissue(inviteDisplay.inviteId)}
+                    loading={revokeInvite.isPending || createInvite.isPending}
+                  />
+                ) : null}
+              </>
+            ) : null}
+            {inviteDisplay.kind === 'unknown' ? (
+              <>
+                <Text accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.invitesLoadFailed')}</Text>
+                <GhostBtn label={t('common.retry')} onPress={() => void invites.refetch()} />
+              </>
+            ) : null}
+            {reissueFailed ? (
+              <Text accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.reissueFailed')}</Text>
             ) : null}
             {createInvite.isError ? (
               <Text accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.inviteFailed')}</Text>

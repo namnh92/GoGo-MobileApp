@@ -34,16 +34,9 @@ import { IconCheck, IconZap } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './match-result.style'
+import { regenerateErrorKey, SuggestionRunNotice } from './run-empty-state.view'
+import { suggestionRunState } from './run-state'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
-
-/** The host's refresh can itself be refused; say why instead of a blind retry. */
-function regenerateErrorKey(
-  error: unknown,
-): 'matchResult.regenerateRace' | 'gogoRoom.quorumRequired' | 'matchResult.regenerateFailed' {
-  if (isApiError(error) && error.code === 'STALE_SUGGESTIONS') return 'matchResult.regenerateRace'
-  if (isApiError(error) && error.code === 'MATCHING_QUORUM_REQUIRED') return 'gogoRoom.quorumRequired'
-  return 'matchResult.regenerateFailed'
-}
 
 export default function MatchResultScreen() {
   const { t } = useTranslation()
@@ -146,13 +139,19 @@ export default function MatchResultScreen() {
   }
 
   if (!winner) {
+    // No candidate is "not started yet" only when there is no run at all (#199).
+    const runState = suggestionRunState(suggestions.data)
     return (
       <Atmosphere>
-        <EmptyState
-          title={t('matchResult.emptyTitle')}
-          body={t('matchResult.emptyBody')}
-          action={<GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />}
-        />
+        {runState === 'stale' || runState === 'empty' ? (
+          <SuggestionRunNotice roomId={roomId} state={runState} isHost={capabilities.isHost} />
+        ) : (
+          <EmptyState
+            title={t('matchResult.emptyTitle')}
+            body={t('matchResult.emptyBody')}
+            action={<GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />}
+          />
+        )}
       </Atmosphere>
     )
   }

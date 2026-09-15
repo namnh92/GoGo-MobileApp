@@ -12,14 +12,16 @@ jest.mock('@/shared/api/endpoints/rooms', () => ({
 import { ApiError } from '@/shared/api/errors'
 import { useCreateRoomInvite, useRevokeRoomInvite } from '@/shared/api/queries/use-rooms'
 import { shouldPersistQuery } from '@/shared/api/persist-policy'
+import { loadInviteCode, purgeInviteCodes, saveInviteCode } from '@/shared/storage/invite-codes'
 
 let client: QueryClient
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
-beforeEach(() => {
+beforeEach(async () => {
   client = new QueryClient({ defaultOptions: { mutations: { retry: 2 }, queries: { retry: false } } })
   jest.clearAllMocks()
+  await purgeInviteCodes()
 })
 afterEach(() => client.clear())
 const invite = { inviteId: 'invite-1', code: 'code-1', expiresAt: '2099-01-01T00:00:00Z' }
@@ -86,4 +88,29 @@ it('clears a revoked code and keeps rooms isolated', async () => {
   expect(result.current.second.data).toBeUndefined()
   await act(async () => { await result.current.revoke.mutateAsync(invite.inviteId) })
   await waitFor(() => expect(result.current.first.data).toBeUndefined())
+})
+
+// #199: the code must survive a cold start, which an in-memory cache never did.
+it('keeps a created code in secure storage and reads it back with a fresh cache', async () => {
+  mockCreate.mockResolvedValue(invite)
+  const first = await renderHook(() => useCreateRoomInvite('room-1'), { wrapper })
+  await act(async () => { await first.result.current.mutateAsync({ maxUses: 20 }) })
+  expect((await loadInviteCode('room-1'))?.code).toBe(invite.code)
+  await first.unmount()
+  client.clear()
+
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const cold = await renderHook(() => useCreateRoomInvite('room-1'), { wrapper })
+  await waitFor(() => expect(cold.result.current.data?.code).toBe(invite.code))
+  expect(mockCreate).toHaveBeenCalledTimes(1)
+})
+
+it('deletes a stored code when its invite is revoked, even from another screen', async () => {
+  await saveInviteCode({ roomId: 'room-1', inviteId: invite.inviteId, code: invite.code, expiresAt: invite.expiresAt, savedAt: 1 })
+  mockRevoke.mockResolvedValue(undefined)
+  const { result } = await renderHook(() => useRevokeRoomInvite('room-1'), { wrapper })
+  await act(async () => { await result.current.mutateAsync('another-invite') })
+  expect(await loadInviteCode('room-1')).not.toBeNull()
+  await act(async () => { await result.current.mutateAsync(invite.inviteId) })
+  expect(await loadInviteCode('room-1')).toBeNull()
 })

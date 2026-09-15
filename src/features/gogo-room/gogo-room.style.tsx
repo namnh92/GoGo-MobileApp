@@ -61,6 +61,7 @@ export const styles = StyleSheet.create({
   chipLabel: { ...type.label, color: neutral[500] },
   codeCard: { padding: spacing[5], marginBottom: spacing[4] },
   codeCaption: { ...type.caption, color: neutral[500], marginBottom: spacing[2] },
+  inviteNote: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[3] },
   codeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   /**
    * The server issues an opaque token, not a five-character code people read

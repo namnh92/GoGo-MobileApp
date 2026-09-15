@@ -48,7 +48,10 @@ jest.mock('@/shared/api', () => ({
   useRoomRealtime: jest.fn(),
   // Inlined rather than pulled from the harness: a jest.mock factory is
   // hoisted, so it can only close over `mock`-prefixed bindings.
-  useCreateRoomInvite: () => mockIdleMutation,
+  // No stored code and no listed invite: the host sees "Tạo mã mời" (#199).
+  useCreateRoomInvite: () => ({ ...mockIdleMutation, stored: null, forget: jest.fn() }),
+  useRoomInvites: () => ({ isPending: false, isError: false, isFetching: false, status: 'success', data: [], dataUpdatedAt: 1, refetch: jest.fn() }),
+  useRevokeRoomInvite: () => mockIdleMutation,
   useStartMatching: () => mockIdleMutation,
 }))
 

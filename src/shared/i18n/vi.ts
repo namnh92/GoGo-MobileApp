@@ -252,6 +252,15 @@ export const viMessages = {
 
   'gogoRoom.createInvite': 'Tạo mã mời',
   'gogoRoom.inviteFailed': 'Chưa tạo được mã mời. Bạn vẫn có thể quản lý phòng và chọn sở thích.',
+  // #199: mã chỉ được trả về một lần và chỉ lưu trên máy đã tạo.
+  'gogoRoom.inviteActive': 'Phòng đang có mã mời còn hạn đến {{time}}. Mã chỉ hiện trên máy đã tạo ra nó.',
+  'gogoRoom.reissueInvite': 'Tạo mã mới',
+  'gogoRoom.reissueTitle': 'Tạo mã mời mới?',
+  'gogoRoom.reissueBody': 'Mã đang dùng sẽ ngừng hoạt động. Người đã vào phòng không bị ảnh hưởng; ai chưa vào cần mã mới.',
+  'gogoRoom.reissueConfirm': 'Thu hồi và tạo mã mới',
+  'gogoRoom.reissueCancel': 'Để sau',
+  'gogoRoom.reissueFailed': 'Chưa thu hồi được mã cũ. Thử lại nhé.',
+  'gogoRoom.invitesLoadFailed': 'Chưa kiểm tra được mã mời của phòng.',
   'gogoRoom.partialTitle': 'Tiếp tục với các lựa chọn hiện có?',
   'gogoRoom.partialBody': 'Còn {{n}} người chưa chọn xong. Họ vẫn ở trong kèo và được bình chọn; số người và ngân sách giữ nguyên.',
   'gogoRoom.partialContinue': 'Tiếp tục với lựa chọn hiện có',
@@ -378,6 +387,11 @@ export const viMessages = {
   'swipe.goToLobby': 'Về phòng',
   'swipe.doneTitle': 'Bạn đã vote hết rồi',
   'swipe.doneBody': 'Đợi mọi người vote nốt nhé.',
+  'suggestionRun.emptyTitle': 'Không tìm được địa điểm phù hợp',
+  'suggestionRun.emptyBodyHost': 'Chưa có địa điểm nào khớp với điều kiện của phòng. Thử chỉnh điều kiện phòng rồi tạo lại gợi ý.',
+  'suggestionRun.emptyBodyMember': 'Chưa có địa điểm nào khớp với điều kiện của phòng. Đợi chủ phòng chỉnh điều kiện hoặc tạo lại gợi ý.',
+  'suggestionRun.staleTitle': 'Gợi ý đã cũ',
+  'suggestionRun.adjustConstraints': 'Chỉnh điều kiện phòng',
 
   'waiting.title': 'Xong phần của\nbạn rồi!',
   'waiting.body': 'Đang đợi người kia chọn nốt.',

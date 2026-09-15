@@ -20,10 +20,12 @@ import {
   formatMinuteOfDay,
   openStateFromHours,
   placePriceParts,
+  roomCapabilities,
   toCandidateCard,
   useCastVote,
   useCurrentSuggestions,
   usePlaceDetail,
+  useRoom,
   useRoomRealtime,
   useTaxonomyLabel,
   type VoteValue,
@@ -37,6 +39,8 @@ import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { colors, glyph, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
+import { SuggestionRunNotice } from './run-empty-state.view'
+import { suggestionRunState } from './run-state'
 import { styles } from './swipe.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -67,6 +71,8 @@ export default function SwipeScreen() {
   const reducedMotion = useReducedMotion()
 
   const suggestions = useCurrentSuggestions(roomId)
+  // Who may refresh an empty or stale run is the host (#199).
+  const room = useRoom(roomId)
   useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
   const castVote = useCastVote(roomId)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
@@ -198,7 +204,10 @@ export default function SwipeScreen() {
     </View>
   )
 
-  if (suggestions.isPending) {
+  const runState = suggestionRunState(suggestions.data)
+  const needsRole = runState === 'stale' || runState === 'empty'
+
+  if (suggestions.isPending || (needsRole && room.isPending)) {
     return (
       <Atmosphere>
         {header}
@@ -220,7 +229,7 @@ export default function SwipeScreen() {
 
   // No run yet is an empty state, not an error: the room is still collecting,
   // or the host has not started matching.
-  if (!suggestions.data?.run || suggestions.data.run.stale || candidates.length === 0) {
+  if (runState === 'none') {
     return (
       <Atmosphere>
         {header}
@@ -228,6 +237,21 @@ export default function SwipeScreen() {
           title={t('swipe.notReadyTitle')}
           body={t('swipe.notReadyBody')}
           action={<GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />}
+        />
+      </Atmosphere>
+    )
+  }
+
+  // A stale run, or one that found nothing, is not "waiting for everyone" (#199).
+  if (runState === 'stale' || runState === 'empty') {
+    return (
+      <Atmosphere>
+        {header}
+        <SuggestionRunNotice
+          roomId={roomId}
+          state={runState}
+          isHost={roomCapabilities(room.data).isHost}
+          onRegenerated={() => setCardIndex(0)}
         />
       </Atmosphere>
     )
