@@ -41,37 +41,43 @@ export function alertWithHold(
   options?: AlertOptions,
 ): void {
   const release = hold()
-  Alert.alert(
-    title,
-    message,
-    buttons.map(button => ({
-      ...button,
-      // React Native types `onPress` as a union of two callbacks (plain and
-      // login/password prompts); whichever this button carries gets what it was given.
-      onPress: (...args: unknown[]) => {
-        release()
-        ;(button.onPress as ((...pressArgs: unknown[]) => void) | undefined)?.(...args)
+  try {
+    Alert.alert(
+      title,
+      message,
+      buttons.map(button => ({
+        ...button,
+        // React Native types `onPress` as a union of two callbacks (plain and
+        // login/password prompts); whichever this button carries gets what it was given.
+        onPress: (...args: unknown[]) => {
+          release()
+          ;(button.onPress as ((...pressArgs: unknown[]) => void) | undefined)?.(...args)
+        },
+      })),
+      {
+        ...options,
+        onDismiss: () => {
+          release()
+          options?.onDismiss?.()
+        },
       },
-    })),
-    {
-      ...options,
-      onDismiss: () => {
-        release()
-        options?.onDismiss?.()
-      },
-    },
-  )
+    )
+  } catch (error) {
+    // An alert that never showed must not keep the screen from moving.
+    release()
+    throw error
+  }
 }
 
 /**
  * Releases once the person is back in the app. Android's share module resolves
  * as soon as the chooser starts, not when it closes (iOS resolves on close), so
  * there the hold waits for the app to leave the foreground and return. When it
- * never leaves — the chooser did not open — a short grace releases it.
+ * never leaves — the chooser did not open — a grace of a few seconds releases it.
  */
 export function releaseOnReturn(
   release: ReleaseHold,
-  { activity = appActivity, graceMs = 1_000 }: { activity?: AppActivity; graceMs?: number } = {},
+  { activity = appActivity, graceMs = 3_000 }: { activity?: AppActivity; graceMs?: number } = {},
 ): void {
   let left = !activity.isActive()
   let done = false

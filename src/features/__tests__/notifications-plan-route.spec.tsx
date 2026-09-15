@@ -243,6 +243,18 @@ describe('taps while a row resolves', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
+  it('opens nothing once Back has closed the inbox (the screen unmounts)', async () => {
+    const answer = deferred<unknown>()
+    mockGetCurrentPlan.mockReturnValue(answer.promise)
+    const view = await renderScreen(<NotificationsScreen />)
+
+    await tap(view, PLAN_READY)
+    await act(async () => view.unmount())
+    await act(async () => answer.resolve({ id: PLAN_ID, roomId: ROOM_ID, status: 'current' }))
+
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
   it('does not hold a slow answer past the budget: the room opens, saying the plan is still loading', async () => {
     jest.useFakeTimers()
     mockGetCurrentPlan.mockReturnValue(new Promise(() => undefined))

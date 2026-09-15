@@ -276,7 +276,7 @@ export const enMessages: Record<MessageKey, string> = {
   'gogoRoom.starting': 'Matching…',
   'gogoRoom.startFailed': 'Could not start matching. Please try again.',
   'gogoRoom.planUnavailable': "Couldn't open this room's plan, so here is the room.",
-  'gogoRoom.planRetry': "Couldn't load this room's plan. Check your connection — GoGo opens the plan once it loads.",
+  'gogoRoom.planRetry': "Couldn't load this room's plan. Check your connection and try again.",
   'roomManage.title': 'Manage room',
   'roomTitle.title': 'Plan name',
   'roomTitle.body': 'Leave it empty to remove the name. Everyone in the room sees the new name.',

@@ -1,5 +1,5 @@
 import { Alert } from 'react-native'
-import { fireEvent } from '@testing-library/react-native'
+import { act, fireEvent } from '@testing-library/react-native'
 import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
 
 /**
@@ -191,7 +191,7 @@ describe('partial preference capability', () => {
       await fireEvent.press(view.getByText('Tiếp tục với lựa chọn hiện có'))
       expect(alert).toHaveBeenCalled()
       const confirm = alert.mock.calls[0][2]?.[1]
-      await confirm?.onPress?.()
+      await act(async () => confirm?.onPress?.())
       expect(mockIdleMutation.mutateAsync).toHaveBeenCalledWith({ allowIncompletePreferences: true })
     } finally { alert.mockRestore() }
   })

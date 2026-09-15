@@ -73,6 +73,19 @@ describe('alertWithHold', () => {
     expect(result.current.held).toBe(false)
   })
 
+  it('releases when the alert could not be shown at all', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {
+      throw new Error('no activity')
+    })
+    const { result } = await renderHook(() => useRoutingHold())
+
+    await act(async () => {
+      expect(() => alertWithHold(result.current.hold, 'Title', undefined, [{ text: 'OK' }])).toThrow('no activity')
+    })
+
+    expect(result.current.held).toBe(false)
+  })
+
   it('releases when Android dismisses the alert without a button', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
     const { result } = await renderHook(() => useRoutingHold())
@@ -102,13 +115,13 @@ describe('releaseOnReturn', () => {
     expect(listeners.size).toBe(0)
   })
 
-  it('releases after a short grace when the app never left', () => {
+  it('releases after a grace of a few seconds when the app never left', () => {
     jest.useFakeTimers()
     const { activity, listeners } = fakeActivity()
     const release = jest.fn()
 
-    releaseOnReturn(release, { activity, graceMs: 1_000 })
-    jest.advanceTimersByTime(999)
+    releaseOnReturn(release, { activity })
+    jest.advanceTimersByTime(2_999)
     expect(release).not.toHaveBeenCalled()
     jest.advanceTimersByTime(1)
 

@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { AccessibilityInfo, Alert, AppState, Platform, Share, Text, type AlertButton } from 'react-native'
 
 import { roomFor } from './harness'
+import * as analytics from '@/shared/analytics'
 import { useCurrentSuggestions } from '@/shared/api'
 import { viMessages } from '@/shared/i18n/vi'
 import { forgetRoomSteps, planStep, runStep, useRoomStepShown, wasRoomStepShown } from '@/shared/navigation/room-steps'
@@ -61,12 +62,12 @@ jest.mock('@/shared/api', () => {
       },
       () => (roomId ? pick(mockStore.rooms[roomId] ?? {}) : undefined),
     )
-  // A disabled query (no id) has no data; anything else here was read since mount.
+  // A disabled query (no id) has no data; anything else here was just read.
   const query = (data: unknown) => ({
     isPending: false,
     isError: false,
     isSuccess: data !== undefined,
-    isFetchedAfterMount: data !== undefined,
+    dataUpdatedAt: data !== undefined ? Date.now() : 0,
     data,
     error: null,
     refetch: jest.fn(),
@@ -328,6 +329,36 @@ describe('routing once per change', () => {
   })
 })
 
+describe('when a push keeps failing', () => {
+  it('gives up after a bounded number of tries, reports it without ids, and tries again once the lobby is shown again', async () => {
+    const track = jest.spyOn(analytics, 'track')
+    mockStore.set(ROOM_ID, { room: member() })
+    const view = await renderRoom()
+    const push = jest.spyOn(router, 'push').mockImplementation(() => {
+      throw new Error('navigator busy')
+    })
+
+    await poll({ room: member({ status: 'matching' }), suggestions: run() })
+    for (let i = 0; i < 30; i += 1) await settle()
+    const tries = push.mock.calls.length
+    for (let i = 0; i < 5; i += 1) await settle()
+
+    expect(tries).toBeGreaterThan(1)
+    expect(tries).toBeLessThanOrEqual(21)
+    expect(push.mock.calls.length).toBe(tries)
+    expect(view.pathname()).toBe(LOBBY)
+    expect(track.mock.calls.filter(([event]) => event === 'room_route_gave_up')).toEqual([
+      ['room_route_gave_up', { destination: 'decision', reason: 'push_failed' }],
+    ])
+
+    push.mockRestore()
+    await navigate(() => router.push(`${LOBBY}/matching`))
+    await navigate(() => router.back())
+
+    expect(view.pathname()).toBe(`${LOBBY}/swipe`)
+  })
+})
+
 describe('the host', () => {
   it('starts matching with one push, to the matching screen, and nothing is pushed over it', async () => {
     mockStore.set(ROOM_ID, { room: host() })
@@ -431,8 +462,8 @@ describe('the host', () => {
       // The module already resolved; the chooser is another activity.
       expect(view.pathname()).toBe(LOBBY)
 
-      // The app never left the foreground: the chooser did not open. A short grace ends the hold.
-      await settle(1_000)
+      // The app never left the foreground: the chooser did not open. A grace ends the hold.
+      await settle(3_000)
       await settle()
       expect(view.pathname()).toBe(`/plans/${PLAN_ID}`)
     } finally {

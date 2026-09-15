@@ -113,11 +113,14 @@ export default function GoGoRoomScreen() {
   const suggestions = useCurrentSuggestions(focused && status === 'matching' ? validRoomId : undefined)
   const decided = status === 'ready' || status === 'active'
   const currentPlan = useCurrentPlan(focused && decided ? validRoomId : undefined)
-  // Only facts fetched since this screen opened move anyone. The cache is
-  // persisted for a day: a room that moved on while the app was closed would
-  // otherwise send a member to a closed vote or a replaced plan.
-  const confirmed = (query: { isFetchedAfterMount: boolean; isSuccess: boolean }) =>
-    query.isFetchedAfterMount && query.isSuccess
+  // Only facts read since this screen opened move anyone, judged by the clock.
+  // The cache is persisted for a day, and on a cold start its restore can land
+  // after this screen mounts, carrying the old read's counters with it — so
+  // "fetched after mount" would pass an hour-old room and send a member to a
+  // closed vote or a replaced plan.
+  const [openedAt] = useState(() => Date.now())
+  const confirmed = (query: { isSuccess: boolean; dataUpdatedAt: number }) =>
+    query.isSuccess && query.dataUpdatedAt >= openedAt
   const runId = status === 'matching' && confirmed(suggestions) ? suggestions.data?.run?.id : undefined
   const screen = runId ? decisionScreen(summary?.decisionMode, status, suggestions.data) : null
   const fetchedPlanId = decided && confirmed(currentPlan) ? currentPlan.data?.id : undefined
@@ -136,8 +139,13 @@ export default function GoGoRoomScreen() {
   // counting failures makes the routing below look again.
   const [startFailures, setStartFailures] = useState(0)
   const navigation = useNavigationContainerRef()
-  const navAttempts = useRef({ step: '', count: 0 })
+  const navAttempts = useRef({ step: '', count: 0, gaveUp: false })
   const [navTick, setNavTick] = useState(0)
+  // Shown again, the lobby gets a fresh set of attempts. Declared before the
+  // routing effect, so a re-focus resets them before it runs.
+  useEffect(() => {
+    if (focused) navAttempts.current = { step: '', count: 0, gaveUp: false }
+  }, [focused])
 
   const planNotice = notice === PLAN_UNAVAILABLE_NOTICE || notice === PLAN_RETRY_NOTICE ? notice : null
   // Once the plan is known, the notice explaining its absence is not true any
@@ -163,21 +171,29 @@ export default function GoGoRoomScreen() {
     // Once per change. The screen that shows a step records it, so coming back
     // here — Back, "Về phòng chờ", a superseded plan — never sends anyone round.
     if (wasRoomStepShown(validRoomId, nextStep)) return
-    if (navAttempts.current.step !== nextStep) navAttempts.current = { step: nextStep, count: 0 }
-    const lookAgain = () => {
-      if (navAttempts.current.count >= NAV_ATTEMPTS_MAX) return undefined
-      navAttempts.current.count += 1
+    if (navAttempts.current.step !== nextStep) navAttempts.current = { step: nextStep, count: 0, gaveUp: false }
+    const lookAgain = (reason: 'navigator_not_ready' | 'push_failed') => {
+      const attempts = navAttempts.current
+      if (attempts.count >= NAV_ATTEMPTS_MAX) {
+        // Said once per step, with no ids: which kind of move, and why not.
+        if (!attempts.gaveUp) {
+          track('room_route_gave_up', { destination: nextStep.startsWith('plan:') ? 'plan' : 'decision', reason })
+        }
+        attempts.gaveUp = true
+        return undefined
+      }
+      attempts.count += 1
       const timer = setTimeout(() => setNavTick(tick => tick + 1), NAV_RETRY_MS)
       return () => clearTimeout(timer)
     }
     // A room opened cold renders its lobby in the pass that mounts the
     // navigator, and expo-router refuses a push until that pass is done.
-    if (!navigation.isReady()) return lookAgain()
+    if (!navigation.isReady()) return lookAgain('navigator_not_ready')
     try {
       router.push(nextPath)
     } catch {
       // Not pushed is not shown: nothing is recorded, and it is tried again.
-      return lookAgain()
+      return lookAgain('push_failed')
     }
     markRoomStepShown(validRoomId, nextStep)
   }, [validRoomId, nextStep, nextPath, focused, routingHold.held, startFailures, navTick, navigation, router])

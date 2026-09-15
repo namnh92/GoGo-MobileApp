@@ -1,11 +1,10 @@
-import { useRouter } from 'expo-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
-import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
@@ -32,12 +31,17 @@ export default function NotificationsScreen() {
 
   // Where a row opens is a request away (#198, see inbox-target.ts). The latest
   // tap wins, the row being resolved says so, and nothing opens once the
-  // person has left the inbox.
-  const focused = useScreenFocused()
-  const focusedNow = useRef(focused)
-  useEffect(() => {
-    focusedNow.current = focused
-  }, [focused])
+  // person has left the inbox. Leaving by Back unmounts it before a state
+  // update could commit, so the focus callback sets a ref itself.
+  const onScreen = useRef(true)
+  useFocusEffect(
+    useCallback(() => {
+      onScreen.current = true
+      return () => {
+        onScreen.current = false
+      }
+    }, []),
+  )
   const latestTap = useRef(0)
   const openingNow = useRef<string | null>(null)
   const [openingId, setOpeningId] = useState<string | null>(null)
@@ -56,7 +60,7 @@ export default function NotificationsScreen() {
     if (tap !== latestTap.current) return
     openingNow.current = null
     setOpeningId(null)
-    if (!focusedNow.current) return
+    if (!onScreen.current) return
     if (decision.to === 'open') router.push(decision.path)
     else if (decision.to === 'refused' || decision.to === 'retry') setOpenProblem(decision.to)
   }

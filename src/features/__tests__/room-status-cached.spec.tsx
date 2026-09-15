@@ -1,4 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { dehydrate, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider, type PersistedClient, type Persister } from '@tanstack/react-query-persist-client'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { act, renderRouter } from 'expo-router/testing-library'
 import { useEffect, type ReactNode } from 'react'
@@ -10,13 +11,19 @@ import { forgetRoomSteps } from '@/shared/navigation/room-steps'
 
 /**
  * GoGo-MobileApp#198 review — the query cache is persisted for a day. A room
- * that moved on while the app was closed hydrates as it was: still `matching`
- * with a run whose votes now 409 `ROOM_NOT_MATCHING`, or `ready` with a plan
- * that has since been replaced. The lobby must move no one on what it only
- * remembers; it waits for reads made since it opened.
+ * that moved on while the app was closed comes back as it was: still
+ * `matching` with a run whose votes now 409 `ROOM_NOT_MATCHING`, or `ready`
+ * with a plan that has since been replaced. The lobby must move no one on what
+ * it only remembers.
  *
- * Real hooks and a real QueryClient here; only the endpoints are faked, and
- * each answers when the test says so.
+ * On a cold start from a link the app renders the lobby while
+ * `PersistQueryClientProvider` is still restoring; the restore then copies the
+ * old read's `dataUpdateCount` into the query the lobby already observes, which
+ * made that hour-old room look "fetched after mount". Freshness is judged by
+ * the clock instead.
+ *
+ * Real hooks and a real QueryClient; only the endpoints are faked, and each
+ * answers when the test says so.
  */
 
 jest.mock('expo-router/build/testing-library/expect', () => ({}))
@@ -60,6 +67,7 @@ function deferred<T>() {
 const member = (status: RoomStatus) =>
   roomFor('group-guest', { id: ROOM_ID, status, decisionMode: 'vote' }, { everyonePicked: true })
 const run = { run: { id: RUN_ID, stale: false }, candidates: [{ placeId: 'place-1', rank: 1 }], votes: { mine: {}, progress: [] } }
+const planNew = { id: PLAN_NEW, roomId: ROOM_ID, status: 'current' }
 
 function DestinationStub({ label }: { label: string }) {
   const params = useLocalSearchParams()
@@ -69,20 +77,44 @@ function DestinationStub({ label }: { label: string }) {
 
 let client: QueryClient
 
-/** The app's query defaults, with a cache as hydration leaves it: an hour old. */
-function hydrated(seed: [readonly unknown[], unknown][]): QueryClient {
-  const created = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, gcTime: 24 * HOUR, retry: false } } })
-  for (const [key, data] of seed) created.setQueryData(key, data, { updatedAt: Date.now() - HOUR })
-  return created
+/** The app's query defaults (query-client.ts), without retries so a failure shows at once. */
+function appClient(): QueryClient {
+  return new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, gcTime: 24 * HOUR, retry: false } } })
 }
 
-async function settle() {
-  await act(async () => {
-    jest.advanceTimersByTime(50)
-  })
+/** What was saved to disk an hour ago. */
+function savedCache(entries: [readonly unknown[], unknown][]): PersistedClient {
+  const previousLaunch = appClient()
+  for (const [key, data] of entries) previousLaunch.setQueryData(key, data, { updatedAt: Date.now() - HOUR })
+  return { timestamp: Date.now(), buster: '', clientState: dehydrate(previousLaunch) }
 }
 
-async function renderLobby() {
+/** A disk read that finishes when the test says: after the lobby has mounted. */
+function slowDisk(restored: Promise<PersistedClient | undefined>): Persister {
+  return {
+    persistClient: async () => undefined,
+    restoreClient: () => restored,
+    removeClient: async () => undefined,
+  }
+}
+
+async function settle(times = 1) {
+  for (let i = 0; i < times; i += 1) {
+    await act(async () => {
+      jest.advanceTimersByTime(50)
+    })
+  }
+}
+
+async function renderLobby(persister?: Persister) {
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    persister ? (
+      <PersistQueryClientProvider client={client} persistOptions={{ persister, maxAge: 24 * HOUR }}>
+        {children}
+      </PersistQueryClientProvider>
+    ) : (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
   const view = renderRouter(
     {
       _layout: () => <Stack />,
@@ -91,10 +123,7 @@ async function renderLobby() {
       'room/[roomId]/match-result': () => <DestinationStub label="result" />,
       'plans/[planId]/index': () => <DestinationStub label="plan" />,
     },
-    {
-      initialUrl: LOBBY,
-      wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
-    },
+    { initialUrl: LOBBY, wrapper },
   )
   await view
   await settle()
@@ -114,50 +143,100 @@ afterEach(() => {
   jest.useRealTimers()
 })
 
-it('does not send a member to a vote that closed while the app was away', async () => {
-  client = hydrated([
-    [queryKeys.room(ROOM_ID), member('matching')],
-    [queryKeys.roomSuggestions(ROOM_ID), run],
-  ])
-  const room = deferred<unknown>()
-  const suggestions = deferred<unknown>()
-  mockGetRoom.mockReturnValue(room.promise)
-  mockGetSuggestions.mockReturnValue(suggestions.promise)
-  mockGetCurrentPlan.mockResolvedValue({ id: PLAN_NEW, roomId: ROOM_ID, status: 'current' })
-  const view = await renderLobby()
+describe('a cold start from a link, restoring the cache after the lobby mounted', () => {
+  it('does not send a member to the remembered vote while the room has not been read', async () => {
+    client = appClient()
+    const disk = deferred<PersistedClient | undefined>()
+    // The room read never answers; the run read does.
+    mockGetRoom.mockReturnValue(new Promise(() => undefined))
+    mockGetSuggestions.mockResolvedValue(run)
+    mockGetCurrentPlan.mockResolvedValue(planNew)
+    const view = await renderLobby(slowDisk(disk.promise))
 
-  // Remembered: matching, with a run. Nothing read yet.
-  expect(view.pathname()).toBe(LOBBY)
-  // The run is still there on the server, but the room has not been read.
-  await act(async () => suggestions.resolve(run))
-  await settle()
-  expect(view.pathname()).toBe(LOBBY)
+    await act(async () =>
+      disk.resolve(savedCache([
+        [queryKeys.room(ROOM_ID), member('matching')],
+        [queryKeys.roomSuggestions(ROOM_ID), run],
+      ])),
+    )
+    await settle(3)
 
-  // The room finished while the app was closed.
-  await act(async () => room.resolve(member('ready')))
-  await settle()
-  await settle()
+    expect(mockGetSuggestions).toHaveBeenCalled()
+    expect(view.pathname()).toBe(LOBBY)
+    expect(mockOpened).toEqual([])
+  })
 
-  expect(view.pathname()).toBe(`/plans/${PLAN_NEW}`)
-  expect(mockOpened).toEqual([`plan:${PLAN_NEW}`])
+  it('moves no one while the room read fails, and moves the member once a later read succeeds', async () => {
+    client = appClient()
+    const disk = deferred<PersistedClient | undefined>()
+    mockGetRoom.mockRejectedValueOnce(new Error('Network request failed')).mockResolvedValue(member('ready'))
+    mockGetSuggestions.mockResolvedValue(run)
+    mockGetCurrentPlan.mockResolvedValue(planNew)
+    const view = await renderLobby(slowDisk(disk.promise))
+
+    await act(async () =>
+      disk.resolve(savedCache([
+        [queryKeys.room(ROOM_ID), member('matching')],
+        [queryKeys.roomSuggestions(ROOM_ID), run],
+      ])),
+    )
+    await settle(3)
+    expect(view.pathname()).toBe(LOBBY)
+    expect(mockOpened).toEqual([])
+
+    // The next poll tick: the room finished while the app was closed.
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: queryKeys.room(ROOM_ID) })
+    })
+    await settle(3)
+
+    expect(view.pathname()).toBe(`/plans/${PLAN_NEW}`)
+    expect(mockOpened).toEqual([`plan:${PLAN_NEW}`])
+  })
 })
 
-it('does not open a plan remembered from before it was replaced', async () => {
-  client = hydrated([
-    [queryKeys.room(ROOM_ID), member('ready')],
-    [queryKeys.roomCurrentPlan(ROOM_ID), { id: PLAN_OLD, roomId: ROOM_ID, status: 'current' }],
-  ])
-  const current = deferred<unknown>()
-  mockGetRoom.mockResolvedValue(member('ready'))
-  mockGetCurrentPlan.mockReturnValue(current.promise)
-  const view = await renderLobby()
+describe('a warm cache from before', () => {
+  it('does not send a member to a vote that closed while the app was away', async () => {
+    client = appClient()
+    for (const [key, data] of [
+      [queryKeys.room(ROOM_ID), member('matching')],
+      [queryKeys.roomSuggestions(ROOM_ID), run],
+    ] as const) client.setQueryData(key, data, { updatedAt: Date.now() - HOUR })
+    const room = deferred<unknown>()
+    const suggestions = deferred<unknown>()
+    mockGetRoom.mockReturnValue(room.promise)
+    mockGetSuggestions.mockReturnValue(suggestions.promise)
+    mockGetCurrentPlan.mockResolvedValue(planNew)
+    const view = await renderLobby()
 
-  // The room is confirmed ready; the plan is only remembered.
-  expect(view.pathname()).toBe(LOBBY)
+    // The run is still there on the server, but the room has not been read.
+    await act(async () => suggestions.resolve(run))
+    await settle()
+    expect(view.pathname()).toBe(LOBBY)
 
-  await act(async () => current.resolve({ id: PLAN_NEW, roomId: ROOM_ID, status: 'current' }))
-  await settle()
+    await act(async () => room.resolve(member('ready')))
+    await settle(2)
 
-  expect(view.pathname()).toBe(`/plans/${PLAN_NEW}`)
-  expect(mockOpened).toEqual([`plan:${PLAN_NEW}`])
+    expect(view.pathname()).toBe(`/plans/${PLAN_NEW}`)
+    expect(mockOpened).toEqual([`plan:${PLAN_NEW}`])
+  })
+
+  it('does not open a plan remembered from before it was replaced', async () => {
+    client = appClient()
+    client.setQueryData(queryKeys.room(ROOM_ID), member('ready'), { updatedAt: Date.now() - HOUR })
+    client.setQueryData(queryKeys.roomCurrentPlan(ROOM_ID), { id: PLAN_OLD, roomId: ROOM_ID, status: 'current' }, { updatedAt: Date.now() - HOUR })
+    const current = deferred<unknown>()
+    mockGetRoom.mockResolvedValue(member('ready'))
+    mockGetCurrentPlan.mockReturnValue(current.promise)
+    const view = await renderLobby()
+
+    // The room is confirmed ready; the plan is only remembered.
+    expect(view.pathname()).toBe(LOBBY)
+
+    await act(async () => current.resolve(planNew))
+    await settle()
+
+    expect(view.pathname()).toBe(`/plans/${PLAN_NEW}`)
+    expect(mockOpened).toEqual([`plan:${PLAN_NEW}`])
+  })
 })

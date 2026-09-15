@@ -279,7 +279,7 @@ export const viMessages = {
   'gogoRoom.starting': 'Đang ghép…',
   'gogoRoom.startFailed': 'Chưa ghép được. Thử lại nhé.',
   'gogoRoom.planUnavailable': 'Chưa mở được kế hoạch của phòng này, nên GoGo mở phòng cho bạn.',
-  'gogoRoom.planRetry': 'Chưa tải được kế hoạch của phòng này. Kiểm tra kết nối — GoGo sẽ mở kế hoạch khi tải được.',
+  'gogoRoom.planRetry': 'Chưa tải được kế hoạch của phòng này. Kiểm tra kết nối rồi thử lại.',
   'roomManage.title': 'Quản lý phòng',
   'roomTitle.title': 'Tên kèo',
   'roomTitle.body': 'Để trống nếu muốn bỏ tên. Mọi người trong phòng sẽ thấy tên mới.',
