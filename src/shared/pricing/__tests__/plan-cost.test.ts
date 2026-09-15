@@ -119,7 +119,7 @@ describe('planCost', () => {
 })
 
 describe('a plan stored before GoGo-BE#593 (uncertain: false, one stop unpriced)', () => {
-  const legacy = (stops: Array<{ costMin: number | null; costMax: number | null }>) =>
+  const legacy = (stops: { costMin: number | null; costMax: number | null }[]) =>
     toPlanSummary({
       id: 'p1',
       roomId: 'r1',
