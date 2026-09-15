@@ -33,6 +33,8 @@ import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconZap } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
+import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
+
 import { styles } from './match-result.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -54,6 +56,9 @@ export default function MatchResultScreen() {
   const room = useRoom(roomId)
   const suggestions = useCurrentSuggestions(roomId)
   const plan = useCurrentPlan(roomId)
+  // The lobby sends people here once per run (#198); back there, it must not again.
+  const shownRunId = suggestions.data?.run?.id
+  useRoomStepShown(roomId, shownRunId ? runStep(shownRunId) : null)
   useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
 
   const finalize = useFinalizeVotes(roomId)
@@ -271,7 +276,11 @@ export default function MatchResultScreen() {
                   key={candidate.placeId}
                   accessibilityRole="button"
                   accessibilityLabel={candidate.name}
-                  onPress={() => decisionMode === 'host' ? setSelectedPlaceId(candidate.placeId) : router.push(`/places/${candidate.placeId}`)}
+                  // Choosing the winner is the host's, in host mode; anyone else
+                  // opens the place rather than swapping a winner only they see.
+                  onPress={() => capabilities.isHost && decisionMode === 'host'
+                    ? setSelectedPlaceId(candidate.placeId)
+                    : router.push(`/places/${candidate.placeId}`)}
                   style={styles.runnerAction}
                 >
                   <GlassCard style={styles.runnerRow}>

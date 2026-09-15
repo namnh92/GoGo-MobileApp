@@ -14,6 +14,8 @@ const OFFLINE = 'Đang ngoại tuyến — đây là bản đã lưu trên máy.
 
 const mockPlan: { query: QueryLike } = { query: loaded(null) }
 const mockIdleMutation = { mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false, isError: false, error: null }
+// #262 — the active date is live only for an `active` room.
+const mockActiveRoom = { data: { status: 'active' }, isPending: false, isFetching: false, isError: false, error: null }
 
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
@@ -24,6 +26,7 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlan: () => mockPlan.query,
+  useRoom: () => mockActiveRoom,
   usePlanStopPlaces: () => ({
     byPlaceId: new Map([['place-1', { id: 'place-1', name: 'Quán A', addressText: 'Quận 3' }]]),
     isPending: false,

@@ -45,6 +45,7 @@ export const styles = StyleSheet.create({
   title: { ...type.display, color: neutral[900], textAlign: 'center' },
   body: { ...type.body, color: neutral[500], textAlign: 'center', marginTop: spacing[2], marginBottom: spacing[6] },
   error: { ...type.bodySmall, color: brand.red, textAlign: 'center', marginTop: spacing[3] },
+  notice: { ...type.bodySmall, color: neutral[500], textAlign: 'center', marginTop: spacing[3], paddingHorizontal: spacing[5] },
   chipsCard: {
     padding: spacing[4],
     marginBottom: spacing[4],

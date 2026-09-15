@@ -19,6 +19,8 @@ import { styles } from './plans.style'
 
 /** Statuses that still have something ahead of them. */
 const UPCOMING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'matching', 'ready', 'active']
+/** Still deciding: such a room opens on its lobby, anything later on its plan (#198). */
+const DECIDING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'matching']
 
 export default function PlansScreen() {
   const { t, i18n } = useTranslation()
@@ -45,11 +47,14 @@ export default function PlansScreen() {
   const visible = tab === 'upcoming' ? upcoming : past
 
   function openRoom(room: RoomListItem) {
-    // A finished room's plan is the thing worth reopening; an active one is not.
-    if (!UPCOMING.includes(room.status) && room.planId) {
+    // A room with a plan — ready, active or finished — reopens that plan. The
+    // lobby is for a room still deciding (#198: a ready room used to open it).
+    if (room.planId && !DECIDING.includes(room.status)) {
       router.push(`/plans/${room.planId}`)
       return
     }
+    // A card with no plan id still gets there: the lobby resolves the room's
+    // current plan and opens it.
     router.push(`/room/${room.id}`)
   }
 
