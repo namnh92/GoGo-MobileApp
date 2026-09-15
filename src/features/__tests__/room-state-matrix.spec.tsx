@@ -40,6 +40,8 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }))
+// The lobby reads the session status (#199); the real provider pulls in OneSignal.
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -55,7 +57,10 @@ jest.mock('@/shared/api', () => ({
   useRoomRealtime: jest.fn(),
   // Inlined rather than pulled from the harness: a jest.mock factory is
   // hoisted, so it can only close over `mock`-prefixed bindings.
-  useCreateRoomInvite: () => mockIdleMutation,
+  // No stored code and no listed invite: the host sees "Tạo mã mời" (#199).
+  useCreateRoomInvite: () => ({ ...mockIdleMutation, stored: null, forget: jest.fn() }),
+  useRoomInvites: () => ({ isPending: false, isError: false, isFetching: false, status: 'success', data: [], dataUpdatedAt: 1, refetch: jest.fn() }),
+  useRevokeRoomInvite: () => mockIdleMutation,
   useStartMatching: () => mockIdleMutation,
 }))
 

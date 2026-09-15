@@ -36,6 +36,8 @@ const mockStore = {
 }
 const mockMounts = { matching: 0, swipe: 0, result: 0, plan: 0 }
 const mockStart = { mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false, isError: false, error: null }
+// #275 — the lobby's invite list; the code comes from the device's stored invite.
+const mockInviteList: { data: unknown[] } = { data: [] }
 const mockInvite: Record<string, unknown> = {
   mutate: jest.fn(),
   mutateAsync: jest.fn(async () => ({})),
@@ -51,6 +53,10 @@ const mockInvite: Record<string, unknown> = {
 // a dependency.
 jest.mock('expo-router/build/testing-library/expect', () => ({}))
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }))
+
+// #275 — the lobby reads the session status (hydration gate); the real
+// provider imports native OneSignal. Same stand-in as #275's room-state-matrix spec.
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 
 jest.mock('@/shared/api', () => {
   const { useSyncExternalStore } = jest.requireActual('react')
@@ -79,6 +85,16 @@ jest.mock('@/shared/api', () => {
     useCurrentPlan: (id?: string) => query(useFacts(id, facts => facts.plan)),
     useRoomRealtime: () => ({ status: 'polling' }),
     useCreateRoomInvite: () => mockInvite,
+    // #275 — the lobby lists and can re-issue invites.
+    useRoomInvites: () => ({
+      ...query(mockInviteList.data),
+      isFetching: false,
+      isPaused: false,
+      status: 'success',
+      dataUpdatedAt: 2,
+      refetch: jest.fn(async () => ({ status: 'success', data: mockInviteList.data })),
+    }),
+    useRevokeRoomInvite: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), reset: jest.fn(), isPending: false, isError: false, error: null }),
     useStartMatching: () => mockStart,
   }
 })
@@ -182,6 +198,8 @@ beforeEach(() => {
   Object.assign(mockMounts, { matching: 0, swipe: 0, result: 0, plan: 0 })
   mockStart.mutateAsync.mockReset()
   mockInvite.data = undefined
+  mockInvite.stored = undefined
+  mockInviteList.data = []
 })
 
 afterEach(() => {
@@ -428,7 +446,11 @@ describe('the host', () => {
     jest.spyOn(Share, 'share').mockImplementation(
       () => new Promise(resolve => { close = () => resolve({ action: 'sharedAction' }) }),
     )
-    mockInvite.data = { code: 'ABC123', inviteId: 'invite-1', expiresAt: new Date(Date.now() + 3_600_000).toISOString() }
+    const expiresAt = new Date(Date.now() + 3_600_000).toISOString()
+    mockInvite.data = { code: 'ABC123', inviteId: 'invite-1', expiresAt }
+    // #275 — the shown code is the stored invite, confirmed by a current list.
+    mockInvite.stored = { roomId: ROOM_ID, inviteId: 'invite-1', code: 'ABC123', expiresAt, userId: 'me', savedAt: 1 }
+    mockInviteList.data = [{ inviteId: 'invite-1', expiresAt, revoked: false, useCount: 0, maxUses: 20 }]
     mockStore.set(ROOM_ID, { room: host({}, false) })
     const view = await renderRoom()
 
@@ -451,7 +473,11 @@ describe('the host', () => {
     appState.currentState = 'active'
     try {
       jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
-      mockInvite.data = { code: 'ABC123', inviteId: 'invite-1', expiresAt: new Date(Date.now() + 3_600_000).toISOString() }
+      const expiresAt = new Date(Date.now() + 3_600_000).toISOString()
+      mockInvite.data = { code: 'ABC123', inviteId: 'invite-1', expiresAt }
+      // #275 — the shared code is the stored invite, confirmed by a current list.
+      mockInvite.stored = { roomId: ROOM_ID, inviteId: 'invite-1', code: 'ABC123', expiresAt, userId: 'me', savedAt: 1 }
+      mockInviteList.data = [{ inviteId: 'invite-1', expiresAt, revoked: false, useCount: 0, maxUses: 20 }]
       mockStore.set(ROOM_ID, { room: host({}, false) })
       const view = await renderRoom()
 

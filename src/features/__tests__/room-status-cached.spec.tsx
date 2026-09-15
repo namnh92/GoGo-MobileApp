@@ -28,6 +28,8 @@ import { forgetRoomSteps } from '@/shared/navigation/room-steps'
 
 jest.mock('expo-router/build/testing-library/expect', () => ({}))
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }))
+// #275 — the lobby reads the session status; the real provider imports native OneSignal.
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 
 const mockGetRoom = jest.fn()
 const mockGetSuggestions = jest.fn()

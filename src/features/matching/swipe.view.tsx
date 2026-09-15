@@ -20,10 +20,12 @@ import {
   formatMinuteOfDay,
   openStateFromHours,
   placePriceParts,
+  roomCapabilities,
   toCandidateCard,
   useCastVote,
   useCurrentSuggestions,
   usePlaceDetail,
+  useRoom,
   useRoomRealtime,
   useTaxonomyLabel,
   type VoteValue,
@@ -39,6 +41,8 @@ import { colors, glyph, hitSlop, motion, overlay, spacing } from '@/shared/ui/to
 
 import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
+import { suggestionRunState } from './run-state'
+import { SuggestionRunNotice } from './suggestion-run-notice.view'
 import { styles } from './swipe.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -69,6 +73,8 @@ export default function SwipeScreen() {
   const reducedMotion = useReducedMotion()
 
   const suggestions = useCurrentSuggestions(roomId)
+  // Who may refresh an empty or stale run is the host (#199).
+  const room = useRoom(roomId)
   // The lobby sends people here once per run (#198); back there, it must not again.
   const shownRunId = suggestions.data?.run?.id
   useRoomStepShown(roomId, shownRunId ? runStep(shownRunId) : null)
@@ -203,7 +209,10 @@ export default function SwipeScreen() {
     </View>
   )
 
-  if (suggestions.isPending) {
+  const runState = suggestionRunState(suggestions.data)
+  const needsRole = runState === 'stale' || runState === 'empty'
+
+  if (suggestions.isPending || (needsRole && room.isPending)) {
     return (
       <Atmosphere>
         {header}
@@ -225,7 +234,7 @@ export default function SwipeScreen() {
 
   // No run yet is an empty state, not an error: the room is still collecting,
   // or the host has not started matching.
-  if (!suggestions.data?.run || suggestions.data.run.stale || candidates.length === 0) {
+  if (runState === 'none') {
     return (
       <Atmosphere>
         {header}
@@ -234,6 +243,27 @@ export default function SwipeScreen() {
           body={t('swipe.notReadyBody')}
           action={<GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />}
         />
+      </Atmosphere>
+    )
+  }
+
+  // A stale run, or one that found nothing, is not "waiting for everyone" (#199).
+  if (runState === 'stale' || runState === 'empty') {
+    return (
+      <Atmosphere>
+        {header}
+        {room.data ? (
+          // A refetch that failed keeps the cached room, and with it the role.
+          <SuggestionRunNotice
+            roomId={roomId}
+            state={runState}
+            isHost={roomCapabilities(room.data).isHost}
+            onRegenerated={() => setCardIndex(0)}
+          />
+        ) : (
+          // With no room the role is unknown; a host must never be told to wait for the host.
+          <ErrorState error={room.error} onRetry={() => void room.refetch()} />
+        )}
       </Atmosphere>
     )
   }
