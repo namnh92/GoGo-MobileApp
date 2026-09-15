@@ -44,8 +44,14 @@ export default function GuestJoinScreen() {
   const trimmedName = displayName.trim()
 
   function toMessage(caught: unknown): string {
-    // 410 covers expired, revoked and spent invites — all mean "ask for a new
-    // link", which is a different action from a transient failure.
+    // GoGo-MobileApp#248 — two 410s ask for different next steps, so read the
+    // code. A room past collecting takes nobody new: a fresh link would not
+    // help, and saying "ask for a new link" sent people round in circles.
+    if (isApiError(caught) && caught.code === 'ROOM_NOT_JOINABLE') return t('guestJoin.roomNotJoinableBody')
+    // A room past its expiry (`ROOM_EXPIRED`) is not coming back either.
+    if (isApiError(caught) && caught.code === 'ROOM_EXPIRED') return t('guestJoin.roomExpiredBody')
+    // Expired, revoked or spent (`INVITE_NOT_USABLE`) — a new link does help.
+    // Any other 410 keeps that reading, as before.
     if (isApiError(caught) && caught.status === 410) return t('guestJoin.expiredBody')
     if (isApiError(caught) && caught.status === 404) return t('guestJoin.notFoundBody')
     if (isApiError(caught) && caught.status === 429) return t('auth.rateLimited')

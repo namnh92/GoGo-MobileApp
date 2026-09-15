@@ -324,6 +324,8 @@ export const enMessages: Record<MessageKey, string> = {
   'guestJoin.joining': 'Joining…',
   'guestJoin.expiredTitle': 'Invite expired',
   'guestJoin.expiredBody': 'This invite no longer works. Ask the host for a new link.',
+  'guestJoin.roomNotJoinableBody': "This room isn't taking new people any more, so a new link won't help. Ask the host if you need to join.",
+  'guestJoin.roomExpiredBody': "This room has expired, so a new link won't help. Ask the host to start a new room.",
   'guestJoin.notFoundTitle': 'Room not found',
   'guestJoin.notFoundBody': 'The invite link is wrong or the room was deleted.',
   'guestJoin.failed': 'Could not join. Please try again.',
@@ -343,6 +345,8 @@ export const enMessages: Record<MessageKey, string> = {
   'joinByCode.codeLabel': 'Invite code',
   'joinByCode.codePlaceholder': 'Paste the code here',
   'joinByCode.expired': 'That invite expired or was revoked. Ask the host for a new one.',
+  'joinByCode.roomNotJoinable': "This room isn't taking new people any more, so a new code won't help. Ask the host if you need to join.",
+  'joinByCode.roomExpired': "This room has expired, so a new code won't help. Ask the host to start a new room.",
   'joinByCode.notFound': 'No room matches that code.',
   'joinByCode.failed': 'Could not join. Please try again.',
 
