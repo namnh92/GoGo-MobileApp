@@ -12,6 +12,7 @@ export const viMessages = {
   'administrative.changed': 'Dữ liệu hành chính đã thay đổi. Hãy chọn lại tỉnh và phường/xã.',
   'common.continue': 'Tiếp tục',
   'common.back': 'Quay lại',
+  'common.cancel': 'Huỷ',
   'common.details': 'Chi tiết',
   'common.directions': 'Chỉ đường',
   'common.copy': 'Copy',

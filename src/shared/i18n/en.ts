@@ -11,6 +11,7 @@ export const enMessages: Record<MessageKey, string> = {
   'administrative.changed': 'Administrative data changed. Please reselect your province and ward/commune.',
   'common.continue': 'Continue',
   'common.back': 'Back',
+  'common.cancel': 'Cancel',
   'common.details': 'Details',
   'common.directions': 'Directions',
   'common.copy': 'Copy',
