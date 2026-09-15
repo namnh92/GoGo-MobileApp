@@ -14,7 +14,7 @@ import {
   useRoom,
   toRoomAudience,
 } from '@/shared/api'
-import { planCost } from '@/shared/pricing/plan-cost'
+import { costLineText, planCost, scopeLabel } from '@/shared/pricing/plan-cost'
 import { ErrorState } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
@@ -68,6 +68,8 @@ export default function SharedResultScreen() {
   const participantCount = room.data.participantCount
   // GoGo-MobileApp#249 — the stats and the share line use the same scoped amounts.
   const cost = summary ? planCost(summary, toRoomAudience(room.data), t) : null
+  // The whole-room figure, or the words for no price when there is no number.
+  const totalLine = cost ? (cost.whole ?? (cost.primary.amount === null ? cost.primary : null)) : null
 
   /**
    * The pipeline's own explainable score parts, rendered as they are. The
@@ -86,7 +88,7 @@ export default function SharedResultScreen() {
     // Plain share via the native sheet (spec: no story/social-specific CTA).
     haptic('select')
     try {
-      const line = [winner?.name, cost?.primary ?? null]
+      const line = [winner?.name, cost ? costLineText(cost.primary) : null]
         .filter(Boolean)
         .join(' · ')
       await Share.share({ message: `${t('sharedResult.title')}${line ? ` — ${line}` : ''}` })
@@ -174,15 +176,21 @@ export default function SharedResultScreen() {
                   {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m
                 </Text>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>{t('datePlan.total')}</Text>
-                <Text style={styles.statValue}>{cost?.whole ?? cost?.primary}</Text>
-              </View>
+              {/* The amount is the value and its scope the label, so neither
+                  crowds the other out of a stat card. */}
+              {totalLine ? (
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>
+                    {totalLine.amount ? scopeLabel(totalLine) : t('datePlan.total')}
+                  </Text>
+                  <Text style={styles.statValue}>{totalLine.amount ?? totalLine.unit}</Text>
+                </View>
+              ) : null}
               {/* Only a per-person amount the API stated — never a total divided up. */}
-              {cost?.perPerson ? (
+              {cost?.perPerson?.amount ? (
                 <View style={styles.statCard}>
                   <Text style={styles.statLabel}>{t('sharedResult.perPerson')}</Text>
-                  <Text style={styles.statValue}>{cost.perPerson}</Text>
+                  <Text style={styles.statValue}>{cost.perPerson.amount}</Text>
                 </View>
               ) : null}
             </View>

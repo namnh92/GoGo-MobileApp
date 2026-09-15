@@ -453,6 +453,12 @@ export interface PlanSummary {
   costScope: BudgetScope | null
   /** Some stop has a price in `costScope`; otherwise there is no amount to show. */
   priced: boolean
+  /**
+   * Some stop has no price in `costScope`, so `costMax` is a floor. Read from
+   * the stops rather than `uncertain`, which also covers low confidence and was
+   * `false` on plans stored before GoGo-BE#593 even with an unpriced stop.
+   */
+  hasUnpricedStop: boolean
   currency: string
   durationMinutes: number
   travelDistanceM: number
@@ -476,6 +482,7 @@ export function toPlanSummary(plan: Plan): PlanSummary {
     costMax: totals?.costMax ?? 0,
     costScope: totals?.costScope ?? null,
     priced: stops.some(stop => stop.costMin !== null || stop.costMax !== null),
+    hasUnpricedStop: stops.some(stop => stop.costMin === null || stop.costMax === null),
     currency: totals?.currency ?? 'VND',
     durationMinutes: totals?.durationMinutes ?? 0,
     travelDistanceM: totals?.travelDistanceM ?? 0,

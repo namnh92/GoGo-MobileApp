@@ -19,7 +19,7 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
-import { planCost, stopCostLabel } from '@/shared/pricing/plan-cost'
+import { costLineText, planCost, stopCostLabel } from '@/shared/pricing/plan-cost'
 import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
@@ -306,15 +306,15 @@ export default function DatePlanScreen() {
         <View style={styles.summaryRow}>
           <View style={styles.summaryColMain}>
             <Text style={styles.summaryCaption}>{t('datePlan.total')}</Text>
-            {/* One formatter owns the amount, its scope, and the `~` of a total
-                with an uncertain stop price (GoGo-MobileApp#249). */}
-            <Text style={styles.summaryValue} numberOfLines={1}>
-              {cost.primary}
-            </Text>
+            {/* One formatter owns the amount and its scope (GoGo-MobileApp#249).
+                They are separate texts so the scope wraps under the amount
+                instead of being truncated off a narrow screen. */}
+            <View style={styles.summaryAmountRow}>
+              {cost.primary.amount ? <Text style={styles.summaryValue}>{cost.primary.amount}</Text> : null}
+              <Text style={cost.primary.amount ? styles.summaryUnit : styles.summaryValue}>{cost.primary.unit}</Text>
+            </View>
             {cost.secondary ? (
-              <Text style={styles.summarySecondary} numberOfLines={1}>
-                {cost.secondary}
-              </Text>
+              <Text style={styles.summarySecondary}>{costLineText(cost.secondary)}</Text>
             ) : null}
             {/* Computed from the upper bound — never soften it. */}
             {summary.overBudget ? (

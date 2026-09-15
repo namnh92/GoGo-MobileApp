@@ -90,6 +90,7 @@ export const styles = StyleSheet.create({
   summaryColMain: { flex: 1, minWidth: 0 },
   summaryCol: { flexShrink: 0 },
   summaryCaption: { ...type.caption, color: neutral[500] },
+  summaryAmountRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' },
   summaryValue: { ...type.title2, color: neutral[900] },
   summaryUnit: { ...type.caption, color: neutral[500] },
   summarySecondary: { ...type.caption, color: neutral[500], flexShrink: 1 },

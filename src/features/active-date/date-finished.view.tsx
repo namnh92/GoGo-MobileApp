@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text, View } from 'react-native'
 
 import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom, toRoomAudience } from '@/shared/api'
-import { planCost } from '@/shared/pricing/plan-cost'
+import { costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Atmosphere, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
@@ -77,8 +77,8 @@ export default function DateFinishedScreen() {
           <Text style={styles.footerMeta}>
             {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m ·{' '}
             {/* Scoped, and `~` while a stop's price is uncertain. */}
-            {cost.primary}
-            {cost.secondary ? ` · ${cost.secondary}` : ''}
+            {costLineText(cost.primary)}
+            {cost.secondary ? ` · ${costLineText(cost.secondary)}` : ''}
           </Text>
           <Text style={styles.footerMeta}>
             {t('dateFinished.stopsDone', { done: completed.length, total: summary.stops.length })}

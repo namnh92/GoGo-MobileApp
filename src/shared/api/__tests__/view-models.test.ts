@@ -316,6 +316,7 @@ describe('toPlanSummary × cost scope (GoGo-MobileApp#249)', () => {
     expect(summary.costScope).toBe('per_person')
     expect(summary.stops[0].costScope).toBe('per_person')
     expect(summary.priced).toBe(false)
+    expect(summary.hasUnpricedStop).toBe(true)
   })
 
   it('invents no scope for a plan cached before the contract stated one', () => {
@@ -327,5 +328,6 @@ describe('toPlanSummary × cost scope (GoGo-MobileApp#249)', () => {
     expect(summary.costScope).toBeNull()
     expect(summary.stops[0].costScope).toBeNull()
     expect(summary.priced).toBe(true)
+    expect(summary.hasUnpricedStop).toBe(false)
   })
 })

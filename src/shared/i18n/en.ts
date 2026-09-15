@@ -434,6 +434,7 @@ export const enMessages: Record<MessageKey, string> = {
   'datePlan.unlockedToast': 'No longer keeping {{name}}',
   'price.groupTotal': 'group total',
   'price.groupTotalOf': 'group total for {{n}}',
+  'price.atLeast': 'from {{amount}}',
   'price.unit.per_person': '/person',
   'price.unit.per_group': ' · group total',
   'price.unit.per_item': '/item',

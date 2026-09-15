@@ -1,7 +1,5 @@
 import { loaded, pending, roomFor, renderScreen, type QueryLike } from './harness'
 
-import { formatMoney } from '@/shared/pricing/money'
-
 /**
  * GoGo-MobileApp#249 (PX-9; regression #218 I21 on the iPhone 11 Pro Max): the
  * plan screen labelled a per-person sum as a group total and divided it by the
@@ -80,8 +78,10 @@ describe('plan cost × unit', () => {
     mockPlan.query = loaded(planCosting(250_000, 450_000))
     const view = await renderScreen(<DatePlanScreen />)
 
-    expect(view.getByText('450k/người')).toBeTruthy()
-    expect(view.getByText(`${formatMoney(1_350_000)} tổng nhóm 3 người`)).toBeTruthy()
+    // Amount and scope are separate texts, so the scope can wrap, not truncate.
+    expect(view.getByText('450k')).toBeTruthy()
+    expect(view.getByText('/người')).toBeTruthy()
+    expect(view.getByText('1,4tr tổng nhóm 3 người')).toBeTruthy()
     expect(view.getByText('250k–450k/người')).toBeTruthy()
     expect(view.queryByText(/450k tổng nhóm/)).toBeNull()
     expect(view.queryByText(/150k/)).toBeNull()
@@ -92,8 +92,9 @@ describe('plan cost × unit', () => {
     mockPlan.query = loaded(planCosting(90_000, 180_000))
     const view = await renderScreen(<DatePlanScreen />)
 
-    expect(view.getByText('360k cho 2 người')).toBeTruthy()
-    expect(view.queryByText('180k cho 2 người')).toBeNull()
+    expect(view.getByText('360k')).toBeTruthy()
+    expect(view.getByText(' cho 2 người')).toBeTruthy()
+    expect(view.queryByText('180k')).toBeNull()
     expect(view.getByText('90k–180k/người')).toBeTruthy()
   })
 
@@ -112,7 +113,22 @@ describe('plan cost × unit', () => {
     mockPlan.query = loaded(planCosting(250_000, 450_000))
     const view = await renderScreen(<DatePlanScreen />)
 
-    expect(view.getByText('450k/người')).toBeTruthy()
+    expect(view.getByText('450k')).toBeTruthy()
+    expect(view.getByText('/người')).toBeTruthy()
     expect(view.queryByText(/cho 2 người|tổng nhóm/)).toBeNull()
+  })
+
+  it('reads a plan stored before GoGo-BE#593 with an unpriced stop as a floor (uncertain: false)', async () => {
+    mockRoom.query = loaded(roomFor('group-host', { participantCount: 4 }))
+    const plan = planCosting(250_000, 250_000)
+    plan.totals.uncertain = false
+    plan.stops.push({ ...plan.stops[0], id: 'stop-2', placeId: 'place-2', position: 1, costMin: null, costMax: null })
+    mockPlan.query = loaded(plan)
+    const view = await renderScreen(<DatePlanScreen />)
+
+    expect(view.getByText('từ 250k')).toBeTruthy()
+    expect(view.getByText('từ 1tr tổng nhóm 4 người')).toBeTruthy()
+    expect(view.getByText('Chưa có thông tin giá')).toBeTruthy()
+    expect(view.queryByText(/~/)).toBeNull()
   })
 })
