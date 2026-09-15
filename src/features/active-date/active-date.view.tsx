@@ -1,11 +1,13 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  isForbidden,
   isOffline,
+  isRetryable,
   isRoomNotActive,
   toPlanSummary,
   useCheckinPlanStop,
@@ -13,6 +15,7 @@ import {
   usePlan,
   usePlanStopPlaces,
   useRoom,
+  type PlanStopRow,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
@@ -28,6 +31,13 @@ import { glyph, spacing } from '@/shared/ui/tokens'
 
 import { CheckinSheet, type CheckinDraft } from './checkin-sheet.view'
 import { styles } from './active-date.style'
+
+/** What the check-in sheet is about, fixed when it opens so the plan cannot move it (#278). */
+interface CheckinTarget {
+  stop: PlanStopRow
+  /** Closing the sheet ends the date: this stop was the last one, and it is completed. */
+  finishesDate: boolean
+}
 
 export default function ActiveDateScreen() {
   const { t } = useTranslation()
@@ -46,7 +56,17 @@ export default function ActiveDateScreen() {
   const completeStop = useCompletePlanStop(planId)
   const checkinStop = useCheckinPlanStop(planId)
 
-  const [checkinOpen, setCheckinOpen] = useState(checkin === '1' || checkin === 'bill')
+  const deepLinked = checkin === '1' || checkin === 'bill'
+  const [checkinOpen, setCheckinOpen] = useState(deepLinked)
+  // #278 — completing a stop moves the first `planned` stop on while the sheet
+  // is still open. Reading that live stop filed the check-in against the next
+  // stop and, at the second-to-last stop, finished the date early. The sheet's
+  // stop is captured when it opens instead.
+  const [target, setTarget] = useState<CheckinTarget | null>(null)
+  // Two taps can land before the button renders busy; one completion per stop.
+  const completing = useRef(false)
+  // The finished screen opens once, however the last sheet is closed.
+  const finished = useRef(false)
 
   // #251 — a room that is not `active` refuses stop completion and check-in.
   // That is the room's state, not the network, and a retry will not fix it. A
@@ -76,14 +96,21 @@ export default function ActiveDateScreen() {
 
   const stops = summary?.stops ?? []
   // Progress comes from the server's stop status, not a local counter, so the
-  // screen is correct after a reload or on a second device.
-  const currentIndex = Math.max(
-    0,
-    stops.findIndex(stop => stop.status === 'planned'),
-  )
-  const stop = stops[currentIndex]
-  const nextStop = stops[currentIndex + 1]
+  // screen is correct after a reload or on a second device. With every stop
+  // done there is no current stop; it used to fall back to the first (#278).
+  const currentIndex = stops.findIndex(stop => stop.status === 'planned')
+  const stop = currentIndex >= 0 ? stops[currentIndex] : undefined
+  const nextStop = stop
+    ? stops.find((candidate, index) => index > currentIndex && candidate.status === 'planned')
+    : undefined
   const placeName = stop ? (places.byPlaceId.get(stop.placeId)?.name ?? '') : ''
+
+  // A deep link (`?checkin=1`) checks in at the stop in progress, captured the
+  // first time the plan shows one. That stop is not completed, so closing its
+  // sheet never ends the date.
+  if (deepLinked && checkinOpen && target === null && stop) {
+    setTarget({ stop, finishesDate: false })
+  }
   const address = stop ? places.byPlaceId.get(stop.placeId)?.addressText : undefined
 
   const stopPlace = stop ? places.byPlaceId.get(stop.placeId) : undefined
@@ -94,7 +121,10 @@ export default function ActiveDateScreen() {
       : null
 
   async function onDone() {
-    if (!stop) return
+    if (!stop || completing.current) return
+    // Captured before the write: the plan update it triggers moves `stop` on.
+    const completed: CheckinTarget = { stop, finishesDate: nextStop === undefined }
+    completing.current = true
     track('stop_completed', { placeId: stop.placeId, index: currentIndex + 1 })
     // Finishing a stop is the one commitment on this screen.
     haptic('success')
@@ -102,48 +132,85 @@ export default function ActiveDateScreen() {
       await completeStop.mutateAsync(stop.id)
       // A write landed, so an earlier check-in refusal no longer describes the room.
       checkinStop.reset()
+      setTarget(completed)
       setCheckinOpen(true)
     } catch {
       // The plan query keeps the previous state; the user can retry.
+    } finally {
+      completing.current = false
     }
   }
 
-  function advance() {
+  /** Closes the sheet, and finishes the date when the stop checked in was the last. */
+  function moveOn(closed: CheckinTarget) {
     setCheckinOpen(false)
-    if (!nextStop) {
-      track('date_completed', { stops: stops.length })
-      router.replace(`/plans/${planId}/finished`)
-    }
+    if (!closed.finishesDate || finished.current) return
+    finished.current = true
+    track('date_completed', { stops: stops.length })
+    router.replace(`/plans/${planId}/finished`)
   }
 
-  async function onSaveCheckin(draft: CheckinDraft) {
-    if (!stop) return
+  function viewSummary() {
+    router.replace(`/plans/${planId}/finished`)
+  }
+
+  /** Resolves true once the check-in landed; otherwise the sheet keeps its draft. */
+  async function onSaveCheckin(saved: CheckinTarget, draft: CheckinDraft): Promise<boolean> {
     try {
       await checkinStop.mutateAsync({
-        stopId: stop.id,
+        stopId: saved.stop.id,
         rating: draft.rating,
         tags: draft.tags,
         ...(draft.note ? { note: draft.note } : {}),
         ...(draft.photoKeys.length > 0 ? { photoKeys: draft.photoKeys } : {}),
       })
       track('stop_checkin_saved', {
-        placeId: stop.placeId,
+        placeId: saved.stop.placeId,
         rating: draft.rating,
         tags: draft.tags.join(','),
         photos: draft.photoKeys.length,
       })
       completeStop.reset()
     } catch (error) {
-      // Check-in is optional; a failure must not block the date. A room that is
-      // not in progress is different: every later write fails the same way, so
-      // stay on this stop and say why.
-      if (isRoomNotActive(error)) {
-        setCheckinOpen(false)
-        return
-      }
+      // A room that is not in progress refuses every later write the same way,
+      // so stay on this stop and say why (#251). Any other failure keeps the
+      // sheet and its draft: the sheet says why, Save retries what can be
+      // retried, and Skip still moves the date on, so a check-in never blocks
+      // it (#278).
+      if (isRoomNotActive(error)) setCheckinOpen(false)
+      return false
     }
-    advance()
+    moveOn(saved)
+    return true
   }
+
+  // Only a failure a retry can fix asks for one.
+  const checkinFailure =
+    !checkinStop.isError || isRoomNotActive(checkinStop.error)
+      ? null
+      : isOffline(checkinStop.error)
+        ? t('checkin.saveFailedOffline')
+        : isForbidden(checkinStop.error)
+          ? t('common.permissionDenied')
+          : isRetryable(checkinStop.error)
+            ? t('checkin.saveFailed')
+            : t('checkin.saveRefused')
+
+  // Keyed by stop, so each stop starts from a fresh draft, and the same sheet
+  // and draft survive a plan or room update that swaps the layout around it
+  // (the last stop done, here or on another phone).
+  const sheet = target ? (
+    <CheckinSheet
+      key={target.stop.id}
+      visible={checkinOpen}
+      stop={target.stop}
+      placeName={places.byPlaceId.get(target.stop.placeId)?.name ?? ''}
+      pending={checkinStop.isPending}
+      error={checkinFailure}
+      onSave={draft => onSaveCheckin(target, draft)}
+      onSkip={() => moveOn(target)}
+    />
+  ) : null
 
   if (plan.isPending || awaitingRoom) {
     return (
@@ -195,20 +262,33 @@ export default function ActiveDateScreen() {
             action={
               <PrimaryBtn
                 label={t(ended ? 'datePlan.viewSummary' : 'activeDate.backToPlan')}
-                onPress={ended ? () => router.replace(`/plans/${planId}/finished`) : backToPlan}
+                onPress={ended ? viewSummary : backToPlan}
                 style={styles.notActiveCta}
               />
             }
           />
         </View>
+        {/* Only an ended room still takes check-ins; there the sheet and its draft
+            survive the room ending. Any other room refuses the save, so a check-in
+            link opens nothing. */}
+        {ended ? sheet : null}
       </Atmosphere>
     )
   }
 
+  // Every stop is done: arriving back after the date, or the other phone
+  // finished it. The summary is the way on; this stack has no header.
   if (!stop) {
     return (
       <Atmosphere>
-        <EmptyState title={t('activeDate.allDoneTitle')} body={t('activeDate.allDoneBody')} />
+        <View style={[styles.notActive, { paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom }]}>
+          <EmptyState
+            title={t('activeDate.allDoneTitle')}
+            body={t('activeDate.allDoneBody')}
+            action={<PrimaryBtn label={t('datePlan.viewSummary')} onPress={viewSummary} style={styles.notActiveCta} />}
+          />
+        </View>
+        {sheet}
       </Atmosphere>
     )
   }
@@ -330,14 +410,7 @@ export default function ActiveDateScreen() {
         )}
       </ScrollView>
 
-      <CheckinSheet
-        visible={checkinOpen}
-        stop={stop}
-        placeName={placeName}
-        pending={checkinStop.isPending}
-        onSave={onSaveCheckin}
-        onSkip={advance}
-      />
+      {sheet}
     </Atmosphere>
   )
 }

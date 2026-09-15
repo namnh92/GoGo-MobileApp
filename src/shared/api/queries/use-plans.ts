@@ -129,7 +129,18 @@ export function useCompletePlanStop(planId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (stopId: string) => plansApi.completePlanStop(planId, stopId),
-    onSuccess: () => {
+    // #278 — the answer carries no plan, and the refetch lands after the caller
+    // has moved on. Until then the cached plan still shows this stop in
+    // progress, and another tap would complete it a second time.
+    onSuccess: (_answer, stopId) => {
+      queryClient.setQueryData<Plan>(queryKeys.plan(planId), plan =>
+        plan
+          ? {
+              ...plan,
+              stops: plan.stops?.map(stop => (stop.id === stopId ? { ...stop, status: 'completed' as const } : stop)),
+            }
+          : plan,
+      )
       void queryClient.invalidateQueries({ queryKey: queryKeys.plan(planId) })
     },
     onError: error => refreshRoomIfNotActive(queryClient, planId, error),
