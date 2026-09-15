@@ -21,6 +21,7 @@ import { EmptyState, LoadingState } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { Atmosphere, AvatarCircle, BackHeader, GhostBtn, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
+import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './account.style'
 import { DateOfBirthCard } from './date-of-birth.view'
@@ -34,7 +35,7 @@ type AvatarStep = 'picking' | 'uploading' | 'removing' | null
  * Which sentence a failed avatar change deserves. Codes come from the BFF
  * envelope (ADR-0022); the human message never does.
  */
-function avatarErrorKey(error: unknown): string {
+function avatarErrorKey(error: unknown): MessageKey {
   if (isOffline(error)) return 'common.offlineBody'
   if (isApiError(error)) {
     if (error.code === 'AVATAR_UNPROCESSABLE' || error.code === 'UNSUPPORTED_CONTENT_TYPE') {
