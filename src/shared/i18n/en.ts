@@ -401,6 +401,7 @@ export const enMessages: Record<MessageKey, string> = {
   'matching.retrying': 'Retrying…',
 
   'swipe.saveFailed': 'Your vote was not saved. Please retry this card.',
+  'swipe.votingClosed': 'This room has chosen its plan. Voting is closed.',
   'matchResult.waitingMatch': 'No mutual choice yet. You can review and change your votes.',
   'matchResult.vote': 'Review and vote',
   'matchResult.noVotes': 'No votes yet. Vote before finalizing.',
