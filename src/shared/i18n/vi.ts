@@ -408,6 +408,7 @@ export const viMessages = {
   'matching.retrying': 'Đang thử lại…',
 
   'swipe.saveFailed': 'Chưa lưu được lựa chọn. Hãy thử lại trên thẻ này.',
+  'swipe.votingClosed': 'Phòng đã chốt xong, không bình chọn thêm được nữa.',
   'matchResult.waitingMatch': 'Chưa có lựa chọn chung. Bạn có thể xem và đổi lựa chọn.',
   'matchResult.vote': 'Xem và bình chọn',
   'matchResult.noVotes': 'Chưa có phiếu. Hãy bình chọn trước khi chốt.',

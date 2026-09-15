@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -18,6 +18,7 @@ import {
   detailToPlaceCard,
   formatDistance,
   formatMinuteOfDay,
+  isRoomNotMatching,
   openStateFromHours,
   placePriceParts,
   roomCapabilities,
@@ -78,8 +79,28 @@ export default function SwipeScreen() {
   // The lobby sends people here once per run (#198); back there, it must not again.
   const shownRunId = suggestions.data?.run?.id
   useRoomStepShown(roomId, shownRunId ? runStep(shownRunId) : null)
-  useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
+  const focused = useScreenFocused()
+  useRoomRealtime(roomId, 'matching', { enabled: focused })
   const castVote = useCastVote(roomId)
+
+  // #198 — voting closes when the room moves on: a plan was chosen, here or on
+  // another phone, or the host reopened preferences. A deck for a closed vote
+  // is a dead control; every vote on it is refused with ROOM_NOT_MATCHING. The
+  // lobby routes on from where the room is, and the step memory above keeps it
+  // from sending anyone back here.
+  // Only a room read since this screen opened counts: a restored cache can be
+  // an hour old, and would move someone off a vote that is still open.
+  const [openedAt] = useState(() => Date.now())
+  const roomMovedOn =
+    room.isSuccess && room.dataUpdatedAt >= openedAt && room.data !== undefined && room.data.status !== 'matching'
+  const [voteClosed, setVoteClosed] = useState(false)
+  const leave = focused && (roomMovedOn || voteClosed)
+  const left = useRef(false)
+  useEffect(() => {
+    if (!leave || left.current) return
+    left.current = true
+    router.replace(`/room/${roomId}`)
+  }, [leave, roomId, router])
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
 
   const [cardIndex, setCardIndex] = useState(0)
@@ -117,8 +138,10 @@ export default function SwipeScreen() {
         const next = cardIndex + 1
         setCardIndex(next)
         if (next >= candidates.length) router.replace(`/room/${roomId}/match-result`)
-      } catch {
-        // Keep the failed card visible so the same vote can be retried.
+      } catch (error) {
+        // The vote closed under this card; no retry saves it (#198).
+        if (isRoomNotMatching(error)) setVoteClosed(true)
+        // Otherwise keep the failed card visible so the same vote can be retried.
       } finally {
         committing.set(false)
         translateX.set(0)
@@ -300,7 +323,9 @@ export default function SwipeScreen() {
       </View>
 
       {castVote.isError ? (
-        <Text accessibilityLiveRegion="polite" style={styles.subheader}>{t('swipe.saveFailed')}</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.subheader}>
+          {t(isRoomNotMatching(castVote.error) ? 'swipe.votingClosed' : 'swipe.saveFailed')}
+        </Text>
       ) : null}
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${(cardIndex / candidates.length) * 100}%` }]} />
