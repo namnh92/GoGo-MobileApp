@@ -581,6 +581,8 @@ export const viMessages = {
   'checkin.save': 'Lưu check-in ✓',
   'checkin.skip': 'Bỏ qua',
   'checkin.saving': 'Đang lưu…',
+  'checkin.saveFailed': 'Chưa lưu được check-in. Thử lại, hoặc bỏ qua để đi tiếp.',
+  'checkin.saveFailedOffline': 'Chưa lưu được check-in. Kiểm tra kết nối rồi thử lại.',
   'checkin.photoFailed': 'Có ảnh chưa gửi được. Check-in vẫn lưu bình thường, thiếu ảnh đó thôi.',
   'checkin.removePhoto': 'Bỏ ảnh này',
   'checkin.tag.would_return': 'Muốn đi lại',

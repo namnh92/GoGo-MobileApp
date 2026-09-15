@@ -136,6 +136,8 @@ export const styles = StyleSheet.create({
     color: neutral[900],
     marginBottom: spacing[3],
   },
+  /** #278 — a check-in that did not land; the sheet stays open for the retry. */
+  saveFailed: { ...type.bodySmall, color: brand.red, marginBottom: spacing[3], textAlign: 'center' },
   saveBtn: { alignSelf: 'stretch' },
   skipBtn: { alignItems: 'center', paddingVertical: spacing[3] },
   skipLabel: { ...type.bodySmall, fontWeight: '500', color: neutral[500] },
