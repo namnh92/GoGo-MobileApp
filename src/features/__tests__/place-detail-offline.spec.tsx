@@ -76,6 +76,16 @@ afterEach(async () => {
 })
 
 describe('Place Detail × connectivity', () => {
+  // Device retest on develop caf55f8 (#253): the bar sat between the gallery and
+  // the sheet, and the sheet's rounded top edge, drawn over the gallery, covered
+  // half of it at scroll top on both phones.
+  it('puts the offline bar on the sheet, where the sheet cannot cover it', async () => {
+    onlineManager.setOnline(false)
+    await renderScreen(<PlaceDetailScreen />)
+    await elapseOfflineDelay()
+    expect(within(screen.getByTestId('place-detail-sheet')).getByText(OFFLINE)).toBeTruthy()
+  })
+
   it('shows one offline bar when the place and its reviews are both cached', async () => {
     onlineManager.setOnline(false)
     const view = await renderScreen(<PlaceDetailScreen />)
