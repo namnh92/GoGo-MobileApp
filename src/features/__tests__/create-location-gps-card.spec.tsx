@@ -131,3 +131,31 @@ it('falls back to the generic fix line when the position has no label', async ()
   expect(view.queryByText('Đã lấy được vị trí của bạn')).toBeNull()
   expect(view.getByText(OFFER)).toBeTruthy()
 })
+
+/**
+ * Decision (#207 review): a refused or failed request after a successful fix
+ * changes nothing in the draft. `useDeviceLocation` returns before touching
+ * it, so the earlier position stays the choice until the user makes another
+ * one, and the notice under the card points at the area picker. The position
+ * was taken with permission at the time; silently dropping it on a later
+ * refresh would also drop the distance the user set.
+ */
+describe('a later refusal after a fix', () => {
+  it.each([
+    ['denied', 'Chưa có quyền vị trí. Chọn khu vực thủ công bên dưới nhé.'],
+    ['unavailable', 'Chưa lấy được vị trí. Chọn khu vực thủ công bên dưới nhé.'],
+  ])('keeps the earlier fix selected when the next request is %s', async (status, notice) => {
+    const view = await renderScreen(<CreateLocationScreen />)
+    await press(view.getByText(OFFER))
+    expect(view.getByText(FIX)).toBeTruthy()
+
+    mockLocation.result = { status }
+    await press(view.getByRole('radio'))
+
+    expect(useRoomStore.getState()).toMatchObject({ originLat: 21.04, originLng: 105.76, administrativeArea: null })
+    expect(view.getByRole('radio').props.accessibilityState).toMatchObject({ selected: true })
+    expect(view.getByText(FIX)).toBeTruthy()
+    expect(view.getByText('Khoảng cách tối đa')).toBeTruthy()
+    expect(view.getByText(notice)).toBeTruthy()
+  })
+})

@@ -94,12 +94,11 @@ export default function CreateLocationScreen() {
   // The subtitle follows the draft, not the last fix: once an area replaces
   // the position, the card is an unselected offer again (#207). The hook keeps
   // its `granted` state after that, so it cannot decide what the card says.
-  const grantedLabel = location.state.status === 'granted' ? location.state.label : null
   const currentSubtitle =
     location.state.status === 'asking'
       ? t('createLocation.locating')
       : usingCurrent
-        ? grantedLabel || gpsLabel || t('createLocation.locatedNoLabel')
+        ? gpsLabel || t('createLocation.locatedNoLabel')
         : t('createLocation.useMyLocation')
 
   return (
