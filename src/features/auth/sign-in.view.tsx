@@ -8,10 +8,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
+import type { MessageKey } from '@/shared/i18n/types'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
-import { classifyAuthFailure } from './auth-failure'
+import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
 import { postAuthRoute } from './post-auth-route'
 import { styles } from './sign-in.style'
@@ -56,7 +57,24 @@ export default function SignInScreen() {
   function reportFailure(event: 'auth_sign_in_failed' | 'auth_register_failed', error: unknown) {
     const failure = classifyAuthFailure(error)
     track(event, failure.telemetry)
-    setFormError(failure.serverMessage ?? t(failure.messageKey))
+    // A literal lookup, so the i18n key scan reads every key this can ask for,
+    // and `satisfies` makes tsc demand copy for every reason.
+    setFormError(
+      failure.serverMessage ??
+        t(
+          ({
+            timeout: 'auth.timeoutError',
+            offline: 'auth.networkError',
+            invalid_credentials: 'auth.invalidCredentials',
+            conflict: 'auth.registerConflict',
+            rate_limited: 'auth.rateLimited',
+            field_invalid: 'auth.genericError',
+            rejected: 'auth.genericError',
+            server: 'auth.genericError',
+            unexpected: 'auth.unexpectedError',
+          } as const satisfies Record<AuthFailureReason, MessageKey>)[failure.reason],
+        ),
+    )
   }
 
   const onSignIn = signInForm.handleSubmit(async values => {

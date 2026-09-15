@@ -56,6 +56,8 @@ const COPY = {
   timeout: 'Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi thử lại.',
   unexpected: 'Ứng dụng gặp lỗi ngoài dự kiến. Thử lại nhé, nếu vẫn lỗi hãy mở lại ứng dụng.',
   invalidCredentials: 'Email hoặc mật khẩu không đúng.',
+  registerConflict: 'Không hoàn tất đăng ký được. Thử đăng nhập nhé.',
+  generic: 'Có lỗi xảy ra. Thử lại nhé.',
 }
 
 const GRANT = {
@@ -226,14 +228,36 @@ describe('sign-in failure classification (#252)', () => {
     expect(mockTrack).toHaveBeenCalledWith('auth_sign_in_failed', { reason: 'offline' })
   })
 
-  it('shows the timeout copy when the request budget runs out', async () => {
-    mockSignIn.mockRejectedValue(new TimeoutError(15_000))
+  it('shows the timeout copy when the client aborts after its 15 s budget', async () => {
+    // A request that never answers: fetch settles only when the client's own
+    // abort controller fires, which is the path `send()` turns into TimeoutError.
+    fetchMock.mockImplementation(
+      (_url: string, init: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener('abort', () => reject(new Error('Aborted')))
+        }),
+    )
+    jest.useFakeTimers()
+    try {
+      const view = await submitValidSignIn()
+      await waitFor(() => expect(callsTo('/auth/login')).toHaveLength(1))
 
-    const view = await submitValidSignIn()
+      await act(async () => {
+        jest.advanceTimersByTime(14_000)
+      })
+      expect(view.queryByText(COPY.timeout)).toBeNull()
+      expect(mockTrack).not.toHaveBeenCalledWith('auth_sign_in_failed', expect.anything())
 
-    expect(await view.findByText(COPY.timeout)).toBeTruthy()
-    expect(view.queryByText(COPY.network)).toBeNull()
-    expect(mockTrack).toHaveBeenCalledWith('auth_sign_in_failed', { reason: 'timeout' })
+      await act(async () => {
+        jest.advanceTimersByTime(1_500)
+      })
+
+      expect(await view.findByText(COPY.timeout)).toBeTruthy()
+      expect(view.queryByText(COPY.network)).toBeNull()
+      expect(mockTrack).toHaveBeenCalledWith('auth_sign_in_failed', { reason: 'timeout' })
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('shows its own copy for an unexpected error and records a PII-free reason', async () => {
@@ -265,18 +289,93 @@ describe('sign-in failure classification (#252)', () => {
   })
 })
 
+describe('sign-up failure classification (#252)', () => {
+  async function submitValidSignUp() {
+    const view = await openSignUp()
+    await type(view.getByLabelText('Tên hiển thị'), 'An')
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+    await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+    return view
+  }
+
+  // The contract documents no code for this 409; any envelope-shaped code will do.
+  it('says the sign-up could not complete for a 409 and records it', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(409, { code: 'REGISTRATION_CONFLICT', message: 'Registration could not be completed', field_errors: [], retryable: false }),
+    )
+
+    const view = await submitValidSignUp()
+
+    expect(await view.findByText(COPY.registerConflict)).toBeTruthy()
+    expect(callsTo('/auth/register')).toHaveLength(1)
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockTrack).toHaveBeenCalledWith('auth_register_failed', {
+      reason: 'conflict',
+      status: 409,
+      code: 'REGISTRATION_CONFLICT',
+    })
+  })
+
+  it('falls back to its own copy when the server field message is empty', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(400, { code: 'VALIDATION_FAILED', message: 'Invalid', field_errors: [{ field: 'email', message: '  ' }], retryable: false }),
+    )
+
+    const view = await submitValidSignUp()
+
+    expect(await view.findByText(COPY.generic)).toBeTruthy()
+    expect(mockTrack).toHaveBeenCalledWith('auth_register_failed', {
+      reason: 'field_invalid',
+      status: 400,
+      code: 'VALIDATION_FAILED',
+    })
+  })
+
+  it('records a code that is not envelope-shaped as unknown', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(502, { code: 'upstream failed for an@example.com', message: 'Bad gateway' }))
+
+    const view = await submitValidSignUp()
+
+    expect(await view.findByText(COPY.generic)).toBeTruthy()
+    expect(mockTrack).toHaveBeenCalledWith('auth_register_failed', { reason: 'server', status: 502, code: 'unknown' })
+    expect(JSON.stringify(mockTrack.mock.calls)).not.toContain('an@example.com')
+  })
+})
+
 describe('classifyAuthFailure', () => {
   const api = (status: number, extra: Record<string, unknown> = {}) =>
     new ApiError(status, { code: `HTTP_${status}`, message: 'm', ...extra })
 
-  it('maps API statuses to the existing copy and reason codes', () => {
-    expect(classifyAuthFailure(api(409))).toMatchObject({ reason: 'conflict', messageKey: 'auth.registerConflict' })
-    expect(classifyAuthFailure(api(429))).toMatchObject({ reason: 'rate_limited', messageKey: 'auth.rateLimited' })
-    expect(classifyAuthFailure(api(503))).toMatchObject({ reason: 'server', messageKey: 'auth.genericError' })
-    expect(classifyAuthFailure(api(400))).toMatchObject({ reason: 'rejected', messageKey: 'auth.genericError' })
+  it('maps each failure to its reason', () => {
+    expect(classifyAuthFailure(new TimeoutError(15_000)).reason).toBe('timeout')
+    expect(classifyAuthFailure(api(409)).reason).toBe('conflict')
+    expect(classifyAuthFailure(api(429)).reason).toBe('rate_limited')
+    expect(classifyAuthFailure(api(503)).reason).toBe('server')
+    expect(classifyAuthFailure(api(400)).reason).toBe('rejected')
     expect(
-      classifyAuthFailure(api(400, { field_errors: [{ field: 'email', message: 'Email đã được dùng' }] })),
+      classifyAuthFailure(api(400, { field_errors: [{ field: 'email', message: ' Email đã được dùng ' }] })),
     ).toMatchObject({ reason: 'field_invalid', serverMessage: 'Email đã được dùng' })
+  })
+
+  it('drops an empty server field message so the view shows its own copy', () => {
+    for (const message of ['', '   ']) {
+      const failure = classifyAuthFailure(api(400, { field_errors: [{ field: 'email', message }] }))
+      expect(failure.reason).toBe('field_invalid')
+      expect(failure.serverMessage).toBeUndefined()
+    }
+  })
+
+  it('records an envelope code only in the BFF shape', () => {
+    expect(classifyAuthFailure(api(401, { code: 'INVALID_CREDENTIALS' })).telemetry).toEqual({
+      reason: 'invalid_credentials',
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+    })
+    expect(classifyAuthFailure(api(502)).telemetry.code).toBe('HTTP_502')
+    expect(classifyAuthFailure(api(502, { code: '<html>Bad Gateway</html>' })).telemetry.code).toBe('unknown')
+    expect(classifyAuthFailure(api(400, { code: 'invalid for an@example.com' })).telemetry.code).toBe('unknown')
+    expect(classifyAuthFailure(api(400, { code: `A${'B'.repeat(64)}` })).telemetry.code).toBe('unknown')
   })
 
   it('never lets an arbitrary error name into telemetry', () => {
@@ -284,5 +383,20 @@ describe('classifyAuthFailure', () => {
     odd.name = 'user an@example.com'
     expect(classifyAuthFailure(odd).telemetry).toEqual({ reason: 'unexpected', errorName: 'unknown' })
     expect(classifyAuthFailure('boom').telemetry).toEqual({ reason: 'unexpected', errorName: 'string' })
+  })
+
+  it('records a native module code only in the Expo ERR_ shape', () => {
+    const keychain = Object.assign(new Error('keychain failed for an@example.com'), { code: 'ERR_KEY_CHAIN' })
+    expect(classifyAuthFailure(keychain).telemetry).toEqual({
+      reason: 'unexpected',
+      errorName: 'Error',
+      nativeCode: 'ERR_KEY_CHAIN',
+    })
+    for (const code of ['user an@example.com', 'ERR_', 'err_key_chain', 42]) {
+      expect(classifyAuthFailure(Object.assign(new Error('x'), { code })).telemetry).toEqual({
+        reason: 'unexpected',
+        errorName: 'Error',
+      })
+    }
   })
 })

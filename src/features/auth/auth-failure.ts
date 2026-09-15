@@ -1,6 +1,5 @@
 import { isApiError, isOffline, TimeoutError } from '@/shared/api'
 import type { AnalyticsProps } from '@/shared/analytics'
-import type { MessageKey } from '@/shared/i18n/types'
 
 /**
  * #252 — why a sign-in or sign-up did not complete, as a stable reason code.
@@ -9,6 +8,9 @@ import type { MessageKey } from '@/shared/i18n/types'
  * including exceptions thrown on the device before any request left it. A
  * phone that was online could not be told apart from a dead network, and
  * nothing was recorded to tell them apart afterwards.
+ *
+ * The copy for each reason lives in the view as a literal lookup, so the i18n
+ * key scan can read every key it may ask for.
  */
 export type AuthFailureReason =
   | 'offline'
@@ -23,59 +25,56 @@ export type AuthFailureReason =
 
 export interface AuthFailure {
   reason: AuthFailureReason
-  messageKey: MessageKey
-  /** The server's own field message, shown as it always was. */
+  /** The server's own field message, only when it says something. */
   serverMessage?: string
   /**
-   * What analytics may carry: the reason, the HTTP status and the envelope's
-   * machine code, and for a device-side exception its class name. Never the
-   * error message — it can echo what the person typed.
+   * What analytics may carry: the reason, the HTTP status, a validated envelope
+   * code, and for a device-side exception its class name and a validated
+   * native code. Never the error message — it can echo what the person typed —
+   * and never a free-form string: `track` writes to device logs.
    */
   telemetry: AnalyticsProps
 }
 
 const ERROR_NAME = /^[A-Za-z][A-Za-z0-9_]{0,63}$/
+/** BFF envelope codes are SCREAMING_SNAKE; a proxy or gateway page is not. */
+const API_CODE = /^[A-Z][A-Z0-9_]{0,63}$/
+/** Expo native modules reject with a CodedError such as `ERR_KEY_CHAIN`. */
+const NATIVE_CODE = /^ERR_[A-Z0-9_]{1,60}$/
 
 function errorName(error: unknown): string {
   const name = error instanceof Error ? error.name : typeof error
   return ERROR_NAME.test(name) ? name : 'unknown'
 }
 
+function nativeCode(error: unknown): string | null {
+  const code = error instanceof Error ? (error as Error & { code?: unknown }).code : undefined
+  return typeof code === 'string' && NATIVE_CODE.test(code) ? code : null
+}
+
 export function classifyAuthFailure(error: unknown): AuthFailure {
   // A timeout is also "offline" to the shared helper, so it is asked first.
-  if (error instanceof TimeoutError) {
-    return { reason: 'timeout', messageKey: 'auth.timeoutError', telemetry: { reason: 'timeout' } }
-  }
-  if (isOffline(error)) {
-    return { reason: 'offline', messageKey: 'auth.networkError', telemetry: { reason: 'offline' } }
-  }
+  if (error instanceof TimeoutError) return { reason: 'timeout', telemetry: { reason: 'timeout' } }
+  if (isOffline(error)) return { reason: 'offline', telemetry: { reason: 'offline' } }
+
   if (isApiError(error)) {
-    const telemetry = { status: error.status, code: error.code }
+    const facts = { status: error.status, code: API_CODE.test(error.code) ? error.code : 'unknown' }
+    const failure = (reason: AuthFailureReason): AuthFailure => ({ reason, telemetry: { reason, ...facts } })
     // Login is enumeration-safe: the server never says which half was wrong,
     // and neither do we.
-    if (error.status === 401) {
-      return { reason: 'invalid_credentials', messageKey: 'auth.invalidCredentials', telemetry: { reason: 'invalid_credentials', ...telemetry } }
-    }
-    if (error.status === 409) {
-      return { reason: 'conflict', messageKey: 'auth.registerConflict', telemetry: { reason: 'conflict', ...telemetry } }
-    }
-    if (error.status === 429) {
-      return { reason: 'rate_limited', messageKey: 'auth.rateLimited', telemetry: { reason: 'rate_limited', ...telemetry } }
-    }
+    if (error.status === 401) return failure('invalid_credentials')
+    if (error.status === 409) return failure('conflict')
+    if (error.status === 429) return failure('rate_limited')
     if (error.fieldErrors.length > 0) {
-      return {
-        reason: 'field_invalid',
-        messageKey: 'auth.genericError',
-        serverMessage: error.fieldErrors[0].message,
-        telemetry: { reason: 'field_invalid', ...telemetry },
-      }
+      const message = error.fieldErrors[0].message?.trim()
+      return message ? { ...failure('field_invalid'), serverMessage: message } : failure('field_invalid')
     }
-    const reason = error.status >= 500 ? 'server' : 'rejected'
-    return { reason, messageKey: 'auth.genericError', telemetry: { reason, ...telemetry } }
+    return failure(error.status >= 500 ? 'server' : 'rejected')
   }
+
+  const code = nativeCode(error)
   return {
     reason: 'unexpected',
-    messageKey: 'auth.unexpectedError',
-    telemetry: { reason: 'unexpected', errorName: errorName(error) },
+    telemetry: { reason: 'unexpected', errorName: errorName(error), ...(code ? { nativeCode: code } : {}) },
   }
 }
