@@ -268,7 +268,10 @@ export default function ActiveDateScreen() {
             }
           />
         </View>
-        {sheet}
+        {/* Only an ended room still takes check-ins; there the sheet and its draft
+            survive the room ending. Any other room refuses the save, so a check-in
+            link opens nothing. */}
+        {ended ? sheet : null}
       </Atmosphere>
     )
   }

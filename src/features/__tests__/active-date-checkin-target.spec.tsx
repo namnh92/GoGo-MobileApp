@@ -63,6 +63,7 @@ const SKIP = 'Bỏ qua'
 const ALL_DONE = 'Đã đi hết các điểm'
 const CHECKIN_FAILED = 'Chưa lưu được check-in. Thử lại, hoặc bỏ qua để đi tiếp.'
 const VIEW_SUMMARY = 'Xem tổng kết →'
+const BACK_TO_PLAN = 'Về kế hoạch'
 const COMPLETE_PATH = '/plans/{id}/stops/{stopId}/complete'
 const CHECKIN_PATH = '/plans/{id}/stops/{stopId}/checkin'
 const PLACE_IDS = ['place-1', 'place-2', 'place-3']
@@ -477,5 +478,43 @@ describe('a check-in no retry can save', () => {
     await press(SKIP)
     await waitFor(() => expect(screen.queryByText(SAVE)).toBeNull())
     expect(mockReplace).not.toHaveBeenCalled()
+  })
+})
+
+describe('a check-in link into a room that takes no check-ins', () => {
+  const roomIs = (status: string) =>
+    mockGet.mockImplementation(async (path: string) =>
+      path === '/rooms/{id}' ? roomFor('group-host', { status } as never) : planNow(),
+    )
+
+  it.each([
+    ['1', 'ready'],
+    ['1', 'cancelled'],
+    ['1', 'expired'],
+    ['bill', 'ready'],
+    ['bill', 'cancelled'],
+    ['bill', 'expired'],
+  ])('opens no check-in for ?checkin=%s when the room is %s', async (checkin, status) => {
+    mockParams = { planId: 'plan-1', checkin }
+    server.statuses = ['planned', 'planned', 'planned']
+    roomIs(status)
+    await renderActive()
+
+    // The room's own state is on screen, and the API would refuse a save with ROOM_NOT_ACTIVE.
+    expect(await screen.findByText(BACK_TO_PLAN)).toBeTruthy()
+    expect(screen.queryByText(SAVE)).toBeNull()
+    expect(calls(CHECKIN_PATH)).toHaveLength(0)
+  })
+
+  it.each(['1', 'bill'])('still opens ?checkin=%s on a completed room, which takes check-ins', async checkin => {
+    mockParams = { planId: 'plan-1', checkin }
+    server.statuses = ['completed', 'planned', 'planned']
+    roomIs('completed')
+    await renderActive()
+
+    expect(await screen.findByText(VIEW_SUMMARY)).toBeTruthy()
+    expect(await screen.findByText(SAVE)).toBeTruthy()
+    await press(SAVE)
+    await waitFor(() => expect(stopIds(CHECKIN_PATH)).toEqual(['stop-2']))
   })
 })
