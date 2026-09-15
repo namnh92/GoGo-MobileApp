@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, focusManager, notifyManager } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 
 const mockCreate = jest.fn()
@@ -22,6 +22,12 @@ let client: QueryClient
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
+// TanStack hands observer updates to React on a zero-delay timer. On a loaded
+// machine that timer can fire after `act` has returned ("not wrapped in act");
+// microtasks drain inside act.
+beforeAll(() => notifyManager.setScheduler(queueMicrotask))
+afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
+
 beforeEach(async () => {
   // gcTime Infinity arms no garbage-collection timers, which otherwise keep Jest
   // alive for five minutes after the last test.

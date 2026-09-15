@@ -37,6 +37,8 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }))
+// The lobby reads the session status (#199); the real provider pulls in OneSignal.
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),

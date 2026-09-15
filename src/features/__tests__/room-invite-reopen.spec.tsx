@@ -24,9 +24,13 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ roomId: '311f5bd8-f853-4ced-af68-e04398d1451a' }),
 }))
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }))
+// A cold start: while the provider says 'hydrating' there is no session yet.
+const mockSession = { status: 'user' as 'hydrating' | 'user' }
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockSession.status }) }))
 jest.mock('@/shared/api/session', () => ({
   ...jest.requireActual('@/shared/api/session'),
-  getSession: () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-1' }),
+  getSession: () =>
+    mockSession.status === 'hydrating' ? null : { kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-1' },
 }))
 jest.mock('@/shared/api/endpoints/rooms', () => ({
   ...jest.requireActual('@/shared/api/endpoints/rooms'),
@@ -53,6 +57,7 @@ const EXPIRES = '2099-01-01T00:00:00.000Z'
 const INVITES_KEY = ['rooms', ROOM_ID, 'invites']
 const SHARE = 'Mời người tham gia 📩'
 const ACTIVE_NOTE = /Phòng đang có mã mời còn hạn đến/
+const CLOSED = 'Phòng đã ngừng nhận thêm người, nên mã mời không còn dùng để vào phòng được.'
 
 type Row = { inviteId: string; expiresAt: string; revoked: boolean; useCount: number; maxUses: number }
 const row = (overrides: Partial<Row> = {}): Row => ({
@@ -112,6 +117,7 @@ beforeEach(async () => {
   await purgeInviteCodes()
   await AsyncStorage.clear()
   client = newClient()
+  mockSession.status = 'user'
   mockRoom.query = loaded(roomFor('group-host'))
   serve([])
   mockCreate.mockImplementation(async () => {
@@ -177,6 +183,34 @@ describe('host invite after reopen (#199)', () => {
     await act(async () => { await screen.unmount() })
   })
 
+  it('waits for the session on a cold start, so its own live code is never offered for re-issue', async () => {
+    await saveInviteCode(storedInvite())
+    serve([row()])
+    mockSession.status = 'hydrating'
+    const view = await open()
+    await waitFor(() => expect(client.getQueryData(INVITES_KEY)).toBeDefined())
+    // Query results reach the screen on a later tick; flush it, or the checks
+    // below would pass before the card had a chance to render anything.
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)) })
+    expect(screen.getByText('Mã GoGo Room')).toBeTruthy()
+    expect(screen.queryByText('Tạo mã mới')).toBeNull()
+    expect(screen.queryByText(ACTIVE_NOTE)).toBeNull()
+    expect(screen.queryByText('Tạo mã mời')).toBeNull()
+    expect(screen.queryByText(CODE)).toBeNull()
+
+    mockSession.status = 'user'
+    await view.rerender(
+      <QueryClientProvider client={client}>
+        <GoGoRoomScreen />
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText(CODE)).toBeTruthy()
+    expect(mockRevoke).not.toHaveBeenCalled()
+    expect(mockCreate).not.toHaveBeenCalled()
+    expect((await loadInviteCode(ROOM_ID, USER))?.code).toBe(CODE)
+    await finish()
+  })
+
   it("never shows a code another account stored on this device", async () => {
     await saveInviteCode(storedInvite({ userId: 'someone-else' }))
     serve([row()])
@@ -231,6 +265,26 @@ describe('host invite after reopen (#199)', () => {
       expect(mockCreate).toHaveBeenCalledTimes(1)
       expect(Math.max(...mockRevoke.mock.invocationCallOrder)).toBeLessThan(mockCreate.mock.invocationCallOrder[0])
       expect(server.filter(entry => !entry.revoked).map(entry => entry.inviteId)).toEqual(['invite-new'])
+      await finish()
+    } finally {
+      alert.mockRestore()
+    }
+  })
+
+  it('revokes the usable set as the server has it at confirmation, not as first shown', async () => {
+    serve([row({ inviteId: 'invite-a' })])
+    const alert = spyAlert()
+    try {
+      await open()
+      const reissue = await screen.findByText('Tạo mã mới')
+      await act(async () => { fireEvent.press(reissue) })
+      // Another phone creates an invite while the confirmation is open.
+      server = [...server, row({ inviteId: 'invite-b' })]
+      await answer(alert, 'destructive')
+
+      expect(await screen.findByText(CODE)).toBeTruthy()
+      expect(mockRevoke.mock.calls.map(call => call[1]).sort()).toEqual(['invite-a', 'invite-b'])
+      expect(mockCreate).toHaveBeenCalledTimes(1)
       await finish()
     } finally {
       alert.mockRestore()
@@ -310,6 +364,36 @@ describe('host invite after reopen (#199)', () => {
     expect(screen.queryByText(ACTIVE_NOTE)).toBeNull()
     expect(screen.queryByText('Tạo mã mới')).toBeNull()
     await finish()
+  })
+
+  it('offers no create button in a room that no longer takes members', async () => {
+    mockRoom.query = loaded(roomFor('group-host', { status: 'matching' }))
+    await open()
+    expect(await screen.findByText(CLOSED)).toBeTruthy()
+    await waitFor(() => expect(client.isFetching()).toBe(0))
+    expect(screen.queryByText('Tạo mã mời')).toBeNull()
+    expect(mockCreate).not.toHaveBeenCalled()
+    await finish()
+  })
+
+  it('keeps a stored code visible but unusable once the room no longer takes members', async () => {
+    mockRoom.query = loaded(roomFor('group-host', { status: 'ready' }))
+    await saveInviteCode(storedInvite())
+    serve([row()])
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never)
+    try {
+      await open()
+      expect(await screen.findByText(CODE)).toBeTruthy()
+      expect(screen.getByText(CLOSED)).toBeTruthy()
+      expect(screen.getByLabelText('Copy').props.accessibilityState?.disabled).toBe(true)
+      await act(async () => { fireEvent.press(screen.getByText(SHARE)) })
+      await act(async () => { fireEvent.press(screen.getByLabelText('Copy')) })
+      expect(share).not.toHaveBeenCalled()
+      expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
+      await finish()
+    } finally {
+      share.mockRestore()
+    }
   })
 
   it('rechecks the list before sharing, so a code revoked on another phone is never shared', async () => {

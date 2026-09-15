@@ -24,6 +24,7 @@ import {
 import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
+import { useSession } from '@/shared/providers/session-provider'
 import { formatMoney } from '@/shared/pricing/money'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { isUuid } from '@/shared/navigation/deep-link'
@@ -107,11 +108,15 @@ export default function GoGoRoomScreen() {
     if (summary) rememberRoom(summary)
   }, [summary, rememberRoom])
 
+  // A cold start can restore the room and its invites from disk before the
+  // session is back. Until it is, this device's stored code is unknown, not
+  // absent: judging then would offer to re-issue the host's own live code.
+  const sessionHydrating = useSession().status === 'hydrating'
   const [inviteClock, setInviteClock] = useState(() => Date.now())
   // The API lists invites without codes; this device holds the code it created.
   const storedInvite = createInvite.stored
   const { display: inviteDisplay, forget: forgetStoredInvite } = resolveInviteDisplay({
-    stored: inviteRoomId ? storedInvite : null,
+    stored: !inviteRoomId ? null : sessionHydrating ? undefined : storedInvite,
     invites: invites.data,
     // Paused (offline) with nothing loaded is as unreadable as a failure.
     invitesFailed: invites.isError || (invites.isPaused && invites.data === undefined),
@@ -164,13 +169,35 @@ export default function GoGoRoomScreen() {
    * Other devices hold the codes: revoke every usable invite (duplicates would
    * keep letting people in), then mint exactly one new one.
    */
+  /**
+   * The usable set as the server has it at confirmation, not as the card last
+   * saw it: an invite another phone created meanwhile must be revoked too.
+   * `null` when this device's own code turns out to be the live one.
+   */
+  async function usableInviteIds(seen: readonly string[]): Promise<readonly string[] | null> {
+    if (!onlineManager.isOnline()) return seen
+    const fresh = await invites.refetch({ cancelRefetch: false })
+    if (fresh.status !== 'success') return seen
+    const { display } = resolveInviteDisplay({
+      stored: storedInvite ?? null,
+      invites: fresh.data,
+      invitesFailed: false,
+      listIsCurrent: true,
+      now: Date.now(),
+    })
+    if (display.kind === 'code') return null
+    return display.kind === 'active-elsewhere' ? display.inviteIds : []
+  }
+
   async function reissueInvite(inviteIds: readonly string[]) {
     if (!capabilities.canInvite || creatingInvite.current) return
     creatingInvite.current = true
     setReissueFailed(false)
     try {
       try {
-        for (const inviteId of inviteIds) await revokeInvite.mutateAsync(inviteId)
+        const current = await usableInviteIds(inviteIds)
+        if (current === null) return
+        for (const inviteId of current) await revokeInvite.mutateAsync(inviteId)
       } catch {
         setReissueFailed(true)
         return
@@ -252,7 +279,8 @@ export default function GoGoRoomScreen() {
    * the stored code is still the best answer.
    */
   async function verifiedInviteCode(): Promise<string | null> {
-    if (!inviteCode) return null
+    // A closed room refuses joins (410): there is nothing worth handing out.
+    if (!inviteCode || !joinable) return null
     if (!onlineManager.isOnline()) return inviteCode
     const fresh = await invites.refetch({ cancelRefetch: false })
     if (fresh.status !== 'success') return inviteCode
@@ -438,27 +466,26 @@ export default function GoGoRoomScreen() {
         {capabilities.canInvite ? (
           <GlassCard style={styles.codeCard}>
             <Text style={styles.codeCaption}>{t('gogoRoom.codeLabel')}</Text>
-            {inviteDisplay.kind === 'none' ? (
+            {/* A room past collecting refuses new invites (409) and joins (410):
+                say so rather than show controls that cannot work (RULE-CORE-016). */}
+            {!joinable ? <Text style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</Text> : null}
+            {joinable && inviteDisplay.kind === 'none' ? (
               <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite}
                 loading={createInvite.isPending} disabled={createInvite.isPending || (createInvite.isError && !isRetryable(createInvite.error))} />
             ) : null}
-            {inviteDisplay.kind === 'active-elsewhere' ? (
+            {joinable && inviteDisplay.kind === 'active-elsewhere' ? (
               <>
                 <Text style={styles.inviteNote}>
-                  {joinable
-                    ? t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })
-                    : t('gogoRoom.inviteClosed')}
+                  {t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })}
                 </Text>
-                {joinable ? (
-                  <SecondaryBtn
-                    label={t('gogoRoom.reissueInvite')}
-                    onPress={() => confirmReissue(inviteDisplay.inviteIds)}
-                    loading={revokeInvite.isPending || createInvite.isPending}
-                  />
-                ) : null}
+                <SecondaryBtn
+                  label={t('gogoRoom.reissueInvite')}
+                  onPress={() => confirmReissue(inviteDisplay.inviteIds)}
+                  loading={revokeInvite.isPending || createInvite.isPending}
+                />
               </>
             ) : null}
-            {inviteDisplay.kind === 'unknown' ? (
+            {joinable && inviteDisplay.kind === 'unknown' ? (
               <>
                 <Text accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.invitesLoadFailed')}</Text>
                 <GhostBtn label={t('common.retry')} onPress={() => void invites.refetch()} />
@@ -484,7 +511,7 @@ export default function GoGoRoomScreen() {
                   is the only way to lift the code other than the invite link. */}
               <IconBtn
                 onPress={() => { void copyCode() }}
-                disabled={!inviteCode}
+                disabled={!inviteCode || !joinable}
                 accessibilityLabel={t(codeCopied ? 'common.copied' : 'common.copy')}
                 style={[styles.copyBtn, codeCopied && styles.copyBtnDone]}
               >
@@ -511,7 +538,7 @@ export default function GoGoRoomScreen() {
               <SecondaryBtn
                 label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
                 onPress={invite}
-                disabled={!inviteUrl}
+                disabled={!inviteUrl || !joinable}
                 style={{ marginTop: spacing[2] }}
               />
             ) : null}
@@ -520,7 +547,7 @@ export default function GoGoRoomScreen() {
           <PrimaryBtn
             label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
             onPress={invite}
-            disabled={!inviteUrl}
+            disabled={!inviteUrl || !joinable}
           />
         ) : null}
 

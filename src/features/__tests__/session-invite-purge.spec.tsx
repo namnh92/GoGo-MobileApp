@@ -3,8 +3,8 @@ import { act, render, screen, waitFor } from '@testing-library/react-native'
 
 /**
  * GoGo-MobileApp#199: a host's stored invite codes belong to that account. The
- * purge that clears room data — logout, account deletion, signing in, and an
- * expired session — clears them too.
+ * purge that clears room data — logout, account deletion, signing in or up,
+ * joining as a guest, and an expired session — clears them too.
  */
 
 const mockExpiry: { callback: (() => void) | null } = { callback: null }
@@ -14,9 +14,13 @@ jest.mock('@/shared/notifications/logout-confirmation-bootstrap', () => ({
 }))
 jest.mock('@/shared/api/endpoints/sessions', () => ({
   login: jest.fn(async () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-2' })),
-  register: jest.fn(),
+  register: jest.fn(async () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-3' })),
   logout: jest.fn(async () => undefined),
   deleteAccount: jest.fn(async () => undefined),
+}))
+jest.mock('@/shared/api/endpoints/rooms', () => ({
+  ...jest.requireActual('@/shared/api/endpoints/rooms'),
+  joinRoomAsGuest: jest.fn(async () => ({ kind: 'guest', accessToken: 'token', expiresAt: 0, roomId: 'room-1' })),
 }))
 jest.mock('@/shared/api/client', () => ({
   ...jest.requireActual('@/shared/api/client'),
@@ -73,6 +77,8 @@ it.each([
   ['signOut', (session: SessionApi) => session.signOut()],
   ['deleteAccount', (session: SessionApi) => session.deleteAccount()],
   ['signIn', (session: SessionApi) => session.signIn({ email: 'host@example.com', password: 'not-a-real-password' } as never)],
+  ['signUp', (session: SessionApi) => session.signUp({ email: 'new@example.com', password: 'not-a-real-password' } as never)],
+  ['joinAsGuest', (session: SessionApi) => session.joinAsGuest({ inviteCode: 'not-a-code', displayName: 'Khách' } as never)],
 ] as const)('%s removes every stored invite code', async (_name, action) => {
   await seedAndMount()
   await act(async () => { await action(session as SessionApi) })
