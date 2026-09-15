@@ -227,12 +227,17 @@ export default function PlaceDetailScreen() {
 
       </View>
 
-      <StaleNotice error={place.isError ? place.error : null} onRetry={() => void place.refetch()} />
-
       {/* One vertical scroll surface lets the gallery leave the viewport as
           the sheet expands, then continues through the content naturally. */}
-      <View style={[styles.sheet, { minHeight: height - headerHeight - actionHeight }]}>
+      <View testID="place-detail-sheet" style={[styles.sheet, { minHeight: height - headerHeight - actionHeight }]}>
         <View style={styles.body}>
+          {/* On the sheet: between the gallery and the sheet, the sheet's rounded
+              top edge covered half of the bar (#253). */}
+          <StaleNotice
+            error={place.isError ? place.error : null}
+            onRetry={() => void place.refetch()}
+            style={styles.sheetNotice}
+          />
           <View style={styles.identityRow}>
             <View style={styles.identityText}>
               <Text style={styles.name}>{name}</Text>

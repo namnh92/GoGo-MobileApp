@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, Text, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { isForbidden, isOffline } from '@/shared/api'
 import { currentOfflineSpell, useOnlineStatus } from '@/shared/api/queries/use-online-status'
@@ -122,11 +122,14 @@ export function StaleNotice({
   onRetry,
   hasData = true,
   reportOffline = true,
+  style,
 }: {
   error: unknown
   onRetry?: () => void
   hasData?: boolean
   reportOffline?: boolean
+  /** Layout only, for a bar placed inside a padded surface. */
+  style?: StyleProp<ViewStyle>
 }) {
   const { t } = useTranslation()
   const online = useOnlineStatus()
@@ -139,7 +142,7 @@ export function StaleNotice({
   useOfflineAnnouncement(shown, t('common.staleOffline'))
   if (!shown) return null
   return (
-    <View style={styles.staleBar} accessibilityLiveRegion="polite">
+    <View style={[styles.staleBar, style]} accessibilityLiveRegion="polite">
       <Text style={styles.staleLabel} numberOfLines={2}>
         {offline ? t('common.staleOffline') : t('common.staleError')}
       </Text>
