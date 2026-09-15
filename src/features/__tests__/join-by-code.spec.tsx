@@ -37,6 +37,7 @@ const CODE = 'YDi_00PB1z4FSQZjpLbgdw'
 const ROOM = '311f5bd8-f853-4ced-af68-e04398d1451a'
 const EXPIRED = 'Mã mời đã hết hạn hoặc bị thu hồi. Hỏi chủ phòng gửi mã mới nhé.'
 const ROOM_CLOSED = 'Phòng này không nhận thêm người nữa, nên mã mới cũng không giúp được. Hỏi chủ phòng nếu bạn cần vào.'
+const ROOM_EXPIRED = 'Phòng này đã hết hạn, nên mã mới cũng không giúp được. Hỏi chủ phòng tạo phòng mới nhé.'
 
 function apiError(status: number, code: string): ApiError {
   return new ApiError(status, { code, message: 'x', field_errors: [], request_id: 'test', retryable: false })
@@ -65,6 +66,23 @@ describe('join by code × error code', () => {
     expect(await view.findByText(ROOM_CLOSED)).toBeTruthy()
     expect(view.queryByText(EXPIRED)).toBeNull()
     expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('says the room has expired for ROOM_EXPIRED, on the guest path', async () => {
+    mockSession.status = 'anonymous'
+    mockJoinAsGuest.mockRejectedValue(apiError(410, 'ROOM_EXPIRED'))
+    const view = await renderScreen(<JoinByCodeScreen />)
+    await act(async () => {
+      fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
+    })
+    await act(async () => {
+      fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
+    })
+    await act(async () => {
+      fireEvent.press(view.getByText('Tham gia 🙌'))
+    })
+    expect(await view.findByText(ROOM_EXPIRED)).toBeTruthy()
+    expect(view.queryByText(EXPIRED)).toBeNull()
   })
 
   it('keeps the expired-code copy for INVITE_NOT_USABLE', async () => {

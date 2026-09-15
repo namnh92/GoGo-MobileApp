@@ -39,10 +39,10 @@ export default function JoinByCodeScreen() {
     // GoGo-MobileApp#248 — a room that no longer takes members is not an
     // expired code, and asking the host for a new one would not help.
     if (isApiError(caught) && caught.code === 'ROOM_NOT_JOINABLE') return t('joinByCode.roomNotJoinable')
+    // A room past its expiry (`ROOM_EXPIRED`) is not coming back either.
+    if (isApiError(caught) && caught.code === 'ROOM_EXPIRED') return t('joinByCode.roomExpired')
     // Expired, revoked or spent (`INVITE_NOT_USABLE`); any other 410 as before.
-    if (isApiError(caught) && (caught.code === 'INVITE_NOT_USABLE' || caught.status === 410)) {
-      return t('joinByCode.expired')
-    }
+    if (isApiError(caught) && caught.status === 410) return t('joinByCode.expired')
     if (isApiError(caught) && caught.status === 404) return t('joinByCode.notFound')
     if (isApiError(caught) && caught.status === 429) return t('auth.rateLimited')
     return t('joinByCode.failed')

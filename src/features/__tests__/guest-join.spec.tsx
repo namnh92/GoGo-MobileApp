@@ -52,8 +52,9 @@ function apiError(status: number, code = 'X'): ApiError {
   return new ApiError(status, { code, message: 'x', field_errors: [], request_id: 'test', retryable: false })
 }
 
-const INVITE_GONE = 'Lời mời này không còn dùng được. Hỏi người tạo phòng gửi link mới nhé.'
+const INVITE_GONE = 'Lời mời này không còn dùng được. Hỏi chủ phòng gửi link mới nhé.'
 const ROOM_CLOSED = 'Phòng này không nhận thêm người nữa, nên link mới cũng không giúp được. Hỏi chủ phòng nếu bạn cần vào.'
+const ROOM_EXPIRED = 'Phòng này đã hết hạn, nên link mới cũng không giúp được. Hỏi chủ phòng tạo phòng mới nhé.'
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -104,6 +105,7 @@ describe('invite screen × session', () => {
     [410, 'INVITE_NOT_USABLE', INVITE_GONE],
     // GoGo-MobileApp#248: a room that stopped taking members is not an expired invite.
     [410, 'ROOM_NOT_JOINABLE', ROOM_CLOSED],
+    [410, 'ROOM_EXPIRED', ROOM_EXPIRED],
     [410, 'SOMETHING_ELSE_GONE', INVITE_GONE],
     [404, 'INVITE_NOT_FOUND', 'Link mời không đúng hoặc phòng đã bị xoá.'],
     [429, 'RATE_LIMITED', 'Thử quá nhiều lần. Đợi một chút rồi thử lại.'],
@@ -125,7 +127,7 @@ describe('invite screen × session', () => {
     await fireEvent.changeText(view.getByLabelText(NAME), 'Lan')
     await fireEvent.press(view.getByText(JOIN))
 
-    expect(await view.findByText('Lời mời này không còn dùng được. Hỏi người tạo phòng gửi link mới nhé.')).toBeTruthy()
+    expect(await view.findByText(INVITE_GONE)).toBeTruthy()
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
@@ -138,6 +140,19 @@ describe('invite screen × session', () => {
     await fireEvent.press(view.getByText(JOIN))
 
     expect(await view.findByText(ROOM_CLOSED)).toBeTruthy()
+    expect(view.queryByText(INVITE_GONE)).toBeNull()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('tells a guest when the room has expired, not that the invite did (#248)', async () => {
+    mockSession.status = 'anonymous'
+    mockJoinAsGuest.mockRejectedValue(apiError(410, 'ROOM_EXPIRED'))
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.changeText(view.getByLabelText(NAME), 'Lan')
+    await fireEvent.press(view.getByText(JOIN))
+
+    expect(await view.findByText(ROOM_EXPIRED)).toBeTruthy()
     expect(view.queryByText(INVITE_GONE)).toBeNull()
     expect(mockReplace).not.toHaveBeenCalled()
   })
