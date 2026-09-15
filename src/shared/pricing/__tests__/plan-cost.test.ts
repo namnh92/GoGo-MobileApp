@@ -28,6 +28,7 @@ const t = ((key: string, options?: Record<string, unknown>) =>
   )) as unknown as TFunction
 
 const facts = (overrides: Partial<PlanCostFacts> = {}): PlanCostFacts => ({
+  costMin: 250_000,
   costMax: 250_000,
   costScope: 'per_person',
   currency: 'VND',
@@ -54,7 +55,7 @@ describe('planCost', () => {
 
   it('rounds a multiplied group figure up, never down', () => {
     // 335k × 4 = 1.340.000, which the compact style would otherwise print as "1,3tr".
-    expect(text(planCost(facts({ costMax: 335_000 }), group(4), t).whole)).toBe('1,4tr tổng nhóm 4 người')
+    expect(text(planCost(facts({ costMin: 335_000, costMax: 335_000 }), group(4), t).whole)).toBe('1,4tr tổng nhóm 4 người')
   })
 
   it('leads with the group figure when the group budget is a total', () => {
@@ -64,7 +65,7 @@ describe('planCost', () => {
   })
 
   it('gives a couple one figure for the two of them (PX-9, couple)', () => {
-    const cost = planCost(facts({ costMax: 180_000 }), couple, t)
+    const cost = planCost(facts({ costMin: 90_000, costMax: 180_000 }), couple, t)
     expect(text(cost.primary)).toBe('360k cho 2 người')
     expect(cost.secondary).toBeNull()
     expect(text(cost.perPerson)).toBe('180k/người')
@@ -87,11 +88,44 @@ describe('planCost', () => {
     expect(text(planCost(facts({ costMax: 0, uncertain: true }), group(4), t).primary)).toBe('Miễn phí')
   })
 
-  it('reads a partly priced plan as a floor, not an estimate', () => {
-    const cost = planCost(facts({ hasUnpricedStop: true, uncertain: true }), group(4), t)
+  it('reads a partly priced plan as a floor of the lower bounds, not an estimate', () => {
+    const cost = planCost(facts({ costMin: 250_000, costMax: 450_000, hasUnpricedStop: true, uncertain: true }), group(4), t)
     expect(cost.primary).toEqual({ amount: 'từ 250k', unit: '/người' })
     expect(text(cost.secondary)).toBe('từ 1tr tổng nhóm 4 người')
+    expect(JSON.stringify(cost)).not.toContain('450k')
     expect(JSON.stringify(cost)).not.toContain('~')
+  })
+
+  it('builds the floor for a 250k–450k stop plus an unpriced stop from 250k, not the upper bound', () => {
+    const summary = toPlanSummary({
+      id: 'p1',
+      roomId: 'r1',
+      totals: { costMin: 250_000, costMax: 450_000, costScope: 'per_person', currency: 'VND', uncertain: true },
+      stops: [
+        { id: 's1', placeId: 'pl1', position: 0, costMin: 250_000, costMax: 450_000, costScope: 'per_person' },
+        { id: 's2', placeId: 'pl2', position: 1, costMin: null, costMax: null, costScope: 'per_person' },
+      ],
+    } as Plan)
+    expect(text(planCost(summary, group(4), t).primary)).toBe('từ 250k/người')
+  })
+
+  it('rounds a floor down, never up', () => {
+    // 335k × 4 = 1.340.000: a floor of "1,4tr" would claim more than is known.
+    expect(text(planCost(facts({ costMin: 335_000, costMax: 500_000, hasUnpricedStop: true }), group(4), t).whole)).toBe(
+      'từ 1,3tr tổng nhóm 4 người',
+    )
+  })
+
+  it('shows no number for a floor of nothing', () => {
+    expect(text(planCost(facts({ costMin: 0, costMax: 50_000, hasUnpricedStop: true }), group(4), t).primary)).toBe(
+      'Chưa có thông tin giá',
+    )
+  })
+
+  it('rounds the per-person figure up with the group figure, so neither reads as less', () => {
+    const cost = planCost(facts({ costMin: 1_340_000, costMax: 1_340_000 }), couple, t)
+    expect(text(cost.perPerson)).toBe('1,4tr/người')
+    expect(text(cost.whole)).toBe('2,7tr cho 2 người')
   })
 
   it('marks every scope as an estimate while a complete sum has a low-confidence price', () => {
@@ -158,7 +192,13 @@ describe('allScopes', () => {
 
 describe('scopeLabel', () => {
   it('turns a scope into a label', () => {
-    expect(scopeLabel({ amount: '1tr', unit: ' tổng nhóm 4 người' })).toBe('Tổng nhóm 4 người')
+    expect(scopeLabel({ amount: '1tr', unit: 'tổng nhóm 4 người' })).toBe('Tổng nhóm 4 người')
+  })
+
+  it('keeps a scope unit free of a leading space', () => {
+    const cost = planCost(facts(), group(4), t)
+    expect(cost.whole?.unit).toBe('tổng nhóm 4 người')
+    expect(text(cost.whole)).toBe('1tr tổng nhóm 4 người')
   })
 })
 

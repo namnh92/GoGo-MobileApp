@@ -20,6 +20,9 @@ import { formatMoney, formatRange } from './money'
 export type PlanAudience = Pick<RoomAudience, 'roomType' | 'participantCount' | 'budgetMode'>
 
 export interface PlanCostFacts {
+  /** Sum of the stops' lower bounds, in `costScope`. */
+  costMin: number
+  /** Sum of the stops' upper bounds, in `costScope`. */
   costMax: number
   costScope: BudgetScope | null
   currency: string
@@ -27,15 +30,15 @@ export interface PlanCostFacts {
   uncertain: boolean
   /** At least one stop has a price in `costScope`. */
   priced: boolean
-  /** At least one stop has no price in `costScope`, so the sum is only a floor. */
+  /** At least one stop has no price in `costScope`, so only a floor is known. */
   hasUnpricedStop: boolean
 }
 
 /**
  * An amount and what it is per, kept apart so a screen can set the scope in its
- * own style without truncating it. `amount` is null when there is no number to
- * show; `unit` is then the whole line (`Miễn phí`, `Chưa có thông tin giá`).
- * `unit` carries its own separator: "/người", " tổng nhóm 4 người".
+ * own style, with its own spacing, without truncating it. `amount` is null when
+ * there is no number to show; `unit` is then the whole line (`Miễn phí`,
+ * `Chưa có thông tin giá`). `unit` carries no leading space.
  */
 export interface CostLine {
   amount: string | null
@@ -53,11 +56,13 @@ export interface PlanCost {
   secondary: CostLine | null
 }
 
+/** One line of text: a "/người" suffix sits against the amount, a scope after a space. */
 export function costLineText(line: CostLine): string {
-  return line.amount === null ? line.unit : `${line.amount}${line.unit}`
+  if (line.amount === null) return line.unit
+  return line.unit.startsWith('/') ? `${line.amount}${line.unit}` : `${line.amount} ${line.unit}`
 }
 
-/** A scope as a label on its own: " tổng nhóm 4 người" → "Tổng nhóm 4 người". */
+/** A scope as a label on its own: "tổng nhóm 4 người" → "Tổng nhóm 4 người". */
 export function scopeLabel(line: CostLine): string {
   const unit = line.unit.trim()
   return unit.charAt(0).toLocaleUpperCase() + unit.slice(1)
@@ -86,29 +91,32 @@ export function planCost(plan: PlanCostFacts, audience: PlanAudience | null, t: 
   // unpriced one is not a free plan. Low confidence does not unmake "free".
   if (plan.costMax === 0) return only(t(plan.hasUnpricedStop ? 'price.unit.unknown' : 'price.unit.free'))
 
-  // A stop with no price makes the sum a floor ("từ 250k"), not an estimate of
-  // the whole; a complete sum of low-confidence prices reads "~".
+  // A stop with no price leaves only a floor: the sum of the known LOWER bounds,
+  // read the way `formatRange` reads an open range ("từ …"). A floor of nothing
+  // says nothing about the price, so it is not shown as a number.
+  const floor = plan.hasUnpricedStop
+  if (floor && plan.costMin <= 0) return only(t('price.unit.unknown'))
+  const base = floor ? plan.costMin : plan.costMax
   const amount = (value: number) => {
-    const money = formatMoney(value, plan.currency)
-    if (plan.hasUnpricedStop) return t('price.atLeast', { amount: money })
+    // A floor rounds down and an estimate rounds up, so neither ever reads as
+    // more certain in the direction a person budgets for.
+    const money = formatMoney(roundForDisplay(value, plan.currency, floor ? 'down' : 'up'), plan.currency)
+    if (floor) return t('price.atLeast', { amount: money })
     return plan.uncertain ? `~${money}` : money
   }
   const people = audience && audience.participantCount > 0 ? audience : null
 
   if (plan.costScope === 'per_group') {
     // A group amount cannot become a per-person one without dividing.
-    const whole = { amount: amount(plan.costMax), unit: ` ${wholeLabel(people, t)}` }
+    const whole = { amount: amount(base), unit: wholeLabel(people, t) }
     return { perPerson: null, whole, primary: whole, secondary: null }
   }
 
-  const perPerson = { amount: amount(plan.costMax), unit: t('price.unit.per_person') }
+  const perPerson = { amount: amount(base), unit: t('price.unit.per_person') }
   // The room has not loaded: say only what the API said.
   if (!people) return { perPerson, whole: null, primary: perPerson, secondary: null }
 
-  const whole = {
-    amount: amount(roundUpForDisplay(plan.costMax * people.participantCount, plan.currency)),
-    unit: ` ${wholeLabel(people, t)}`,
-  }
+  const whole = { amount: amount(base * people.participantCount), unit: wholeLabel(people, t) }
   // A couple reads one figure for the two of them (spec §16.1).
   if (people.roomType === 'couple') return { perPerson, whole, primary: whole, secondary: null }
   // A group leads with the scope its budget was set in (spec §23.3).
@@ -118,22 +126,23 @@ export function planCost(plan: PlanCostFacts, audience: PlanAudience | null, t: 
 }
 
 /**
- * The compact VND style rounds to a thousand, or to a tenth of a million, and
- * can round down: 1.340.000 would read "1,3tr". A figure reached by
- * multiplying must never read as less than it is, so it is rounded up to what
- * the display can show first.
+ * The compact VND style shows thousands, or tenths of a million, and on its own
+ * rounds to the nearest. Rounding to what the display can show first, in a
+ * chosen direction, keeps an estimate from reading as less than it is ("1,3tr"
+ * for 1.340.000) and a floor from reading as more.
  */
-function roundUpForDisplay(amount: number, currency: string): number {
+function roundForDisplay(amount: number, currency: string, direction: 'up' | 'down'): number {
   if (currency.toUpperCase() !== 'VND') return amount
-  if (amount >= 1_000_000) return Math.ceil(amount / 100_000) * 100_000
-  if (amount >= 1_000) return Math.ceil(amount / 1_000) * 1_000
-  return amount
+  const step = amount >= 1_000_000 ? 100_000 : amount >= 1_000 ? 1_000 : 1
+  const round = direction === 'up' ? Math.ceil : Math.floor
+  return round(amount / step) * step
 }
 
 function wholeLabel(audience: PlanAudience | null, t: TFunction): string {
   if (!audience) return t('price.groupTotal')
+  // Built from the count the API reported, never from a fixed "2".
   return audience.roomType === 'couple'
-    ? t('datePlan.for2')
+    ? t('price.forPeople', { n: audience.participantCount })
     : t('price.groupTotalOf', { n: audience.participantCount })
 }
 

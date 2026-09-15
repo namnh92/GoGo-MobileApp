@@ -441,6 +441,7 @@ export const viMessages = {
   'price.groupTotal': 'tổng nhóm',
   'price.groupTotalOf': 'tổng nhóm {{n}} người',
   'price.atLeast': 'từ {{amount}}',
+  'price.forPeople': 'cho {{n}} người',
   'price.unit.per_person': '/người',
   'price.unit.per_group': ' · tổng nhóm',
   'price.unit.per_item': '/món',

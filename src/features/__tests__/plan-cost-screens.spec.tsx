@@ -111,6 +111,8 @@ describe('plan cost × screen', () => {
       stops: [PLAN.stops[0], { ...PLAN.stops[1], costMin: null, costMax: null }],
     })
     const view = await renderScreen(<MatchResultScreen />)
-    expect(view.getByText(/từ 500k\/người · từ 2tr tổng nhóm 4 người/)).toBeTruthy()
+    // The floor is the known lower bound (250k), never the sum of upper bounds.
+    expect(view.getByText(/từ 250k\/người · từ 1tr tổng nhóm 4 người/)).toBeTruthy()
+    expect(view.queryByText(/từ 500k/)).toBeNull()
   })
 })

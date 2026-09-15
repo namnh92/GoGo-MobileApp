@@ -93,7 +93,7 @@ describe('plan cost × unit', () => {
     const view = await renderScreen(<DatePlanScreen />)
 
     expect(view.getByText('360k')).toBeTruthy()
-    expect(view.getByText(' cho 2 người')).toBeTruthy()
+    expect(view.getByText('cho 2 người')).toBeTruthy()
     expect(view.queryByText('180k')).toBeNull()
     expect(view.getByText('90k–180k/người')).toBeTruthy()
   })
