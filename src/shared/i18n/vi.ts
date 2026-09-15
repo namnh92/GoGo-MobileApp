@@ -790,6 +790,7 @@ export const viMessages = {
   'notifications.kind.plan_changed': 'Kế hoạch có thay đổi',
   'notifications.kind.date_reminder': 'Nhắc lịch đi chơi',
   'notifications.kind.moderation_update': 'Kết quả kiểm duyệt',
+  'notifications.pushUnavailable': 'Không mở được nội dung của thông báo này. Có thể nội dung đã bị xoá hoặc bạn không còn quyền xem.',
   'permissionsSettings.title': 'Thông báo và vị trí',
   'permissionsSettings.notifications': 'Thông báo',
   'permissionsSettings.location': 'Vị trí',
