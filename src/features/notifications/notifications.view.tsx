@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
 import { isUuid } from '@/shared/navigation/deep-link'
+import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
@@ -39,6 +40,8 @@ export default function NotificationsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { status } = useSession()
+  // GoGo-MobileApp#256 — a tapped push that could not be opened lands here.
+  const { notice } = useLocalSearchParams<{ notice?: string }>()
 
   // Guests get 403 USER_ONLY on the inbox.
   const canRead = status === 'user'
@@ -59,6 +62,11 @@ export default function NotificationsScreen() {
   const header = (
     <View style={{ paddingTop: insets.top }}>
       <BackHeader onBack={() => router.back()} title={t('notifications.title')} />
+      {notice === PUSH_UNAVAILABLE_NOTICE ? (
+        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+          {t('notifications.pushUnavailable')}
+        </Text>
+      ) : null}
     </View>
   )
 
