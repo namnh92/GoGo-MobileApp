@@ -16,12 +16,16 @@ import { renderScreen, roomFor } from './harness'
 const mockPost = jest.fn()
 const mockGet = jest.fn()
 const mockReplace = jest.fn()
+const mockTrack = jest.fn()
+let mockParams: Record<string, string> = { planId: 'plan-1' }
 
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn(), canGoBack: () => true }),
-  useLocalSearchParams: () => ({ planId: 'plan-1' }),
+  useLocalSearchParams: () => mockParams,
 }))
+
+jest.mock('@/shared/analytics', () => ({ track: (...args: unknown[]) => mockTrack(...args) }))
 
 jest.mock('@/shared/api/client', () => {
   const actual = jest.requireActual('@/shared/api/client')
@@ -49,6 +53,7 @@ jest.mock('@/shared/api', () => ({
 }))
 
 import { ApiError, NetworkError } from '@/shared/api/errors'
+import { queryKeys } from '@/shared/api/query-keys'
 import ActiveDateScreen from '@/features/active-date/active-date.view'
 
 const DONE_STEP = 'Xong bước này ✓'
@@ -57,6 +62,7 @@ const SAVE = 'Lưu check-in ✓'
 const SKIP = 'Bỏ qua'
 const ALL_DONE = 'Đã đi hết các điểm'
 const CHECKIN_FAILED = 'Chưa lưu được check-in. Thử lại, hoặc bỏ qua để đi tiếp.'
+const VIEW_SUMMARY = 'Xem tổng kết →'
 const COMPLETE_PATH = '/plans/{id}/stops/{stopId}/complete'
 const CHECKIN_PATH = '/plans/{id}/stops/{stopId}/checkin'
 const PLACE_IDS = ['place-1', 'place-2', 'place-3']
@@ -137,6 +143,29 @@ async function completeStop(label: string, movedOnTo: string) {
   expect(await screen.findByText(movedOnTo)).toBeTruthy()
 }
 
+/** Another phone changed the plan; this one reads it on its next refetch. */
+async function refetchPlan() {
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: queryKeys.plan('plan-1') })
+  })
+}
+
+/** Plan reads stay unanswered until released, the way a slow refetch lands after the user moved on. */
+function holdPlanReads() {
+  const held: (() => void)[] = []
+  mockGet.mockImplementation((path: string) =>
+    path === '/rooms/{id}'
+      ? Promise.resolve(roomFor('group-host', { status: 'active' } as never))
+      : new Promise(resolve => held.push(() => resolve(planNow()))),
+  )
+  return () =>
+    act(async () => {
+      held.splice(0).forEach(release => release())
+    })
+}
+
+const dateCompletedEvents = () => mockTrack.mock.calls.filter(([name]) => name === 'date_completed')
+
 // Deliver TanStack's observer notifications inside the act that caused them.
 beforeAll(() => notifyManager.setScheduler(callback => callback()))
 afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
@@ -146,6 +175,7 @@ beforeEach(() => {
     defaultOptions: { mutations: { retry: false, gcTime: Infinity }, queries: { retry: false, gcTime: Infinity } },
   })
   jest.clearAllMocks()
+  mockParams = { planId: 'plan-1' }
   mockPost.mockReset()
   mockGet.mockReset()
   mockPost.mockImplementation(serverPost)
@@ -279,5 +309,173 @@ describe('a double tap on "Xong bước này"', () => {
     expect(await screen.findByText(SAVE)).toBeTruthy()
     expect(stopIds(COMPLETE_PATH)).toEqual(['stop-1'])
     expect(screen.getAllByText('Cà phê Sáng')).toHaveLength(1)
+  })
+})
+
+describe('when every stop is already done', () => {
+  it('offers the summary rather than a screen with no way on', async () => {
+    server.statuses = ['completed', 'completed', 'completed']
+    await renderActive()
+    expect(await screen.findByText(ALL_DONE)).toBeTruthy()
+    expect(screen.queryByText(SAVE)).toBeNull()
+
+    await press(VIEW_SUMMARY)
+    expect(mockReplace).toHaveBeenCalledWith('/plans/plan-1/finished')
+    expect(calls(COMPLETE_PATH)).toHaveLength(0)
+  })
+
+  it('keeps the open check-in and its draft when the other phone finishes the remaining stops', async () => {
+    server.statuses = ['completed', 'planned', 'planned']
+    await renderActive()
+    await completeStop(DONE_STEP, 'Điểm 3 / 3')
+    await fireEvent.press(screen.getByLabelText('3 sao'))
+
+    server.statuses[2] = 'completed'
+    await refetchPlan()
+    expect(await screen.findByText(ALL_DONE)).toBeTruthy()
+
+    await press(SAVE)
+    await waitFor(() => expect(stopIds(CHECKIN_PATH)).toEqual(['stop-2']))
+    expect(calls(CHECKIN_PATH)[0]![1]).toMatchObject({ rating: 3 })
+    await waitFor(() => expect(screen.queryByText(SAVE)).toBeNull())
+    // Stop 2 was not the last when this phone completed it; the summary is one tap on.
+    expect(mockReplace).not.toHaveBeenCalled()
+    await press(VIEW_SUMMARY)
+    expect(mockReplace).toHaveBeenCalledWith('/plans/plan-1/finished')
+  })
+})
+
+describe('when the room stops being active under an open check-in', () => {
+  it('keeps the sheet and its draft, since an ended room still takes check-ins', async () => {
+    server.statuses = ['completed', 'planned', 'planned']
+    await renderActive()
+    await completeStop(DONE_STEP, 'Điểm 3 / 3')
+    await fireEvent.press(screen.getByLabelText('3 sao'))
+
+    mockGet.mockImplementation(async (path: string) =>
+      path === '/rooms/{id}' ? roomFor('group-host', { status: 'completed' } as never) : planNow(),
+    )
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: queryKeys.room('room-1') })
+    })
+    expect(await screen.findByText(VIEW_SUMMARY)).toBeTruthy()
+
+    await press(SAVE)
+    await waitFor(() => expect(stopIds(CHECKIN_PATH)).toEqual(['stop-2']))
+    expect(calls(CHECKIN_PATH)[0]![1]).toMatchObject({ rating: 3 })
+  })
+})
+
+describe('when the plan refetch after a completion is slow', () => {
+  it('moves on at once, so the stop just completed is not offered again', async () => {
+    server.statuses = ['completed', 'planned', 'planned']
+    await renderActive()
+    expect(await screen.findByText('Điểm 2 / 3')).toBeTruthy()
+    const release = holdPlanReads()
+
+    await press(DONE_STEP)
+    expect(await screen.findByText(SAVE)).toBeTruthy()
+    expect(screen.getByText('Điểm 3 / 3')).toBeTruthy()
+    await press(SKIP)
+    await waitFor(() => expect(screen.queryByText(SAVE)).toBeNull())
+
+    await press(FINISH)
+    expect(await screen.findByText(ALL_DONE)).toBeTruthy()
+    expect(stopIds(COMPLETE_PATH)).toEqual(['stop-2', 'stop-3'])
+    await press(SKIP)
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/plans/plan-1/finished'))
+
+    await release()
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(dateCompletedEvents()).toHaveLength(1)
+  })
+})
+
+describe('closing the last check-in while it saves', () => {
+  it('finishes the date once when "Bỏ qua" is tapped during the save', async () => {
+    server.statuses = ['completed', 'completed', 'planned']
+    let answer = () => undefined as void
+    mockPost.mockImplementation((path: string, body: unknown, options: Call[2]) =>
+      path === CHECKIN_PATH
+        ? new Promise(resolve => {
+            answer = () => resolve({ id: 'checkin-stop-3' })
+          })
+        : serverPost(path, body, options),
+    )
+    await renderActive()
+    expect(await screen.findByText('Điểm 3 / 3')).toBeTruthy()
+    await completeStop(FINISH, ALL_DONE)
+
+    await press(SAVE)
+    // The save is in flight: its button shows a spinner, and "Bỏ qua" is off.
+    await waitFor(() => expect(calls(CHECKIN_PATH)).toHaveLength(1))
+    await press(SKIP)
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(screen.getByText(SKIP)).toBeTruthy()
+
+    await act(async () => answer())
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/plans/plan-1/finished'))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(dateCompletedEvents()).toHaveLength(1)
+    expect(stopIds(CHECKIN_PATH)).toEqual(['stop-3'])
+  })
+})
+
+describe('a check-in opened from a link', () => {
+  it('stays with the stop it opened on when the plan moves on underneath', async () => {
+    mockParams = { planId: 'plan-1', checkin: '1' }
+    server.statuses = ['planned', 'planned', 'planned']
+    await renderActive()
+    expect(await screen.findByText(SAVE)).toBeTruthy()
+    expect(screen.getAllByText('Cà phê Sáng')).toHaveLength(2)
+    await fireEvent.press(screen.getByLabelText('4 sao'))
+
+    // The other phone completes stop 1 while this sheet is open.
+    server.statuses[0] = 'completed'
+    await refetchPlan()
+    expect(await screen.findByText('Điểm 2 / 3')).toBeTruthy()
+
+    await press(SAVE)
+    await waitFor(() => expect(stopIds(CHECKIN_PATH)).toEqual(['stop-1']))
+    expect(calls(CHECKIN_PATH)[0]![1]).toMatchObject({ rating: 4 })
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('does not end the date when closed at the last stop, which is not completed yet', async () => {
+    mockParams = { planId: 'plan-1', checkin: '1' }
+    server.statuses = ['completed', 'completed', 'planned']
+    await renderActive()
+    expect(await screen.findByText(SAVE)).toBeTruthy()
+
+    await press(SKIP)
+    await waitFor(() => expect(screen.queryByText(SAVE)).toBeNull())
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(screen.getByText(FINISH)).toBeTruthy()
+    expect(calls(COMPLETE_PATH)).toHaveLength(0)
+  })
+})
+
+describe('a check-in no retry can save', () => {
+  it.each([
+    ['refused for this account', new ApiError(403, { code: 'NOT_A_MEMBER', message: 'no' }), 'Bạn không có quyền thực hiện thao tác này.'],
+    ['rejected as invalid', new ApiError(400, { code: 'VALIDATION_FAILED', message: 'bad' }), 'Không lưu được check-in này. Bỏ qua để đi tiếp.'],
+  ])('does not ask for a retry when %s', async (_, failure, message) => {
+    server.statuses = ['completed', 'planned', 'planned']
+    mockPost.mockImplementation(async (path: string, body: unknown, options: Call[2]) => {
+      if (path === CHECKIN_PATH) throw failure
+      return serverPost(path, body, options)
+    })
+    await renderActive()
+    expect(await screen.findByText('Điểm 2 / 3')).toBeTruthy()
+    await completeStop(DONE_STEP, 'Điểm 3 / 3')
+
+    await press(SAVE)
+    expect(await screen.findByText(message)).toBeTruthy()
+    expect(screen.queryByText(CHECKIN_FAILED)).toBeNull()
+    expect(screen.getByText(SAVE)).toBeTruthy()
+
+    await press(SKIP)
+    await waitFor(() => expect(screen.queryByText(SAVE)).toBeNull())
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 })

@@ -577,6 +577,7 @@ export const enMessages: Record<MessageKey, string> = {
   'checkin.saving': 'Saving…',
   'checkin.saveFailed': 'Could not save the check-in. Try again, or skip to move on.',
   'checkin.saveFailedOffline': 'Could not save the check-in. Check your connection and try again.',
+  'checkin.saveRefused': 'This check-in cannot be saved. Skip to move on.',
   'checkin.photoFailed': 'An image did not upload. The check-in still saves, just without it.',
   'checkin.removePhoto': 'Remove this photo',
   'checkin.tag.would_return': 'Would go again',

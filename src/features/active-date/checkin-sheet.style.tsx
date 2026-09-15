@@ -140,6 +140,7 @@ export const styles = StyleSheet.create({
   saveFailed: { ...type.bodySmall, color: brand.red, marginBottom: spacing[3], textAlign: 'center' },
   saveBtn: { alignSelf: 'stretch' },
   skipBtn: { alignItems: 'center', paddingVertical: spacing[3] },
+  skipBtnDisabled: { opacity: 0.45 },
   skipLabel: { ...type.bodySmall, fontWeight: '500', color: neutral[500] },
   unavailableNote: { ...type.caption, color: colors.neutral[500], marginTop: spacing[3] },
 })

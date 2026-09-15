@@ -112,6 +112,9 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
   }
 
   function skip() {
+    // A save in flight decides where the date goes next; closing now as well
+    // would move it on twice (#278).
+    if (pending) return
     onSkip()
     reset()
   }
@@ -237,8 +240,10 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
             />
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ disabled: Boolean(pending) }}
+              disabled={pending}
               onPress={skip}
-              style={styles.skipBtn}
+              style={[styles.skipBtn, pending && styles.skipBtnDisabled]}
             >
               <Text style={styles.skipLabel}>{t('checkin.skip')}</Text>
             </Pressable>
