@@ -116,8 +116,10 @@ export function useTransitionRoom(roomId: string) {
  *
  * `start()` is single-flight. A second tap while the first request is out
  * resolves `null` and sends nothing, so one press is one transition and one
- * `date_reminder` push to the members. It resolves the active room once the
- * server agrees, and rejects with the API error otherwise.
+ * `date_reminder` push to the members. `onSend` runs only for the call that
+ * actually sends, so a joined tap is not a second analytics event either. It
+ * resolves the active room once the server agrees, and rejects with the API
+ * error otherwise.
  *
  * Success refreshes the room, its plan and the Plans tabs, which filter by room
  * status (#213). A 403 or 409 means the cached role or status is behind, so the
@@ -127,8 +129,10 @@ export function useStartDate(roomId: string | undefined, planId?: string) {
   const queryClient = useQueryClient()
   const inFlight = useRef(false)
   const mutation = useMutation({
-    // An explicit tap must end in an answer. Paused while offline, the button
-    // would spin forever; failing lets the offline copy and the retry show.
+    // The button is the retry. The default automatic retry kept it hidden behind
+    // a spinner (about 3 s offline, far longer on a timeout), and paused while
+    // offline it would spin forever. An explicit tap must end in an answer.
+    retry: false,
     networkMode: 'always',
     mutationFn: () => roomsApi.startRoomDate(roomId as string),
     onSuccess: room => {
@@ -146,10 +150,11 @@ export function useStartDate(roomId: string | undefined, planId?: string) {
   })
 
   const { mutateAsync } = mutation
-  const start = useCallback(async (): Promise<RoomSummary | null> => {
+  const start = useCallback(async (options?: { onSend?: () => void }): Promise<RoomSummary | null> => {
     if (!roomId || inFlight.current) return null
     inFlight.current = true
     try {
+      options?.onSend?.()
       return await mutateAsync()
     } finally {
       inFlight.current = false

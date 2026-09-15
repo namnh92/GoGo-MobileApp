@@ -68,5 +68,7 @@ export const styles = StyleSheet.create({
   nextMeta: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
 
   failure: { ...type.bodySmall, color: brand.red, marginTop: spacing[3], textAlign: 'center' },
-  notActive: { alignItems: 'center', gap: spacing[2] },
+  /** #251 — the room is not live: one message and one way out. */
+  notActive: { flex: 1, paddingHorizontal: spacing[5] },
+  notActiveCta: { alignSelf: 'stretch', marginTop: spacing[4] },
 })

@@ -1,11 +1,12 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo, useRef, useState } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   formatDistance,
+  isApiError,
   isConflict,
   isForbidden,
   isOffline,
@@ -65,6 +66,18 @@ export default function DatePlanScreen() {
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // #251 — a start that answers after the user left this screen, or opened
+  // another one on top of it, must not pull them into the active date.
+  const focused = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true
+      return () => {
+        focused.current = false
+      }
+    }, []),
+  )
+
   function toggleLock(stop: PlanStopRow, name: string) {
     const locking = !stop.isLocked
     // A lock is a commitment the user cannot see land immediately — the times
@@ -109,17 +122,16 @@ export default function DatePlanScreen() {
    * nothing, so a double tap is one request and one navigation.
    */
   async function onStart() {
-    track('date_plan_accepted')
     let started
     try {
-      started = await startDate.start()
+      started = await startDate.start({ onSend: () => track('date_plan_accepted') })
     } catch {
       // The error renders under the button, which becomes the retry.
       return
     }
     if (!started) return
     track('date_started')
-    router.push(`/plans/${planId}/active`)
+    if (focused.current) router.push(`/plans/${planId}/active`)
   }
 
   function openActiveDate() {
@@ -165,13 +177,6 @@ export default function DatePlanScreen() {
    * Members learn that it started through `useRoomRealtime` above.
    */
   const roomStatus = room.data?.status
-  const startErrorKey = isOffline(startDate.error)
-    ? 'datePlan.startOffline'
-    : isForbidden(startDate.error)
-      ? 'datePlan.startHostOnly'
-      : isConflict(startDate.error)
-        ? 'datePlan.startConflict'
-        : 'datePlan.startFailed'
 
   function renderDateAction() {
     if (!room.data) {
@@ -184,8 +189,18 @@ export default function DatePlanScreen() {
         <PrimaryBtn label={t('datePlan.go')} onPress={onStart} disabled loading style={styles.goBtn} />
       )
     }
-    if (roomStatus === 'active' || roomStatus === 'completed') {
+    if (roomStatus === 'active') {
       return <PrimaryBtn label={t('datePlan.enter')} onPress={openActiveDate} style={styles.goBtn} />
+    }
+    // A finished date is a summary to look back on, not a live screen.
+    if (roomStatus === 'completed') {
+      return (
+        <PrimaryBtn
+          label={t('datePlan.viewSummary')}
+          onPress={() => router.push(`/plans/${planId}/finished`)}
+          style={styles.goBtn}
+        />
+      )
     }
     if (roomStatus === 'ready' && capabilities.isHost) {
       return (
@@ -204,7 +219,17 @@ export default function DatePlanScreen() {
           />
           {startDate.isError ? (
             <Text accessibilityLiveRegion="polite" style={styles.startError}>
-              {t(startErrorKey)}
+              {t(
+                isOffline(startDate.error)
+                  ? 'datePlan.startOffline'
+                  : isApiError(startDate.error) && startDate.error.code === 'HOST_ONLY'
+                    ? 'datePlan.startHostOnly'
+                    : isForbidden(startDate.error)
+                      ? 'common.permissionDenied'
+                      : isConflict(startDate.error)
+                        ? 'datePlan.startConflict'
+                        : 'datePlan.startFailed',
+              )}
             </Text>
           ) : null}
         </>
@@ -213,7 +238,15 @@ export default function DatePlanScreen() {
     return (
       <View style={styles.startNotice} accessibilityLiveRegion="polite">
         <Text style={styles.startNoticeLabel}>
-          {t(roomStatus === 'ready' ? 'datePlan.waitingHost' : 'datePlan.notStartable')}
+          {t(
+            roomStatus === 'ready'
+              ? 'datePlan.waitingHost'
+              : roomStatus === 'cancelled'
+                ? 'datePlan.roomCancelled'
+                : roomStatus === 'expired'
+                  ? 'datePlan.roomExpired'
+                  : 'datePlan.notStartable',
+          )}
         </Text>
       </View>
     )
