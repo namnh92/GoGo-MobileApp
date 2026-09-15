@@ -17,7 +17,8 @@ import { useReducedMotion } from '@/shared/ui/feedback'
 import { AvatarCircle } from '@/shared/ui/primitives'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
-import { decisionScreen } from './decision-screen'
+import { decisionScreen } from '@/shared/navigation/room-routing'
+
 import { styles } from './matching.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 

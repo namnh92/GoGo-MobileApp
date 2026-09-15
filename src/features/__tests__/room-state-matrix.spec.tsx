@@ -34,6 +34,7 @@ jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => mockParams,
+  useNavigationContainerRef: () => ({ isReady: () => true }),
 }))
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }))

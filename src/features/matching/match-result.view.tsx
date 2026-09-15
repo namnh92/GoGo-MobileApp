@@ -276,7 +276,11 @@ export default function MatchResultScreen() {
                   key={candidate.placeId}
                   accessibilityRole="button"
                   accessibilityLabel={candidate.name}
-                  onPress={() => decisionMode === 'host' ? setSelectedPlaceId(candidate.placeId) : router.push(`/places/${candidate.placeId}`)}
+                  // Choosing the winner is the host's, in host mode; anyone else
+                  // opens the place rather than swapping a winner only they see.
+                  onPress={() => capabilities.isHost && decisionMode === 'host'
+                    ? setSelectedPlaceId(candidate.placeId)
+                    : router.push(`/places/${candidate.placeId}`)}
                   style={styles.runnerAction}
                 >
                   <GlassCard style={styles.runnerRow}>

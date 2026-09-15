@@ -87,9 +87,11 @@ describe('ROOM_PHASE_EVENTS', () => {
 
   it('lets the lobby see the run and the plan land, but not the tally (#198)', () => {
     // The lobby sends a member on once the host's run or plan exists; on DEV it
-    // refreshed only the room and a member sat there while both landed. The
-    // polling transport folds these keys into the room's (see
-    // polling-transport.test.ts), so watching them costs no extra request.
+    // refreshed only the room and a member sat there while both landed. Polling
+    // folds these keys into one invalidation of room(id) per tick, and every
+    // query under it that a screen has enabled refetches: the lobby adds one
+    // read — the run while matching, the plan while ready or active — and only
+    // while it is on top.
     const keys = ROOM_PHASE_EVENTS.lobby
       .flatMap(type => eventQueryKeys({ type, roomId: ROOM_ID }))
       .map(key => JSON.stringify(key))

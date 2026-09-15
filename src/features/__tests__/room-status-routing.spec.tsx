@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library'
 import { useEffect } from 'react'
-import { AccessibilityInfo, Share, Text } from 'react-native'
+import { AccessibilityInfo, Alert, AppState, Platform, Share, Text, type AlertButton } from 'react-native'
 
 import { roomFor } from './harness'
+import { useCurrentSuggestions } from '@/shared/api'
 import { viMessages } from '@/shared/i18n/vi'
-import { planStep, resetRoomStepsForTests, runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
+import { forgetRoomSteps, planStep, runStep, useRoomStepShown, wasRoomStepShown } from '@/shared/navigation/room-steps'
 
 /**
  * GoGo-MobileApp#198 — after the host started matching, voted and finalized, a
@@ -17,16 +18,18 @@ import { planStep, resetRoomStepsForTests, runStep, useRoomStepShown } from '@/s
  * `renderRouter` switches to fake timers and hands back RNTL 14's pending
  * render, so the render is awaited and time is advanced by hand.
  *
- * The room, run and plan come from a store the test changes the way a poll
- * would. Every binding a jest.mock factory touches is `mock`-prefixed.
+ * Room facts come from a store the test changes the way a poll would, each as a
+ * successful read since the screen opened. What the lobby does with facts it
+ * only remembers from a previous launch is room-status-cached.spec.tsx.
+ * Every binding a jest.mock factory touches is `mock`-prefixed.
  */
 
-type MockState = { room: unknown; suggestions: unknown; plan: unknown }
+type RoomFacts = { room?: unknown; suggestions?: unknown; plan?: unknown }
 const mockStore = {
-  state: { room: undefined, suggestions: undefined, plan: undefined } as MockState,
+  rooms: {} as Record<string, RoomFacts>,
   listeners: new Set<() => void>(),
-  set(patch: Partial<MockState>) {
-    this.state = { ...this.state, ...patch }
+  set(roomId: string, patch: RoomFacts) {
+    this.rooms = { ...this.rooms, [roomId]: { ...this.rooms[roomId], ...patch } }
     this.listeners.forEach(listener => listener())
   },
 }
@@ -40,7 +43,6 @@ const mockInvite: Record<string, unknown> = {
   error: null,
   data: undefined,
 }
-const mockRealtime = jest.fn()
 
 // The testing library's custom matchers need jest's `expect` internals, which
 // pnpm does not expose to expo-router. Nothing here uses those matchers — paths
@@ -51,28 +53,30 @@ jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }
 
 jest.mock('@/shared/api', () => {
   const { useSyncExternalStore } = jest.requireActual('react')
-  const useMockState = (pick: (state: MockState) => unknown) =>
+  const useFacts = (roomId: string | undefined, pick: (facts: RoomFacts) => unknown) =>
     useSyncExternalStore(
       (listener: () => void) => {
         mockStore.listeners.add(listener)
         return () => mockStore.listeners.delete(listener)
       },
-      () => pick(mockStore.state),
+      () => (roomId ? pick(mockStore.rooms[roomId] ?? {}) : undefined),
     )
-  const query = (data: unknown) => ({ isPending: false, isError: false, data, error: null, refetch: jest.fn() })
+  // A disabled query (no id) has no data; anything else here was read since mount.
+  const query = (data: unknown) => ({
+    isPending: false,
+    isError: false,
+    isSuccess: data !== undefined,
+    isFetchedAfterMount: data !== undefined,
+    data,
+    error: null,
+    refetch: jest.fn(),
+  })
   return {
     ...jest.requireActual('@/shared/api'),
-    useRoom: () => query(useMockState(state => state.room)),
-    // A disabled query (no id) has no data, as in TanStack Query.
-    useCurrentSuggestions: (id?: string) => {
-      const data = useMockState(state => state.suggestions)
-      return query(id ? data : undefined)
-    },
-    useCurrentPlan: (id?: string) => {
-      const data = useMockState(state => state.plan)
-      return query(id ? data : undefined)
-    },
-    useRoomRealtime: (...args: unknown[]) => mockRealtime(...args),
+    useRoom: (id?: string) => query(useFacts(id, facts => facts.room)),
+    useCurrentSuggestions: (id?: string) => query(useFacts(id, facts => facts.suggestions)),
+    useCurrentPlan: (id?: string) => query(useFacts(id, facts => facts.plan)),
+    useRoomRealtime: () => ({ status: 'polling' }),
     useCreateRoomInvite: () => mockInvite,
     useStartMatching: () => mockStart,
   }
@@ -81,32 +85,37 @@ jest.mock('@/shared/api', () => {
 import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 
 const ROOM_ID = '311f5bd8-f853-4ced-af68-e04398d1451a'
+const ROOM_B = '7c2e4a1b-5d6f-4a8b-9c0d-1e2f3a4b5c6d'
 const RUN_ID = '88c56032-0f4e-4d1a-9b7c-2e5d6f7a8b9c'
 const RUN_2 = '9d2f7a41-3c6b-4e8d-a1f0-5b4c3d2e1f0a'
 const PLAN_ID = 'e2ac4207-6b5a-4c3d-8e9f-0a1b2c3d4e5f'
 const LOBBY = `/room/${ROOM_ID}`
 
-// Stand-ins for the destinations. Each records the step it shows, as the real
-// swipe, match-result and plan screens do.
+// Stand-ins for the destinations. Each records the step it shows the way the
+// real deck, result and plan screens do: from what it actually read.
 function MatchingStub() {
   useEffect(() => { mockMounts.matching += 1 }, [])
   return <Text>matching</Text>
 }
-function SwipeStub() {
+function useRecordRun(): void {
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
-  useRoomStepShown(roomId, runStep(RUN_ID))
+  const runId = useCurrentSuggestions(roomId).data?.run?.id
+  useRoomStepShown(roomId, runId ? runStep(runId) : null)
+}
+function SwipeStub() {
+  useRecordRun()
   useEffect(() => { mockMounts.swipe += 1 }, [])
   return <Text>deck</Text>
 }
 function ResultStub() {
-  const { roomId } = useLocalSearchParams<{ roomId: string }>()
-  useRoomStepShown(roomId, runStep(RUN_ID))
+  useRecordRun()
   useEffect(() => { mockMounts.result += 1 }, [])
   return <Text>result</Text>
 }
 function PlanStub() {
   const { planId } = useLocalSearchParams<{ planId: string }>()
-  useRoomStepShown(ROOM_ID, planStep(planId))
+  const roomId = Object.entries(mockStore.rooms).find(([, facts]) => (facts.plan as { id?: string } | undefined)?.id === planId)?.[0]
+  useRoomStepShown(roomId, planStep(planId))
   useEffect(() => { mockMounts.plan += 1 }, [])
   return <Text>plan</Text>
 }
@@ -124,7 +133,7 @@ async function renderRoom(initialUrl = LOBBY) {
     { initialUrl },
   )
   await view
-  // The lobby's first move is deferred a tick past the navigator's mount.
+  // The lobby waits for the navigator before its first move.
   await settle()
   // Not `return view`: an async function would unwrap the pending render and
   // drop the router accessors expo-router attached to it.
@@ -133,31 +142,31 @@ async function renderRoom(initialUrl = LOBBY) {
 
 type Mode = 'match' | 'vote' | 'host'
 
-const member = (overrides: Record<string, unknown> = {}) =>
-  roomFor('group-guest', { id: ROOM_ID, status: 'collecting', decisionMode: 'vote', ...overrides }, { everyonePicked: true })
+const member = (overrides: Record<string, unknown> = {}, id = ROOM_ID) =>
+  roomFor('group-guest', { id, status: 'collecting', decisionMode: 'vote', ...overrides }, { everyonePicked: true })
 const host = (overrides: Record<string, unknown> = {}, everyonePicked = true) =>
   roomFor('group-host', { id: ROOM_ID, status: 'collecting', decisionMode: 'vote', ...overrides }, { everyonePicked })
 
-const run = (mine: Record<string, string> = {}, runId = RUN_ID, stale = false) => ({
+const run = (mine: Record<string, string> = {}, runId = RUN_ID, stale = false, candidates = 2) => ({
   run: { id: runId, stale },
   candidates: [
     { placeId: 'place-1', rank: 1 },
     { placeId: 'place-2', rank: 2 },
-  ],
+  ].slice(0, candidates),
   votes: { mine, progress: [] },
 })
 const plan = { id: PLAN_ID, roomId: ROOM_ID, status: 'current' }
 
-/** Lets effects and navigation state settle. */
-async function settle() {
+/** Lets effects and navigation settle. */
+async function settle(ms = 50) {
   await act(async () => {
-    jest.advanceTimersByTime(50)
+    jest.advanceTimersByTime(ms)
   })
 }
 
 /** What a poll does: new facts arrive, and the screens re-render. */
-async function poll(patch: Partial<MockState>) {
-  await act(async () => mockStore.set(patch))
+async function poll(patch: RoomFacts, roomId = ROOM_ID) {
+  await act(async () => mockStore.set(roomId, patch))
   await settle()
 }
 
@@ -167,12 +176,11 @@ async function navigate(move: () => void) {
 }
 
 beforeEach(() => {
-  resetRoomStepsForTests()
-  mockStore.state = { room: undefined, suggestions: undefined, plan: undefined }
+  forgetRoomSteps()
+  mockStore.rooms = {}
   Object.assign(mockMounts, { matching: 0, swipe: 0, result: 0, plan: 0 })
   mockStart.mutateAsync.mockReset()
   mockInvite.data = undefined
-  mockRealtime.mockClear()
 })
 
 afterEach(() => {
@@ -188,7 +196,7 @@ describe('a member on the lobby when the host starts matching', () => {
     // A ballot already filled goes to the result, as the matching screen does.
     ['vote', { 'place-1': 'yes', 'place-2': 'no' }, '/match-result'],
   ])('%s mode, my votes %j → %s', async (mode, mine, suffix) => {
-    mockStore.set({ room: member({ decisionMode: mode }) })
+    mockStore.set(ROOM_ID, { room: member({ decisionMode: mode }) })
     const view = await renderRoom()
     expect(view.pathname()).toBe(LOBBY)
 
@@ -197,8 +205,20 @@ describe('a member on the lobby when the host starts matching', () => {
     expect(view.pathname()).toBe(`${LOBBY}${suffix}`)
   })
 
+  it.each<[Mode, string]>([
+    ['vote', '/swipe'],
+    ['host', '/match-result'],
+  ])('a run that found nothing still goes to the %s decision screen (%s), which owns the empty state', async (mode, suffix) => {
+    mockStore.set(ROOM_ID, { room: member({ decisionMode: mode }) })
+    const view = await renderRoom()
+
+    await poll({ room: member({ decisionMode: mode, status: 'matching' }), suggestions: run({}, RUN_ID, false, 0) })
+
+    expect(view.pathname()).toBe(`${LOBBY}${suffix}`)
+  })
+
   it('stays while there is nothing to decide: collecting, matching with no run, a stale run', async () => {
-    mockStore.set({ room: member() })
+    mockStore.set(ROOM_ID, { room: member() })
     const view = await renderRoom()
 
     // The room flips to matching once everyone has picked, before the host runs it.
@@ -212,7 +232,7 @@ describe('a member on the lobby when the host starts matching', () => {
 
 describe('a member on the lobby when the host finalizes', () => {
   it.each(['ready', 'active'])('%s → the room\'s current plan', async status => {
-    mockStore.set({ room: member({ status: 'matching' }) })
+    mockStore.set(ROOM_ID, { room: member({ status: 'matching' }) })
     const view = await renderRoom()
 
     await poll({ room: member({ status }), plan })
@@ -222,7 +242,7 @@ describe('a member on the lobby when the host finalizes', () => {
   })
 
   it('stays when the room says ready but has no plan to open', async () => {
-    mockStore.set({ room: member({ status: 'matching' }) })
+    mockStore.set(ROOM_ID, { room: member({ status: 'matching' }) })
     const view = await renderRoom()
 
     await poll({ room: member({ status: 'ready' }), plan: undefined })
@@ -233,7 +253,7 @@ describe('a member on the lobby when the host finalizes', () => {
 
 describe('routing once per change', () => {
   it('never pushes the same step twice, and Back or "Về phòng chờ" stay in the lobby', async () => {
-    mockStore.set({ room: member() })
+    mockStore.set(ROOM_ID, { room: member() })
     const view = await renderRoom()
 
     await poll({ room: member({ status: 'matching' }), suggestions: run() })
@@ -254,8 +274,8 @@ describe('routing once per change', () => {
     expect(mockMounts.swipe).toBe(2)
   })
 
-  it('moves a member again when the host regenerates: a new run is a new change', async () => {
-    mockStore.set({ room: member() })
+  it('moves a member again when the host regenerates, and the deck records the new run', async () => {
+    mockStore.set(ROOM_ID, { room: member() })
     const view = await renderRoom()
     await poll({ room: member({ status: 'matching' }), suggestions: run() })
     expect(view.pathname()).toBe(`${LOBBY}/swipe`)
@@ -264,10 +284,26 @@ describe('routing once per change', () => {
     await poll({ suggestions: run({}, RUN_2) })
 
     expect(view.pathname()).toBe(`${LOBBY}/swipe`)
+    expect(wasRoomStepShown(ROOM_ID, runStep(RUN_2))).toBe(true)
+  })
+
+  it('matching → collecting → a new run moves a member again', async () => {
+    mockStore.set(ROOM_ID, { room: member() })
+    const view = await renderRoom()
+    await poll({ room: member({ status: 'matching' }), suggestions: run() })
+    await navigate(() => router.back())
+
+    // The host revised the constraints: the room collects again.
+    await poll({ room: member({ status: 'collecting' }) })
+    expect(view.pathname()).toBe(LOBBY)
+
+    await poll({ room: member({ status: 'matching' }), suggestions: run({}, RUN_2) })
+    expect(view.pathname()).toBe(`${LOBBY}/swipe`)
+    expect(mockMounts.swipe).toBe(2)
   })
 
   it('opens a room already decided on its plan, once', async () => {
-    mockStore.set({ room: member({ status: 'ready' }), plan })
+    mockStore.set(ROOM_ID, { room: member({ status: 'ready' }), plan })
     const view = await renderRoom()
 
     expect(view.pathname()).toBe(`/plans/${PLAN_ID}`)
@@ -277,14 +313,27 @@ describe('routing once per change', () => {
     expect(view.pathname()).toBe(LOBBY)
     expect(mockMounts.plan).toBe(1)
   })
+
+  it('keeps each room\'s steps apart', async () => {
+    mockStore.set(ROOM_ID, { room: member({ status: 'matching' }), suggestions: run() })
+    mockStore.set(ROOM_B, { room: member({ status: 'matching' }, ROOM_B), suggestions: run() })
+    const view = await renderRoom()
+    expect(view.pathname()).toBe(`${LOBBY}/swipe`)
+
+    // The same run id in another room is another room's change.
+    await navigate(() => router.push(`/room/${ROOM_B}`))
+
+    expect(view.pathname()).toBe(`/room/${ROOM_B}/swipe`)
+    expect(wasRoomStepShown(ROOM_B, runStep(RUN_ID))).toBe(true)
+  })
 })
 
 describe('the host', () => {
   it('starts matching with one push, to the matching screen, and nothing is pushed over it', async () => {
-    mockStore.set({ room: host() })
+    mockStore.set(ROOM_ID, { room: host() })
     mockStart.mutateAsync.mockImplementation(async () => {
       // What useStartMatching writes to the cache before it resolves.
-      mockStore.set({ room: host({ status: 'matching' }), suggestions: run() })
+      mockStore.set(ROOM_ID, { room: host({ status: 'matching' }), suggestions: run() })
       return run()
     })
     const view = await renderRoom()
@@ -304,11 +353,36 @@ describe('the host', () => {
     expect(mockMounts.swipe + mockMounts.result).toBe(0)
   })
 
+  it('is taken to the run once when the start failed on the phone after the server made it', async () => {
+    mockStore.set(ROOM_ID, { room: host() })
+    mockStart.mutateAsync.mockImplementation(async () => {
+      // The run is read while the generate response is still out; then that
+      // response is lost.
+      mockStore.set(ROOM_ID, { room: host({ status: 'matching' }), suggestions: run() })
+      await new Promise(resolve => setTimeout(resolve, 200))
+      throw new Error('response lost')
+    })
+    const view = await renderRoom()
+
+    await act(async () => {
+      fireEvent.press(screen.getByText(viMessages['gogoRoom.startMatching']))
+    })
+    await settle()
+    // Mid-start, the lobby leaves the host alone.
+    expect(view.pathname()).toBe(LOBBY)
+    await settle(200)
+    await settle()
+
+    expect(view.pathname()).toBe(`${LOBBY}/swipe`)
+    expect(mockMounts).toEqual({ matching: 0, swipe: 1, result: 0, plan: 0 })
+  })
+
   it('is not sent back to the plan they finalized when they go Back to the lobby', async () => {
-    mockStore.set({ room: host() })
+    mockStore.set(ROOM_ID, { room: host() })
     const view = await renderRoom()
 
     // match-result replaces itself with the plan after finalize.
+    await poll({ plan })
     await navigate(() => router.push(`/plans/${PLAN_ID}`))
     await poll({ room: host({ status: 'ready' }), plan })
     await navigate(() => router.back())
@@ -318,13 +392,13 @@ describe('the host', () => {
     expect(mockMounts.plan).toBe(1)
   })
 
-  it('is not moved out from under the share sheet; the move waits for it to close', async () => {
+  it('is not moved out from under the iOS share sheet; the move waits for it to close', async () => {
     let close!: () => void
     jest.spyOn(Share, 'share').mockImplementation(
       () => new Promise(resolve => { close = () => resolve({ action: 'sharedAction' }) }),
     )
     mockInvite.data = { code: 'ABC123', inviteId: 'invite-1', expiresAt: new Date(Date.now() + 3_600_000).toISOString() }
-    mockStore.set({ room: host({}, false) })
+    mockStore.set(ROOM_ID, { room: host({}, false) })
     const view = await renderRoom()
 
     await act(async () => {
@@ -337,15 +411,78 @@ describe('the host', () => {
     await settle()
     expect(view.pathname()).toBe(`/plans/${PLAN_ID}`)
   })
+
+  it('on Android, keeps holding after the share call resolves while the chooser may still be up', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android')
+    // React Native's jest mock leaves `currentState` a jest.fn; a phone reports a status.
+    const appState = AppState as unknown as { currentState: unknown }
+    const mockedState = appState.currentState
+    appState.currentState = 'active'
+    try {
+      jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
+      mockInvite.data = { code: 'ABC123', inviteId: 'invite-1', expiresAt: new Date(Date.now() + 3_600_000).toISOString() }
+      mockStore.set(ROOM_ID, { room: host({}, false) })
+      const view = await renderRoom()
+
+      await act(async () => {
+        fireEvent.press(screen.getByText(viMessages['gogoRoom.invite']))
+      })
+      await poll({ room: host({ status: 'ready' }, false), plan })
+      // The module already resolved; the chooser is another activity.
+      expect(view.pathname()).toBe(LOBBY)
+
+      // The app never left the foreground: the chooser did not open. A short grace ends the hold.
+      await settle(1_000)
+      await settle()
+      expect(view.pathname()).toBe(`/plans/${PLAN_ID}`)
+    } finally {
+      appState.currentState = mockedState
+    }
+  })
+
+  it('is not moved while the partial-start confirmation is open', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+    mockStore.set(ROOM_ID, {
+      room: host({ matching: { canStart: false, canStartWithIncomplete: true, pendingCount: 1 } }, false),
+    })
+    const view = await renderRoom()
+
+    await act(async () => {
+      fireEvent.press(screen.getByText(viMessages['gogoRoom.partialContinue']))
+    })
+    await poll({ room: host({ status: 'ready' }, false), plan })
+    expect(view.pathname()).toBe(LOBBY)
+
+    const buttons = alert.mock.calls[0][2] as AlertButton[]
+    await act(async () => buttons[0].onPress?.())
+    await settle()
+    expect(view.pathname()).toBe(`/plans/${PLAN_ID}`)
+  })
 })
 
 describe('the lobby opened by a plan notification that had no plan', () => {
-  it('says why the room opened instead, on screen and to a screen reader', async () => {
+  it.each([
+    ['plan_unavailable', 'gogoRoom.planUnavailable'],
+    ['plan_retry', 'gogoRoom.planRetry'],
+  ] as const)('notice=%s says why, on screen and to a screen reader', async (notice, key) => {
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
-    mockStore.set({ room: member() })
-    await renderRoom(`${LOBBY}?notice=plan_unavailable`)
+    mockStore.set(ROOM_ID, { room: member() })
+    await renderRoom(`${LOBBY}?notice=${notice}`)
 
-    expect(screen.getByText(viMessages['gogoRoom.planUnavailable'])).toBeTruthy()
-    expect(announce).toHaveBeenCalledWith(viMessages['gogoRoom.planUnavailable'])
+    expect(screen.getByText(viMessages[key])).toBeTruthy()
+    expect(announce).toHaveBeenCalledWith(viMessages[key])
+  })
+
+  it('drops the notice once the plan is known', async () => {
+    mockStore.set(ROOM_ID, { room: member({ status: 'matching' }) })
+    const view = await renderRoom(`${LOBBY}?notice=plan_retry`)
+    expect(screen.getByText(viMessages['gogoRoom.planRetry'])).toBeTruthy()
+
+    await poll({ room: member({ status: 'ready' }), plan })
+    expect(view.pathname()).toBe(`/plans/${PLAN_ID}`)
+    await navigate(() => router.back())
+
+    expect(view.pathname()).toBe(LOBBY)
+    expect(screen.queryByText(viMessages['gogoRoom.planRetry'])).toBeNull()
   })
 })

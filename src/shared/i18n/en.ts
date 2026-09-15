@@ -276,6 +276,7 @@ export const enMessages: Record<MessageKey, string> = {
   'gogoRoom.starting': 'Matching…',
   'gogoRoom.startFailed': 'Could not start matching. Please try again.',
   'gogoRoom.planUnavailable': "Couldn't open this room's plan, so here is the room.",
+  'gogoRoom.planRetry': "Couldn't load this room's plan. Check your connection — GoGo opens the plan once it loads.",
   'roomManage.title': 'Manage room',
   'roomTitle.title': 'Plan name',
   'roomTitle.body': 'Leave it empty to remove the name. Everyone in the room sees the new name.',
@@ -373,7 +374,6 @@ export const enMessages: Record<MessageKey, string> = {
   'swipe.goToLobby': 'Back to the room',
   'swipe.doneTitle': "You've voted on everything",
   'swipe.doneBody': 'Waiting on the others to finish voting.',
-
 
   'matching.matched': "It's a match!",
   'matching.matchedBody': 'You have more in common than you thought.',
@@ -762,6 +762,8 @@ export const enMessages: Record<MessageKey, string> = {
   'notifications.signInBody': 'Notifications belong to your account.',
   'notifications.kind.invite': 'Room invite',
   'notifications.kind.preference_reminder': 'Reminder to pick',
+  'notifications.openRefused': 'This notification can’t be opened. It may have been removed, or you no longer have access.',
+  'notifications.openRetry': "Couldn't open this notification. Check your connection and tap it again.",
   'notifications.kind.plan_ready': 'Plan is ready',
   'notifications.kind.plan_changed': 'Plan changed',
   'notifications.kind.date_reminder': 'Date reminder',

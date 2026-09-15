@@ -11,16 +11,11 @@ import { useEffect } from 'react'
  * forever. So the destination records itself when it renders, and the lobby
  * only moves someone to a step no screen has shown yet.
  *
- * Session memory only: ids, no content, gone on restart — where a room that is
- * still deciding should open on its decision screen again.
+ * Session memory only: ids, no content. Gone on restart — where a room that is
+ * still deciding should open on its decision screen again — and forgotten on
+ * sign-out with the rest of the account's cached data.
  */
 const shown = new Map<string, Set<string>>()
-
-/**
- * The inbox opened the room because the plan a notification was about could
- * not be opened; the lobby says so instead of looking like a wrong turn.
- */
-export const PLAN_UNAVAILABLE_NOTICE = 'plan_unavailable'
 
 export const runStep = (runId: string) => `run:${runId}`
 export const planStep = (planId: string) => `plan:${planId}`
@@ -42,7 +37,7 @@ export function useRoomStepShown(roomId: string | undefined, step: string | null
   }, [roomId, step])
 }
 
-/** Test seam: forget every room's steps. */
-export function resetRoomStepsForTests(): void {
+/** Forget every room's steps: sign-out, account switch, and tests. */
+export function forgetRoomSteps(): void {
   shown.clear()
 }

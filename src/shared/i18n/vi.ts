@@ -279,6 +279,7 @@ export const viMessages = {
   'gogoRoom.starting': 'Đang ghép…',
   'gogoRoom.startFailed': 'Chưa ghép được. Thử lại nhé.',
   'gogoRoom.planUnavailable': 'Chưa mở được kế hoạch của phòng này, nên GoGo mở phòng cho bạn.',
+  'gogoRoom.planRetry': 'Chưa tải được kế hoạch của phòng này. Kiểm tra kết nối — GoGo sẽ mở kế hoạch khi tải được.',
   'roomManage.title': 'Quản lý phòng',
   'roomTitle.title': 'Tên kèo',
   'roomTitle.body': 'Để trống nếu muốn bỏ tên. Mọi người trong phòng sẽ thấy tên mới.',
@@ -379,7 +380,6 @@ export const viMessages = {
   'swipe.goToLobby': 'Về phòng',
   'swipe.doneTitle': 'Bạn đã vote hết rồi',
   'swipe.doneBody': 'Đợi mọi người vote nốt nhé.',
-
 
   'matching.matched': 'Match rồi!',
   'matching.matchedBody': 'Các bạn có nhiều điểm chung hơn nghĩ đó.',
@@ -772,6 +772,8 @@ export const viMessages = {
   'notifications.signInBody': 'Thông báo gắn với tài khoản của bạn.',
   'notifications.kind.invite': 'Lời mời vào phòng',
   'notifications.kind.preference_reminder': 'Nhắc chọn sở thích',
+  'notifications.openRefused': 'Không mở được nội dung của thông báo này. Có thể nội dung đã bị xoá hoặc bạn không còn quyền xem.',
+  'notifications.openRetry': 'Chưa mở được thông báo này. Kiểm tra kết nối rồi chạm lại để thử.',
   'notifications.kind.plan_ready': 'Kế hoạch đã sẵn sàng',
   'notifications.kind.plan_changed': 'Kế hoạch có thay đổi',
   'notifications.kind.date_reminder': 'Nhắc lịch đi chơi',

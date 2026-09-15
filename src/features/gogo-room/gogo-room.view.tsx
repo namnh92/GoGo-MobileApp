@@ -1,9 +1,9 @@
 import * as Clipboard from 'expo-clipboard'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, Alert, ScrollView, Share, Text, View } from 'react-native'
+import { AccessibilityInfo, Platform, ScrollView, Share, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -24,15 +24,10 @@ import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { formatMoney } from '@/shared/pricing/money'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
-import { decisionScreen } from '@/features/matching/decision-screen'
 import { isUuid } from '@/shared/navigation/deep-link'
-import {
-  markRoomStepShown,
-  PLAN_UNAVAILABLE_NOTICE,
-  planStep,
-  runStep,
-  wasRoomStepShown,
-} from '@/shared/navigation/room-steps'
+import { decisionScreen, PLAN_RETRY_NOTICE, PLAN_UNAVAILABLE_NOTICE } from '@/shared/navigation/room-routing'
+import { markRoomStepShown, planStep, runStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
+import { alertWithHold, releaseOnReturn, useRoutingHold } from '@/shared/navigation/routing-hold'
 import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
 import {
   Atmosphere,
@@ -57,6 +52,9 @@ const { brand } = colors
 
 const AVATAR_COLORS = [brand.coral, brand.lavender, brand.mint, brand.amber]
 const VISIBLE_AVATARS = 3
+/** How often, and how many times, the lobby looks again for a navigator that is not ready yet. */
+const NAV_RETRY_MS = 50
+const NAV_ATTEMPTS_MAX = 20
 
 function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?'
@@ -108,50 +106,81 @@ export default function GoGoRoomScreen() {
 
   // GoGo-MobileApp#198 — where the room is decides where everyone belongs, a
   // member as much as the host. The lobby only ever showed who had picked, so a
-  // member sat here while the host's run and plan landed. The status comes from
-  // the poll above; the run and the plan are read only once the room has them.
+  // member sat here while the host's run and plan landed.
   const status = summary?.status
-  const suggestions = useCurrentSuggestions(status === 'matching' ? validRoomId : undefined)
+  // Read only while this screen is on top: under the deck or the plan they
+  // would refetch on every tick of that screen's poll for nothing.
+  const suggestions = useCurrentSuggestions(focused && status === 'matching' ? validRoomId : undefined)
   const decided = status === 'ready' || status === 'active'
-  const currentPlan = useCurrentPlan(decided ? validRoomId : undefined)
-  const runId = suggestions.data?.run?.id
-  const screen = status === 'matching' ? decisionScreen(summary?.decisionMode, status, suggestions.data) : null
-  const planId = decided && isUuid(currentPlan.data?.id) ? currentPlan.data.id : undefined
-  const next = !validRoomId
+  const currentPlan = useCurrentPlan(focused && decided ? validRoomId : undefined)
+  // Only facts fetched since this screen opened move anyone. The cache is
+  // persisted for a day: a room that moved on while the app was closed would
+  // otherwise send a member to a closed vote or a replaced plan.
+  const confirmed = (query: { isFetchedAfterMount: boolean; isSuccess: boolean }) =>
+    query.isFetchedAfterMount && query.isSuccess
+  const runId = status === 'matching' && confirmed(suggestions) ? suggestions.data?.run?.id : undefined
+  const screen = runId ? decisionScreen(summary?.decisionMode, status, suggestions.data) : null
+  const fetchedPlanId = decided && confirmed(currentPlan) ? currentPlan.data?.id : undefined
+  const planId = isUuid(fetchedPlanId) ? fetchedPlanId : undefined
+  const next = !validRoomId || !confirmed(room)
     ? null
     : screen && runId
       ? { step: runStep(runId), path: `/room/${validRoomId}/${screen}` }
       : planId
         ? { step: planStep(planId), path: `/plans/${planId}` }
         : null
+
   // A share sheet or a confirmation is up: the person is mid-action here.
-  const [holding, setHolding] = useState(false)
+  const routingHold = useRoutingHold()
+  // A start that failed after the server had made its run leaves the host here;
+  // counting failures makes the routing below look again.
+  const [startFailures, setStartFailures] = useState(0)
+  const navigation = useNavigationContainerRef()
+  const navAttempts = useRef({ step: '', count: 0 })
+  const [navTick, setNavTick] = useState(0)
+
+  const planNotice = notice === PLAN_UNAVAILABLE_NOTICE || notice === PLAN_RETRY_NOTICE ? notice : null
+  // Once the plan is known, the notice explaining its absence is not true any
+  // more. Declared before the move below, so it clears this route's params.
+  useEffect(() => {
+    if (planNotice && planId) router.setParams({ notice: undefined })
+  }, [planNotice, planId, router])
+  useEffect(() => {
+    if (!planNotice) return
+    // The live region below is Android-only; VoiceOver needs the announcement.
+    AccessibilityInfo.announceForAccessibility(
+      planNotice === PLAN_RETRY_NOTICE ? t('gogoRoom.planRetry') : t('gogoRoom.planUnavailable'),
+    )
+  }, [planNotice, t])
+
   const nextStep = next?.step
   const nextPath = next?.path
   useEffect(() => {
     if (!validRoomId || !nextStep || !nextPath) return
     // Only the screen on top moves anyone, and a host starting the run moves
     // themselves (`beginMatching`).
-    if (!focused || holding || starting.current) return
+    if (!focused || routingHold.held || starting.current) return
     // Once per change. The screen that shows a step records it, so coming back
     // here — Back, "Về phòng chờ", a superseded plan — never sends anyone round.
     if (wasRoomStepShown(validRoomId, nextStep)) return
-    // A tick later, not in this commit: a room opened cold (a link, a
-    // notification) renders its lobby in the same pass that mounts the
-    // navigator, and expo-router refuses a push before that pass has finished.
-    const timer = setTimeout(() => {
-      if (starting.current || wasRoomStepShown(validRoomId, nextStep)) return
-      markRoomStepShown(validRoomId, nextStep)
+    if (navAttempts.current.step !== nextStep) navAttempts.current = { step: nextStep, count: 0 }
+    const lookAgain = () => {
+      if (navAttempts.current.count >= NAV_ATTEMPTS_MAX) return undefined
+      navAttempts.current.count += 1
+      const timer = setTimeout(() => setNavTick(tick => tick + 1), NAV_RETRY_MS)
+      return () => clearTimeout(timer)
+    }
+    // A room opened cold renders its lobby in the pass that mounts the
+    // navigator, and expo-router refuses a push until that pass is done.
+    if (!navigation.isReady()) return lookAgain()
+    try {
       router.push(nextPath)
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [validRoomId, nextStep, nextPath, focused, holding, router])
-
-  const planUnavailable = notice === PLAN_UNAVAILABLE_NOTICE
-  useEffect(() => {
-    // The live region below is Android-only; VoiceOver needs the announcement.
-    if (planUnavailable) AccessibilityInfo.announceForAccessibility(t('gogoRoom.planUnavailable'))
-  }, [planUnavailable, t])
+    } catch {
+      // Not pushed is not shown: nothing is recorded, and it is tried again.
+      return lookAgain()
+    }
+    markRoomStepShown(validRoomId, nextStep)
+  }, [validRoomId, nextStep, nextPath, focused, routingHold.held, startFailures, navTick, navigation, router])
 
   const [inviteClock, setInviteClock] = useState(() => Date.now())
   useEffect(() => {
@@ -238,7 +267,7 @@ export default function GoGoRoomScreen() {
   async function invite() {
     if (!inviteUrl) return
     track('gogo_invite_shared', { channel: 'native_share', roomType })
-    setHolding(true)
+    const release = routingHold.hold()
     try {
       // Single share CTA → native share sheet; no hard-coded social buttons.
       await Share.share({ message: `${t('gogoRoom.title', { context: roomType })} ${inviteUrl}`, url: inviteUrl })
@@ -246,7 +275,9 @@ export default function GoGoRoomScreen() {
       await Clipboard.setStringAsync(inviteUrl).catch(() => {})
       flash(setLinkCopied)
     } finally {
-      setHolding(false)
+      // iOS resolves when the sheet closes; Android as soon as the chooser opens.
+      if (Platform.OS === 'android') releaseOnReturn(release)
+      else release()
     }
   }
 
@@ -259,18 +290,19 @@ export default function GoGoRoomScreen() {
       if (validRoomId && started?.run?.id) markRoomStepShown(validRoomId, runStep(started.run.id))
       router.push(`/room/${roomId}/matching`)
     } catch {
-      // The mutation's error state renders below; the room stays usable.
+      // The mutation's error state renders below; the room stays usable. The
+      // server may have made its run anyway, so the routing looks again.
+      setStartFailures(n => n + 1)
     } finally {
       starting.current = false
     }
   }
 
   function confirmPartialMatching() {
-    setHolding(true)
-    Alert.alert(t('gogoRoom.partialTitle'), t('gogoRoom.partialBody', { n: summary?.matching?.pendingCount }), [
-      { text: t('common.cancel'), style: 'cancel', onPress: () => setHolding(false) },
-      { text: t('gogoRoom.partialContinue'), onPress: () => { setHolding(false); void beginMatching(true) } },
-    ], { onDismiss: () => setHolding(false) })
+    alertWithHold(routingHold.hold, t('gogoRoom.partialTitle'), t('gogoRoom.partialBody', { n: summary?.matching?.pendingCount }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('gogoRoom.partialContinue'), onPress: () => { void beginMatching(true) } },
+    ])
   }
 
   return (
@@ -279,8 +311,10 @@ export default function GoGoRoomScreen() {
         <BackHeader onBack={() => router.back()} />
       </View>
       <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
-      {planUnavailable ? (
-        <Text accessibilityLiveRegion="polite" style={styles.notice}>{t('gogoRoom.planUnavailable')}</Text>
+      {planNotice ? (
+        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+          {planNotice === PLAN_RETRY_NOTICE ? t('gogoRoom.planRetry') : t('gogoRoom.planUnavailable')}
+        </Text>
       ) : null}
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[8] }}>
         {roomType === 'group' ? (

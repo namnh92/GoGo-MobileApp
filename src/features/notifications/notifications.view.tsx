@@ -1,60 +1,18 @@
 import { useRouter } from 'expo-router'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { getCurrentPlan, parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
-import { isUuid } from '@/shared/navigation/deep-link'
-import { PLAN_UNAVAILABLE_NOTICE } from '@/shared/navigation/room-steps'
+import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
+import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
 import { spacing } from '@/shared/ui/tokens'
 
+import { resolveInboxTarget } from './inbox-target'
 import { styles } from './notifications.style'
-
-/** Where each notification kind should take the reader. */
-function routeFor(notification: Notification): string | null {
-  const payload = (notification.payload ?? {}) as Record<string, unknown>
-  // A payload is data from outside this build; an id that is not a UUID would
-  // build a route every read on the next screen answers with 400 (#203).
-  const roomId = isUuid(payload.roomId) ? payload.roomId : null
-  const planId = isUuid(payload.planId) ? payload.planId : null
-
-  switch (notification.kind) {
-    case 'invite':
-    case 'preference_reminder':
-      return roomId ? `/room/${roomId}` : null
-    case 'plan_ready':
-    case 'plan_changed':
-    case 'date_reminder':
-      return planId ? `/plans/${planId}` : roomId ? `/room/${roomId}` : null
-    default:
-      return null
-  }
-}
-
-const PLAN_KINDS: ReadonlySet<string> = new Set(['plan_ready', 'plan_changed', 'date_reminder'])
-
-/**
- * GoGo-MobileApp#198 — a plan notification that names only its room (every one
- * DEV sends: `{ eventType, roomId, resourceId }`) opens the room's current plan,
- * as a tapped push does (#256), instead of the lobby. With no plan to open it
- * still opens the room, and the room says why.
- */
-async function resolveRoute(notification: Notification): Promise<string | null> {
-  const payload = (notification.payload ?? {}) as Record<string, unknown>
-  const roomId = isUuid(payload.roomId) ? payload.roomId : null
-  if (!roomId || isUuid(payload.planId) || !PLAN_KINDS.has(notification.kind ?? '')) return routeFor(notification)
-  try {
-    const plan = await getCurrentPlan(roomId)
-    if (isUuid(plan?.id)) return `/plans/${plan.id}`
-  } catch {
-    // No current plan, or it could not be read right now: the room is the way in.
-  }
-  return `/room/${roomId}?notice=${PLAN_UNAVAILABLE_NOTICE}`
-}
 
 export default function NotificationsScreen() {
   const { t, i18n } = useTranslation()
@@ -72,26 +30,53 @@ export default function NotificationsScreen() {
     [inbox.data],
   )
 
-  // Resolving a plan is a request: one row at a time, and the row says it is busy.
-  const opening = useRef(false)
+  // Where a row opens is a request away (#198, see inbox-target.ts). The latest
+  // tap wins, the row being resolved says so, and nothing opens once the
+  // person has left the inbox.
+  const focused = useScreenFocused()
+  const focusedNow = useRef(focused)
+  useEffect(() => {
+    focusedNow.current = focused
+  }, [focused])
+  const latestTap = useRef(0)
+  const openingNow = useRef<string | null>(null)
   const [openingId, setOpeningId] = useState<string | null>(null)
+  const [openProblem, setOpenProblem] = useState<'refused' | 'retry' | null>(null)
+
   async function open(notification: Notification) {
-    if (opening.current) return
-    opening.current = true
-    setOpeningId(notification.id ?? null)
-    if (notification.id && !notification.readAt) markRead.mutate(notification.id)
-    try {
-      const route = await resolveRoute(notification)
-      if (route) router.push(route)
-    } finally {
-      opening.current = false
-      setOpeningId(null)
-    }
+    const id = notification.id ?? null
+    // The same row again while it resolves is the same intent, not a new one.
+    if (id !== null && openingNow.current === id) return
+    if (id && !notification.readAt) markRead.mutate(id)
+    const tap = ++latestTap.current
+    openingNow.current = id
+    setOpeningId(id)
+    setOpenProblem(null)
+    const decision = await resolveInboxTarget(notification)
+    if (tap !== latestTap.current) return
+    openingNow.current = null
+    setOpeningId(null)
+    if (!focusedNow.current) return
+    if (decision.to === 'open') router.push(decision.path)
+    else if (decision.to === 'refused' || decision.to === 'retry') setOpenProblem(decision.to)
   }
+
+  useEffect(() => {
+    if (!openProblem) return
+    // The live region below is Android-only; VoiceOver needs the announcement.
+    AccessibilityInfo.announceForAccessibility(
+      openProblem === 'retry' ? t('notifications.openRetry') : t('notifications.openRefused'),
+    )
+  }, [openProblem, t])
 
   const header = (
     <View style={{ paddingTop: insets.top }}>
       <BackHeader onBack={() => router.back()} title={t('notifications.title')} />
+      {openProblem ? (
+        <Text accessibilityLiveRegion="polite" style={styles.openProblem}>
+          {openProblem === 'retry' ? t('notifications.openRetry') : t('notifications.openRefused')}
+        </Text>
+      ) : null}
     </View>
   )
 
