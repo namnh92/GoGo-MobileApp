@@ -5,6 +5,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  isOffline,
+  isRoomNotActive,
   toPlanSummary,
   useCheckinPlanStop,
   useCompletePlanStop,
@@ -18,7 +20,7 @@ import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.vie
 import { haptic } from '@/shared/ui/feedback'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, Chip, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
 import { glyph, spacing } from '@/shared/ui/tokens'
@@ -40,6 +42,15 @@ export default function ActiveDateScreen() {
   const checkinStop = useCheckinPlanStop(planId)
 
   const [checkinOpen, setCheckinOpen] = useState(checkin === '1' || checkin === 'bill')
+
+  // #251 — a room that is not `active` refuses stop completion and check-in.
+  // That is the room's state, not the network, and a retry will not fix it.
+  const roomNotActive = isRoomNotActive(completeStop.error) || isRoomNotActive(checkinStop.error)
+
+  function backToPlan() {
+    if (router.canGoBack()) router.back()
+    else router.replace(`/plans/${planId}`)
+  }
 
   // A live Modal overlays other screens — close it whenever we lose focus.
   useFocusEffect(
@@ -106,8 +117,14 @@ export default function ActiveDateScreen() {
         tags: draft.tags.join(','),
         photos: draft.photoKeys.length,
       })
-    } catch {
-      // Check-in is optional; a failure must not block the date.
+    } catch (error) {
+      // Check-in is optional; a failure must not block the date. A room that is
+      // not in progress is different: every later write fails the same way, so
+      // stay on this stop and say why.
+      if (isRoomNotActive(error)) {
+        setCheckinOpen(false)
+        return
+      }
     }
     advance()
   }
@@ -229,10 +246,16 @@ export default function ActiveDateScreen() {
               </Pressable>
             </View>
 
-            {/* Completing a stop is a network write; say when it did not land. */}
-            {completeStop.isError ? (
+            {/* Completing a stop is a network write; say when it did not land,
+                and why — connectivity is only one of the reasons. */}
+            {roomNotActive ? (
+              <View accessibilityLiveRegion="polite" style={styles.notActive}>
+                <Text style={styles.failure}>{t('activeDate.notActive')}</Text>
+                <GhostBtn label={t('activeDate.backToPlan')} onPress={backToPlan} />
+              </View>
+            ) : completeStop.isError ? (
               <Text accessibilityLiveRegion="polite" style={styles.failure}>
-                {t('activeDate.completeFailed')}
+                {t(isOffline(completeStop.error) ? 'activeDate.completeFailed' : 'activeDate.completeFailedRetry')}
               </Text>
             ) : null}
           </View>

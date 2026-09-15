@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   formatDistance,
+  isConflict,
+  isForbidden,
+  isOffline,
   roomCapabilities,
   toPlanSummary,
   useLockPlanStop,
@@ -14,6 +17,7 @@ import {
   usePlanStopPlaces,
   useRoom,
   useRoomRealtime,
+  useStartDate,
   type PlanStopRow,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
@@ -55,6 +59,7 @@ export default function DatePlanScreen() {
   useRoomRealtime(summary?.roomId, 'plan')
   const lockStop = useLockPlanStop(planId)
   const regenerate = useRegeneratePlan(planId)
+  const startDate = useStartDate(summary?.roomId, planId)
 
   const capabilities = roomCapabilities(room.data)
   const [toast, setToast] = useState<string | null>(null)
@@ -97,9 +102,27 @@ export default function DatePlanScreen() {
     toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
 
-  function startDate() {
+  /**
+   * #251 — the host's "Bắt đầu đi" moves the room `ready → active` before the
+   * active date opens; until then the server refuses every stop completion and
+   * check-in. A tap that joins one already in flight resolves `null` and does
+   * nothing, so a double tap is one request and one navigation.
+   */
+  async function onStart() {
     track('date_plan_accepted')
+    let started
+    try {
+      started = await startDate.start()
+    } catch {
+      // The error renders under the button, which becomes the retry.
+      return
+    }
+    if (!started) return
     track('date_started')
+    router.push(`/plans/${planId}/active`)
+  }
+
+  function openActiveDate() {
     router.push(`/plans/${planId}/active`)
   }
 
@@ -134,6 +157,67 @@ export default function DatePlanScreen() {
   const participantCount = room.data?.participantCount ?? 2
   const roomType = room.data?.type ?? 'couple'
   const budgetMode = room.data?.constraints?.budgetMode ?? 'total'
+
+  /**
+   * What the bottom bar offers depends on the room's status and the caller's
+   * role, both from the server: only the host can start (the API answers
+   * `403 HOST_ONLY` to anyone else), and everyone can open a date in progress.
+   * Members learn that it started through `useRoomRealtime` above.
+   */
+  const roomStatus = room.data?.status
+  const startErrorKey = isOffline(startDate.error)
+    ? 'datePlan.startOffline'
+    : isForbidden(startDate.error)
+      ? 'datePlan.startHostOnly'
+      : isConflict(startDate.error)
+        ? 'datePlan.startConflict'
+        : 'datePlan.startFailed'
+
+  function renderDateAction() {
+    if (!room.data) {
+      return room.isError ? (
+        <View style={styles.startNotice} accessibilityLiveRegion="polite">
+          <Text style={styles.startNoticeLabel}>{t('datePlan.roomUnavailable')}</Text>
+          <GhostBtn label={t('common.retry')} onPress={() => void room.refetch()} />
+        </View>
+      ) : (
+        <PrimaryBtn label={t('datePlan.go')} onPress={onStart} disabled loading style={styles.goBtn} />
+      )
+    }
+    if (roomStatus === 'active' || roomStatus === 'completed') {
+      return <PrimaryBtn label={t('datePlan.enter')} onPress={openActiveDate} style={styles.goBtn} />
+    }
+    if (roomStatus === 'ready' && capabilities.isHost) {
+      return (
+        <>
+          <PrimaryBtn
+            label={
+              startDate.isPending
+                ? t('datePlan.starting')
+                : startDate.isError
+                  ? t('common.retry')
+                  : t('datePlan.go')
+            }
+            onPress={onStart}
+            loading={startDate.isPending}
+            style={styles.goBtn}
+          />
+          {startDate.isError ? (
+            <Text accessibilityLiveRegion="polite" style={styles.startError}>
+              {t(startErrorKey)}
+            </Text>
+          ) : null}
+        </>
+      )
+    }
+    return (
+      <View style={styles.startNotice} accessibilityLiveRegion="polite">
+        <Text style={styles.startNoticeLabel}>
+          {t(roomStatus === 'ready' ? 'datePlan.waitingHost' : 'datePlan.notStartable')}
+        </Text>
+      </View>
+    )
+  }
 
   /** Group rooms always carry both scopes; the per-person figure is approximate. */
   const totalLabel = formatMoney(summary.costMax, summary.currency)
@@ -339,8 +423,8 @@ export default function DatePlanScreen() {
             </Text>
           </View>
         </View>
-        <PrimaryBtn label={t('datePlan.go')} onPress={startDate} style={styles.goBtn} />
-        {/* "Đi thôi" is the one dominant CTA; edit and rebuild sit below it. */}
+        {renderDateAction()}
+        {/* Starting or opening the date is the one dominant CTA; edit and rebuild sit below it. */}
         <View style={styles.secondaryRow}>
           {capabilities.isHost ? (
             <GhostBtn label={t('datePlan.edit')} onPress={() => router.push(`/plans/${planId}/edit`)} style={{ flex: 1 }} />

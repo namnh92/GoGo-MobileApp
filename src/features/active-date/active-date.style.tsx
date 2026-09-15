@@ -68,4 +68,5 @@ export const styles = StyleSheet.create({
   nextMeta: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
 
   failure: { ...type.bodySmall, color: brand.red, marginTop: spacing[3], textAlign: 'center' },
+  notActive: { alignItems: 'center', gap: spacing[2] },
 })

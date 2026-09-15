@@ -95,6 +95,15 @@ export const styles = StyleSheet.create({
   summarySecondary: { ...type.caption, color: neutral[500], flexShrink: 1 },
   summaryOptional: { ...type.caption, color: neutral[500] },
   goBtn: { alignSelf: 'stretch' },
+  /** #251 — where the start CTA would be when this caller cannot start the date. */
+  startNotice: {
+    minHeight: touchTarget.min,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  startNoticeLabel: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
+  startError: { ...type.bodySmall, color: brand.red, textAlign: 'center', marginTop: spacing[2] },
   staleWarning: { ...type.bodySmall, color: brand.amber, marginBottom: spacing[3] },
   summaryOverBudget: { ...type.caption, color: brand.red, marginTop: 2 },
   secondaryRow: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[2] },
