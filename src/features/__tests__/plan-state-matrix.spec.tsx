@@ -121,3 +121,91 @@ describe('plan × audience', () => {
     expect(view.queryAllByText(REGENERATE)).toHaveLength(0)
   })
 })
+
+/**
+ * #254, RULE-CORE-003 — the title said "Date tối nay" for every plan, a group
+ * room's included. It now comes from the room's audience and when the plan
+ * starts.
+ */
+describe('plan title × room facts', () => {
+  const pad = (value: number) => String(value).padStart(2, '0')
+
+  /** Noon keeps the day stable wherever in the day the suite runs. */
+  function noonIn(days: number): Date {
+    const date = new Date()
+    date.setHours(12, 0, 0, 0)
+    date.setDate(date.getDate() + days)
+    return date
+  }
+
+  function planStarting(at: Date) {
+    const [stop] = planWith().stops
+    return planWith({ stops: [{ ...stop, arriveAt: at.toISOString() }] })
+  }
+
+  it('titles a couple plan for today', async () => {
+    mockRoom.query = loaded(roomFor('couple'))
+    mockPlan.query = loaded(planStarting(noonIn(0)))
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.getByText('Date · hôm nay 12:00')).toBeTruthy()
+  })
+
+  it('titles a group plan by its size, for host and member alike', async () => {
+    mockPlan.query = loaded(planStarting(noonIn(0)))
+    for (const audience of ['group-host', 'group-guest'] as const) {
+      mockRoom.query = loaded(roomFor(audience))
+      const view = await renderScreen(<DatePlanScreen />)
+      expect(view.getByText('Nhóm 4 người · hôm nay 12:00')).toBeTruthy()
+      expect(view.queryByText(/^Date/)).toBeNull()
+    }
+  })
+
+  it('says tomorrow for the next day', async () => {
+    mockRoom.query = loaded(roomFor('couple'))
+    mockPlan.query = loaded(planStarting(noonIn(1)))
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.getByText('Date · ngày mai 12:00')).toBeTruthy()
+  })
+
+  it('names another day by its date', async () => {
+    const start = noonIn(3)
+    mockRoom.query = loaded(roomFor('group-host', { participantCount: 6 }))
+    mockPlan.query = loaded(planStarting(start))
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.getByText(`Nhóm 6 người · ${pad(start.getDate())}/${pad(start.getMonth() + 1)} 12:00`)).toBeTruthy()
+    expect(view.queryByText(/hôm nay/)).toBeNull()
+  })
+
+  it('uses the room schedule when the stops carry no time', async () => {
+    const start = noonIn(0)
+    mockRoom.query = loaded(
+      roomFor('couple', {
+        constraints: { budgetMode: 'total', budgetAmount: 300_000, currency: 'VND', startAt: start.toISOString() },
+      } as never),
+    )
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.getByText('Date · hôm nay 12:00')).toBeTruthy()
+  })
+
+  it('drops the date, not the audience, when nothing carries one', async () => {
+    mockRoom.query = loaded(roomFor('group-host'))
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.getByText('Kế hoạch nhóm 4 người')).toBeTruthy()
+  })
+
+  it('stays neutral until the room is known', async () => {
+    mockRoom.query = pending()
+    mockPlan.query = loaded(planStarting(noonIn(0)))
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.getByText('Kế hoạch')).toBeTruthy()
+  })
+
+  it('never claims tonight', async () => {
+    mockPlan.query = loaded(planStarting(noonIn(0)))
+    for (const audience of ['couple', 'group-host', 'group-guest'] as const) {
+      mockRoom.query = loaded(roomFor(audience))
+      const view = await renderScreen(<DatePlanScreen />)
+      expect(view.queryByText(/tối nay/)).toBeNull()
+    }
+  })
+})

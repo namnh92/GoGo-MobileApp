@@ -363,7 +363,7 @@ export function BackHeader({ title, onBack, right }: { title?: string; onBack: (
       >
         <IconChevronLeft />
       </Pressable>
-      {title ? <Text style={styles.backTitle}>{title}</Text> : null}
+      {title ? <Text style={styles.backTitle} numberOfLines={2}>{title}</Text> : null}
       {right ?? <View style={{ width: 36 }} />}
     </View>
   )
@@ -570,6 +570,11 @@ const styles = StyleSheet.create({
     ...type.body,
     fontWeight: '700',
     color: neutral[900],
+    // Titles composed from facts (a plan's audience and date) can outgrow a
+    // narrow row; wrap between the side controls instead of pushing them out.
+    flexShrink: 1,
+    textAlign: 'center',
+    marginHorizontal: spacing[2],
   },
   avatar: {
     alignItems: 'center',
