@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useRef } from 'react'
 
 import * as roomsApi from '../endpoints/rooms'
-import { isApiError } from '../errors'
+import { isApiError, isForbidden } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
 import * as suggestionsApi from '../endpoints/suggestions'
 import { queryKeys } from '../query-keys'
@@ -108,6 +109,60 @@ export function useTransitionRoom(roomId: string) {
       void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
     },
   })
+}
+
+/**
+ * #251 — the host's "Bắt đầu đi": `ready → active` through `startRoomDate`.
+ *
+ * `start()` is single-flight. A second tap while the first request is out
+ * resolves `null` and sends nothing, so one press is one transition and one
+ * `date_reminder` push to the members. `onSend` runs only for the call that
+ * actually sends, so a joined tap is not a second analytics event either. It
+ * resolves the room as the server holds it after the attempt — `active`, or
+ * whatever a race left it in — and the caller acts on that status. It rejects
+ * with the API error when there is no room to report.
+ *
+ * Any answer refreshes the room, its plan and the Plans tabs, which filter by
+ * room status (#213). A 403 means the cached role is behind, so the room is
+ * refetched and the screen re-renders from what the server holds.
+ */
+export function useStartDate(roomId: string | undefined, planId?: string) {
+  const queryClient = useQueryClient()
+  const inFlight = useRef(false)
+  const mutation = useMutation({
+    // The button is the retry. The default automatic retry kept it hidden behind
+    // a spinner (about 3 s offline, far longer on a timeout), and paused while
+    // offline it would spin forever. An explicit tap must end in an answer.
+    retry: false,
+    networkMode: 'always',
+    mutationFn: () => roomsApi.startRoomDate(roomId as string),
+    onSuccess: room => {
+      queryClient.setQueryData(queryKeys.room(room.id), room)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.room(room.id), exact: true })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roomCurrentPlan(room.id) })
+      if (planId) void queryClient.invalidateQueries({ queryKey: queryKeys.plan(planId) })
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
+    },
+    onError: error => {
+      if (roomId && isForbidden(error)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId), exact: true })
+      }
+    },
+  })
+
+  const { mutateAsync } = mutation
+  const start = useCallback(async (options?: { onSend?: () => void }): Promise<RoomSummary | null> => {
+    if (!roomId || inFlight.current) return null
+    inFlight.current = true
+    try {
+      options?.onSend?.()
+      return await mutateAsync()
+    } finally {
+      inFlight.current = false
+    }
+  }, [roomId, mutateAsync])
+
+  return { ...mutation, start }
 }
 
 /** APP-049 (#202): the list shows the name too, so it refetches; nothing goes stale. */

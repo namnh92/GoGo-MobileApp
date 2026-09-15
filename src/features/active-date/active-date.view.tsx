@@ -5,11 +5,14 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  isOffline,
+  isRoomNotActive,
   toPlanSummary,
   useCheckinPlanStop,
   useCompletePlanStop,
   usePlan,
   usePlanStopPlaces,
+  useRoom,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
@@ -35,11 +38,32 @@ export default function ActiveDateScreen() {
   const plan = usePlan(planId)
   const summary = useMemo(() => (plan.data ? toPlanSummary(plan.data) : null), [plan.data])
   const places = usePlanStopPlaces(summary?.stops ?? [])
+  // #251 — stop completion and check-in need an `active` room, so the room's
+  // status decides whether this screen is live at all (rooms are persisted, so
+  // this still reads offline).
+  const room = useRoom(summary?.roomId)
 
   const completeStop = useCompletePlanStop(planId)
   const checkinStop = useCheckinPlanStop(planId)
 
   const [checkinOpen, setCheckinOpen] = useState(checkin === '1' || checkin === 'bill')
+
+  // #251 — a room that is not `active` refuses stop completion and check-in.
+  // That is the room's state, not the network, and a retry will not fix it. A
+  // refusal refetches the room: until that settles the refusal stands, and a
+  // room confirmed active again means the host started in the meantime.
+  const roomStatus = room.data?.status
+  const refused = isRoomNotActive(completeStop.error) || isRoomNotActive(checkinStop.error)
+  const confirmedActive = roomStatus === 'active' && !room.isFetching
+  const notActive = (roomStatus !== undefined && roomStatus !== 'active') || (refused && !confirmedActive)
+  // A deep link into a room that is not live waits for the room's answer rather
+  // than showing a live screen that every write would refuse.
+  const awaitingRoom = room.isFetching && roomStatus !== 'active' && !refused
+
+  function backToPlan() {
+    if (router.canGoBack()) router.back()
+    else router.replace(`/plans/${planId}`)
+  }
 
   // A live Modal overlays other screens — close it whenever we lose focus.
   useFocusEffect(
@@ -76,6 +100,8 @@ export default function ActiveDateScreen() {
     haptic('success')
     try {
       await completeStop.mutateAsync(stop.id)
+      // A write landed, so an earlier check-in refusal no longer describes the room.
+      checkinStop.reset()
       setCheckinOpen(true)
     } catch {
       // The plan query keeps the previous state; the user can retry.
@@ -106,13 +132,20 @@ export default function ActiveDateScreen() {
         tags: draft.tags.join(','),
         photos: draft.photoKeys.length,
       })
-    } catch {
-      // Check-in is optional; a failure must not block the date.
+      completeStop.reset()
+    } catch (error) {
+      // Check-in is optional; a failure must not block the date. A room that is
+      // not in progress is different: every later write fails the same way, so
+      // stay on this stop and say why.
+      if (isRoomNotActive(error)) {
+        setCheckinOpen(false)
+        return
+      }
     }
     advance()
   }
 
-  if (plan.isPending) {
+  if (plan.isPending || awaitingRoom) {
     return (
       <Atmosphere>
         <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[6] }}>
@@ -128,6 +161,46 @@ export default function ActiveDateScreen() {
     return (
       <Atmosphere>
         <ErrorState error={plan.error} onRetry={() => void plan.refetch()} />
+      </Atmosphere>
+    )
+  }
+
+  if (notActive) {
+    const ended = roomStatus === 'completed'
+    return (
+      <Atmosphere>
+        <View
+          accessibilityLiveRegion="polite"
+          style={[styles.notActive, { paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom }]}
+        >
+          <EmptyState
+            title={t(
+              ended
+                ? 'activeDate.endedTitle'
+                : roomStatus === 'cancelled'
+                  ? 'plans.status.cancelled'
+                  : roomStatus === 'expired'
+                    ? 'plans.status.expired'
+                    : 'activeDate.notActiveTitle',
+            )}
+            body={t(
+              ended
+                ? 'activeDate.endedBody'
+                : roomStatus === 'cancelled'
+                  ? 'datePlan.roomCancelled'
+                  : roomStatus === 'expired'
+                    ? 'datePlan.roomExpired'
+                    : 'activeDate.notActive',
+            )}
+            action={
+              <PrimaryBtn
+                label={t(ended ? 'datePlan.viewSummary' : 'activeDate.backToPlan')}
+                onPress={ended ? () => router.replace(`/plans/${planId}/finished`) : backToPlan}
+                style={styles.notActiveCta}
+              />
+            }
+          />
+        </View>
       </Atmosphere>
     )
   }
@@ -229,10 +302,12 @@ export default function ActiveDateScreen() {
               </Pressable>
             </View>
 
-            {/* Completing a stop is a network write; say when it did not land. */}
+            {/* Completing a stop is a network write; say when it did not land,
+                and why — connectivity is only one of the reasons. A room that
+                is not active never gets here: it renders its own state above. */}
             {completeStop.isError ? (
               <Text accessibilityLiveRegion="polite" style={styles.failure}>
-                {t('activeDate.completeFailed')}
+                {t(isOffline(completeStop.error) ? 'activeDate.completeFailed' : 'activeDate.completeFailedRetry')}
               </Text>
             ) : null}
           </View>

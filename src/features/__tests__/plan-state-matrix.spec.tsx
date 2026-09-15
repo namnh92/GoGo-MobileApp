@@ -37,6 +37,7 @@ jest.mock('@/shared/api', () => ({
   }),
   useLockPlanStop: () => mockIdleMutation,
   useRegeneratePlan: () => mockIdleMutation,
+  useStartDate: () => ({ ...mockIdleMutation, start: jest.fn(async () => null) }),
 }))
 
 import DatePlanScreen from '@/features/date-plan/date-plan.view'
