@@ -1,4 +1,4 @@
-import { formatRange, perPerson } from '@/shared/pricing/money'
+import { formatRange } from '@/shared/pricing/money'
 import { toPriceUnit } from '@/shared/pricing/price-unit'
 
 import type { PriceUnit } from '@/shared/pricing/price-unit'
@@ -11,6 +11,7 @@ import type {
   PlanStop,
   RoomSummary,
   SuggestionCandidate,
+  BudgetScope,
 } from './types'
 
 /**
@@ -402,6 +403,8 @@ export interface PlanStopRow {
   travelDistanceMFromPrev: number | null
   costMin: number | null
   costMax: number | null
+  /** What `costMin`/`costMax` are per; `null` for a plan cached before the contract said. */
+  costScope: BudgetScope | null
   isLocked: boolean
   status: NonNullable<PlanStop['status']>
   completedAt?: string
@@ -425,6 +428,7 @@ export function toPlanStopRow(stop: PlanStop): PlanStopRow {
     travelDistanceMFromPrev: stop.travelDistanceMFromPrev ?? null,
     costMin: stop.costMin ?? null,
     costMax: stop.costMax ?? null,
+    costScope: stop.costScope ?? null,
     isLocked: stop.isLocked ?? false,
     status: stop.status ?? 'planned',
     completedAt: stop.completedAt,
@@ -441,6 +445,20 @@ export interface PlanSummary {
   stops: PlanStopRow[]
   costMin: number
   costMax: number
+  /**
+   * What `costMin`/`costMax` are per (GoGo-BE#593) — `per_person` today.
+   * `null` when the plan was cached before the contract stated it: an amount
+   * of unknown scope is never assumed to be per person (RULE-CORE-013).
+   */
+  costScope: BudgetScope | null
+  /** Some stop has a price in `costScope`; otherwise there is no amount to show. */
+  priced: boolean
+  /**
+   * Some stop has no price in `costScope`, so `costMax` is a floor. Read from
+   * the stops rather than `uncertain`, which also covers low confidence and was
+   * `false` on plans stored before GoGo-BE#593 even with an unpriced stop.
+   */
+  hasUnpricedStop: boolean
   currency: string
   durationMinutes: number
   travelDistanceM: number
@@ -452,24 +470,23 @@ export interface PlanSummary {
 
 export function toPlanSummary(plan: Plan): PlanSummary {
   const totals = plan.totals
+  const stops = (plan.stops ?? []).map(toPlanStopRow).sort((a, b) => a.position - b.position)
   return {
     id: plan.id ?? '',
     roomId: plan.roomId ?? '',
     version: plan.version ?? 1,
     status: plan.status ?? 'current',
     isStale: plan.isStale ?? false,
-    stops: (plan.stops ?? []).map(toPlanStopRow).sort((a, b) => a.position - b.position),
+    stops,
     costMin: totals?.costMin ?? 0,
     costMax: totals?.costMax ?? 0,
+    costScope: totals?.costScope ?? null,
+    priced: stops.some(stop => stop.costMin !== null || stop.costMax !== null),
+    hasUnpricedStop: stops.some(stop => stop.costMin === null || stop.costMax === null),
     currency: totals?.currency ?? 'VND',
     durationMinutes: totals?.durationMinutes ?? 0,
     travelDistanceM: totals?.travelDistanceM ?? 0,
     overBudget: totals?.overBudget ?? false,
     uncertain: totals?.uncertain ?? false,
   }
-}
-
-/** Per-person share of a plan total, for group rooms. */
-export function planPerPerson(plan: PlanSummary, participantCount: number): number {
-  return perPerson(plan.costMax, participantCount, plan.currency)
 }

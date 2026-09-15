@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { budgetAsGroupTotal, formatMoney, formatRange, perPerson, toMajorUnits } from '../money'
+import * as money from '../money'
+import { budgetAsGroupTotal, formatMoney, formatRange, toMajorUnits } from '../money'
 
 describe('minor units', () => {
   it('treats VND as a zero-decimal currency', () => {
@@ -18,15 +19,10 @@ describe('formatMoney', () => {
   })
 })
 
-describe('perPerson', () => {
-  it('rounds up to the nearest 5k so an estimate never looks exact', () => {
-    expect(perPerson(300_000, 4)).toBe(75_000)
-    expect(perPerson(310_000, 4)).toBe(80_000)
-    expect(perPerson(1_000, 3)).toBe(5_000)
-  })
-
-  it('returns the total when the participant count is unusable', () => {
-    expect(perPerson(300_000, 0)).toBe(300_000)
+describe('no divisor (RULE-CORE-013, GoGo-MobileApp#249)', () => {
+  it('offers no way to divide an amount by the people in a room', () => {
+    // Dividing a per-person sum again is how "450k tổng nhóm · ~150k/người" was printed.
+    expect(Object.keys(money)).not.toContain('perPerson')
   })
 })
 

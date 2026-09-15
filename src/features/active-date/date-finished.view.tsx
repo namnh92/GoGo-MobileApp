@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text, View } from 'react-native'
 
-import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom } from '@/shared/api'
-import { formatMoney, perPerson } from '@/shared/pricing/money'
+import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom, toRoomAudience } from '@/shared/api'
+import { costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Atmosphere, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
@@ -43,13 +43,8 @@ export default function DateFinishedScreen() {
   }
 
   const roomType = room.data?.type ?? 'couple'
-  const participantCount = room.data?.participantCount ?? 2
-
-  const totalLabel = formatMoney(summary.costMax, summary.currency)
-  const perPersonLabel =
-    roomType === 'group'
-      ? formatMoney(perPerson(summary.costMax, participantCount, summary.currency), summary.currency)
-      : null
+  // GoGo-MobileApp#249 — scoped amounts, never a total divided up.
+  const cost = planCost(summary, room.data ? toRoomAudience(room.data) : null, t)
 
   const completed = summary.stops.filter(stop => stop.status === 'completed')
 
@@ -81,9 +76,9 @@ export default function DateFinishedScreen() {
         <View style={styles.footer}>
           <Text style={styles.footerMeta}>
             {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m ·{' '}
-            {/* An uncertain total stays visibly an estimate. */}
-            {summary.uncertain ? `~${totalLabel}` : totalLabel}
-            {perPersonLabel ? ` · ~${perPersonLabel}${t('datePlan.perPerson')}` : ''}
+            {/* Scoped, and `~` while a stop's price is uncertain. */}
+            {costLineText(cost.primary)}
+            {cost.secondary ? ` · ${costLineText(cost.secondary)}` : ''}
           </Text>
           <Text style={styles.footerMeta}>
             {t('dateFinished.stopsDone', { done: completed.length, total: summary.stops.length })}
