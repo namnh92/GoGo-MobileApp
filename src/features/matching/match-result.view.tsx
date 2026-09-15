@@ -34,8 +34,8 @@ import { IconCheck, IconZap } from '@/shared/ui/icons'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './match-result.style'
-import { regenerateErrorKey, SuggestionRunNotice } from './run-empty-state.view'
-import { suggestionRunState } from './run-state'
+import { regenerateFailure, suggestionRunState } from './run-state'
+import { SuggestionRunNotice } from './suggestion-run-notice.view'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 export default function MatchResultScreen() {
@@ -344,7 +344,11 @@ export default function MatchResultScreen() {
           ) : null}
           {regenerate.isError ? (
             <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {t(regenerateErrorKey(regenerate.error))}
+              {t(({
+                race: 'matchResult.regenerateRace',
+                quorum: 'gogoRoom.quorumRequired',
+                failed: 'matchResult.regenerateFailed',
+              } as const)[regenerateFailure(regenerate.error)])}
             </Text>
           ) : null}
         </View>

@@ -63,6 +63,7 @@ export const styles = StyleSheet.create({
   codeCaption: { ...type.caption, color: neutral[500], marginBottom: spacing[2] },
   inviteNote: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[3] },
   codeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  codeSkeleton: { flex: 1, height: spacing[6] },
   /**
    * The server issues an opaque token, not a five-character code people read
    * aloud — 22 characters is normal. Display size with wide letter-spacing wrapped

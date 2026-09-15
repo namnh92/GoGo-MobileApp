@@ -2,20 +2,12 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 
-import { isApiError, useGenerateSuggestions } from '@/shared/api'
+import { useGenerateSuggestions } from '@/shared/api'
 import { EmptyState } from '@/shared/ui/async-state.view'
 import { GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 
-import { styles } from './run-empty-state.style'
-
-/** The host's refresh can itself be refused; say why instead of a blind retry. */
-export function regenerateErrorKey(
-  error: unknown,
-): 'matchResult.regenerateRace' | 'gogoRoom.quorumRequired' | 'matchResult.regenerateFailed' {
-  if (isApiError(error) && error.code === 'STALE_SUGGESTIONS') return 'matchResult.regenerateRace'
-  if (isApiError(error) && error.code === 'MATCHING_QUORUM_REQUIRED') return 'gogoRoom.quorumRequired'
-  return 'matchResult.regenerateFailed'
-}
+import { regenerateFailure } from './run-state'
+import { styles } from './suggestion-run-notice.style'
 
 /**
  * A run that went stale, or finished with nothing to choose from (#199). The
@@ -64,7 +56,11 @@ export function SuggestionRunNotice({
           ) : null}
           {isHost && regenerate.isError ? (
             <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {t(regenerateErrorKey(regenerate.error))}
+              {t(({
+                race: 'matchResult.regenerateRace',
+                quorum: 'gogoRoom.quorumRequired',
+                failed: 'matchResult.regenerateFailed',
+              } as const)[regenerateFailure(regenerate.error)])}
             </Text>
           ) : null}
           <GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />

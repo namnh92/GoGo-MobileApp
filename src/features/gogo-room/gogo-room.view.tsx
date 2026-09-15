@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query'
 import * as Clipboard from 'expo-clipboard'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 
@@ -38,7 +39,7 @@ import {
   PrimaryBtn,
   SecondaryBtn,
 } from '@/shared/ui/primitives'
-import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
+import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
@@ -112,7 +113,8 @@ export default function GoGoRoomScreen() {
   const { display: inviteDisplay, forget: forgetStoredInvite } = resolveInviteDisplay({
     stored: inviteRoomId ? storedInvite : null,
     invites: invites.data,
-    invitesFailed: invites.isError,
+    // Paused (offline) with nothing loaded is as unreadable as a failure.
+    invitesFailed: invites.isError || (invites.isPaused && invites.data === undefined),
     listIsCurrent: invites.status === 'success' && !invites.isFetching
       && invites.dataUpdatedAt > (storedInvite?.savedAt ?? 0),
     now: inviteClock,
@@ -131,6 +133,11 @@ export default function GoGoRoomScreen() {
   useEffect(() => {
     if (deadInviteId) void forgetInvite(deadInviteId)
   }, [deadInviteId, forgetInvite])
+  // Another phone can revoke or re-issue while this one is in the background.
+  const refetchInvites = invites.refetch
+  useEffect(() => {
+    if (focused && inviteRoomId) void refetchInvites({ cancelRefetch: false })
+  }, [focused, inviteRoomId, refetchInvites])
   const inviteCode = inviteDisplay.kind === 'code' ? inviteDisplay.code : null
   const creatingInvite = useRef(false)
   async function generateInvite() {
@@ -146,30 +153,44 @@ export default function GoGoRoomScreen() {
   }
 
   const [reissueFailed, setReissueFailed] = useState(false)
-  /** Another device holds the code: revoke it, then mint exactly one new one. */
-  async function reissueInvite(inviteId: string) {
+  // A failed re-issue belongs to the card state it happened in; adjusted during
+  // render so the message goes the moment the card moves on.
+  const [reissueKind, setReissueKind] = useState(inviteDisplay.kind)
+  if (reissueKind !== inviteDisplay.kind) {
+    setReissueKind(inviteDisplay.kind)
+    setReissueFailed(false)
+  }
+  /**
+   * Other devices hold the codes: revoke every usable invite (duplicates would
+   * keep letting people in), then mint exactly one new one.
+   */
+  async function reissueInvite(inviteIds: readonly string[]) {
     if (!capabilities.canInvite || creatingInvite.current) return
     creatingInvite.current = true
     setReissueFailed(false)
     try {
       try {
-        await revokeInvite.mutateAsync(inviteId)
+        for (const inviteId of inviteIds) await revokeInvite.mutateAsync(inviteId)
       } catch {
         setReissueFailed(true)
         return
       }
       // One create per confirmed re-issue; a failure shows below and waits for the host.
-      await createInvite.mutateAsync({ maxUses: 20 }).catch(() => undefined)
+      await createInvite.mutateAsync({ maxUses: 20 }).then(() => setReissueFailed(false), () => undefined)
     } finally {
       creatingInvite.current = false
     }
   }
 
-  function confirmReissue(inviteId: string) {
-    Alert.alert(t('gogoRoom.reissueTitle'), t('gogoRoom.reissueBody'), [
-      { text: t('gogoRoom.reissueCancel'), style: 'cancel' },
-      { text: t('gogoRoom.reissueConfirm'), style: 'destructive', onPress: () => { void reissueInvite(inviteId) } },
-    ])
+  function confirmReissue(inviteIds: readonly string[]) {
+    Alert.alert(
+      t('gogoRoom.reissueTitle'),
+      t(inviteIds.length > 1 ? 'gogoRoom.reissueBodyMany' : 'gogoRoom.reissueBody', { n: inviteIds.length }),
+      [
+        { text: t('gogoRoom.reissueCancel'), style: 'cancel' },
+        { text: t('gogoRoom.reissueConfirm'), style: 'destructive', onPress: () => { void reissueInvite(inviteIds) } },
+      ],
+    )
   }
 
   if (!validRoomId) {
@@ -218,27 +239,51 @@ export default function GoGoRoomScreen() {
   const members = summary.members ?? []
   const progress = memberProgress(summary)
   const inviteUrl = inviteCode ? `${env.webBaseUrl}/r/${inviteCode}` : null
+  const joinable = JOINABLE.includes(summary.status)
 
   function flash(setter: (value: boolean) => void) {
     setter(true)
     timers.current.push(setTimeout(() => setter(false), 2000))
   }
 
-  function copyCode() {
-    if (!inviteCode) return
+  /**
+   * The code as the server still honours it. Another phone may have revoked it
+   * since the last refetch, so it is checked before it is handed out; offline,
+   * the stored code is still the best answer.
+   */
+  async function verifiedInviteCode(): Promise<string | null> {
+    if (!inviteCode) return null
+    if (!onlineManager.isOnline()) return inviteCode
+    const fresh = await invites.refetch({ cancelRefetch: false })
+    if (fresh.status !== 'success') return inviteCode
+    const { display } = resolveInviteDisplay({
+      stored: storedInvite,
+      invites: fresh.data,
+      invitesFailed: false,
+      listIsCurrent: true,
+      now: Date.now(),
+    })
+    return display.kind === 'code' ? display.code : null
+  }
+
+  async function copyCode() {
+    const code = await verifiedInviteCode()
+    if (!code) return
     track('gogo_invite_copied', { channel: 'code' })
-    void Clipboard.setStringAsync(inviteCode).catch(() => {})
+    void Clipboard.setStringAsync(code).catch(() => {})
     flash(setCodeCopied)
   }
 
   async function invite() {
-    if (!inviteUrl) return
+    const code = await verifiedInviteCode()
+    if (!code) return
+    const url = `${env.webBaseUrl}/r/${code}`
     track('gogo_invite_shared', { channel: 'native_share', roomType })
     try {
       // Single share CTA → native share sheet; no hard-coded social buttons.
-      await Share.share({ message: `${t('gogoRoom.title', { context: roomType })} ${inviteUrl}`, url: inviteUrl })
+      await Share.share({ message: `${t('gogoRoom.title', { context: roomType })} ${url}`, url })
     } catch {
-      await Clipboard.setStringAsync(inviteUrl).catch(() => {})
+      await Clipboard.setStringAsync(url).catch(() => {})
       flash(setLinkCopied)
     }
   }
@@ -400,12 +445,14 @@ export default function GoGoRoomScreen() {
             {inviteDisplay.kind === 'active-elsewhere' ? (
               <>
                 <Text style={styles.inviteNote}>
-                  {t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })}
+                  {joinable
+                    ? t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })
+                    : t('gogoRoom.inviteClosed')}
                 </Text>
-                {JOINABLE.includes(summary.status) ? (
+                {joinable ? (
                   <SecondaryBtn
                     label={t('gogoRoom.reissueInvite')}
-                    onPress={() => confirmReissue(inviteDisplay.inviteId)}
+                    onPress={() => confirmReissue(inviteDisplay.inviteIds)}
                     loading={revokeInvite.isPending || createInvite.isPending}
                   />
                 ) : null}
@@ -426,13 +473,17 @@ export default function GoGoRoomScreen() {
             <View style={styles.codeRow}>
               {/* `selectable` so the code can still be lifted by hand if the
                   clipboard write is refused. */}
-              <Text style={styles.code} selectable numberOfLines={2}>
-                {inviteCode ?? '·····'}
-              </Text>
+              {inviteDisplay.kind === 'checking' ? (
+                <Skeleton style={styles.codeSkeleton} />
+              ) : (
+                <Text style={styles.code} selectable numberOfLines={2}>
+                  {inviteCode ?? '·····'}
+                </Text>
+              )}
               {/* Icon-only: a label here gets squeezed by a long code, and this
                   is the only way to lift the code other than the invite link. */}
               <IconBtn
-                onPress={copyCode}
+                onPress={() => { void copyCode() }}
                 disabled={!inviteCode}
                 accessibilityLabel={t(codeCopied ? 'common.copied' : 'common.copy')}
                 style={[styles.copyBtn, codeCopied && styles.copyBtnDone]}

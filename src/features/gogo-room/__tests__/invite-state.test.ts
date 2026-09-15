@@ -5,7 +5,7 @@ import { isInviteUsable, resolveInviteDisplay, type InviteDisplayInput } from '.
 const NOW = Date.parse('2026-09-15T00:00:00.000Z')
 const LATER = '2026-09-21T00:00:00.000Z'
 const EARLIER = '2026-09-14T00:00:00.000Z'
-const stored = { roomId: 'room-1', inviteId: 'invite-1', code: 'code-1', expiresAt: LATER, savedAt: NOW - 1000 }
+const stored = { roomId: 'room-1', inviteId: 'invite-1', code: 'code-1', expiresAt: LATER, userId: 'user-1', savedAt: NOW - 1000 }
 const row = (overrides: Record<string, unknown> = {}) => ({
   inviteId: 'invite-1', expiresAt: LATER, revoked: false, useCount: 0, maxUses: 20, ...overrides,
 })
@@ -54,11 +54,21 @@ describe('resolveInviteDisplay (#199)', () => {
     expect(result.forget).toBe(false)
   })
 
-  it('reports an invite created on another device, latest expiry first, with no code', () => {
+  it('names every usable invite from other devices, latest expiry first, with no code', () => {
     const result = resolveInviteDisplay(input({
-      invites: [row({ inviteId: 'a', expiresAt: '2026-09-18T00:00:00.000Z' }), row({ inviteId: 'b' }), row({ inviteId: 'c', revoked: true })],
+      invites: [
+        row({ inviteId: 'a', expiresAt: '2026-09-18T00:00:00.000Z' }),
+        row({ inviteId: 'b' }),
+        row({ inviteId: 'c', revoked: true }),
+        row({ inviteId: 'd', useCount: 20 }),
+      ],
     }))
-    expect(result).toEqual({ display: { kind: 'active-elsewhere', inviteId: 'b', expiresAt: LATER }, forget: false })
+    expect(result).toEqual({ display: { kind: 'active-elsewhere', inviteIds: ['b', 'a'], expiresAt: LATER }, forget: false })
+  })
+
+  it('never names the stored invite among the ones to revoke', () => {
+    const result = resolveInviteDisplay(input({ stored, invites: [row({ revoked: true }), row({ inviteId: 'other' })] }))
+    expect(result).toEqual({ display: { kind: 'active-elsewhere', inviteIds: ['other'], expiresAt: LATER }, forget: true })
   })
 
   it('says none when nothing usable is listed', () => {

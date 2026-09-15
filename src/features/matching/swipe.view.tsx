@@ -39,8 +39,8 @@ import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { colors, glyph, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
-import { SuggestionRunNotice } from './run-empty-state.view'
 import { suggestionRunState } from './run-state'
+import { SuggestionRunNotice } from './suggestion-run-notice.view'
 import { styles } from './swipe.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -247,12 +247,18 @@ export default function SwipeScreen() {
     return (
       <Atmosphere>
         {header}
-        <SuggestionRunNotice
-          roomId={roomId}
-          state={runState}
-          isHost={roomCapabilities(room.data).isHost}
-          onRegenerated={() => setCardIndex(0)}
-        />
+        {room.data ? (
+          // A refetch that failed keeps the cached room, and with it the role.
+          <SuggestionRunNotice
+            roomId={roomId}
+            state={runState}
+            isHost={roomCapabilities(room.data).isHost}
+            onRegenerated={() => setCardIndex(0)}
+          />
+        ) : (
+          // With no room the role is unknown; a host must never be told to wait for the host.
+          <ErrorState error={room.error} onRetry={() => void room.refetch()} />
+        )}
       </Atmosphere>
     )
   }

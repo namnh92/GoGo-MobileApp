@@ -14,6 +14,8 @@ const mockRegenerate = jest.fn()
 const mockState = {
   room: roomFor('group-host', { status: 'matching', decisionMode: 'vote' }),
   suggestions: {} as Record<string, unknown>,
+  /** Overrides the room query, for a room that failed to load. */
+  roomQuery: null as Record<string, unknown> | null,
 }
 
 jest.mock('expo-router', () => ({
@@ -25,7 +27,7 @@ jest.mock('@/shared/ui/place-photo.view', () => ({ PlacePhoto: () => null }))
 jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: () => true }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  useRoom: () => mockLoaded(mockState.room),
+  useRoom: () => mockState.roomQuery ?? mockLoaded(mockState.room),
   useCurrentSuggestions: () => mockLoaded(mockState.suggestions),
   useCurrentPlan: () => mockLoaded(null),
   usePlaceDetail: () => mockLoaded(null),
@@ -62,6 +64,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   asRole('host')
   mockState.suggestions = RUNS.none
+  mockState.roomQuery = null
 })
 
 describe.each(SCREENS)('%s × run state × role', (_name, element, waitingCopy) => {
@@ -131,4 +134,23 @@ it('swipe: a stale run with candidates left is still stale, not a deck', async (
   const view = await renderScreen(<Swipe />)
   expect(view.getByText('Gợi ý đã cũ')).toBeTruthy()
   expect(view.queryByText('Place One')).toBeNull()
+})
+
+it('swipe: never falls back to member copy when the room failed to load', async () => {
+  mockState.suggestions = RUNS.empty
+  const refetch = jest.fn()
+  mockState.roomQuery = { isPending: false, isError: true, data: undefined, error: new Error('boom'), refetch }
+  const view = await renderScreen(<Swipe />)
+  expect(view.queryByText(EMPTY_TITLE)).toBeNull()
+  expect(view.queryByText(/Đợi chủ phòng/)).toBeNull()
+  await act(async () => { fireEvent.press(view.getByText('Thử lại')) })
+  expect(refetch).toHaveBeenCalled()
+})
+
+it('swipe: keeps the cached role when a room refetch fails', async () => {
+  mockState.suggestions = RUNS.empty
+  mockState.roomQuery = { ...mockLoaded(mockState.room), isError: true, error: new Error('boom') }
+  const view = await renderScreen(<Swipe />)
+  expect(view.getByText(REFRESH)).toBeTruthy()
+  expect(view.getByText(ADJUST)).toBeTruthy()
 })

@@ -257,6 +257,8 @@ export const viMessages = {
   'gogoRoom.reissueInvite': 'Tạo mã mới',
   'gogoRoom.reissueTitle': 'Tạo mã mời mới?',
   'gogoRoom.reissueBody': 'Mã đang dùng sẽ ngừng hoạt động. Người đã vào phòng không bị ảnh hưởng; ai chưa vào cần mã mới.',
+  'gogoRoom.reissueBodyMany': 'Cả {{n}} mã đang dùng sẽ ngừng hoạt động. Người đã vào phòng không bị ảnh hưởng; ai chưa vào cần mã mới.',
+  'gogoRoom.inviteClosed': 'Phòng đã ngừng nhận thêm người, nên mã mời không còn dùng để vào phòng được.',
   'gogoRoom.reissueConfirm': 'Thu hồi và tạo mã mới',
   'gogoRoom.reissueCancel': 'Để sau',
   'gogoRoom.reissueFailed': 'Chưa thu hồi được mã cũ. Thử lại nhé.',

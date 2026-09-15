@@ -28,8 +28,12 @@ export type InviteDisplay =
   /** This device's store has not been read yet, or the list has not arrived. */
   | { kind: 'checking' }
   | { kind: 'code'; inviteId: string; code: string; expiresAt: string }
-  /** Usable on the server, but its code was created on another device or before a reinstall. */
-  | { kind: 'active-elsewhere'; inviteId: string; expiresAt: string }
+  /**
+   * Usable on the server, but created on another device or before a reinstall.
+   * Every usable invite is named, latest expiry first: a re-issue must revoke
+   * them all, or an older duplicate keeps letting people in.
+   */
+  | { kind: 'active-elsewhere'; inviteIds: string[]; expiresAt: string }
   | { kind: 'none' }
   /** The list could not be read and this device holds no code to fall back on. */
   | { kind: 'unknown' }
@@ -80,11 +84,11 @@ export function resolveInviteDisplay(input: InviteDisplayInput): { display: Invi
 
   const forget = expired || Boolean(live)
   const usable = list
-    .filter(invite => isInviteUsable(invite, now))
-    .sort((a, b) => Date.parse(b.expiresAt) - Date.parse(a.expiresAt))[0]
+    .filter(invite => isInviteUsable(invite, now) && invite.inviteId !== live?.inviteId)
+    .sort((a, b) => Date.parse(b.expiresAt) - Date.parse(a.expiresAt))
   return {
-    display: usable
-      ? { kind: 'active-elsewhere', inviteId: usable.inviteId, expiresAt: usable.expiresAt }
+    display: usable.length > 0
+      ? { kind: 'active-elsewhere', inviteIds: usable.map(invite => invite.inviteId), expiresAt: usable[0].expiresAt }
       : { kind: 'none' },
     forget,
   }

@@ -253,6 +253,8 @@ export const enMessages: Record<MessageKey, string> = {
   'gogoRoom.reissueInvite': 'Create a new code',
   'gogoRoom.reissueTitle': 'Create a new invite code?',
   'gogoRoom.reissueBody': 'The current code will stop working. People already in the room are not affected; anyone who has not joined needs the new code.',
+  'gogoRoom.reissueBodyMany': 'All {{n}} codes in use will stop working. People already in the room are not affected; anyone who has not joined needs the new code.',
+  'gogoRoom.inviteClosed': 'This room no longer takes new members, so its invite codes cannot be used to join.',
   'gogoRoom.reissueConfirm': 'Revoke and create new',
   'gogoRoom.reissueCancel': 'Not now',
   'gogoRoom.reissueFailed': 'Could not revoke the current code. Try again.',

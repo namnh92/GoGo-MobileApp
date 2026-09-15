@@ -17,12 +17,16 @@ const ENTRY_PREFIX = 'gogo.invite-code.v1.'
 const INDEX_KEY = 'gogo.invite-code.v1.index'
 // SecureStore keys accept only alphanumerics, '.', '-' and '_'.
 const SAFE_ROOM_ID = /^[A-Za-z0-9_-]{1,64}$/
+// SecureStore values are capped near 2048 bytes; 20 room ids stay well inside it.
+const MAX_ENTRIES = 20
 
 export const storedInviteSchema = z.object({
   roomId: z.string().regex(SAFE_ROOM_ID),
   inviteId: z.string().min(1),
   code: z.string().min(1),
   expiresAt: z.string().refine(value => Number.isFinite(Date.parse(value))),
+  /** The account that created it. Another account on this device never reads it. */
+  userId: z.string().min(1),
   /** When this device stored it: an invite list fetched earlier cannot disprove it. */
   savedAt: z.number().int().nonnegative(),
 })
@@ -61,12 +65,16 @@ async function writeIndex(roomIds: string[]): Promise<void> {
   else await setSecureItem(INDEX_KEY, JSON.stringify(roomIds))
 }
 
-async function readEntry(roomId: string): Promise<StoredInvite | null> {
+/** `userId: null` reads any account's entry (only to compare invite ids before forgetting). */
+async function readEntry(roomId: string, userId: string | null): Promise<StoredInvite | null> {
   const raw = await getSecureItem(entryKey(roomId))
   if (!raw) return null
   const parsed = storedInviteSchema.safeParse(parseJson(raw))
-  if (parsed.success && parsed.data.roomId === roomId) return parsed.data
-  // An unreadable or misfiled entry is never trusted, and not left behind.
+  if (parsed.success && parsed.data.roomId === roomId && (userId === null || parsed.data.userId === userId)) {
+    return parsed.data
+  }
+  // Unreadable, misfiled, or another account's (a purge that could not reach a
+  // locked Keychain): never trusted, and not left behind.
   await deleteSecureItem(entryKey(roomId))
   return null
 }
@@ -81,15 +89,18 @@ export function saveInviteCode(invite: StoredInvite, startedAt = generation): Pr
     if (startedAt !== generation) return
     const record = storedInviteSchema.parse(invite)
     const now = Date.now()
-    const kept: string[] = []
+    const live: StoredInvite[] = []
     const dropped: string[] = []
     for (const roomId of await readIndex()) {
       if (roomId === record.roomId) continue
-      const entry = await readEntry(roomId)
+      const entry = await readEntry(roomId, record.userId)
       // Rooms that are never reopened must not pile up expired codes.
-      if (entry && Date.parse(entry.expiresAt) > now) kept.push(roomId)
+      if (entry && Date.parse(entry.expiresAt) > now) live.push(entry)
       else dropped.push(roomId)
     }
+    live.sort((a, b) => b.savedAt - a.savedAt)
+    const kept = live.slice(0, MAX_ENTRIES - 1).map(entry => entry.roomId)
+    dropped.push(...live.slice(MAX_ENTRIES - 1).map(entry => entry.roomId))
     // Index first: an entry the index does not name could never be purged.
     await writeIndex([...kept, record.roomId])
     await setSecureItem(entryKey(record.roomId), JSON.stringify(record))
@@ -97,9 +108,9 @@ export function saveInviteCode(invite: StoredInvite, startedAt = generation): Pr
   })
 }
 
-export function loadInviteCode(roomId: string): Promise<StoredInvite | null> {
-  if (!SAFE_ROOM_ID.test(roomId)) return Promise.resolve(null)
-  return serial(() => readEntry(roomId))
+export function loadInviteCode(roomId: string, userId: string): Promise<StoredInvite | null> {
+  if (!SAFE_ROOM_ID.test(roomId) || !userId) return Promise.resolve(null)
+  return serial(() => readEntry(roomId, userId))
 }
 
 /** Forgets a room's code; when an invite is named, only if the code is that invite's. */
@@ -107,7 +118,7 @@ export function forgetInviteCode(roomId: string, inviteId?: string): Promise<voi
   if (!SAFE_ROOM_ID.test(roomId)) return Promise.resolve()
   return serial(async () => {
     if (inviteId !== undefined) {
-      const entry = await readEntry(roomId)
+      const entry = await readEntry(roomId, null)
       if (entry && entry.inviteId !== inviteId) return
     }
     await deleteSecureItem(entryKey(roomId))
