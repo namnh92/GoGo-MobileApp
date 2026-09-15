@@ -45,6 +45,8 @@ export const viMessages = {
   'auth.registerConflict': 'Không hoàn tất đăng ký được. Thử đăng nhập nhé.',
   'auth.rateLimited': 'Thử quá nhiều lần. Đợi một chút rồi thử lại.',
   'auth.networkError': 'Mất kết nối. Kiểm tra mạng rồi thử lại.',
+  'auth.timeoutError': 'Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi thử lại.',
+  'auth.unexpectedError': 'Ứng dụng gặp lỗi ngoài dự kiến. Thử lại nhé, nếu vẫn lỗi hãy mở lại ứng dụng.',
   'auth.genericError': 'Có lỗi xảy ra. Thử lại nhé.',
   'auth.guestFootnote': 'Tham gia phòng bằng link mời thì không cần tài khoản.',
 
