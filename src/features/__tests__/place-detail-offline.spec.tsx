@@ -4,6 +4,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { loaded as mockLoaded, pausedOffline, renderScreen, type QueryLike } from './harness'
 
 import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
+import { NetworkError, TimeoutError } from '@/shared/api/errors'
 
 /**
  * GoGo-MobileApp#253 — Place Detail offline. One bar per screen: the reviews
@@ -82,6 +83,20 @@ describe('Place Detail × connectivity', () => {
     expect(view.getByText('Nội dung 1')).toBeTruthy()
     expect(view.getAllByText(OFFLINE)).toHaveLength(1)
     expect(within(screen.getByTestId('place-reviews')).queryByText(OFFLINE)).toBeNull()
+  })
+
+  it.each([
+    ['timed out', new TimeoutError(15_000)],
+    ['lost its connection', new NetworkError()],
+  ])('reports a review refresh that %s while the device is online, with a retry', async (_, failure) => {
+    // The place loaded and the device is online, so the screen shows no bar;
+    // only the reviews section knows its refresh failed.
+    mockReviews = { ...mockLoaded(REVIEWS), isError: true, error: failure }
+    const view = await renderScreen(<PlaceDetailScreen />)
+    const reviews = within(screen.getByTestId('place-reviews'))
+    expect(reviews.getByText(OFFLINE)).toBeTruthy()
+    expect(reviews.getByText('Thử lại')).toBeTruthy()
+    expect(view.getAllByText(OFFLINE)).toHaveLength(1)
   })
 
   it('reports a failed review refresh inside the reviews section, once', async () => {

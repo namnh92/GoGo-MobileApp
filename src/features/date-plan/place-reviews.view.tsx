@@ -111,7 +111,8 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
   } else {
     body = (
       <>
-        {/* Place Detail already carries the offline bar; this section adds only its own failed refresh. */}
+        {/* Place Detail carries the offline bar while the device is offline; this
+            section adds only its own failed refresh, a timeout while online included. */}
         <StaleNotice
           error={reviews.isError ? reviews.error : null}
           reportOffline={false}

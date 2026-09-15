@@ -122,9 +122,19 @@ describe('a section inside a screen that has its own bar', () => {
     expect(view.toJSON()).toBeNull()
   })
 
-  it('leaves a transport failure to the screen as well', async () => {
+  it('leaves a transport failure to the screen while the device is offline', async () => {
+    await goOffline()
     const view = await renderScreen(<StaleNotice error={new NetworkError()} reportOffline={false} />)
+    await elapse(OFFLINE_SIGNAL_DELAY_MS)
     expect(view.toJSON()).toBeNull()
+  })
+
+  // Codex review of 443c7b3: online, the screen's bar is down, so a section that
+  // hid its own timeout left cached content with no warning and no Retry.
+  it('reports its own transport failure while the device is online, with a retry', async () => {
+    const view = await renderScreen(<StaleNotice error={new NetworkError()} reportOffline={false} onRetry={jest.fn()} />)
+    expect(view.getByText(OFFLINE)).toBeTruthy()
+    expect(view.getByText(RETRY)).toBeTruthy()
   })
 
   it('still reports its own failed refresh, with a retry', async () => {

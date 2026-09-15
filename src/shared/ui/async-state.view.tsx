@@ -131,7 +131,11 @@ export function StaleNotice({
   const { t } = useTranslation()
   const online = useOnlineStatus()
   const offline = !online || isOffline(error)
-  const shown = hasData && (offline ? reportOffline : Boolean(error))
+  // `reportOffline={false}` means the screen already shows the offline bar, and
+  // that bar is up only while the device is offline. A request that timed out
+  // or dropped while the device is online is this section's own failure: no
+  // other bar mentions it, so it keeps its notice and Retry.
+  const shown = hasData && (offline ? reportOffline || online : Boolean(error))
   useOfflineAnnouncement(shown, t('common.staleOffline'))
   if (!shown) return null
   return (
