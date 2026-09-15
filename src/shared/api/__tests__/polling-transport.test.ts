@@ -76,6 +76,20 @@ describe('pollingTransport', () => {
     teardown()
   })
 
+  it('sends the lobby one room invalidation per tick while it watches the run and the plan (#198)', async () => {
+    const { activity } = fakeActivity()
+    const { client, keysPerTick } = fakeClient()
+    const transport = createPollingTransport(activity)
+
+    const teardown = transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: client })
+    await advance(POLL_INTERVAL_MS.lobby)
+
+    // Suggestions and the current plan sit under room(id). The one invalidation
+    // is not one request: every enabled query beneath it refetches.
+    expect(keysPerTick()).toEqual([JSON.stringify(queryKeys.room(ROOM_ID))])
+    teardown()
+  })
+
   it('runs one poller per room however many screens subscribe', async () => {
     const { activity } = fakeActivity()
     const { client, keysPerTick } = fakeClient()

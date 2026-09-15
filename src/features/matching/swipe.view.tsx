@@ -37,6 +37,8 @@ import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { colors, glyph, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
+import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
+
 import { styles } from './swipe.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -67,6 +69,9 @@ export default function SwipeScreen() {
   const reducedMotion = useReducedMotion()
 
   const suggestions = useCurrentSuggestions(roomId)
+  // The lobby sends people here once per run (#198); back there, it must not again.
+  const shownRunId = suggestions.data?.run?.id
+  useRoomStepShown(roomId, shownRunId ? runStep(shownRunId) : null)
   useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
   const castVote = useCastVote(roomId)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()

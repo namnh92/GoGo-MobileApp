@@ -1,5 +1,5 @@
 import { Alert } from 'react-native'
-import { fireEvent } from '@testing-library/react-native'
+import { act, fireEvent } from '@testing-library/react-native'
 import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
 
 /**
@@ -34,6 +34,7 @@ jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => mockParams,
+  useNavigationContainerRef: () => ({ isReady: () => true }),
 }))
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }))
@@ -45,6 +46,10 @@ jest.mock('@/shared/api', () => ({
     return mockRoom.query
   },
   useRoomMembers: () => mockMembers.query,
+  // The lobby reads the run and the plan once the room has them (#198); these
+  // rooms are still collecting.
+  useCurrentSuggestions: () => ({ isPending: false, isError: false, data: undefined, error: null }),
+  useCurrentPlan: () => ({ isPending: false, isError: false, data: undefined, error: null }),
   useRoomRealtime: jest.fn(),
   // Inlined rather than pulled from the harness: a jest.mock factory is
   // hoisted, so it can only close over `mock`-prefixed bindings.
@@ -186,7 +191,7 @@ describe('partial preference capability', () => {
       await fireEvent.press(view.getByText('Tiếp tục với lựa chọn hiện có'))
       expect(alert).toHaveBeenCalled()
       const confirm = alert.mock.calls[0][2]?.[1]
-      await confirm?.onPress?.()
+      await act(async () => confirm?.onPress?.())
       expect(mockIdleMutation.mutateAsync).toHaveBeenCalledWith({ allowIncompletePreferences: true })
     } finally { alert.mockRestore() }
   })
