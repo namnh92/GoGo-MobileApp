@@ -21,6 +21,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { Chip, GhostBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { hitSlop } from '@/shared/ui/tokens'
+import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './place-reviews.style'
 
@@ -30,7 +31,7 @@ const SKELETON_ROWS = 2
 const ORDERS = [
   { value: 'latest', labelKey: 'placeReviews.orderLatest' },
   { value: 'helpful', labelKey: 'placeReviews.orderHelpful' },
-] as const satisfies readonly { value: ReviewOrder; labelKey: string }[]
+] as const satisfies readonly { value: ReviewOrder; labelKey: MessageKey }[]
 
 type MarkFailure = 'own' | 'failed'
 

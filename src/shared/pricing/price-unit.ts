@@ -1,3 +1,5 @@
+import type { MessageKey } from '@/shared/i18n/types'
+
 import type { PlaceDetail } from '@/shared/api/types'
 
 /**
@@ -38,7 +40,7 @@ export function toPriceUnit(unit: string | undefined, hasPrice: boolean): PriceU
 }
 
 /** i18n key for the unit suffix. `free` and `unknown` carry the whole line. */
-export function priceUnitKey(unit: PriceUnit): string {
+export function priceUnitKey(unit: PriceUnit): MessageKey {
   return `price.unit.${unit}`
 }
 
