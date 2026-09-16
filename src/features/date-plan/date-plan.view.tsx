@@ -1,11 +1,14 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo, useRef, useState } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   formatDistance,
+  isApiError,
+  isForbidden,
+  isOffline,
   roomCapabilities,
   toPlanSummary,
   useLockPlanStop,
@@ -14,12 +17,14 @@ import {
   usePlanStopPlaces,
   useRoom,
   useRoomRealtime,
+  useStartDate,
   type PlanStopRow,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { formatMoney, formatRange, perPerson } from '@/shared/pricing/money'
-import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import {
@@ -37,6 +42,8 @@ import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconNavigation } from '@/shared/ui/icons'
 import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
 
+import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
+
 import { styles } from './date-plan.style'
 
 const { brand, neutral } = colors
@@ -48,17 +55,37 @@ export default function DatePlanScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>()
 
   const plan = usePlan(planId)
+  const waitingForNetwork = useWaitingForNetwork(plan)
   const summary = useMemo(() => (plan.data ? toPlanSummary(plan.data) : null), [plan.data])
   const places = usePlanStopPlaces(summary?.stops ?? [])
   const room = useRoom(summary?.roomId)
   // Another member can regenerate or lock while this screen is open.
   useRoomRealtime(summary?.roomId, 'plan')
+  // The lobby opens a room's plan once (#198). Its "go to the room" below must
+  // not bounce straight back here — only to a newer plan, when this one is superseded.
+  useRoomStepShown(summary?.roomId, summary?.id ? planStep(summary.id) : null)
   const lockStop = useLockPlanStop(planId)
   const regenerate = useRegeneratePlan(planId)
+  const startDate = useStartDate(summary?.roomId, planId)
 
   const capabilities = roomCapabilities(room.data)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The start answered with a room that neither started nor ended; the reason
+  // stays under the button until the next press.
+  const [notStarted, setNotStarted] = useState(false)
+
+  // #251 — a start that answers after the user left this screen, or opened
+  // another one on top of it, must not pull them into the active date.
+  const focused = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true
+      return () => {
+        focused.current = false
+      }
+    }, []),
+  )
 
   function toggleLock(stop: PlanStopRow, name: string) {
     const locking = !stop.isLocked
@@ -97,9 +124,38 @@ export default function DatePlanScreen() {
     toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
 
-  function startDate() {
-    track('date_plan_accepted')
-    track('date_started')
+  /**
+   * #251 — the host's "Bắt đầu đi" moves the room `ready → active` before the
+   * active date opens; until then the server refuses every stop completion and
+   * check-in. A tap that joins one already in flight resolves `null` and does
+   * nothing, so a double tap is one request and one navigation.
+   */
+  async function onStart() {
+    setNotStarted(false)
+    let started
+    try {
+      started = await startDate.start({ onSend: () => track('date_plan_accepted') })
+    } catch {
+      // The error renders under the button, which becomes the retry.
+      return
+    }
+    if (!started) return
+    // Act on the status the server answered with, never on "it succeeded": a
+    // repeated start that races the end of the date answers with a finished or
+    // cancelled room (GoGo-BE #601), and that room must not open a live screen.
+    if (started.status === 'active') {
+      track('date_started')
+      if (focused.current) router.push(`/plans/${planId}/active`)
+    } else if (started.status === 'completed') {
+      if (focused.current) router.push(`/plans/${planId}/finished`)
+    } else if (started.status !== 'cancelled' && started.status !== 'expired') {
+      setNotStarted(true)
+    }
+    // Cancelled or expired: the start wrote that room to the cache, and the bar
+    // below renders its copy in place of the button.
+  }
+
+  function openActiveDate() {
     router.push(`/plans/${planId}/active`)
   }
 
@@ -113,9 +169,14 @@ export default function DatePlanScreen() {
     return (
       <Atmosphere>
         {header}
-        <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[4] }}>
-          <PlanSkeleton count={3} />
-        </View>
+        {/* Nothing cached and offline: the paused read would keep the skeleton forever (#253). */}
+        {waitingForNetwork ? (
+          <OfflineState />
+        ) : (
+          <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[4] }}>
+            <PlanSkeleton count={3} />
+          </View>
+        )}
       </Atmosphere>
     )
   }
@@ -134,6 +195,88 @@ export default function DatePlanScreen() {
   const participantCount = room.data?.participantCount ?? 2
   const roomType = room.data?.type ?? 'couple'
   const budgetMode = room.data?.constraints?.budgetMode ?? 'total'
+
+  /**
+   * What the bottom bar offers depends on the room's status and the caller's
+   * role, both from the server: only the host can start (the API answers
+   * `403 HOST_ONLY` to anyone else), and everyone can open a date in progress.
+   * Members learn that it started through `useRoomRealtime` above.
+   */
+  const roomStatus = room.data?.status
+
+  function renderDateAction() {
+    if (!room.data) {
+      return room.isError ? (
+        <View style={styles.startNotice} accessibilityLiveRegion="polite">
+          <Text style={styles.startNoticeLabel}>{t('datePlan.roomUnavailable')}</Text>
+          <GhostBtn label={t('common.retry')} onPress={() => void room.refetch()} />
+        </View>
+      ) : (
+        <PrimaryBtn label={t('datePlan.go')} onPress={onStart} disabled loading style={styles.goBtn} />
+      )
+    }
+    if (roomStatus === 'active') {
+      return <PrimaryBtn label={t('datePlan.enter')} onPress={openActiveDate} style={styles.goBtn} />
+    }
+    // A finished date is a summary to look back on, not a live screen.
+    if (roomStatus === 'completed') {
+      return (
+        <PrimaryBtn
+          label={t('datePlan.viewSummary')}
+          onPress={() => router.push(`/plans/${planId}/finished`)}
+          style={styles.goBtn}
+        />
+      )
+    }
+    if (roomStatus === 'ready' && capabilities.isHost) {
+      return (
+        <>
+          <PrimaryBtn
+            label={
+              startDate.isPending
+                ? t('datePlan.starting')
+                : startDate.isError || notStarted
+                  ? t('common.retry')
+                  : t('datePlan.go')
+            }
+            onPress={onStart}
+            loading={startDate.isPending}
+            style={styles.goBtn}
+          />
+          {startDate.isError || notStarted ? (
+            <Text accessibilityLiveRegion="polite" style={styles.startError}>
+              {t(
+                notStarted
+                  ? 'datePlan.notStartable'
+                  : isOffline(startDate.error)
+                    ? 'datePlan.startOffline'
+                    : isApiError(startDate.error) && startDate.error.code === 'HOST_ONLY'
+                      ? 'datePlan.startHostOnly'
+                      : isForbidden(startDate.error)
+                        ? 'common.permissionDenied'
+                        : 'datePlan.startFailed',
+              )}
+            </Text>
+          ) : null}
+        </>
+      )
+    }
+    return (
+      <View style={styles.startNotice} accessibilityLiveRegion="polite">
+        <Text style={styles.startNoticeLabel}>
+          {t(
+            roomStatus === 'ready'
+              ? 'datePlan.waitingHost'
+              : roomStatus === 'cancelled'
+                ? 'datePlan.roomCancelled'
+                : roomStatus === 'expired'
+                  ? 'datePlan.roomExpired'
+                  : 'datePlan.notStartable',
+          )}
+        </Text>
+      </View>
+    )
+  }
 
   /** Group rooms always carry both scopes; the per-person figure is approximate. */
   const totalLabel = formatMoney(summary.costMax, summary.currency)
@@ -339,8 +482,8 @@ export default function DatePlanScreen() {
             </Text>
           </View>
         </View>
-        <PrimaryBtn label={t('datePlan.go')} onPress={startDate} style={styles.goBtn} />
-        {/* "Đi thôi" is the one dominant CTA; edit and rebuild sit below it. */}
+        {renderDateAction()}
+        {/* Starting or opening the date is the one dominant CTA; edit and rebuild sit below it. */}
         <View style={styles.secondaryRow}>
           {capabilities.isHost ? (
             <GhostBtn label={t('datePlan.edit')} onPress={() => router.push(`/plans/${planId}/edit`)} style={{ flex: 1 }} />

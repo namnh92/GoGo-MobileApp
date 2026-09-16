@@ -16,6 +16,7 @@ import type { OpBody } from '@/shared/api/types'
 import { clearSavedRoomDraft, loadRoomDraft } from '@/shared/store/savedRoomDraft'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { clearRecentRooms } from '@/shared/store/recentRoomsStore'
+import { purgeInviteCodes } from '@/shared/storage/invite-codes'
 
 export type SessionStatus = 'hydrating' | 'anonymous' | 'user' | 'guest'
 
@@ -49,9 +50,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!hydrating) void loadRoomDraft(session?.kind === 'user' ? session.userId ?? null : null)
   }, [hydrating, session?.kind, session?.userId])
 
-  /** Server cache, persisted cache and the local room list, in one place. */
+  /** Server cache, persisted cache, the local room list and stored invite codes, in one place. */
   const purge = useCallback(async (preserveAnonymousDraft = false) => {
     clearRecentRooms()
+    // A host's invite codes belong to that account (#199); the next person on
+    // this device must not inherit them.
+    await purgeInviteCodes()
     if (!preserveAnonymousDraft) {
       useRoomStore.getState().resetDraft()
       useRoomStore.setState({ preferenceSeed: null })

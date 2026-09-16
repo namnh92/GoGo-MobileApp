@@ -32,7 +32,8 @@ import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
-import { ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
@@ -66,6 +67,7 @@ export default function PlaceDetailScreen() {
 
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const place = usePlaceDetail(placeId)
+  const waitingForNetwork = useWaitingForNetwork(place)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
   const canSave = status === 'user'
   const saved = useSaved({ enabled: canSave })
@@ -81,6 +83,15 @@ export default function PlaceDetailScreen() {
       </Pressable>
     </View>
   )
+
+  if (waitingForNetwork) {
+    return (
+      <Atmosphere>
+        {backButton}
+        <OfflineState />
+      </Atmosphere>
+    )
+  }
 
   if (place.isPending) {
     return (
@@ -216,12 +227,17 @@ export default function PlaceDetailScreen() {
 
       </View>
 
-      <StaleNotice error={place.isError ? place.error : null} onRetry={() => void place.refetch()} />
-
       {/* One vertical scroll surface lets the gallery leave the viewport as
           the sheet expands, then continues through the content naturally. */}
-      <View style={[styles.sheet, { minHeight: height - headerHeight - actionHeight }]}>
+      <View testID="place-detail-sheet" style={[styles.sheet, { minHeight: height - headerHeight - actionHeight }]}>
         <View style={styles.body}>
+          {/* On the sheet: between the gallery and the sheet, the sheet's rounded
+              top edge covered half of the bar (#253). */}
+          <StaleNotice
+            error={place.isError ? place.error : null}
+            onRetry={() => void place.refetch()}
+            style={styles.sheetNotice}
+          />
           <View style={styles.identityRow}>
             <View style={styles.identityText}>
               <Text style={styles.name}>{name}</Text>

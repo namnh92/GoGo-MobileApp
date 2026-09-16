@@ -77,11 +77,17 @@ export function eventQueryKeys(event: RoomEvent): readonly (readonly unknown[])[
 
 /** Every event a given room screen cares about, by the phase it is in. */
 export const ROOM_PHASE_EVENTS: Record<RoomPhase, readonly RoomEventType[]> = {
+  // The lobby also moves people on once the host's run or plan lands (#198),
+  // so it has to see both arrive — not the tally, which it never shows.
   lobby: [
     'room.status_changed',
     'participant.joined',
     'participant.left',
     'participant.selection_changed',
+    'matching.started',
+    'matching.completed',
+    'suggestions.generated',
+    'plan.updated',
   ],
   matching: [
     'room.status_changed',
