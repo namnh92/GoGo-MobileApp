@@ -54,6 +54,7 @@ import { resolveInviteDisplay } from './invite-state'
 import { roomScheduleLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
+import type { MessageKey } from '@/shared/i18n/types'
 
 const { brand } = colors
 
@@ -74,7 +75,7 @@ function initial(name: string): string {
  * `selectionStatus` already carries that; before this it only fed a counter,
  * so a host could see 2/4 without knowing which two.
  */
-const STATUS_CHIP: Record<MemberSelectionStatus, { key: string; variant: 'default' | 'info' | 'positive' }> = {
+const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'default' | 'info' | 'positive' }> = {
   pending: { key: 'gogoRoom.status.waiting', variant: 'default' },
   in_progress: { key: 'gogoRoom.status.choosing', variant: 'info' },
   completed: { key: 'gogoRoom.status.completed', variant: 'positive' },
