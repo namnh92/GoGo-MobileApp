@@ -9,7 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { parseApiDate, useMyRooms, type RoomListItem } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { EmptyState, ErrorState, StaleNotice } from '@/shared/ui/async-state.view'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Atmosphere, Chip, GhostBtn, GlassCard, SecondaryBtn, useTabDockInset } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { glyph, spacing } from '@/shared/ui/tokens'
@@ -18,6 +19,8 @@ import { styles } from './plans.style'
 
 /** Statuses that still have something ahead of them. */
 const UPCOMING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'matching', 'ready', 'active']
+/** Still deciding: such a room opens on its lobby, anything later on its plan (#198). */
+const DECIDING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'matching']
 
 export default function PlansScreen() {
   const { t, i18n } = useTranslation()
@@ -29,6 +32,7 @@ export default function PlansScreen() {
   const canRead = status === 'user' || status === 'guest'
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming')
   const rooms = useMyRooms({ enabled: canRead, status: tab === 'upcoming' ? UPCOMING.join(',') : 'completed,cancelled,expired' })
+  const waitingForNetwork = useWaitingForNetwork(rooms)
 
   // Kept only as an offline read: the server list is the source of truth, but a
   // launch with no connection should still show what this device has seen.
@@ -43,11 +47,14 @@ export default function PlansScreen() {
   const visible = tab === 'upcoming' ? upcoming : past
 
   function openRoom(room: RoomListItem) {
-    // A finished room's plan is the thing worth reopening; an active one is not.
-    if (!UPCOMING.includes(room.status) && room.planId) {
+    // A room with a plan — ready, active or finished — reopens that plan. The
+    // lobby is for a room still deciding (#198: a ready room used to open it).
+    if (room.planId && !DECIDING.includes(room.status)) {
       router.push(`/plans/${room.planId}`)
       return
     }
+    // A card with no plan id still gets there: the lobby resolves the room's
+    // current plan and opens it.
     router.push(`/room/${room.id}`)
   }
 
@@ -151,7 +158,8 @@ export default function PlansScreen() {
 
       {/* A failed refetch keeps the list that is already on screen. */}
       <StaleNotice
-        error={rooms.isError && items.length > 0 ? rooms.error : null}
+        error={rooms.isError ? rooms.error : null}
+        hasData={visible.length > 0}
         onRetry={() => void rooms.refetch()}
       />
 
@@ -167,6 +175,8 @@ export default function PlansScreen() {
               </View>
             }
           />
+        ) : waitingForNetwork ? (
+          <OfflineState />
         ) : rooms.isPending ? (
           <View style={{ paddingTop: spacing[4] }}>
             <RoomMemberSkeleton count={Math.max(Math.min(recent.length, 3), 2)} />
