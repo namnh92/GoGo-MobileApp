@@ -46,6 +46,8 @@ export const viMessages = {
   'auth.registerConflict': 'Không hoàn tất đăng ký được. Thử đăng nhập nhé.',
   'auth.rateLimited': 'Thử quá nhiều lần. Đợi một chút rồi thử lại.',
   'auth.networkError': 'Mất kết nối. Kiểm tra mạng rồi thử lại.',
+  'auth.timeoutError': 'Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi thử lại.',
+  'auth.unexpectedError': 'Ứng dụng gặp lỗi ngoài dự kiến. Thử lại nhé, nếu vẫn lỗi hãy mở lại ứng dụng.',
   'auth.genericError': 'Có lỗi xảy ra. Thử lại nhé.',
   'auth.guestFootnote': 'Tham gia phòng bằng link mời thì không cần tài khoản.',
 
@@ -817,6 +819,7 @@ export const viMessages = {
   'notifications.kind.plan_changed': 'Kế hoạch có thay đổi',
   'notifications.kind.date_reminder': 'Nhắc lịch đi chơi',
   'notifications.kind.moderation_update': 'Kết quả kiểm duyệt',
+  'notifications.pushUnavailable': 'Không mở được nội dung của thông báo này. Có thể nội dung đã bị xoá hoặc bạn không còn quyền xem.',
   'permissionsSettings.title': 'Thông báo và vị trí',
   'permissionsSettings.notifications': 'Thông báo',
   'permissionsSettings.location': 'Vị trí',

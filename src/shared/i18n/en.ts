@@ -45,6 +45,8 @@ export const enMessages: Record<MessageKey, string> = {
   'auth.registerConflict': 'Could not complete sign-up. Try signing in instead.',
   'auth.rateLimited': 'Too many attempts. Wait a moment and try again.',
   'auth.networkError': 'Connection lost. Check your network and try again.',
+  'auth.timeoutError': 'The server took too long to answer. Check your network and try again.',
+  'auth.unexpectedError': 'The app hit an unexpected error. Try again, and reopen the app if it keeps happening.',
   'auth.genericError': 'Something went wrong. Please try again.',
   'auth.guestFootnote': 'Joining a room by invite link needs no account.',
 
@@ -806,6 +808,7 @@ export const enMessages: Record<MessageKey, string> = {
   'notifications.kind.plan_changed': 'Plan changed',
   'notifications.kind.date_reminder': 'Date reminder',
   'notifications.kind.moderation_update': 'Moderation update',
+  'notifications.pushUnavailable': 'This notification can’t be opened. It may have been removed, or you no longer have access.',
   'permissionsSettings.title': 'Notifications and location',
   'permissionsSettings.notifications': 'Notifications',
   'permissionsSettings.location': 'Location',
