@@ -45,6 +45,7 @@ export const styles = StyleSheet.create({
   title: { ...type.display, color: neutral[900], textAlign: 'center' },
   body: { ...type.body, color: neutral[500], textAlign: 'center', marginTop: spacing[2], marginBottom: spacing[6] },
   error: { ...type.bodySmall, color: brand.red, textAlign: 'center', marginTop: spacing[3] },
+  notice: { ...type.bodySmall, color: neutral[500], textAlign: 'center', marginTop: spacing[3], paddingHorizontal: spacing[5] },
   chipsCard: {
     padding: spacing[4],
     marginBottom: spacing[4],
@@ -61,7 +62,9 @@ export const styles = StyleSheet.create({
   chipLabel: { ...type.label, color: neutral[500] },
   codeCard: { padding: spacing[5], marginBottom: spacing[4] },
   codeCaption: { ...type.caption, color: neutral[500], marginBottom: spacing[2] },
+  inviteNote: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[3] },
   codeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  codeSkeleton: { flex: 1, height: spacing[6] },
   /**
    * The server issues an opaque token, not a five-character code people read
    * aloud — 22 characters is normal. Display size with wide letter-spacing wrapped

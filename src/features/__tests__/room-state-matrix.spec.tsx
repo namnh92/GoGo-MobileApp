@@ -1,6 +1,8 @@
 import { Alert } from 'react-native'
-import { fireEvent } from '@testing-library/react-native'
-import { failed, loaded, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
+import { act, fireEvent } from '@testing-library/react-native'
+import { onlineManager } from '@tanstack/react-query'
+import { failed, loaded, pausedOffline, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
+import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 
 /**
  * The quality gates ask for `screen × audience × state` to actually render —
@@ -34,9 +36,12 @@ jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => mockParams,
+  useNavigationContainerRef: () => ({ isReady: () => true }),
 }))
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }))
+// The lobby reads the session status (#199); the real provider pulls in OneSignal.
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -45,10 +50,17 @@ jest.mock('@/shared/api', () => ({
     return mockRoom.query
   },
   useRoomMembers: () => mockMembers.query,
+  // The lobby reads the run and the plan once the room has them (#198); these
+  // rooms are still collecting.
+  useCurrentSuggestions: () => ({ isPending: false, isError: false, data: undefined, error: null }),
+  useCurrentPlan: () => ({ isPending: false, isError: false, data: undefined, error: null }),
   useRoomRealtime: jest.fn(),
   // Inlined rather than pulled from the harness: a jest.mock factory is
   // hoisted, so it can only close over `mock`-prefixed bindings.
-  useCreateRoomInvite: () => mockIdleMutation,
+  // No stored code and no listed invite: the host sees "Tạo mã mời" (#199).
+  useCreateRoomInvite: () => ({ ...mockIdleMutation, stored: null, forget: jest.fn() }),
+  useRoomInvites: () => ({ isPending: false, isError: false, isFetching: false, status: 'success', data: [], dataUpdatedAt: 1, refetch: jest.fn() }),
+  useRevokeRoomInvite: () => mockIdleMutation,
   useStartMatching: () => mockIdleMutation,
 }))
 
@@ -186,7 +198,7 @@ describe('partial preference capability', () => {
       await fireEvent.press(view.getByText('Tiếp tục với lựa chọn hiện có'))
       expect(alert).toHaveBeenCalled()
       const confirm = alert.mock.calls[0][2]?.[1]
-      await confirm?.onPress?.()
+      await act(async () => confirm?.onPress?.())
       expect(mockIdleMutation.mutateAsync).toHaveBeenCalledWith({ allowIncompletePreferences: true })
     } finally { alert.mockRestore() }
   })
@@ -223,5 +235,48 @@ describe('room hub × route param (GoGo-MobileApp#203)', () => {
   it('reads the room when the id is one', async () => {
     await renderScreen(<GoGoRoomScreen />)
     expect(mockRoomIds).toContain('311f5bd8-f853-4ced-af68-e04398d1451a')
+  })
+})
+
+/**
+ * GoGo-MobileApp#253 — a room opened offline that this device never loaded: the
+ * paused read used to keep the skeleton on screen forever.
+ */
+describe('room hub × connectivity', () => {
+  const NO_CONNECTION = 'Không có kết nối'
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    jest.useRealTimers()
+  })
+
+  it('shows the offline state instead of an endless skeleton when nothing is cached, and keeps loading online', async () => {
+    mockRoom.query = pausedOffline()
+    const view = await renderScreen(<GoGoRoomScreen />)
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    // Paused while online means the app was only in the background: still loading.
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+
+    await act(async () => {
+      onlineManager.setOnline(false)
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+    expect(view.getByText(NO_CONNECTION)).toBeTruthy()
+    expect(view.getByLabelText('Quay lại')).toBeTruthy()
+    expect(view.queryAllByText(/Thử lại/)).toHaveLength(0)
+    expect(view.queryAllByText(START_MATCHING)).toHaveLength(0)
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
   })
 })

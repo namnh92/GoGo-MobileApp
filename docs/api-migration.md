@@ -30,7 +30,6 @@ pnpm test:contract   # hits DEV (EXPO_PUBLIC_API_URL); writes data there
 | `features/place-import/import.view` | `useResolveGoogleMapsLink` + `useSubmitPlace` |
 | `features/matching/preference.view` | `useTaxonomies`, `useMyPreferences`, `useSaveMyPreferences`, `useCompleteMyPreferences` |
 | `features/matching/swipe.view` | `useCurrentSuggestions`, `useCastVote` |
-| `features/matching/waiting.view` | `useRoomMembers` + `useRoomRealtime` |
 | `features/matching/matching.view` | `useStartMatching`, `useCurrentSuggestions` |
 | `features/matching/match-result.view` | `useCurrentSuggestions`, `useFinalizeVotes`, `useGenerateSuggestions` |
 | `features/date-plan/date-plan.view` | `usePlan`, `useLockPlanStop`, `usePlanStopPlaces` |
@@ -75,8 +74,8 @@ Decisions made while migrating:
 
 ### Phase 2 — suggestions and votes ✅ done
 
-`preference.view`, `swipe.view`, `waiting.view`, `matching.view`,
-`match-result.view`.
+`preference.view`, `swipe.view`, `matching.view`, `match-result.view`
+(`waiting.view` was removed in #198; the lobby took over its routing).
 
 Decisions made while migrating:
 
@@ -89,9 +88,11 @@ Decisions made while migrating:
   AI refinement is behind a disabled flag. The host now gets a plain
   "regenerate", and the guest's "suggest to the host" action is gone until
   there is somewhere to send it.
-- **Timers no longer drive navigation.** `waiting.view` advances when the room
-  actually reaches `matching`, and `matching.view` advances when a run exists.
-  The copy still cycles on a timer; the routing does not.
+- **Timers no longer drive navigation.** The lobby (`gogo-room.view`) moves
+  people on when the room actually reaches `matching` with a run, or `ready` /
+  `active` with a plan — for every role, from facts fetched since it opened
+  (#198) — and `matching.view` advances when a run exists. The copy still
+  cycles on a timer; the routing does not.
 - **A member can no longer trigger matching.** Only the host runs the pipeline
   (server-enforced), so a member sees "waiting for the host" instead of a
   spinner that never resolves.
