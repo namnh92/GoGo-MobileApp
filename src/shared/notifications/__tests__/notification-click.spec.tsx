@@ -412,6 +412,38 @@ describe('when a push cannot be opened', () => {
       expect(mockGetCurrentPlan).toHaveBeenCalledWith(ROOM)
     })
 
+    /**
+     * Codex re-review of 912dbba: the timer kept the refusal, but normal
+     * completion did not. A room read that failed fast — a network error, not
+     * an answer — fell through to the room the push named, reopening a room the
+     * API had already refused.
+     */
+    it('keeps a refusal already read when the room read then fails fast', async () => {
+      mockGetPlan.mockRejectedValue(new ApiError(403, { code: 'NOT_A_MEMBER', message: 'forbidden' }))
+      mockGetCurrentPlan.mockRejectedValue(new ApiError(403, { code: 'NOT_A_MEMBER', message: 'forbidden' }))
+      mockGetRoom.mockRejectedValue(new NetworkError())
+      const { view } = await launch()
+
+      await act(async () => tap(contract({ route: `gogo://plan/${OLD_PLAN}`, entityId: OLD_PLAN })))
+      // No budget wait: the reads settle well inside it.
+      await advance(100)
+
+      await waitFor(() => expect(view.getPathname()).toBe('/notifications'))
+      expect(view.getSearchParams()).toEqual({ notice: PUSH_UNAVAILABLE_NOTICE })
+    })
+
+    it('still opens the room when a room with no plan yet fails fast', async () => {
+      mockGetCurrentPlan.mockRejectedValue(new ApiError(404, { code: 'PLAN_NOT_FOUND', message: 'none' }))
+      mockGetRoom.mockRejectedValue(new NetworkError())
+      const { view } = await launch()
+
+      await act(async () => tap({ kind: 'plan_ready', roomId: ROOM, eventType: 'plan.published' }))
+      await advance(100)
+
+      // The room screen carries its own offline state; 404 never meant "not yours".
+      await waitFor(() => expect(view.getPathname()).toBe(`/room/${ROOM}`))
+    })
+
     it('still opens the room when the room simply has no plan yet', async () => {
       // 404 says "no plan in this room", not "not yours": the room may open.
       mockGetCurrentPlan.mockRejectedValue(new ApiError(404, { code: 'PLAN_NOT_FOUND', message: 'none' }))

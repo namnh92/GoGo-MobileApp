@@ -133,15 +133,17 @@ async function resolveRoomOrPlan(
   // 2026-09-15; the active screen has its own room-status gate, #251).
   if (roomId && (!planId || kind === 'date_reminder')) {
     const room = await read(queryClient, queryKeys.room(roomId), () => getRoom(roomId))
-    if (room.state === 'refused') return { to: 'unavailable', reason: 'refused' }
+    if (room.state === 'refused') {
+      roomRefused = true
+      onProgress?.(established())
+      return established()
+    }
     if (planId && room.state === 'fresh' && room.data.status === 'active') {
       return { to: 'resource', action: { kind: 'plan', planId }, path: `/plans/${planId}/active` }
     }
   }
 
-  if (planId) return { to: 'resource', action: { kind: 'plan', planId } }
-  if (roomId) return { to: 'resource', action: { kind: 'room', roomId } }
-  return { to: 'unavailable', reason: 'refused' }
+  return established()
 }
 
 async function decide(target: NotificationTarget, deps: OpenNotificationDeps): Promise<Decision> {
