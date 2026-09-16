@@ -368,6 +368,63 @@ describe('when a push cannot be opened', () => {
     expect(view.getPathname()).toBe(`/room/${ROOM}`)
   })
 
+  /**
+   * Codex review of #264 at 62cf0e3: the budget timer always closed on the
+   * payload's own destination, discarding what the reads had already
+   * established. A slow later step therefore reopened a plan already known to
+   * be refused, or one already replaced.
+   */
+  describe('when a later read exceeds the budget', () => {
+    it('opens the notice, not the plan the API already refused', async () => {
+      mockGetPlan.mockRejectedValue(new ApiError(403, { code: 'NOT_A_MEMBER', message: 'forbidden' }))
+      mockGetCurrentPlan.mockRejectedValue(new ApiError(403, { code: 'NOT_A_MEMBER', message: 'forbidden' }))
+      mockGetRoom.mockReturnValue(new Promise(() => {}))
+      const { view } = await launch()
+
+      await act(async () => tap(contract({ route: `gogo://plan/${OLD_PLAN}`, entityId: OLD_PLAN })))
+      await advance(4_000)
+
+      await waitFor(() => expect(view.getPathname()).toBe('/notifications'))
+      expect(view.getSearchParams()).toEqual({ notice: PUSH_UNAVAILABLE_NOTICE })
+      expect(mockGetRoom).toHaveBeenCalledWith(ROOM)
+    })
+
+    it('opens the current plan already read, not the superseded one the push named', async () => {
+      mockGetPlan.mockResolvedValue({ id: OLD_PLAN, status: 'superseded' })
+      mockGetCurrentPlan.mockResolvedValue({ id: PLAN, status: 'current' })
+      mockGetRoom.mockReturnValue(new Promise(() => {}))
+      const { view } = await launch()
+
+      await act(async () =>
+        tap(
+          contract({
+            type: 'date_reminder',
+            kind: 'date_reminder',
+            route: `gogo://plan/${OLD_PLAN}`,
+            entityId: OLD_PLAN,
+            eventType: 'room.status_active',
+          }),
+        ),
+      )
+      await advance(4_000)
+
+      await waitFor(() => expect(view.getPathname()).toBe(`/plans/${PLAN}`))
+      expect(mockGetCurrentPlan).toHaveBeenCalledWith(ROOM)
+    })
+
+    it('still opens the room when the room simply has no plan yet', async () => {
+      // 404 says "no plan in this room", not "not yours": the room may open.
+      mockGetCurrentPlan.mockRejectedValue(new ApiError(404, { code: 'PLAN_NOT_FOUND', message: 'none' }))
+      mockGetRoom.mockReturnValue(new Promise(() => {}))
+      const { view } = await launch()
+
+      await act(async () => tap({ kind: 'plan_ready', roomId: ROOM, eventType: 'plan.published' }))
+      await advance(4_000)
+
+      await waitFor(() => expect(view.getPathname()).toBe(`/room/${ROOM}`))
+    })
+  })
+
   it('opens the named room once the refetch budget runs out', async () => {
     mockGetRoom.mockReturnValue(new Promise(() => {}))
     const { view } = await launch()

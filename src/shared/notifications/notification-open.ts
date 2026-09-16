@@ -22,6 +22,13 @@ export const REFETCH_BUDGET_MS = 4_000
 /** Answers that mean "this account cannot open this", not "try again". */
 const REFUSED = new Set([401, 403, 404, 410])
 
+/**
+ * Of those, the ones that answer "not yours" rather than "not there". A refused
+ * read of a room-scoped resource with one of these says this account cannot see
+ * the room either, so nothing under it is worth opening (#264 review).
+ */
+const NOT_YOURS = new Set([401, 403, 410])
+
 export type OpenNotificationDeps = {
   router: Router
   queryClient: QueryClient
@@ -41,7 +48,7 @@ type Decision =
   | { to: 'inbox' }
   | { to: 'home' }
 
-type Read<T> = { state: 'fresh'; data: T } | { state: 'refused' } | { state: 'unknown' }
+type Read<T> = { state: 'fresh'; data: T } | { state: 'refused'; status: number } | { state: 'unknown' }
 
 /**
  * Push is only a trigger: what a screen shows comes from the API, now. The
@@ -66,18 +73,37 @@ async function read<T>(queryClient: QueryClient, queryKey: QueryKey, queryFn: ()
     })
     return { state: 'fresh', data }
   } catch (error) {
-    return isApiError(error) && REFUSED.has(error.status) ? { state: 'refused' } : { state: 'unknown' }
+    return isApiError(error) && REFUSED.has(error.status)
+      ? { state: 'refused', status: error.status }
+      : { state: 'unknown' }
   }
 }
 
 async function resolveRoomOrPlan(
   target: Extract<NotificationTarget, { status: 'open' }>,
   queryClient: QueryClient,
+  onProgress?: (decision: Decision) => void,
 ): Promise<Decision> {
   const { action, kind } = target
   const roomId = action.kind === 'room' ? action.roomId : target.roomId
   const wantsPlan = action.kind === 'plan' || (kind !== null && PLAN_KINDS.has(kind))
   let planId: string | null = action.kind === 'plan' ? action.planId : null
+  // Set once a room-scoped read answers "not yours": there is nothing under
+  // that room left to open, so the budget must not fall back into it.
+  let roomRefused = false
+
+  /**
+   * The best destination the reads have actually established. The budget timer
+   * closes on this, so a slow later step opens what is known instead of the
+   * payload's original destination — which by then may be a plan already known
+   * to be refused or superseded (#264 review).
+   */
+  function established(): Decision {
+    if (roomRefused) return { to: 'unavailable', reason: 'refused' }
+    if (planId) return { to: 'resource', action: { kind: 'plan', planId } }
+    if (roomId) return { to: 'resource', action: { kind: 'room', roomId } }
+    return { to: 'unavailable', reason: 'refused' }
+  }
 
   if (planId) {
     const named = planId
@@ -86,6 +112,8 @@ async function resolveRoomOrPlan(
     // current plan is the one to open.
     if (plan.state === 'refused' || (plan.state === 'fresh' && plan.data.status === 'superseded' && roomId)) {
       planId = null
+      if (plan.state === 'refused' && !roomId && NOT_YOURS.has(plan.status)) roomRefused = true
+      onProgress?.(established())
     }
   }
 
@@ -94,6 +122,10 @@ async function resolveRoomOrPlan(
   if (!planId && wantsPlan && roomId) {
     const current = await read(queryClient, queryKeys.roomCurrentPlan(roomId), () => getCurrentPlan(roomId))
     if (current.state === 'fresh' && isUuid(current.data.id)) planId = current.data.id
+    // A plan read the room refuses answers for the room as well; a 404 only
+    // says this room has no plan yet, and the room itself may still open.
+    if (current.state === 'refused' && NOT_YOURS.has(current.status)) roomRefused = true
+    onProgress?.(established())
   }
 
   // The room decides access when there is no plan to read, and whether a date
@@ -123,13 +155,20 @@ async function decide(target: NotificationTarget, deps: OpenNotificationDeps): P
   if (deps.status !== 'user' && deps.status !== 'guest') return { to: 'inbox' }
 
   let timer: ReturnType<typeof setTimeout> | undefined
-  // Past the budget the payload's own destination opens; its screen has an
-  // offline and an error state of its own.
+  // Past the budget the best destination the reads established opens; its
+  // screen has an offline and an error state of its own. Before any read
+  // answers that is the payload's own destination.
+  let established: Decision = { to: 'resource', action }
   const budget = new Promise<Decision>(resolve => {
-    timer = setTimeout(() => resolve({ to: 'resource', action }), deps.budgetMs ?? REFETCH_BUDGET_MS)
+    timer = setTimeout(() => resolve(established), deps.budgetMs ?? REFETCH_BUDGET_MS)
   })
   try {
-    return await Promise.race([resolveRoomOrPlan(target, deps.queryClient), budget])
+    return await Promise.race([
+      resolveRoomOrPlan(target, deps.queryClient, decision => {
+        established = decision
+      }),
+      budget,
+    ])
   } finally {
     clearTimeout(timer)
   }
