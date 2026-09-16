@@ -45,6 +45,7 @@ import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
 import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
 import { styles } from './date-plan.style'
+import { planStart, planWhen } from './plan-title'
 
 const { brand, neutral } = colors
 
@@ -159,9 +160,33 @@ export default function DatePlanScreen() {
     router.push(`/plans/${planId}/active`)
   }
 
+  /**
+   * #254, RULE-CORE-003 — who the room is for and when the plan starts, never
+   * a fixed "Date tối nay". Until the room is known the title stays neutral
+   * rather than assuming a couple.
+   */
+  function screenTitle(): string {
+    const facts = room.data
+    if (!facts) return t('datePlan.title')
+    const start = planStart(plan.data?.stops, facts)
+    if (!start) return t('datePlan.titleUndated', { context: facts.type, n: facts.participantCount })
+    const { relative, ...parts } = planWhen(start, new Date())
+    const when = t(
+      relative === 'today'
+        ? 'datePlan.when.today'
+        : relative === 'tomorrow'
+          ? 'datePlan.when.tomorrow'
+          : relative === 'otherYear'
+            ? 'datePlan.when.otherYear'
+            : 'datePlan.when.other',
+      parts,
+    )
+    return t('datePlan.title', { context: facts.type, n: facts.participantCount, when })
+  }
+
   const header = (
     <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => router.back()} title={t('datePlan.title')} />
+      <BackHeader onBack={() => router.back()} title={screenTitle()} />
     </View>
   )
 
@@ -290,7 +315,7 @@ export default function DatePlanScreen() {
       <View style={{ paddingTop: insets.top }}>
         <BackHeader
           onBack={() => router.back()}
-          title={t('datePlan.title')}
+          title={screenTitle()}
           right={
             <View style={styles.matchBadge}>
               <Text style={styles.matchBadgeLabel}>⚡ {t('datePlan.match')}</Text>
