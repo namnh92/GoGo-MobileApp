@@ -44,6 +44,8 @@ export const enMessages: Record<MessageKey, string> = {
   'auth.registerConflict': 'Could not complete sign-up. Try signing in instead.',
   'auth.rateLimited': 'Too many attempts. Wait a moment and try again.',
   'auth.networkError': 'Connection lost. Check your network and try again.',
+  'auth.timeoutError': 'The server took too long to answer. Check your network and try again.',
+  'auth.unexpectedError': 'The app hit an unexpected error. Try again, and reopen the app if it keeps happening.',
   'auth.genericError': 'Something went wrong. Please try again.',
   'auth.guestFootnote': 'Joining a room by invite link needs no account.',
 

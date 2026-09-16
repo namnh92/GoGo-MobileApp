@@ -6,12 +6,13 @@ import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { isApiError } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
+import type { MessageKey } from '@/shared/i18n/types'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
+import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
 import { postAuthRoute } from './post-auth-route'
 import { styles } from './sign-in.style'
@@ -52,15 +53,28 @@ export default function SignInScreen() {
     router.replace(postAuthRoute(next))
   }
 
-  function toApiMessage(error: unknown): string {
-    if (!isApiError(error)) return t('auth.networkError')
-    // Login is enumeration-safe: the server never says which half was wrong,
-    // and neither do we.
-    if (error.status === 401) return t('auth.invalidCredentials')
-    if (error.status === 409) return t('auth.registerConflict')
-    if (error.status === 429) return t('auth.rateLimited')
-    if (error.fieldErrors.length > 0) return error.fieldErrors[0].message
-    return t('auth.genericError')
+  /** #252: say which kind of failure it was, and record why without PII. */
+  function reportFailure(event: 'auth_sign_in_failed' | 'auth_register_failed', error: unknown) {
+    const failure = classifyAuthFailure(error)
+    track(event, failure.telemetry)
+    // A literal lookup, so the i18n key scan reads every key this can ask for,
+    // and `satisfies` makes tsc demand copy for every reason.
+    setFormError(
+      failure.serverMessage ??
+        t(
+          ({
+            timeout: 'auth.timeoutError',
+            offline: 'auth.networkError',
+            invalid_credentials: 'auth.invalidCredentials',
+            conflict: 'auth.registerConflict',
+            rate_limited: 'auth.rateLimited',
+            field_invalid: 'auth.genericError',
+            rejected: 'auth.genericError',
+            server: 'auth.genericError',
+            unexpected: 'auth.unexpectedError',
+          } as const satisfies Record<AuthFailureReason, MessageKey>)[failure.reason],
+        ),
+    )
   }
 
   const onSignIn = signInForm.handleSubmit(async values => {
@@ -70,7 +84,7 @@ export default function SignInScreen() {
       track('auth_signed_in')
       done()
     } catch (error) {
-      setFormError(toApiMessage(error))
+      reportFailure('auth_sign_in_failed', error)
     }
   })
 
@@ -81,7 +95,7 @@ export default function SignInScreen() {
       track('auth_registered')
       done()
     } catch (error) {
-      setFormError(toApiMessage(error))
+      reportFailure('auth_register_failed', error)
     }
   })
 
@@ -153,7 +167,15 @@ export default function SignInScreen() {
               />
             ) : null}
 
+            {/*
+              #252: email and password are drawn for whichever form is active,
+              so they must remount when the mode changes. react-hook-form 7.86
+              subscribes a Controller's form state once and does not resubscribe
+              when `control` changes; kept mounted, sign-up read sign-in's
+              errors and an invalid sign-up submitted silently.
+            */}
             <Controller
+              key={`email-${mode}`}
               control={form.control as never}
               name="email"
               render={({ field, fieldState }) => (
@@ -179,6 +201,7 @@ export default function SignInScreen() {
             />
 
             <Controller
+              key={`password-${mode}`}
               control={form.control as never}
               name="password"
               render={({ field, fieldState }) => (
