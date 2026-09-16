@@ -25,4 +25,5 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     marginBottom: spacing[3],
   },
+  openProblem: { ...type.bodySmall, color: neutral[700], textAlign: 'center', paddingHorizontal: spacing[5], marginBottom: spacing[2] },
 })

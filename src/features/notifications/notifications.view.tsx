@@ -1,39 +1,18 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useMemo } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
-import { isUuid } from '@/shared/navigation/deep-link'
 import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
 import { spacing } from '@/shared/ui/tokens'
 
+import { resolveInboxTarget } from './inbox-target'
 import { styles } from './notifications.style'
-
-/** Where each notification kind should take the reader. */
-function routeFor(notification: Notification): string | null {
-  const payload = (notification.payload ?? {}) as Record<string, unknown>
-  // A payload is data from outside this build; an id that is not a UUID would
-  // build a route every read on the next screen answers with 400 (#203).
-  const roomId = isUuid(payload.roomId) ? payload.roomId : null
-  const planId = isUuid(payload.planId) ? payload.planId : null
-
-  switch (notification.kind) {
-    case 'invite':
-    case 'preference_reminder':
-      return roomId ? `/room/${roomId}` : null
-    case 'plan_ready':
-    case 'plan_changed':
-    case 'date_reminder':
-      return planId ? `/plans/${planId}` : roomId ? `/room/${roomId}` : null
-    default:
-      return null
-  }
-}
 
 export default function NotificationsScreen() {
   const { t, i18n } = useTranslation()
@@ -66,11 +45,49 @@ export default function NotificationsScreen() {
     [inbox.data],
   )
 
-  function open(notification: Notification) {
-    if (notification.id && !notification.readAt) markRead.mutate(notification.id)
-    const route = routeFor(notification)
-    if (route) router.push(route)
+  // Where a row opens is a request away (#198, see inbox-target.ts). The latest
+  // tap wins, the row being resolved says so, and nothing opens once the
+  // person has left the inbox. Leaving by Back unmounts it before a state
+  // update could commit, so the focus callback sets a ref itself.
+  const onScreen = useRef(true)
+  useFocusEffect(
+    useCallback(() => {
+      onScreen.current = true
+      return () => {
+        onScreen.current = false
+      }
+    }, []),
+  )
+  const latestTap = useRef(0)
+  const openingNow = useRef<string | null>(null)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+  const [openProblem, setOpenProblem] = useState<'refused' | 'retry' | null>(null)
+
+  async function open(notification: Notification) {
+    const id = notification.id ?? null
+    // The same row again while it resolves is the same intent, not a new one.
+    if (id !== null && openingNow.current === id) return
+    if (id && !notification.readAt) markRead.mutate(id)
+    const tap = ++latestTap.current
+    openingNow.current = id
+    setOpeningId(id)
+    setOpenProblem(null)
+    const decision = await resolveInboxTarget(notification)
+    if (tap !== latestTap.current) return
+    openingNow.current = null
+    setOpeningId(null)
+    if (!onScreen.current) return
+    if (decision.to === 'open') router.push(decision.path)
+    else if (decision.to === 'refused' || decision.to === 'retry') setOpenProblem(decision.to)
   }
+
+  useEffect(() => {
+    if (!openProblem) return
+    // The live region below is Android-only; VoiceOver needs the announcement.
+    AccessibilityInfo.announceForAccessibility(
+      openProblem === 'retry' ? t('notifications.openRetry') : t('notifications.openRefused'),
+    )
+  }, [openProblem, t])
 
   const header = (
     <View style={{ paddingTop: insets.top }}>
@@ -78,6 +95,11 @@ export default function NotificationsScreen() {
       {pushUnavailable ? (
         <Text accessibilityLiveRegion="polite" style={styles.notice}>
           {t('notifications.pushUnavailable')}
+        </Text>
+      ) : null}
+      {openProblem ? (
+        <Text accessibilityLiveRegion="polite" style={styles.openProblem}>
+          {openProblem === 'retry' ? t('notifications.openRetry') : t('notifications.openRefused')}
         </Text>
       ) : null}
     </View>
@@ -134,8 +156,13 @@ export default function NotificationsScreen() {
         renderItem={({ item }) => {
           const unread = !item.readAt
           const created = parseApiDate(item.createdAt)
+          const busy = openingId !== null && openingId === item.id
           return (
-            <Pressable onPress={() => open(item)} accessibilityRole="button">
+            <Pressable
+              onPress={() => void open(item)}
+              accessibilityRole="button"
+              accessibilityState={{ busy }}
+            >
               <GlassCard style={[styles.row, unread && styles.rowUnread]}>
                 {/* Unread is marked by more than colour (RULE-DS-COLOR). */}
                 <View style={styles.dotColumn}>
@@ -149,6 +176,7 @@ export default function NotificationsScreen() {
                     <Text style={styles.time}>{created.toLocaleString(i18n.language)}</Text>
                   ) : null}
                 </View>
+                {busy ? <ActivityIndicator /> : null}
               </GlassCard>
             </Pressable>
           )

@@ -35,7 +35,8 @@ export function AdministrativePicker({ value, onChange }: {
     : <LoadingState />
   return (
     <View style={styles.root}>
-      <StaleNotice error={version.error} onRetry={() => void version.refetch()} />
+      {/* A form, not a saved copy: the picker never claims its choices are the device's cached data (GoGo-MobileApp#253). */}
+      <StaleNotice error={version.error} hasData={false} onRetry={() => void version.refetch()} />
       {changed ? <Text accessibilityLiveRegion="polite" style={styles.hint}>{t('administrative.changed')}</Text> : null}
       <Text style={styles.label}>{t('administrative.province')}</Text>
       <SecondaryBtn label={value?.provinceName ?? t('administrative.selectProvince')} onPress={() => open('province')} />
@@ -46,7 +47,7 @@ export function AdministrativePicker({ value, onChange }: {
         <View style={[styles.modal, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <BackHeader title={t(level === 'commune' ? 'administrative.commune' : 'administrative.province')} onBack={() => setLevel(null)} />
           <TextInput style={styles.input} value={search} onChangeText={setSearch} accessibilityLabel={t('administrative.search')} placeholder={t('administrative.search')} />
-          <StaleNotice error={units.data ? units.error : null} onRetry={() => { void version.refetch(); void units.refetch() }} />
+          <StaleNotice error={units.error} hasData={false} onRetry={() => { void version.refetch(); void units.refetch() }} />
           {level === 'commune' && value ? <GhostBtn label={t('administrative.wholeProvince')} onPress={() => { onChange({ ...value, communeCode: null, communeName: null }); setLevel(null) }} /> : null}
           {units.isPending ? <LoadingState /> : !units.data ? <ErrorState error={units.error} onRetry={() => { void version.refetch(); void units.refetch() }} /> : (
             <FlatList data={filtered} keyExtractor={item => item.code} keyboardShouldPersistTaps="handled"

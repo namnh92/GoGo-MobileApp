@@ -1,4 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native'
+import { onlineManager } from '@tanstack/react-query'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
@@ -45,6 +46,7 @@ jest.mock('@/shared/api', () => ({
 
 import HomeScreen from '@/features/home/home.view'
 import { ApiError } from '@/shared/api/errors'
+import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 
 const AREA = {
   datasetVersion: 'ds-2026',
@@ -152,5 +154,120 @@ describe('Home discovery scope', () => {
     expect(view.getByText(/Dữ liệu hành chính đã thay đổi/)).toBeTruthy()
     await press(view.getAllByText('Chọn khu vực').at(-1)!)
     expect(mockPush).toHaveBeenCalledWith('/settings/account')
+  })
+})
+
+/**
+ * GoGo-MobileApp#253 — suggestions from an earlier search stay on Home when the
+ * device goes offline; the screen has to say they are the saved copy.
+ */
+describe('Home × connectivity', () => {
+  const OFFLINE = 'Đang ngoại tuyến — đây là bản đã lưu trên máy.'
+  const RESULT = {
+    id: 'place-1',
+    name: 'Quán Gần Nhà',
+    addressText: 'Quận 1',
+    lat: 10.77,
+    lng: 106.7,
+    rating: 4.5,
+    ratingCount: 12,
+    distanceM: 300,
+    reasonCodes: [],
+    isLodging: false,
+  }
+
+  const FAILED = 'Chưa cập nhật được — đây là bản đã lưu trên máy.'
+  const NO_CONNECTION = 'Không có kết nối'
+  const withResults = () => ({ pages: [{ results: [RESULT], nextCursor: null, meta: { location: { source: 'gps' } } }] })
+
+  async function elapseOfflineDelay() {
+    await act(async () => {
+      jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
+    })
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    jest.useRealTimers()
+  })
+
+  it('marks suggestions still on screen as the saved copy while offline, and clears it on reconnect', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = { ...page({ source: 'gps' }), data: withResults() }
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<HomeScreen />)
+    await elapseOfflineDelay()
+    expect(view.queryAllByText('Quán Gần Nhà').length).toBeGreaterThan(0)
+    expect(view.getByText(OFFLINE)).toBeTruthy()
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(OFFLINE)).toBeNull()
+  })
+
+  it('claims no saved copy offline when there are no suggestions on screen', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = page({ source: 'gps' })
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<HomeScreen />)
+    await elapseOfflineDelay()
+    expect(view.queryByText(OFFLINE)).toBeNull()
+  })
+
+  it('shows the offline state instead of an endless skeleton when nothing is cached', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = { data: undefined, isPending: true, isPaused: true, isError: false, error: null, refetch: jest.fn() }
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<HomeScreen />)
+    // A brief drop still reads as loading.
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+
+    await elapseOfflineDelay()
+    expect(view.getByText(NO_CONNECTION)).toBeTruthy()
+    expect(view.getByText('Bạn đang ngoại tuyến. Một số thông tin có thể chưa cập nhật.')).toBeTruthy()
+    // The search resumes by itself on reconnect; a retry here would do nothing.
+    expect(view.queryByText('Thử lại')).toBeNull()
+    expect(view.queryByText(OFFLINE)).toBeNull()
+
+    await act(async () => {
+      onlineManager.setOnline(true)
+    })
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+  })
+
+  it('keeps the loading state for a paused search while online (the app was only in the background)', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = { data: undefined, isPending: true, isPaused: true, isError: false, error: null, refetch: jest.fn() }
+    const view = await renderScreen(<HomeScreen />)
+    await elapseOfflineDelay()
+    expect(view.queryByText(NO_CONNECTION)).toBeNull()
+  })
+
+  it('keeps suggestions on a failed refresh and says the refresh failed, with a retry', async () => {
+    const refetch = jest.fn()
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = { data: withResults(), isPending: false, isError: true, error: new Error('500'), refetch }
+    const view = await renderScreen(<HomeScreen />)
+    expect(view.queryAllByText('Quán Gần Nhà').length).toBeGreaterThan(0)
+    expect(view.getByText(FAILED)).toBeTruthy()
+    expect(view.queryByText('Không tải được gợi ý.')).toBeNull()
+
+    await press(view.getByText('Thử lại'))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('still shows the error card when nothing is cached and the search failed', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    mockSearch.value = { data: undefined, isPending: false, isError: true, error: new Error('500'), refetch: jest.fn() }
+    const view = await renderScreen(<HomeScreen />)
+    expect(view.getByText('Không tải được gợi ý.')).toBeTruthy()
+    expect(view.queryByText(FAILED)).toBeNull()
   })
 })

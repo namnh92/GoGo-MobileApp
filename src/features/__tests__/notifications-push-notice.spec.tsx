@@ -12,6 +12,8 @@ import NotificationsScreen from '@/features/notifications/notifications.view'
 
 const mockParams: { value: Record<string, string> } = { value: {} }
 jest.mock('expo-router', () => ({
+  // #276 — the inbox marks its room step on focus; the real hook needs a navigator.
+  useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => mockParams.value,
 }))

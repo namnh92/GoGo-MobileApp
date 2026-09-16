@@ -1,4 +1,5 @@
 import { api } from '../client'
+import { isConflict } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
 import { persistSession, sessionFromGuestGrant, type Session } from '../session'
 import type { OpBody, OpQuery, OpResponse } from '../types'
@@ -81,6 +82,28 @@ export function transitionRoom(
   return api.patch<OpResponse<'transitionRoom'>>('/rooms/{id}/status', body, {
     pathParams: { id: roomId },
   })
+}
+
+/**
+ * #251 — "Bắt đầu đi": the host moves the room `ready → active` (SRS §7.2
+ * "start date"). Stop completion and check-in answer `409 ROOM_NOT_ACTIVE`
+ * until this has happened, so opening the active-date screen is not enough.
+ *
+ * Resolves the room as the server holds it after the attempt, and the caller
+ * acts on its `status` — never on "the request succeeded". Today a second send
+ * (another device, or a retry whose first attempt landed) answers
+ * `409 INVALID_ROOM_TRANSITION`, so the room is re-read. Once starting is
+ * idempotent (GoGo-BE #601), a repeated start that races the end of the date
+ * answers `200` with a `completed` or `cancelled` room instead. Both paths hand
+ * back the same thing: whatever the room is now.
+ */
+export async function startRoomDate(roomId: string): Promise<OpResponse<'transitionRoom'>> {
+  try {
+    return await transitionRoom(roomId, { status: 'active' })
+  } catch (error) {
+    if (!isConflict(error)) throw error
+    return getRoom(roomId)
+  }
 }
 
 /**

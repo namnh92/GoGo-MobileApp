@@ -32,6 +32,8 @@ import {
   SecondaryBtn,
   useTabDockInset,
 } from '@/shared/ui/primitives'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
 import { colors, spacing } from '@/shared/ui/tokens'
 
@@ -89,6 +91,7 @@ export default function HomeScreen() {
         : null
   const areaVersionChanged =
     isApiError(search.error) && search.error.code === 'ADMINISTRATIVE_VERSION_CHANGED'
+  const waitingForNetwork = useWaitingForNetwork(search)
 
   async function requestDeviceLocation() {
     // Asked here, on tap, never on launch.
@@ -115,15 +118,24 @@ export default function HomeScreen() {
   /**
    * State comes from the query. The dev-only selector in Profile can still
    * force a branch on top, which is what makes the state matrix reviewable.
+   *
+   * GoGo-MobileApp#253: a failed refresh keeps the suggestions already on screen
+   * and lets the stale notice say so (APP-007) — only an area from a replaced
+   * dataset still needs the error card, since those results no longer apply.
+   * Nothing cached while offline is its own state, not an endless skeleton.
    */
   const realState = search.isPending
-    ? 'loading'
-    : search.isError
+    ? waitingForNetwork
+      ? 'offline'
+      : 'loading'
+    : search.isError && (places.length === 0 || areaVersionChanged)
       ? 'error'
       : places.length === 0
         ? 'empty'
         : 'default'
   const visualState = uiState === 'default' ? realState : uiState
+  const offlineCard = visualState === 'offline'
+  useOfflineAnnouncement(offlineCard, t('common.offlineBody'))
 
   const initial = (me.data?.displayName ?? '').trim().charAt(0).toUpperCase()
 
@@ -144,6 +156,13 @@ export default function HomeScreen() {
             <AvatarCircle label={initial || '·'} size={44} imageUri={me.data?.avatarUrl} />
           </Pressable>
         </View>
+
+        {/* Suggestions still on screen from an earlier search (GoGo-MobileApp#253). */}
+        <StaleNotice
+          error={search.isError ? search.error : null}
+          hasData={visualState === 'default'}
+          onRetry={() => void search.refetch()}
+        />
 
         <DraftResume />
 
@@ -264,21 +283,28 @@ export default function HomeScreen() {
             </GlassCard>
           )}
 
-          {visualState === 'error' && (
+          {(visualState === 'error' || offlineCard) && (
             <GlassCard style={styles.stateCard}>
               <Text style={styles.stateEmoji}>📡</Text>
-              <Text style={styles.stateTitle}>{t('home.error')}</Text>
-              <Text style={styles.stateBody}>
-                {areaVersionChanged ? t('administrative.changed') : t('home.errorBody')}
+              <Text style={styles.stateTitle}>{offlineCard ? t('common.offlineTitle') : t('home.error')}</Text>
+              <Text style={styles.stateBody} accessibilityLiveRegion={offlineCard ? 'polite' : undefined}>
+                {offlineCard
+                  ? t('common.offlineBody')
+                  : areaVersionChanged
+                    ? t('administrative.changed')
+                    : t('home.errorBody')}
               </Text>
               <View style={styles.stateActions}>
-                <SecondaryBtn
-                  label={t('home.retry')}
-                  onPress={() => {
-                    setUiState('default')
-                    void search.refetch()
-                  }}
-                />
+                {/* Offline a retry would only pause again; the search resumes on reconnect. */}
+                {offlineCard ? null : (
+                  <SecondaryBtn
+                    label={t('home.retry')}
+                    onPress={() => {
+                      setUiState('default')
+                      void search.refetch()
+                    }}
+                  />
+                )}
                 {areaVersionChanged ? (
                   <GhostBtn label={t('home.chooseArea')} onPress={chooseArea} />
                 ) : (
