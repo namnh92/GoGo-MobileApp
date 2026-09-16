@@ -10,6 +10,8 @@ import type { RoomSummary } from '@/shared/api'
 export interface QueryLike {
   isPending: boolean
   isError: boolean
+  /** Waiting for the network; TanStack Query sets it while offline. */
+  isPaused?: boolean
   data: unknown
   error: unknown
   refetch: () => void
@@ -17,6 +19,11 @@ export interface QueryLike {
 
 export function pending(): QueryLike {
   return { isPending: true, isError: false, data: undefined, error: null, refetch: jest.fn() }
+}
+
+/** Nothing cached, and the fetch is paused until the device is back online. */
+export function pausedOffline(): QueryLike {
+  return { isPending: true, isError: false, isPaused: true, data: undefined, error: null, refetch: jest.fn() }
 }
 
 export function failed(error: unknown = new Error('boom')): QueryLike {

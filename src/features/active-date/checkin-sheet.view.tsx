@@ -37,11 +37,14 @@ interface CheckinSheetProps {
   stop: PlanStopRow
   placeName: string
   pending?: boolean
-  onSave: (checkin: CheckinDraft) => void
+  /** Why the last save did not land. The draft stays, so Save retries it. */
+  error?: string | null
+  /** Resolves true once the check-in is saved. */
+  onSave: (checkin: CheckinDraft) => Promise<boolean>
   onSkip: () => void
 }
 
-export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip }: CheckinSheetProps) {
+export function CheckinSheet({ visible, stop, placeName, pending, error, onSave, onSkip }: CheckinSheetProps) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
 
@@ -100,15 +103,18 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
     })
   }
 
-  function save() {
+  async function save() {
     // Only photos that actually landed carry a key; the rest are dropped rather
     // than sent as a reference the server would reject.
     const photoKeys = photos.map(p => p.key).filter((k): k is string => Boolean(k))
-    onSave({ rating, tags, note: note.trim(), photoKeys })
-    reset()
+    // A save that did not land keeps the draft, so the retry sends what the user chose (#278).
+    if (await onSave({ rating, tags, note: note.trim(), photoKeys })) reset()
   }
 
   function skip() {
+    // A save in flight decides where the date goes next; closing now as well
+    // would move it on twice (#278).
+    if (pending) return
     onSkip()
     reset()
   }
@@ -221,6 +227,11 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
               </Text>
             ) : null}
 
+            {error ? (
+              <Text accessibilityLiveRegion="polite" style={styles.saveFailed}>
+                {error}
+              </Text>
+            ) : null}
             <PrimaryBtn
               label={pending ? t('checkin.saving') : t('checkin.save')}
               onPress={save}
@@ -229,8 +240,10 @@ export function CheckinSheet({ visible, stop, placeName, pending, onSave, onSkip
             />
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ disabled: Boolean(pending) }}
+              disabled={pending}
               onPress={skip}
-              style={styles.skipBtn}
+              style={[styles.skipBtn, pending && styles.skipBtnDisabled]}
             >
               <Text style={styles.skipLabel}>{t('checkin.skip')}</Text>
             </Pressable>

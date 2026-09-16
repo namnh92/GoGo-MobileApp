@@ -31,6 +31,7 @@ jest.mock('@/shared/api', () => ({
     byPlaceId: new Map([['place-1', { id: 'place-1', name: 'Landmark 81', addressText: 'Bình Thạnh' }]]),
     isPending: false,
   }),
+  useStartDate: () => mockIdleMutation,
   useLockPlanStop: () => mockIdleMutation,
   useRegeneratePlan: () => mockIdleMutation,
 }))

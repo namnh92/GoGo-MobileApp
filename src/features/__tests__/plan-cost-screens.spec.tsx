@@ -79,6 +79,9 @@ beforeEach(() => {
 
 describe('plan cost × screen', () => {
   it('active date: each stop price carries its unit, and a range from 0 is an upper bound', async () => {
+    // #262 — the active date is live only while the room is `active`; any other
+    // status renders the not-started state instead of the stops.
+    mockRoom.query = loaded(roomFor('group-host', { status: 'active' }))
     const view = await renderScreen(<ActiveDateScreen />)
     expect(view.getAllByText(/250k–450k\/người/).length).toBeGreaterThan(0)
     expect(view.getByText(/≤ 50k\/người/)).toBeTruthy()
