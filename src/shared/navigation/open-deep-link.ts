@@ -20,7 +20,15 @@ export type DeepLinkSource = 'push' | 'deferred' | 'share' | 'manual'
  * tap cannot drift onto different destinations for the same room.
  */
 export function openDeepLink(router: Router, url: string | null | undefined, source: DeepLinkSource): DeepLinkAction {
-  const action = parseDeepLink(url)
+  return openDeepLinkAction(router, parseDeepLink(url), source)
+}
+
+/**
+ * For a source that has already parsed and checked its link — a push payload
+ * validates its own fields first (GoGo-MobileApp#256) — so it is not turned
+ * back into a URL only to be parsed again.
+ */
+export function openDeepLinkAction(router: Router, action: DeepLinkAction, source: DeepLinkSource): DeepLinkAction {
   track('deep_link_opened', { kind: action.kind, source })
   // An unrecognised link still lands somewhere real rather than nowhere.
   router.push(routeForAction(action))

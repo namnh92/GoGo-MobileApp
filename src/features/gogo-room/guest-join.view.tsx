@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, TextInput, View } from 'react-native'
@@ -9,7 +9,7 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, AvatarCircle, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
@@ -30,6 +30,7 @@ const MAX_DISPLAY_NAME = 50
 export default function GuestJoinScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const navigation = useNavigation()
   const insets = useSafeAreaInsets()
   const { status, joinAsGuest } = useSession()
   const joinRoom = useJoinRoom()
@@ -43,9 +44,25 @@ export default function GuestJoinScreen() {
   const asUser = status === 'user'
   const trimmedName = displayName.trim()
 
+  /**
+   * GoGo-MobileApp#203 — a join can finish after the person has left: the back
+   * control, Android hardware back or a swipe all stay available while it is in
+   * flight. Leaving pops or replaces this screen, so it is no longer focused, and
+   * a late `replace` would pull them into the room from wherever they went.
+   */
+  function stillHere(): boolean {
+    return navigation.isFocused()
+  }
+
   function toMessage(caught: unknown): string {
-    // 410 covers expired, revoked and spent invites — all mean "ask for a new
-    // link", which is a different action from a transient failure.
+    // GoGo-MobileApp#248 — two 410s ask for different next steps, so read the
+    // code. A room past collecting takes nobody new: a fresh link would not
+    // help, and saying "ask for a new link" sent people round in circles.
+    if (isApiError(caught) && caught.code === 'ROOM_NOT_JOINABLE') return t('guestJoin.roomNotJoinableBody')
+    // A room past its expiry (`ROOM_EXPIRED`) is not coming back either.
+    if (isApiError(caught) && caught.code === 'ROOM_EXPIRED') return t('guestJoin.roomExpiredBody')
+    // Expired, revoked or spent (`INVITE_NOT_USABLE`) — a new link does help.
+    // Any other 410 keeps that reading, as before.
     if (isApiError(caught) && caught.status === 410) return t('guestJoin.expiredBody')
     if (isApiError(caught) && caught.status === 404) return t('guestJoin.notFoundBody')
     if (isApiError(caught) && caught.status === 429) return t('auth.rateLimited')
@@ -75,7 +92,7 @@ export default function GuestJoinScreen() {
         }
         // A room the actor was previously removed from would be stale here.
         forget(result.roomId)
-        router.replace(`/room/${result.roomId}`)
+        if (stillHere()) router.replace(`/room/${result.roomId}`)
         return
       }
 
@@ -89,7 +106,7 @@ export default function GuestJoinScreen() {
         setError(t('guestJoin.failed'))
         return
       }
-      router.replace(`/room/${session.roomId}/preference`)
+      if (stillHere()) router.replace(`/room/${session.roomId}/preference`)
     } catch (caught) {
       setError(toMessage(caught))
     } finally {
@@ -97,11 +114,31 @@ export default function GuestJoinScreen() {
     }
   }
 
+  /**
+   * GoGo-MobileApp#203 — the way out. An invite is often the first screen of a
+   * cold start, with nothing behind it: iOS offers no edge swipe there and
+   * `router.back()` alone does nothing, so someone holding a dead invite was
+   * stuck until they relaunched the app. With no previous route it goes to `/`,
+   * the start screen, which still decides between onboarding and Home — going
+   * straight to the tabs skipped onboarding on a fresh install.
+   */
+  function leave() {
+    if (router.canGoBack()) router.back()
+    else router.replace('/')
+  }
+
+  const header = (
+    <View style={{ paddingTop: insets.top }}>
+      <BackHeader onBack={leave} />
+    </View>
+  )
+
   // A cold start can deliver the link before the stored session has been read.
   // Offering to join then would send a signed-in person down the guest path.
   if (status === 'hydrating') {
     return (
       <Atmosphere>
+        {header}
         <LoadingState />
       </Atmosphere>
     )
@@ -109,10 +146,11 @@ export default function GuestJoinScreen() {
 
   return (
     <Atmosphere>
+      {header}
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          paddingTop: insets.top + spacing[8],
+          paddingTop: spacing[4],
           paddingHorizontal: spacing[5],
           paddingBottom: insets.bottom + spacing[6],
         }}
