@@ -256,8 +256,9 @@ export default function PlaceDetailScreen() {
             ) : null}
           </View>
 
-          {/* The three facts a decision actually turns on, side by side. */}
-          <View style={styles.factStrip}>
+          {/* The facts a decision actually turns on, side by side. A fact with
+              no data is left out rather than drawn as a dash (RULE-CORE-015). */}
+          <View testID="place-detail-facts" style={styles.factStrip}>
             <View style={styles.fact}>
               {isStandalonePrice(price.unit) ? (
                 <Text style={styles.factValueMuted}>{t(priceUnitKey(price.unit))}</Text>
@@ -268,7 +269,7 @@ export default function PlaceDetailScreen() {
                 </>
               )}
             </View>
-            <View style={styles.factDivider} />
+            <View testID="place-detail-fact-divider" style={styles.factDivider} />
             <View style={styles.fact}>
               {google ? (
                 <>
@@ -279,17 +280,15 @@ export default function PlaceDetailScreen() {
                 <Text style={styles.factValueMuted}>{t('placeDetail.noRating')}</Text>
               )}
             </View>
-            <View style={styles.factDivider} />
-            <View style={styles.fact}>
-              {detail.avgVisitMinutes != null ? (
-                <>
+            {detail.avgVisitMinutes != null ? (
+              <>
+                <View testID="place-detail-fact-divider" style={styles.factDivider} />
+                <View style={styles.fact}>
                   <Text style={styles.factValue}>{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
                   <Text style={styles.factCaption}>{t('placeDetail.avgVisit')}</Text>
-                </>
-              ) : (
-                <Text style={styles.factValueMuted}>—</Text>
-              )}
-            </View>
+                </View>
+              </>
+            ) : null}
           </View>
 
           {/* Colour is never the only signal — the dot repeats what the words say. */}
