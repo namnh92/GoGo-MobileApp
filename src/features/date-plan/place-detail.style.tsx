@@ -53,6 +53,8 @@ export const styles = StyleSheet.create({
     backgroundColor: glassFx.sheet,
   },
   body: { paddingHorizontal: spacing[5], paddingTop: spacing[7], paddingBottom: spacing[5] },
+  // The body already carries the side padding the bar would otherwise add.
+  sheetNotice: { marginHorizontal: 0, marginBottom: spacing[4] },
 
   // --- identity ------------------------------------------------------------
   // Saving belongs to the card, not to the action bar: it acts on the place

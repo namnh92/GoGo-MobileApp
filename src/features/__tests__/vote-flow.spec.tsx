@@ -40,6 +40,7 @@ jest.mock('@/shared/api', () => ({
 import MatchResult from '@/features/matching/match-result.view'
 import Swipe from '@/features/matching/swipe.view'
 import Matching from '@/features/matching/matching.view'
+import { forgetRoomSteps, runStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -154,5 +155,28 @@ describe('stale ranking recovery (#198)', () => {
     mockState.regenerateError = new ApiError(409, { code: 'STALE_SUGGESTIONS', message: 'changed' })
     const view = await renderScreen(<MatchResult />)
     expect(view.getByText('Có người vừa đổi lựa chọn trong lúc tạo gợi ý. Thử lại nhé.')).toBeTruthy()
+  })
+})
+
+describe('the run a decision screen shows (#198)', () => {
+  it.each([['deck', Swipe], ['result', MatchResult]] as const)('the %s records it, so the lobby never sends anyone back to it', async (_name, Screen) => {
+    forgetRoomSteps()
+    await renderScreen(<Screen />)
+    expect(wasRoomStepShown('room-1', runStep('run-1'))).toBe(true)
+  })
+})
+
+describe('host mode runner-ups (#198: members now reach this screen from the lobby)', () => {
+  it('lets only the host choose the winner; a member opens the place instead', async () => {
+    mockState.room = roomFor('group-guest', { status: 'matching', decisionMode: 'host' })
+    const view = await renderScreen(<MatchResult />)
+
+    await act(async () => {
+      fireEvent.press(view.getByLabelText('Place Two'))
+    })
+
+    expect(mockPush).toHaveBeenCalledWith('/places/place-2')
+    // The winner a member sees is still the ranking's, not one only they picked.
+    expect(view.getByLabelText('Place Two')).toBeTruthy()
   })
 })
