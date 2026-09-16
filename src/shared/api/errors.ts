@@ -88,3 +88,20 @@ export function isRetryable(error: unknown): boolean {
 export function isStaleRanking(error: unknown): boolean {
   return isApiError(error) && (error.code === 'STALE_SUGGESTIONS' || error.code === 'NOT_A_CANDIDATE')
 }
+
+/**
+ * #251 — stop completion and check-in only work while the room is `active`
+ * (check-in also after `completed`). This is a room-state answer, never a
+ * connectivity one, and retrying it changes nothing until the room moves.
+ */
+/**
+ * #198 — the room is not matching any more: a plan was chosen, or the host
+ * reopened preferences. A vote is refused with this, and no retry saves it.
+ */
+export function isRoomNotMatching(error: unknown): boolean {
+  return isApiError(error) && error.status === 409 && error.code === 'ROOM_NOT_MATCHING'
+}
+
+export function isRoomNotActive(error: unknown): boolean {
+  return isApiError(error) && error.status === 409 && error.code === 'ROOM_NOT_ACTIVE'
+}
