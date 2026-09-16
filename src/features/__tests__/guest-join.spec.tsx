@@ -1,4 +1,4 @@
-import { fireEvent, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, waitFor } from '@testing-library/react-native'
 
 import { renderScreen } from './harness'
 
@@ -10,14 +10,27 @@ import { renderScreen } from './harness'
  * what is worth asserting is which join each session takes, and that an
  * expired, revoked or unknown invite reads as its own sentence.
  */
-const mockReplace = jest.fn()
+const mockHistory = { canGoBack: false, focused: true }
+// Both leave this screen, as the real stack does: it is no longer focused.
+const mockReplace = jest.fn((_href: string) => {
+  mockHistory.focused = false
+})
+const mockBack = jest.fn(() => {
+  mockHistory.focused = false
+})
 const mockJoinAsGuest = jest.fn()
 const mockJoinRoom = jest.fn()
 const mockForget = jest.fn()
 const mockSession = { status: 'user' }
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ replace: mockReplace, push: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({
+    replace: mockReplace,
+    push: jest.fn(),
+    back: mockBack,
+    canGoBack: () => mockHistory.canGoBack,
+  }),
+  useNavigation: () => ({ isFocused: () => mockHistory.focused }),
   useLocalSearchParams: () => ({ inviteCode: 'YDi_00PB1z4FSQZjpLbgdw' }),
 }))
 
@@ -55,7 +68,17 @@ function apiError(status: number): ApiError {
 beforeEach(() => {
   jest.clearAllMocks()
   mockSession.status = 'user'
+  mockHistory.canGoBack = false
+  mockHistory.focused = true
 })
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(settle => {
+    resolve = settle
+  })
+  return { promise, resolve }
+}
 
 describe('invite screen × session', () => {
   it('joins a signed-in user as themselves — never through the guest path', async () => {
@@ -129,5 +152,109 @@ describe('invite screen × session', () => {
     expect(view.queryByText(JOIN)).toBeNull()
     expect(mockJoinRoom).not.toHaveBeenCalled()
     expect(mockJoinAsGuest).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * GoGo-MobileApp#203 (regression #218, iPhone 11 Pro Max): an unknown or revoked
+ * invite left the person on this screen with no back or close control and no
+ * edge swipe, until they relaunched the app.
+ */
+describe('leaving the invite screen', () => {
+  const BACK = 'Quay lại'
+
+  it('cold start: a dead invite has a way out, through the start screen that checks onboarding', async () => {
+    mockHistory.canGoBack = false
+    mockJoinRoom.mockRejectedValue(apiError(404))
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.press(view.getByText(JOIN))
+    expect(await view.findByText('Link mời không đúng hoặc phòng đã bị xoá.')).toBeTruthy()
+
+    await fireEvent.press(view.getByLabelText(BACK))
+    expect(mockReplace).toHaveBeenCalledWith('/')
+    expect(mockBack).not.toHaveBeenCalled()
+  })
+
+  it('warm start: a revoked invite goes back to where the person came from', async () => {
+    mockHistory.canGoBack = true
+    mockJoinRoom.mockRejectedValue(apiError(410))
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.press(view.getByText(JOIN))
+    expect(await view.findByText('Lời mời này không còn dùng được. Hỏi người tạo phòng gửi link mới nhé.')).toBeTruthy()
+
+    await fireEvent.press(view.getByLabelText(BACK))
+    expect(mockBack).toHaveBeenCalledTimes(1)
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('offers the way out on the guest path too, before anything is typed', async () => {
+    mockSession.status = 'anonymous'
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.press(view.getByLabelText(BACK))
+    expect(mockReplace).toHaveBeenCalledWith('/')
+    expect(mockJoinAsGuest).not.toHaveBeenCalled()
+  })
+
+  it('offers the way out while a cold start is still reading the session', async () => {
+    mockSession.status = 'hydrating'
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.press(view.getByLabelText(BACK))
+    expect(mockReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('a join that finishes after the person tapped back does not pull them into the room', async () => {
+    mockHistory.canGoBack = true
+    const join = deferred<{ roomId: string }>()
+    mockJoinRoom.mockReturnValue(join.promise)
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.press(view.getByText(JOIN))
+    await fireEvent.press(view.getByLabelText(BACK))
+    expect(mockBack).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      join.resolve({ roomId: ROOM })
+    })
+    // The join itself completed; only the navigation is dropped.
+    expect(mockForget).toHaveBeenCalledWith(ROOM)
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('cold start: leaving mid-join on the guest path stays on the start screen', async () => {
+    mockSession.status = 'anonymous'
+    const join = deferred<{ kind: string; roomId: string }>()
+    mockJoinAsGuest.mockReturnValue(join.promise)
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.changeText(view.getByLabelText(NAME), 'Lan')
+    await fireEvent.press(view.getByText(JOIN))
+    await fireEvent.press(view.getByLabelText(BACK))
+
+    await act(async () => {
+      join.resolve({ kind: 'guest', roomId: ROOM })
+    })
+    expect(await view.findByText(JOIN)).toBeTruthy()
+    expect(mockReplace.mock.calls).toEqual([['/']])
+  })
+
+  it('Android hardware back mid-join: the popped screen does not navigate when the join lands', async () => {
+    const join = deferred<{ roomId: string }>()
+    mockJoinRoom.mockReturnValue(join.promise)
+    const view = await renderScreen(<GuestJoinScreen />)
+
+    await fireEvent.press(view.getByText(JOIN))
+    // Hardware back (or an iOS swipe) pops the screen without the back control.
+    mockHistory.focused = false
+
+    await act(async () => {
+      join.resolve({ roomId: ROOM })
+    })
+    expect(mockForget).toHaveBeenCalledWith(ROOM)
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockBack).not.toHaveBeenCalled()
   })
 })
