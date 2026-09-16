@@ -41,6 +41,8 @@ export type AnalyticsEvent =
   | 'profile_date_of_birth_saved'
   | 'profile_date_of_birth_cleared'
   | 'profile_prefill_used'
+  // #198: the lobby could not move someone on after repeated tries; no ids.
+  | 'room_route_gave_up'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 
