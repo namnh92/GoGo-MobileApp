@@ -15,6 +15,7 @@ import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
 import { initializePushSdk } from '@/shared/notifications/bootstrap'
 import { initializePushIdentity } from '@/shared/notifications/identity-bootstrap'
 import { retryInitialization } from '@/shared/notifications/initialize'
+import { startNotificationClicks } from '@/shared/notifications/notification-clicks-bootstrap'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
 const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
@@ -26,12 +27,23 @@ export function AppProviders({ children }: { children: ReactNode }) {
   useEffect(() => initializeAcquisitionSdk(), [])
   useEffect(() => {
     let cancelled = false
+    let stopClicks: (() => void) | undefined
     let stopIdentity: (() => void) | undefined
     void retryInitialization(initializePushSdk).then(result => {
-      if (result === 'ready' && !cancelled) stopIdentity = initializePushIdentity()
+      if (result !== 'ready' || cancelled) return
+      // #256 — first, so the tap that launched the app is routed without
+      // waiting on identity; `NotificationClickRouter` holds it until ready.
+      // A listener that cannot register costs tap routing, never identity.
+      try {
+        stopClicks = startNotificationClicks()
+      } catch {
+        if (__DEV__) console.warn('push_click_listener_unavailable')
+      }
+      stopIdentity = initializePushIdentity()
     })
     return () => {
       cancelled = true
+      stopClicks?.()
       stopIdentity?.()
     }
   }, [])

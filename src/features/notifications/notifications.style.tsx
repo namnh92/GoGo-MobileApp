@@ -19,5 +19,11 @@ export const styles = StyleSheet.create({
   kind: { ...type.body, color: neutral[700] },
   kindUnread: { fontWeight: '700', color: neutral[900] },
   time: { ...type.caption, color: neutral[500], marginTop: 2 },
+  notice: {
+    ...type.bodySmall,
+    color: neutral[700],
+    paddingHorizontal: spacing[5],
+    marginBottom: spacing[3],
+  },
   openProblem: { ...type.bodySmall, color: neutral[700], textAlign: 'center', paddingHorizontal: spacing[5], marginBottom: spacing[2] },
 })
