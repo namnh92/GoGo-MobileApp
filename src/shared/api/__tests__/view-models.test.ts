@@ -302,3 +302,32 @@ describe('toPlanSummary', () => {
     expect(summary.currency).toBe('VND')
   })
 })
+
+describe('toPlanSummary × cost scope (GoGo-MobileApp#249)', () => {
+  it('carries the scope of every plan cost, and knows when no stop has a price', () => {
+    const summary = toPlanSummary({
+      id: 'p1',
+      roomId: 'r1',
+      totals: { costMin: 0, costMax: 0, costScope: 'per_person', currency: 'VND', uncertain: true },
+      stops: [
+        { id: 's1', placeId: 'pl1', position: 0, costMin: null, costMax: null, costScope: 'per_person', status: 'planned' },
+      ],
+    } as Plan)
+    expect(summary.costScope).toBe('per_person')
+    expect(summary.stops[0].costScope).toBe('per_person')
+    expect(summary.priced).toBe(false)
+    expect(summary.hasUnpricedStop).toBe(true)
+  })
+
+  it('invents no scope for a plan cached before the contract stated one', () => {
+    const summary = toPlanSummary({
+      id: 'p1',
+      totals: { costMin: 100_000, costMax: 200_000 },
+      stops: [{ id: 's1', position: 0, costMin: 100_000, costMax: 200_000 }],
+    } as Plan)
+    expect(summary.costScope).toBeNull()
+    expect(summary.stops[0].costScope).toBeNull()
+    expect(summary.priced).toBe(true)
+    expect(summary.hasUnpricedStop).toBe(false)
+  })
+})

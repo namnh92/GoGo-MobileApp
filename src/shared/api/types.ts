@@ -24,6 +24,8 @@ export type DecisionMode = RoomSummary['decisionMode']
 export type RoomRole = NonNullable<RoomSummary['myRole']>
 export type MemberSelectionStatus = RoomMember['selectionStatus']
 export type BudgetMode = RoomConstraintInput['budgetMode']
+/** What a plan or budget amount is *per* (GoGo-BE#593). */
+export type BudgetScope = Schemas['BudgetScope']
 
 export type PlaceSearchResult = Schemas['PlaceSearchResult']
 export type PlaceDetail = Schemas['PlaceDetail']

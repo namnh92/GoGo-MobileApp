@@ -19,7 +19,7 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
-import { formatRange } from '@/shared/pricing/money'
+import { stopCostLabel } from '@/shared/pricing/plan-cost'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
@@ -116,7 +116,7 @@ export default function ActiveDateScreen() {
   const address = stop ? places.byPlaceId.get(stop.placeId)?.addressText : undefined
 
   const stopPlace = stop ? places.byPlaceId.get(stop.placeId) : undefined
-  const stopCost = stop ? formatRange(stop.costMin, stop.costMax, summary?.currency ?? 'VND') : null
+  const stopCost = stop ? stopCostLabel(stop, summary?.currency ?? 'VND', t) : null
   const stopPin: MapPin | null =
     stopPlace?.lat != null && stopPlace.lng != null
       ? { id: stopPlace.id, lat: stopPlace.lat, lng: stopPlace.lng, title: stopPlace.name }
@@ -407,7 +407,7 @@ export default function ActiveDateScreen() {
               <Text style={styles.nextCaption}>{t('activeDate.next')}</Text>
               <Text style={styles.nextName}>{places.byPlaceId.get(nextStop.placeId)?.name ?? ''}</Text>
               <Text style={styles.nextMeta}>
-                {[nextStop.arriveLabel, formatRange(nextStop.costMin, nextStop.costMax, summary.currency)]
+                {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)]
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
