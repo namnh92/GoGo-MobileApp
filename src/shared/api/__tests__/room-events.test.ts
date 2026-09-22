@@ -102,4 +102,26 @@ describe('ROOM_PHASE_EVENTS', () => {
     expect(ROOM_PHASE_EVENTS.lobby).not.toContain('vote.changed')
     expect(ROOM_PHASE_EVENTS.lobby).not.toContain('suggestions.updated')
   })
+
+  /**
+   * #285 — the date screen showed stop progress from the server and nothing
+   * asked the server again. Two people walk a date with two phones and only one
+   * of them taps "done"; the other stood still for over three minutes on a
+   * device. The phase has to carry stop progress and the end of the date.
+   */
+  it('lets the date see stop progress and the room ending', () => {
+    expect(ROOM_PHASE_EVENTS.date).toContain('plan.updated')
+    expect(ROOM_PHASE_EVENTS.date).toContain('room.status_changed')
+
+    const keys = ROOM_PHASE_EVENTS.date
+      .flatMap(type => eventQueryKeys({ type, roomId: ROOM_ID, planId: 'plan-1' }))
+      .map(key => JSON.stringify(key))
+
+    expect(keys).toContain(JSON.stringify(queryKeys.plan('plan-1')))
+    expect(keys).toContain(JSON.stringify(queryKeys.roomCurrentPlan(ROOM_ID)))
+    expect(keys).toContain(JSON.stringify(queryKeys.room(ROOM_ID)))
+    // The date shows no tally and no candidate list.
+    expect(ROOM_PHASE_EVENTS.date).not.toContain('vote.changed')
+    expect(ROOM_PHASE_EVENTS.date).not.toContain('suggestions.generated')
+  })
 })

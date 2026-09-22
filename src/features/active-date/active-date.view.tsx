@@ -15,12 +15,14 @@ import {
   usePlan,
   usePlanStopPlaces,
   useRoom,
+  useRoomRealtime,
   type PlanStopRow,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { stopCostLabel } from '@/shared/pricing/plan-cost'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
@@ -54,6 +56,18 @@ export default function ActiveDateScreen() {
   // status decides whether this screen is live at all (rooms are persisted, so
   // this still reads offline).
   const room = useRoom(summary?.roomId)
+  /**
+   * #285 — a date is two people and two phones, and only one of them taps
+   * "done" at each stop. Without this the other phone kept showing a stop its
+   * owner had already walked away from: progress comes from the server's stop
+   * status, which nothing here was asking for again. Measured before this
+   * subscription, the second phone stood still for over three minutes.
+   *
+   * `plan.updated` carries stop progress and `room.status_changed` ends the
+   * screen, which is exactly the `date` phase. The cadence is the transport's
+   * business, so there is no timer here.
+   */
+  useRoomRealtime(summary?.roomId, 'date', { enabled: useScreenFocused() })
 
   const completeStop = useCompletePlanStop(planId)
   const checkinStop = useCheckinPlanStop(planId)

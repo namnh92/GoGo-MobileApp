@@ -29,13 +29,17 @@ export interface RoomSubscription {
 export type RoomRealtimeStatus = 'connecting' | 'live' | 'polling' | 'offline'
 
 /**
- * Poll cadence per phase. Matching is the only phase where someone is waiting
- * on another person in real time; the plan changes rarely once built.
+ * Poll cadence per phase.
+ *
+ * Matching and the date itself are the phases where someone is waiting on
+ * another person in real time: one taps "done" at a stop and the other's phone
+ * has to move with it. The plan changes rarely once built.
  */
 export const POLL_INTERVAL_MS: Record<RoomPhase, number> = {
   lobby: 5_000,
   matching: 4_000,
   plan: 15_000,
+  date: 5_000,
 }
 
 /**

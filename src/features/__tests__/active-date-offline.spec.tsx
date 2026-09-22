@@ -1,5 +1,5 @@
 import { act } from '@testing-library/react-native'
-import { onlineManager } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { loaded, pausedOffline, renderScreen, type QueryLike } from './harness'
 
@@ -62,10 +62,22 @@ afterEach(async () => {
   jest.useRealTimers()
 })
 
+/**
+ * The screen subscribes to its room (#285), and a subscription needs the cache
+ * the rest of the app uses — so it renders under a provider here, as it does in
+ * the app.
+ */
+const renderActiveDate = () =>
+  renderScreen(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ActiveDateScreen />
+    </QueryClientProvider>,
+  )
+
 describe('active date × connectivity', () => {
   it('keeps the cached plan on screen offline and says it is the saved copy', async () => {
     onlineManager.setOnline(false)
-    const view = await renderScreen(<ActiveDateScreen />)
+    const view = await renderActiveDate()
     await act(async () => {
       jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
     })
@@ -80,14 +92,14 @@ describe('active date × connectivity', () => {
   })
 
   it('says nothing about a fresh plan online', async () => {
-    const view = await renderScreen(<ActiveDateScreen />)
+    const view = await renderActiveDate()
     expect(view.queryByText(/bản đã lưu trên máy/)).toBeNull()
   })
 
   it('shows the offline state instead of an endless skeleton when nothing is cached, and keeps loading online', async () => {
     const NO_CONNECTION = 'Không có kết nối'
     mockPlan.query = pausedOffline()
-    const view = await renderScreen(<ActiveDateScreen />)
+    const view = await renderActiveDate()
     await act(async () => {
       jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS)
     })

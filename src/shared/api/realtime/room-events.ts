@@ -99,10 +99,15 @@ export const ROOM_PHASE_EVENTS: Record<RoomPhase, readonly RoomEventType[]> = {
     'vote.changed',
   ],
   plan: ['room.status_changed', 'plan.updated'],
+  // The date itself. Stop progress arrives as `plan.updated`, and the room
+  // leaving `active` ends the screen, so both have to reach it — on a date two
+  // people walk around with two phones and only one of them taps "done"
+  // (GoGo-MobileApp#285).
+  date: ['room.status_changed', 'plan.updated'],
 }
 
 /**
  * A screen declares which phase it is showing rather than a refresh interval —
  * cadence is the transport's business, not the screen's.
  */
-export type RoomPhase = 'lobby' | 'matching' | 'plan'
+export type RoomPhase = 'lobby' | 'matching' | 'plan' | 'date'
