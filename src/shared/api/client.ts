@@ -197,6 +197,21 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
   }
 }
 
+/**
+ * A valid bearer for a long-lived stream, with the moment it stops being one.
+ *
+ * The SSE transport cannot go through `request`: that function reads a whole
+ * response, and a stream never ends. It still must not mint its own session —
+ * refresh tokens are single-use, so a second rotator would revoke the family.
+ * This shares the same single-flight refresh as every other call.
+ */
+export async function currentAccessGrant(): Promise<{ token: string; expiresAt: number } | null> {
+  let session = getSession() ?? (await hydrateSession())
+  if (session && isAccessTokenExpired(session)) session = await refreshSession()
+  if (!session) return null
+  return { token: session.accessToken, expiresAt: session.expiresAt }
+}
+
 export async function request<T>(options: RequestOptions): Promise<T> {
   let accessToken: string | null = null
 

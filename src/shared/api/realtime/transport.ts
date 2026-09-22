@@ -1,12 +1,17 @@
 import type { QueryClient } from '@tanstack/react-query'
 
+import { currentAccessGrant } from '../client'
+import { env } from '@/shared/config/env'
+
 import { appActivity, type AppActivity } from './app-activity'
-import { eventQueryKeys, ROOM_PHASE_EVENTS, type RoomPhase } from './room-events'
+import { eventQueryKeys, ROOM_PHASE_EVENTS, type RoomEventType, type RoomPhase } from './room-events'
+import { xhrSseConnector, type SseConnection, type SseConnector } from './sse-connection'
 
 /**
- * How a room stays fresh. Today the only implementation polls; GoGo-BE#154 adds
- * an SSE stream, and swapping it in means writing a second transport here and
- * changing nothing above.
+ * How a room stays fresh. Two implementations: the SSE stream the app uses
+ * (GoGo-BE#154, `createSseTransport`) and the poller it falls back to
+ * (`createPollingTransport`). Screens name a phase and never a cadence, so
+ * which one is in play changes nothing above this file.
  */
 export interface RoomRealtimeTransport {
   readonly kind: 'polling' | 'sse'
@@ -61,6 +66,26 @@ export const POLL_INTERVAL_MS: Record<RoomPhase, number> = {
 export const IDLE_BACKOFF_MAX_MULTIPLIER = 4
 
 /**
+ * Cadence of the poll that keeps running underneath a live stream.
+ *
+ * A stream that is open is not the same as a stream that carries everything.
+ * Measured against DEV `a9da62d` on 2026-09-22: finalising a room emits no
+ * event at all (GoGo-BE#608) — a member watching the result screen saw only a
+ * heartbeat for thirty seconds. Dropping the poll the moment SSE connects
+ * would have turned a twelve-second wait into no update at all.
+ *
+ * So `matching` keeps its normal cadence: that is where the missing event
+ * lives, and it is the one phase where someone is waiting on another person.
+ * The other phases slow down, because every event they need does arrive.
+ * When GoGo-BE#608 lands, `matching` here becomes as slow as the rest.
+ */
+export const SAFETY_POLL_INTERVAL_MS: Record<RoomPhase, number> = {
+  lobby: 20_000,
+  matching: 4_000,
+  plan: 30_000,
+}
+
+/**
  * One poller per room, however many screens are looking at it.
  *
  * This replaces a timer per subscriber. A navigation stack keeps the screens
@@ -84,9 +109,12 @@ interface RoomPoller {
 
 const pollers = new Map<string, RoomPoller>()
 
-export function createPollingTransport(activity: AppActivity = appActivity): RoomRealtimeTransport {
+export function createPollingTransport(
+  activity: AppActivity = appActivity,
+  intervals: Record<RoomPhase, number> = POLL_INTERVAL_MS,
+): RoomRealtimeTransport {
   const baseInterval = (poller: RoomPoller): number =>
-    Math.min(...[...poller.phases.keys()].map(phase => POLL_INTERVAL_MS[phase]))
+    Math.min(...[...poller.phases.keys()].map(phase => intervals[phase]))
 
   /**
    * Every key any subscribed phase cares about, once each, with descendants
@@ -213,14 +241,14 @@ export function createPollingTransport(activity: AppActivity = appActivity): Roo
 const isPrefixOf = (prefix: readonly unknown[], key: readonly unknown[]): boolean =>
   prefix.length < key.length && prefix.every((part, i) => part === key[i])
 
-/** Transitional transport (GoGo-BE#154). Polls; see `createPollingTransport`. */
+/** The fallback, and what every SSE stream degrades to. See `createPollingTransport`. */
 export const pollingTransport: RoomRealtimeTransport = createPollingTransport()
 
-/**
- * The transport the app uses. A single assignment point so enabling SSE is one
- * line here plus a feature flag, never a change in a screen.
- */
-export const roomRealtimeTransport: RoomRealtimeTransport = pollingTransport
+/** The slow poll that keeps running underneath a live stream. */
+export const safetyPollingTransport: RoomRealtimeTransport = createPollingTransport(
+  appActivity,
+  SAFETY_POLL_INTERVAL_MS,
+)
 
 /** Test seam: forget every room poller. */
 export function resetPollingTransportForTests(): void {
@@ -229,4 +257,399 @@ export function resetPollingTransportForTests(): void {
     poller.unsubscribeActivity()
   }
   pollers.clear()
+}
+
+// ---------------------------------------------------------------------------
+// SSE — the transport the app uses (GoGo-MobileApp#286)
+// ---------------------------------------------------------------------------
+
+/**
+ * How long to wait before the first reconnect, and the ceiling it doubles to.
+ *
+ * `rooms.events` is rate limited at 30 a minute per actor, so a reconnect loop
+ * tighter than two seconds would spend the room's whole budget locking itself
+ * out. The first wait is therefore the limit's own period, not the usual
+ * sub-second retry.
+ */
+export const SSE_RECONNECT_BASE_MS = 2_000
+export const SSE_RECONNECT_MAX_MS = 30_000
+
+/**
+ * Reconnect this long before the access token expires. A stream authorised
+ * once keeps running with a token the rest of the app has already rotated;
+ * replacing the connection early is cheaper than discovering it went stale.
+ */
+export const SSE_TOKEN_MARGIN_MS = 60_000
+
+/**
+ * Statuses that mean SSE is not coming back on its own, per room: the actor is
+ * not a member (403), the room is gone (404), or the route does not exist on
+ * this backend (404/501). A 503 is the environment's kill switch
+ * (`REALTIME_SSE_ENABLED=false`) and takes the whole process down to polling —
+ * retrying it on every room would be pure noise.
+ */
+const ROOM_FATAL_STATUSES = new Set([401, 403, 404, 501])
+const ENVIRONMENT_OFF_STATUS = 503
+
+export interface SseTransportOptions {
+  /** Opens one stream. Injected so tests never touch `XMLHttpRequest`. */
+  connect?: SseConnector
+  /** Where freshness comes from whenever the stream is not live. */
+  fallback?: RoomRealtimeTransport
+  /**
+   * The slower poll that keeps running while the stream *is* live, so a gap in
+   * what the backend emits cannot leave a screen frozen. See
+   * `SAFETY_POLL_INTERVAL_MS`.
+   */
+  safety?: RoomRealtimeTransport
+  activity?: AppActivity
+  /** A bearer good for a stream, and when it stops being one. */
+  auth?: () => Promise<{ token: string; expiresAt: number } | null>
+  /** Base URL including `/v1`; defaults to the app's configured API. */
+  apiUrl?: string
+  /** Client kill switch. `false` never opens a stream and polls instead. */
+  enabled?: boolean
+  now?: () => number
+}
+
+interface SseStream {
+  roomId: string
+  queryClient: QueryClient
+  /** Subscriber count per phase, exactly as the poller counts them. */
+  phases: Map<RoomPhase, number>
+  listeners: Set<(status: RoomRealtimeStatus) => void>
+  connection: SseConnection | null
+  /** An open is already in flight; its `auth()` has not answered yet. */
+  opening: boolean
+  lastEventId: string | null
+  attempt: number
+  retryTimer: ReturnType<typeof setTimeout> | null
+  tokenTimer: ReturnType<typeof setTimeout> | null
+  /** One poll subscription per distinct phase, at whichever cadence `pollMode` names. */
+  polls: Map<RoomPhase, () => void>
+  /** `down` is the full-cadence fallback; `live` is the slow safety poll. */
+  pollMode: 'down' | 'live'
+  status: RoomRealtimeStatus
+  /** This room will not get a stream again; poll and stop trying. */
+  givenUp: boolean
+  unsubscribeActivity: () => void
+  /** Guards callbacks from a connection that has already been replaced. */
+  generation: number
+}
+
+const streams = new Map<string, SseStream>()
+
+/** Set by a 503: the backend says realtime is off here, for every room. */
+let environmentRealtimeOff = false
+
+export function createSseTransport(options: SseTransportOptions = {}): RoomRealtimeTransport {
+  const connect = options.connect ?? xhrSseConnector
+  const fallback = options.fallback ?? pollingTransport
+  const safety = options.safety ?? safetyPollingTransport
+  const activity = options.activity ?? appActivity
+  const auth = options.auth ?? currentAccessGrant
+  const apiUrl = options.apiUrl ?? env.apiUrl
+  const enabled = options.enabled ?? true
+  const now = options.now ?? Date.now
+
+  /**
+   * Status reaches subscribers asynchronously. `subscribe` runs inside a React
+   * effect and a subscriber sets state from this, so calling it synchronously
+   * would set state during render.
+   */
+  const setStatus = (stream: SseStream, status: RoomRealtimeStatus) => {
+    if (stream.status === status) return
+    stream.status = status
+    const listeners = [...stream.listeners]
+    setTimeout(() => {
+      for (const listener of listeners) listener(status)
+    }, 0)
+  }
+
+  /**
+   * Keeps exactly one poll subscription per subscribed phase, at the cadence
+   * the given mode asks for. Called whenever the mode changes or a phase
+   * appears, so a screen opened mid-stream is covered too.
+   */
+  const poll = (stream: SseStream, mode: 'down' | 'live') => {
+    if (mode !== stream.pollMode) {
+      for (const teardown of stream.polls.values()) teardown()
+      stream.polls.clear()
+      stream.pollMode = mode
+    }
+    const transport = mode === 'live' ? safety : fallback
+    for (const phase of stream.phases.keys()) {
+      if (stream.polls.has(phase)) continue
+      stream.polls.set(
+        phase,
+        transport.subscribe({ roomId: stream.roomId, phase, queryClient: stream.queryClient }),
+      )
+    }
+  }
+
+  const startFallback = (stream: SseStream) => {
+    poll(stream, 'down')
+    setStatus(stream, 'polling')
+  }
+
+  const stopPolls = (stream: SseStream) => {
+    for (const teardown of stream.polls.values()) teardown()
+    stream.polls.clear()
+  }
+
+  const clearTimers = (stream: SseStream) => {
+    if (stream.retryTimer) clearTimeout(stream.retryTimer)
+    if (stream.tokenTimer) clearTimeout(stream.tokenTimer)
+    stream.retryTimer = null
+    stream.tokenTimer = null
+  }
+
+  const closeConnection = (stream: SseStream) => {
+    stream.generation += 1
+    stream.connection?.close()
+    stream.connection = null
+    stream.opening = false
+  }
+
+  /** Does any subscribed phase care about this event type? */
+  const interested = (stream: SseStream, type: string): type is RoomEventType => {
+    for (const phase of stream.phases.keys()) {
+      if ((ROOM_PHASE_EVENTS[phase] as readonly string[]).includes(type)) return true
+    }
+    return false
+  }
+
+  const planIdOf = (data: string): string | undefined => {
+    try {
+      const parsed: unknown = JSON.parse(data)
+      const payload = (parsed as { payload?: { planId?: unknown } } | null)?.payload
+      return typeof payload?.planId === 'string' ? payload.planId : undefined
+    } catch {
+      // A payload we cannot read still tells us the room moved; the event type
+      // alone decides what to invalidate.
+      return undefined
+    }
+  }
+
+  const scheduleRetry = (stream: SseStream) => {
+    if (stream.givenUp || stream.retryTimer) return
+    const wait = Math.min(SSE_RECONNECT_BASE_MS * 2 ** stream.attempt, SSE_RECONNECT_MAX_MS)
+    stream.attempt += 1
+    stream.retryTimer = setTimeout(() => {
+      stream.retryTimer = null
+      void open(stream)
+    }, wait)
+  }
+
+  /** Stop streaming this room for good; polling carries it from here. */
+  const giveUp = (stream: SseStream) => {
+    stream.givenUp = true
+    clearTimers(stream)
+    closeConnection(stream)
+    startFallback(stream)
+  }
+
+  const open = async (stream: SseStream) => {
+    if (!streams.has(stream.roomId) || stream.givenUp) return
+    if (!enabled || environmentRealtimeOff) {
+      startFallback(stream)
+      return
+    }
+    if (!activity.isActive()) return
+    // Two screens subscribing in the same tick both reach here before either
+    // `auth()` has answered, which used to open the room twice.
+    if (stream.connection || stream.opening) return
+    stream.opening = true
+
+    // Only the first attempt reads as "connecting"; a reconnect behind a live
+    // poll is still polling as far as a screen is concerned.
+    if (stream.polls.size === 0) setStatus(stream, 'connecting')
+
+    const grant = await auth().catch(() => null)
+    stream.opening = false
+    // Re-checked after the await: the screen may have gone in the meantime.
+    if (!streams.has(stream.roomId) || stream.givenUp) return
+    if (!grant) {
+      // No session means no stream and no poll worth making either; the room
+      // queries themselves will fail and say so.
+      startFallback(stream)
+      scheduleRetry(stream)
+      return
+    }
+
+    const generation = stream.generation
+    const fresh = (): boolean =>
+      streams.get(stream.roomId) === stream && stream.generation === generation
+
+    const headers: Record<string, string> = { authorization: `Bearer ${grant.token}` }
+    if (stream.lastEventId) headers['last-event-id'] = stream.lastEventId
+
+    stream.connection = connect({
+      url: `${apiUrl.replace(/\/+$/, '')}/rooms/${encodeURIComponent(stream.roomId)}/events`,
+      headers,
+
+      onOpen: () => {
+        if (!fresh()) return
+        stream.attempt = 0
+        // The stream carries most events; the slow poll stays for the ones it
+        // does not (GoGo-BE#608). Never drop cover entirely.
+        poll(stream, 'live')
+        setStatus(stream, 'live')
+        // Replace the connection before the token it was authorised with dies.
+        const lifetime = Math.max(grant.expiresAt - now() - SSE_TOKEN_MARGIN_MS, SSE_RECONNECT_BASE_MS)
+        if (stream.tokenTimer) clearTimeout(stream.tokenTimer)
+        stream.tokenTimer = setTimeout(() => {
+          stream.tokenTimer = null
+          if (!fresh()) return
+          closeConnection(stream)
+          void open(stream)
+        }, lifetime)
+      },
+
+      onEvent: event => {
+        if (!fresh()) return
+        // Kept even for events nothing is watching: it is where a resumed
+        // stream restarts, and skipping it would replay them forever.
+        if (event.id) stream.lastEventId = event.id
+        if (event.type === 'heartbeat' || !interested(stream, event.type)) return
+
+        const planId = planIdOf(event.data)
+        for (const queryKey of eventQueryKeys({
+          type: event.type,
+          roomId: stream.roomId,
+          ...(planId ? { planId } : {}),
+        })) {
+          void stream.queryClient.invalidateQueries({ queryKey })
+        }
+      },
+
+      onClose: ({ status }) => {
+        if (!fresh()) return
+        stream.connection = null
+        if (stream.tokenTimer) {
+          clearTimeout(stream.tokenTimer)
+          stream.tokenTimer = null
+        }
+
+        if (status === ENVIRONMENT_OFF_STATUS) {
+          // The backend's own kill switch. Nothing on this device will get a
+          // stream until it restarts, so stop asking every room separately.
+          environmentRealtimeOff = true
+          giveUp(stream)
+          return
+        }
+        if (status !== null && ROOM_FATAL_STATUSES.has(status)) {
+          giveUp(stream)
+          return
+        }
+
+        // A clean end (the server rotating the stream) or a dropped socket:
+        // poll meanwhile and come back.
+        startFallback(stream)
+        scheduleRetry(stream)
+      },
+    })
+  }
+
+  return {
+    kind: 'sse',
+
+    subscribe({ roomId, phase, queryClient, onStatusChange }) {
+      let stream = streams.get(roomId)
+      if (!stream) {
+        const created: SseStream = {
+          roomId,
+          queryClient,
+          phases: new Map(),
+          listeners: new Set(),
+          connection: null,
+          opening: false,
+          lastEventId: null,
+          attempt: 0,
+          retryTimer: null,
+          tokenTimer: null,
+          polls: new Map(),
+          pollMode: 'down',
+          status: 'connecting',
+          givenUp: false,
+          unsubscribeActivity: () => undefined,
+          generation: 0,
+        }
+        // Backgrounded, the socket is dropped rather than left to rot behind a
+        // suspended app; foregrounded, it opens again at once.
+        created.unsubscribeActivity = activity.subscribe(active => {
+          if (streams.get(roomId) !== created) return
+          if (active) {
+            created.attempt = 0
+            if (created.retryTimer) {
+              clearTimeout(created.retryTimer)
+              created.retryTimer = null
+            }
+            void open(created)
+          } else {
+            closeConnection(created)
+            clearTimers(created)
+          }
+        })
+        stream = created
+        streams.set(roomId, created)
+      }
+
+      stream.phases.set(phase, (stream.phases.get(phase) ?? 0) + 1)
+      if (onStatusChange) {
+        stream.listeners.add(onStatusChange)
+        const current = stream.status
+        setTimeout(() => onStatusChange(current), 0)
+      }
+
+      // A phase that appeared mid-stream needs its own poller, at whichever
+      // cadence the stream is currently running.
+      poll(stream, stream.pollMode)
+      void open(stream)
+
+      const subscribed = stream
+      return () => {
+        if (streams.get(roomId) !== subscribed) return
+        if (onStatusChange) subscribed.listeners.delete(onStatusChange)
+
+        const remaining = (subscribed.phases.get(phase) ?? 1) - 1
+        if (remaining > 0) {
+          subscribed.phases.set(phase, remaining)
+          return
+        }
+        subscribed.phases.delete(phase)
+        const teardown = subscribed.polls.get(phase)
+        if (teardown) {
+          teardown()
+          subscribed.polls.delete(phase)
+        }
+        if (subscribed.phases.size > 0) return
+
+        clearTimers(subscribed)
+        closeConnection(subscribed)
+        stopPolls(subscribed)
+        subscribed.unsubscribeActivity()
+        streams.delete(roomId)
+      }
+    },
+  }
+}
+
+/**
+ * The transport the app uses. One assignment point: turning the stream off is
+ * this line, and no screen knows the difference.
+ */
+export const roomRealtimeTransport: RoomRealtimeTransport = createSseTransport()
+
+/** Test seam: forget every stream and the environment kill switch. */
+export function resetSseTransportForTests(): void {
+  for (const stream of streams.values()) {
+    if (stream.retryTimer) clearTimeout(stream.retryTimer)
+    if (stream.tokenTimer) clearTimeout(stream.tokenTimer)
+    stream.connection?.close()
+    for (const teardown of stream.polls.values()) teardown()
+    stream.unsubscribeActivity()
+  }
+  streams.clear()
+  environmentRealtimeOff = false
 }
