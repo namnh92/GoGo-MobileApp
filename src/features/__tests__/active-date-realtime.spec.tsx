@@ -22,6 +22,7 @@ const mockFocused = { value: true }
 const subscriptions: {
   roomId: string
   phase: string
+  planId?: string
   active: boolean
   queryClient: QueryClient
 }[] = []
@@ -58,12 +59,14 @@ jest.mock('@/shared/api/realtime/transport', () => {
         roomId,
         phase,
         queryClient,
+        planId,
       }: {
         roomId: string
         phase: string
         queryClient: QueryClient
+        planId?: string
       }) {
-        const record = { roomId, phase, active: true, queryClient }
+        const record = { roomId, phase, planId, active: true, queryClient }
         subscriptions.push(record)
         return () => {
           record.active = false
@@ -149,7 +152,9 @@ describe('active date · staying level with the other phone (#285)', () => {
     await screen.findByText('Quán A')
 
     expect(live()).toHaveLength(1)
-    expect(live()[0]).toMatchObject({ roomId: 'room-1', phase: 'date' })
+    // The plan id travels with it: without it the transport refreshes the
+    // room's current plan and never the plan this screen is routed by (#285).
+    expect(live()[0]).toMatchObject({ roomId: 'room-1', phase: 'date', planId: 'plan-1' })
   })
 
   it('moves to the next stop when the other phone completes this one', async () => {

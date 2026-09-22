@@ -19,6 +19,16 @@ export interface RoomSubscription {
   phase: RoomPhase
   queryClient: QueryClient
   /**
+   * The plan this screen is keyed by, where it has one.
+   *
+   * `plan.updated` refreshes `roomCurrentPlan(roomId)` on its own, but a screen
+   * routed by plan id reads `plan(planId)` — a different key. A transport that
+   * synthesises events (the poller) has no way to know that id, so the screen
+   * hands it over. Without it the date screen subscribed and still never
+   * refetched the plan it was showing (#285).
+   */
+  planId?: string
+  /**
    * Reports transport health so a screen can show a degraded state. Must be
    * called asynchronously — a subscriber sets React state from it, and
    * `subscribe` runs inside an effect.
@@ -64,6 +74,8 @@ interface RoomPoller {
   queryClient: QueryClient
   /** Subscriber count per phase; cadence follows the fastest phase present. */
   phases: Map<RoomPhase, number>
+  /** Plan ids the subscribed screens are keyed by, with their subscriber count. */
+  planIds: Map<string, number>
   timer: ReturnType<typeof setTimeout> | null
   idleTicks: number
   inFlight: boolean
@@ -84,10 +96,15 @@ export function createPollingTransport(activity: AppActivity = appActivity): Roo
    */
   const keysToInvalidate = (poller: RoomPoller): (readonly unknown[])[] => {
     const seen = new Map<string, readonly unknown[]>()
+    // No plan id still asks for the room's current plan; each id a screen gave
+    // us adds the plan that screen is actually showing.
+    const planIds: (string | undefined)[] = poller.planIds.size > 0 ? [...poller.planIds.keys()] : [undefined]
     for (const phase of poller.phases.keys()) {
       for (const type of ROOM_PHASE_EVENTS[phase]) {
-        for (const key of eventQueryKeys({ type, roomId: poller.roomId })) {
-          seen.set(JSON.stringify(key), key)
+        for (const planId of planIds) {
+          for (const key of eventQueryKeys({ type, roomId: poller.roomId, ...(planId ? { planId } : {}) })) {
+            seen.set(JSON.stringify(key), key)
+          }
         }
       }
     }
@@ -130,13 +147,14 @@ export function createPollingTransport(activity: AppActivity = appActivity): Roo
   return {
     kind: 'polling',
 
-    subscribe({ roomId, phase, queryClient }) {
+    subscribe({ roomId, phase, queryClient, planId }) {
       let poller = pollers.get(roomId)
       if (!poller) {
         const created: RoomPoller = {
           roomId,
           queryClient,
           phases: new Map(),
+          planIds: new Map(),
           timer: null,
           idleTicks: 0,
           inFlight: false,
@@ -160,6 +178,7 @@ export function createPollingTransport(activity: AppActivity = appActivity): Roo
       }
 
       poller.phases.set(phase, (poller.phases.get(phase) ?? 0) + 1)
+      if (planId) poller.planIds.set(planId, (poller.planIds.get(planId) ?? 0) + 1)
       // A new subscriber resets the backoff: a screen just opened wants fresh
       // data on the base cadence, whatever the room was doing before.
       poller.idleTicks = 0
@@ -171,6 +190,12 @@ export function createPollingTransport(activity: AppActivity = appActivity): Roo
         const remaining = (current.phases.get(phase) ?? 1) - 1
         if (remaining > 0) current.phases.set(phase, remaining)
         else current.phases.delete(phase)
+
+        if (planId) {
+          const plansLeft = (current.planIds.get(planId) ?? 1) - 1
+          if (plansLeft > 0) current.planIds.set(planId, plansLeft)
+          else current.planIds.delete(planId)
+        }
 
         if (current.phases.size > 0) {
           if (activity.isActive() && !current.inFlight) schedule(current, baseInterval(current))

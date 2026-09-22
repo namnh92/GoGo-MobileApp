@@ -67,7 +67,7 @@ export default function ActiveDateScreen() {
    * screen, which is exactly the `date` phase. The cadence is the transport's
    * business, so there is no timer here.
    */
-  useRoomRealtime(summary?.roomId, 'date', { enabled: useScreenFocused() })
+  useRoomRealtime(summary?.roomId, 'date', { enabled: useScreenFocused(), planId })
 
   const completeStop = useCompletePlanStop(planId)
   const checkinStop = useCheckinPlanStop(planId)
