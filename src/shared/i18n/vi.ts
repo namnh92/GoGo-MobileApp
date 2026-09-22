@@ -289,6 +289,8 @@ export const viMessages = {
   'gogoRoom.previewGuest': 'Xem màn hình người được mời',
   'gogoRoom.joined': '{{joined}}/{{total}} người đã tham gia',
   'gogoRoom.myPreferences': 'Chọn sở thích của bạn',
+  'gogoRoom.returnToVote': 'Quay lại bình chọn',
+  'gogoRoom.returnToResult': 'Xem kết quả bình chọn',
   'gogoRoom.startMatching': 'Bắt đầu ghép ✨',
   'gogoRoom.starting': 'Đang ghép…',
   'gogoRoom.startFailed': 'Chưa ghép được. Thử lại nhé.',
