@@ -107,6 +107,27 @@ export async function startRoomDate(roomId: string): Promise<OpResponse<'transit
 }
 
 /**
+ * #269 — the host's "Kết thúc date": `active → completed` (SRS §7.2 "finish").
+ *
+ * The app used to end only its own screen. Every stop was completed, the
+ * summary said the date was over, and the room stayed `active` for good — so
+ * the Plans history tab, which filters on `completed,cancelled,expired`
+ * (#213), never showed a date anyone had actually been on.
+ *
+ * Host-only on the server, so only the host calls it. A conflict means the room
+ * has already moved — another device finished it, or it was cancelled — and the
+ * answer is the room as it stands, exactly as starting the date does.
+ */
+export async function finishRoomDate(roomId: string): Promise<OpResponse<'transitionRoom'>> {
+  try {
+    return await transitionRoom(roomId, { status: 'completed' })
+  } catch (error) {
+    if (!isConflict(error)) throw error
+    return getRoom(roomId)
+  }
+}
+
+/**
  * BE-BFF-022 — host-only while the room is being planned. `null` (or an empty
  * string) clears the name. A name is not a constraint, so there is no version
  * to send and nothing goes stale.

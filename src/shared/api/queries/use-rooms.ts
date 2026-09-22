@@ -174,6 +174,56 @@ export function useStartDate(roomId: string | undefined, planId?: string) {
   return { ...mutation, start }
 }
 
+/**
+ * #269 — the host's "Kết thúc date": `active → completed`.
+ *
+ * Single-flight like starting the date, for the same reason: the last stop's
+ * sheet can close twice in quick succession and one ending is one transition.
+ * Only the host may send it, so the caller checks the role first — a member
+ * closing the same sheet ends their own screen and nothing else.
+ *
+ * Every answer refreshes the room, its plan and the Plans tabs, which filter by
+ * room status (#213): a finished date has to leave the active tab and appear in
+ * history.
+ */
+export function useFinishDate(roomId: string | undefined, planId?: string) {
+  const queryClient = useQueryClient()
+  const inFlight = useRef(false)
+  const mutation = useMutation({
+    // Ending the date is one deliberate action; an automatic retry would sit
+    // behind a screen the person has already left.
+    retry: false,
+    networkMode: 'always',
+    mutationFn: () => roomsApi.finishRoomDate(roomId as string),
+    onSuccess: room => {
+      queryClient.setQueryData(queryKeys.room(room.id), room)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.room(room.id), exact: true })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roomCurrentPlan(room.id) })
+      if (planId) void queryClient.invalidateQueries({ queryKey: queryKeys.plan(planId) })
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
+    },
+    onError: error => {
+      // A refusal means the cached role is behind what the server believes.
+      if (roomId && isForbidden(error)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId), exact: true })
+      }
+    },
+  })
+
+  const { mutateAsync } = mutation
+  const finish = useCallback(async (): Promise<RoomSummary | null> => {
+    if (!roomId || inFlight.current) return null
+    inFlight.current = true
+    try {
+      return await mutateAsync()
+    } finally {
+      inFlight.current = false
+    }
+  }, [roomId, mutateAsync])
+
+  return { ...mutation, finish }
+}
+
 /** APP-049 (#202): the list shows the name too, so it refetches; nothing goes stale. */
 export function useRenameRoom(roomId: string) {
   const queryClient = useQueryClient()
