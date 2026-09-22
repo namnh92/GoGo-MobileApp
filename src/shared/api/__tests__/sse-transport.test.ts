@@ -7,6 +7,7 @@ import { parseSseChunk, type SseConnectOptions } from '../realtime/sse-connectio
 import {
   createSseTransport,
   resetSseTransportForTests,
+  SSE_IDLE_GRACE_MS,
   SSE_RECONNECT_BASE_MS,
   SSE_RECONNECT_MAX_MS,
   SSE_TOKEN_MARGIN_MS,
@@ -203,7 +204,97 @@ describe('sseTransport', () => {
     a()
     expect(h.connector.last().closed).toBe(false)
     b()
+    await vi.advanceTimersByTimeAsync(SSE_IDLE_GRACE_MS)
     expect(h.connector.last().closed).toBe(true)
+  })
+
+  /**
+   * Navigating between two screens of the same room unmounts one before the
+   * next mounts. Observed on a device: every hop closed the connection and the
+   * new one pulled a full replay back down.
+   */
+  it('survives the gap when one screen hands the room to the next', async () => {
+    const h = harness()
+    const lobby = h.transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    lobby()
+    // Polling stops immediately — nothing is on screen to keep fresh.
+    expect(h.safety.live()).toHaveLength(0)
+    expect(h.connector.last().closed).toBe(false)
+
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await vi.advanceTimersByTimeAsync(SSE_IDLE_GRACE_MS * 2)
+    await flush()
+
+    expect(h.connector.opened).toHaveLength(1)
+    expect(h.connector.last().closed).toBe(false)
+    expect(h.safety.live().map(s => s.phase)).toEqual(['plan'])
+  })
+
+  it('closes the stream once the grace window passes with nothing watching', async () => {
+    const h = harness()
+    const teardown = h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    teardown()
+    await vi.advanceTimersByTimeAsync(SSE_IDLE_GRACE_MS + 100)
+    expect(h.connector.last().closed).toBe(true)
+  })
+
+  /**
+   * `heartbeat` and `resync` carry no room sequence; the SSE layer fills their
+   * `id` with a per-connection counter. Storing one made the next connection
+   * resume from a number meaning nothing in this room — on DEV that replayed
+   * 13 KB of history on every reconnect, and with a lower event count it would
+   * have skipped real events instead.
+   */
+  it('never takes a resume point from a heartbeat', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.connector.last().onEvent(sse('plan.updated', { planId: 'p1' }, '42'))
+    h.connector.last().onEvent({ type: 'heartbeat', id: '1', data: '{}' })
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+
+    expect(h.connector.last().headers['last-event-id']).toBe('42')
+  })
+
+  it('refetches everything the screens show when the server says the replay window was exceeded', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    h.keys()
+
+    h.connector.last().onEvent({ type: 'resync', id: '3', data: '{"reason":"replay_window_exceeded"}' })
+
+    const keys = h.keys()
+    expect(keys).toContain(JSON.stringify(queryKeys.room(ROOM_ID)))
+    expect(keys).toContain(JSON.stringify(queryKeys.roomCurrentPlan(ROOM_ID)))
+    // And it is not a resume point either.
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+    expect(h.connector.last().headers['last-event-id']).toBeUndefined()
+  })
+
+  it('renews the token and retries after a 401 rather than dropping the room to polling', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onClose({ status: 401 })
+
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+    expect(h.connector.opened).toHaveLength(2)
+    expect(h.connector.last().headers.authorization).toBe('Bearer t2')
   })
 
   it('ignores heartbeats and events no subscribed phase shows, but still tracks the resume point', async () => {

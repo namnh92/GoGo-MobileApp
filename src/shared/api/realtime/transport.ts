@@ -282,13 +282,29 @@ export const SSE_RECONNECT_MAX_MS = 30_000
 export const SSE_TOKEN_MARGIN_MS = 60_000
 
 /**
+ * How long a stream outlives its last subscriber.
+ *
+ * Navigating between two screens of the same room unmounts one before the next
+ * mounts, so the subscriber count touches zero in between. Tearing the
+ * connection down there and opening another cost a reconnect and a full replay
+ * on every hop — observed on a device walking lobby → plan → active date.
+ * A poller could be dropped and recreated for free; a stream cannot.
+ */
+export const SSE_IDLE_GRACE_MS = 5_000
+
+/**
  * Statuses that mean SSE is not coming back on its own, per room: the actor is
  * not a member (403), the room is gone (404), or the route does not exist on
- * this backend (404/501). A 503 is the environment's kill switch
+ * this backend (501). A 503 is the environment's kill switch
  * (`REALTIME_SSE_ENABLED=false`) and takes the whole process down to polling —
  * retrying it on every room would be pure noise.
+ *
+ * A 401 is deliberately absent: the next attempt asks `auth()` again, which
+ * renews an expired token through the client's single-flight refresh. Giving up
+ * on it would drop a room to polling for the rest of the session over a token
+ * that was about to be replaced anyway.
  */
-const ROOM_FATAL_STATUSES = new Set([401, 403, 404, 501])
+const ROOM_FATAL_STATUSES = new Set([403, 404, 501])
 const ENVIRONMENT_OFF_STATUS = 503
 
 export interface SseTransportOptions {
@@ -325,6 +341,8 @@ interface SseStream {
   attempt: number
   retryTimer: ReturnType<typeof setTimeout> | null
   tokenTimer: ReturnType<typeof setTimeout> | null
+  /** Set while the stream is outliving its last subscriber. */
+  graceTimer: ReturnType<typeof setTimeout> | null
   /** One poll subscription per distinct phase, at whichever cadence `pollMode` names. */
   polls: Map<RoomPhase, () => void>
   /** `down` is the full-cadence fallback; `live` is the slow safety poll. */
@@ -400,8 +418,10 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
   const clearTimers = (stream: SseStream) => {
     if (stream.retryTimer) clearTimeout(stream.retryTimer)
     if (stream.tokenTimer) clearTimeout(stream.tokenTimer)
+    if (stream.graceTimer) clearTimeout(stream.graceTimer)
     stream.retryTimer = null
     stream.tokenTimer = null
+    stream.graceTimer = null
   }
 
   const closeConnection = (stream: SseStream) => {
@@ -508,10 +528,30 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
 
       onEvent: event => {
         if (!fresh()) return
-        // Kept even for events nothing is watching: it is where a resumed
-        // stream restarts, and skipping it would replay them forever.
+
+        // `heartbeat` and `resync` carry no room sequence. The server leaves
+        // their `id` unset and the SSE layer fills in a per-connection counter,
+        // so storing one as the resume point asks the next connection to
+        // continue from a number that means nothing in this room — replaying
+        // everything, or worse, skipping past real events. Only a room event
+        // moves the resume point.
+        if (event.type === 'heartbeat') return
+        if (event.type === 'resync') {
+          // The gap was wider than the server's replay buffer, so nothing
+          // resumed. Refetch everything the subscribed phases show rather than
+          // carry on from a hole.
+          for (const phase of stream.phases.keys()) {
+            for (const type of ROOM_PHASE_EVENTS[phase]) {
+              for (const queryKey of eventQueryKeys({ type, roomId: stream.roomId })) {
+                void stream.queryClient.invalidateQueries({ queryKey })
+              }
+            }
+          }
+          return
+        }
+
         if (event.id) stream.lastEventId = event.id
-        if (event.type === 'heartbeat' || !interested(stream, event.type)) return
+        if (!interested(stream, event.type)) return
 
         const planId = planIdOf(event.data)
         for (const queryKey of eventQueryKeys({
@@ -568,6 +608,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           attempt: 0,
           retryTimer: null,
           tokenTimer: null,
+          graceTimer: null,
           polls: new Map(),
           pollMode: 'down',
           status: 'connecting',
@@ -595,6 +636,12 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         streams.set(roomId, created)
       }
 
+      // A screen arriving inside the grace window keeps the connection it
+      // would otherwise have replaced.
+      if (stream.graceTimer) {
+        clearTimeout(stream.graceTimer)
+        stream.graceTimer = null
+      }
       stream.phases.set(phase, (stream.phases.get(phase) ?? 0) + 1)
       if (onStatusChange) {
         stream.listeners.add(onStatusChange)
@@ -625,11 +672,19 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         }
         if (subscribed.phases.size > 0) return
 
-        clearTimers(subscribed)
-        closeConnection(subscribed)
+        // Nothing is watching. Stop polling at once — that is pure waste — but
+        // let the stream outlive the gap between one screen unmounting and the
+        // next mounting.
         stopPolls(subscribed)
-        subscribed.unsubscribeActivity()
-        streams.delete(roomId)
+        if (subscribed.graceTimer) clearTimeout(subscribed.graceTimer)
+        subscribed.graceTimer = setTimeout(() => {
+          subscribed.graceTimer = null
+          if (streams.get(roomId) !== subscribed || subscribed.phases.size > 0) return
+          clearTimers(subscribed)
+          closeConnection(subscribed)
+          subscribed.unsubscribeActivity()
+          streams.delete(roomId)
+        }, SSE_IDLE_GRACE_MS)
       }
     },
   }
@@ -646,6 +701,7 @@ export function resetSseTransportForTests(): void {
   for (const stream of streams.values()) {
     if (stream.retryTimer) clearTimeout(stream.retryTimer)
     if (stream.tokenTimer) clearTimeout(stream.tokenTimer)
+    if (stream.graceTimer) clearTimeout(stream.graceTimer)
     stream.connection?.close()
     for (const teardown of stream.polls.values()) teardown()
     stream.unsubscribeActivity()
