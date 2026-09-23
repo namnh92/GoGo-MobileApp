@@ -205,9 +205,15 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
  * refresh tokens are single-use, so a second rotator would revoke the family.
  * This shares the same single-flight refresh as every other call.
  */
-export async function currentAccessGrant(): Promise<{ token: string; expiresAt: number } | null> {
+export async function currentAccessGrant(
+  options: { force?: boolean } = {},
+): Promise<{ token: string; expiresAt: number } | null> {
   let session = getSession() ?? (await hydrateSession())
-  if (session && isAccessTokenExpired(session)) session = await refreshSession()
+  // `force` is for a caller the server has just refused. Age is no guide there:
+  // the token can be minutes from expiry and still be the one that earned the
+  // 401, so asking again without renewing would resend exactly what was
+  // rejected (GoGo-MobileApp#286).
+  if (session && (options.force || isAccessTokenExpired(session))) session = await refreshSession()
   if (!session) return null
   return { token: session.accessToken, expiresAt: session.expiresAt }
 }

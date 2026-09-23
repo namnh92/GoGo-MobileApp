@@ -352,8 +352,12 @@ export interface SseTransportOptions {
    */
   safety?: RoomRealtimeTransport
   activity?: AppActivity
-  /** A bearer good for a stream, and when it stops being one. */
-  auth?: () => Promise<{ token: string; expiresAt: number } | null>
+  /**
+   * A bearer good for a stream, and when it stops being one. `force` renews
+   * even when the token still looks fresh — the only way past a server that has
+   * just refused the one we hold.
+   */
+  auth?: (options?: { force?: boolean }) => Promise<{ token: string; expiresAt: number } | null>
   /** Base URL including `/v1`; defaults to the app's configured API. */
   apiUrl?: string
   /** Client kill switch. `false` never opens a stream and polls instead. */
@@ -392,6 +396,8 @@ interface SseStream {
   status: RoomRealtimeStatus
   /** This room will not get a stream again; poll and stop trying. */
   givenUp: boolean
+  /** The last attempt was refused, so the next one must not reuse that token. */
+  renewFirst: boolean
   unsubscribeActivity: () => void
   /** Guards callbacks from a connection that has already been replaced. */
   generation: number
@@ -530,6 +536,12 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
   /** Stop streaming this room for good; polling carries it from here. */
   const giveUp = (stream: SseStream) => {
     stream.givenUp = true
+    // Nothing is watching and the hand-off timer is about to be cancelled with
+    // it: let go now rather than keep a dead stream and its activity listener.
+    if (stream.phases.size === 0) {
+      dispose(stream)
+      return
+    }
     clearTimers(stream)
     closeConnection(stream)
     startFallback(stream)
@@ -542,6 +554,10 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       return
     }
     if (!activity.isActive()) return
+    // A reconnect is already scheduled. Another screen opening the same room is
+    // not a reason to skip the wait — that is how a rate-limited room gets hit
+    // again on every navigation.
+    if (stream.retryTimer) return
     // A stream is for the screens watching it. During the hand-off window the
     // existing connection is deliberately kept, but nothing here may open a new
     // one for a room nobody is looking at.
@@ -560,13 +576,17 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     // picked up that new value and opened a connection for an app that had
     // already gone away.
     const attemptGeneration = stream.generation
-    const grant = await auth().catch(() => null)
+    const grant = await auth({ force: stream.renewFirst }).catch(() => null)
+    stream.renewFirst = false
     // Whatever happened while we waited decides this, not the fact that a token
     // arrived: the stream may have been disposed, given up, superseded by a
     // newer attempt, lost its last screen, or the app may have backgrounded.
     const stillWanted =
       streams.get(stream.roomId) === stream &&
       !stream.givenUp &&
+      // The environment switch may have been thrown by another room while this
+      // attempt was waiting for its token.
+      !environmentRealtimeOff &&
       stream.generation === attemptGeneration &&
       stream.phases.size > 0 &&
       activity.isActive()
@@ -667,9 +687,13 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         }
 
         if (status === ENVIRONMENT_OFF_STATUS) {
-          // The backend's own kill switch. Nothing on this device will get a
-          // stream until it restarts, so stop asking every room separately.
+          // The backend's own kill switch. It is a fact about the environment,
+          // not about this room: every stream on the device goes to polling,
+          // including ones already live or still waiting on a token.
           environmentRealtimeOff = true
+          for (const other of [...streams.values()]) {
+            if (other !== stream) giveUp(other)
+          }
           giveUp(stream)
           return
         }
@@ -678,6 +702,9 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           return
         }
 
+        // A refusal of the credential itself: the next attempt has to carry a
+        // different one, however fresh this one still looks locally.
+        if (status === 401) stream.renewFirst = true
         // A clean end (the server rotating the stream) or a dropped socket:
         // poll meanwhile and come back.
         startFallback(stream)
@@ -709,6 +736,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           pollMode: 'down',
           status: 'connecting',
           givenUp: false,
+          renewFirst: false,
           unsubscribeActivity: () => undefined,
           generation: 0,
         }

@@ -103,6 +103,8 @@ interface Harness {
   authCalls: () => number
   /** Releases a deferred `auth()`; only for `grant: 'deferred'`. */
   releaseAuth: () => void
+  /** The `force` flag each `auth()` call carried, in order. */
+  authForced: () => boolean[]
 }
 
 function harness(
@@ -114,6 +116,7 @@ function harness(
   const { client, keys } = fakeClient()
   const activity = fakeActivity()
   let calls = 0
+  const forced: boolean[] = []
   let held: { token: string; expiresAt: number } | null = null
   let release: (() => void) | null = null
   const transport = createSseTransport({
@@ -121,8 +124,9 @@ function harness(
     fallback: fallback.transport,
     safety: safety.transport,
     activity: activity.activity,
-    auth: async () => {
+    auth: async (opts?: { force?: boolean }) => {
       calls += 1
+      forced.push(opts?.force === true)
       if (options.grant === 'none') return null
       if (options.grant === 'renews-like-the-app') {
         // What `currentAccessGrant` really does: hand back the session's token
@@ -153,6 +157,7 @@ function harness(
     statuses: [],
     authCalls: () => calls,
     releaseAuth: () => release?.(),
+    authForced: () => forced,
   }
 }
 
@@ -758,5 +763,94 @@ describe('sseTransport × a screen routed by plan id', () => {
 
     expect(fallback.keys().length).toBeGreaterThan(0)
     expect(safety.keys().length).toBeGreaterThan(0)
+  })
+
+  /**
+   * Second-pass review findings, 2026-09-23.
+   */
+  it('renews the credential the server just refused instead of resending it', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    expect(h.authForced()).toEqual([false])
+
+    h.connector.last().onClose({ status: 401 })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+
+    // A token that still looks fresh locally is exactly the one that was
+    // refused; the retry has to ask for a different one.
+    expect(h.authForced()).toEqual([false, true])
+  })
+
+  it('does not renew again once the refusal is behind it', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onClose({ status: 401 })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS)
+    await flush()
+
+    expect(h.authForced().slice(2)).toEqual([false])
+  })
+
+  it('makes a new screen wait out the backoff rather than reopen at once', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onClose({ status: null })
+    expect(h.connector.opened).toHaveLength(1)
+
+    // Navigating to another screen of the same room must not jump the queue —
+    // that is how a rate-limited room gets hit again on every hop.
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: h.client })
+    await flush()
+    expect(h.connector.opened).toHaveLength(1)
+
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+    expect(h.connector.opened).toHaveLength(2)
+  })
+
+  it('lets go of a refused stream that already has nothing watching it', async () => {
+    const h = harness()
+    const teardown = h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    teardown()
+    // The refusal lands while the hand-off window is still open.
+    h.connector.last().onClose({ status: 403 })
+    await vi.advanceTimersByTimeAsync(SSE_IDLE_GRACE_MS * 3)
+
+    // Nothing left polling, and coming back raises nothing.
+    expect(h.fallback.live()).toHaveLength(0)
+    expect(h.safety.live()).toHaveLength(0)
+    h.activity.set(false)
+    h.activity.set(true)
+    await flush()
+    expect(h.connector.opened).toHaveLength(1)
+  })
+
+  it('takes every room to polling when the environment switch answers, not just the one that asked', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    h.transport.subscribe({ roomId: 'room-2', phase: 'lobby', queryClient: h.client })
+    await flush()
+    h.connector.opened.forEach(c => !c.closed && c.onOpen())
+    expect(h.safety.live()).toHaveLength(2)
+
+    h.connector.opened[0].onClose({ status: 503 })
+    await flush()
+
+    // Both rooms, not only the one that received the answer.
+    expect(h.fallback.live().map(s => s.roomId).sort()).toEqual([ROOM_ID, 'room-2'])
+    expect(h.safety.live()).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS * 2)
+    await flush()
+    expect(h.connector.opened).toHaveLength(2)
   })
 })
