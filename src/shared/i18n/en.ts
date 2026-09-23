@@ -285,6 +285,8 @@ export const enMessages: Record<MessageKey, string> = {
   'gogoRoom.previewGuest': "Preview the guest's screen",
   'gogoRoom.joined': '{{joined}}/{{total}} joined',
   'gogoRoom.myPreferences': 'Pick your preferences',
+  'gogoRoom.returnToVote': 'Return to voting',
+  'gogoRoom.returnToResult': 'View voting results',
   'gogoRoom.startMatching': 'Start matching ✨',
   'gogoRoom.starting': 'Matching…',
   'gogoRoom.startFailed': 'Could not start matching. Please try again.',

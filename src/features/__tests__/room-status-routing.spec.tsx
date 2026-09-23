@@ -271,6 +271,48 @@ describe('a member on the lobby when the host finalizes', () => {
 })
 
 describe('routing once per change', () => {
+  it.each<[string, (overrides: Record<string, unknown>) => ReturnType<typeof member>, Mode, Record<string, string>, string]>([
+    ['member', member, 'vote', {}, '/swipe'],
+    ['host', host, 'vote', {}, '/swipe'],
+    ['member', member, 'match', {}, '/swipe'],
+    ['member', member, 'host', {}, '/match-result'],
+    ['member with a completed ballot', member, 'vote', { 'place-1': 'yes', 'place-2': 'no' }, '/match-result'],
+  ])('#244 lets %s resume the same %s run after Back without starting matching', async (_role, roomForRole, mode, mine, suffix) => {
+    mockStore.set(ROOM_ID, { room: roomForRole({ decisionMode: mode }) })
+    const view = await renderRoom()
+    await poll({ room: roomForRole({ status: 'matching', decisionMode: mode }), suggestions: run(mine) })
+    expect(view.pathname()).toBe(`${LOBBY}${suffix}`)
+    await navigate(() => router.back())
+    await poll({ suggestions: run(mine) })
+    expect(view.pathname()).toBe(LOBBY)
+
+    const label = viMessages[suffix === '/swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult']
+    await fireEvent.press(screen.getByText(label))
+    await settle()
+
+    expect(view.pathname()).toBe(`${LOBBY}${suffix}`)
+    expect(mockStore.rooms[ROOM_ID].suggestions).toEqual(run(mine))
+    expect(mockStart.mutateAsync).not.toHaveBeenCalled()
+    expect(mockStart.mutate).not.toHaveBeenCalled()
+    await navigate(() => router.back())
+    await poll({ suggestions: run(mine) })
+    expect(view.pathname()).toBe(LOBBY)
+  })
+
+  it('#244 removes the return action when a run becomes stale or the room returns to collecting', async () => {
+    mockStore.set(ROOM_ID, { room: member() })
+    await renderRoom()
+    await poll({ room: member({ status: 'matching' }), suggestions: run() })
+    await navigate(() => router.back())
+    expect(screen.getByText(viMessages['gogoRoom.returnToVote'])).toBeTruthy()
+
+    await poll({ suggestions: run({}, RUN_ID, true) })
+    expect(screen.queryByText(viMessages['gogoRoom.returnToVote'])).toBeNull()
+    expect(screen.queryByText(viMessages['gogoRoom.returnToResult'])).toBeNull()
+    await poll({ room: member(), suggestions: run() })
+    expect(screen.queryByText(viMessages['gogoRoom.returnToVote'])).toBeNull()
+  })
+
   it('never pushes the same step twice, and Back or "Về phòng chờ" stay in the lobby', async () => {
     mockStore.set(ROOM_ID, { room: member() })
     const view = await renderRoom()

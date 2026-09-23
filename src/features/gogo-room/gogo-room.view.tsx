@@ -658,6 +658,16 @@ export default function GoGoRoomScreen() {
           </GlassCard>
         ) : null}
 
+        {/* Back must not auto-open a run again, but a person can explicitly
+            return to its current decision screen without saving preferences. */}
+        {screen && nextPath ? (
+          <SecondaryBtn
+            label={t(screen === 'swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult')}
+            onPress={() => router.push(nextPath)}
+            disabled={routingHold.held || startMatching.isPending}
+          />
+        ) : null}
+
         {/*
           One dominant CTA per screen (spec §7). Which one it is depends on
           where the room actually is: while people are still picking, inviting
