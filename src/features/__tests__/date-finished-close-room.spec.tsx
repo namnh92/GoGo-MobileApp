@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider, notifyManager } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, notifyManager, onlineManager } from '@tanstack/react-query'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
 
 import { renderScreen, roomFor } from './harness'
@@ -55,6 +55,7 @@ jest.mock('@/shared/api', () => ({
 
 import DateFinishedScreen from '@/features/active-date/date-finished.view'
 import { ApiError } from '@/shared/api/errors'
+import { queryKeys } from '@/shared/api/query-keys'
 
 const CLOSING = 'Đang khép lại kèo…'
 const CLOSE_FAILED = 'Chưa khép lại được kèo, nên nó vẫn đang diễn ra.'
@@ -115,6 +116,18 @@ function reviewDisabled(): boolean {
   throw new Error('review CTA has no accessibilityState')
 }
 
+/**
+ * The closing mutation retries on its own for a few seconds (#269 review): a
+ * person can walk away from the summary and take the retry button with them, so
+ * a transient failure must not depend on them being there. The failed state only
+ * appears once that runs out, which these tests fast-forward through.
+ */
+async function letRetriesRunOut() {
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(30_000)
+  })
+}
+
 let client: QueryClient
 
 async function openSummary() {
@@ -125,6 +138,7 @@ async function openSummary() {
   )
 }
 
+jest.useFakeTimers()
 beforeAll(() => notifyManager.setScheduler(callback => callback()))
 afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
 
@@ -201,19 +215,22 @@ describe('closing the room from the summary (#269)', () => {
   it('says so when the room could not be closed, and retries on demand', async () => {
     mockPatch.mockRejectedValue(new ApiError(500, { code: 'INTERNAL', message: 'boom' }))
     await openSummary()
+    await letRetriesRunOut()
 
     expect(await screen.findByText(CLOSE_FAILED)).toBeTruthy()
-    await waitFor(() => expect(statusCalls()).toHaveLength(1))
+    const attempts = statusCalls().length
+    expect(attempts).toBeGreaterThanOrEqual(1)
 
     mockPatch.mockResolvedValue(roomFor('group-host', { status: 'completed' } as never))
     await fireEvent.press(screen.getByText(RETRY))
 
-    await waitFor(() => expect(statusCalls()).toHaveLength(2))
+    await waitFor(() => expect(statusCalls().length).toBeGreaterThan(attempts))
   })
 
   it('keeps saying so while the device is offline', async () => {
     mockPatch.mockRejectedValue(new ApiError(0, { code: 'NETWORK_UNREACHABLE', message: 'offline' }))
     await openSummary()
+    await letRetriesRunOut()
 
     expect(await screen.findByText(CLOSE_FAILED)).toBeTruthy()
     expect(screen.getByText(RETRY)).toBeTruthy()
@@ -285,6 +302,7 @@ describe('closing the room from the summary (#269)', () => {
   it('keeps the way out shut while a failed closing is still failed', async () => {
     mockPatch.mockRejectedValue(new ApiError(500, { code: 'INTERNAL', message: 'boom' }))
     await openSummary()
+    await letRetriesRunOut()
 
     expect(await screen.findByText(CLOSE_FAILED)).toBeTruthy()
     expect(reviewDisabled()).toBe(true)
@@ -296,5 +314,56 @@ describe('closing the room from the summary (#269)', () => {
 
     await screen.findByText(REVIEW_CTA)
     await waitFor(() => expect(reviewDisabled()).toBe(false))
+  })
+
+  /**
+   * Second-pass review findings, 2026-09-23.
+   */
+  it('does not trust a cached room from before the date', async () => {
+    // What a host can be holding: the room as it was when they last looked,
+    // before another device started the date and walked every stop.
+    client.setQueryData(queryKeys.room('room-1'), roomFor('group-host', { status: 'ready' } as never))
+
+    await openSummary()
+
+    // The cached `ready` says nothing to close; the read taken now says
+    // otherwise, and that is the one that counts.
+    await waitFor(() => expect(statusCalls()).toHaveLength(1))
+  })
+
+  it('closes the room on its own when the first attempt fails', async () => {
+    let attempts = 0
+    mockPatch.mockImplementation(() => {
+      attempts += 1
+      return attempts === 1
+        ? Promise.reject(new ApiError(503, { code: 'UNAVAILABLE', message: 'later' }))
+        : Promise.resolve(roomFor('group-host', { status: 'completed' } as never))
+    })
+
+    await openSummary()
+    await letRetriesRunOut()
+
+    // Nobody pressed anything: a person who walked away must not be the reason
+    // the room stays open.
+    expect(attempts).toBeGreaterThan(1)
+    expect(screen.queryByText(CLOSE_FAILED)).toBeNull()
+  })
+
+  it('says it is offline and still lets the person leave', async () => {
+    // The plan is the one thing this screen caches for offline use; the room
+    // read is what pauses.
+    client.setQueryData(queryKeys.plan('plan-1'), plan())
+    onlineManager.setOnline(false)
+    try {
+      await openSummary()
+
+      expect(await screen.findByText('Đang ngoại tuyến nên chưa khép lại kèo được. Mở lại màn này khi có mạng.')).toBeTruthy()
+      expect(statusCalls()).toHaveLength(0)
+      // Holding someone on this screen offline buys nothing: nothing can be
+      // closed until the network is back.
+      expect(reviewDisabled()).toBe(false)
+    } finally {
+      onlineManager.setOnline(true)
+    }
   })
 })

@@ -647,6 +647,7 @@ export const viMessages = {
   'dateFinished.closeFailed': 'Chưa khép lại được kèo, nên nó vẫn đang diễn ra.',
   'dateFinished.closeRetry': 'Thử lại',
   'dateFinished.roomLoading': 'Đang đọc trạng thái kèo…',
+  'dateFinished.roomOffline': 'Đang ngoại tuyến nên chưa khép lại kèo được. Mở lại màn này khi có mạng.',
   'dateFinished.roomUnknown': 'Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.',
 
   'review.title': 'Bạn thấy buổi\ndate này thế nào?',

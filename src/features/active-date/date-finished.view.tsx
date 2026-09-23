@@ -1,6 +1,6 @@
 import { glyph } from '@/shared/ui/tokens'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Fragment, useEffect, useMemo, useRef } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text, View } from 'react-native'
@@ -43,13 +43,33 @@ export default function DateFinishedScreen() {
   const stops = summary?.stops ?? []
   const nothingLeft = stops.length > 0 && stops.every(stop => stop.status !== 'planned')
   /**
-   * The room is persisted, so this is usually cached — but on a relaunch from a
-   * plan link it may not be, and it can fail. Until it answers we do not know
-   * whether this person is the host or whether the room is still open, which
-   * means we do not know whether there is anything to close.
+   * The room is persisted, so there is usually something cached — and that is
+   * the trap. A host can arrive here holding a `ready` room from before the
+   * date, while another device has since started it and walked every stop. A
+   * cached status cannot answer "is this room still open"; only a read taken
+   * after this screen opened can.
    */
-  const roomResolved = room.data !== undefined
-  const needsClosing = room.data?.myRole === 'host' && room.data.status === 'active' && nothingLeft
+  const [openedAt] = useState(() => Date.now())
+  const roomFresh = room.isSuccess && room.dataUpdatedAt >= openedAt
+  const needsClosing = roomFresh && room.data?.myRole === 'host' && room.data.status === 'active' && nothingLeft
+
+  // Offline, TanStack pauses the read rather than failing it: there is no error
+  // to report and no answer coming until the network does. Saying "checking"
+  // forever and holding the person here would buy nothing — nothing can be
+  // closed offline either.
+  const roomOffline = room.isPaused && !roomFresh
+  const roomUnreadable = room.isError && !roomFresh
+  const waitingForRoom = !roomFresh && !roomOffline && !roomUnreadable
+
+  const { refetch: refetchRoom } = room
+  // A cached answer is not an answer. Ask again, once, as soon as there is a
+  // room to ask about.
+  const asked = useRef(false)
+  useEffect(() => {
+    if (!summary?.roomId || asked.current) return
+    asked.current = true
+    void refetchRoom()
+  }, [summary?.roomId, refetchRoom])
 
   // One automatic attempt. A failure is not swallowed: it becomes the state
   // below, with a retry, rather than a summary that claims a date is over while
@@ -126,14 +146,20 @@ export default function DateFinishedScreen() {
 
       {/* Leaving is what strands a room `active`, so the way out stays shut
           while the room is unknown or still open. */}
-      {!roomResolved ? (
+      {roomOffline ? (
         <View style={styles.closing}>
-          {room.isError ? (
+          <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+            {t('dateFinished.roomOffline')}
+          </Text>
+        </View>
+      ) : !roomFresh ? (
+        <View style={styles.closing}>
+          {roomUnreadable ? (
             <>
               <Text accessibilityLiveRegion="polite" style={styles.closingFailed}>
                 {t('dateFinished.roomUnknown')}
               </Text>
-              <SecondaryBtn label={t('dateFinished.closeRetry')} onPress={() => void room.refetch()} />
+              <SecondaryBtn label={t('dateFinished.closeRetry')} onPress={() => void refetchRoom()} />
             </>
           ) : (
             <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
@@ -169,7 +195,10 @@ export default function DateFinishedScreen() {
         // Review is the one way off this screen, and neither it nor the shared
         // result closes a room. Following it while the room is unknown or still
         // open takes the retry with it and leaves the date out of history.
-        disabled={!roomResolved || needsClosing}
+        // A read that failed is recoverable right now, so it holds the door;
+        // being offline is not, and nothing can be closed until the network is
+        // back, so that one lets people through and the next visit closes it.
+        disabled={waitingForRoom || roomUnreadable || needsClosing}
         style={styles.cta}
       />
     </Atmosphere>

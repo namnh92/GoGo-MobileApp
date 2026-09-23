@@ -190,9 +190,17 @@ export function useFinishDate(roomId: string | undefined, planId?: string) {
   const queryClient = useQueryClient()
   const inFlight = useRef(false)
   const mutation = useMutation({
-    // Ending the date is one deliberate action; an automatic retry would sit
-    // behind a screen the person has already left.
-    retry: false,
+    /**
+     * Bounded automatic retry, unlike every other button in the app.
+     *
+     * The person can leave the summary — hardware back, a swipe — and take the
+     * retry control with them while the room is still `active`. A transient
+     * failure must not depend on them being there to press anything, so the
+     * mutation keeps trying on its own for a short while; the visible retry is
+     * for when that runs out.
+     */
+    retry: 2,
+    retryDelay: attempt => Math.min(2_000 * 2 ** attempt, 15_000),
     networkMode: 'always',
     mutationFn: () => roomsApi.finishRoomDate(roomId as string),
     onSuccess: room => {

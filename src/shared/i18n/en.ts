@@ -640,6 +640,7 @@ export const enMessages: Record<MessageKey, string> = {
   'dateFinished.closeFailed': 'Could not wrap up the date, so it is still in progress.',
   'dateFinished.closeRetry': 'Try again',
   'dateFinished.roomLoading': 'Checking the date…',
+  'dateFinished.roomOffline': 'Offline, so the date cannot be wrapped up yet. Open this again once you are back.',
   'dateFinished.roomUnknown': 'Could not read the date, so we do not know whether it is wrapped up.',
 
   'review.title': 'How was\nthis date?',
