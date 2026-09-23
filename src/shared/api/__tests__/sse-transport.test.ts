@@ -996,4 +996,56 @@ describe('sseTransport × a screen routed by plan id', () => {
     // Resuming from 31 would skip the event that was never delivered.
     expect(h.connector.last().headers['last-event-id']).toBe('30')
   })
+
+  /**
+   * Fifth-pass review findings, 2026-09-23.
+   */
+  it('re-authorises a watched room instead of ending it when the actor changes', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    const first = h.connector.last()
+
+    // A guest claiming their account: same screen, same room, different actor.
+    h.setSession({ kind: 'user', userId: 'claimed', expiresAt: 0, accessToken: '' })
+    await flush()
+
+    // The old credential is off the wire, and the room is still being watched —
+    // deleting the stream would have ended its updates for good, because
+    // nothing resubscribes.
+    expect(first.closed).toBe(true)
+    expect(h.connector.opened.length).toBeGreaterThan(1)
+    expect(h.connector.last().closed).toBe(false)
+  })
+
+  it('does not resume a new actor from the old one\'s position', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    h.connector.last().onEvent(sse('plan.updated', { planId: PLAN_ID }, '40'))
+
+    h.setSession({ kind: 'user', userId: 'claimed', expiresAt: 0, accessToken: '' })
+    await flush()
+
+    expect(h.connector.last().headers['last-event-id']).toBeUndefined()
+  })
+
+  it('refetches after a resync that arrived with nobody watching', async () => {
+    const h = harness()
+    const teardown = h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    teardown()
+    // The server says it could not replay — and there is no screen to tell.
+    h.connector.last().onEvent({ type: 'resync', id: '41', data: '{"reason":"replay_window_exceeded"}' })
+    h.keys()
+
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client, planId: PLAN_ID })
+    await flush()
+
+    expect(h.keys()).toContain(JSON.stringify(queryKeys.plan(PLAN_ID)))
+  })
 })

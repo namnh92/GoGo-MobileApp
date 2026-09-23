@@ -548,7 +548,27 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       return
     }
     actor = next
-    for (const stream of [...streams.values()]) dispose(stream)
+    for (const stream of [...streams.values()]) {
+      // Nobody is watching this one; it goes.
+      if (stream.phases.size === 0) {
+        dispose(stream)
+        continue
+      }
+      /**
+       * The screens are still open — a guest claiming their account keeps
+       * looking at the same room. Deleting the stream would end its updates for
+       * good, because the subscribing effect has no session dependency and
+       * would never ask again. So the credential is replaced, not the screens:
+       * the old socket closes, the resume point goes with the old actor, and
+       * the room polls until the new one is connected.
+       */
+      closeConnection(stream)
+      stream.lastEventId = null
+      stream.givenUp = false
+      stream.renewFirst = true
+      startFallback(stream)
+      void open(stream)
+    }
   })
 
   const closeConnection = (stream: SseStream) => {
@@ -698,6 +718,14 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         // moves the resume point.
         if (event.type === 'heartbeat') return
         if (event.type === 'resync') {
+          // Nobody is watching: there is nothing to invalidate now, and the
+          // server sends no replay after this gap — so the next screen has to
+          // be told to refetch rather than trust a cache the stream skipped.
+          if (stream.phases.size === 0) {
+            stream.lastEventId = null
+            stream.missedWhileIdle = true
+            return
+          }
           // The gap was wider than the server's replay buffer, so nothing
           // resumed. The id we were holding is exactly the one the server could
           // not honour: keeping it would ask for the same impossible resume on
