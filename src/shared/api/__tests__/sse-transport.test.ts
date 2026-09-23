@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryKeys } from '../query-keys'
 import type { AppActivity } from '../realtime/app-activity'
 import { parseSseChunk, type SseConnectOptions } from '../realtime/sse-connection'
+import { EXPIRY_SKEW_MS } from '../session'
 import {
   createSseTransport,
   resetSseTransportForTests,
@@ -11,6 +12,8 @@ import {
   SSE_RECONNECT_BASE_MS,
   SSE_RECONNECT_MAX_MS,
   SSE_TOKEN_MARGIN_MS,
+  createPollingTransport,
+  POLL_INTERVAL_MS,
   type RoomRealtimeStatus,
   type RoomRealtimeTransport,
 } from '../realtime/transport'
@@ -102,13 +105,16 @@ interface Harness {
   releaseAuth: () => void
 }
 
-function harness(options: { enabled?: boolean; grant?: 'ok' | 'none' | 'deferred' } = {}): Harness {
+function harness(
+  options: { enabled?: boolean; grant?: 'ok' | 'none' | 'deferred' | 'renews-like-the-app' } = {},
+): Harness {
   const connector = fakeConnector()
   const fallback = fakeFallback()
   const safety = fakeFallback()
   const { client, keys } = fakeClient()
   const activity = fakeActivity()
   let calls = 0
+  let held: { token: string; expiresAt: number } | null = null
   let release: (() => void) | null = null
   const transport = createSseTransport({
     connect: connector.connect,
@@ -118,6 +124,14 @@ function harness(options: { enabled?: boolean; grant?: 'ok' | 'none' | 'deferred
     auth: async () => {
       calls += 1
       if (options.grant === 'none') return null
+      if (options.grant === 'renews-like-the-app') {
+        // What `currentAccessGrant` really does: hand back the session's token
+        // and only renew once inside `EXPIRY_SKEW_MS` of its expiry.
+        if (!held || Date.now() >= held.expiresAt - EXPIRY_SKEW_MS) {
+          held = { token: `t${calls}`, expiresAt: Date.now() + TOKEN_TTL_MS }
+        }
+        return held
+      }
       const grant = { token: `t${calls}`, expiresAt: Date.now() + TOKEN_TTL_MS }
       if (options.grant !== 'deferred') return grant
       // Hands the test the moment between asking for a token and getting one.
@@ -674,5 +688,75 @@ describe('sseTransport × a screen routed by plan id', () => {
 
     expect(h.safety.live().every(s => s.planId === undefined)).toBe(true)
     expect(h.safety.live().map(s => s.phase)).toEqual(['lobby'])
+  })
+
+  /**
+   * Review finding, 2026-09-23. The renewal margin sat *outside* the session's
+   * own renewal window: at 60 s before expiry `currentAccessGrant` still
+   * considered the token good, handed the same one back, and the lifetime
+   * arithmetic went negative and clamped to the floor — so the stream
+   * reconnected every couple of seconds for the last minute of every token,
+   * against a limit of thirty a minute per actor.
+   */
+  it('renews on a schedule the session will actually honour', () => {
+    expect(SSE_TOKEN_MARGIN_MS).toBeLessThan(EXPIRY_SKEW_MS)
+  })
+
+  it('replaces the connection about once per token, not once every few seconds', async () => {
+    const h = harness({ grant: 'renews-like-the-app' })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    // Walk a whole token lifetime, opening each connection as it appears.
+    const end = Date.now() + TOKEN_TTL_MS
+    while (Date.now() < end) {
+      await vi.advanceTimersByTimeAsync(5_000)
+      await flush()
+      const last = h.connector.last()
+      if (last && !last.closed) last.onOpen()
+    }
+
+    // One renewal near the end, not a reconnect loop.
+    expect(h.connector.opened.length).toBeLessThanOrEqual(3)
+  })
+
+  it('drops a resume point the server has just refused', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    h.connector.last().onEvent(sse('plan.updated', { planId: 'p1' }, '11'))
+
+    h.connector.last().onEvent({ type: 'resync', id: '12', data: '{"reason":"replay_window_exceeded"}' })
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+
+    // Asking to resume from the id the server could not honour would earn
+    // another resync, and another full refetch, on every reconnect.
+    expect(h.connector.last().headers['last-event-id']).toBeUndefined()
+  })
+
+  /**
+   * Review finding, 2026-09-23. Both pollers this factory makes — the
+   * full-cadence fallback and the slow safety net — shared one module-level
+   * registry, so the same room subscribed on both collided on one key.
+   */
+  it('keeps two polling transports out of each other\'s registry', async () => {
+    const fallback = fakeClient()
+    const safety = fakeClient()
+    const { activity } = fakeActivity()
+    const a = createPollingTransport(activity)
+    const b = createPollingTransport(activity)
+
+    a.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: fallback.client })
+    b.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: safety.client })
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS.lobby)
+    await flush()
+
+    expect(fallback.keys().length).toBeGreaterThan(0)
+    expect(safety.keys().length).toBeGreaterThan(0)
   })
 })

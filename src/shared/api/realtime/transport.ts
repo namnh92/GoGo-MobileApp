@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 
 import { currentAccessGrant } from '../client'
+import { EXPIRY_SKEW_MS } from '../session'
 import { env } from '@/shared/config/env'
 
 import { appActivity, type AppActivity } from './app-activity'
@@ -113,12 +114,29 @@ interface RoomPoller {
   unsubscribeActivity: () => void
 }
 
-const pollers = new Map<string, RoomPoller>()
+/**
+ * Every registry handed out, so the test reset can reach them all.
+ *
+ * The map used to be one module-level registry shared by every transport this
+ * factory made — and there are two: the full-cadence fallback and the slow
+ * safety poll. One room subscribed to both in turn (the stream swaps modes)
+ * collided on the same key: the newer entry evicted the older, and the older's
+ * tick still found *a* poller under that room id, passed its guard and
+ * rescheduled itself with no phases left — `Math.min()` of nothing is Infinity —
+ * leaving a timer and a poller alive with nothing to poll for.
+ */
+const registries: Map<string, RoomPoller>[] = []
 
 export function createPollingTransport(
   activity: AppActivity = appActivity,
   intervals: Record<RoomPhase, number> = POLL_INTERVAL_MS,
 ): RoomRealtimeTransport {
+  const pollers = new Map<string, RoomPoller>()
+  registries.push(pollers)
+
+  /** This tick still belongs to the poller registered for its room. */
+  const current = (poller: RoomPoller): boolean => pollers.get(poller.roomId) === poller
+
   const baseInterval = (poller: RoomPoller): number =>
     Math.min(...[...poller.phases.keys()].map(phase => intervals[phase]))
 
@@ -156,7 +174,7 @@ export function createPollingTransport(
     // A tick that overruns its interval must not stack behind itself. The
     // next one is scheduled from the end of this one, never from a timer that
     // fires regardless.
-    if (poller.inFlight || !activity.isActive() || !pollers.has(poller.roomId)) return
+    if (poller.inFlight || !activity.isActive() || !current(poller)) return
     poller.inFlight = true
 
     const keys = keysToInvalidate(poller)
@@ -173,7 +191,7 @@ export function createPollingTransport(
     poller.idleTicks = changed ? 0 : poller.idleTicks + 1
     poller.inFlight = false
 
-    if (!pollers.has(poller.roomId)) return
+    if (!current(poller)) return
     const multiplier = Math.min(2 ** poller.idleTicks, IDLE_BACKOFF_MAX_MULTIPLIER)
     schedule(poller, baseInterval(poller) * multiplier)
   }
@@ -198,7 +216,7 @@ export function createPollingTransport(
         // rather than waiting out whatever was left of the interval — the
         // person just looked at the screen.
         created.unsubscribeActivity = activity.subscribe(active => {
-          if (!pollers.has(roomId)) return
+          if (pollers.get(roomId) !== created) return
           if (active) {
             created.idleTicks = 0
             schedule(created, 0)
@@ -256,13 +274,15 @@ export const safetyPollingTransport: RoomRealtimeTransport = createPollingTransp
   SAFETY_POLL_INTERVAL_MS,
 )
 
-/** Test seam: forget every room poller. */
+/** Test seam: forget every room poller, in every registry this factory made. */
 export function resetPollingTransportForTests(): void {
-  for (const poller of pollers.values()) {
-    if (poller.timer) clearTimeout(poller.timer)
-    poller.unsubscribeActivity()
+  for (const registry of registries) {
+    for (const poller of registry.values()) {
+      if (poller.timer) clearTimeout(poller.timer)
+      poller.unsubscribeActivity()
+    }
+    registry.clear()
   }
-  pollers.clear()
 }
 
 // ---------------------------------------------------------------------------
@@ -281,11 +301,18 @@ export const SSE_RECONNECT_BASE_MS = 2_000
 export const SSE_RECONNECT_MAX_MS = 30_000
 
 /**
- * Reconnect this long before the access token expires. A stream authorised
- * once keeps running with a token the rest of the app has already rotated;
- * replacing the connection early is cheaper than discovering it went stale.
+ * Reconnect this long before the access token expires. A stream authorised once
+ * keeps running with a token the rest of the app has already rotated; replacing
+ * the connection early is cheaper than discovering it went stale.
+ *
+ * It has to sit **inside** the session's own renewal window. At 60 s it did not:
+ * `isAccessTokenExpired` only renews within `EXPIRY_SKEW_MS`, so the reconnect
+ * asked for a token, got the same one back, computed a lifetime that clamped to
+ * the floor, and came round again — about thirty reconnects in the last minute
+ * of every token, against a limit of thirty a minute per actor. Derived from the
+ * skew so the two cannot drift apart again.
  */
-export const SSE_TOKEN_MARGIN_MS = 60_000
+export const SSE_TOKEN_MARGIN_MS = EXPIRY_SKEW_MS - 5_000
 
 /**
  * How long a stream outlives its last subscriber.
@@ -571,7 +598,9 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         poll(stream, 'live')
         setStatus(stream, 'live')
         // Replace the connection before the token it was authorised with dies.
-        const lifetime = Math.max(grant.expiresAt - now() - SSE_TOKEN_MARGIN_MS, SSE_RECONNECT_BASE_MS)
+        // The floor is the reconnect ceiling, not the base: if the arithmetic
+        // ever says "now", waiting half a minute is the safe way to be wrong.
+        const lifetime = Math.max(grant.expiresAt - now() - SSE_TOKEN_MARGIN_MS, SSE_RECONNECT_MAX_MS)
         if (stream.tokenTimer) clearTimeout(stream.tokenTimer)
         stream.tokenTimer = setTimeout(() => {
           stream.tokenTimer = null
@@ -593,8 +622,12 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         if (event.type === 'heartbeat') return
         if (event.type === 'resync') {
           // The gap was wider than the server's replay buffer, so nothing
-          // resumed. Refetch everything the subscribed phases show rather than
-          // carry on from a hole.
+          // resumed. The id we were holding is exactly the one the server could
+          // not honour: keeping it would ask for the same impossible resume on
+          // every reconnect and get another resync back.
+          stream.lastEventId = null
+          // Refetch everything the subscribed phases show rather than carry on
+          // from a hole.
           const planIds = stream.planIds.size > 0 ? [...stream.planIds.keys()] : [undefined]
           for (const phase of stream.phases.keys()) {
             for (const type of ROOM_PHASE_EVENTS[phase]) {

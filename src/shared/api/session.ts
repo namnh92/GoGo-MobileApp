@@ -149,8 +149,13 @@ export async function clearSession(strict = false): Promise<void> {
   emit()
 }
 
-/** Renew this many ms before the server-side expiry so in-flight calls do not race it. */
-const EXPIRY_SKEW_MS = 30_000
+/**
+ * Renew this many ms before the server-side expiry so in-flight calls do not
+ * race it. Exported because anything that schedules work around the expiry has
+ * to land inside this window to get a new token rather than the same one back
+ * (GoGo-MobileApp#286).
+ */
+export const EXPIRY_SKEW_MS = 30_000
 
 export function expiresAtFrom(expiresInSeconds: number): number {
   return Date.now() + expiresInSeconds * 1000
