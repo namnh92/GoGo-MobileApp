@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 
 import { currentAccessGrant } from '../client'
-import { EXPIRY_SKEW_MS } from '../session'
+import { EXPIRY_SKEW_MS, getSession, subscribeToSession, type Session } from '../session'
 import { env } from '@/shared/config/env'
 
 import { appActivity, type AppActivity } from './app-activity'
@@ -362,6 +362,10 @@ export interface SseTransportOptions {
   apiUrl?: string
   /** Client kill switch. `false` never opens a stream and polls instead. */
   enabled?: boolean
+  /** Session changes. Injected so a test can drive a logout without a keychain. */
+  onSession?: (listener: (session: Session | null) => void) => () => void
+  /** The session in hand when the transport is created. */
+  initialSession?: () => Session | null
   now?: () => number
 }
 
@@ -381,8 +385,15 @@ interface SseStream {
   planIds: Map<string, number>
   listeners: Set<(status: RoomRealtimeStatus) => void>
   connection: SseConnection | null
-  /** An open is already in flight; its `auth()` has not answered yet. */
-  opening: boolean
+  /**
+   * The attempt that owns the in-flight open, or null.
+   *
+   * A boolean was not enough: background during a pending `auth()` and
+   * foreground before it resolves, and the stale attempt cleared the flag the
+   * live one had just set — letting a third attempt start and leaving one of
+   * the two sockets unreachable.
+   */
+  opening: number | null
   lastEventId: string | null
   attempt: number
   retryTimer: ReturnType<typeof setTimeout> | null
@@ -408,6 +419,12 @@ const streams = new Map<string, SseStream>()
 /** Set by a 503: the backend says realtime is off here, for every room. */
 let environmentRealtimeOff = false
 
+/** Identifies the actor a stream was authorised for; a token refresh keeps it. */
+const actorOf = (session: Session | null): string =>
+  session ? `${session.kind}:${session.userId ?? ''}:${session.guestSessionId ?? ''}` : ''
+
+let openSeq = 0
+
 export function createSseTransport(options: SseTransportOptions = {}): RoomRealtimeTransport {
   const connect = options.connect ?? xhrSseConnector
   const fallback = options.fallback ?? pollingTransport
@@ -417,6 +434,8 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
   const apiUrl = options.apiUrl ?? env.apiUrl
   const enabled = options.enabled ?? true
   const now = options.now ?? Date.now
+  const watchSession = options.onSession ?? subscribeToSession
+  const readSession = options.initialSession ?? getSession
 
   /**
    * Status reaches subscribers asynchronously. `subscribe` runs inside a React
@@ -496,11 +515,37 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     streams.delete(stream.roomId)
   }
 
+  /**
+   * A stream is authorised for one actor. Signing out, or signing in as someone
+   * else, must not leave a socket open on the previous person's rooms — the
+   * bearer is already attached to the request, so it keeps delivering their
+   * room events until the token rotates, and a new subscriber keyed only by
+   * room id would inherit it. The purge rule in the Mobile guide says the same
+   * thing about room data on logout.
+   */
+  let actor: string | null = null
+  /**
+   * Read when the first stream appears, not when this module loads: nothing is
+   * authorised yet at import time, and reaching for the session there makes the
+   * transport a side effect of being imported.
+   */
+  const baselineActor = () => {
+    if (actor === null) actor = actorOf(readSession())
+  }
+  watchSession(session => {
+    if (actor === null) return
+    const next = actorOf(session)
+    // A token refresh keeps the actor; only a real change matters.
+    if (next === actor) return
+    actor = next
+    for (const stream of [...streams.values()]) dispose(stream)
+  })
+
   const closeConnection = (stream: SseStream) => {
     stream.generation += 1
     stream.connection?.close()
     stream.connection = null
-    stream.opening = false
+    stream.opening = null
   }
 
   /** Does any subscribed phase care about this event type? */
@@ -564,8 +609,9 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     if (stream.phases.size === 0) return
     // Two screens subscribing in the same tick both reach here before either
     // `auth()` has answered, which used to open the room twice.
-    if (stream.connection || stream.opening) return
-    stream.opening = true
+    if (stream.connection || stream.opening !== null) return
+    const attempt = (openSeq += 1)
+    stream.opening = attempt
 
     // Only the first attempt reads as "connecting"; a reconnect behind a live
     // poll is still polling as far as a screen is concerned.
@@ -578,6 +624,8 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     const attemptGeneration = stream.generation
     const grant = await auth({ force: stream.renewFirst }).catch(() => null)
     stream.renewFirst = false
+    // Only the attempt that set the flag may clear it.
+    if (stream.opening === attempt) stream.opening = null
     // Whatever happened while we waited decides this, not the fact that a token
     // arrived: the stream may have been disposed, given up, superseded by a
     // newer attempt, lost its last screen, or the app may have backgrounded.
@@ -590,7 +638,6 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       stream.generation === attemptGeneration &&
       stream.phases.size > 0 &&
       activity.isActive()
-    if (stream.opening) stream.opening = false
     if (!stillWanted) return
     if (!grant) {
       // No session means no stream and no poll worth making either; the room
@@ -726,7 +773,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           planIds: new Map(),
           listeners: new Set(),
           connection: null,
-          opening: false,
+          opening: null,
           lastEventId: null,
           attempt: 0,
           retryTimer: null,
@@ -771,6 +818,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         streams.set(roomId, created)
       }
 
+      baselineActor()
       // A screen arriving inside the grace window keeps the connection it
       // would otherwise have replaced.
       if (stream.graceTimer) {

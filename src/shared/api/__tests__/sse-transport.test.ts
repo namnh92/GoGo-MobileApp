@@ -105,6 +105,8 @@ interface Harness {
   releaseAuth: () => void
   /** The `force` flag each `auth()` call carried, in order. */
   authForced: () => boolean[]
+  /** Pushes a new session at the transport, as signing out or in would. */
+  setSession: (session: unknown) => void
 }
 
 function harness(
@@ -117,6 +119,8 @@ function harness(
   const activity = fakeActivity()
   let calls = 0
   const forced: boolean[] = []
+  let session: unknown = { kind: 'user', userId: 'u1', expiresAt: 0, accessToken: '' }
+  const sessionListeners = new Set<(s: unknown) => void>()
   let held: { token: string; expiresAt: number } | null = null
   let release: (() => void) | null = null
   const transport = createSseTransport({
@@ -144,6 +148,11 @@ function harness(
       })
     },
     apiUrl: 'https://api.example/v1',
+    initialSession: () => session as never,
+    onSession: listener => {
+      sessionListeners.add(listener as never)
+      return () => sessionListeners.delete(listener as never)
+    },
     ...(options.enabled === undefined ? {} : { enabled: options.enabled }),
   })
   return {
@@ -158,6 +167,10 @@ function harness(
     authCalls: () => calls,
     releaseAuth: () => release?.(),
     authForced: () => forced,
+    setSession: next => {
+      session = next
+      for (const listener of sessionListeners) listener(next)
+    },
   }
 }
 
@@ -852,5 +865,63 @@ describe('sseTransport × a screen routed by plan id', () => {
     await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS * 2)
     await flush()
     expect(h.connector.opened).toHaveLength(2)
+  })
+
+  /**
+   * Third-pass review findings, 2026-09-23.
+   */
+  it('lets go of every stream when the person signs out', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.setSession(null)
+
+    // The bearer is already on that request: leaving it open keeps delivering
+    // the previous person's rooms until their token rotates.
+    expect(h.connector.last().closed).toBe(true)
+    expect(h.safety.live()).toHaveLength(0)
+  })
+
+  it('lets go when a different person signs in', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.setSession({ kind: 'user', userId: 'someone-else', expiresAt: 0, accessToken: '' })
+
+    expect(h.connector.last().closed).toBe(true)
+  })
+
+  it('keeps the stream through a token refresh', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    // Same actor, new token: nothing to tear down.
+    h.setSession({ kind: 'user', userId: 'u1', expiresAt: 1, accessToken: 'new' })
+
+    expect(h.connector.last().closed).toBe(false)
+  })
+
+  it('does not let a stale attempt hand the room to a third one', async () => {
+    const h = harness({ grant: 'deferred' })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+
+    // Background and return while the first `auth()` is still out.
+    h.activity.set(false)
+    h.activity.set(true)
+    await flush()
+    // Release both: the stale one must not clear the flag the live one owns.
+    h.releaseAuth()
+    await flush()
+    h.releaseAuth()
+    await flush()
+
+    expect(h.connector.opened.length).toBeLessThanOrEqual(1)
   })
 })
