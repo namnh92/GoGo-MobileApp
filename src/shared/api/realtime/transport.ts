@@ -326,6 +326,31 @@ export const SSE_TOKEN_MARGIN_MS = EXPIRY_SKEW_MS - 5_000
 export const SSE_IDLE_GRACE_MS = 5_000
 
 /**
+ * How long a connection has to hold before its failures start counting from
+ * zero again.
+ *
+ * Opening is not stability. A stream that opened and dropped seconds later used
+ * to clear the attempt counter on the way up, so an open/drop loop reconnected
+ * every two seconds forever — and two rooms doing it together spend the actor's
+ * whole per-minute budget. Derived from the ceiling: a connection that does not
+ * outlive the longest wait it would otherwise take has not earned a shorter one.
+ */
+export const SSE_STABLE_AFTER_MS = SSE_RECONNECT_MAX_MS
+
+/**
+ * The server's answer when this actor has too many streams open, or has opened
+ * them too often.
+ *
+ * The client deliberately does not model the ceiling. Its value lives on the
+ * server, other clients of the same account consume the same allowance, and a
+ * number copied here would be a guess that goes stale silently. So the rule is
+ * to stop asking when told to, poll meanwhile, and try again later — with the
+ * wait the server named, or a full limit period when it named none.
+ */
+const SSE_RATE_LIMITED_STATUS = 429
+export const SSE_RATE_LIMIT_COOLDOWN_MS = 60_000
+
+/**
  * Statuses that mean SSE is not coming back on its own, per room: the actor is
  * not a member (403), the room is gone (404), or the route does not exist on
  * this backend (501). A 503 is the environment's kill switch
@@ -367,6 +392,8 @@ export interface SseTransportOptions {
   /** The session in hand when the transport is created. */
   initialSession?: () => Session | null
   now?: () => number
+  /** Reconnect jitter. Injected so a test's waits are the backoff itself. */
+  random?: () => number
 }
 
 interface SseStream {
@@ -398,6 +425,8 @@ interface SseStream {
   attempt: number
   retryTimer: ReturnType<typeof setTimeout> | null
   tokenTimer: ReturnType<typeof setTimeout> | null
+  /** Running while a live connection has yet to prove it will hold. */
+  stableTimer: ReturnType<typeof setTimeout> | null
   /** Set while the stream is outliving its last subscriber. */
   graceTimer: ReturnType<typeof setTimeout> | null
   /** One poll subscription per distinct phase, at whichever cadence `pollMode` names. */
@@ -425,6 +454,22 @@ let environmentRealtimeOff = false
 const actorOf = (session: Session | null): string =>
   session ? `${session.kind}:${session.userId ?? ''}:${session.guestSessionId ?? ''}` : ''
 
+/**
+ * Invalidate hierarchical keys without asking for the same data twice.
+ *
+ * Invalidation is not exact, so `rooms/<id>` already refetches
+ * `rooms/<id>/plan/current`. Sending both cancels the refetch the first one
+ * started and begins it again — the screen sees a loading state it did not need
+ * and the request count doubles. Every path that invalidates a *set* of keys
+ * goes through here; a single key needs nothing.
+ */
+const invalidateDeduped = (queryClient: QueryClient, keys: readonly (readonly unknown[])[]) => {
+  const unique = [...new Map(keys.map(key => [JSON.stringify(key), key])).values()]
+  for (const queryKey of unique.filter(key => !unique.some(other => other !== key && isPrefixOf(other, key)))) {
+    void queryClient.invalidateQueries({ queryKey })
+  }
+}
+
 let openSeq = 0
 
 export function createSseTransport(options: SseTransportOptions = {}): RoomRealtimeTransport {
@@ -436,6 +481,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
   const apiUrl = options.apiUrl ?? env.apiUrl
   const enabled = options.enabled ?? true
   const now = options.now ?? Date.now
+  const random = options.random ?? Math.random
   const watchSession = options.onSession ?? subscribeToSession
   const readSession = options.initialSession ?? getSession
 
@@ -497,9 +543,11 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
   const clearTimers = (stream: SseStream) => {
     if (stream.retryTimer) clearTimeout(stream.retryTimer)
     if (stream.tokenTimer) clearTimeout(stream.tokenTimer)
+    if (stream.stableTimer) clearTimeout(stream.stableTimer)
     if (stream.graceTimer) clearTimeout(stream.graceTimer)
     stream.retryTimer = null
     stream.tokenTimer = null
+    stream.stableTimer = null
     stream.graceTimer = null
   }
 
@@ -587,27 +635,21 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
    */
   const refetchSubscribed = (stream: SseStream) => {
     const planIds = stream.planIds.size > 0 ? [...stream.planIds.keys()] : [undefined]
-    const seen = new Map<string, readonly unknown[]>()
+    const keys: (readonly unknown[])[] = []
     for (const phase of stream.phases.keys()) {
       for (const type of ROOM_PHASE_EVENTS[phase]) {
         for (const planId of planIds) {
-          for (const key of eventQueryKeys({
-            type,
-            roomId: stream.roomId,
-            ...(planId ? { planId } : {}),
-          })) {
-            seen.set(JSON.stringify(key), key)
-          }
+          keys.push(
+            ...eventQueryKeys({
+              type,
+              roomId: stream.roomId,
+              ...(planId ? { planId } : {}),
+            }),
+          )
         }
       }
     }
-    // Keys are hierarchical and invalidation is not exact, so asking for
-    // `room(id)` already refetches `roomMembers(id)`. Sending both cancels the
-    // refetch the first one started and begins it again.
-    const keys = [...seen.values()]
-    for (const queryKey of keys.filter(key => !keys.some(other => other !== key && isPrefixOf(other, key)))) {
-      void stream.queryClient.invalidateQueries({ queryKey })
-    }
+    invalidateDeduped(stream.queryClient, keys)
   }
 
   /** Does any subscribed phase care about this event type? */
@@ -630,9 +672,17 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     }
   }
 
-  const scheduleRetry = (stream: SseStream) => {
+  /**
+   * `minWaitMs` is a floor a caller knows about that the backoff does not — the
+   * wait a rate-limited server asked for. It raises the wait, never lowers it.
+   */
+  const scheduleRetry = (stream: SseStream, minWaitMs = 0) => {
     if (stream.givenUp || stream.retryTimer) return
-    const wait = Math.min(SSE_RECONNECT_BASE_MS * 2 ** stream.attempt, SSE_RECONNECT_MAX_MS)
+    const backoff = Math.min(SSE_RECONNECT_BASE_MS * 2 ** stream.attempt, SSE_RECONNECT_MAX_MS)
+    // Jitter so two rooms dropped by the same network blip do not come back on
+    // the same second and spend the actor's budget together. Added, never
+    // subtracted: the base is the rate limit's own period and is a floor.
+    const wait = Math.max(backoff, minWaitMs) + random() * SSE_RECONNECT_BASE_MS
     stream.attempt += 1
     stream.retryTimer = setTimeout(() => {
       stream.retryTimer = null
@@ -685,10 +735,6 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     // already gone away.
     const attemptGeneration = stream.generation
     const grant = await auth({ force: stream.renewFirst }).catch(() => null)
-    // Only a grant in hand retires the demand for a new one. A forced refresh
-    // that failed — offline, throttled, a 5xx — leaves the refused token in
-    // place, and the next attempt must not settle for it.
-    if (grant) stream.renewFirst = false
     // Only the attempt that set the flag may clear it.
     if (stream.opening === attempt) stream.opening = null
     // Whatever happened while we waited decides this, not the fact that a token
@@ -711,6 +757,13 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       scheduleRetry(stream)
       return
     }
+    // Only a grant in hand retires the demand for a new one, and only once this
+    // attempt is known to still own the stream. A forced refresh that failed —
+    // offline, throttled, a 5xx — leaves the refused token in place. And a
+    // superseded attempt clearing the flag here used to hand the refused bearer
+    // straight back to the live attempt: it had a grant, but not one this
+    // stream ever asked for.
+    stream.renewFirst = false
 
     const fresh = (): boolean =>
       streams.get(stream.roomId) === stream && stream.generation === attemptGeneration
@@ -724,7 +777,17 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
 
       onOpen: () => {
         if (!fresh()) return
-        stream.attempt = 0
+        // Not `attempt = 0`. Opening says the server accepted the request, not
+        // that this connection will last: a stream that opens and dies seconds
+        // later has to back off further, not start over. The counter clears
+        // only once this connection has outlived the ceiling it would otherwise
+        // wait.
+        if (stream.stableTimer) clearTimeout(stream.stableTimer)
+        stream.stableTimer = setTimeout(() => {
+          stream.stableTimer = null
+          if (!fresh()) return
+          stream.attempt = 0
+        }, SSE_STABLE_AFTER_MS)
         // Opening with no resume point means this connection can replay
         // nothing: whatever happened while the room had no stream is not
         // coming. Swapping straight to the slow safety poll here would leave
@@ -797,12 +860,17 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         }
       },
 
-      onClose: ({ status }) => {
+      onClose: ({ status, retryAfterMs }) => {
         if (!fresh()) return
         stream.connection = null
         if (stream.tokenTimer) {
           clearTimeout(stream.tokenTimer)
           stream.tokenTimer = null
+        }
+        // This connection is over, so it will never earn the reset.
+        if (stream.stableTimer) {
+          clearTimeout(stream.stableTimer)
+          stream.stableTimer = null
         }
 
         if (status === ENVIRONMENT_OFF_STATUS) {
@@ -818,6 +886,19 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         }
         if (status !== null && ROOM_FATAL_STATUSES.has(status)) {
           giveUp(stream)
+          return
+        }
+
+        if (status === SSE_RATE_LIMITED_STATUS) {
+          // Too many streams for this actor, or too many opens. Knocking again
+          // on the usual two-second backoff is what earned the refusal, so wait
+          // the time the server named — or a whole limit period when it named
+          // none — and keep the room fed by polling meanwhile.
+          startFallback(stream)
+          // Nothing is watching: the hand-off timer is about to dispose this
+          // stream, and a retry scheduled now would open a socket for a screen
+          // that has already gone.
+          if (stream.phases.size > 0) scheduleRetry(stream, retryAfterMs ?? SSE_RATE_LIMIT_COOLDOWN_MS)
           return
         }
 
@@ -850,6 +931,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           attempt: 0,
           retryTimer: null,
           tokenTimer: null,
+          stableTimer: null,
           graceTimer: null,
           polls: new Map(),
           pollMode: 'down',
@@ -884,7 +966,16 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
             // never disposes anything. A stream whose last screen has already
             // gone would have sat in the map forever and reconnected on every
             // return, with nobody watching.
-            if (created.phases.size === 0) dispose(created)
+            if (created.phases.size === 0) {
+              dispose(created)
+            } else {
+              // There is no stream behind the room now, so the slow safety
+              // cadence is no longer a safety net — it is the only refresh
+              // there is. Coming back can take a while (a token to fetch, a
+              // socket to open, a hang), and leaving lobby, plan and date on a
+              // twenty-second poll is exactly what SSE was meant to end.
+              startFallback(created)
+            }
           }
         })
         stream = created
@@ -896,15 +987,17 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       // the room as it is now rather than as it was when the last screen left.
       if (stream.missedWhileIdle) {
         stream.missedWhileIdle = false
+        const missed: (readonly unknown[])[] = []
         for (const type of ROOM_PHASE_EVENTS[phase]) {
-          for (const queryKey of eventQueryKeys({
-            type,
-            roomId,
-            ...(planId ? { planId } : {}),
-          })) {
-            void queryClient.invalidateQueries({ queryKey })
-          }
+          missed.push(
+            ...eventQueryKeys({
+              type,
+              roomId,
+              ...(planId ? { planId } : {}),
+            }),
+          )
         }
+        invalidateDeduped(queryClient, missed)
       }
       // A screen arriving inside the grace window keeps the connection it
       // would otherwise have replaced.

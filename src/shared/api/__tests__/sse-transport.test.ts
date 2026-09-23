@@ -157,6 +157,9 @@ function harness(
       })
     },
     apiUrl: 'https://api.example/v1',
+    // Jitter is real in the app and noise in a test: every wait here is the
+    // backoff itself.
+    random: () => 0,
     initialSession: () => session as never,
     onSession: listener => {
       sessionListeners.add(listener as never)
@@ -1120,5 +1123,150 @@ describe('sseTransport × a screen routed by plan id', () => {
     const keys = h.keys()
     expect(keys).toContain(JSON.stringify(queryKeys.room(ROOM_ID)))
     expect(keys).not.toContain(JSON.stringify(queryKeys.roomMembers(ROOM_ID)))
+  })
+
+  // Review pass 8 (Sol) + architecture direction (Astra): keep stream ownership
+  // per room, gate the backoff reset on stability, and let the server's own 429
+  // say when to stop asking instead of modelling its ceiling on the client.
+
+  it('keeps the demand for a fresh token when a superseded attempt gets one', async () => {
+    const h = harness({ grant: 'deferred' })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.releaseAuth()
+    await flush()
+
+    // The server refuses the credential: the next attempt must carry another.
+    h.connector.last().onClose({ status: 401 })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    expect(h.authForced()[1]).toBe(true)
+
+    // That attempt is superseded while it waits for its token.
+    h.activity.set(false)
+    h.releaseAuth()
+    await flush()
+
+    h.activity.set(true)
+    await flush()
+    // A grant handed to an attempt that no longer owns the stream proves
+    // nothing about the token the live attempt will use.
+    expect(h.authForced()[2]).toBe(true)
+  })
+
+  it('does not reset the backoff on a stream that opens and drops again', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+
+    h.connector.last().onOpen()
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    expect(h.connector.opened).toHaveLength(2)
+
+    // Opening is not stability. This one opened and died just as fast, so the
+    // next wait has to be longer than the last, not the same two seconds.
+    h.connector.last().onOpen()
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    expect(h.connector.opened).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    expect(h.connector.opened).toHaveLength(3)
+  })
+
+  it('resets the backoff once a connection has held', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+
+    h.connector.last().onOpen()
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+
+    // This one stays up longer than the ceiling it would back off to, so the
+    // next failure starts counting from the beginning again.
+    h.connector.last().onOpen()
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS)
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    expect(h.connector.opened).toHaveLength(3)
+  })
+
+  it('moves the poll to full cadence when the app goes away', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    expect(h.safety.live()).toHaveLength(1)
+
+    h.activity.set(false)
+    // The socket is gone. Coming back may take a while — leaving the room on
+    // the slow safety cadence means a screen refreshing every twenty seconds
+    // with no stream behind it.
+    expect(h.safety.live()).toHaveLength(0)
+    expect(h.fallback.live()).toHaveLength(1)
+  })
+
+  it('does not ask twice for the same data after an event arrived unwatched', async () => {
+    const h = harness()
+    const off = h.transport.subscribe({
+      roomId: ROOM_ID,
+      phase: 'plan',
+      queryClient: h.client,
+      planId: PLAN_ID,
+    })
+    await flush()
+    h.connector.last().onOpen()
+    off()
+    h.keys()
+
+    // Nobody is watching, but the socket is still up for its grace window.
+    h.connector.last().onEvent(sse('plan.updated', { planId: PLAN_ID }, '5'))
+    h.transport.subscribe({
+      roomId: ROOM_ID,
+      phase: 'plan',
+      queryClient: h.client,
+      planId: PLAN_ID,
+    })
+    await flush()
+
+    const asked = h.keys().map(key => JSON.parse(key) as unknown[])
+    const ancestors = asked.filter(key =>
+      asked.some(other => other !== key && other.length < key.length && other.every((part, i) => part === key[i])),
+    )
+    // Invalidation is not exact, so `rooms/<id>` already refetches
+    // `rooms/<id>/plan/current`. Sending both cancels the first refetch and
+    // starts it over.
+    expect(ancestors).toEqual([])
+    expect(asked).toContainEqual([...queryKeys.plan(PLAN_ID)])
+  })
+
+  it('stops asking for a stream while the server says there are too many', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.connector.last().onClose({ status: 429, retryAfterMs: 5_000 })
+    // The ceiling is the server's to enforce; the client's job is to stop
+    // knocking and keep the room fed meanwhile.
+    expect(h.fallback.live()).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    expect(h.connector.opened).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(h.connector.opened).toHaveLength(2)
+  })
+
+  it('waits out a refusal that names no retry time', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.connector.last().onClose({ status: 429 })
+    expect(h.fallback.live()).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS)
+    // A refusal with no Retry-After still means "not yet" for longer than an
+    // ordinary dropped socket.
+    expect(h.connector.opened).toHaveLength(1)
   })
 })

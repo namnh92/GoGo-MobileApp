@@ -30,8 +30,11 @@ export interface SseConnectOptions {
    * The stream ended. `status` is the HTTP status when there was one, and null
    * when the connection failed before answering. Classifying it is the
    * transport's business, not the reader's.
+   *
+   * `retryAfterMs` is present only when the server named a wait and it could be
+   * read. Absent means "the server said nothing", never "retry now".
    */
-  onClose: (reason: { status: number | null }) => void
+  onClose: (reason: { status: number | null; retryAfterMs?: number }) => void
 }
 
 export interface SseConnection {
@@ -98,10 +101,33 @@ export const xhrSseConnector: SseConnector = ({ url, headers, onOpen, onEvent, o
   let finished = false
   let abandoned = false
 
+  /**
+   * `Retry-After` is either a count of seconds or an HTTP date, and servers
+   * send both, so read both. Anything that does not parse is reported as
+   * nothing at all: a wait invented from a header we could not read is worse
+   * than the transport's own backoff, which at least respects the rate limit.
+   */
+  const retryAfter = (): number | undefined => {
+    let raw: string | null = null
+    try {
+      raw = xhr.getResponseHeader('retry-after')
+    } catch {
+      // Some environments refuse header reads once the request has ended.
+      return undefined
+    }
+    if (!raw) return undefined
+    const value = raw.trim()
+    if (/^\d+$/.test(value)) return Number(value) * 1_000
+    const at = Date.parse(value)
+    // A date already in the past means "now", not a negative wait.
+    return Number.isNaN(at) ? undefined : Math.max(at - Date.now(), 0)
+  }
+
   const finish = (status: number | null) => {
     if (finished || abandoned) return
     finished = true
-    onClose({ status })
+    const wait = retryAfter()
+    onClose(wait === undefined ? { status } : { status, retryAfterMs: wait })
   }
 
   const drain = () => {
