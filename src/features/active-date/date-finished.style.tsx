@@ -5,6 +5,13 @@ const { neutral, brand } = colors
 
 export const styles = StyleSheet.create({
   root: {
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+  },
+  scroll: { alignSelf: 'stretch' },
+  // Centred while it fits, scrollable once it does not.
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[7],

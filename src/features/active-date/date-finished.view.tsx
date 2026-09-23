@@ -1,9 +1,9 @@
-import { glyph } from '@/shared/ui/tokens'
+import { glyph, spacing } from '@/shared/ui/tokens'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 
 import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom, useFinishDate, toRoomAudience } from '@/shared/api'
 import { costLineText, planCost } from '@/shared/pricing/plan-cost'
@@ -113,9 +113,18 @@ export default function DateFinishedScreen() {
 
   return (
     <Atmosphere style={styles.root}>
-      <View style={{ paddingTop: insets.top, alignSelf: 'stretch' }}>
-        <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
-      </View>
+      {/* A date can have several stops, and the closing state adds a line and a
+          button under them. On a short screen, or at a large text size, that was
+          enough to push the retry and the way out past the bottom edge — and
+          `Atmosphere` clips, so they were simply gone. It scrolls. */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top, paddingBottom: insets.bottom + spacing[6] }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ alignSelf: 'stretch' }}>
+          <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
+        </View>
       <Text style={styles.burst}>✨</Text>
       <Text style={styles.title}>{t('dateFinished.title')}</Text>
       <Text style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>
@@ -205,7 +214,8 @@ export default function DateFinishedScreen() {
         // back, so that one lets people through and the next visit closes it.
         disabled={waitingForRoom || roomUnreadable || needsClosing}
         style={styles.cta}
-      />
+        />
+      </ScrollView>
     </Atmosphere>
   )
 }
