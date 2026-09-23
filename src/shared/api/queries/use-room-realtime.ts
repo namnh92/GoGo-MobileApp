@@ -13,7 +13,7 @@ import { roomRealtimeTransport, type RoomRealtimeStatus } from '../realtime/tran
 export function useRoomRealtime(
   roomId: string | undefined,
   phase: RoomPhase,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; planId?: string },
 ): { status: RoomRealtimeStatus } {
   const queryClient = useQueryClient()
   const [online, setOnline] = useState(() => onlineManager.isOnline())
@@ -25,6 +25,7 @@ export function useRoomRealtime(
   // Refreshing while offline just burns battery on calls that cannot succeed,
   // and `online` is a dependency so connectivity returning resubscribes.
   const active = (options?.enabled ?? true) && Boolean(roomId) && online
+  const planId = options?.planId
 
   useEffect(() => {
     if (!active || !roomId) return
@@ -33,9 +34,11 @@ export function useRoomRealtime(
       roomId,
       phase,
       queryClient,
+      // A screen routed by plan id reads a key the room id alone never names.
+      ...(planId ? { planId } : {}),
       onStatusChange: setReported,
     })
-  }, [active, roomId, phase, queryClient])
+  }, [active, roomId, phase, queryClient, planId])
 
   const status: RoomRealtimeStatus = !active
     ? 'offline'

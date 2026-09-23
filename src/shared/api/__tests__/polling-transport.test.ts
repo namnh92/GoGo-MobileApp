@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { queryKeys } from '../query-keys'
 import type { AppActivity } from '../realtime/app-activity'
+import { ROOM_PHASE_EVENTS } from '../realtime/room-events'
 import {
   createPollingTransport,
   IDLE_BACKOFF_MAX_MULTIPLIER,
@@ -207,5 +208,64 @@ describe('pollingTransport', () => {
     await advance(POLL_INTERVAL_MS.matching * 2)
     expect(calls).toHaveLength(2)
     teardown()
+  })
+
+  /**
+   * A phase that declares events but no cadence would subscribe and then never
+   * ask the server for anything — which is how the date screen (#285) looked
+   * from the outside before it had a phase at all.
+   */
+  it('gives every phase a cadence', () => {
+    for (const phase of Object.keys(ROOM_PHASE_EVENTS) as (keyof typeof ROOM_PHASE_EVENTS)[]) {
+      expect(POLL_INTERVAL_MS[phase]).toBeGreaterThan(0)
+    }
+  })
+
+  it('asks on the date as often as it asks while matching', async () => {
+    const { activity } = fakeActivity()
+    const { client, keysPerTick } = fakeClient()
+    const transport = createPollingTransport(activity)
+    transport.subscribe({ roomId: ROOM_ID, phase: 'date', queryClient: client })
+
+    await advance(POLL_INTERVAL_MS.date)
+    expect(keysPerTick().length).toBeGreaterThan(0)
+    expect(POLL_INTERVAL_MS.date).toBeLessThanOrEqual(POLL_INTERVAL_MS.plan)
+  })
+
+  /**
+   * #285 — the date screen subscribed and still never refetched the plan it was
+   * showing. `plan.updated` refreshes `roomCurrentPlan(roomId)`, but a screen
+   * routed by plan id reads `plan(planId)`, and the poller has no way to guess
+   * that id. On a device this looked exactly like no subscription at all.
+   */
+  it('refreshes the plan a screen named, not only the room\'s current plan', async () => {
+    const { activity } = fakeActivity()
+    const { client, keysPerTick } = fakeClient()
+    const transport = createPollingTransport(activity)
+    transport.subscribe({ roomId: ROOM_ID, phase: 'date', queryClient: client, planId: 'plan-9' })
+
+    await advance(POLL_INTERVAL_MS.date)
+
+    const keys = keysPerTick()
+    expect(keys).toContain(JSON.stringify(queryKeys.plan('plan-9')))
+    // `roomCurrentPlan` lives under `room`, which is already being invalidated,
+    // so it is folded into its ancestor rather than sent twice. The plan the
+    // screen named is a separate key space and has to be asked for by name.
+    expect(keys).toContain(JSON.stringify(queryKeys.room(ROOM_ID)))
+  })
+
+  it('stops asking for a plan once the screen that named it has gone', async () => {
+    const { activity } = fakeActivity()
+    const { client, keysPerTick } = fakeClient()
+    const transport = createPollingTransport(activity)
+    const dated = transport.subscribe({ roomId: ROOM_ID, phase: 'date', queryClient: client, planId: 'plan-9' })
+    transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: client })
+
+    await advance(POLL_INTERVAL_MS.date)
+    keysPerTick()
+
+    dated()
+    await advance(POLL_INTERVAL_MS.lobby)
+    expect(keysPerTick()).not.toContain(JSON.stringify(queryKeys.plan('plan-9')))
   })
 })
