@@ -110,7 +110,12 @@ interface Harness {
 }
 
 function harness(
-  options: { enabled?: boolean; grant?: 'ok' | 'none' | 'deferred' | 'renews-like-the-app' } = {},
+  options: {
+    enabled?: boolean
+    grant?: 'ok' | 'none' | 'deferred' | 'renews-like-the-app'
+    /** What the Keychain has read so far; `null` is a cold start. */
+    session?: unknown
+  } = {},
 ): Harness {
   const connector = fakeConnector()
   const fallback = fakeFallback()
@@ -119,7 +124,8 @@ function harness(
   const activity = fakeActivity()
   let calls = 0
   const forced: boolean[] = []
-  let session: unknown = { kind: 'user', userId: 'u1', expiresAt: 0, accessToken: '' }
+  let session: unknown =
+    'session' in options ? options.session : { kind: 'user', userId: 'u1', expiresAt: 0, accessToken: '' }
   const sessionListeners = new Set<(s: unknown) => void>()
   let held: { token: string; expiresAt: number } | null = null
   let release: (() => void) | null = null
@@ -923,5 +929,71 @@ describe('sseTransport × a screen routed by plan id', () => {
     await flush()
 
     expect(h.connector.opened.length).toBeLessThanOrEqual(1)
+  })
+
+  /**
+   * Fourth-pass review findings, 2026-09-23.
+   */
+  it('treats the first session after a cold start as hydration, not a sign-out', async () => {
+    // A cold deep link: the transport is asked for a stream before the Keychain
+    // has been read, so the baseline it takes is "nobody".
+    const h = harness({ session: null })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.setSession({ kind: 'user', userId: 'u1', expiresAt: 0, accessToken: '' })
+
+    // Tearing it down here kills the stream for good: nothing resubscribes.
+    expect(h.connector.last().closed).toBe(false)
+    expect(h.safety.live()).toHaveLength(1)
+  })
+
+  it('still lets go when that hydrated person signs out', async () => {
+    const h = harness({ session: null })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    h.setSession({ kind: 'user', userId: 'u1', expiresAt: 0, accessToken: '' })
+    h.setSession(null)
+
+    expect(h.connector.last().closed).toBe(true)
+  })
+
+  it('refetches what arrived while the room had no screen', async () => {
+    const h = harness()
+    const teardown = h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    teardown()
+    // Inside the hand-off window: the connection is kept, so this event is not
+    // replayed to whoever comes next.
+    h.connector.last().onEvent(sse('plan.updated', { planId: PLAN_ID }, '21'))
+    h.keys()
+
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client, planId: PLAN_ID })
+    await flush()
+
+    expect(h.keys()).toContain(JSON.stringify(queryKeys.plan(PLAN_ID)))
+  })
+
+  it('does not move the resume point past an event nobody received', async () => {
+    const h = harness()
+    const teardown = h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    h.connector.last().onEvent(sse('plan.updated', { planId: PLAN_ID }, '30'))
+
+    teardown()
+    h.connector.last().onEvent(sse('plan.updated', { planId: PLAN_ID }, '31'))
+    h.connector.last().onClose({ status: null })
+
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+
+    // Resuming from 31 would skip the event that was never delivered.
+    expect(h.connector.last().headers['last-event-id']).toBe('30')
   })
 })

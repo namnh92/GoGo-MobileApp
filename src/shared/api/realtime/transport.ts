@@ -409,6 +409,8 @@ interface SseStream {
   givenUp: boolean
   /** The last attempt was refused, so the next one must not reuse that token. */
   renewFirst: boolean
+  /** A room event arrived while no screen was subscribed; the next one refetches. */
+  missedWhileIdle: boolean
   unsubscribeActivity: () => void
   /** Guards callbacks from a connection that has already been replaced. */
   generation: number
@@ -537,6 +539,14 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     const next = actorOf(session)
     // A token refresh keeps the actor; only a real change matters.
     if (next === actor) return
+    // Arriving at an actor from none is hydration, not a switch: on a cold deep
+    // link the baseline can be taken before the Keychain has been read, and
+    // tearing the stream down there killed it for good — the subscribing effect
+    // has no session dependency, so nothing would resubscribe.
+    if (actor === '') {
+      actor = next
+      return
+    }
     actor = next
     for (const stream of [...streams.values()]) dispose(stream)
   })
@@ -712,6 +722,13 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           return
         }
 
+        // Nobody is watching — the hand-off window. Advancing the resume point
+        // here would drop the event twice over: not delivered now, and not
+        // replayed when the next screen reuses this same connection.
+        if (stream.phases.size === 0) {
+          stream.missedWhileIdle = true
+          return
+        }
         if (event.id) stream.lastEventId = event.id
         if (!interested(stream, event.type)) return
 
@@ -784,6 +801,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           status: 'connecting',
           givenUp: false,
           renewFirst: false,
+          missedWhileIdle: false,
           unsubscribeActivity: () => undefined,
           generation: 0,
         }
@@ -819,6 +837,20 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       }
 
       baselineActor()
+      // Something happened while this room had no screen. Whoever arrives gets
+      // the room as it is now rather than as it was when the last screen left.
+      if (stream.missedWhileIdle) {
+        stream.missedWhileIdle = false
+        for (const type of ROOM_PHASE_EVENTS[phase]) {
+          for (const queryKey of eventQueryKeys({
+            type,
+            roomId,
+            ...(planId ? { planId } : {}),
+          })) {
+            void queryClient.invalidateQueries({ queryKey })
+          }
+        }
+      }
       // A screen arriving inside the grace window keeps the connection it
       // would otherwise have replaced.
       if (stream.graceTimer) {
