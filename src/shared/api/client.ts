@@ -197,6 +197,27 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
   }
 }
 
+/**
+ * A valid bearer for a long-lived stream, with the moment it stops being one.
+ *
+ * The SSE transport cannot go through `request`: that function reads a whole
+ * response, and a stream never ends. It still must not mint its own session —
+ * refresh tokens are single-use, so a second rotator would revoke the family.
+ * This shares the same single-flight refresh as every other call.
+ */
+export async function currentAccessGrant(
+  options: { force?: boolean } = {},
+): Promise<{ token: string; expiresAt: number } | null> {
+  let session = getSession() ?? (await hydrateSession())
+  // `force` is for a caller the server has just refused. Age is no guide there:
+  // the token can be minutes from expiry and still be the one that earned the
+  // 401, so asking again without renewing would resend exactly what was
+  // rejected (GoGo-MobileApp#286).
+  if (session && (options.force || isAccessTokenExpired(session))) session = await refreshSession()
+  if (!session) return null
+  return { token: session.accessToken, expiresAt: session.expiresAt }
+}
+
 export async function request<T>(options: RequestOptions): Promise<T> {
   let accessToken: string | null = null
 
