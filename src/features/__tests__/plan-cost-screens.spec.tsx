@@ -1,3 +1,5 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
 import { loaded, loaded as mockLoaded, renderScreen, roomFor, type QueryLike } from './harness'
 
 /**
@@ -82,14 +84,26 @@ describe('plan cost × screen', () => {
     // #262 — the active date is live only while the room is `active`; any other
     // status renders the not-started state instead of the stops.
     mockRoom.query = loaded(roomFor('group-host', { status: 'active' }))
-    const view = await renderScreen(<ActiveDateScreen />)
+    // The screen owns room mutations now (#269), so it renders under the cache
+    // the app gives it.
+    const view = await renderScreen(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ActiveDateScreen />
+      </QueryClientProvider>,
+    )
     expect(view.getAllByText(/250k–450k\/người/).length).toBeGreaterThan(0)
     expect(view.getByText(/≤ 50k\/người/)).toBeTruthy()
     expect(view.queryByText(/0–50k/)).toBeNull()
   })
 
   it('date finished: the per-person total and the group total, never divided', async () => {
-    const view = await renderScreen(<DateFinishedScreen />)
+    // The summary owns the room-closing mutation now (#269), so it renders
+    // under the cache the app gives it.
+    const view = await renderScreen(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <DateFinishedScreen />
+      </QueryClientProvider>,
+    )
     expect(view.getByText(/500k\/người · 2tr tổng nhóm 4 người/)).toBeTruthy()
     expect(view.queryByText(/125k/)).toBeNull()
   })

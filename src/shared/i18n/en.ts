@@ -634,6 +634,14 @@ export const enMessages: Record<MessageKey, string> = {
   'dateFinished.cta': 'How was it? 💬',
   'dateFinished.cta_couple': 'How was it, you two? 💬',
   'dateFinished.stopsDone': '{{done}}/{{total}} stops done',
+  // #269 — the date is only really over once the room leaves the in-progress
+  // state. The host sees that happening, and sees it fail, instead of assuming.
+  'dateFinished.closing': 'Wrapping up the date…',
+  'dateFinished.closeFailed': 'Could not wrap up the date, so it is still in progress.',
+  'dateFinished.closeRetry': 'Try again',
+  'dateFinished.roomLoading': 'Checking the date…',
+  'dateFinished.roomOffline': 'Offline, so the date cannot be wrapped up yet. Open this again once you are back.',
+  'dateFinished.roomUnknown': 'Could not read the date, so we do not know whether it is wrapped up.',
 
   'review.title': 'How was\nthis date?',
   'review.body': 'Your rating helps GoGo pick better next time.',

@@ -641,6 +641,14 @@ export const viMessages = {
   'dateFinished.cta': 'Các bạn thấy sao? 💬',
   'dateFinished.cta_couple': 'Hai đứa thấy sao? 💬',
   'dateFinished.stopsDone': 'Đã đi {{done}}/{{total}} điểm',
+  // #269 — kèo chỉ thực sự xong khi phòng rời trạng thái đang diễn ra. Chủ phòng
+  // thấy việc đó đang chạy, và thấy khi nó hỏng, thay vì tin là đã xong.
+  'dateFinished.closing': 'Đang khép lại kèo…',
+  'dateFinished.closeFailed': 'Chưa khép lại được kèo, nên nó vẫn đang diễn ra.',
+  'dateFinished.closeRetry': 'Thử lại',
+  'dateFinished.roomLoading': 'Đang đọc trạng thái kèo…',
+  'dateFinished.roomOffline': 'Đang ngoại tuyến nên chưa khép lại kèo được. Mở lại màn này khi có mạng.',
+  'dateFinished.roomUnknown': 'Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.',
 
   'review.title': 'Bạn thấy buổi\ndate này thế nào?',
   'review.body': 'Đánh giá của bạn giúp GoGo chọn tốt hơn lần sau.',

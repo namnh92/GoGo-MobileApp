@@ -163,6 +163,11 @@ export default function ActiveDateScreen() {
     if (!closed.finishesDate || finished.current) return
     finished.current = true
     track('date_completed', { stops: stops.length })
+    // #269 — the room transition lives on the summary, not here. This screen
+    // only sees the ending it caused: a member can complete the last stop, and
+    // a relaunch between completing it and closing its sheet skips this path
+    // entirely. Whoever arrives at the summary is where the room gets closed,
+    // and where a failure can be seen and retried.
     router.replace(`/plans/${planId}/finished`)
   }
 

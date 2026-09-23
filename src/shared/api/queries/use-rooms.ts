@@ -10,7 +10,7 @@ import {
 } from '@/shared/storage/invite-codes'
 
 import * as roomsApi from '../endpoints/rooms'
-import { isApiError, isForbidden } from '../errors'
+import { isApiError, isForbidden, isRetryable } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
 import * as suggestionsApi from '../endpoints/suggestions'
 import { queryKeys } from '../query-keys'
@@ -172,6 +172,67 @@ export function useStartDate(roomId: string | undefined, planId?: string) {
   }, [roomId, mutateAsync])
 
   return { ...mutation, start }
+}
+
+/**
+ * #269 — the host's "Kết thúc date": `active → completed`.
+ *
+ * Single-flight like starting the date, for the same reason: the last stop's
+ * sheet can close twice in quick succession and one ending is one transition.
+ * Only the host may send it, so the caller checks the role first — a member
+ * closing the same sheet ends their own screen and nothing else.
+ *
+ * Every answer refreshes the room, its plan and the Plans tabs, which filter by
+ * room status (#213): a finished date has to leave the active tab and appear in
+ * history.
+ */
+export function useFinishDate(roomId: string | undefined, planId?: string) {
+  const queryClient = useQueryClient()
+  const inFlight = useRef(false)
+  const mutation = useMutation({
+    /**
+     * Bounded automatic retry, unlike every other button in the app.
+     *
+     * The person can leave the summary — hardware back, a swipe — and take the
+     * retry control with them while the room is still `active`. A transient
+     * failure must not depend on them being there to press anything, so the
+     * mutation keeps trying on its own for a short while; the visible retry is
+     * for when that runs out.
+     */
+    // Only what a retry can actually fix. A host-only refusal or a room that is
+    // gone answers the same way every time, and repeating it just delays the
+    // `onError` that refreshes the stale role by another six seconds.
+    retry: (attempt, error) => attempt < 2 && isRetryable(error),
+    retryDelay: attempt => Math.min(2_000 * 2 ** attempt, 15_000),
+    networkMode: 'always',
+    mutationFn: () => roomsApi.finishRoomDate(roomId as string),
+    onSuccess: room => {
+      queryClient.setQueryData(queryKeys.room(room.id), room)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.room(room.id), exact: true })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roomCurrentPlan(room.id) })
+      if (planId) void queryClient.invalidateQueries({ queryKey: queryKeys.plan(planId) })
+      void queryClient.invalidateQueries({ queryKey: ['rooms', 'list'] })
+    },
+    onError: error => {
+      // A refusal means the cached role is behind what the server believes.
+      if (roomId && isForbidden(error)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId), exact: true })
+      }
+    },
+  })
+
+  const { mutateAsync } = mutation
+  const finish = useCallback(async (): Promise<RoomSummary | null> => {
+    if (!roomId || inFlight.current) return null
+    inFlight.current = true
+    try {
+      return await mutateAsync()
+    } finally {
+      inFlight.current = false
+    }
+  }, [roomId, mutateAsync])
+
+  return { ...mutation, finish }
 }
 
 /** APP-049 (#202): the list shows the name too, so it refetches; nothing goes stale. */

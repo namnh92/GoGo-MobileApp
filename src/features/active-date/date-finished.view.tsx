@@ -1,14 +1,14 @@
-import { glyph } from '@/shared/ui/tokens'
+import { glyph, spacing } from '@/shared/ui/tokens'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 
-import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom, toRoomAudience } from '@/shared/api'
+import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom, useFinishDate, toRoomAudience } from '@/shared/api'
 import { costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
-import { Atmosphere, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 
 import { styles } from './date-finished.style'
@@ -23,6 +23,69 @@ export default function DateFinishedScreen() {
   const summary = useMemo(() => (plan.data ? toPlanSummary(plan.data) : null), [plan.data])
   const places = usePlanStopPlaces(summary?.stops ?? [])
   const room = useRoom(summary?.roomId)
+
+  /**
+   * #269 — SRS §7.2 `active --> completed: finish`. The app used to end only its
+   * own screen: every stop completed, this summary shown, and the room left
+   * `active` for good, so the Plans history tab (#213) never listed a date
+   * anyone had been on.
+   *
+   * It belongs here rather than on the screen that completed the last stop.
+   * That screen only sees the ending it caused, and there are three other ways
+   * to arrive: a member completes the last stop, the app is relaunched between
+   * completing it and closing its sheet, or the host taps through from a date
+   * whose stops are all done. Whoever reaches this screen closes the room.
+   *
+   * Host-only on the server, so only the host sends it; for everyone else this
+   * is a read-only summary.
+   */
+  const finishDate = useFinishDate(summary?.roomId, planId)
+  const stops = summary?.stops ?? []
+  const nothingLeft = stops.length > 0 && stops.every(stop => stop.status !== 'planned')
+  /**
+   * The room is persisted, so there is usually something cached — and that is
+   * the trap. A host can arrive here holding a `ready` room from before the
+   * date, while another device has since started it and walked every stop. A
+   * cached status cannot answer "is this room still open"; only a read taken
+   * after this screen opened can.
+   */
+  const [openedAt] = useState(() => Date.now())
+  // Freshness is about the data, not the query's mood. After the room is closed
+  // this screen invalidates it, and if that refetch then fails TanStack keeps
+  // the authoritative `completed` room while dropping `isSuccess` — which used
+  // to read as "unknown room" and hold the door shut on a room that was already
+  // closed.
+  const roomFresh = room.data !== undefined && room.dataUpdatedAt >= openedAt
+  const needsClosing = roomFresh && room.data?.myRole === 'host' && room.data.status === 'active' && nothingLeft
+
+  // Offline, TanStack pauses the read rather than failing it: there is no error
+  // to report and no answer coming until the network does. Saying "checking"
+  // forever and holding the person here would buy nothing — nothing can be
+  // closed offline either.
+  const roomOffline = room.isPaused && !roomFresh
+  const roomUnreadable = room.isError && !roomFresh
+  const waitingForRoom = !roomFresh && !roomOffline && !roomUnreadable
+
+  const { refetch: refetchRoom } = room
+  // A cached answer is not an answer. Ask again, once, as soon as there is a
+  // room to ask about.
+  const asked = useRef(false)
+  useEffect(() => {
+    if (!summary?.roomId || asked.current) return
+    asked.current = true
+    void refetchRoom()
+  }, [summary?.roomId, refetchRoom])
+
+  // One automatic attempt. A failure is not swallowed: it becomes the state
+  // below, with a retry, rather than a summary that claims a date is over while
+  // the room says otherwise.
+  const attempted = useRef(false)
+  const { finish } = finishDate
+  useEffect(() => {
+    if (!needsClosing || attempted.current) return
+    attempted.current = true
+    void finish().catch(() => undefined)
+  }, [needsClosing, finish])
 
   if (plan.isPending) {
     return (
@@ -50,9 +113,18 @@ export default function DateFinishedScreen() {
 
   return (
     <Atmosphere style={styles.root}>
-      <View style={{ paddingTop: insets.top, alignSelf: 'stretch' }}>
-        <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
-      </View>
+      {/* A date can have several stops, and the closing state adds a line and a
+          button under them. On a short screen, or at a large text size, that was
+          enough to push the retry and the way out past the bottom edge — and
+          `Atmosphere` clips, so they were simply gone. It scrolls. */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top, paddingBottom: insets.bottom + spacing[6] }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ alignSelf: 'stretch' }}>
+          <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
+        </View>
       <Text style={styles.burst}>✨</Text>
       <Text style={styles.title}>{t('dateFinished.title')}</Text>
       <Text style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>
@@ -86,11 +158,64 @@ export default function DateFinishedScreen() {
         </View>
       </GlassCard>
 
+      {/* Leaving is what strands a room `active`, so the way out stays shut
+          while the room is unknown or still open. */}
+      {roomOffline ? (
+        <View style={styles.closing}>
+          <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+            {t('dateFinished.roomOffline')}
+          </Text>
+        </View>
+      ) : !roomFresh ? (
+        <View style={styles.closing}>
+          {roomUnreadable ? (
+            <>
+              <Text accessibilityLiveRegion="polite" style={styles.closingFailed}>
+                {t('dateFinished.roomUnknown')}
+              </Text>
+              <SecondaryBtn label={t('dateFinished.closeRetry')} onPress={() => void refetchRoom()} />
+            </>
+          ) : (
+            <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+              {t('dateFinished.roomLoading')}
+            </Text>
+          )}
+        </View>
+      ) : needsClosing ? (
+        <View style={styles.closing}>
+          {/* Only a refusal reads as a failure. Anything else — in flight, or
+              the room not yet refetched — is still the room being closed. */}
+          {finishDate.isError ? (
+            <>
+              <Text accessibilityLiveRegion="polite" style={styles.closingFailed}>
+                {t('dateFinished.closeFailed')}
+              </Text>
+              <SecondaryBtn
+                label={t('dateFinished.closeRetry')}
+                onPress={() => void finish().catch(() => undefined)}
+              />
+            </>
+          ) : (
+            <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+              {t('dateFinished.closing')}
+            </Text>
+          )}
+        </View>
+      ) : null}
+
       <PrimaryBtn
         label={t('dateFinished.cta', { context: roomType })}
         onPress={() => router.push(`/plans/${planId}/review`)}
+        // Review is the one way off this screen, and neither it nor the shared
+        // result closes a room. Following it while the room is unknown or still
+        // open takes the retry with it and leaves the date out of history.
+        // A read that failed is recoverable right now, so it holds the door;
+        // being offline is not, and nothing can be closed until the network is
+        // back, so that one lets people through and the next visit closes it.
+        disabled={waitingForRoom || roomUnreadable || needsClosing}
         style={styles.cta}
-      />
+        />
+      </ScrollView>
     </Atmosphere>
   )
 }
