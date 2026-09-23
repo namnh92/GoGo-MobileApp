@@ -578,6 +578,30 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     stream.opening = null
   }
 
+  /**
+   * Refetch everything the subscribed screens are showing.
+   *
+   * Used wherever the stream cannot vouch for continuity: a `resync`, an event
+   * that arrived with nobody watching, or a connection opened with no resume
+   * point at all.
+   */
+  const refetchSubscribed = (stream: SseStream) => {
+    const planIds = stream.planIds.size > 0 ? [...stream.planIds.keys()] : [undefined]
+    for (const phase of stream.phases.keys()) {
+      for (const type of ROOM_PHASE_EVENTS[phase]) {
+        for (const planId of planIds) {
+          for (const queryKey of eventQueryKeys({
+            type,
+            roomId: stream.roomId,
+            ...(planId ? { planId } : {}),
+          })) {
+            void stream.queryClient.invalidateQueries({ queryKey })
+          }
+        }
+      }
+    }
+  }
+
   /** Does any subscribed phase care about this event type? */
   const interested = (stream: SseStream, type: string): type is RoomEventType => {
     for (const phase of stream.phases.keys()) {
@@ -690,6 +714,11 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       onOpen: () => {
         if (!fresh()) return
         stream.attempt = 0
+        // Opening with no resume point means this connection can replay
+        // nothing: whatever happened while the room had no stream is not
+        // coming. Swapping straight to the slow safety poll here would leave
+        // that gap on screen for its whole interval, so ask once, now.
+        if (!stream.lastEventId) refetchSubscribed(stream)
         // The stream carries most events; the slow poll stays for the ones it
         // does not (GoGo-BE#608). Never drop cover entirely.
         poll(stream, 'live')
@@ -733,20 +762,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           stream.lastEventId = null
           // Refetch everything the subscribed phases show rather than carry on
           // from a hole.
-          const planIds = stream.planIds.size > 0 ? [...stream.planIds.keys()] : [undefined]
-          for (const phase of stream.phases.keys()) {
-            for (const type of ROOM_PHASE_EVENTS[phase]) {
-              for (const planId of planIds) {
-                for (const queryKey of eventQueryKeys({
-                  type,
-                  roomId: stream.roomId,
-                  ...(planId ? { planId } : {}),
-                })) {
-                  void stream.queryClient.invalidateQueries({ queryKey })
-                }
-              }
-            }
-          }
+          refetchSubscribed(stream)
           return
         }
 

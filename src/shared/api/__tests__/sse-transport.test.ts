@@ -1048,4 +1048,38 @@ describe('sseTransport × a screen routed by plan id', () => {
 
     expect(h.keys()).toContain(JSON.stringify(queryKeys.plan(PLAN_ID)))
   })
+
+  /**
+   * Sixth-pass review finding, 2026-09-23.
+   */
+  it('asks once when it opens with nothing to resume from', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client, planId: PLAN_ID })
+    await flush()
+    h.keys()
+
+    h.connector.last().onOpen()
+
+    // This connection can replay nothing, and opening swaps the full-cadence
+    // poll for the slow one — so whatever changed while the room had no stream
+    // would have sat on screen for the safety interval.
+    expect(h.keys()).toContain(JSON.stringify(queryKeys.plan(PLAN_ID)))
+  })
+
+  it('does not ask again when it resumes where it left off', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client, planId: PLAN_ID })
+    await flush()
+    h.connector.last().onOpen()
+    h.connector.last().onEvent(sse('plan.updated', { planId: PLAN_ID }, '50'))
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+    h.keys()
+
+    h.connector.last().onOpen()
+
+    // It carries a resume point, so the server fills the gap.
+    expect(h.keys()).toEqual([])
+  })
 })
