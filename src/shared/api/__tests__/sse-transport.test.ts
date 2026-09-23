@@ -20,6 +20,7 @@ vi.mock('../realtime/app-activity', () => ({
 }))
 
 const ROOM_ID = 'room-1'
+const PLAN_ID = 'plan-7'
 const TOKEN_TTL_MS = 15 * 60_000
 
 /** An app whose foreground state the test controls. */
@@ -63,11 +64,11 @@ function fakeConnector() {
 
 /** A fallback transport that records what was asked of it. */
 function fakeFallback() {
-  const subscriptions: { roomId: string; phase: string; active: boolean }[] = []
+  const subscriptions: { roomId: string; phase: string; planId?: string; active: boolean }[] = []
   const transport: RoomRealtimeTransport = {
     kind: 'polling',
-    subscribe({ roomId, phase }) {
-      const record = { roomId, phase: String(phase), active: true }
+    subscribe({ roomId, phase, planId }) {
+      const record = { roomId, phase: String(phase), planId, active: true }
       subscriptions.push(record)
       return () => {
         record.active = false
@@ -97,15 +98,18 @@ interface Harness {
   activity: ReturnType<typeof fakeActivity>
   statuses: RoomRealtimeStatus[]
   authCalls: () => number
+  /** Releases a deferred `auth()`; only for `grant: 'deferred'`. */
+  releaseAuth: () => void
 }
 
-function harness(options: { enabled?: boolean; grant?: 'ok' | 'none' } = {}): Harness {
+function harness(options: { enabled?: boolean; grant?: 'ok' | 'none' | 'deferred' } = {}): Harness {
   const connector = fakeConnector()
   const fallback = fakeFallback()
   const safety = fakeFallback()
   const { client, keys } = fakeClient()
   const activity = fakeActivity()
   let calls = 0
+  let release: (() => void) | null = null
   const transport = createSseTransport({
     connect: connector.connect,
     fallback: fallback.transport,
@@ -113,7 +117,13 @@ function harness(options: { enabled?: boolean; grant?: 'ok' | 'none' } = {}): Ha
     activity: activity.activity,
     auth: async () => {
       calls += 1
-      return options.grant === 'none' ? null : { token: `t${calls}`, expiresAt: Date.now() + TOKEN_TTL_MS }
+      if (options.grant === 'none') return null
+      const grant = { token: `t${calls}`, expiresAt: Date.now() + TOKEN_TTL_MS }
+      if (options.grant !== 'deferred') return grant
+      // Hands the test the moment between asking for a token and getting one.
+      return new Promise(resolve => {
+        release = () => resolve(grant)
+      })
     },
     apiUrl: 'https://api.example/v1',
     ...(options.enabled === undefined ? {} : { enabled: options.enabled }),
@@ -128,6 +138,7 @@ function harness(options: { enabled?: boolean; grant?: 'ok' | 'none' } = {}): Ha
     activity,
     statuses: [],
     authCalls: () => calls,
+    releaseAuth: () => release?.(),
   }
 }
 
@@ -502,5 +513,166 @@ describe('sseTransport', () => {
     await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
     await flush()
     expect(h.authCalls()).toBeGreaterThan(1)
+  })
+
+  /**
+   * Review finding, 2026-09-23. Backgrounding while `auth()` was still out left
+   * the attempt alive: it read the generation *after* the await, so the
+   * invalidation background had just made was invisible to it, and a connection
+   * opened for an app that had already gone away.
+   */
+  it('does not open a stream that was backgrounded while it waited for a token', async () => {
+    const h = harness({ grant: 'deferred' })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    expect(h.connector.opened).toHaveLength(0)
+
+    h.activity.set(false)
+    h.releaseAuth()
+    await flush()
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS)
+
+    expect(h.connector.opened).toHaveLength(0)
+  })
+
+  it('opens once the app comes back, with a token asked for then', async () => {
+    const h = harness({ grant: 'deferred' })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.activity.set(false)
+    h.releaseAuth()
+    await flush()
+
+    h.activity.set(true)
+    await flush()
+    h.releaseAuth()
+    await flush()
+
+    expect(h.connector.opened).toHaveLength(1)
+    expect(h.connector.last().headers.authorization).toBe('Bearer t2')
+  })
+
+  /**
+   * Review finding, 2026-09-23. Backgrounding during the hand-off window
+   * cancelled the timer that was going to dispose the stream, and nothing else
+   * ever did — so a room with no screen left sat in the map and reconnected on
+   * every return.
+   */
+  it('lets go of a stream whose last screen left while the app was in the background', async () => {
+    const h = harness()
+    const teardown = h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    teardown()
+    h.activity.set(false)
+    await vi.advanceTimersByTimeAsync(SSE_IDLE_GRACE_MS * 3)
+    h.activity.set(true)
+    await flush()
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS)
+    await flush()
+
+    // The original connection, closed, and nothing raised in its place.
+    expect(h.connector.opened).toHaveLength(1)
+    expect(h.connector.opened[0].closed).toBe(true)
+    expect(h.safety.live()).toHaveLength(0)
+    expect(h.fallback.live()).toHaveLength(0)
+  })
+
+  it('still hands the room over when the app stays in the foreground', async () => {
+    const h = harness()
+    const lobby = h.transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    lobby()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await vi.advanceTimersByTimeAsync(SSE_IDLE_GRACE_MS * 2)
+    await flush()
+
+    expect(h.connector.opened).toHaveLength(1)
+    expect(h.connector.last().closed).toBe(false)
+  })
+})
+
+/**
+ * Integration gate for #285 + #286. Each branch was green on its own; what
+ * neither could show is that adopting the stream keeps the plan a screen is
+ * routed by. A date screen opened straight from a plan link reads
+ * `plan(planId)`, which no room id names — if the stream forwards only the room
+ * to the polls underneath it, the date screen silently stops refreshing again.
+ */
+describe('sseTransport × a screen routed by plan id', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    resetSseTransportForTests()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  const openDateScreen = (h: Harness) =>
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'date', queryClient: h.client, planId: PLAN_ID })
+
+  it('gives the plan id to the safety poll under a live stream', async () => {
+    const h = harness()
+    openDateScreen(h)
+    await flush()
+    h.connector.last().onOpen()
+
+    expect(h.safety.live()).toEqual([
+      expect.objectContaining({ roomId: ROOM_ID, phase: 'date', planId: PLAN_ID }),
+    ])
+  })
+
+  it('gives the plan id to the full-cadence poll when the stream is refused', async () => {
+    const h = harness()
+    openDateScreen(h)
+    await flush()
+    // The environment has realtime switched off: polling is all there is.
+    h.connector.last().onClose({ status: 503 })
+    await flush()
+
+    expect(h.fallback.live()).toEqual([
+      expect.objectContaining({ roomId: ROOM_ID, phase: 'date', planId: PLAN_ID }),
+    ])
+  })
+
+  it('gives the plan id to the poll that covers a dropped stream', async () => {
+    const h = harness()
+    openDateScreen(h)
+    await flush()
+    h.connector.last().onOpen()
+    h.connector.last().onClose({ status: null })
+
+    expect(h.fallback.live()).toEqual([
+      expect.objectContaining({ roomId: ROOM_ID, phase: 'date', planId: PLAN_ID }),
+    ])
+  })
+
+  it('refetches that plan when the server says the replay window was exceeded', async () => {
+    const h = harness()
+    openDateScreen(h)
+    await flush()
+    h.connector.last().onOpen()
+    h.keys()
+
+    h.connector.last().onEvent({ type: 'resync', id: '9', data: '{"reason":"replay_window_exceeded"}' })
+
+    expect(h.keys()).toContain(JSON.stringify(queryKeys.plan(PLAN_ID)))
+  })
+
+  it('stops asking for that plan once the screen showing it has gone', async () => {
+    const h = harness()
+    const teardown = openDateScreen(h)
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    teardown()
+
+    expect(h.safety.live().every(s => s.planId === undefined)).toBe(true)
+    expect(h.safety.live().map(s => s.phase)).toEqual(['lobby'])
   })
 })

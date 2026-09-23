@@ -83,6 +83,12 @@ export const SAFETY_POLL_INTERVAL_MS: Record<RoomPhase, number> = {
   lobby: 20_000,
   matching: 4_000,
   plan: 30_000,
+  // Completing a stop does emit `plan.updated` — measured against DEV
+  // `a9da62d`, the event arrived about 1.5 s after the write — so the date does
+  // not need `matching`'s full cadence underneath a live stream. It keeps a
+  // slower net because two people are walking it together and a silent gap
+  // there is the #285 defect all over again.
+  date: 20_000,
 }
 
 /**
@@ -333,6 +339,15 @@ interface SseStream {
   queryClient: QueryClient
   /** Subscriber count per phase, exactly as the poller counts them. */
   phases: Map<RoomPhase, number>
+  /**
+   * Plan ids the subscribed screens are keyed by, with their subscriber count.
+   *
+   * A screen routed by plan id reads `plan(planId)`, which no room id names
+   * (#285). The stream has to hand that id to both polls underneath it and use
+   * it when the server tells us to resync — otherwise adopting SSE quietly
+   * takes the date screen back to never refreshing.
+   */
+  planIds: Map<string, number>
   listeners: Set<(status: RoomRealtimeStatus) => void>
   connection: SseConnection | null
   /** An open is already in flight; its `auth()` has not answered yet. */
@@ -398,10 +413,20 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     const transport = mode === 'live' ? safety : fallback
     for (const phase of stream.phases.keys()) {
       if (stream.polls.has(phase)) continue
-      stream.polls.set(
-        phase,
-        transport.subscribe({ roomId: stream.roomId, phase, queryClient: stream.queryClient }),
+      // One poll subscription per phase, per plan id a screen named. A screen
+      // with no plan id still gets the room's keys.
+      const planIds = stream.planIds.size > 0 ? [...stream.planIds.keys()] : [undefined]
+      const teardowns = planIds.map(planId =>
+        transport.subscribe({
+          roomId: stream.roomId,
+          phase,
+          queryClient: stream.queryClient,
+          ...(planId ? { planId } : {}),
+        }),
       )
+      stream.polls.set(phase, () => {
+        for (const teardown of teardowns) teardown()
+      })
     }
   }
 
@@ -422,6 +447,20 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     stream.retryTimer = null
     stream.tokenTimer = null
     stream.graceTimer = null
+  }
+
+  /**
+   * Ends a stream for good: timers, socket, polls, the activity listener and
+   * the map entry. Every path that abandons a stream goes through here, so none
+   * of them can leave a subscriber-free stream behind with its cleanup half
+   * done.
+   */
+  const dispose = (stream: SseStream) => {
+    clearTimers(stream)
+    closeConnection(stream)
+    stopPolls(stream)
+    stream.unsubscribeActivity()
+    streams.delete(stream.roomId)
   }
 
   const closeConnection = (stream: SseStream) => {
@@ -476,6 +515,10 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       return
     }
     if (!activity.isActive()) return
+    // A stream is for the screens watching it. During the hand-off window the
+    // existing connection is deliberately kept, but nothing here may open a new
+    // one for a room nobody is looking at.
+    if (stream.phases.size === 0) return
     // Two screens subscribing in the same tick both reach here before either
     // `auth()` has answered, which used to open the room twice.
     if (stream.connection || stream.opening) return
@@ -485,10 +528,23 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     // poll is still polling as far as a screen is concerned.
     if (stream.polls.size === 0) setStatus(stream, 'connecting')
 
+    // Captured before the await, not after. Backgrounding invalidates the
+    // attempt in flight by moving the generation on; reading it afterwards
+    // picked up that new value and opened a connection for an app that had
+    // already gone away.
+    const attemptGeneration = stream.generation
     const grant = await auth().catch(() => null)
-    stream.opening = false
-    // Re-checked after the await: the screen may have gone in the meantime.
-    if (!streams.has(stream.roomId) || stream.givenUp) return
+    // Whatever happened while we waited decides this, not the fact that a token
+    // arrived: the stream may have been disposed, given up, superseded by a
+    // newer attempt, lost its last screen, or the app may have backgrounded.
+    const stillWanted =
+      streams.get(stream.roomId) === stream &&
+      !stream.givenUp &&
+      stream.generation === attemptGeneration &&
+      stream.phases.size > 0 &&
+      activity.isActive()
+    if (stream.opening) stream.opening = false
+    if (!stillWanted) return
     if (!grant) {
       // No session means no stream and no poll worth making either; the room
       // queries themselves will fail and say so.
@@ -497,9 +553,8 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       return
     }
 
-    const generation = stream.generation
     const fresh = (): boolean =>
-      streams.get(stream.roomId) === stream && stream.generation === generation
+      streams.get(stream.roomId) === stream && stream.generation === attemptGeneration
 
     const headers: Record<string, string> = { authorization: `Bearer ${grant.token}` }
     if (stream.lastEventId) headers['last-event-id'] = stream.lastEventId
@@ -540,10 +595,17 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           // The gap was wider than the server's replay buffer, so nothing
           // resumed. Refetch everything the subscribed phases show rather than
           // carry on from a hole.
+          const planIds = stream.planIds.size > 0 ? [...stream.planIds.keys()] : [undefined]
           for (const phase of stream.phases.keys()) {
             for (const type of ROOM_PHASE_EVENTS[phase]) {
-              for (const queryKey of eventQueryKeys({ type, roomId: stream.roomId })) {
-                void stream.queryClient.invalidateQueries({ queryKey })
+              for (const planId of planIds) {
+                for (const queryKey of eventQueryKeys({
+                  type,
+                  roomId: stream.roomId,
+                  ...(planId ? { planId } : {}),
+                })) {
+                  void stream.queryClient.invalidateQueries({ queryKey })
+                }
               }
             }
           }
@@ -594,13 +656,14 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
   return {
     kind: 'sse',
 
-    subscribe({ roomId, phase, queryClient, onStatusChange }) {
+    subscribe({ roomId, phase, queryClient, planId, onStatusChange }) {
       let stream = streams.get(roomId)
       if (!stream) {
         const created: SseStream = {
           roomId,
           queryClient,
           phases: new Map(),
+          planIds: new Map(),
           listeners: new Set(),
           connection: null,
           opening: false,
@@ -621,6 +684,12 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         created.unsubscribeActivity = activity.subscribe(active => {
           if (streams.get(roomId) !== created) return
           if (active) {
+            // Its last screen went while the app was away, so there is nothing
+            // to come back to.
+            if (created.phases.size === 0) {
+              dispose(created)
+              return
+            }
             created.attempt = 0
             if (created.retryTimer) {
               clearTimeout(created.retryTimer)
@@ -630,6 +699,11 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           } else {
             closeConnection(created)
             clearTimers(created)
+            // `clearTimers` cancels the hand-off window, and a cancelled timer
+            // never disposes anything. A stream whose last screen has already
+            // gone would have sat in the map forever and reconnected on every
+            // return, with nobody watching.
+            if (created.phases.size === 0) dispose(created)
           }
         })
         stream = created
@@ -643,6 +717,12 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         stream.graceTimer = null
       }
       stream.phases.set(phase, (stream.phases.get(phase) ?? 0) + 1)
+      if (planId) {
+        // A new plan id changes what the polls underneath have to ask for, so
+        // they are rebuilt rather than left describing the previous screen.
+        if (!stream.planIds.has(planId)) stopPolls(stream)
+        stream.planIds.set(planId, (stream.planIds.get(planId) ?? 0) + 1)
+      }
       if (onStatusChange) {
         stream.listeners.add(onStatusChange)
         const current = stream.status
@@ -659,18 +739,37 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         if (streams.get(roomId) !== subscribed) return
         if (onStatusChange) subscribed.listeners.delete(onStatusChange)
 
+        // The plan id goes with the screen that named it, whether or not
+        // another screen of the same phase is still here.
+        let rebuildPolls = false
+        if (planId) {
+          const plansLeft = (subscribed.planIds.get(planId) ?? 1) - 1
+          if (plansLeft > 0) subscribed.planIds.set(planId, plansLeft)
+          else {
+            subscribed.planIds.delete(planId)
+            rebuildPolls = true
+          }
+        }
+
         const remaining = (subscribed.phases.get(phase) ?? 1) - 1
-        if (remaining > 0) {
-          subscribed.phases.set(phase, remaining)
+        if (remaining > 0) subscribed.phases.set(phase, remaining)
+        else {
+          subscribed.phases.delete(phase)
+          const teardown = subscribed.polls.get(phase)
+          if (teardown) {
+            teardown()
+            subscribed.polls.delete(phase)
+          }
+        }
+
+        if (subscribed.phases.size > 0) {
+          // Whoever is left keeps polling for what they are actually showing.
+          if (rebuildPolls) {
+            stopPolls(subscribed)
+            poll(subscribed, subscribed.pollMode)
+          }
           return
         }
-        subscribed.phases.delete(phase)
-        const teardown = subscribed.polls.get(phase)
-        if (teardown) {
-          teardown()
-          subscribed.polls.delete(phase)
-        }
-        if (subscribed.phases.size > 0) return
 
         // Nothing is watching. Stop polling at once — that is pure waste — but
         // let the stream outlive the gap between one screen unmounting and the
@@ -680,10 +779,7 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
         subscribed.graceTimer = setTimeout(() => {
           subscribed.graceTimer = null
           if (streams.get(roomId) !== subscribed || subscribed.phases.size > 0) return
-          clearTimers(subscribed)
-          closeConnection(subscribed)
-          subscribed.unsubscribeActivity()
-          streams.delete(roomId)
+          dispose(subscribed)
         }, SSE_IDLE_GRACE_MS)
       }
     },
