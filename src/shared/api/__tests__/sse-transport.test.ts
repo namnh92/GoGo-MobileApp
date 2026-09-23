@@ -112,7 +112,7 @@ interface Harness {
 function harness(
   options: {
     enabled?: boolean
-    grant?: 'ok' | 'none' | 'deferred' | 'renews-like-the-app'
+    grant?: 'ok' | 'none' | 'deferred' | 'renews-like-the-app' | 'refresh-keeps-failing'
     /** What the Keychain has read so far; `null` is a cold start. */
     session?: unknown
   } = {},
@@ -138,6 +138,9 @@ function harness(
       calls += 1
       forced.push(opts?.force === true)
       if (options.grant === 'none') return null
+      // A forced refresh that cannot reach the server: no grant, and the token
+      // the server refused is still the only one in hand.
+      if (options.grant === 'refresh-keeps-failing' && opts?.force) return null
       if (options.grant === 'renews-like-the-app') {
         // What `currentAccessGrant` really does: hand back the session's token
         // and only renew once inside `EXPIRY_SKEW_MS` of its expiry.
@@ -326,7 +329,9 @@ describe('sseTransport', () => {
 
     const keys = h.keys()
     expect(keys).toContain(JSON.stringify(queryKeys.room(ROOM_ID)))
-    expect(keys).toContain(JSON.stringify(queryKeys.roomCurrentPlan(ROOM_ID)))
+    // `roomCurrentPlan` lives under `room`, and invalidation is not exact, so
+    // sending both would cancel the refetch the first one started.
+    expect(keys).not.toContain(JSON.stringify(queryKeys.roomCurrentPlan(ROOM_ID)))
     // And it is not a resume point either.
     h.connector.last().onClose({ status: null })
     await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
@@ -1081,5 +1086,39 @@ describe('sseTransport × a screen routed by plan id', () => {
 
     // It carries a resume point, so the server fills the gap.
     expect(h.keys()).toEqual([])
+  })
+
+  /**
+   * Seventh-pass review findings, 2026-09-23.
+   */
+  it('keeps demanding a new token until it actually gets one', async () => {
+    const h = harness({ grant: 'refresh-keeps-failing' })
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onClose({ status: 401 })
+
+    // First retry asks for a renewal and does not get one.
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+    expect(h.authForced().at(-1)).toBe(true)
+
+    // The next one must still insist, rather than settle for the token the
+    // server already refused.
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS)
+    await flush()
+    expect(h.authForced().at(-1)).toBe(true)
+  })
+
+  it('does not send a key and its ancestor in the same refetch', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'lobby', queryClient: h.client })
+    await flush()
+    h.keys()
+
+    h.connector.last().onOpen()
+
+    const keys = h.keys()
+    expect(keys).toContain(JSON.stringify(queryKeys.room(ROOM_ID)))
+    expect(keys).not.toContain(JSON.stringify(queryKeys.roomMembers(ROOM_ID)))
   })
 })

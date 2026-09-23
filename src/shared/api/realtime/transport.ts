@@ -587,18 +587,26 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
    */
   const refetchSubscribed = (stream: SseStream) => {
     const planIds = stream.planIds.size > 0 ? [...stream.planIds.keys()] : [undefined]
+    const seen = new Map<string, readonly unknown[]>()
     for (const phase of stream.phases.keys()) {
       for (const type of ROOM_PHASE_EVENTS[phase]) {
         for (const planId of planIds) {
-          for (const queryKey of eventQueryKeys({
+          for (const key of eventQueryKeys({
             type,
             roomId: stream.roomId,
             ...(planId ? { planId } : {}),
           })) {
-            void stream.queryClient.invalidateQueries({ queryKey })
+            seen.set(JSON.stringify(key), key)
           }
         }
       }
+    }
+    // Keys are hierarchical and invalidation is not exact, so asking for
+    // `room(id)` already refetches `roomMembers(id)`. Sending both cancels the
+    // refetch the first one started and begins it again.
+    const keys = [...seen.values()]
+    for (const queryKey of keys.filter(key => !keys.some(other => other !== key && isPrefixOf(other, key)))) {
+      void stream.queryClient.invalidateQueries({ queryKey })
     }
   }
 
@@ -677,7 +685,10 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
     // already gone away.
     const attemptGeneration = stream.generation
     const grant = await auth({ force: stream.renewFirst }).catch(() => null)
-    stream.renewFirst = false
+    // Only a grant in hand retires the demand for a new one. A forced refresh
+    // that failed — offline, throttled, a 5xx — leaves the refused token in
+    // place, and the next attempt must not settle for it.
+    if (grant) stream.renewFirst = false
     // Only the attempt that set the flag may clear it.
     if (stream.opening === attempt) stream.opening = null
     // Whatever happened while we waited decides this, not the fact that a token
