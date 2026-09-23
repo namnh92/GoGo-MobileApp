@@ -366,4 +366,39 @@ describe('closing the room from the summary (#269)', () => {
       onlineManager.setOnline(true)
     }
   })
+
+  /**
+   * Third-pass review findings, 2026-09-23.
+   */
+  it('keeps the closed room it already read when the refresh after it fails', async () => {
+    let roomReads = 0
+    mockGet.mockImplementation((path: string) => {
+      if (path !== '/rooms/{id}') return Promise.resolve(plan())
+      roomReads += 1
+      // The read this screen opened with, then a refresh that does not land.
+      return roomReads === 1
+        ? Promise.resolve(roomFor('group-host', { status: 'active' } as never))
+        : Promise.reject(new ApiError(500, { code: 'INTERNAL', message: 'boom' }))
+    })
+
+    await openSummary()
+    await waitFor(() => expect(statusCalls()).toHaveLength(1))
+    await letRetriesRunOut()
+
+    // The room is closed. A failed refresh afterwards must not turn that into
+    // "we do not know what this room is".
+    expect(screen.queryByText('Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.')).toBeNull()
+    await waitFor(() => expect(reviewDisabled()).toBe(false))
+  })
+
+  it('does not repeat a refusal that will never change its mind', async () => {
+    mockPatch.mockRejectedValue(new ApiError(403, { code: 'HOST_ONLY', message: 'not yours' }))
+
+    await openSummary()
+    await letRetriesRunOut()
+
+    // Asking a host-only endpoint three times answers the same way three times,
+    // and holds the role refresh back while it does.
+    expect(statusCalls()).toHaveLength(1)
+  })
 })

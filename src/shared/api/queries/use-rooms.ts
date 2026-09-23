@@ -10,7 +10,7 @@ import {
 } from '@/shared/storage/invite-codes'
 
 import * as roomsApi from '../endpoints/rooms'
-import { isApiError, isForbidden } from '../errors'
+import { isApiError, isForbidden, isRetryable } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
 import * as suggestionsApi from '../endpoints/suggestions'
 import { queryKeys } from '../query-keys'
@@ -199,7 +199,10 @@ export function useFinishDate(roomId: string | undefined, planId?: string) {
      * mutation keeps trying on its own for a short while; the visible retry is
      * for when that runs out.
      */
-    retry: 2,
+    // Only what a retry can actually fix. A host-only refusal or a room that is
+    // gone answers the same way every time, and repeating it just delays the
+    // `onError` that refreshes the stale role by another six seconds.
+    retry: (attempt, error) => attempt < 2 && isRetryable(error),
     retryDelay: attempt => Math.min(2_000 * 2 ** attempt, 15_000),
     networkMode: 'always',
     mutationFn: () => roomsApi.finishRoomDate(roomId as string),

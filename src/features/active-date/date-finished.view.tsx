@@ -50,7 +50,12 @@ export default function DateFinishedScreen() {
    * after this screen opened can.
    */
   const [openedAt] = useState(() => Date.now())
-  const roomFresh = room.isSuccess && room.dataUpdatedAt >= openedAt
+  // Freshness is about the data, not the query's mood. After the room is closed
+  // this screen invalidates it, and if that refetch then fails TanStack keeps
+  // the authoritative `completed` room while dropping `isSuccess` — which used
+  // to read as "unknown room" and hold the door shut on a room that was already
+  // closed.
+  const roomFresh = room.data !== undefined && room.dataUpdatedAt >= openedAt
   const needsClosing = roomFresh && room.data?.myRole === 'host' && room.data.status === 'active' && nothingLeft
 
   // Offline, TanStack pauses the read rather than failing it: there is no error
