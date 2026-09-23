@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, notifyManager } from '@tanstack/react-query'
-import { fireEvent, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
 
 import { renderScreen, roomFor } from './harness'
 
@@ -85,6 +85,35 @@ const plan = () => ({
 })
 
 const statusCalls = () => mockPatch.mock.calls.filter(([path]) => path === '/rooms/{id}/status')
+
+
+/**
+ * The review CTA's own disabled state, wherever the label sits inside it.
+ *
+ * The label follows the room type, and before the room answers the screen falls
+ * back to the couple wording — so the CTA is found by what it is, not by which
+ * of the two sentences it happens to be showing.
+ */
+const REVIEW_CTA = /thấy sao\? 💬/
+
+function reviewCta() {
+  return screen.getByText(REVIEW_CTA)
+}
+
+interface Walkable {
+  parent: Walkable | null
+  props: { accessibilityState?: { disabled?: boolean } }
+}
+
+function reviewDisabled(): boolean {
+  let node = reviewCta() as unknown as Walkable | null
+  while (node) {
+    const disabled = node.props?.accessibilityState?.disabled
+    if (typeof disabled === 'boolean') return disabled
+    node = node.parent
+  }
+  throw new Error('review CTA has no accessibilityState')
+}
 
 let client: QueryClient
 
@@ -212,5 +241,60 @@ describe('closing the room from the summary (#269)', () => {
       </QueryClientProvider>,
     )
     await waitFor(() => expect(statusCalls()).toHaveLength(1))
+  })
+
+  /**
+   * Review findings, 2026-09-23. Review is the one way off this screen and
+   * neither it nor the shared result closes a room, so following it while the
+   * room is unknown or still open strands the date outside history — the very
+   * defect this patch exists to fix.
+   */
+  it('keeps the way out shut until the room has answered', async () => {
+    let answer!: (room: unknown) => void
+    mockGet.mockImplementation((path: string) =>
+      path === '/rooms/{id}'
+        ? new Promise(resolve => {
+            answer = resolve
+          })
+        : Promise.resolve(plan()),
+    )
+
+    await openSummary()
+    await screen.findByText(REVIEW_CTA)
+    expect(screen.getByText('Đang đọc trạng thái kèo…')).toBeTruthy()
+    expect(reviewDisabled()).toBe(true)
+
+    await act(async () => {
+      answer(roomFor('group-host', { status: 'active' } as never))
+    })
+    await waitFor(() => expect(statusCalls()).toHaveLength(1))
+  })
+
+  it('says so and offers a retry when the room cannot be read at all', async () => {
+    mockGet.mockImplementation((path: string) =>
+      path === '/rooms/{id}' ? Promise.reject(new ApiError(500, { code: 'INTERNAL', message: 'boom' })) : Promise.resolve(plan()),
+    )
+
+    await openSummary()
+    console.log('HAS_LOADING', !!screen.queryByText('Đang đọc trạng thái kèo…'), 'HAS_ERR', !!screen.queryByText('Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.'), 'HAS_CTA', !!screen.queryByText('Các bạn thấy sao? 💬'))
+    expect(await screen.findByText('Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.')).toBeTruthy()
+    expect(reviewDisabled()).toBe(true)
+    expect(screen.getByText(RETRY)).toBeTruthy()
+  })
+
+  it('keeps the way out shut while a failed closing is still failed', async () => {
+    mockPatch.mockRejectedValue(new ApiError(500, { code: 'INTERNAL', message: 'boom' }))
+    await openSummary()
+
+    expect(await screen.findByText(CLOSE_FAILED)).toBeTruthy()
+    expect(reviewDisabled()).toBe(true)
+  })
+
+  it('opens the way out for someone who has nothing to close', async () => {
+    server.audience = 'group-guest'
+    await openSummary()
+
+    await screen.findByText(REVIEW_CTA)
+    await waitFor(() => expect(reviewDisabled()).toBe(false))
   })
 })

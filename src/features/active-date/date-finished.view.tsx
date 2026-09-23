@@ -42,6 +42,13 @@ export default function DateFinishedScreen() {
   const finishDate = useFinishDate(summary?.roomId, planId)
   const stops = summary?.stops ?? []
   const nothingLeft = stops.length > 0 && stops.every(stop => stop.status !== 'planned')
+  /**
+   * The room is persisted, so this is usually cached — but on a relaunch from a
+   * plan link it may not be, and it can fail. Until it answers we do not know
+   * whether this person is the host or whether the room is still open, which
+   * means we do not know whether there is anything to close.
+   */
+  const roomResolved = room.data !== undefined
   const needsClosing = room.data?.myRole === 'host' && room.data.status === 'active' && nothingLeft
 
   // One automatic attempt. A failure is not swallowed: it becomes the state
@@ -117,7 +124,24 @@ export default function DateFinishedScreen() {
         </View>
       </GlassCard>
 
-      {needsClosing ? (
+      {/* Leaving is what strands a room `active`, so the way out stays shut
+          while the room is unknown or still open. */}
+      {!roomResolved ? (
+        <View style={styles.closing}>
+          {room.isError ? (
+            <>
+              <Text accessibilityLiveRegion="polite" style={styles.closingFailed}>
+                {t('dateFinished.roomUnknown')}
+              </Text>
+              <SecondaryBtn label={t('dateFinished.closeRetry')} onPress={() => void room.refetch()} />
+            </>
+          ) : (
+            <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+              {t('dateFinished.roomLoading')}
+            </Text>
+          )}
+        </View>
+      ) : needsClosing ? (
         <View style={styles.closing}>
           {/* Only a refusal reads as a failure. Anything else — in flight, or
               the room not yet refetched — is still the room being closed. */}
@@ -142,6 +166,10 @@ export default function DateFinishedScreen() {
       <PrimaryBtn
         label={t('dateFinished.cta', { context: roomType })}
         onPress={() => router.push(`/plans/${planId}/review`)}
+        // Review is the one way off this screen, and neither it nor the shared
+        // result closes a room. Following it while the room is unknown or still
+        // open takes the retry with it and leaves the date out of history.
+        disabled={!roomResolved || needsClosing}
         style={styles.cta}
       />
     </Atmosphere>

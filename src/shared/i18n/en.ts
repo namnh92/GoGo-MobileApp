@@ -639,6 +639,8 @@ export const enMessages: Record<MessageKey, string> = {
   'dateFinished.closing': 'Wrapping up the date…',
   'dateFinished.closeFailed': 'Could not wrap up the date, so it is still in progress.',
   'dateFinished.closeRetry': 'Try again',
+  'dateFinished.roomLoading': 'Checking the date…',
+  'dateFinished.roomUnknown': 'Could not read the date, so we do not know whether it is wrapped up.',
 
   'review.title': 'How was\nthis date?',
   'review.body': 'Your rating helps GoGo pick better next time.',

@@ -646,6 +646,8 @@ export const viMessages = {
   'dateFinished.closing': 'Đang khép lại kèo…',
   'dateFinished.closeFailed': 'Chưa khép lại được kèo, nên nó vẫn đang diễn ra.',
   'dateFinished.closeRetry': 'Thử lại',
+  'dateFinished.roomLoading': 'Đang đọc trạng thái kèo…',
+  'dateFinished.roomUnknown': 'Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.',
 
   'review.title': 'Bạn thấy buổi\ndate này thế nào?',
   'review.body': 'Đánh giá của bạn giúp GoGo chọn tốt hơn lần sau.',
