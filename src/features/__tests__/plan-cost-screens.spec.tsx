@@ -97,7 +97,13 @@ describe('plan cost × screen', () => {
   })
 
   it('date finished: the per-person total and the group total, never divided', async () => {
-    const view = await renderScreen(<DateFinishedScreen />)
+    // The summary owns the room-closing mutation now (#269), so it renders
+    // under the cache the app gives it.
+    const view = await renderScreen(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <DateFinishedScreen />
+      </QueryClientProvider>,
+    )
     expect(view.getByText(/500k\/người · 2tr tổng nhóm 4 người/)).toBeTruthy()
     expect(view.queryByText(/125k/)).toBeNull()
   })

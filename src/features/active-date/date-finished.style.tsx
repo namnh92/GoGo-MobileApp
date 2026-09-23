@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native'
 import { colors, glyph, spacing, type } from '@/shared/ui/tokens'
 
-const { neutral } = colors
+const { neutral, brand } = colors
 
 export const styles = StyleSheet.create({
   root: {
@@ -31,5 +31,9 @@ export const styles = StyleSheet.create({
   },
   footerMeta: { ...type.bodySmall, color: neutral[500] },
   stars: { flexDirection: 'row', gap: 2 },
+  // #269 — the room is still open. Says so, and offers the way to close it.
+  closing: { alignSelf: 'stretch', gap: spacing[3], marginBottom: spacing[4] },
+  closingNote: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
+  closingFailed: { ...type.bodySmall, color: brand.red, textAlign: 'center' },
   cta: { alignSelf: 'stretch' },
 })

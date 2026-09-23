@@ -12,7 +12,6 @@ import {
   toPlanSummary,
   useCheckinPlanStop,
   useCompletePlanStop,
-  useFinishDate,
   usePlan,
   usePlanStopPlaces,
   useRoom,
@@ -72,8 +71,6 @@ export default function ActiveDateScreen() {
 
   const completeStop = useCompletePlanStop(planId)
   const checkinStop = useCheckinPlanStop(planId)
-  // #269 — ending the date is a room transition, not just a screen change.
-  const finishDate = useFinishDate(summary?.roomId, planId)
 
   const deepLinked = checkin === '1' || checkin === 'bill'
   const [checkinOpen, setCheckinOpen] = useState(deepLinked)
@@ -92,7 +89,6 @@ export default function ActiveDateScreen() {
   // refusal refetches the room: until that settles the refusal stands, and a
   // room confirmed active again means the host started in the meantime.
   const roomStatus = room.data?.status
-  const isHost = room.data?.myRole === 'host'
   const refused = isRoomNotActive(completeStop.error) || isRoomNotActive(checkinStop.error)
   const confirmedActive = roomStatus === 'active' && !room.isFetching
   const notActive = (roomStatus !== undefined && roomStatus !== 'active') || (refused && !confirmedActive)
@@ -167,18 +163,11 @@ export default function ActiveDateScreen() {
     if (!closed.finishesDate || finished.current) return
     finished.current = true
     track('date_completed', { stops: stops.length })
-    // #269 — SRS §7.2 `active --> completed: finish`. The app used to end only
-    // its own screen: every stop completed, the summary shown, and the room
-    // still `active` for good, so the Plans history tab (#213) never showed a
-    // date anyone had been on. Host-only on the server, so only the host sends
-    // it; a member closing the same sheet ends their own screen.
-    //
-    // Not awaited: the summary is the answer to the tap and must not wait on a
-    // round trip. A failure leaves the room where it already was, which is what
-    // happened on every date before this.
-    if (isHost) {
-      void finishDate.finish().catch(() => undefined)
-    }
+    // #269 — the room transition lives on the summary, not here. This screen
+    // only sees the ending it caused: a member can complete the last stop, and
+    // a relaunch between completing it and closing its sheet skips this path
+    // entirely. Whoever arrives at the summary is where the room gets closed,
+    // and where a failure can be seen and retried.
     router.replace(`/plans/${planId}/finished`)
   }
 
