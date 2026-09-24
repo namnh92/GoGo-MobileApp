@@ -35,7 +35,7 @@ React Native iOS/Android app for GoGo (couple/group date planning).
 - Rooms support N members; audience copy from room facts (`type`, `participantCount`, `budgetMode`), not hardcoded couple strings. Money integer minor units.
 - Locked stops survive regenerate; votes idempotent; member/guest cannot finalize plans (server-enforced — UI hiding is not authorization).
 - Warm Liquid Glass semantic tokens only; solid fallback for glass; WCAG 2.2 AA; ≥44×44 targets; reduced motion respected; i18n keys (vi default, en); taxonomy = stable keys from API.
-- Glass implementation: `@callstack/liquid-glass` (native iOS 26) behind the `GlassCard` adapter (`src/shared/ui/primitives.tsx`) and the floating tab dock (`src/app/(tabs)/_layout.tsx`), gated by `isLiquidGlassSupported` with translucent-solid fallback; atmosphere = color blobs + `expo-blur`; gradient CTAs = `expo-linear-gradient`; tab screens pad scroll content with `useTabDockInset()`.
+- Surfaces (#295): cards are solid — `Card` (`src/shared/ui/card.view.tsx`); `GlassCard` is a deprecated unpadded alias until #298. The screen canvas (`Atmosphere`) is flat `surface.canvas`. Glass (`@callstack/liquid-glass`, iOS 26, gated by `isLiquidGlassSupported`, `expo-blur` fallback) is only for the tab dock and fixed bottom bars (#296). CTAs are flat `accent.primary`; `expo-linear-gradient` survives only in `swipe.view`. Tab screens pad scroll content with `useTabDockInset()`.
 - Every async screen: loading/empty/error/success + offline/permission-denied where relevant. New native module requires an ADR.
 
 ## Git

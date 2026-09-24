@@ -111,3 +111,39 @@ Gỡ hai gói + Babel plugin + `setupFiles`, đưa `main` về `expo-router/entr
 `type.*` về `fontWeight` và gỡ plugin `expo-font` — rồi prebuild lại. Token ngữ
 nghĩa và `Text` primitive không phụ thuộc engine (chỉ `text.tsx` và
 `use-accent-bootstrap.ts` import unistyles) nên giữ được khi lùi.
+
+## Bổ sung B — GoGo-MobileApp#295 (2026-09-24)
+
+Bước B của #293 dựng Button, Card, PlaceCard, PlanCard và hai card thông tin của
+GoGo Room trên nền A. Những điểm dưới đây mở rộng hoặc sửa mục Quyết định ở
+trên; **design xác nhận lại**, test vẫn là cổng.
+
+1. **Role `accent.onSoft`** trên cả bốn palette, bằng đúng mã `pressed`: màu nhấn
+   dùng làm *chữ* trên nền `soft` (tab đang chọn, badge "Chủ phòng"). `primary`
+   trên `soft` chỉ 3,9–4,3 — đủ cho icon/viền, không đủ cho nhãn 13pt. Đo
+   `onSoft`/`soft`: Cam 5,66 · Xanh lá 6,59 · Xanh dương 4,67 · Tím 5,00.
+2. **Bốn màu chữ trạng thái tối thêm một nấc** (owner, 2026-09-24): chip và badge
+   đặt nhãn lên chính pill `*Soft` của nó, và giá trị của A chỉ đạt 3,97–4,36 ở
+   đó. Cùng quy tắc với A — giữ hue, hạ lightness tới khi ≥ 4,5 trên pill:
+   `successText #35765B` (4,60) · `warningText #8F5F1A` (4,68) · `dangerText
+   #B43747` (4,61) · `infoText #5F4FD1` (4,66). Vẫn đạt trên trắng và ivory.
+   `contrast.test.ts` khoá thêm `*Text`-trên-`*Soft`.
+3. **Danger** dùng `status.dangerText` cho nhãn (spec ghi `status.danger`, chỉ
+   4,30 trên ivory); viền vẫn `status.danger`.
+4. **Pressed = chỉ đổi màu** (spec §2): cả họ nút bỏ `scale 0.98` và opacity.
+   Loading giữ nhãn, spinner bên trái; `Pressable` tắt suốt lúc loading. Nhãn dài
+   thì cắt "…" trên một dòng — không còn `adjustsFontSizeToFit`.
+5. **`Card`** đặc (`surface.card`, `radius.card`, shadow card, không viền, pad 16
+   mặc định). **`GlassCard` là alias deprecated** → `Card` *không pad*, nên 55 chỗ
+   gọi giữ nguyên padding; `strong`/`interactive` bị bỏ qua. `Atmosphere` = nền
+   phẳng `surface.canvas` (bỏ blob + blur toàn màn hình). #298 xoá alias.
+6. **PlaceCard dòng rating không có chữ "Google"** trên màn hình; nguồn nằm trong
+   `accessibilityLabel` của dòng ("Google 4,6 sao, 980 đánh giá") và trên màn chi
+   tiết. Điều khoản list-card nằm ở `core.md` rule 14. Caption attribution ảnh
+   bỏ khỏi card (owner chấp nhận rủi ro điều khoản provider trên list — ghi nhận,
+   không tuyên bố tuân thủ).
+7. **`TagChip` neutral** dùng `text.primary`: `text.secondary` trên
+   `surface.subtle` chỉ 4,12, và tag không phải trạng thái disabled.
+
+Chưa làm trong B: ngân sách trên PlanCard (`RoomListItem` chưa có —
+GoGo-BE#637); hero Home và "Đánh giá" (D, #297); tab bar/thanh đáy glass (C, #296).

@@ -32,6 +32,14 @@ it('filters by lifecycle, keeps overdue collecting rooms upcoming, and scopes ea
   expect(mockUseRooms).toHaveBeenLastCalledWith({ enabled: true, status: 'completed,cancelled,expired' })
 })
 
+it('shows each room title whole, with its facts on one line (#295)', async () => {
+  const view = await renderScreen(<PlansScreen />)
+  // "Kèo…" tells nobody which plan it is: the title wraps, it never truncates.
+  expect(view.getByText('Chưa hoàn tất').props.numberOfLines).toBeUndefined()
+  // Facts are one string, joined by the card — not a row of separate captions.
+  expect(view.getByText(/^4 người · .*Đã qua ngày$/)).toBeTruthy()
+})
+
 it('keeps pagination available when the server has another page', async () => {
   mockQuery.data = { pages: [{ items: [] }] }
   mockQuery.hasNextPage = true
