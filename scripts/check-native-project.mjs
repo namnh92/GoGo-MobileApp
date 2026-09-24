@@ -169,7 +169,9 @@ if (existsSync(iosDir)) {
   // The plugin does not copy the files: it lists them in `UIAppFonts` and adds
   // a Resources build-file reference to `../assets/fonts/<face>` in the Xcode
   // project. Both halves are needed — a listed font with no build file is a
-  // font the binary never contains.
+  // font the binary never contains. The build-file entry is what is checked
+  // (`<face> in Resources`), not any mention of the name: a dangling file
+  // reference survives the removal of its Copy Bundle Resources entry.
   const pbxproj = readdirSync(iosDir)
     .filter((name) => name.endsWith(".xcodeproj"))
     .map((name) => path.join(iosDir, name, "project.pbxproj"))
@@ -185,9 +187,10 @@ if (existsSync(iosDir)) {
           `${path.relative(root, infoPlist)} does not list ${face} under UIAppFonts. ` +
             "Regenerate with `npx expo prebuild -p ios` so the expo-font plugin runs.",
         );
-      } else if (!project.includes(face)) {
+      } else if (!project.includes(`/* ${face} in Resources */`)) {
         problems.push(
-          `${face} is listed in Info.plist but ${path.relative(root, pbxproj)} has no resource for it.`,
+          `${face} is listed in Info.plist but ${path.relative(root, pbxproj)} has no ` +
+            "Copy Bundle Resources entry for it — the binary would not contain the font.",
         );
       } else if (!existsSync(path.join(root, "assets", "fonts", face))) {
         problems.push(`assets/fonts/${face} is missing — the Xcode project references it.`);

@@ -6,6 +6,7 @@ import { UnistylesRuntime } from 'react-native-unistyles'
 
 import { AppProviders } from '../app-providers'
 import { ACCENT_PREFERENCE_KEY } from '@/shared/theme/accent-preference'
+import { ACCENT_READ_DEADLINE_MS } from '@/shared/theme/use-accent-bootstrap'
 
 /**
  * GoGo-MobileApp#256 — the app start wires one push click listener, then push
@@ -173,19 +174,29 @@ describe('AppProviders accent bootstrap', () => {
     expect(setTheme).toHaveBeenCalledWith('orange')
   })
 
-  it('renders children while the preference is still being read', async () => {
-    // A read that never settles: the tree must not wait on it.
-    jest.spyOn(AsyncStorage, 'getItem').mockReturnValueOnce(new Promise(() => {}))
+  it('renders children while the preference is still being read, and gives up on it at the deadline', async () => {
+    jest.useFakeTimers()
+    try {
+      // A read that never settles: the tree must not wait on it, and the
+      // splash must not wait on it forever either.
+      jest.spyOn(AsyncStorage, 'getItem').mockReturnValueOnce(new Promise(() => {}))
 
-    const view = await render(
-      <AppProviders>
-        <Text>app</Text>
-      </AppProviders>,
-    )
-    // Session hydration and the query cache do not wait on a colour — only
-    // the splash does.
-    expect(view.getByText('app')).toBeTruthy()
-    expect(setTheme).not.toHaveBeenCalled()
-    expect(hideAsync).not.toHaveBeenCalled()
+      const view = await render(
+        <AppProviders>
+          <Text>app</Text>
+        </AppProviders>,
+      )
+      // Session hydration and the query cache do not wait on a colour — only
+      // the splash does.
+      expect(view.getByText('app')).toBeTruthy()
+      expect(setTheme).not.toHaveBeenCalled()
+      expect(hideAsync).not.toHaveBeenCalled()
+
+      jest.advanceTimersByTime(ACCENT_READ_DEADLINE_MS)
+      await waitFor(() => expect(hideAsync).toHaveBeenCalledTimes(1))
+      expect(setTheme).toHaveBeenCalledWith('orange')
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })

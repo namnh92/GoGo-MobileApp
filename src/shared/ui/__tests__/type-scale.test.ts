@@ -35,7 +35,12 @@ function offenders(pattern: RegExp): string[] {
     .flatMap(file =>
       readFileSync(file, 'utf8')
         .split('\n')
-        .map((line, i) => ({ file: path.relative(SRC, file), line: i + 1, text: line.trim() }))
+        .map((line, i) => ({
+          // POSIX separators regardless of host, so the allowlist below matches on Windows too.
+          file: path.relative(SRC, file).split(path.sep).join('/'),
+          line: i + 1,
+          text: line.trim(),
+        }))
         .filter(row => pattern.test(row.text)),
     )
     .map(row => `${row.file}:${row.line} ${row.text}`)
@@ -78,9 +83,11 @@ describe('type scale', () => {
      * Ratchet, not a ban yet. These overrides predate the embedded face and
      * are removed screen by screen in #295–#298 (a `body` at `'700'` is not a
      * style on the scale; each becomes `label`, `title2`, or stays Regular —
-     * a design call per line, not a mechanical rewrite). Until then a file may
-     * not gain one, and a file not listed here may not have any. Lower a
-     * count when you remove an override; #298 deletes the table.
+     * a design call per line, not a mechanical rewrite). Until then every
+     * count must match this table exactly — a removed override lowers its
+     * entry in the same change, so a later one cannot creep back in under
+     * the old allowance — and a file not listed here may not have any. #298
+     * deletes the table.
      */
     const allowed: Record<string, number> = {
       'app/(tabs)/_layout.tsx': 1,
@@ -127,10 +134,10 @@ describe('type scale', () => {
       counts[file] = (counts[file] ?? 0) + 1
     }
 
-    const overBudget = Object.entries(counts)
-      .filter(([file, count]) => count > (allowed[file] ?? 0))
-      .map(([file, count]) => `${file}: ${count} (allowed ${allowed[file] ?? 0})`)
-    expect(overBudget).toEqual([])
+    const drifted = Object.entries(counts)
+      .filter(([file, count]) => count !== (allowed[file] ?? 0))
+      .map(([file, count]) => `${file}: ${count} (table says ${allowed[file] ?? 0})`)
+    expect(drifted).toEqual([])
 
     // The table may only shrink: an entry whose file is clean is stale.
     const stale = Object.keys(allowed).filter(file => !(file in counts))

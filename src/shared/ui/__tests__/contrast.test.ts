@@ -93,9 +93,14 @@ describe('accent themes (#293 §6)', () => {
       expect(contrast(onAccent, pressed)).toBeGreaterThanOrEqual(contrast(onAccent, primary))
     })
 
-    it('primary is legible on its own soft wash — PlanCard icon, selected chip', () => {
-      // An icon or a 13pt SemiBold label on `soft`: AA large / UI boundary.
+    it('primary reads as an icon or boundary on its own soft wash — never as a label', () => {
+      // `soft` is a fill behind an icon (PlanCard's 48pt circle) or a pill
+      // behind `text.primary`. Primary-on-soft measures 3.9–4.3 across the four
+      // themes: enough for a glyph or an outline (3:1), not for a 13pt label
+      // (4.5:1). A component that wants accent-coloured text on `soft` needs a
+      // new role that passes this file, not an exception here.
       expect(contrast(primary, soft)).toBeGreaterThanOrEqual(AA_LARGE)
+      expect(contrast(text.primary, soft)).toBeGreaterThanOrEqual(AA_TEXT)
     })
 
     it('the theme carries the palette, and the CTA shadow borrows its colour', () => {
