@@ -24,6 +24,7 @@ export type TextColor =
   | 'text.tertiary'
   | 'accent.primary'
   | 'accent.onAccent'
+  | 'accent.onSoft'
   | 'status.successText'
   | 'status.warningText'
   | 'status.dangerText'
@@ -43,6 +44,7 @@ const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
   'text.tertiary': theme => theme.text.tertiary,
   'accent.primary': theme => theme.accent.primary,
   'accent.onAccent': theme => theme.accent.onAccent,
+  'accent.onSoft': theme => theme.accent.onSoft,
   'status.successText': theme => theme.status.successText,
   'status.warningText': theme => theme.status.warningText,
   'status.dangerText': theme => theme.status.dangerText,
