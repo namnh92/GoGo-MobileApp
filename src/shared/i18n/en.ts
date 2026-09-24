@@ -464,6 +464,8 @@ export const enMessages: Record<MessageKey, string> = {
   'price.unit.free': 'Free',
   'price.unit.unknown': 'No price information yet',
 
+  'placeCard.ratingA11y': 'Google {{rating}} stars, {{count}} ratings',
+  'placeCard.ratingA11yNoCount': 'Google {{rating}} stars',
   'rating.google': 'Google',
   'rating.gogo': 'GoGo',
   'rating.gogoInsufficient': 'Not enough reviews from the GoGo community yet',

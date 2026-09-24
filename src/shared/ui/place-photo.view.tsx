@@ -1,7 +1,8 @@
 import { Image } from 'expo-image'
 import { Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
-import { colors } from '@/shared/ui/tokens'
+import { IconMapPin } from '@/shared/ui/icons'
 
 import { styles } from './place-photo.style'
 
@@ -15,27 +16,15 @@ import { styles } from './place-photo.style'
  *
  * When `primaryPhoto` / `photos[]` land, pass the real `uri` and the fallback
  * simply stops being used.
+ *
+ * The placeholder is one neutral tile with a pin (#293 §3). It used to pick a
+ * pastel per place, which read as decoration — and as a category colour that
+ * meant nothing.
  */
-const PLACEHOLDER_TINTS = [
-  colors.brand.coralGhost,
-  colors.brand.lavenderSoft,
-  colors.brand.mintSoft,
-  colors.brand.amberSoft,
-  colors.neutral[100],
-] as const
-
-/** Same place, same tint, every render — a stable identity, not decoration. */
-function tintFor(seed: string): string {
-  let hash = 0
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 31 + seed.charCodeAt(index)) % 100_000
-  }
-  return PLACEHOLDER_TINTS[hash % PLACEHOLDER_TINTS.length]
-}
+const FILL = { width: '100%', height: '100%' } as const
 
 export function PlacePhoto({
   uri,
-  placeId,
   name,
   icon,
   style,
@@ -43,7 +32,7 @@ export function PlacePhoto({
 }: {
   /** Real place imagery once the contract provides it; undefined until then. */
   uri?: string | null
-  /** Seeds the placeholder tint so a place keeps the same colour. */
+  /** Kept for callers; the placeholder no longer varies per place. */
   placeId: string
   name?: string
   /** Category emoji, when the caller knows it. */
@@ -51,15 +40,21 @@ export function PlacePhoto({
   style?: StyleProp<ViewStyle>
   accessibilityLabel?: string
 }) {
+  const { theme } = useUnistyles()
   if (uri) {
+    // `expo-image` is not a React Native view, so Unistyles cannot bind a
+    // style to it. The caller's size, radius and clip go on a plain `View`;
+    // the image only fills it, with a static style.
     return (
-      <Image
-        source={{ uri }}
-        style={[styles.image, style as object]}
-        contentFit="cover"
-        transition={150}
-        accessibilityLabel={accessibilityLabel ?? name}
-      />
+      <View style={[styles.image, style]}>
+        <Image
+          source={{ uri }}
+          style={FILL}
+          contentFit="cover"
+          transition={150}
+          accessibilityLabel={accessibilityLabel ?? name}
+        />
+      </View>
     )
   }
 
@@ -69,9 +64,13 @@ export function PlacePhoto({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.placeholder, { backgroundColor: tintFor(placeId) }, style]}
+      style={[styles.placeholder, style]}
     >
-      <Text style={styles.placeholderGlyph}>{icon ?? '📍'}</Text>
+      {icon ? (
+        <Text style={styles.placeholderGlyph}>{icon}</Text>
+      ) : (
+        <IconMapPin size={28} color={theme.text.secondary} />
+      )}
     </View>
   )
 }

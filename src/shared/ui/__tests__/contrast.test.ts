@@ -75,7 +75,7 @@ describe('accent themes (#293 §6)', () => {
   })
 
   describe.each(ACCENTS)('%s', accent => {
-    const { primary, pressed, soft, onAccent } = accents[accent]
+    const { primary, pressed, soft, onSoft, onAccent } = accents[accent]
 
     it('reads white text on primary at AA — a filled button, on white and on ivory', () => {
       // The label on a Primary button is `onAccent`, which is white for all four.
@@ -103,6 +103,13 @@ describe('accent themes (#293 §6)', () => {
       expect(contrast(text.primary, soft)).toBeGreaterThanOrEqual(AA_TEXT)
     })
 
+    it('onSoft is the role for accent-coloured text on soft — a selected tab, the host badge', () => {
+      // #295. The role the previous test asks for: 13pt SemiBold is not large
+      // text, so it needs the full 4.5.
+      expect(contrast(onSoft, soft)).toBeGreaterThanOrEqual(AA_TEXT)
+      expect(contrast(onSoft, WHITE)).toBeGreaterThanOrEqual(AA_TEXT)
+    })
+
     it('the theme carries the palette, and the CTA shadow borrows its colour', () => {
       expect(themes[accent].accent).toEqual(accents[accent])
       expect(themes[accent].shadows.cta.shadowColor).toBe(primary)
@@ -122,6 +129,16 @@ describe('status text (#293 §1)', () => {
     // Darker than its fill: the text is the same hue, only deeper, so a pill
     // and its label still read as one status.
     expect(luminance(label)).toBeLessThan(luminance(fill))
+  })
+
+  it.each([
+    ['success', status.successText, status.successSoft],
+    ['warning', status.warningText, status.warningSoft],
+    ['danger', status.dangerText, status.dangerSoft],
+    ['info', status.infoText, status.infoSoft],
+  ])('%s: the label reads at AA on its own pill — chips and badges (#295)', (_name, label, pill) => {
+    // The #294 values measured 3.97–4.36 here; a chip label is 13pt, not large.
+    expect(contrast(label, pill)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 
   it('the success fill is not a text colour — which is why successText exists', () => {

@@ -85,20 +85,25 @@ export const text = {
  * warning, and no amount of weight makes that readable. `*Text` values are the
  * base hue darkened until white and ivory both clear 4.5:1
  * (`__tests__/contrast.test.ts` holds the numbers).
+ *
+ * #295 darkened all four once more: a chip or badge puts the label on its own
+ * `*Soft` pill, and the #294 values measured 3.97–4.36 there. Same rule as A —
+ * keep the hue, lower lightness until the label clears 4.5 on the pill too
+ * (owner, 2026-09-24).
  */
 export const status = {
   success: colors.brand.mint,
   successSoft: colors.brand.mintSoft,
-  successText: '#377A5E',
+  successText: '#35765B',
   warning: colors.brand.amber,
   warningSoft: colors.brand.amberSoft,
-  warningText: '#97641B',
+  warningText: '#8F5F1A',
   danger: colors.brand.red,
   dangerSoft: colors.brand.redSoft,
-  dangerText: '#C63C4E',
+  dangerText: '#B43747',
   info: colors.brand.lavender,
   infoSoft: colors.brand.lavenderSoft,
-  infoText: '#6857E6',
+  infoText: '#5F4FD1',
 } as const
 
 /**
@@ -117,12 +122,17 @@ export const status = {
  *   purple  #7250F4 5.04 / 4.55 · pressed #6247CC (spec value kept)
  * Design confirms or re-tunes these against ADR-0009; the contrast test is the
  * gate either way.
+ *
+ * `onSoft` (#295) is the accent as *text* on `soft` — a selected tab, the host
+ * badge. `primary` on `soft` measures 3.9–4.3: fine for an icon or an outline,
+ * not for a 13pt label. `onSoft` is the `pressed` hex in all four palettes
+ * (orange 5.66 · green 6.59 · blue 4.67 · purple 5.00 on `soft`).
  */
 export const accents = {
-  orange: { primary: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onAccent: '#FFFFFF' },
-  green: { primary: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onAccent: '#FFFFFF' },
-  blue: { primary: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onAccent: '#FFFFFF' },
-  purple: { primary: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onAccent: '#FFFFFF' },
+  orange: { primary: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onSoft: '#A72E19', onAccent: '#FFFFFF' },
+  green: { primary: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onSoft: '#1B5E3E', onAccent: '#FFFFFF' },
+  blue: { primary: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onSoft: '#2565BF', onAccent: '#FFFFFF' },
+  purple: { primary: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onSoft: '#6247CC', onAccent: '#FFFFFF' },
 } as const
 
 /** Dark-theme surfaces (shared result / night screens, spec §46). */

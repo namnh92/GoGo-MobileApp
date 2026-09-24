@@ -1,53 +1,23 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { touchTarget } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
-
-export const styles = StyleSheet.create({
-  createAction: { paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
-  tabs: { flexDirection: 'row', gap: spacing[2], paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
-  tab: { flex: 1, minHeight: touchTarget.min, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: neutral[100] },
-  tabSelected: { backgroundColor: brand.coralSoft },
-  tabLabel: { ...type.label, color: neutral[700] },
-  tabLabelSelected: { color: brand.coralDeep },
-  title: {
-    ...type.display,
-    color: neutral[900],
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[3],
-  },
-  caption: {
-    ...type.caption,
-    fontWeight: '700',
-    color: neutral[500],
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: spacing[4],
-    marginBottom: spacing[3],
-  },
-
-  card: {
-    padding: spacing[4],
-    marginBottom: spacing[3],
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[4],
-    minHeight: touchTarget.min + 24,
-  },
-  /** Past rooms are still readable, just clearly behind the live ones. */
-  cardPast: { opacity: 0.72 },
-  icon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.compact,
-    backgroundColor: brand.coralSoft,
+export const styles = StyleSheet.create(theme => ({
+  createAction: { paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[3] },
+  tabs: { flexDirection: 'row', gap: theme.spacing[2], paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[3] },
+  tab: {
+    flex: 1,
+    minHeight: touchTarget.min,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.surface.subtle,
   },
-  iconPast: { backgroundColor: neutral[100] },
-  cardTitle: { ...type.title2, color: neutral[900] },
-  cardMeta: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
-  cardFacts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 6 },
-  fact: { ...type.caption, color: neutral[500] },
-})
+  // Selection is also `accessibilityState.selected`; the fill is not the only signal.
+  tabSelected: { backgroundColor: theme.accent.soft },
+  title: {
+    paddingHorizontal: theme.spacing[5],
+    paddingVertical: theme.spacing[3],
+  },
+  card: { marginBottom: theme.spacing[3] },
+}))

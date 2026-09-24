@@ -1,5 +1,5 @@
 import { formatRange } from '@/shared/pricing/money'
-import { toPriceUnit } from '@/shared/pricing/price-unit'
+import { isStandalonePrice, toPriceUnit } from '@/shared/pricing/price-unit'
 
 import type { PriceUnit } from '@/shared/pricing/price-unit'
 
@@ -295,6 +295,60 @@ export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ra
   return {
     google: card.rating == null ? null : { value: card.rating, count: card.ratingCount },
     gogo: null,
+  }
+}
+
+/**
+ * Number separators for the two supported locales. Written out rather than
+ * `toLocaleString`: Hermes ships without full ICU on Android, and a count that
+ * renders "1,234" in Vietnamese reads as one-point-two.
+ */
+function separators(locale: string): { decimal: string; thousands: string } {
+  return locale.startsWith('vi') ? { decimal: ',', thousands: '.' } : { decimal: '.', thousands: ',' }
+}
+
+/** "4,6" (vi) / "4.6" (en) — one decimal. */
+export function formatRating(rating: number, locale = 'vi'): string {
+  return rating.toFixed(1).replace('.', separators(locale).decimal)
+}
+
+/** "1.234" (vi) / "1,234" (en). */
+export function formatCount(count: number, locale = 'vi'): string {
+  return String(Math.round(count)).replace(/\B(?=(\d{3})+(?!\d))/g, separators(locale).thousands)
+}
+
+/**
+ * PlaceCard line 2 (#293 §3): category · area · distance, in that order, each
+ * part omitted when there is no fact for it. Null when all three are missing,
+ * so the card drops the row instead of rendering an empty one.
+ */
+export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null): string | null {
+  const line = [categoryLabel, areaLabel(card), formatDistance(card.distanceM)].filter(Boolean).join(' · ')
+  return line || null
+}
+
+/**
+ * PlaceCard line 3: `★ 4,6 (980) · 45k–90k/người`. The rating comes back as
+ * parts so the card can set the score heavier inside the same line; the price
+ * always carries its unit (RULE-CORE-013), and "Miễn phí" / "Chưa có thông tin
+ * giá" stand in for the whole price part rather than being left out.
+ *
+ * No "Google" on this line — owner decision 2026-09-24 (RULE-CORE-014 list-card
+ * clause). The source is in the row's accessibility label and on the detail
+ * screen.
+ */
+export function placeCardRatingPriceLine(
+  card: PlaceCard,
+  unitLabel: (unit: PriceUnit) => string,
+  locale = 'vi',
+): { rating: { score: string; count: string | null } | null; price: string } {
+  const { google } = ratingParts(card)
+  const { amount, unit } = placePriceParts(card)
+  return {
+    rating: google
+      ? { score: formatRating(google.value, locale), count: google.count != null ? formatCount(google.count, locale) : null }
+      : null,
+    price: amount && !isStandalonePrice(unit) ? `${amount}${unitLabel(unit)}` : unitLabel(unit),
   }
 }
 

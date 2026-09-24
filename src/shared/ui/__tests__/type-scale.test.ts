@@ -104,7 +104,6 @@ describe('type scale', () => {
       'features/date-plan/date-plan.style.tsx': 2,
       'features/date-plan/place-detail.style.tsx': 4,
       'features/date-plan/plan-edit.style.tsx': 1,
-      'features/gogo-room/gogo-room.style.tsx': 5,
       'features/gogo-room/guest-join.style.tsx': 1,
       'features/gogo-room/room-manage.style.tsx': 3,
       'features/home/home.style.tsx': 3,
@@ -120,12 +119,9 @@ describe('type scale', () => {
       'features/review/shared-result.style.tsx': 2,
       'features/search/search.style.tsx': 8,
       'features/settings/location-permission.style.tsx': 1,
-      'features/tabs/plans.style.tsx': 1,
       'features/tabs/profile.style.tsx': 3,
       'features/tabs/saved.style.tsx': 1,
       'shared/ui/async-state.style.tsx': 1,
-      'shared/ui/place-card.style.tsx': 3,
-      'shared/ui/primitives.tsx': 7,
     }
 
     const counts: Record<string, number> = {}

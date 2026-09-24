@@ -471,6 +471,8 @@ export const viMessages = {
   'price.unit.free': 'Miễn phí',
   'price.unit.unknown': 'Chưa có thông tin giá',
 
+  'placeCard.ratingA11y': 'Google {{rating}} sao, {{count}} đánh giá',
+  'placeCard.ratingA11yNoCount': 'Google {{rating}} sao',
   'rating.google': 'Google',
   'rating.gogo': 'GoGo',
   'rating.gogoInsufficient': 'Chưa đủ đánh giá từ cộng đồng GoGo',

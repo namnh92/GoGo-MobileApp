@@ -1,12 +1,13 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glyph } from '@/shared/ui/tokens'
+import { glyph } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
-  image: { backgroundColor: colors.neutral[100] },
+export const styles = StyleSheet.create(theme => ({
+  image: { backgroundColor: theme.surface.subtle, overflow: 'hidden' },
   placeholder: {
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: theme.surface.subtle,
   },
-  placeholderGlyph: { fontSize: glyph.md, opacity: 0.55 },
-})
+  placeholderGlyph: { fontSize: glyph.md },
+}))
