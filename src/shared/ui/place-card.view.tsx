@@ -1,36 +1,39 @@
 import { useTranslation } from 'react-i18next'
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, StyleSheet as RNStyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
 import {
-  areaLabel,
-  formatDistance,
   formatMinuteOfDay,
-  placePriceParts,
-  ratingParts,
+  placeCardMetaLine,
+  placeCardRatingPriceLine,
   type PlaceCard as PlaceCardModel,
 } from '@/shared/api'
-import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
+import { priceUnitKey } from '@/shared/pricing/price-unit'
+import { Card } from '@/shared/ui/card.view'
 import { haptic } from '@/shared/ui/feedback'
+import { IconBookmark } from '@/shared/ui/icons'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Chip, GlassCard, TagChip } from '@/shared/ui/primitives'
-import { colors } from '@/shared/ui/tokens'
+import { Chip, TagChip } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 
 import { styles } from './place-card.style'
 
-const { brand, neutral } = colors
-
 /**
- * The one Place Card (spec §21).
+ * The one Place Card (spec §21, #293 §3).
  *
  * Before this, Home, Search and Saved each had their own — different fields,
  * different type sizes, different idea of what mattered. One component means a
  * place looks like the same place wherever the user meets it.
  *
- * The hierarchy is fixed: image → name → category · district → rating → distance
- * · price → open state → tags → save. What is *not* fixed is which of those
- * render: a fact with no data is omitted, never placeholdered, because an
- * em-dash where a price should be reads as "free" to some people and "broken"
- * to the rest.
+ * The list card is four lines, each one string on one line, so nothing can
+ * wrap into its neighbour at 375pt:
+ *   1. name (two lines allowed) + save
+ *   2. category · area · distance
+ *   3. ★ rating (count) · price/unit
+ *   4. open state, in words
+ * plus up to two reason chips when the caller passes `tags`. A fact with no
+ * data is omitted, never placeholdered — an em-dash where a price should be
+ * reads as "free" to some people and "broken" to the rest.
  */
 
 export type PlaceCardVariant = 'list' | 'grid' | 'hero'
@@ -49,7 +52,7 @@ export interface PlaceCardProps {
   style?: StyleProp<ViewStyle>
 }
 
-/** "Đang mở · đến 23:00" composed from facts, never sent as a sentence. */
+/** "Đang mở · Đóng 23:00" composed from facts, never sent as a sentence. */
 function useOpenLabel(place: PlaceCardModel): { label: string; open: boolean } | null {
   const { t } = useTranslation()
   if (place.openNow == null) return null
@@ -67,8 +70,10 @@ function SaveToggle({ saved, onToggle, onPhoto = false }: {
   onPhoto?: boolean
 }) {
   const { t } = useTranslation()
+  const { theme } = useUnistyles()
   return (
     <Pressable
+      testID="place-card-save"
       onPress={() => {
         haptic('select')
         onToggle()
@@ -76,57 +81,82 @@ function SaveToggle({ saved, onToggle, onPhoto = false }: {
       accessibilityRole="togglebutton"
       accessibilityState={{ checked: saved }}
       accessibilityLabel={t(saved ? 'saved.remove' : 'placeDetail.save')}
-      hitSlop={12}
-      style={[styles.saveBtn, onPhoto && styles.saveBtnOnPhoto]}
+      hitSlop={onPhoto ? 4 : undefined}
+      style={onPhoto ? styles.saveOnPhoto : styles.save}
     >
-      <Text style={styles.saveGlyph}>{saved ? '🔖' : '📑'}</Text>
+      <IconBookmark
+        size={22}
+        filled={saved}
+        color={saved ? theme.accent.primary : theme.text.secondary}
+      />
     </Pressable>
   )
 }
 
-/** Rating always carries its source and its sample size (spec §6). */
-function Rating({ place }: { place: PlaceCardModel }) {
+/**
+ * Line 3. One `Text`, so rating and price truncate together as one string
+ * instead of wrapping apart; the score sits in a nested `label` Text for
+ * weight. The word "Google" is not on screen (owner decision 2026-09-24,
+ * RULE-CORE-014) — it is in the line's accessibility label.
+ */
+function RatingPriceLine({ place }: { place: PlaceCardModel }) {
   const { t } = useTranslation()
-  const { google } = ratingParts(place)
-  if (!google) return null
+  const { rating, price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)))
+  const a11y = rating
+    ? [
+        rating.count != null
+          ? t('placeCard.ratingA11y', { rating: rating.score, count: rating.count })
+          : t('placeCard.ratingA11yNoCount', { rating: rating.score }),
+        price,
+      ].join(', ')
+    : undefined
   return (
-    <View style={styles.ratingRow}>
-      <Text style={styles.ratingSource}>{t('rating.google')}</Text>
-      <Text style={styles.ratingValue}>★ {google.value.toFixed(1)}</Text>
-      {google.count != null ? (
-        <Text style={styles.ratingCount}>· {t('placeDetail.ratingCount', { count: google.count })}</Text>
+    <Text
+      testID="place-card-rating-price"
+      variant="bodySmall"
+      numberOfLines={1}
+      ellipsizeMode="tail"
+      accessibilityLabel={a11y}
+    >
+      {rating ? (
+        <>
+          {'★ '}
+          <Text variant="label">{rating.score}</Text>
+          {rating.count != null ? ` (${rating.count})` : ''}
+          {' · '}
+        </>
       ) : null}
-    </View>
-  )
-}
-
-function Price({ place }: { place: PlaceCardModel }) {
-  const { t } = useTranslation()
-  const { amount, unit } = placePriceParts(place)
-
-  // "Miễn phí" and "Chưa có thông tin giá" are the whole line, not a suffix.
-  if (isStandalonePrice(unit)) {
-    return <Text style={unit === 'free' ? styles.priceFree : styles.priceUnknown}>{t(priceUnitKey(unit))}</Text>
-  }
-  if (!amount) return null
-  return (
-    <Text style={styles.price} numberOfLines={1}>
-      {amount}
-      <Text style={styles.meta}>{t(priceUnitKey(unit))}</Text>
+      {price}
     </Text>
   )
 }
 
-function OpenState({ place }: { place: PlaceCardModel }) {
+/** Line 4. No dot: the words carry the state, so colour is never the only signal. */
+function OpenLine({ place }: { place: PlaceCardModel }) {
   const state = useOpenLabel(place)
   if (!state) return null
   return (
-    <View style={styles.openRow}>
-      {/* The dot is redundant with the wording on purpose — colour is never the
-          only signal (RULE-DS). */}
-      <View style={[styles.openDot, { backgroundColor: state.open ? brand.mint : neutral[300] }]} />
-      <Text style={state.open ? styles.open : styles.closed}>{state.label}</Text>
-    </View>
+    <Text
+      testID="place-card-open"
+      variant="label"
+      color={state.open ? 'status.successText' : 'text.secondary'}
+      numberOfLines={1}
+      ellipsizeMode="tail"
+    >
+      {state.label}
+    </Text>
+  )
+}
+
+function MetaLine({ place, categoryLabel }: { place: PlaceCardModel; categoryLabel?: string | null }) {
+  // `areaKey` has no label source in the contract, so the area is the address
+  // until GoGo-BE#169 — long, but one line with an ellipsis.
+  const line = placeCardMetaLine(place, categoryLabel)
+  if (!line) return null
+  return (
+    <Text testID="place-card-meta" variant="bodySmall" color="text.secondary" numberOfLines={1} ellipsizeMode="tail">
+      {line}
+    </Text>
   )
 }
 
@@ -141,28 +171,19 @@ export function PlaceCard({
   style,
 }: PlaceCardProps) {
   const canSave = saved != null && onToggleSave != null
-
-  // `areaKey` is an internal key (`hcm_q3`) with no label source in the
-  // contract, so the district line falls back to the address (GoGo-BE#169).
-  const secondary = [categoryLabel, areaLabel(place)].filter(Boolean).join(' · ')
-  const distance = formatDistance(place.distanceM)
   const visibleTags = tags.slice(0, 2)
 
   if (variant === 'hero') {
+    const secondary = placeCardMetaLine(place, categoryLabel)
     return (
       <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={style}>
         <View style={styles.heroCard}>
-          <PlacePhoto
-            placeId={place.id}
-            name={place.name}
-            uri={place.photoUrl}
-            style={StyleSheet.absoluteFill}
-          />
+          <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
           <View style={styles.heroScrim} />
           {canSave ? <SaveToggle saved={saved} onToggle={onToggleSave} onPhoto /> : null}
           <View style={styles.heroBody}>
-            <Text style={styles.heroName} numberOfLines={2}>{place.name}</Text>
-            {secondary ? <Text style={styles.heroMeta} numberOfLines={1}>{secondary}</Text> : null}
+            <Text variant="title1" color="onDark.strong" numberOfLines={2}>{place.name}</Text>
+            {secondary ? <Text variant="bodySmall" color="onDark.medium" numberOfLines={1}>{secondary}</Text> : null}
             {visibleTags.length > 0 ? (
               <View style={styles.heroTags}>
                 {visibleTags.map(tag => (
@@ -179,40 +200,36 @@ export function PlaceCard({
   if (variant === 'grid') {
     return (
       <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={style}>
-        <GlassCard style={styles.gridCard}>
+        <Card padded={false} style={styles.gridCard}>
           <View style={styles.gridThumbWrap}>
-            <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
+            <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
             {canSave ? <SaveToggle saved={saved} onToggle={onToggleSave} onPhoto /> : null}
           </View>
           <View style={styles.gridBody}>
-            <Text style={styles.name} numberOfLines={1}>{place.name}</Text>
-            {secondary ? <Text style={styles.category} numberOfLines={1}>{secondary}</Text> : null}
-            <Rating place={place} />
-            <Price place={place} />
-            <OpenState place={place} />
+            <Text variant="title2" numberOfLines={1}>{place.name}</Text>
+            <MetaLine place={place} categoryLabel={categoryLabel} />
+            <RatingPriceLine place={place} />
+            <OpenLine place={place} />
           </View>
-        </GlassCard>
+        </Card>
       </Pressable>
     )
   }
 
   return (
     <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={style}>
-      <GlassCard style={styles.listCard}>
+      <Card testID="place-card" style={styles.listCard}>
         <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.listThumb} />
         <View style={styles.listBody}>
           <View style={styles.nameRow}>
-            <Text style={styles.name} numberOfLines={1}>{place.name}</Text>
+            <Text testID="place-card-name" variant="title2" numberOfLines={2} ellipsizeMode="tail" style={styles.name}>
+              {place.name}
+            </Text>
             {canSave ? <SaveToggle saved={saved} onToggle={onToggleSave} /> : null}
           </View>
-          {secondary ? <Text style={styles.category} numberOfLines={1}>{secondary}</Text> : null}
-          <Rating place={place} />
-          <View style={styles.ratingRow}>
-            {distance ? <Text style={styles.meta}>{distance}</Text> : null}
-            {distance ? <Text style={styles.meta}>·</Text> : null}
-            <Price place={place} />
-          </View>
-          <OpenState place={place} />
+          <MetaLine place={place} categoryLabel={categoryLabel} />
+          <RatingPriceLine place={place} />
+          <OpenLine place={place} />
           {visibleTags.length > 0 ? (
             <View style={styles.tags}>
               {visibleTags.map(tag => (
@@ -220,12 +237,8 @@ export function PlaceCard({
               ))}
             </View>
           ) : null}
-          {/* Provider imagery must be shown with its attribution. */}
-          {place.photoAttribution ? (
-            <Text style={styles.attribution} numberOfLines={1}>{place.photoAttribution}</Text>
-          ) : null}
         </View>
-      </GlassCard>
+      </Card>
     </Pressable>
   )
 }

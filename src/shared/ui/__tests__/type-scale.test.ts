@@ -124,7 +124,6 @@ describe('type scale', () => {
       'features/tabs/profile.style.tsx': 3,
       'features/tabs/saved.style.tsx': 1,
       'shared/ui/async-state.style.tsx': 1,
-      'shared/ui/place-card.style.tsx': 3,
     }
 
     const counts: Record<string, number> = {}

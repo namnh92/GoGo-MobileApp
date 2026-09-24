@@ -1,20 +1,13 @@
 import { StyleSheet } from 'react-native'
 
-import { colors, radius, spacing } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, surface } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
-  block: { backgroundColor: neutral[100] },
+  block: { backgroundColor: surface.subtle },
 
-  listCard: {
-    flexDirection: 'row',
-    height: 108,
-    borderRadius: radius.card,
-    overflow: 'hidden',
-  },
-  listThumb: { width: 112, alignSelf: 'stretch' },
-  listBody: { flex: 1, padding: spacing[3], gap: spacing[2], justifyContent: 'center' },
+  listCard: { flexDirection: 'row', gap: spacing[3] },
+  listThumb: { width: 96 },
+  listBody: { flex: 1, gap: spacing[2], justifyContent: 'center' },
 
   gridCard: { borderRadius: radius.card, overflow: 'hidden' },
   gridThumb: { height: 120 },

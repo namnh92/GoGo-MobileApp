@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Animated, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native'
 
 import { useReducedMotion } from '@/shared/ui/feedback'
+import { Card } from '@/shared/ui/card.view'
 import { GlassCard } from '@/shared/ui/primitives'
 import { motion, radius, spacing } from '@/shared/ui/tokens'
 
@@ -63,16 +64,18 @@ export function Skeleton({ width, height = 12, radius: r = 6, style }: {
   )
 }
 
+/** Mirrors the list PlaceCard (#293 §3): padded card, 96pt thumb, four lines. */
 export function PlaceCardSkeleton() {
   return (
-    <GlassCard style={styles.listCard}>
-      <Skeleton style={styles.listThumb} height={undefined} radius={0} />
+    <Card style={styles.listCard}>
+      <Skeleton style={styles.listThumb} height={96} radius={radius.thumbnail} />
       <View style={styles.listBody}>
-        <Skeleton width="70%" height={14} />
-        <Skeleton width="45%" />
-        <Skeleton width="55%" height={10} />
+        <Skeleton width="70%" height={17} />
+        <Skeleton width="55%" height={13} />
+        <Skeleton width="45%" height={13} />
+        <Skeleton width="35%" height={13} />
       </View>
-    </GlassCard>
+    </Card>
   )
 }
 

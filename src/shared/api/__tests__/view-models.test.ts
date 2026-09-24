@@ -3,11 +3,16 @@ import { describe, expect, it } from 'vitest'
 import type { PlaceSearchResult, Plan, RoomSummary } from '../types'
 import {
   detailToPlaceCard,
+  formatCountVi,
   formatDistance,
   formatMinuteOfDay,
+  formatRatingVi,
   memberProgress,
   openStateFromHours,
   parseApiDate,
+  placeCardMetaLine,
+  placeCardRatingPriceLine,
+  type PlaceCard,
   toCandidateCard,
   toNumber,
   toPlaceCard,
@@ -329,5 +334,70 @@ describe('toPlanSummary × cost scope (GoGo-MobileApp#249)', () => {
     expect(summary.stops[0].costScope).toBeNull()
     expect(summary.priced).toBe(true)
     expect(summary.hasUnpricedStop).toBe(false)
+  })
+})
+
+describe('PlaceCard lines (#295, #293 §3)', () => {
+  const card = (overrides: Partial<PlaceCard> = {}): PlaceCard =>
+    ({
+      id: 'p1',
+      name: 'Cà phê Đỗ Phủ',
+      addressText: '12 Nguyễn Huệ',
+      distanceM: 2100,
+      rating: 4.6,
+      ratingCount: 980,
+      priceMin: 45000,
+      priceMax: 90000,
+      currency: 'VND',
+      priceUncertain: false,
+      priceUnit: 'per_person',
+      isLodging: false,
+      reasonCodes: [],
+      photoUrl: null,
+      photoAttribution: null,
+      ...overrides,
+    }) as PlaceCard
+  const units = (unit: string) =>
+    ({ per_person: '/người', per_hour: '/giờ', free: 'Miễn phí', unknown: 'Chưa có thông tin giá' })[unit] ?? `?${unit}`
+
+  it('formats ratings and counts the Vietnamese way', () => {
+    expect(formatRatingVi(4.6)).toBe('4,6')
+    expect(formatRatingVi(5)).toBe('5,0')
+    expect(formatCountVi(980)).toBe('980')
+    expect(formatCountVi(1234)).toBe('1.234')
+    expect(formatCountVi(12000)).toBe('12.000')
+    expect(formatCountVi(1234567)).toBe('1.234.567')
+  })
+
+  it('meta line: category · area · distance, each omitted without a fact', () => {
+    expect(placeCardMetaLine(card(), 'Cà phê')).toBe('Cà phê · 12 Nguyễn Huệ · 2,1 km')
+    expect(placeCardMetaLine(card(), null)).toBe('12 Nguyễn Huệ · 2,1 km')
+    expect(placeCardMetaLine(card({ distanceM: undefined }), 'Cà phê')).toBe('Cà phê · 12 Nguyễn Huệ')
+    expect(placeCardMetaLine(card({ addressText: undefined, distanceM: undefined }), null)).toBeNull()
+  })
+
+  it('rating · price: parts, with the unit always on the price and no source word', () => {
+    expect(placeCardRatingPriceLine(card(), units)).toEqual({
+      rating: { score: '4,6', count: '980' },
+      price: '45k–90k/người',
+    })
+  })
+
+  it('omits the count it does not have, and the rating it does not have', () => {
+    expect(placeCardRatingPriceLine(card({ ratingCount: undefined }), units).rating).toEqual({ score: '4,6', count: null })
+    expect(placeCardRatingPriceLine(card({ rating: undefined }), units).rating).toBeNull()
+  })
+
+  it('free and unknown are the whole price part — never an amount with no unit', () => {
+    expect(placeCardRatingPriceLine(card({ priceUnit: 'free' }), units).price).toBe('Miễn phí')
+    expect(placeCardRatingPriceLine(card({ priceMin: null, priceMax: null }), units).price).toBe('Chưa có thông tin giá')
+    // A range whose scope nobody stated is not a price anyone can act on —
+    // "45k–90k" with no unit is what RULE-CORE-013 forbids.
+    expect(placeCardRatingPriceLine(card({ priceUnit: 'unknown' }), units).price).toBe('Chưa có thông tin giá')
+  })
+
+  it('keeps the unit it was given and marks an estimate', () => {
+    expect(placeCardRatingPriceLine(card({ priceUnit: 'per_hour' }), units).price).toBe('45k–90k/giờ')
+    expect(placeCardRatingPriceLine(card({ priceUncertain: true }), units).price).toBe('~45k–90k/người')
   })
 })

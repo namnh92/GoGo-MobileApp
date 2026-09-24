@@ -1,5 +1,5 @@
 import { formatRange } from '@/shared/pricing/money'
-import { toPriceUnit } from '@/shared/pricing/price-unit'
+import { isStandalonePrice, toPriceUnit } from '@/shared/pricing/price-unit'
 
 import type { PriceUnit } from '@/shared/pricing/price-unit'
 
@@ -295,6 +295,54 @@ export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ra
   return {
     google: card.rating == null ? null : { value: card.rating, count: card.ratingCount },
     gogo: null,
+  }
+}
+
+/** "4,6" — one decimal, Vietnamese comma. */
+export function formatRatingVi(rating: number): string {
+  return rating.toFixed(1).replace('.', ',')
+}
+
+/**
+ * "980", "1.234", "12.000" — Vietnamese thousands separator. Written out rather
+ * than `toLocaleString('vi-VN')`: Hermes ships without full ICU on Android, and
+ * a count that renders "1,234" there reads as one-point-two.
+ */
+export function formatCountVi(count: number): string {
+  return String(Math.round(count)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+/**
+ * PlaceCard line 2 (#293 §3): category · area · distance, in that order, each
+ * part omitted when there is no fact for it. Null when all three are missing,
+ * so the card drops the row instead of rendering an empty one.
+ */
+export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null): string | null {
+  const line = [categoryLabel, areaLabel(card), formatDistance(card.distanceM)].filter(Boolean).join(' · ')
+  return line || null
+}
+
+/**
+ * PlaceCard line 3: `★ 4,6 (980) · 45k–90k/người`. The rating comes back as
+ * parts so the card can set the score heavier inside the same line; the price
+ * always carries its unit (RULE-CORE-013), and "Miễn phí" / "Chưa có thông tin
+ * giá" stand in for the whole price part rather than being left out.
+ *
+ * No "Google" on this line — owner decision 2026-09-24 (RULE-CORE-014 list-card
+ * clause). The source is in the row's accessibility label and on the detail
+ * screen.
+ */
+export function placeCardRatingPriceLine(
+  card: PlaceCard,
+  unitLabel: (unit: PriceUnit) => string,
+): { rating: { score: string; count: string | null } | null; price: string } {
+  const { google } = ratingParts(card)
+  const { amount, unit } = placePriceParts(card)
+  return {
+    rating: google
+      ? { score: formatRatingVi(google.value), count: google.count != null ? formatCountVi(google.count) : null }
+      : null,
+    price: amount && !isStandalonePrice(unit) ? `${amount}${unitLabel(unit)}` : unitLabel(unit),
   }
 }
 
