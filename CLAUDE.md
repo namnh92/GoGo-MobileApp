@@ -8,7 +8,7 @@ React Native iOS/Android app for GoGo (couple/group date planning).
 
 | Concern | Library | Status |
 | --- | --- | --- |
-| Theme, tokens, variants | `react-native-unistyles` | Chốt (New Arch + Dev Client) — adopt incrementally, keep the `.view/.style` split |
+| Theme, tokens, variants | `react-native-unistyles` 3.2.5 + `react-native-nitro-modules` 0.36.1 (pinned) | Chốt — installed (ADR-0009): four accent themes in `src/shared/ui/theme.ts`, config in `src/shared/ui/unistyles.ts` (loaded from `index.ts`); migrate `.style.tsx` incrementally, keep the `.view/.style` split |
 | Form state | `react-hook-form` (`Controller`, `useWatch`) | Chốt |
 | Runtime validation | `zod` + `@hookform/resolvers` (`zodResolver`) | Chốt — one schema shared by forms and API-response validation |
 | Animation foundation | `react-native-reanimated` v4 (+`react-native-worklets`) | Chốt — installed |

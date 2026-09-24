@@ -184,6 +184,24 @@ const config: ExpoConfig = {
     ['onesignal-expo-plugin', { mode: oneSignalApnsMode, iPhoneDeploymentTarget: '15.1' }],
     'expo-router',
     'expo-dev-client',
+    // Inter, embedded at build time (ADR-0009): iOS gets the files as bundle
+    // resources plus `UIAppFonts`, Android gets `assets/fonts/`. File name =
+    // PostScript name, so `fontFamily: 'Inter-Bold'` resolves on both. No
+    // `useFonts`: a font loaded at runtime is a frame of system font first.
+    // `scripts/check-native-project.mjs` asserts the generated projects carry
+    // all five.
+    [
+      'expo-font',
+      {
+        fonts: [
+          './assets/fonts/Inter-Regular.ttf',
+          './assets/fonts/Inter-Medium.ttf',
+          './assets/fonts/Inter-SemiBold.ttf',
+          './assets/fonts/Inter-Bold.ttf',
+          './assets/fonts/Inter-ExtraBold.ttf',
+        ],
+      },
+    ],
     [
       'expo-splash-screen',
       {

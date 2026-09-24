@@ -1,4 +1,5 @@
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useState, type ReactNode } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -16,15 +17,24 @@ import { initializePushSdk } from '@/shared/notifications/bootstrap'
 import { initializePushIdentity } from '@/shared/notifications/identity-bootstrap'
 import { retryInitialization } from '@/shared/notifications/initialize'
 import { startNotificationClicks } from '@/shared/notifications/notification-clicks-bootstrap'
+import { useAccentBootstrap } from '@/shared/theme/use-accent-bootstrap'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
 const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient)
+  const accentReady = useAccentBootstrap()
 
   useEffect(() => bindAppStateToQueryClient(), [])
   useEffect(() => initializeAcquisitionSdk(), [])
+  // The root layout held the splash for exactly this: children render
+  // underneath it meanwhile (session hydration does not wait on a colour), and
+  // it lifts once the saved accent is the one on screen.
+  useEffect(() => {
+    if (!accentReady) return
+    void SplashScreen.hideAsync().catch(() => {})
+  }, [accentReady])
   useEffect(() => {
     let cancelled = false
     let stopClicks: (() => void) | undefined
