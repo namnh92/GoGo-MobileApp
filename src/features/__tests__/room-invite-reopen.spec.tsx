@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { QueryClient, QueryClientProvider, dehydrate, onlineManager } from '@tanstack/react-query'
 import * as Clipboard from 'expo-clipboard'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { Alert, Share, type AlertButton } from 'react-native'
+import { Alert, Share, StyleSheet, type AlertButton } from 'react-native'
 
 import { loaded, roomFor, type QueryLike } from './harness'
 
@@ -54,6 +54,7 @@ import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { shouldPersistQuery } from '@/shared/api/persist-policy'
 import { loadInviteCode, purgeInviteCodes, saveInviteCode } from '@/shared/storage/invite-codes'
+import { type } from '@/shared/ui/tokens'
 
 const ROOM_ID = '311f5bd8-f853-4ced-af68-e04398d1451a'
 const USER = 'user-1'
@@ -174,6 +175,17 @@ describe('host invite after reopen (#199)', () => {
     await open()
     expect(await screen.findByText('Chưa kiểm tra được mã mời của phòng.')).toBeTruthy()
     expect(screen.queryByText('Tạo mã mời')).toBeNull()
+    await finish()
+  })
+
+  it('keeps a 22-character code on one line that shrinks to fit, so the copy button stays in the card (#295)', async () => {
+    await saveInviteCode(storedInvite())
+    serve([row()])
+    await open()
+    const code = await screen.findByTestId('invite-code')
+    expect(code).toHaveTextContent(CODE, { exact: true })
+    expect(code.props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.6, selectable: true })
+    expect(StyleSheet.flatten(code.props.style)).toMatchObject({ ...type.body, letterSpacing: 0.5 })
     await finish()
   })
 

@@ -104,7 +104,6 @@ describe('type scale', () => {
       'features/date-plan/date-plan.style.tsx': 2,
       'features/date-plan/place-detail.style.tsx': 4,
       'features/date-plan/plan-edit.style.tsx': 1,
-      'features/gogo-room/gogo-room.style.tsx': 5,
       'features/gogo-room/guest-join.style.tsx': 1,
       'features/gogo-room/room-manage.style.tsx': 3,
       'features/home/home.style.tsx': 3,
