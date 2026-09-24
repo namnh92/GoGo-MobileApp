@@ -18,7 +18,7 @@ trắng chỉ 2,69, `status.warning` 2,63: không thể làm màu chữ.
 
 ## Quyết định
 
-1. **Theme engine = `react-native-unistyles` 3.3.0 + `react-native-nitro-modules`
+1. **Theme engine = `react-native-unistyles` 3.2.5 + `react-native-nitro-modules`
    0.36.1 (ghim đúng phiên bản).** Bốn theme `orange | green | blue | purple`, mặc
    định `orange`, đăng ký trong `src/shared/ui/unistyles.ts`; file này được import
    ngay sau `expo-router/entry` trong `index.ts` (entry mới của app) để chạy trước
