@@ -3,7 +3,7 @@ import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
 import { useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMyRooms, type RoomListItem } from '@/shared/api'
@@ -11,9 +11,11 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
-import { Atmosphere, Chip, GhostBtn, GlassCard, SecondaryBtn, useTabDockInset } from '@/shared/ui/primitives'
+import { PlanCard } from '@/shared/ui/plan-card.view'
+import { Atmosphere, GhostBtn, SecondaryBtn, useTabDockInset } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
-import { glyph, spacing } from '@/shared/ui/tokens'
+import { Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './plans.style'
 
@@ -79,10 +81,13 @@ export default function PlansScreen() {
   /**
    * A room whose date has passed but whose lifecycle has not ended stays in
    * Upcoming (the server filters by status, never by date) — it just says so.
+   *
+   * "Now" is when the list was fetched, not the render: render must stay pure,
+   * and the list refetches on focus, which is when the label is read.
    */
   function isOverdue(room: RoomListItem): boolean {
     const scheduled = parseApiDate(room.scheduledDate)
-    return UPCOMING.includes(room.status) && scheduled != null && scheduled.getTime() < Date.now()
+    return UPCOMING.includes(room.status) && scheduled != null && scheduled.getTime() < rooms.dataUpdatedAt
   }
 
   /** Status is the one fact that decides whether a room still needs the user. */
@@ -94,41 +99,12 @@ export default function PlansScreen() {
     return 'default'
   }
 
-  function RoomCard({ room, past: isPast = false }: { room: RoomListItem; past?: boolean }) {
-    return (
-      <Pressable accessibilityRole="button" onPress={() => openRoom(room)}>
-        <GlassCard style={[styles.card, isPast && styles.cardPast]}>
-          <View style={[styles.icon, isPast && styles.iconPast]}>
-            <Text style={{ fontSize: glyph.sm }}>{room.type === 'group' ? '👥' : '💞'}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {room.title ?? t('plans.untitled')}
-            </Text>
-            <View style={styles.cardFacts}>
-              {roomFacts(room).map((fact, index) => (
-                <Text key={fact} style={styles.fact}>
-                  {index > 0 ? '· ' : ''}
-                  {fact}
-                </Text>
-              ))}
-            </View>
-          </View>
-          <Chip
-            label={t(`plans.status.${room.status}`, { defaultValue: room.status })}
-            variant={statusVariant(room)}
-          />
-        </GlassCard>
-      </Pressable>
-    )
-  }
-
   const isEmpty = !rooms.isPending && visible.length === 0 && !rooms.hasNextPage
 
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top + spacing[2] }}>
-        <Text style={styles.title}>{t('plans.title')}</Text>
+        <Text variant="display" style={styles.title}>{t('plans.title')}</Text>
         {status === 'user' ? (
           <View style={styles.createAction}>
             <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
@@ -149,7 +125,8 @@ export default function PlansScreen() {
             onPress={() => setTab(value)}
             style={[styles.tab, tab === value && styles.tabSelected]}
           >
-            <Text style={[styles.tabLabel, tab === value && styles.tabLabelSelected]}>
+            {/* Weight changes with the fill, so selection is never colour alone. */}
+            <Text variant={tab === value ? 'label' : 'bodySmall'} color={tab === value ? 'accent.onSoft' : 'text.primary'}>
               {t(value === 'upcoming' ? 'plans.upcoming' : 'plans.past')}
             </Text>
           </Pressable>
@@ -196,7 +173,22 @@ export default function PlansScreen() {
           />
         ) : (
           <>
-            {visible.map(room => <RoomCard key={room.id} room={room} past={tab === 'history'} />)}
+            {visible.map(room => (
+              <PlanCard
+                key={room.id}
+                testID={`plan-card-${room.id}`}
+                icon={room.type === 'group' ? '👥' : '💞'}
+                title={room.title ?? t('plans.untitled')}
+                meta={roomFacts(room).join(' · ')}
+                status={{
+                  label: t(`plans.status.${room.status}`, { defaultValue: room.status }),
+                  variant: statusVariant(room),
+                }}
+                past={tab === 'history'}
+                onPress={() => openRoom(room)}
+                style={styles.card}
+              />
+            ))}
             {rooms.isFetching && visible.length === 0 ? <RoomMemberSkeleton count={2} /> : null}
             {rooms.isFetchNextPageError ? (
               <ErrorState error={rooms.error} onRetry={() => void rooms.fetchNextPage()} />

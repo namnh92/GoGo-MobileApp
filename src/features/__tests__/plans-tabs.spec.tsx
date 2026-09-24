@@ -9,6 +9,8 @@ const mockQuery = {
   ] }] },
   isPending: false, isError: false, isFetching: false, isFetchingNextPage: false,
   hasNextPage: false, isFetchNextPageError: false, error: null,
+  // When the list was fetched — the "now" the overdue label is measured against.
+  dataUpdatedAt: Date.now(),
   fetchNextPage: mockFetch, refetch: jest.fn(),
 }
 const mockUseRooms = jest.fn((_options: unknown) => mockQuery)

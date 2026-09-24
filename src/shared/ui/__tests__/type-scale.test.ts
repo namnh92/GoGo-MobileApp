@@ -120,7 +120,6 @@ describe('type scale', () => {
       'features/review/shared-result.style.tsx': 2,
       'features/search/search.style.tsx': 8,
       'features/settings/location-permission.style.tsx': 1,
-      'features/tabs/plans.style.tsx': 1,
       'features/tabs/profile.style.tsx': 3,
       'features/tabs/saved.style.tsx': 1,
       'shared/ui/async-state.style.tsx': 1,
