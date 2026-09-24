@@ -21,6 +21,8 @@ import { styles } from './place-photo.style'
  * pastel per place, which read as decoration — and as a category colour that
  * meant nothing.
  */
+const FILL = { width: '100%', height: '100%' } as const
+
 export function PlacePhoto({
   uri,
   name,
@@ -40,14 +42,19 @@ export function PlacePhoto({
 }) {
   const { theme } = useUnistyles()
   if (uri) {
+    // `expo-image` is not a React Native view, so Unistyles cannot bind a
+    // style to it. The caller's size, radius and clip go on a plain `View`;
+    // the image only fills it, with a static style.
     return (
-      <Image
-        source={{ uri }}
-        style={[styles.image, style as object]}
-        contentFit="cover"
-        transition={150}
-        accessibilityLabel={accessibilityLabel ?? name}
-      />
+      <View style={[styles.image, style]}>
+        <Image
+          source={{ uri }}
+          style={FILL}
+          contentFit="cover"
+          transition={150}
+          accessibilityLabel={accessibilityLabel ?? name}
+        />
+      </View>
     )
   }
 

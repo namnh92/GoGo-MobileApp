@@ -10,6 +10,7 @@ import { parseApiDate, useMyRooms, type RoomListItem } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { useFocusedNow } from '@/shared/hooks/use-focused-now'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { PlanCard } from '@/shared/ui/plan-card.view'
 import { Atmosphere, GhostBtn, SecondaryBtn, useTabDockInset } from '@/shared/ui/primitives'
@@ -30,6 +31,7 @@ export default function PlansScreen() {
   const insets = useSafeAreaInsets()
   const dockInset = useTabDockInset()
   const { status } = useSession()
+  const now = useFocusedNow()
 
   const canRead = status === 'user' || status === 'guest'
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming')
@@ -82,12 +84,12 @@ export default function PlansScreen() {
    * A room whose date has passed but whose lifecycle has not ended stays in
    * Upcoming (the server filters by status, never by date) — it just says so.
    *
-   * "Now" is when the list was fetched, not the render: render must stay pure,
-   * and the list refetches on focus, which is when the label is read.
+   * "Now" is taken when the screen comes into focus, not when the list was
+   * fetched — a list cached offline must still flag a date that has since passed.
    */
   function isOverdue(room: RoomListItem): boolean {
     const scheduled = parseApiDate(room.scheduledDate)
-    return UPCOMING.includes(room.status) && scheduled != null && scheduled.getTime() < rooms.dataUpdatedAt
+    return UPCOMING.includes(room.status) && scheduled != null && scheduled.getTime() < now
   }
 
   /** Status is the one fact that decides whether a room still needs the user. */

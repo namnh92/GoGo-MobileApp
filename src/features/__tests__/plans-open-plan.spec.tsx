@@ -40,7 +40,7 @@ const mockRooms = {
   refetch: jest.fn(),
 }
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) , useFocusEffect: () => undefined }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), useMyRooms: () => mockRooms }))

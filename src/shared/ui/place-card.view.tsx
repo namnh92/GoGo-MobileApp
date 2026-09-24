@@ -100,8 +100,8 @@ function SaveToggle({ saved, onToggle, onPhoto = false }: {
  * RULE-CORE-014) — it is in the line's accessibility label.
  */
 function RatingPriceLine({ place }: { place: PlaceCardModel }) {
-  const { t } = useTranslation()
-  const { rating, price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)))
+  const { t, i18n } = useTranslation()
+  const { rating, price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)), i18n.language)
   const a11y = rating
     ? [
         rating.count != null
@@ -173,72 +173,87 @@ export function PlaceCard({
   const canSave = saved != null && onToggleSave != null
   const visibleTags = tags.slice(0, 2)
 
+  // The save toggle is a sibling of the card's pressable, never inside it: a
+  // screen reader treats a pressable as one element, and a toggle nested in it
+  // cannot be reached on its own.
+  const save = canSave ? (
+    <SaveToggle saved={saved} onToggle={onToggleSave} onPhoto={variant !== 'list'} />
+  ) : null
+
   if (variant === 'hero') {
     const secondary = placeCardMetaLine(place, categoryLabel)
     return (
-      <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={style}>
-        <View style={styles.heroCard}>
-          <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
-          <View style={styles.heroScrim} />
-          {canSave ? <SaveToggle saved={saved} onToggle={onToggleSave} onPhoto /> : null}
-          <View style={styles.heroBody}>
-            <Text variant="title1" color="onDark.strong" numberOfLines={2}>{place.name}</Text>
-            {secondary ? <Text variant="bodySmall" color="onDark.medium" numberOfLines={1}>{secondary}</Text> : null}
-            {visibleTags.length > 0 ? (
-              <View style={styles.heroTags}>
-                {visibleTags.map(tag => (
-                  <TagChip key={tag} label={tag} color="violet" />
-                ))}
-              </View>
-            ) : null}
+      <View style={[styles.wrap, style]}>
+        <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
+          <View style={styles.heroCard}>
+            <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
+            <View style={styles.heroScrim} />
+            <View style={styles.heroBody}>
+              <Text variant="title1" color="onDark.strong" numberOfLines={2}>{place.name}</Text>
+              {secondary ? <Text variant="bodySmall" color="onDark.medium" numberOfLines={1}>{secondary}</Text> : null}
+              {visibleTags.length > 0 ? (
+                <View style={styles.heroTags}>
+                  {visibleTags.map(tag => (
+                    <TagChip key={tag} label={tag} color="violet" />
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </View>
-        </View>
-      </Pressable>
+        </Pressable>
+        {save}
+      </View>
     )
   }
 
   if (variant === 'grid') {
     return (
-      <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={style}>
-        <Card padded={false} style={styles.gridCard}>
-          <View style={styles.gridThumbWrap}>
-            <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
-            {canSave ? <SaveToggle saved={saved} onToggle={onToggleSave} onPhoto /> : null}
-          </View>
-          <View style={styles.gridBody}>
-            <Text variant="title2" numberOfLines={1}>{place.name}</Text>
-            <MetaLine place={place} categoryLabel={categoryLabel} />
-            <RatingPriceLine place={place} />
-            <OpenLine place={place} />
-          </View>
-        </Card>
-      </Pressable>
+      <View style={[styles.wrap, style]}>
+        <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
+          <Card padded={false} style={styles.gridCard}>
+            <View style={styles.gridThumbWrap}>
+              <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
+            </View>
+            <View style={styles.gridBody}>
+              <Text variant="title2" numberOfLines={1}>{place.name}</Text>
+              <MetaLine place={place} categoryLabel={categoryLabel} />
+              <RatingPriceLine place={place} />
+              <OpenLine place={place} />
+            </View>
+          </Card>
+        </Pressable>
+        {save}
+      </View>
     )
   }
 
   return (
-    <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={style}>
-      <Card testID="place-card" style={styles.listCard}>
-        <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.listThumb} />
-        <View style={styles.listBody}>
-          <View style={styles.nameRow}>
-            <Text testID="place-card-name" variant="title2" numberOfLines={2} ellipsizeMode="tail" style={styles.name}>
-              {place.name}
-            </Text>
-            {canSave ? <SaveToggle saved={saved} onToggle={onToggleSave} /> : null}
-          </View>
-          <MetaLine place={place} categoryLabel={categoryLabel} />
-          <RatingPriceLine place={place} />
-          <OpenLine place={place} />
-          {visibleTags.length > 0 ? (
-            <View style={styles.tags}>
-              {visibleTags.map(tag => (
-                <Chip key={tag} label={tag} variant="info" />
-              ))}
+    <View style={[styles.wrap, style]}>
+      <Pressable testID="place-card-open-target" onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
+        <Card testID="place-card" style={styles.listCard}>
+          <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.listThumb} />
+          <View style={styles.listBody}>
+            <View style={styles.nameRow}>
+              <Text testID="place-card-name" variant="title2" numberOfLines={2} ellipsizeMode="tail" style={styles.name}>
+                {place.name}
+              </Text>
+              {/* Keeps the name clear of the toggle drawn over this corner. */}
+              {canSave ? <View style={styles.saveSpace} /> : null}
             </View>
-          ) : null}
-        </View>
-      </Card>
-    </Pressable>
+            <MetaLine place={place} categoryLabel={categoryLabel} />
+            <RatingPriceLine place={place} />
+            <OpenLine place={place} />
+            {visibleTags.length > 0 ? (
+              <View style={styles.tags}>
+                {visibleTags.map(tag => (
+                  <Chip key={tag} label={tag} variant="info" />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </Card>
+      </Pressable>
+      {save}
+    </View>
   )
 }

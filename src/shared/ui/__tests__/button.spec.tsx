@@ -86,6 +86,18 @@ describe.each([
   })
 })
 
+describe('loading and disabled together (Sol #295 P2)', () => {
+  it('reads as loading, not greyed out — the usual `loading={p} disabled={p || …}` call', async () => {
+    const onPress = jest.fn()
+    await render(<PrimaryBtn label="Đang gửi" onPress={onPress} loading disabled />)
+    expect(flat(button('Đang gửi')).backgroundColor).toBe(orange.primary)
+    expect(labelColor('Đang gửi')).toBe(orange.onAccent)
+    expect(screen.getByTestId('button-spinner').props.color).toBe(orange.onAccent)
+    await act(async () => fireEvent.press(button('Đang gửi')))
+    expect(onPress).not.toHaveBeenCalled()
+  })
+})
+
 describe('PrimaryBtn', () => {
   it('carries the accent CTA shadow at rest and drops it when pressed or disabled', async () => {
     await render(<PrimaryBtn label="Chốt" onPress={jest.fn()} />)

@@ -298,18 +298,23 @@ export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ra
   }
 }
 
-/** "4,6" — one decimal, Vietnamese comma. */
-export function formatRatingVi(rating: number): string {
-  return rating.toFixed(1).replace('.', ',')
+/**
+ * Number separators for the two supported locales. Written out rather than
+ * `toLocaleString`: Hermes ships without full ICU on Android, and a count that
+ * renders "1,234" in Vietnamese reads as one-point-two.
+ */
+function separators(locale: string): { decimal: string; thousands: string } {
+  return locale.startsWith('vi') ? { decimal: ',', thousands: '.' } : { decimal: '.', thousands: ',' }
 }
 
-/**
- * "980", "1.234", "12.000" — Vietnamese thousands separator. Written out rather
- * than `toLocaleString('vi-VN')`: Hermes ships without full ICU on Android, and
- * a count that renders "1,234" there reads as one-point-two.
- */
-export function formatCountVi(count: number): string {
-  return String(Math.round(count)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+/** "4,6" (vi) / "4.6" (en) — one decimal. */
+export function formatRating(rating: number, locale = 'vi'): string {
+  return rating.toFixed(1).replace('.', separators(locale).decimal)
+}
+
+/** "1.234" (vi) / "1,234" (en). */
+export function formatCount(count: number, locale = 'vi'): string {
+  return String(Math.round(count)).replace(/\B(?=(\d{3})+(?!\d))/g, separators(locale).thousands)
 }
 
 /**
@@ -335,12 +340,13 @@ export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null
 export function placeCardRatingPriceLine(
   card: PlaceCard,
   unitLabel: (unit: PriceUnit) => string,
+  locale = 'vi',
 ): { rating: { score: string; count: string | null } | null; price: string } {
   const { google } = ratingParts(card)
   const { amount, unit } = placePriceParts(card)
   return {
     rating: google
-      ? { score: formatRatingVi(google.value), count: google.count != null ? formatCountVi(google.count) : null }
+      ? { score: formatRating(google.value, locale), count: google.count != null ? formatCount(google.count, locale) : null }
       : null,
     price: amount && !isStandalonePrice(unit) ? `${amount}${unitLabel(unit)}` : unitLabel(unit),
   }

@@ -72,6 +72,9 @@ function Button({ kind, label, onPress, disabled = false, loading = false, onAcc
 }) {
   const { theme } = useUnistyles()
   const inactive = disabled || loading
+  // Callers often pass `loading={pending} disabled={pending || …}`: while a
+  // request is in flight the button reads as loading, not as greyed out.
+  const greyed = disabled && !loading
   const look = (onAccent ? ON_ACCENT_LOOK[kind] : undefined) ?? LOOK[kind]
   return (
     <Pressable
@@ -84,14 +87,14 @@ function Button({ kind, label, onPress, disabled = false, loading = false, onAcc
       accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [
         styles.base,
-        ...kindStyles(kind, onAccent, pressed && !inactive, disabled || (onAccent && loading)),
+        ...kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed),
         style,
       ]}
     >
       {loading ? <ActivityIndicator testID="button-spinner" size="small" color={look.spinner(theme)} /> : null}
       <Text
         variant="label"
-        color={disabled ? look.disabledLabel : look.label}
+        color={greyed ? look.disabledLabel : look.label}
         numberOfLines={1}
         ellipsizeMode="tail"
         style={styles.label}

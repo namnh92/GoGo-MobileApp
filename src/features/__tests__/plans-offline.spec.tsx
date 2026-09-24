@@ -32,7 +32,7 @@ function rooms(items: unknown[] | undefined, over: Record<string, unknown> = {})
 
 const mockRooms: { value: ReturnType<typeof rooms> } = { value: rooms([]) }
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) , useFocusEffect: () => undefined }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), useMyRooms: () => mockRooms.value }))

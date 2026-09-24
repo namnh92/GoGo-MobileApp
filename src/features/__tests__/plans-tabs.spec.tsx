@@ -9,12 +9,12 @@ const mockQuery = {
   ] }] },
   isPending: false, isError: false, isFetching: false, isFetchingNextPage: false,
   hasNextPage: false, isFetchNextPageError: false, error: null,
-  // When the list was fetched — the "now" the overdue label is measured against.
-  dataUpdatedAt: Date.now(),
+  // Fetched long ago: the overdue label must not depend on when the list was fetched.
+  dataUpdatedAt: 0,
   fetchNextPage: mockFetch, refetch: jest.fn(),
 }
 const mockUseRooms = jest.fn((_options: unknown) => mockQuery)
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }), useFocusEffect: () => undefined }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), useMyRooms: (options: unknown) => mockUseRooms(options) }))
 

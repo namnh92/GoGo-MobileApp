@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import type { PlaceCard as PlaceCardModel } from '@/shared/api'
-import '@/shared/i18n'
+import i18n from '@/shared/i18n'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { accents, status, text, type } from '@/shared/ui/tokens'
 
@@ -146,6 +146,39 @@ describe('PlaceCard — list', () => {
     expect(screen.getByTestId('icon-bookmark-filled').props.stroke).toBe(accents.orange.primary)
     await act(async () => fireEvent.press(toggle))
     expect(onToggle).toHaveBeenCalledTimes(1)
+  })
+
+  it('save toggle is a sibling of the card target, so a screen reader reaches it on its own (Sol #295 P2)', async () => {
+    const onPress = jest.fn()
+    const onToggle = jest.fn()
+    await render(<PlaceCard place={fixture()} onPress={onPress} saved={false} onToggleSave={onToggle} />)
+    const target = screen.getByTestId('place-card-open-target')
+    const toggle = screen.getByTestId('place-card-save')
+    let node = toggle.parent
+    while (node) {
+      expect(node).not.toBe(target)
+      node = node.parent
+    }
+    await act(async () => fireEvent.press(toggle))
+    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it('a real photo: sizing and clip on a plain View, the image only fills it (Sol #295 P2)', async () => {
+    await render(<PlaceCard place={fixture({ photoUrl: 'https://img.example/p1.jpg' })} />)
+    const image = screen.getByLabelText('Cà phê Đỗ Phủ')
+    expect(StyleSheet.flatten(image.props.style)).toMatchObject({ width: '100%', height: '100%' })
+    expect(StyleSheet.flatten(image.parent!.props.style)).toMatchObject({ width: 96, height: 96, overflow: 'hidden' })
+  })
+
+  it('English: rating and count use English separators', async () => {
+    await act(async () => { await i18n.changeLanguage('en') })
+    try {
+      await render(<PlaceCard place={fixture({ ratingCount: 1234 })} />)
+      expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent(/^★ 4\.6 \(1,234\) · /)
+    } finally {
+      await act(async () => { await i18n.changeLanguage('vi') })
+    }
   })
 
   it('save toggle unsaved: outline glyph in secondary', async () => {

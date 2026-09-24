@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import type { PlaceSearchResult, Plan, RoomSummary } from '../types'
 import {
   detailToPlaceCard,
-  formatCountVi,
+  formatCount,
   formatDistance,
   formatMinuteOfDay,
-  formatRatingVi,
+  formatRating,
   memberProgress,
   openStateFromHours,
   parseApiDate,
@@ -361,12 +361,18 @@ describe('PlaceCard lines (#295, #293 §3)', () => {
     ({ per_person: '/người', per_hour: '/giờ', free: 'Miễn phí', unknown: 'Chưa có thông tin giá' })[unit] ?? `?${unit}`
 
   it('formats ratings and counts the Vietnamese way', () => {
-    expect(formatRatingVi(4.6)).toBe('4,6')
-    expect(formatRatingVi(5)).toBe('5,0')
-    expect(formatCountVi(980)).toBe('980')
-    expect(formatCountVi(1234)).toBe('1.234')
-    expect(formatCountVi(12000)).toBe('12.000')
-    expect(formatCountVi(1234567)).toBe('1.234.567')
+    expect(formatRating(4.6)).toBe('4,6')
+    expect(formatRating(5, 'vi')).toBe('5,0')
+    expect(formatCount(980)).toBe('980')
+    expect(formatCount(1234, 'vi')).toBe('1.234')
+    expect(formatCount(12000)).toBe('12.000')
+    expect(formatCount(1234567)).toBe('1.234.567')
+  })
+
+  it('and the English way in English', () => {
+    expect(formatRating(4.6, 'en')).toBe('4.6')
+    expect(formatCount(1234, 'en')).toBe('1,234')
+    expect(placeCardRatingPriceLine(card(), units, 'en').rating).toEqual({ score: '4.6', count: '980' })
   })
 
   it('meta line: category · area · distance, each omitted without a fact', () => {
