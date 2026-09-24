@@ -1,7 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { render, waitFor } from '@testing-library/react-native'
+import * as SplashScreen from 'expo-splash-screen'
 import { Text } from 'react-native'
+import { UnistylesRuntime } from 'react-native-unistyles'
 
 import { AppProviders } from '../app-providers'
+import { ACCENT_PREFERENCE_KEY } from '@/shared/theme/accent-preference'
 
 /**
  * GoGo-MobileApp#256 — the app start wires one push click listener, then push
@@ -124,5 +128,64 @@ describe('AppProviders push start', () => {
 
     await waitFor(() => expect(mockAddListener).not.toHaveBeenCalled())
     expect(mockInitializeIdentity).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * #294 (ADR-0009). The root layout holds the native splash; this provider
+ * reads the saved accent, applies it, and only then lets the splash go — so
+ * the first visible frame is already in the user's colour.
+ */
+describe('AppProviders accent bootstrap', () => {
+  const hideAsync = SplashScreen.hideAsync as jest.Mock
+  let setTheme: jest.SpyInstance
+
+  beforeEach(async () => {
+    hideAsync.mockClear()
+    setTheme = jest.spyOn(UnistylesRuntime, 'setTheme')
+    await AsyncStorage.clear()
+  })
+
+  afterEach(() => setTheme.mockRestore())
+
+  it('applies the saved accent, then hides the splash', async () => {
+    await AsyncStorage.setItem(ACCENT_PREFERENCE_KEY, 'green')
+
+    await render(
+      <AppProviders>
+        <Text>app</Text>
+      </AppProviders>,
+    )
+
+    await waitFor(() => expect(hideAsync).toHaveBeenCalledTimes(1))
+    expect(setTheme).toHaveBeenCalledWith('green')
+    expect(setTheme.mock.invocationCallOrder[0]).toBeLessThan(hideAsync.mock.invocationCallOrder[0]!)
+  })
+
+  it('falls back to the default accent and still lifts the splash when nothing is saved', async () => {
+    await render(
+      <AppProviders>
+        <Text>app</Text>
+      </AppProviders>,
+    )
+
+    await waitFor(() => expect(hideAsync).toHaveBeenCalledTimes(1))
+    expect(setTheme).toHaveBeenCalledWith('orange')
+  })
+
+  it('renders children while the preference is still being read', async () => {
+    // A read that never settles: the tree must not wait on it.
+    jest.spyOn(AsyncStorage, 'getItem').mockReturnValueOnce(new Promise(() => {}))
+
+    const view = await render(
+      <AppProviders>
+        <Text>app</Text>
+      </AppProviders>,
+    )
+    // Session hydration and the query cache do not wait on a colour — only
+    // the splash does.
+    expect(view.getByText('app')).toBeTruthy()
+    expect(setTheme).not.toHaveBeenCalled()
+    expect(hideAsync).not.toHaveBeenCalled()
   })
 })

@@ -1,6 +1,11 @@
 // Warm Liquid Glass design tokens — single source of truth for the mobile app.
-// Values come from GOGO_FEATURE_IMPROVEMENT_SPEC.md §42–§49; keep in sync with the
-// shared design-tokens package once it is published (FND-003/FND-009).
+// Values come from GOGO_FEATURE_IMPROVEMENT_SPEC.md §42–§49 and the Figma
+// "Foundations" page (GoGo-MobileApp#293 §1); keep in sync with the shared
+// design-tokens package once it is published (FND-003/FND-009).
+//
+// This file is plain TypeScript on purpose: vitest imports it, and so does
+// `theme.ts`, which turns these static roles plus an accent palette into the
+// four Unistyles themes. Nothing here may import `react-native-unistyles`.
 
 export const colors = {
   brand: {
@@ -39,11 +44,85 @@ export const colors = {
      * Secondary text. Was #817B74, which measured 4.18:1 on white and 3.78:1 on
      * the ivory app background — under WCAG 2.2 AA for body text, on the colour
      * carrying most of the metadata in the product. This one is 5.03 and 4.55.
+     * Figma Foundations still says #817B74; owner decision 2026-09-24 keeps this.
      */
     500: '#746E68',
     700: '#4A4641',
     900: '#211F1C',
   },
+} as const
+
+// ---------------------------------------------------------------------------
+// Semantic roles (#293 §1). Fixed — they do not change with the accent theme.
+// Components read these, never `colors.*` directly, so a palette change is one
+// edit here rather than a grep across screens.
+// ---------------------------------------------------------------------------
+
+/** Backgrounds, from the screen canvas up to a card. */
+export const surface = {
+  canvas: colors.neutral[50],
+  card: colors.neutral[0],
+  /** Tracks, skeletons, disabled fills, image placeholders. */
+  subtle: colors.neutral[100],
+} as const
+
+export const border = {
+  /** List-row dividers, the top edge of a glass bar. */
+  hairline: colors.neutral[100],
+} as const
+
+/** Text colours on light surfaces. `tertiary` is placeholder-only: 1.6:1. */
+export const text = {
+  primary: colors.neutral[900],
+  secondary: colors.neutral[500],
+  tertiary: colors.neutral[300],
+} as const
+
+/**
+ * Status colours. The base colour is a fill or a dot; `*Soft` is its pill
+ * background; `*Text` is the only one of the three allowed to carry a label on
+ * a light surface — the base values measure 2.4–2.7:1 on white for success and
+ * warning, and no amount of weight makes that readable. `*Text` values are the
+ * base hue darkened until white and ivory both clear 4.5:1
+ * (`__tests__/contrast.test.ts` holds the numbers).
+ */
+export const status = {
+  success: colors.brand.mint,
+  successSoft: colors.brand.mintSoft,
+  successText: '#377A5E',
+  warning: colors.brand.amber,
+  warningSoft: colors.brand.amberSoft,
+  warningText: '#97641B',
+  danger: colors.brand.red,
+  dangerSoft: colors.brand.redSoft,
+  dangerText: '#C63C4E',
+  info: colors.brand.lavender,
+  infoSoft: colors.brand.lavenderSoft,
+  infoText: '#6857E6',
+} as const
+
+/**
+ * Accent palettes — the one thing the "Màu chủ đề" setting changes (#293 §6).
+ * `theme.ts` builds a Unistyles theme per key; screens read `theme.accent.*`,
+ * never this table.
+ *
+ * The spec's starting values put white text under AA on three of the four
+ * (Cam 3.70 · Xanh lá 3.20 · Xanh dương 3.96 · Tím 4.56). Owner decision
+ * 2026-09-24: keep each hue and saturation, lower lightness until white on
+ * `primary` clears 4.5:1 on both white and ivory; `pressed` stays darker than
+ * `primary`; `soft` is untouched. Measured (white / ivory):
+ *   orange  #CA381F 5.13 / 4.63 · pressed #A72E19 (spec #C24633 was lighter than the new primary)
+ *   green   #247D52 5.08 / 4.59 · pressed #1B5E3E (spec #248455, same reason)
+ *   blue    #1A6CD5 5.06 / 4.57 · pressed #2565BF (spec value kept)
+ *   purple  #7250F4 5.04 / 4.55 · pressed #6247CC (spec value kept)
+ * Design confirms or re-tunes these against ADR-0009; the contrast test is the
+ * gate either way.
+ */
+export const accents = {
+  orange: { primary: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onAccent: '#FFFFFF' },
+  green: { primary: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onAccent: '#FFFFFF' },
+  blue: { primary: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onAccent: '#FFFFFF' },
+  purple: { primary: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onAccent: '#FFFFFF' },
 } as const
 
 /** Dark-theme surfaces (shared result / night screens, spec §46). */
@@ -69,9 +148,43 @@ export const overlay = {
   backdrop: 'rgba(33,31,28,0.55)',
 } as const
 
+/**
+ * Shadows. `warm`/`black` are the legacy `shadowColor` values still spread by
+ * older style files. `card`/`cta`/`toast` are the Figma shadows (#293 §1) as
+ * React Native style objects: a CSS `0 y blur rgba(c, a)` becomes
+ * `shadowOffset {0, y}`, `shadowRadius blur / 2` (RN's radius is a Gaussian
+ * sigma, CSS blur is roughly twice that) and `shadowOpacity a`; `elevation` is
+ * the Android stand-in, scaled so the three keep their order.
+ *
+ * `cta` carries no `shadowColor`: it is the accent colour, so `theme.ts` fills
+ * it in per theme.
+ */
 export const shadows = {
   warm: '#362D26',
   black: '#000',
+  /** Figma `0 4 16 rgba(33,31,28,0.06)`. */
+  card: {
+    shadowColor: colors.neutral[900],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  /** Figma `0 6 16 rgba(<accent>,0.28)` — colour from `theme.accent.primary`. */
+  cta: {
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  /** Figma `0 8 24 rgba(33,31,28,0.12)`. */
+  toast: {
+    shadowColor: colors.neutral[900],
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
 } as const
 
 /** Mock map canvas colors until a real map SDK lands. */
@@ -112,6 +225,35 @@ export const glass = {
     mint: 'rgba(217,243,231,0.64)',
   },
   opaqueFallback: 'rgba(252,251,248,0.94)',
+  /**
+   * Tab bar and fixed bottom action bars (#293 §5): iOS 26 native glass where
+   * `isLiquidGlassSupported`, else a blur with a 78 % `surface.card` wash and a
+   * one-point `border.hairline` on top. `blur` is the Figma radius; `intensity`
+   * is the `expo-blur` setting that stands in for it (0–100, provisional until
+   * #296 measures it on a device — the wash, not the blur, carries contrast).
+   */
+  bar: {
+    blur: 24,
+    intensity: 60,
+    wash: 'rgba(255,255,255,0.78)',
+    hairline: colors.neutral[100],
+  },
+} as const
+
+/**
+ * Embedded Inter faces (`assets/fonts/`, registered through the `expo-font`
+ * config plugin). Each string is the face's PostScript name, which is also its
+ * file name, so iOS (`UIFont(name:)`) and Android (asset file name) resolve
+ * the same `fontFamily`. Weight is chosen by picking a face: a `fontWeight`
+ * next to one of these makes Android synthesise a fake bold from the wrong
+ * file, and iOS silently pick another face — so the type scale carries none.
+ */
+export const fontFamily = {
+  regular: 'Inter-Regular',
+  medium: 'Inter-Medium',
+  semiBold: 'Inter-SemiBold',
+  bold: 'Inter-Bold',
+  extraBold: 'Inter-ExtraBold',
 } as const
 
 /**
@@ -121,15 +263,19 @@ export const glass = {
  *
  * `label` is not a seventh size: it is `bodySmall` at button weight, kept
  * separate so a CTA never drifts away from the scale.
+ *
+ * Weights per Figma Foundations (#293 §1): display/title1 Extra Bold, title2
+ * Bold, body/bodySmall Regular, label Semi Bold, caption Medium. The invite
+ * code uses `body` — the spec's `mono` style was dropped (owner, 2026-09-24).
  */
 export const type = {
-  display: { fontSize: 28, lineHeight: 34, fontWeight: '800' },
-  title1: { fontSize: 22, lineHeight: 28, fontWeight: '800' },
-  title2: { fontSize: 17, lineHeight: 22, fontWeight: '700' },
-  body: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
-  bodySmall: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
-  caption: { fontSize: 11, lineHeight: 15, fontWeight: '500' },
-  label: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  display: { fontFamily: fontFamily.extraBold, fontSize: 28, lineHeight: 34 },
+  title1: { fontFamily: fontFamily.extraBold, fontSize: 22, lineHeight: 28 },
+  title2: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22 },
+  body: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 21 },
+  bodySmall: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
+  caption: { fontFamily: fontFamily.medium, fontSize: 11, lineHeight: 15 },
+  label: { fontFamily: fontFamily.semiBold, fontSize: 13, lineHeight: 18 },
 } as const
 
 /**
@@ -180,3 +326,5 @@ export const hitSlop = { top: 8, bottom: 8, left: 8, right: 8 } as const
 
 export type BrandColor = keyof typeof colors.brand
 export type NeutralColor = keyof typeof colors.neutral
+export type TypeStyle = keyof typeof type
+export type AccentName = keyof typeof accents

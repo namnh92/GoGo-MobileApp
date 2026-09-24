@@ -23,6 +23,15 @@ jest.mock('expo-crypto', () => ({
   randomUUID: () => '00000000-0000-4000-8000-000000000000',
 }))
 
+// The root layout holds the native splash until the saved accent is applied
+// (ADR-0009). Under jest there is no splash; record the calls so a spec can
+// assert the order, and resolve like the real module does.
+jest.mock('expo-splash-screen', () => ({
+  preventAutoHideAsync: jest.fn(async () => true),
+  hideAsync: jest.fn(async () => true),
+  setOptions: jest.fn(),
+}))
+
 // The native glass module only exists in a dev-client binary. Reporting it as
 // unsupported renders the translucent-solid fallback — the path most devices
 // take anyway, and the one the design system requires to work on its own.

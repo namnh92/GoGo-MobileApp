@@ -43,6 +43,8 @@ export type AnalyticsEvent =
   | 'profile_prefill_used'
   // #198: the lobby could not move someone on after repeated tries; no ids.
   | 'room_route_gave_up'
+  // #293 §6: which accent the user picked in "Màu chủ đề" (`{ accent }`).
+  | 'theme_accent_changed'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 

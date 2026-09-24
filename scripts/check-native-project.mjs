@@ -136,7 +136,78 @@ if (existsSync(podfileLock)) {
   );
 }
 
+/**
+ * ADR-0009 — the theme engine and the type faces are native too. Unistyles
+ * and NitroModules are pods; a stale `Pods/` builds green and throws
+ * "Unistyles: Nitro module not found" at the first StyleSheet. The fonts are
+ * bundle resources the `expo-font` plugin copies at prebuild; a build without
+ * them renders every `fontFamily: 'Inter-*'` as the system font with one
+ * "Unrecognized font family" warning per style — easy to miss on a simulator.
+ */
+if (existsSync(podfileLock)) {
+  const lock = readFileSync(podfileLock, "utf8");
+  for (const pod of ["Unistyles", "NitroModules"])
+    if (!new RegExp(`^  - ${pod} \\(`, "m").test(lock)) {
+      problems.push(
+        `ios/Podfile.lock does not contain the ${pod} pod. ` +
+          "Run `npx expo prebuild -p ios && (cd ios && pod install)`.",
+      );
+    } else notes.push(`ios/Podfile.lock links ${pod}`);
+}
+
+/** The faces `src/shared/ui/tokens.ts` names; file name = PostScript name. */
+const INTER_FACES = ["Regular", "Medium", "SemiBold", "Bold", "ExtraBold"].map(
+  (weight) => `Inter-${weight}.ttf`,
+);
+
+const iosDir = path.join(root, "ios");
+if (existsSync(iosDir)) {
+  const infoPlist = readdirSync(iosDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name !== "Pods" && e.name !== "build")
+    .map((e) => path.join(iosDir, e.name, "Info.plist"))
+    .find(existsSync);
+  // The plugin does not copy the files: it lists them in `UIAppFonts` and adds
+  // a Resources build-file reference to `../assets/fonts/<face>` in the Xcode
+  // project. Both halves are needed — a listed font with no build file is a
+  // font the binary never contains.
+  const pbxproj = readdirSync(iosDir)
+    .filter((name) => name.endsWith(".xcodeproj"))
+    .map((name) => path.join(iosDir, name, "project.pbxproj"))
+    .find(existsSync);
+  if (!infoPlist || !pbxproj) {
+    problems.push("ios/<app>/Info.plist or ios/<app>.xcodeproj not found — run `npx expo prebuild -p ios`");
+  } else {
+    const plist = readFileSync(infoPlist, "utf8");
+    const project = readFileSync(pbxproj, "utf8");
+    for (const face of INTER_FACES) {
+      if (!plist.includes(`<string>${face}</string>`)) {
+        problems.push(
+          `${path.relative(root, infoPlist)} does not list ${face} under UIAppFonts. ` +
+            "Regenerate with `npx expo prebuild -p ios` so the expo-font plugin runs.",
+        );
+      } else if (!project.includes(face)) {
+        problems.push(
+          `${face} is listed in Info.plist but ${path.relative(root, pbxproj)} has no resource for it.`,
+        );
+      } else if (!existsSync(path.join(root, "assets", "fonts", face))) {
+        problems.push(`assets/fonts/${face} is missing — the Xcode project references it.`);
+      } else notes.push(`ios bundles ${face}`);
+    }
+  }
+}
+
 // --- Android ---------------------------------------------------------------
+
+const androidFontsDir = path.join(root, "android", "app", "src", "main", "assets", "fonts");
+if (existsSync(path.join(root, "android"))) {
+  for (const face of INTER_FACES)
+    if (!existsSync(path.join(androidFontsDir, face))) {
+      problems.push(
+        `android/app/src/main/assets/fonts/${face} is missing. ` +
+          "Regenerate with `npx expo prebuild -p android` so the expo-font plugin runs.",
+      );
+    } else notes.push(`android bundles ${face}`);
+}
 
 if (!existsSync(path.join(root, "android"))) {
   problems.push("android/ is missing — run `npx expo prebuild -p android`");

@@ -1,4 +1,4 @@
-import { Platform, StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native'
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
@@ -71,12 +71,14 @@ export const styles = StyleSheet.create({
    * it onto a second line and pushed the copy button outside the card, so the
    * code takes the room it needs and the button keeps its own.
    */
+  // No monospace face: the spec's `mono` style was dropped with the Inter
+  // embed (owner, 2026-09-24), and a `fontFamily` outside tokens.ts is now a
+  // test failure. #295 moves this to `body` with `adjustsFontSizeToFit`.
   code: {
     ...type.title2,
     flex: 1,
     color: neutral[900],
     letterSpacing: 0.5,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
   copyBtn: { flexShrink: 0 },
   copyBtnDone: { backgroundColor: brand.mintSoft, borderColor: brand.mint },
