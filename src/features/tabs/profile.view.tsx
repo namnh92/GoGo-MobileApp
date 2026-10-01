@@ -5,8 +5,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMe, useMyReviews, useNotificationSettings, useSaved } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { getSession, type Session } from '@/shared/api/session'
 import { env } from '@/shared/config/env'
 import { useSession } from '@/shared/providers/session-provider'
+import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/sign-out-failure'
 import { locales } from '@/shared/i18n'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
@@ -19,16 +21,29 @@ import { styles } from './profile.style'
 const audiences: DemoAudience[] = ['couple', 'group-host', 'group-guest']
 const uiStates: DemoUIState[] = ['default', 'loading', 'empty', 'error']
 
+/** Who a session belongs to; a token refresh keeps it. */
+function actorKeyOf(session: Session | null): string {
+  return session ? `${session.kind}:${session.userId ?? ''}:${session.guestSessionId ?? ''}` : ''
+}
+
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation()
   const insets = useSafeAreaInsets()
   const room = useRoom()
   const router = useRouter()
   const dockInset = useTabDockInset()
-  const { status, signOut } = useSession()
+  const { session, status, signOut } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const [signingOut, setSigningOut] = useState(false)
-  const [signOutFailed, setSignOutFailed] = useState(false)
+  // The tab stays mounted across sign-out and sign-in, so a refusal belongs to
+  // the actor it happened to and is shown only while that actor is current: a
+  // different person — or the next sign-in after an ended session — must not
+  // inherit it (#279 F-03). Tagged by actor rather than cleared by an effect,
+  // so it cannot race the session change that arrives in the same tick, and a
+  // token refresh (same actor) does not hide a message not yet read.
+  const [failed, setFailed] = useState<{ reason: SignOutFailure; actor: string } | null>(null)
+  const actor = actorKeyOf(session)
+  const signOutFailure = failed && failed.actor === actor ? failed.reason : null
 
   // Counts come from the same queries the destination screens use, so a
   // shortcut never promises a number the screen behind it does not have.
@@ -48,19 +63,26 @@ export default function ProfileScreen() {
 
   async function signOutNow() {
     setSigningOut(true)
-    setSignOutFailed(false)
+    setFailed(null)
     try {
       // Unsubscribes this device and has the provider confirm it, revokes
       // server-side, and only then wipes the Keychain and cached rooms.
       await signOut()
       track('auth_signed_out')
       router.replace('/(tabs)')
-    } catch {
+    } catch (error) {
       // NTF-APP-004 (#160): a sign-out that did not happen has to say so.
       // Without this the rejection is unhandled — a dev-build toast, and in a
       // release build nothing at all, leaving a button that silently does
-      // nothing while the person believes they signed out.
-      setSignOutFailed(true)
+      // nothing while the person believes they signed out. #279: and it has to
+      // say why, so nobody is sent to check a connection that is fine.
+      const current = getSession()
+      const reason = signOutFailureReason(error, current !== null)
+      track('auth_sign_out_failed', { reason })
+      setFailed({ reason, actor: actorKeyOf(current) })
+      // The credential was already dead and the session ended locally (F-02):
+      // the person is signed out, so they go where a sign-out goes.
+      if (reason === 'session_ended') router.replace('/(tabs)')
     } finally {
       setSigningOut(false)
     }
@@ -206,9 +228,19 @@ export default function ProfileScreen() {
             </Text>
           </Pressable>
         )}
-        {signOutFailed && (
+        {signOutFailure && (
           <Text accessibilityLiveRegion="polite" style={styles.logoutError}>
-            {t('profile.logoutFailed')}
+            {/* A literal lookup, so the i18n key scan reads every key this can
+                ask for, and `satisfies` makes tsc demand copy for every reason. */}
+            {t(
+              ({
+                offline: 'profile.logoutFailedOffline',
+                timeout: 'profile.logoutFailedTimeout',
+                push_unconfirmed: 'profile.logoutFailedPush',
+                session_ended: 'profile.logoutSessionEnded',
+                other: 'profile.logoutFailed',
+              } as const satisfies Record<SignOutFailure, string>)[signOutFailure],
+            )}
           </Text>
         )}
       </ScrollView>

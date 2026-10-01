@@ -22,7 +22,16 @@ export const CONFIRM_UNSUBSCRIBE_TIMEOUT_MS = 15_000
 export const CONFIRM_UNSUBSCRIBE_POLL_MS = 500
 
 export class UnsubscribeNotConfirmedError extends Error {
-  constructor(readonly reason: 'still_enabled' | 'unavailable') {
+  constructor(
+    readonly reason: 'still_enabled' | 'unavailable',
+    /**
+     * What the confirmation call threw, when it threw. Kept so the screen can
+     * tell a device that is offline from a push service that answered "not
+     * now" (#279) — both are a refusal to sign out, but only one is fixed by
+     * checking the connection.
+     */
+    readonly cause?: unknown,
+  ) {
     super(`push unsubscribe not confirmed: ${reason}`)
     this.name = 'UnsubscribeNotConfirmedError'
   }
@@ -52,7 +61,19 @@ export function createLogoutConfirmation(deps: LogoutConfirmationDeps) {
    * Resolves only when the provider agrees this device is no longer live for
    * the signed-in user. Throws otherwise — the caller must not clear anything.
    */
-  return async function unsubscribeAndConfirm(): Promise<void> {
+  return async function unsubscribeAndConfirm(actor: 'user' | 'guest' = 'user'): Promise<void> {
+    if (actor === 'guest') {
+      // A guest session is room-scoped and is never bound to the provider —
+      // identity-session.ts logs the SDK *out* for one. There is no audience
+      // of theirs on this device to tear down, and the confirmation endpoint
+      // is for signed-in users only (403 USER_ONLY), so asking it can only
+      // fail: that is how a guest was left with no way out of the app (#279).
+      // The SDK is still told to log out, so nothing stays bound either way.
+      await deps.unsubscribe()
+      report('push_logout_guest_unbound')
+      return
+    }
+
     // Read the id *before* logging out, deliberately. Afterwards the SDK holds
     // an anonymous user, and if it minted a fresh subscription for that user we
     // would go on to ask about an id the signed-in user never had — the backend
@@ -76,11 +97,11 @@ export function createLogoutConfirmation(deps: LogoutConfirmationDeps) {
       let confirmed: boolean
       try {
         confirmed = await deps.confirm(subscriptionId)
-      } catch {
+      } catch (error) {
         // Includes the backend refusing to guess when the provider is
         // unreachable. Never treated as success.
         report('push_logout_confirm_unavailable')
-        throw new UnsubscribeNotConfirmedError('unavailable')
+        throw new UnsubscribeNotConfirmedError('unavailable', error)
       }
       if (confirmed) {
         report('push_logout_confirmed')

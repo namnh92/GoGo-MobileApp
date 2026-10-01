@@ -72,11 +72,26 @@ function buildUrl(options: RequestOptions): string {
 let refreshInFlight: Promise<Session | null> | null = null
 
 async function requestTokenGrant(body: { refreshToken: string } | { guestToken: string }): Promise<TokenGrant> {
-  const response = await fetch(`${env.apiUrl.replace(/\/+$/, '')}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify(body),
-  })
+  // Same transport contract as `send()`: a refresh that cannot reach the server
+  // is a NetworkError, one that hangs is a TimeoutError. A bare `fetch` threw a
+  // TypeError and waited forever, so a sign-out with an expired token on a dead
+  // network was blamed on the push service (#279 F-01).
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
+  let response: Response
+  try {
+    response = await fetch(`${env.apiUrl.replace(/\/+$/, '')}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (controller.signal.aborted) throw new TimeoutError(DEFAULT_TIMEOUT_MS)
+    throw new NetworkError('NETWORK_UNREACHABLE', error)
+  } finally {
+    clearTimeout(timer)
+  }
   if (!response.ok) {
     throw await toApiError(response)
   }

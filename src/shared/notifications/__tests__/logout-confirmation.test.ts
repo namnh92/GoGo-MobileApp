@@ -110,3 +110,38 @@ describe('unsubscribe then confirm, in that order (#160)', () => {
     expect(deps.report).not.toHaveBeenCalledWith('push_logout_confirmed')
   })
 })
+
+describe('a guest session has nothing bound to confirm (#279)', () => {
+  it('logs the SDK out and lets the guest leave without asking the backend', async () => {
+    // The endpoint answers 403 USER_ONLY for a guest, every time: asking it
+    // left a guest with no way to sign out at all.
+    const { run, deps, order } = harness({
+      confirm: vi.fn(async () => {
+        throw new Error('403 USER_ONLY')
+      }),
+    })
+    await expect(run('guest')).resolves.toBeUndefined()
+    expect(order).toEqual(['unsubscribe'])
+    expect(deps.confirm).not.toHaveBeenCalled()
+    expect(deps.report).toHaveBeenCalledWith('push_logout_guest_unbound')
+  })
+
+  it('still stops when the SDK logout itself fails', async () => {
+    const { run } = harness({
+      unsubscribe: vi.fn(async () => {
+        throw new Error('bridge gone')
+      }),
+    })
+    await expect(run('guest')).rejects.toThrow('bridge gone')
+  })
+
+  it('a signed-in user is still confirmed, fail-closed', async () => {
+    const { run, deps } = harness({
+      confirm: vi.fn(async () => {
+        throw new Error('503')
+      }),
+    })
+    await expect(run('user')).rejects.toMatchObject({ reason: 'unavailable' })
+    expect(deps.confirm).toHaveBeenCalled()
+  })
+})
