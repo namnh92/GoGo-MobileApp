@@ -136,6 +136,29 @@ it('swipe: a stale run with candidates left is still stale, not a deck', async (
   expect(view.queryByText('Place One')).toBeNull()
 })
 
+// #245 — no card to vote on, so no "1 / 1" counter above the not-ready notice.
+it.each([
+  ['stale', { ...RUNS.stale, candidates: [{ placeId: 'place-1', name: 'Place One', rank: 1 }] }],
+  ['empty', RUNS.empty],
+  ['none', RUNS.none],
+] as const)('swipe: shows no card counter on a %s run', async (_state, suggestions) => {
+  asRole('member')
+  mockState.suggestions = suggestions
+  const view = await renderScreen(<Swipe />)
+  expect(view.queryByText(/^\d+ \/ \d+$/)).toBeNull()
+})
+
+it('swipe: shows the card counter on a live deck', async () => {
+  asRole('member')
+  mockState.suggestions = {
+    run: { id: 'run-1', stale: false },
+    candidates: [{ placeId: 'place-1', name: 'Place One', rank: 1 }, { placeId: 'place-2', name: 'Place Two', rank: 2 }],
+    votes: { mine: {}, progress: [] },
+  }
+  const view = await renderScreen(<Swipe />)
+  expect(view.getByText('1 / 2')).toBeTruthy()
+})
+
 it('swipe: never falls back to member copy when the room failed to load', async () => {
   mockState.suggestions = RUNS.empty
   const refetch = jest.fn()
