@@ -6,6 +6,7 @@ import { isRoomNotActive } from '../errors'
 import { queryKeys } from '../query-keys'
 import type { OpBody, Plan } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
+import { useIntentKey } from './use-intent-key'
 
 /** Liveness comes from `useRoomRealtime`, never from a per-screen interval. */
 export function useCurrentPlan(roomId: string | undefined) {
@@ -73,9 +74,12 @@ export function useEditPlanStops(planId: string) {
  */
 export function useRegeneratePlan(planId: string) {
   const writePlan = useWritePlan()
+  // One key per tap, replayed by automatic retries (#315 F-01).
+  const intent = useIntentKey()
   return useMutation({
-    mutationFn: (body: OpBody<'regeneratePlan'> = {}) => plansApi.regeneratePlan(planId, body),
+    mutationFn: (body?: OpBody<'regeneratePlan'>) => plansApi.regeneratePlan(planId, body ?? {}, intent.keyFor(body)),
     onSuccess: writePlan,
+    onSettled: (_data, _error, body) => intent.release(body),
   })
 }
 
@@ -127,8 +131,10 @@ function refreshRoomIfNotActive(queryClient: QueryClient, planId: string, error:
 
 export function useCompletePlanStop(planId: string) {
   const queryClient = useQueryClient()
+  const intent = useIntentKey()
   return useMutation({
-    mutationFn: (stopId: string) => plansApi.completePlanStop(planId, stopId),
+    mutationFn: (stopId: string) => plansApi.completePlanStop(planId, stopId, intent.keyFor(stopId)),
+    onSettled: (_data, _error, stopId) => intent.release(stopId),
     // #278 — the answer carries no plan, and the refetch lands after the caller
     // has moved on. Until then the cached plan still shows this stop in
     // progress, and another tap would complete it a second time.
@@ -153,9 +159,13 @@ export function useCompletePlanStop(planId: string) {
  */
 export function useCheckinPlanStop(planId: string) {
   const queryClient = useQueryClient()
+  const intent = useIntentKey()
   return useMutation({
-    mutationFn: ({ stopId, ...body }: OpBody<'checkinPlanStop'> & { stopId: string }) =>
-      plansApi.checkinPlanStop(planId, stopId, body),
+    mutationFn: (variables: OpBody<'checkinPlanStop'> & { stopId: string }) => {
+      const { stopId, ...body } = variables
+      return plansApi.checkinPlanStop(planId, stopId, body, intent.keyFor(variables))
+    },
+    onSettled: (_data, _error, variables) => intent.release(variables),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.plan(planId) })
     },

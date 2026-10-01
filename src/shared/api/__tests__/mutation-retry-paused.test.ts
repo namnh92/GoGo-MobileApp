@@ -106,3 +106,34 @@ describe('a mutation tapped while the app believes it is offline (#250)', () => 
     expect(mutationFn).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * #315 F-02 — what this change does NOT remove. TanStack's retryer also waits
+ * while `focusManager` says the app is unfocused, whatever the network mode.
+ * If the app is wrongly believed to be in the background, a retry still pauses
+ * until the next focus event. Whether that is what happened on the device in
+ * #250 is UNKNOWN until onlineManager/focusManager/NetInfo are captured there.
+ */
+describe('a mutation retry while the app is unfocused (#250, remaining)', () => {
+  it('still pauses until the app is focused again', async () => {
+    const mutationFn = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        focusManager.setFocused(false)
+        throw SERVICE_UNAVAILABLE
+      })
+      .mockResolvedValueOnce({ ok: true })
+
+    const { mutation, result } = execute(client, mutationFn)
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(mutationFn).toHaveBeenCalledTimes(1)
+    expect(mutation.state.isPaused).toBe(true)
+
+    // Coming back to the foreground resumes it (QueryClient.mount → resumePausedMutations).
+    focusManager.setFocused(true)
+    await vi.advanceTimersByTimeAsync(0)
+    await expect(result).resolves.toEqual({ ok: true })
+    expect(mutationFn).toHaveBeenCalledTimes(2)
+  })
+})
