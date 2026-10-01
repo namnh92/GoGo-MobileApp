@@ -207,7 +207,9 @@ export default function ReviewScreen() {
                     // Neither state is colour alone: `selected` prefixes a check
                     // glyph and sets `accessibilityState.selected`; "sent" is
                     // said in words on the chip itself, so the two never share
-                    // the same mark.
+                    // the same mark. The marker leads: the chip is one line and
+                    // truncates at the tail, so a long place name is what gets
+                    // clipped, never the word "sent".
                     label={isSent ? t('review.subjectSent', { name: candidate.label }) : candidate.label}
                     variant={candidate.key === subjectKey ? 'selected' : isSent ? 'positive' : 'default'}
                     accessibilityLabel={

@@ -126,7 +126,9 @@ it('says a sent subject was sent in words, not with the selection check', async 
 
   // "Quán A" is now selected (✓) and the whole date is sent: the two states
   // must not look alike to someone who cannot tell the fills apart.
-  expect(view.getByText('Cả buổi hẹn · đã gửi')).toBeTruthy()
+  // The marker leads the label: `Chip` is single-line and truncates the tail,
+  // so a trailing "đã gửi" would be the first thing a long name pushes off.
+  expect(view.getByText(/^Đã gửi · Cả buổi hẹn$/)).toBeTruthy()
   expect(view.getByText('✓ Quán A')).toBeTruthy()
   expect(view.queryByText('✓')).toBeNull()
 })

@@ -652,7 +652,7 @@ export const enMessages: Record<MessageKey, string> = {
   'review.subjectLabel': 'What are you reviewing?',
   'review.subjectOverall': 'The whole date',
   'review.subjectDone': '{{name}} — review sent',
-  'review.subjectSent': '{{name}} · sent',
+  'review.subjectSent': 'Sent · {{name}}',
   'review.another': 'Review {{name}}',
   'review.chooseStars': 'Pick a star rating',
   'review.rating.bad': 'Oh no 😢',
