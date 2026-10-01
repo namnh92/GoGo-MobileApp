@@ -1,6 +1,14 @@
 import type { MessageKey, LocaleContent } from '@/shared/i18n/types'
 
-export const enMessages: Record<MessageKey, string> = {
+/**
+ * English needs a singular where Vietnamese has one form. `<key>_one` is the
+ * singular i18next picks for `count === 1`; the base key stays the plural it
+ * falls back to for every other count (GoGo-MobileApp#270). The call must pass
+ * `count` — `n` alone never selects a plural form.
+ */
+type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
+
+export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'administrative.province': 'Province/City',
   'administrative.commune': 'Ward/Commune',
   'administrative.selectProvince': 'Choose province/city',
@@ -263,7 +271,8 @@ export const enMessages: Record<MessageKey, string> = {
   'gogoRoom.reissueFailed': 'Could not revoke the current code. Try again.',
   'gogoRoom.invitesLoadFailed': "Could not check this room's invite codes.",
   'gogoRoom.partialTitle': 'Continue with current responses?',
-  'gogoRoom.partialBody': '{{n}} members have not finished. They remain in the room and can vote; party size and budget stay unchanged.',
+  'gogoRoom.partialBody_one': '{{count}} member has not finished. They remain in the room and can vote; party size and budget stay unchanged.',
+  'gogoRoom.partialBody': '{{count}} members have not finished. They remain in the room and can vote; party size and budget stay unchanged.',
   'gogoRoom.partialContinue': 'Continue with current responses',
   'gogoRoom.quorumRequired': 'At least 2 members must finish their preferences before matching.',
   'gogoRoom.title': 'Now pull the other one in',
@@ -464,6 +473,7 @@ export const enMessages: Record<MessageKey, string> = {
   'price.unit.free': 'Free',
   'price.unit.unknown': 'No price information yet',
 
+  'placeCard.ratingA11y_one': 'Google {{rating}} stars, {{count}} rating',
   'placeCard.ratingA11y': 'Google {{rating}} stars, {{count}} ratings',
   'placeCard.ratingA11yNoCount': 'Google {{rating}} stars',
   'rating.google': 'Google',
@@ -482,7 +492,8 @@ export const enMessages: Record<MessageKey, string> = {
   'matchResult.waitingHost': 'Waiting for the host to lock it in.',
   'matchResult.regenerating': 'Regenerating…',
   'matchResult.runnersUp': 'Other options',
-  'matchResult.points': '{{n}} points',
+  'matchResult.points_one': '{{count}} point',
+  'matchResult.points': '{{count}} points',
   'matchResult.noReasons': 'No specific reasons recorded for this pick.',
   'matchResult.emptyTitle': 'No options yet',
   'matchResult.emptyBody': 'Everyone needs to finish picking, then the host starts matching.',
@@ -507,7 +518,8 @@ export const enMessages: Record<MessageKey, string> = {
   'datePlan.regenerate': 'Rebuild the plan',
   'datePlan.regenerating': 'Rebuilding…',
   'datePlan.regenerated': '✓ New plan ready',
-  'datePlan.regeneratedKept': '✓ New plan · {{n}} locked stops kept',
+  'datePlan.regeneratedKept_one': '✓ New plan · {{count}} locked stop kept',
+  'datePlan.regeneratedKept': '✓ New plan · {{count}} locked stops kept',
   'datePlan.regenerateFailed': 'Could not rebuild. Please try again.',
   // #251 — starting the date is the host moving the room to `active`.
   'datePlan.starting': 'Starting…',
@@ -540,6 +552,7 @@ export const enMessages: Record<MessageKey, string> = {
   'placeDetail.rating': '8.9 · 126 ratings from the GoGo community',
   'placeDetail.updated': 'Last check unknown',
   'placeDetail.updatedAt': 'Last checked {{date}}',
+  'placeDetail.ratingCount_one': '{{count}} rating',
   'placeDetail.ratingCount': '{{count}} ratings',
   'placeDetail.priceUnit.per_person': 'per person',
   'placeDetail.priceUnit.per_item': 'per item',
@@ -662,7 +675,8 @@ export const enMessages: Record<MessageKey, string> = {
   'review.highlights': 'Highlights',
   'review.placeholder': 'Anything GoGo should know? (optional)',
   'review.submit': 'Submit review',
-  'review.starAria': '{{n}} stars',
+  'review.starAria_one': '{{count}} star',
+  'review.starAria': '{{count}} stars',
   'review.submitting': 'Sending…',
   'review.successTitle': 'Review sent',
   'review.successPending': 'Your review is being checked. It appears on the place page once it is approved.',
@@ -733,6 +747,7 @@ export const enMessages: Record<MessageKey, string> = {
   'placeImport.verifying': 'Verifying on Google Maps…',
   'placeImport.invalidUrl': 'That does not look like a Google Maps link.',
   'placeImport.verifiedBadge': '✓ Verified on Google Maps',
+  'placeImport.reviews_one': '★ {{rating}} · {{n}} Google review',
   'placeImport.reviews': '★ {{rating}} · {{n}} Google reviews',
   'placeImport.addToSaved': 'Add to Saved',
   'placeImport.added': '✓ Added to Saved',
@@ -809,7 +824,8 @@ export const enMessages: Record<MessageKey, string> = {
   'saved.group.multipleCommunes': 'Several wards and communes',
   'saved.group.unknown': 'Area not known yet',
   'saved.plan.title': 'Saved plan',
-  'saved.plan.stops': '{{n}} stops',
+  'saved.plan.stops_one': '{{count}} stop',
+  'saved.plan.stops': '{{count}} stops',
   'saved.plan.stale': 'Conditions changed after this plan was made',
   'saved.plan.unavailable': 'A stop is no longer available',
   'saved.plan.missing': 'This plan cannot be opened',

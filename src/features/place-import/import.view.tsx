@@ -364,6 +364,8 @@ export default function PlaceImportScreen() {
                 <Text style={styles.placeReviews}>
                   {t('placeImport.reviews', {
                     rating: candidate.googleRating,
+                    // `n` is the display string; `count` picks the plural form (#270).
+                    count: candidate.googleRatingCount ?? 0,
                     n: (candidate.googleRatingCount ?? 0).toLocaleString(i18n.language),
                   })}
                 </Text>

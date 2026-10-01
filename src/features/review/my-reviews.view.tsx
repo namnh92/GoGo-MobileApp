@@ -118,7 +118,7 @@ export default function MyReviewsScreen() {
                       <Pressable
                         key={value}
                         onPress={() => setDraftRating(value)}
-                        accessibilityLabel={t('review.starAria', { n: value })}
+                        accessibilityLabel={t('review.starAria', { count: value })}
                       >
                         <Text style={[styles.starPick, value > draftRating && styles.starDim]}>⭐</Text>
                       </Pressable>
