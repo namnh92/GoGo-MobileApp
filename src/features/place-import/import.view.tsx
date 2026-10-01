@@ -76,6 +76,15 @@ function providerUnavailable(error: unknown): boolean {
  * Exactly once: a loop here would turn one stale token into an unbounded run of
  * paid resolves.
  */
+/**
+ * #131 — Google lists the place as opening soon (GoGo-BE#339). The preview can
+ * say operating and the submit still meet this, when Google changed its mind
+ * in between; it is a fact about the place, not a failure to retry.
+ */
+function notYetOpen(error: unknown): boolean {
+  return isApiError(error) && error.code === 'PLACE_NOT_YET_OPEN'
+}
+
 function staleResolution(error: unknown): boolean {
   return isApiError(error) && error.code === 'RESOLUTION_TOKEN_INVALID'
 }
@@ -483,12 +492,18 @@ export default function PlaceImportScreen() {
                     if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)
                   }}
                   loading={submit.isPending || revalidating}
-                  disabled={!candidate.googlePlaceId}
+                  // #131: the server refuses an unopened place (409
+                  // PLACE_NOT_YET_OPEN); the status line above says why.
+                  disabled={!candidate.googlePlaceId || candidate.businessStatus === 'FUTURE_OPENING'}
                   style={styles.addBtn}
                 />
               )}
 
-              {submit.isError ? <Text style={styles.errorLabel}>{t('placeImport.submitFailed')}</Text> : null}
+              {submit.isError ? (
+                <Text style={styles.errorLabel}>
+                  {t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed')}
+                </Text>
+              ) : null}
 
               {/* Provider data must be shown with its attribution. */}
               {(candidate.attributions ?? []).map(attribution => (

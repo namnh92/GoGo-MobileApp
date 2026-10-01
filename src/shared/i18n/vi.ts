@@ -767,6 +767,8 @@ export const viMessages = {
     'GoGo đang tạm thời không thể xác minh địa điểm. Vui lòng thử lại sau.',
   'placeImport.businessStatus.CLOSED_TEMPORARILY': '⚠️ Google báo địa điểm đang tạm đóng cửa.',
   'placeImport.businessStatus.CLOSED_PERMANENTLY': '⚠️ Google báo địa điểm đã đóng cửa vĩnh viễn.',
+  'placeImport.businessStatus.FUTURE_OPENING': '⚠️ Google báo địa điểm này chưa khai trương. Thêm lại khi quán đã mở cửa nhé.',
+  'placeImport.notYetOpen': 'Google báo địa điểm này chưa khai trương. Thêm lại khi quán đã mở cửa nhé.',
   'placeImport.businessStatusUnknown': '⚠️ Google chưa xác nhận địa điểm còn hoạt động.',
   'placeImport.reason.CLOSED': 'Địa điểm đã đóng cửa.',
   'placeImport.reason.INVALID_URL': 'Link không hợp lệ hoặc đã hỏng.',
