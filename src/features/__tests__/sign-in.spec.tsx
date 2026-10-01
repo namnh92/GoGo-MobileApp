@@ -400,3 +400,49 @@ describe('classifyAuthFailure', () => {
     }
   })
 })
+
+/**
+ * #274 — `pending` read only the visible form. A sign-in still in flight left
+ * the tabs live: switching to sign-up re-enabled its button and fields, and the
+ * sign-in failure then landed under the sign-up tab as if registering failed.
+ */
+describe('tab lock while a submit is in flight (#274)', () => {
+  it('keeps the tabs locked until the sign-in settles, and its error under sign-in', async () => {
+    let failLogin: (error: unknown) => void = () => {}
+    mockSignIn.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          failLogin = reject
+        }),
+    )
+
+    const view = await renderScreen(<SignInScreen />)
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'secret-password')
+    await press(view.getByRole('button', { name: 'Đăng nhập' }))
+    await waitFor(() => expect(mockSignIn).toHaveBeenCalledTimes(1))
+
+    const signUpTab = view.getByRole('tab', { name: 'Đăng ký' })
+    expect(signUpTab.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(view.getByRole('tab', { name: 'Đăng nhập' }).props.accessibilityState).toMatchObject({ disabled: true })
+
+    await press(signUpTab)
+    // Still on sign-in: no sign-up field appeared, the sign-up CTA is absent.
+    expect(view.queryByLabelText('Tên hiển thị')).toBeNull()
+    expect(view.queryByRole('button', { name: 'Tạo tài khoản' })).toBeNull()
+
+    await act(async () => {
+      failLogin(new ApiError(401, { code: 'INVALID_CREDENTIALS', message: 'Invalid', field_errors: [], retryable: false }))
+    })
+
+    expect(await view.findByText(COPY.invalidCredentials)).toBeTruthy()
+    expect(view.getByRole('button', { name: 'Đăng nhập' })).toBeTruthy()
+    expect(view.queryByLabelText('Tên hiển thị')).toBeNull()
+
+    // Settled: the tabs work again.
+    const unlocked = view.getByRole('tab', { name: 'Đăng ký' })
+    expect(unlocked.props.accessibilityState).toMatchObject({ disabled: false })
+    await press(unlocked)
+    expect(view.getByLabelText('Tên hiển thị')).toBeTruthy()
+  })
+})

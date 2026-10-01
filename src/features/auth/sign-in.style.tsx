@@ -31,6 +31,7 @@ export const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   tabActive: { backgroundColor: neutral[0] },
+  tabDisabled: { opacity: 0.5 },
   tabLabel: { ...type.bodySmall, fontWeight: '600', color: neutral[500] },
   tabLabelActive: { color: neutral[900], fontWeight: '700' },
   card: { padding: spacing[5], gap: spacing[4] },

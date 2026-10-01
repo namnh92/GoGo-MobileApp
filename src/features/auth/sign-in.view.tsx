@@ -41,7 +41,10 @@ export default function SignInScreen() {
   })
 
   const form = mode === 'signIn' ? signInForm : signUpForm
-  const pending = form.formState.isSubmitting
+  // #274: either form in flight locks the whole screen, tabs included. Reading
+  // only the visible form let a pending sign-in be hidden behind the sign-up
+  // tab, whose failure then landed under the wrong form.
+  const pending = signInForm.formState.isSubmitting || signUpForm.formState.isSubmitting
 
   /**
    * Where to land after authenticating, decided by an explicit `next` rather
@@ -101,6 +104,7 @@ export default function SignInScreen() {
   })
 
   function switchMode(target: Mode) {
+    if (pending) return
     setMode(target)
     setFormError(null)
   }
@@ -129,9 +133,10 @@ export default function SignInScreen() {
                 <Pressable
                   key={option}
                   onPress={() => switchMode(option)}
+                  disabled={pending}
                   accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  style={[styles.tab, active && styles.tabActive]}
+                  accessibilityState={{ selected: active, disabled: pending }}
+                  style={[styles.tab, active && styles.tabActive, pending && styles.tabDisabled]}
                 >
                   <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
                     {t(option === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')}
