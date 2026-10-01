@@ -84,6 +84,9 @@ function Button({ kind, label, onPress, disabled = false, loading = false, onAcc
       }}
       disabled={inactive}
       accessibilityRole="button"
+      // #271: Android writes contentDescription only when label + state is
+      // non-empty, so without a label a button kept saying "busy" after loading.
+      accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [
         styles.base,
