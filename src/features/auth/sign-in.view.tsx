@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -19,6 +19,31 @@ import { styles } from './sign-in.style'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 type Mode = 'signIn' | 'signUp'
+
+/** The fields each form draws, so a server field error can find its input. */
+const SIGN_IN_FIELDS = ['email', 'password'] as const satisfies readonly (keyof SignInValues)[]
+const SIGN_UP_FIELDS = ['displayName', 'email', 'password'] as const satisfies readonly (keyof SignUpValues)[]
+
+/**
+ * #273: put each server field error on the input it names. Returns whether any
+ * error had no input on this form, which still needs the generic line.
+ */
+function attachFieldErrors<T extends SignInValues | SignUpValues>(
+  form: UseFormReturn<T>,
+  known: readonly string[],
+  fields: readonly string[],
+): boolean {
+  let unattached = false
+  for (const field of fields) {
+    if (known.includes(field)) {
+      // The message is never drawn — each field renders its own i18n copy.
+      form.setError(field as Parameters<typeof form.setError>[0], { type: 'server' })
+    } else {
+      unattached = true
+    }
+  }
+  return unattached
+}
 
 export default function SignInScreen() {
   const { t } = useTranslation()
@@ -61,23 +86,29 @@ export default function SignInScreen() {
   function reportFailure(event: 'auth_sign_in_failed' | 'auth_register_failed', error: unknown) {
     const failure = classifyAuthFailure(error)
     track(event, failure.telemetry)
+    if (failure.fields?.length) {
+      const unattached =
+        event === 'auth_sign_in_failed'
+          ? attachFieldErrors(signInForm, SIGN_IN_FIELDS, failure.fields)
+          : attachFieldErrors(signUpForm, SIGN_UP_FIELDS, failure.fields)
+      if (!unattached) return
+    }
     // A literal lookup, so the i18n key scan reads every key this can ask for,
     // and `satisfies` makes tsc demand copy for every reason.
     setFormError(
-      failure.serverMessage ??
-        t(
-          ({
-            timeout: 'auth.timeoutError',
-            offline: 'auth.networkError',
-            invalid_credentials: 'auth.invalidCredentials',
-            conflict: 'auth.registerConflict',
-            rate_limited: 'auth.rateLimited',
-            field_invalid: 'auth.genericError',
-            rejected: 'auth.genericError',
-            server: 'auth.genericError',
-            unexpected: 'auth.unexpectedError',
-          } as const satisfies Record<AuthFailureReason, MessageKey>)[failure.reason],
-        ),
+      t(
+        ({
+          timeout: 'auth.timeoutError',
+          offline: 'auth.networkError',
+          invalid_credentials: 'auth.invalidCredentials',
+          conflict: 'auth.registerConflict',
+          rate_limited: 'auth.rateLimited',
+          field_invalid: 'auth.genericError',
+          rejected: 'auth.genericError',
+          server: 'auth.genericError',
+          unexpected: 'auth.unexpectedError',
+        } as const satisfies Record<AuthFailureReason, MessageKey>)[failure.reason],
+      ),
     )
   }
 

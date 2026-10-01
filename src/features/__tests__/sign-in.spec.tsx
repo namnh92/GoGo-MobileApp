@@ -317,14 +317,14 @@ describe('sign-up failure classification (#252)', () => {
     })
   })
 
-  it('falls back to its own copy when the server field message is empty', async () => {
+  it('draws its own copy under the field even when the server field message is empty', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(400, { code: 'VALIDATION_FAILED', message: 'Invalid', field_errors: [{ field: 'email', message: '  ' }], retryable: false }),
     )
 
     const view = await submitValidSignUp()
 
-    expect(await view.findByText(COPY.generic)).toBeTruthy()
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
     expect(mockTrack).toHaveBeenCalledWith('auth_register_failed', {
       reason: 'field_invalid',
       status: 400,
@@ -355,15 +355,21 @@ describe('classifyAuthFailure', () => {
     expect(classifyAuthFailure(api(400)).reason).toBe('rejected')
     expect(
       classifyAuthFailure(api(400, { field_errors: [{ field: 'email', message: ' Email đã được dùng ' }] })),
-    ).toMatchObject({ reason: 'field_invalid', serverMessage: 'Email đã được dùng' })
+    ).toMatchObject({ reason: 'field_invalid', fields: ['email'] })
   })
 
-  it('drops an empty server field message so the view shows its own copy', () => {
-    for (const message of ['', '   ']) {
-      const failure = classifyAuthFailure(api(400, { field_errors: [{ field: 'email', message }] }))
-      expect(failure.reason).toBe('field_invalid')
-      expect(failure.serverMessage).toBeUndefined()
-    }
+  it('carries every rejected field name, once each, and never the server sentence', () => {
+    const failure = classifyAuthFailure(
+      api(400, {
+        field_errors: [
+          { field: 'email', message: 'Invalid email' },
+          { field: 'password', message: 'Too short' },
+          { field: 'email', message: 'Too long' },
+        ],
+      }),
+    )
+    expect(failure.fields).toEqual(['email', 'password'])
+    expect(JSON.stringify(failure)).not.toMatch(/Invalid email|Too short|Too long/)
   })
 
   it('records an envelope code only in the BFF shape', () => {
@@ -398,6 +404,80 @@ describe('classifyAuthFailure', () => {
         errorName: 'Error',
       })
     }
+  })
+})
+
+/**
+ * #273 — a 400 with `field_errors` drew only the first entry, as the server's
+ * own untranslated sentence, in one line under the form. Each field the form
+ * shows now carries its own error in the app's copy; only a field the form does
+ * not have falls back to the generic line.
+ */
+describe('server field errors attach to their fields (#273)', () => {
+  const validation = (field_errors: { field: string; code?: string; message: string }[]) =>
+    jsonResponse(400, { code: 'VALIDATION_FAILED', message: 'Request validation failed', field_errors, retryable: false })
+
+  async function submitValidSignUp() {
+    const view = await openSignUp()
+    await type(view.getByLabelText('Tên hiển thị'), 'An')
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+    await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+    return view
+  }
+
+  it('puts every server field error under its own field, in the app copy', async () => {
+    fetchMock.mockResolvedValue(
+      validation([
+        { field: 'email', code: 'invalid_string', message: 'Invalid email' },
+        { field: 'password', code: 'too_small', message: 'String must contain at least 10 character(s)' },
+        { field: 'displayName', code: 'too_big', message: 'String must contain at most 50 character(s)' },
+      ]),
+    )
+
+    const view = await submitValidSignUp()
+
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+    expect(view.getByText(COPY.passwordInvalid)).toBeTruthy()
+    expect(view.getByText(COPY.displayNameInvalid)).toBeTruthy()
+    expect(view.queryByText('Invalid email')).toBeNull()
+    expect(view.queryByText(/String must contain/)).toBeNull()
+    // Every error has a field: no generic line on top.
+    expect(view.queryByText(COPY.generic)).toBeNull()
+    expect(mockTrack).toHaveBeenCalledWith('auth_register_failed', {
+      reason: 'field_invalid',
+      status: 400,
+      code: 'VALIDATION_FAILED',
+    })
+  })
+
+  it('uses the generic line, never the server sentence, for a field the form does not have', async () => {
+    fetchMock.mockResolvedValue(validation([{ field: '(root)', message: 'Expected object, received null' }]))
+
+    const view = await submitValidSignUp()
+
+    expect(await view.findByText(COPY.generic)).toBeTruthy()
+    expect(view.queryByText('Expected object, received null')).toBeNull()
+    expect(view.queryByText(COPY.emailInvalid)).toBeNull()
+  })
+
+  it('attaches what it can on sign-in and reports the rest generically', async () => {
+    fetchMock.mockResolvedValue(
+      validation([
+        { field: 'email', message: 'Invalid email' },
+        { field: 'displayName', message: 'Unrecognized key' },
+      ]),
+    )
+
+    const view = await renderScreen(<SignInScreen />)
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'secret-password')
+    await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+    expect(view.getByText(COPY.generic)).toBeTruthy()
+    expect(view.queryByText('Invalid email')).toBeNull()
+    expect(view.queryByText('Unrecognized key')).toBeNull()
   })
 })
 
