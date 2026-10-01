@@ -293,7 +293,7 @@ export default function MatchResultScreen() {
                     </View>
                     <Text style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
                     <Text style={styles.runnerPoints}>
-                      {t('matchResult.points', { n: entry?.points ?? candidate.points })}
+                      {t('matchResult.points', { count: entry?.points ?? candidate.points })}
                     </Text>
                   </GlassCard>
                 </Pressable>

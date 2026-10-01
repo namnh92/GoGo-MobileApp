@@ -234,7 +234,7 @@ export default function ReviewScreen() {
                 }}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: value === rating }}
-                accessibilityLabel={t('review.starAria', { n: value })}
+                accessibilityLabel={t('review.starAria', { count: value })}
                 style={styles.starTap}
               >
                 <Text style={[styles.star, value > rating && styles.starDim]}>⭐</Text>

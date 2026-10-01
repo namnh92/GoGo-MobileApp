@@ -147,7 +147,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
                 <Pressable
                   key={value}
                   onPress={() => setRating(value)}
-                  accessibilityLabel={t('review.starAria', { n: value })}
+                  accessibilityLabel={t('review.starAria', { count: value })}
                 >
                   <Text style={[styles.star, value > rating && styles.starDim]}>⭐</Text>
                 </Pressable>

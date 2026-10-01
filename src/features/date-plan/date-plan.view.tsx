@@ -119,7 +119,7 @@ export default function DatePlanScreen() {
       const kept = (next.stops ?? []).filter(stop => stop.isLocked).length
       setToast(
         lockedBefore > 0
-          ? t('datePlan.regeneratedKept', { n: kept })
+          ? t('datePlan.regeneratedKept', { count: kept })
           : t('datePlan.regenerated'),
       )
       // A rebuild supersedes this plan and returns a new one.

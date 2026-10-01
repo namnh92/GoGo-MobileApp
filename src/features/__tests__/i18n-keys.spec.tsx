@@ -11,6 +11,7 @@ import * as ts from 'typescript'
 import type { RoomType } from '@/shared/api/types'
 import { viMessages } from '@/shared/i18n/vi'
 import { enMessages } from '@/shared/i18n/en'
+import i18n from '@/shared/i18n'
 
 const KEY_SHAPED = /^[a-z][a-zA-Z0-9]*\.[a-zA-Z0-9.]+$/
 
@@ -295,5 +296,45 @@ describe('keys the app source asks for', () => {
       ref.kind === 'computed' && !(COMPUTED_KEYS[file] ?? []).includes(ref.source) ? [`${file}:${line} t(${ref.source})`] : [],
     )
     expect(unlisted).toEqual([])
+  })
+})
+
+/**
+ * GoGo-MobileApp#270 — English showed "1 ratings", "1 stars": the catalog had
+ * no singular, and most calls passed `n`, which never selects a plural form.
+ */
+describe('English plurals', () => {
+  const en = i18n.getFixedT('en')
+  const vi = i18n.getFixedT('vi')
+  const SINGULAR: Record<string, [Record<string, unknown>, string]> = {
+    'placeDetail.ratingCount': [{}, '1 rating'],
+    'placeCard.ratingA11y': [{ rating: 4.5 }, 'Google 4.5 stars, 1 rating'],
+    'review.starAria': [{}, '1 star'],
+    'gogoRoom.partialBody': [{}, '1 member has not finished. They remain in the room and can vote; party size and budget stay unchanged.'],
+    'datePlan.regeneratedKept': [{}, '✓ New plan · 1 locked stop kept'],
+    'saved.plan.stops': [{}, '1 stop'],
+    'matchResult.points': [{}, '1 point'],
+    'placeImport.reviews': [{ rating: 4.5, n: '1' }, '★ 4.5 · 1 Google review'],
+  }
+
+  it.each(Object.entries(SINGULAR))('%s is singular for 1 and plural for 2 in English', (key, [extra, singular]) => {
+    expect(en(key, { ...extra, count: 1 })).toBe(singular)
+    const plural = en(key, { ...extra, count: 2, ...(extra.n ? { n: '2' } : {}) })
+    expect(plural).toContain('2')
+    expect(plural).not.toBe(singular.replace('1', '2'))
+  })
+
+  it.each(Object.keys(SINGULAR))('%s keeps one Vietnamese form with the number in it', key => {
+    const [extra] = SINGULAR[key]
+    expect(vi(key, { ...extra, count: 1 })).toMatch(/1/)
+  })
+
+  it('passes count to every key that has an English singular', () => {
+    const singulars = new Set(Object.keys(enMessages).filter(key => key.endsWith('_one')).map(key => key.slice(0, -4)))
+    const withoutCount = usages().flatMap(({ file, line, ref, options }) =>
+      ref.kind === 'literal' && singulars.has(ref.key) && !options.count ? [`${ref.key} (${file}:${line})`] : [],
+    )
+    expect(singulars.size).toBeGreaterThanOrEqual(Object.keys(SINGULAR).length)
+    expect(withoutCount).toEqual([])
   })
 })

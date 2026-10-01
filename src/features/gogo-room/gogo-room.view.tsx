@@ -482,7 +482,7 @@ export default function GoGoRoomScreen() {
   }
 
   function confirmPartialMatching() {
-    alertWithHold(routingHold.hold, t('gogoRoom.partialTitle'), t('gogoRoom.partialBody', { n: summary?.matching?.pendingCount }), [
+    alertWithHold(routingHold.hold, t('gogoRoom.partialTitle'), t('gogoRoom.partialBody', { count: summary?.matching?.pendingCount }), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('gogoRoom.partialContinue'), onPress: () => { void beginMatching(true) } },
     ])

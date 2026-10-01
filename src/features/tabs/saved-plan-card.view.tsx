@@ -26,7 +26,7 @@ export function SavedPlanCard({ plan, onOpen, onRemove }: { plan?: Plan; onOpen:
         <View style={styles.text}>
           <Text variant="title2">{t('saved.plan.title')}</Text>
           <Text variant="bodySmall" color="text.secondary">
-            {plan ? t('saved.plan.stops', { n: plan.stops?.length ?? 0 }) : t('saved.plan.missing')}
+            {plan ? t('saved.plan.stops', { count: plan.stops?.length ?? 0 }) : t('saved.plan.missing')}
           </Text>
           {plan?.isStale ? <Text variant="bodySmall" color="status.warningText">⚠️ {t('saved.plan.stale')}</Text> : null}
           {plan?.hasUnavailableStops ? <Text variant="bodySmall" color="status.warningText">⚠️ {t('saved.plan.unavailable')}</Text> : null}
