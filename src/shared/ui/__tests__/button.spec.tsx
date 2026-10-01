@@ -166,3 +166,30 @@ describe('IconBtn', () => {
     expect(onPress).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * #271 — the text buttons set `accessibilityState.busy` but no label. Android
+ * builds `contentDescription` from label + state and only writes it when that
+ * list is non-empty, so after `busy` went back to false a label-less button kept
+ * announcing "busy" (seen in UI Automator dumps on a Samsung SM-A226B). With the
+ * label on the host view the description is rewritten on every state change.
+ */
+describe.each([
+  ['PrimaryBtn', PrimaryBtn],
+  ['SecondaryBtn', SecondaryBtn],
+  ['GhostBtn', GhostBtn],
+  ['DangerBtn', DangerBtn],
+] as const)('%s accessibility name (#271)', (_name, Btn) => {
+  it('carries its label as accessibilityLabel through loading and after it ends', async () => {
+    const view = await render(<Btn label="Đăng nhập" onPress={jest.fn()} loading />)
+    const host = () => screen.getByRole('button')
+    expect(host().props.accessibilityLabel).toBe('Đăng nhập')
+    expect(host().props.accessibilityState).toMatchObject({ busy: true })
+
+    await act(async () => {
+      view.rerender(<Btn label="Đăng nhập" onPress={jest.fn()} />)
+    })
+    expect(host().props.accessibilityLabel).toBe('Đăng nhập')
+    expect(host().props.accessibilityState).toMatchObject({ busy: false, disabled: false })
+  })
+})
