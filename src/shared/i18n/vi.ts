@@ -841,6 +841,7 @@ export const viMessages = {
   'profile.logoutFailedOffline': 'Chưa đăng xuất được vì máy đang mất kết nối. Kiểm tra kết nối rồi thử lại.',
   'profile.logoutFailedTimeout': 'Chưa đăng xuất được vì máy chủ phản hồi quá lâu. Thử lại sau ít phút.',
   'profile.logoutFailedPush': 'Chưa huỷ được thông báo trên máy này nên bạn vẫn đang đăng nhập. Thử lại sau.',
+  'profile.logoutSessionEnded': 'Phiên đăng nhập đã kết thúc trước đó, bạn đã được đăng xuất.',
   'profile.guestName': 'Khách',
   'profile.guestSubtitle': 'Chưa có tài khoản',
   'profile.shortcut.saved': 'Đã lưu',

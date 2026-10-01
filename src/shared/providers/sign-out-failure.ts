@@ -16,13 +16,22 @@ import { UnsubscribeNotConfirmedError } from '@/shared/notifications/logout-conf
  *                          device stopped receiving the account's
  *                          notifications (the provider was down, refused, or
  *                          still had it enabled);
+ *   - `session_ended`    — the session was already gone when the attempt
+ *                          failed: a refresh answered 401 and the client
+ *                          ended it locally (and purged). Telling that person
+ *                          "you are still signed in" would be false (F-02);
  *   - `other`            — anything else, e.g. the session revoke itself failed.
  *
  * Reason codes only: safe for telemetry, never a message or an id.
  */
-export type SignOutFailure = 'offline' | 'timeout' | 'push_unconfirmed' | 'other'
+export type SignOutFailure = 'offline' | 'timeout' | 'push_unconfirmed' | 'session_ended' | 'other'
 
-export function signOutFailureReason(error: unknown): SignOutFailure {
+/**
+ * `sessionPresent` is read *after* the failure. Whatever step failed, a device
+ * with no session left is signed out — the dead credential ended it.
+ */
+export function signOutFailureReason(error: unknown, sessionPresent = true): SignOutFailure {
+  if (!sessionPresent) return 'session_ended'
   // The push check wraps whatever its call threw. A device that could not
   // reach the backend at all is offline, whichever step it happened in.
   const underlying =

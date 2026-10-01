@@ -845,6 +845,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'profile.logoutFailedOffline': 'Could not sign out: this device is offline. Check your connection and try again.',
   'profile.logoutFailedTimeout': 'Could not sign out: the server took too long to answer. Try again in a few minutes.',
   'profile.logoutFailedPush': 'Could not turn off notifications on this device, so you are still signed in. Try again later.',
+  'profile.logoutSessionEnded': 'Your session had already ended, so you are signed out.',
   'profile.guestName': 'Guest',
   'profile.guestSubtitle': 'No account yet',
   'profile.shortcut.saved': 'Saved',

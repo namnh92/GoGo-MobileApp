@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMe, useMyReviews, useNotificationSettings, useSaved } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { getSession } from '@/shared/api/session'
 import { env } from '@/shared/config/env'
 import { useSession } from '@/shared/providers/session-provider'
 import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/sign-out-failure'
@@ -62,9 +63,12 @@ export default function ProfileScreen() {
       // release build nothing at all, leaving a button that silently does
       // nothing while the person believes they signed out. #279: and it has to
       // say why, so nobody is sent to check a connection that is fine.
-      const reason = signOutFailureReason(error)
+      const reason = signOutFailureReason(error, getSession() !== null)
       track('auth_sign_out_failed', { reason })
       setSignOutFailure(reason)
+      // The credential was already dead and the session ended locally (F-02):
+      // the person is signed out, so they go where a sign-out goes.
+      if (reason === 'session_ended') router.replace('/(tabs)')
     } finally {
       setSigningOut(false)
     }
@@ -219,6 +223,7 @@ export default function ProfileScreen() {
                 offline: 'profile.logoutFailedOffline',
                 timeout: 'profile.logoutFailedTimeout',
                 push_unconfirmed: 'profile.logoutFailedPush',
+                session_ended: 'profile.logoutSessionEnded',
                 other: 'profile.logoutFailed',
               } as const satisfies Record<SignOutFailure, string>)[signOutFailure],
             )}

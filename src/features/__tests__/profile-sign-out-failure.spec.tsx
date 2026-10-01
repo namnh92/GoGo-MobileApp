@@ -23,6 +23,11 @@ jest.mock('@/shared/providers/session-provider', () => ({
 jest.mock('@/shared/analytics', () => ({
   track: (...args: unknown[]) => mockTrack(...args),
 }))
+const mockSessionLeft: { present: boolean } = { present: true }
+jest.mock('@/shared/api/session', () => ({
+  ...jest.requireActual('@/shared/api/session'),
+  getSession: () => (mockSessionLeft.present ? { kind: 'user', accessToken: 't', expiresAt: 0, userId: 'u' } : null),
+}))
 jest.mock('@/shared/api', () => {
   const idle = { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn() }
   return {
@@ -41,6 +46,7 @@ const pushUnavailable = new UnsubscribeNotConfirmedError(
 )
 
 beforeEach(() => {
+  mockSessionLeft.present = true
   mockSignOut.mockReset()
   mockReplace.mockReset()
   mockTrack.mockReset()
@@ -79,4 +85,21 @@ it('only blames the connection when the device really could not reach the server
   // The reported defect: a push service answering in 5 ms read as "check your
   // connection", and retrying with a healthy network changed nothing.
   expect(screen.queryByText(/Kiểm tra kết nối/)).toBeNull()
+})
+
+it('a credential that was already dead says the session ended and leaves like a sign-out (F-02)', async () => {
+  // The refresh answered 401 and the client ended the session locally; the
+  // push check then failed unauthenticated. "You are still signed in" is false.
+  mockSessionLeft.present = false
+  mockSignOut.mockRejectedValueOnce(
+    new UnsubscribeNotConfirmedError('unavailable', new ApiError(401, { code: 'UNAUTHORIZED', message: 'x' })),
+  )
+  await render(<ProfileScreen />)
+
+  await tapSignOut()
+
+  expect(screen.getByText(viMessages['profile.logoutSessionEnded'] as string)).toBeTruthy()
+  expect(screen.queryByText(viMessages['profile.logoutFailedPush'] as string)).toBeNull()
+  expect(mockReplace).toHaveBeenCalledWith('/(tabs)')
+  expect(mockTrack).toHaveBeenCalledWith('auth_sign_out_failed', { reason: 'session_ended' })
 })
