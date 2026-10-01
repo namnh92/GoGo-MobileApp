@@ -1,18 +1,20 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
-import { renderScreen, loaded as mockLoaded } from './harness'
+import { renderScreen, loaded as mockLoaded, pausedOffline as mockPausedOffline } from './harness'
 import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 const mockChanged = jest.fn()
-const mockVersion = { value: 'v1' }
+const mockVersion = { value: 'v1', offline: false }
+const mockUnits = { offline: false }
 const mockProvince = { code: '79', fullName: 'Thành phố Hồ Chí Minh', level: 'PROVINCE', isCurrent: true, status: 'ACTIVE' }
 const mockCommune = { code: '26734', fullName: 'Phường Thảo Điền', parentCode: '79', level: 'COMMUNE', isCurrent: true, status: 'ACTIVE' }
 jest.mock('@/shared/administrative/queries', () => ({
-  useAdministrativeVersion: () => mockLoaded({ datasetVersion: mockVersion.value }),
-  useAdministrativeUnits: (_version: string, province?: string) => mockLoaded(province ? [mockCommune] : [mockProvince]),
+  useAdministrativeVersion: () => mockVersion.offline ? mockPausedOffline() : mockLoaded({ datasetVersion: mockVersion.value }),
+  useAdministrativeUnits: (_version: string, province?: string) =>
+    mockUnits.offline ? mockPausedOffline() : mockLoaded(province ? [mockCommune] : [mockProvince]),
 }))
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 const selected = { datasetVersion: 'v1', provinceCode: '01', provinceName: 'Hà Nội', communeCode: '00001', communeName: 'Phường cũ' }
-beforeEach(() => { mockChanged.mockClear(); mockVersion.value = 'v1' })
+beforeEach(() => { mockChanged.mockClear(); mockVersion.value = 'v1'; mockVersion.offline = false; mockUnits.offline = false })
 it('changing province clears the old commune and stores canonical codes/version', async () => {
   const view = await renderScreen(<AdministrativePicker value={selected} onChange={mockChanged} />)
   await fireEvent.press(view.getByText('Hà Nội'))
@@ -55,5 +57,37 @@ describe('picker × connectivity', () => {
     await fireEvent.press(view.getByText('Hà Nội'))
     expect(view.getByText(mockProvince.fullName)).toBeTruthy()
     expect(view.queryByText(/bản đã lưu trên máy/)).toBeNull()
+  })
+
+  /**
+   * GoGo-MobileApp#148 — first use offline: nothing cached, the queries stay
+   * pending + paused. The picker must say it is offline, not load forever.
+   */
+  it('says offline instead of loading forever when no dataset version is cached', async () => {
+    mockVersion.offline = true
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<AdministrativePicker value={null} onChange={mockChanged} />)
+    await act(async () => { jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS) })
+    expect(view.getByText('Không có kết nối')).toBeTruthy()
+    expect(view.queryByText('Đang tải…')).toBeNull()
+    expect(mockChanged).not.toHaveBeenCalled()
+  })
+
+  it('says offline in the modal when the unit list was never cached', async () => {
+    mockUnits.offline = true
+    onlineManager.setOnline(false)
+    const view = await renderScreen(<AdministrativePicker value={selected} onChange={mockChanged} />)
+    await act(async () => { jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS) })
+    await fireEvent.press(view.getByText('Hà Nội'))
+    expect(view.getByText('Không có kết nối')).toBeTruthy()
+    expect(view.queryByText('Đang tải…')).toBeNull()
+  })
+
+  it('still shows loading while online and fetching', async () => {
+    mockVersion.offline = true
+    const view = await renderScreen(<AdministrativePicker value={null} onChange={mockChanged} />)
+    await act(async () => { jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS) })
+    expect(view.queryByText('Không có kết nối')).toBeNull()
+    expect(view.getByText('Đang tải…')).toBeTruthy()
   })
 })
