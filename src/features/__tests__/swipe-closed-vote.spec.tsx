@@ -1,6 +1,6 @@
 import { act, fireEvent } from '@testing-library/react-native'
 
-import { loaded as mockLoaded, renderScreen, roomFor } from './harness'
+import { loaded as mockLoaded, renderScreen, roomFor, fresh as mockFresh } from './harness'
 import { ApiError } from '@/shared/api/errors'
 
 /**
@@ -37,7 +37,7 @@ jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockState.room,
-  useCurrentSuggestions: () => mockLoaded(mockSuggestions),
+  useCurrentSuggestions: () => mockFresh(mockSuggestions),
   usePlaceDetail: () => mockLoaded(null),
   useRoomRealtime: jest.fn(),
   useTaxonomyLabel: () => ({ resolve: () => null }),

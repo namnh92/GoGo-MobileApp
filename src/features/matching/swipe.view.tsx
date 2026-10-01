@@ -33,7 +33,7 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
-import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { haptic, useReducedMotion } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
@@ -73,7 +73,9 @@ export default function SwipeScreen() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
   const reducedMotion = useReducedMotion()
 
-  const suggestions = useCurrentSuggestions(roomId)
+  // #290: the deck starts from this person's votes, so it needs a read made
+  // since it opened — a cache under the 30 s stale window would not refetch.
+  const suggestions = useCurrentSuggestions(roomId, { refetchOnMount: 'always' })
   // Who may refresh an empty or stale run is the host (#199).
   const room = useRoom(roomId)
   // The lobby sends people here once per run (#198); back there, it must not again.
@@ -122,10 +124,16 @@ export default function SwipeScreen() {
   // first candidate without one. It is read once per run: after that the deck
   // moves on its own, and the optimistic vote landing in the cache must not
   // move it again (a failed vote rolls back and keeps the same card anyway).
+  // Only a read made since this screen opened counts (#313 F-01): a restored
+  // cache can miss votes cast on another phone, or hold a run the host has
+  // since replaced. No vote can be cast before the seed, so the only writes
+  // after `openedAt` until then are server reads.
   const runId = suggestions.data?.run?.id
+  const freshSuggestions = suggestions.dataUpdatedAt >= openedAt
   const [resumedRun, setResumedRun] = useState<string | undefined>(undefined)
   const [allDecided, setAllDecided] = useState(false)
-  if (runId && candidates.length > 0 && resumedRun !== runId) {
+  const seeded = runId !== undefined && resumedRun === runId
+  if (freshSuggestions && runId && candidates.length > 0 && resumedRun !== runId) {
     const firstOpen = candidates.findIndex(candidate => !candidate.myVote)
     setResumedRun(runId)
     setCardIndex(firstOpen === -1 ? candidates.length : firstOpen)
@@ -313,6 +321,23 @@ export default function SwipeScreen() {
         ) : (
           // With no room the role is unknown; a host must never be told to wait for the host.
           <ErrorState error={room.error} onRetry={() => void room.refetch()} />
+        )}
+      </Atmosphere>
+    )
+  }
+
+  // A deck placed from a cache it could not confirm would re-vote cards decided
+  // elsewhere; wait for the read, or say why it is not coming.
+  if (!seeded) {
+    return (
+      <Atmosphere>
+        {header}
+        {suggestions.isPaused ? (
+          <OfflineState />
+        ) : (
+          <View style={styles.deck}>
+            <Skeleton style={styles.skeletonCard} height={undefined} radius={24} />
+          </View>
         )}
       </Atmosphere>
     )

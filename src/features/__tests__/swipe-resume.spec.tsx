@@ -19,7 +19,11 @@ const mockState = {
     candidates: [] as { placeId: string; name: string; rank: number; myVote: Vote }[],
     votes: { mine: {}, progress: [] },
   },
+  /** When the data was written: before the screen opened = a restored cache. */
+  dataUpdatedAt: Number.MAX_SAFE_INTEGER,
+  isPaused: false,
 }
+const mockUseSuggestions = jest.fn()
 
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
@@ -31,7 +35,10 @@ jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockLoaded(mockRoomFor('group-host', { status: 'matching', decisionMode: 'vote' })),
-  useCurrentSuggestions: () => mockLoaded(mockState.suggestions),
+  useCurrentSuggestions: (...args: unknown[]) => {
+    mockUseSuggestions(...args)
+    return { ...mockLoaded(mockState.suggestions), dataUpdatedAt: mockState.dataUpdatedAt, isPaused: mockState.isPaused }
+  },
   usePlaceDetail: () => mockLoaded(null),
   useRoomRealtime: jest.fn(),
   useTaxonomyLabel: () => ({ resolve: () => null }),
@@ -41,9 +48,13 @@ jest.mock('@/shared/api', () => ({
 import Swipe from '@/features/matching/swipe.view'
 
 function deck(...votes: Vote[]) {
+  deckFor('run-1', ...votes)
+}
+
+function deckFor(runId: string, ...votes: Vote[]) {
   mockState.suggestions = {
     ...mockState.suggestions,
-    run: { id: 'run-1', stale: false },
+    run: { id: runId, stale: false },
     candidates: votes.map((myVote, index) => ({
       placeId: `place-${index + 1}`,
       name: `Place ${index + 1}`,
@@ -55,6 +66,8 @@ function deck(...votes: Vote[]) {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockState.dataUpdatedAt = Number.MAX_SAFE_INTEGER
+  mockState.isPaused = false
   mockVote.mockResolvedValue({ matched: false })
 })
 
@@ -92,10 +105,67 @@ it('does not jump back when the optimistic vote lands on the cached run', async 
   deck(null, null, null)
   const view = await renderScreen(<Swipe />)
   await fireEvent.press(view.getByLabelText('Thích'))
-  expect(view.getByText('Place 2')).toBeTruthy()
-  // The cache now carries the vote just cast; the deck keeps its place.
+  await fireEvent.press(view.getByLabelText('Thích'))
+  expect(view.getByText('Place 3')).toBeTruthy()
+  // The cache carries only the first vote so far (the second is still in
+  // flight); a reseed would pull the deck back to Place 2.
   deck('yes', null, null)
-  view.rerender(<Swipe />)
-  expect(view.getByText('Place 2')).toBeTruthy()
-  expect(view.getByText('2 / 3')).toBeTruthy()
+  await view.rerender(<Swipe />)
+  expect(view.getByText('Place 3')).toBeTruthy()
+  expect(view.getByText('3 / 3')).toBeTruthy()
+})
+
+it('keeps the same card when a vote fails and the optimistic copy rolls back', async () => {
+  deck(null, null)
+  mockVote.mockRejectedValueOnce(new Error('offline'))
+  const view = await renderScreen(<Swipe />)
+  await fireEvent.press(view.getByLabelText('Thích'))
+  deck(null, null)
+  await view.rerender(<Swipe />)
+  expect(view.getByText('Place 1')).toBeTruthy()
+  expect(view.getByText('1 / 2')).toBeTruthy()
+})
+
+describe('only a read made since the screen opened places the deck (#313 F-01)', () => {
+  it('asks for a fresh read on every open', async () => {
+    deck(null)
+    await renderScreen(<Swipe />)
+    expect(mockUseSuggestions).toHaveBeenCalledWith('room-1', { refetchOnMount: 'always' })
+  })
+
+  it('waits for the fresh read when the cache missed votes cast on another phone', async () => {
+    // Restored cache: this phone never saw the two votes cast elsewhere.
+    deck(null, null, null)
+    mockState.dataUpdatedAt = 0
+    const view = await renderScreen(<Swipe />)
+    expect(view.queryByText('Place 1')).toBeNull()
+    expect(view.queryByLabelText('Thích')).toBeNull()
+    // The read made since opening has them.
+    deck('yes', 'yes', null)
+    mockState.dataUpdatedAt = Number.MAX_SAFE_INTEGER
+    await view.rerender(<Swipe />)
+    expect(view.getByText('Place 3')).toBeTruthy()
+    expect(view.getByText('3 / 3')).toBeTruthy()
+  })
+
+  it('does not leave for the result on a cached run the host has since replaced', async () => {
+    deckFor('run-1', 'yes', 'no')
+    mockState.dataUpdatedAt = 0
+    const view = await renderScreen(<Swipe />)
+    expect(mockReplace).not.toHaveBeenCalled()
+    deckFor('run-2', null, null)
+    mockState.dataUpdatedAt = Number.MAX_SAFE_INTEGER
+    await view.rerender(<Swipe />)
+    expect(view.getByText('Place 1')).toBeTruthy()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('says it is offline instead of offering a cached deck it cannot confirm', async () => {
+    deck('yes', null)
+    mockState.dataUpdatedAt = 0
+    mockState.isPaused = true
+    const view = await renderScreen(<Swipe />)
+    expect(view.queryByLabelText('Thích')).toBeNull()
+    expect(view.getByText('Không có kết nối')).toBeTruthy()
+  })
 })
