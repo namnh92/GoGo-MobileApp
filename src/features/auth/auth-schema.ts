@@ -6,8 +6,8 @@ import { z } from 'zod'
  * something the client could have caught.
  */
 export const signInSchema = z.object({
-  email: z.email(),
-  password: z.string().min(1),
+  email: z.email().max(254),
+  password: z.string().min(1).max(128),
 })
 
 export const signUpSchema = z.object({

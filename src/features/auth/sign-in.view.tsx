@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { useEffect, useRef, useState } from 'react'
+import { Controller, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { track } from '@/shared/analytics'
@@ -19,6 +19,29 @@ import { styles } from './sign-in.style'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 type Mode = 'signIn' | 'signUp'
+
+/** The fields each form draws, so a server field error can find its input. */
+const SIGN_IN_FIELDS = ['email', 'password'] as const satisfies readonly (keyof SignInValues)[]
+const SIGN_UP_FIELDS = ['displayName', 'email', 'password'] as const satisfies readonly (keyof SignUpValues)[]
+
+/**
+ * #273: put each server field error on the input it names. Returns the fields
+ * attached, in server order, and whether any error had no input on this form —
+ * that one still needs the generic line.
+ */
+function attachFieldErrors<T extends SignInValues | SignUpValues>(
+  form: UseFormReturn<T>,
+  known: readonly string[],
+  fields: readonly string[],
+): { attached: string[]; unattached: boolean } {
+  const attached = fields.filter(field => known.includes(field))
+  attached.forEach(field => {
+    // The message is never drawn — each field renders its own i18n copy. No
+    // `shouldFocus`: this runs mid-submit, when every input is disabled (F-04).
+    form.setError(field as Parameters<typeof form.setError>[0], { type: 'server' })
+  })
+  return { attached, unattached: attached.length < fields.length }
+}
 
 export default function SignInScreen() {
   const { t } = useTranslation()
@@ -47,6 +70,23 @@ export default function SignInScreen() {
   const pending = signInForm.formState.isSubmitting || signUpForm.formState.isSubmitting
 
   /**
+   * #310 F-04: the first field a server rejected, focused once the submit has
+   * settled. Focusing inside the submit did nothing on a device: every input is
+   * `editable={false}` while pending, and a disabled native view takes no focus.
+   */
+  const [focusRequest, setFocusRequest] = useState<{ id: number; form: Mode; field: keyof SignUpValues } | null>(null)
+  const focusHandled = useRef(0)
+  useEffect(() => {
+    if (pending || !focusRequest || focusHandled.current === focusRequest.id) return
+    focusHandled.current = focusRequest.id
+    if (focusRequest.form === 'signIn') {
+      if (focusRequest.field !== 'displayName') signInForm.setFocus(focusRequest.field)
+    } else {
+      signUpForm.setFocus(focusRequest.field)
+    }
+  }, [pending, focusRequest, signInForm, signUpForm])
+
+  /**
    * Where to land after authenticating, decided by an explicit `next` rather
    * than by history. `router.back()` sent someone who arrived from a deep link
    * or from onboarding straight back to the intro carousel right after they
@@ -61,23 +101,46 @@ export default function SignInScreen() {
   function reportFailure(event: 'auth_sign_in_failed' | 'auth_register_failed', error: unknown) {
     const failure = classifyAuthFailure(error)
     track(event, failure.telemetry)
+    if (failure.fields?.length) {
+      const signingIn = event === 'auth_sign_in_failed'
+      const { attached, unattached } = signingIn
+        ? attachFieldErrors(signInForm, SIGN_IN_FIELDS, failure.fields)
+        : attachFieldErrors(signUpForm, SIGN_UP_FIELDS, failure.fields)
+      const first = attached[0] as keyof SignUpValues | undefined
+      if (first) {
+        setFocusRequest(previous => ({ id: (previous?.id ?? 0) + 1, form: signingIn ? 'signIn' : 'signUp', field: first }))
+        // #310 F-01: a field error is new text with no live region, and with no
+        // generic line nothing else would be spoken. Say the first one.
+        const copy = first === 'password' && signingIn ? 'signInPassword' : first
+        AccessibilityInfo.announceForAccessibility(
+          t(
+            ({
+              displayName: 'auth.displayNameInvalid',
+              email: 'auth.emailInvalid',
+              password: 'auth.passwordInvalid',
+              signInPassword: 'auth.signInPasswordInvalid',
+            } as const satisfies Record<keyof SignUpValues | 'signInPassword', MessageKey>)[copy],
+          ),
+        )
+      }
+      if (!unattached) return
+    }
     // A literal lookup, so the i18n key scan reads every key this can ask for,
     // and `satisfies` makes tsc demand copy for every reason.
     setFormError(
-      failure.serverMessage ??
-        t(
-          ({
-            timeout: 'auth.timeoutError',
-            offline: 'auth.networkError',
-            invalid_credentials: 'auth.invalidCredentials',
-            conflict: 'auth.registerConflict',
-            rate_limited: 'auth.rateLimited',
-            field_invalid: 'auth.genericError',
-            rejected: 'auth.genericError',
-            server: 'auth.genericError',
-            unexpected: 'auth.unexpectedError',
-          } as const satisfies Record<AuthFailureReason, MessageKey>)[failure.reason],
-        ),
+      t(
+        ({
+          timeout: 'auth.timeoutError',
+          offline: 'auth.networkError',
+          invalid_credentials: 'auth.invalidCredentials',
+          conflict: 'auth.registerConflict',
+          rate_limited: 'auth.rateLimited',
+          field_invalid: 'auth.genericError',
+          rejected: 'auth.genericError',
+          server: 'auth.genericError',
+          unexpected: 'auth.unexpectedError',
+        } as const satisfies Record<AuthFailureReason, MessageKey>)[failure.reason],
+      ),
     )
   }
 
@@ -155,6 +218,7 @@ export default function SignInScreen() {
                   <View style={styles.field}>
                     <Text style={styles.label}>{t('auth.displayName')}</Text>
                     <TextInput
+                      ref={field.ref}
                       value={field.value}
                       onChangeText={field.onChange}
                       onBlur={field.onBlur}
@@ -188,6 +252,7 @@ export default function SignInScreen() {
                 <View style={styles.field}>
                   <Text style={styles.label}>{t('auth.email')}</Text>
                   <TextInput
+                    ref={field.ref}
                     value={field.value as string}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
@@ -214,6 +279,7 @@ export default function SignInScreen() {
                 <View style={styles.field}>
                   <Text style={styles.label}>{t('auth.password')}</Text>
                   <TextInput
+                    ref={field.ref}
                     value={field.value as string}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
@@ -227,7 +293,11 @@ export default function SignInScreen() {
                     style={[styles.input, fieldState.error && styles.inputInvalid]}
                   />
                   {mode === 'signUp' ? <Text style={styles.hint}>{t('auth.passwordHint')}</Text> : null}
-                  {fieldState.error ? <Text style={styles.fieldError}>{t('auth.passwordInvalid')}</Text> : null}
+                  {fieldState.error ? (
+                    <Text style={styles.fieldError}>
+                      {t(mode === 'signIn' ? 'auth.signInPasswordInvalid' : 'auth.passwordInvalid')}
+                    </Text>
+                  ) : null}
                 </View>
               )}
             />

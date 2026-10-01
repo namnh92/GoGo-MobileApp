@@ -1,4 +1,5 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
+import { AccessibilityInfo, TextInput } from 'react-native'
 
 import { ApiError, TimeoutError } from '@/shared/api'
 
@@ -50,7 +51,8 @@ import { classifyAuthFailure } from '@/features/auth/auth-failure'
 
 const COPY = {
   emailInvalid: 'Email chưa đúng định dạng.',
-  passwordInvalid: 'Mật khẩu cần ít nhất 10 ký tự.',
+  passwordInvalid: 'Mật khẩu cần từ 10 đến 128 ký tự.',
+  signInPasswordInvalid: 'Nhập mật khẩu, tối đa 128 ký tự.',
   displayNameInvalid: 'Nhập tên từ 1 đến 50 ký tự.',
   network: 'Mất kết nối. Kiểm tra mạng rồi thử lại.',
   timeout: 'Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi thử lại.',
@@ -317,14 +319,14 @@ describe('sign-up failure classification (#252)', () => {
     })
   })
 
-  it('falls back to its own copy when the server field message is empty', async () => {
+  it('draws its own copy under the field even when the server field message is empty', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(400, { code: 'VALIDATION_FAILED', message: 'Invalid', field_errors: [{ field: 'email', message: '  ' }], retryable: false }),
     )
 
     const view = await submitValidSignUp()
 
-    expect(await view.findByText(COPY.generic)).toBeTruthy()
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
     expect(mockTrack).toHaveBeenCalledWith('auth_register_failed', {
       reason: 'field_invalid',
       status: 400,
@@ -355,15 +357,21 @@ describe('classifyAuthFailure', () => {
     expect(classifyAuthFailure(api(400)).reason).toBe('rejected')
     expect(
       classifyAuthFailure(api(400, { field_errors: [{ field: 'email', message: ' Email đã được dùng ' }] })),
-    ).toMatchObject({ reason: 'field_invalid', serverMessage: 'Email đã được dùng' })
+    ).toMatchObject({ reason: 'field_invalid', fields: ['email'] })
   })
 
-  it('drops an empty server field message so the view shows its own copy', () => {
-    for (const message of ['', '   ']) {
-      const failure = classifyAuthFailure(api(400, { field_errors: [{ field: 'email', message }] }))
-      expect(failure.reason).toBe('field_invalid')
-      expect(failure.serverMessage).toBeUndefined()
-    }
+  it('carries every rejected field name, once each, and never the server sentence', () => {
+    const failure = classifyAuthFailure(
+      api(400, {
+        field_errors: [
+          { field: 'email', message: 'Invalid email' },
+          { field: 'password', message: 'Too short' },
+          { field: 'email', message: 'Too long' },
+        ],
+      }),
+    )
+    expect(failure.fields).toEqual(['email', 'password'])
+    expect(JSON.stringify(failure)).not.toMatch(/Invalid email|Too short|Too long/)
   })
 
   it('records an envelope code only in the BFF shape', () => {
@@ -398,6 +406,80 @@ describe('classifyAuthFailure', () => {
         errorName: 'Error',
       })
     }
+  })
+})
+
+/**
+ * #273 — a 400 with `field_errors` drew only the first entry, as the server's
+ * own untranslated sentence, in one line under the form. Each field the form
+ * shows now carries its own error in the app's copy; only a field the form does
+ * not have falls back to the generic line.
+ */
+describe('server field errors attach to their fields (#273)', () => {
+  const validation = (field_errors: { field: string; code?: string; message: string }[]) =>
+    jsonResponse(400, { code: 'VALIDATION_FAILED', message: 'Request validation failed', field_errors, retryable: false })
+
+  async function submitValidSignUp() {
+    const view = await openSignUp()
+    await type(view.getByLabelText('Tên hiển thị'), 'An')
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+    await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+    return view
+  }
+
+  it('puts every server field error under its own field, in the app copy', async () => {
+    fetchMock.mockResolvedValue(
+      validation([
+        { field: 'email', code: 'invalid_string', message: 'Invalid email' },
+        { field: 'password', code: 'too_small', message: 'String must contain at least 10 character(s)' },
+        { field: 'displayName', code: 'too_big', message: 'String must contain at most 50 character(s)' },
+      ]),
+    )
+
+    const view = await submitValidSignUp()
+
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+    expect(view.getByText(COPY.passwordInvalid)).toBeTruthy()
+    expect(view.getByText(COPY.displayNameInvalid)).toBeTruthy()
+    expect(view.queryByText('Invalid email')).toBeNull()
+    expect(view.queryByText(/String must contain/)).toBeNull()
+    // Every error has a field: no generic line on top.
+    expect(view.queryByText(COPY.generic)).toBeNull()
+    expect(mockTrack).toHaveBeenCalledWith('auth_register_failed', {
+      reason: 'field_invalid',
+      status: 400,
+      code: 'VALIDATION_FAILED',
+    })
+  })
+
+  it('uses the generic line, never the server sentence, for a field the form does not have', async () => {
+    fetchMock.mockResolvedValue(validation([{ field: '(root)', message: 'Expected object, received null' }]))
+
+    const view = await submitValidSignUp()
+
+    expect(await view.findByText(COPY.generic)).toBeTruthy()
+    expect(view.queryByText('Expected object, received null')).toBeNull()
+    expect(view.queryByText(COPY.emailInvalid)).toBeNull()
+  })
+
+  it('attaches what it can on sign-in and reports the rest generically', async () => {
+    fetchMock.mockResolvedValue(
+      validation([
+        { field: 'email', message: 'Invalid email' },
+        { field: 'displayName', message: 'Unrecognized key' },
+      ]),
+    )
+
+    const view = await renderScreen(<SignInScreen />)
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'secret-password')
+    await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+    expect(view.getByText(COPY.generic)).toBeTruthy()
+    expect(view.queryByText('Invalid email')).toBeNull()
+    expect(view.queryByText('Unrecognized key')).toBeNull()
   })
 })
 
@@ -444,5 +526,138 @@ describe('tab lock while a submit is in flight (#274)', () => {
     expect(unlocked.props.accessibilityState).toMatchObject({ disabled: false })
     await press(unlocked)
     expect(view.getByLabelText('Tên hiển thị')).toBeTruthy()
+  })
+})
+
+/**
+ * #310 review F-01 — when every server field error attached to an input, no
+ * form-level line was set, and a field error is new text with no live region:
+ * a screen-reader user heard nothing after the request failed. The first
+ * rejected field's copy is now announced.
+ */
+describe('server field errors are announced (#273 F-01)', () => {
+  const validation = (field_errors: { field: string; message: string }[]) =>
+    jsonResponse(400, { code: 'VALIDATION_FAILED', message: 'Request validation failed', field_errors, retryable: false })
+
+  it('announces the first rejected field when every error attached to an input', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    try {
+      fetchMock.mockResolvedValue(
+        validation([
+          { field: 'email', message: 'Invalid email' },
+          { field: 'password', message: 'Too short' },
+        ]),
+      )
+      const view = await openSignUp()
+      await type(view.getByLabelText('Tên hiển thị'), 'An')
+      await type(view.getByLabelText('Email'), 'an@example.com')
+      await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+      await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+
+      expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+      expect(view.queryByText(COPY.generic)).toBeNull()
+      expect(announce).toHaveBeenCalledTimes(1)
+      expect(announce).toHaveBeenCalledWith(COPY.emailInvalid)
+    } finally {
+      announce.mockRestore()
+    }
+  })
+
+  it('announces a rejected sign-in password with the sign-in copy', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    try {
+      fetchMock.mockResolvedValue(validation([{ field: 'password', message: 'Too big' }]))
+      const view = await renderScreen(<SignInScreen />)
+      await type(view.getByLabelText('Email'), 'an@example.com')
+      await type(view.getByLabelText('Mật khẩu'), 'secret-password')
+      await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+      expect(await view.findByText(COPY.signInPasswordInvalid)).toBeTruthy()
+      expect(announce).toHaveBeenCalledWith(COPY.signInPasswordInvalid)
+    } finally {
+      announce.mockRestore()
+    }
+  })
+})
+
+/**
+ * #310 review F-02 — sign-in did not mirror the BFF bounds (email ≤ 254,
+ * password ≤ 128), and every password error said "at least 10 characters":
+ * an over-long password went to the server and came back with copy about
+ * being too short.
+ */
+describe('sign-in mirrors the BFF bounds (#273 F-02)', () => {
+  it('rejects a password over 128 characters locally, with copy that fits', async () => {
+    const view = await renderScreen(<SignInScreen />)
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'x'.repeat(129))
+    await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+    expect(await view.findByText(COPY.signInPasswordInvalid)).toBeTruthy()
+    expect(view.queryByText(/ít nhất 10/)).toBeNull()
+    expect(callsTo('/auth/login')).toHaveLength(0)
+  })
+
+  it('rejects an email over 254 characters locally', async () => {
+    const view = await renderScreen(<SignInScreen />)
+    await type(view.getByLabelText('Email'), `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(63)}.com`)
+    await type(view.getByLabelText('Mật khẩu'), 'secret-password')
+    await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+    expect(callsTo('/auth/login')).toHaveLength(0)
+  })
+
+  it('says a sign-up password over 128 characters is out of range, not too short', async () => {
+    const view = await openSignUp()
+    await type(view.getByLabelText('Tên hiển thị'), 'An')
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'x'.repeat(129))
+    await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+
+    expect(await view.findByText(COPY.passwordInvalid)).toBeTruthy()
+    expect(callsTo('/auth/register')).toHaveLength(0)
+  })
+})
+
+/**
+ * #310 review F-04 — focus was requested inside `setError` while the submit was
+ * still awaiting, when every input is `editable={false}`. Natively that is a
+ * disabled view, which cannot take focus, so the request did nothing. Focus
+ * must be requested on the first rejected field once the inputs are editable.
+ */
+describe('focus moves to the first rejected field after the submit settles (#273 F-04)', () => {
+  it('focuses the first rejected input only once it is editable again', async () => {
+    const focused: { label: unknown; editable: unknown }[] = []
+    const focus = jest
+      .spyOn(TextInput.prototype as unknown as { focus: () => void }, 'focus')
+      .mockImplementation(function (this: { props: Record<string, unknown> }) {
+        focused.push({ label: this.props.accessibilityLabel, editable: this.props.editable })
+      })
+    try {
+      fetchMock.mockResolvedValue(
+        jsonResponse(400, {
+          code: 'VALIDATION_FAILED',
+          message: 'Request validation failed',
+          field_errors: [
+            { field: 'password', message: 'Too short' },
+            { field: 'email', message: 'Invalid email' },
+          ],
+          retryable: false,
+        }),
+      )
+      const view = await openSignUp()
+      await type(view.getByLabelText('Tên hiển thị'), 'An')
+      await type(view.getByLabelText('Email'), 'an@example.com')
+      await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+      await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+
+      expect(await view.findByText(COPY.passwordInvalid)).toBeTruthy()
+      await waitFor(() => expect(focused.length).toBeGreaterThan(0))
+      // Server order: password first. No request while the input was disabled.
+      expect(focused).toEqual([{ label: 'Mật khẩu', editable: true }])
+    } finally {
+      focus.mockRestore()
+    }
   })
 })

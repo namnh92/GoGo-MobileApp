@@ -25,8 +25,12 @@ export type AuthFailureReason =
 
 export interface AuthFailure {
   reason: AuthFailureReason
-  /** The server's own field message, only when it says something. */
-  serverMessage?: string
+  /**
+   * #273: the field names a 400 rejected, deduplicated and in server order.
+   * Names only — the server's sentence is English and untranslated, so the view
+   * draws its own copy for each field and never the server text.
+   */
+  fields?: string[]
   /**
    * What analytics may carry: the reason, the HTTP status, a validated envelope
    * code, and for a device-side exception its class name and a validated
@@ -66,8 +70,7 @@ export function classifyAuthFailure(error: unknown): AuthFailure {
     if (error.status === 409) return failure('conflict')
     if (error.status === 429) return failure('rate_limited')
     if (error.fieldErrors.length > 0) {
-      const message = error.fieldErrors[0].message?.trim()
-      return message ? { ...failure('field_invalid'), serverMessage: message } : failure('field_invalid')
+      return { ...failure('field_invalid'), fields: Object.keys(error.fieldErrorMap()) }
     }
     return failure(error.status >= 500 ? 'server' : 'rejected')
   }
