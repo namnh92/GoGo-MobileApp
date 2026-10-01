@@ -659,6 +659,7 @@ export const viMessages = {
   'review.subjectLabel': 'Bạn đang đánh giá',
   'review.subjectOverall': 'Cả buổi hẹn',
   'review.subjectDone': '{{name}} — đã gửi đánh giá',
+  'review.subjectSent': '{{name}} · đã gửi',
   'review.another': 'Đánh giá {{name}}',
   'review.chooseStars': 'Chọn số sao',
   'review.rating.bad': 'Tiếc quá 😢',

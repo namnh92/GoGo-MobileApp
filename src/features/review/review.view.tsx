@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -87,6 +87,12 @@ export default function ReviewScreen() {
   const [submitted, setSubmitted] = useState<Review | null>(null)
   /** Subjects reviewed in this sitting; the server owns the durable answer. */
   const [sent, setSent] = useState<readonly string[]>([])
+  /**
+   * Synchronous latch: `isPending` only reaches the button on the next render,
+   * so two quick taps would both POST, and the server keeps every review it is
+   * sent. One review per tap, whatever the render timing.
+   */
+  const inFlight = useRef(false)
 
   const subject = subjects.find(candidate => candidate.key === subjectKey) ?? subjects[0]
   const remaining = subjects.filter(candidate => !sent.includes(candidate.key))
@@ -119,7 +125,8 @@ export default function ReviewScreen() {
 
   async function submit() {
     // The contract requires 1..5, and the button is disabled below that.
-    if (rating === 0) return
+    if (rating === 0 || inFlight.current) return
+    inFlight.current = true
     setError(null)
 
     try {
@@ -138,6 +145,8 @@ export default function ReviewScreen() {
     } catch {
       haptic('error')
       setError(t('review.failed'))
+    } finally {
+      inFlight.current = false
     }
   }
 
@@ -195,12 +204,12 @@ export default function ReviewScreen() {
                 return (
                   <Chip
                     key={candidate.key}
-                    label={candidate.label}
-                    // Selection is never colour alone: `selected` prefixes a
-                    // check glyph and sets `accessibilityState.selected`, and a
-                    // subject already sent says so in its label.
+                    // Neither state is colour alone: `selected` prefixes a check
+                    // glyph and sets `accessibilityState.selected`; "sent" is
+                    // said in words on the chip itself, so the two never share
+                    // the same mark.
+                    label={isSent ? t('review.subjectSent', { name: candidate.label }) : candidate.label}
                     variant={candidate.key === subjectKey ? 'selected' : isSent ? 'positive' : 'default'}
-                    icon={isSent && candidate.key !== subjectKey ? '✓' : undefined}
                     accessibilityLabel={
                       isSent ? t('review.subjectDone', { name: candidate.label }) : candidate.label
                     }

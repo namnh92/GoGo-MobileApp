@@ -102,3 +102,31 @@ it('offers the next unreviewed stop instead of ending the flow', async () => {
     expect(mockCreate).toHaveBeenLastCalledWith({ planId: 'plan-1', placeId: 'place-1', rating: 5 }),
   )
 })
+
+it('files one review however fast the submit button is tapped', async () => {
+  // The request never settles, so the button is still on screen for the second
+  // tap; `isPending` alone cannot stop it before the next render.
+  mockCreate.mockImplementationOnce(() => new Promise<never>(() => undefined))
+  const view = await renderScreen(<ReviewScreen />)
+
+  await fireEvent.press(view.getByLabelText(FIVE_STARS))
+  const submit = view.getByText(SUBMIT)
+  await fireEvent.press(submit)
+  await fireEvent.press(submit)
+
+  expect(mockCreate).toHaveBeenCalledTimes(1)
+})
+
+it('says a sent subject was sent in words, not with the selection check', async () => {
+  const view = await renderScreen(<ReviewScreen />)
+
+  await fireEvent.press(view.getByLabelText(FIVE_STARS))
+  await fireEvent.press(view.getByText(SUBMIT))
+  await fireEvent.press(await waitFor(() => view.getByText('Đánh giá Quán A')))
+
+  // "Quán A" is now selected (✓) and the whole date is sent: the two states
+  // must not look alike to someone who cannot tell the fills apart.
+  expect(view.getByText('Cả buổi hẹn · đã gửi')).toBeTruthy()
+  expect(view.getByText('✓ Quán A')).toBeTruthy()
+  expect(view.queryByText('✓')).toBeNull()
+})
