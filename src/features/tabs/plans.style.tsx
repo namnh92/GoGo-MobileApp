@@ -4,6 +4,7 @@ import { touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   createAction: { paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[3] },
+  headerActions: { gap: theme.spacing[2] },
   tabs: { flexDirection: 'row', gap: theme.spacing[2], paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[3] },
   tab: {
     flex: 1,
