@@ -20,6 +20,7 @@ export function isoToLocalSchedule(value?: string): string {
 const DATE_TIME: Intl.DateTimeFormatOptions = {
   day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
 }
+const DATE_TIME_ZONE: Intl.DateTimeFormatOptions = { ...DATE_TIME, timeZoneName: 'short' }
 const TIME_ONLY: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
 
 function parsed(value: string | undefined): Date | null {
@@ -36,10 +37,12 @@ export interface RoomScheduleRange {
   /** When the outing starts: date and time, in the locale's format. */
   start: string
   /**
-   * When it ends — the time alone when that is the same local calendar day,
-   * the full date and time when it crosses midnight. `null` when the room
-   * stores no end, or stores one that is not after the start: an end that
-   * cannot be true is left out rather than drawn as a backwards range.
+   * When it ends — the time alone when that is the same local calendar day
+   * and visibly later on the clock, the full date and time otherwise (with
+   * zone names on both ends when a clock change sits inside the range).
+   * `null` when the room stores no end, or stores one that is not after the
+   * start: an end that cannot be true is left out rather than drawn as a
+   * backwards range.
    */
   end: string | null
 }
@@ -61,8 +64,19 @@ export function roomScheduleRange(
   const startLabel = start.toLocaleString(locale, DATE_TIME)
   const end = parsed(endValue)
   if (!end || end.getTime() <= start.getTime()) return { start: startLabel, end: null }
+  // A clock change inside the range (DST fallback: 01:30 PDT → 01:15 PST)
+  // makes two instants in order read out of order on the wall clock. Both ends
+  // then carry their zone, so the range is never read backwards.
+  if (start.getTimezoneOffset() !== end.getTimezoneOffset()) {
+    return { start: start.toLocaleString(locale, DATE_TIME_ZONE), end: end.toLocaleString(locale, DATE_TIME_ZONE) }
+  }
   const sameDay = start.getFullYear() === end.getFullYear()
     && start.getMonth() === end.getMonth()
     && start.getDate() === end.getDate()
-  return { start: startLabel, end: sameDay ? end.toLocaleTimeString(locale, TIME_ONLY) : end.toLocaleString(locale, DATE_TIME) }
+  // Time alone only when it visibly follows the start on the same day.
+  const laterOnClock = end.getHours() * 60 + end.getMinutes() > start.getHours() * 60 + start.getMinutes()
+  return {
+    start: startLabel,
+    end: sameDay && laterOnClock ? end.toLocaleTimeString(locale, TIME_ONLY) : end.toLocaleString(locale, DATE_TIME),
+  }
 }

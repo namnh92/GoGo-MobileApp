@@ -36,6 +36,43 @@ it('carries the date on the end when the outing crosses midnight', () => {
   })
 })
 
+function inZone<T>(zone: string, run: () => T): T {
+  const previous = process.env.TZ
+  process.env.TZ = zone
+  try {
+    return run()
+  } finally {
+    if (previous === undefined) delete process.env.TZ
+    else process.env.TZ = previous
+  }
+}
+
+/**
+ * PR #305 review F-01 — on a DST fallback night 08:30Z–09:15Z in Los Angeles is
+ * a real 45-minute outing whose wall clock reads 01:30 PDT → 01:15 PST. A
+ * time-only end ("01:30 … – 01:15") reads backwards; both ends must carry
+ * their date and zone so the range is unambiguous.
+ */
+it('never renders a range that reads backwards across a DST fallback', () => {
+  inZone('America/Los_Angeles', () => {
+    const range = roomScheduleRange('2026-11-01T08:30:00Z', '2026-11-01T09:15:00Z', 'en')
+    expect(range?.end).not.toBeNull()
+    expect(range?.end).toContain('2026')
+    expect(range?.end).toContain('01:15')
+    expect(range?.end).toContain('PST')
+    expect(range?.start).toContain('01:30')
+    expect(range?.start).toContain('PDT')
+  })
+})
+
+it('keeps the plain format, without zone names, when no clock change sits in the range', () => {
+  inZone('America/Los_Angeles', () => {
+    const range = roomScheduleRange('2026-11-01T17:00:00Z', '2026-11-01T19:00:00Z', 'en')
+    expect(range?.start).not.toMatch(/P[DS]T/)
+    expect(range?.end).toBe(new Date('2026-11-01T19:00:00Z').toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }))
+  })
+})
+
 it('leaves out an end that is missing or not after the start', () => {
   expect(roomScheduleRange('2026-09-10T12:00:00Z', undefined, 'vi')?.end).toBeNull()
   expect(roomScheduleRange('2026-09-10T12:00:00Z', 'bad', 'vi')?.end).toBeNull()
