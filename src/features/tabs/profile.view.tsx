@@ -7,6 +7,7 @@ import { useMe, useMyReviews, useNotificationSettings, useSaved } from '@/shared
 import { track } from '@/shared/analytics'
 import { env } from '@/shared/config/env'
 import { useSession } from '@/shared/providers/session-provider'
+import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/sign-out-failure'
 import { locales } from '@/shared/i18n'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
@@ -28,7 +29,7 @@ export default function ProfileScreen() {
   const { status, signOut } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const [signingOut, setSigningOut] = useState(false)
-  const [signOutFailed, setSignOutFailed] = useState(false)
+  const [signOutFailure, setSignOutFailure] = useState<SignOutFailure | null>(null)
 
   // Counts come from the same queries the destination screens use, so a
   // shortcut never promises a number the screen behind it does not have.
@@ -48,19 +49,22 @@ export default function ProfileScreen() {
 
   async function signOutNow() {
     setSigningOut(true)
-    setSignOutFailed(false)
+    setSignOutFailure(null)
     try {
       // Unsubscribes this device and has the provider confirm it, revokes
       // server-side, and only then wipes the Keychain and cached rooms.
       await signOut()
       track('auth_signed_out')
       router.replace('/(tabs)')
-    } catch {
+    } catch (error) {
       // NTF-APP-004 (#160): a sign-out that did not happen has to say so.
       // Without this the rejection is unhandled — a dev-build toast, and in a
       // release build nothing at all, leaving a button that silently does
-      // nothing while the person believes they signed out.
-      setSignOutFailed(true)
+      // nothing while the person believes they signed out. #279: and it has to
+      // say why, so nobody is sent to check a connection that is fine.
+      const reason = signOutFailureReason(error)
+      track('auth_sign_out_failed', { reason })
+      setSignOutFailure(reason)
     } finally {
       setSigningOut(false)
     }
@@ -206,9 +210,18 @@ export default function ProfileScreen() {
             </Text>
           </Pressable>
         )}
-        {signOutFailed && (
+        {signOutFailure && (
           <Text accessibilityLiveRegion="polite" style={styles.logoutError}>
-            {t('profile.logoutFailed')}
+            {/* A literal lookup, so the i18n key scan reads every key this can
+                ask for, and `satisfies` makes tsc demand copy for every reason. */}
+            {t(
+              ({
+                offline: 'profile.logoutFailedOffline',
+                timeout: 'profile.logoutFailedTimeout',
+                push_unconfirmed: 'profile.logoutFailedPush',
+                other: 'profile.logoutFailed',
+              } as const satisfies Record<SignOutFailure, string>)[signOutFailure],
+            )}
           </Text>
         )}
       </ScrollView>

@@ -22,7 +22,16 @@ export const CONFIRM_UNSUBSCRIBE_TIMEOUT_MS = 15_000
 export const CONFIRM_UNSUBSCRIBE_POLL_MS = 500
 
 export class UnsubscribeNotConfirmedError extends Error {
-  constructor(readonly reason: 'still_enabled' | 'unavailable') {
+  constructor(
+    readonly reason: 'still_enabled' | 'unavailable',
+    /**
+     * What the confirmation call threw, when it threw. Kept so the screen can
+     * tell a device that is offline from a push service that answered "not
+     * now" (#279) — both are a refusal to sign out, but only one is fixed by
+     * checking the connection.
+     */
+    readonly cause?: unknown,
+  ) {
     super(`push unsubscribe not confirmed: ${reason}`)
     this.name = 'UnsubscribeNotConfirmedError'
   }
@@ -76,11 +85,11 @@ export function createLogoutConfirmation(deps: LogoutConfirmationDeps) {
       let confirmed: boolean
       try {
         confirmed = await deps.confirm(subscriptionId)
-      } catch {
+      } catch (error) {
         // Includes the backend refusing to guess when the provider is
         // unreachable. Never treated as success.
         report('push_logout_confirm_unavailable')
-        throw new UnsubscribeNotConfirmedError('unavailable')
+        throw new UnsubscribeNotConfirmedError('unavailable', error)
       }
       if (confirmed) {
         report('push_logout_confirmed')

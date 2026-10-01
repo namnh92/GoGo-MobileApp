@@ -7,6 +7,8 @@ export type AnalyticsEvent =
   // #252: why an attempt failed, as a reason code; never the email or message.
   | 'auth_sign_in_failed'
   | 'auth_register_failed'
+  // #279: why a sign-out was refused (`{ reason }`), as a reason code only.
+  | 'auth_sign_out_failed'
   | 'date_create_started'
   | 'date_context_completed'
   | 'gogo_room_created'
