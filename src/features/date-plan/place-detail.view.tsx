@@ -44,6 +44,7 @@ import { colors, glyph, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens
 
 import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
 import { PlaceReviews } from './place-reviews.view'
+import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 const { brand, neutral } = colors
 
@@ -78,7 +79,7 @@ export default function PlaceDetailScreen() {
 
   const backButton = (
     <View style={{ paddingTop: insets.top }}>
-      <Pressable onPress={() => router.back()} accessibilityLabel={t('common.back')} hitSlop={hitSlop} style={styles.backInline}>
+      <Pressable onPress={() => goBackOrHome(router)} accessibilityLabel={t('common.back')} hitSlop={hitSlop} style={styles.backInline}>
         <IconChevronLeft />
       </Pressable>
     </View>
@@ -468,7 +469,7 @@ export default function PlaceDetailScreen() {
       </ScrollView>
 
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBackOrHome(router)}
           accessibilityLabel={t('common.back')}
           accessibilityRole="button"
           hitSlop={hitSlop}

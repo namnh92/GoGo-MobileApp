@@ -57,6 +57,7 @@ import { roomScheduleLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import type { MessageKey } from '@/shared/i18n/types'
+import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 const { brand } = colors
 
@@ -338,7 +339,7 @@ export default function GoGoRoomScreen() {
     return (
       <Atmosphere>
         <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => router.back()} />
+          <BackHeader onBack={() => goBackOrHome(router)} />
         </View>
         <EmptyState
           title={t('guestJoin.notFoundTitle')}
@@ -353,7 +354,7 @@ export default function GoGoRoomScreen() {
     return (
       <Atmosphere>
         <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => router.back()} />
+          <BackHeader onBack={() => goBackOrHome(router)} />
         </View>
         {/* Nothing cached and offline: the paused read would keep the skeleton forever (#253). */}
         {waitingForNetwork ? (
@@ -373,7 +374,7 @@ export default function GoGoRoomScreen() {
     return (
       <Atmosphere>
         <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => router.back()} />
+          <BackHeader onBack={() => goBackOrHome(router)} />
         </View>
         <ErrorState error={room.error} onRetry={() => void room.refetch()} />
       </Atmosphere>
@@ -473,7 +474,7 @@ export default function GoGoRoomScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} />
+        <BackHeader onBack={() => goBackOrHome(router)} />
       </View>
       <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
       {planNotice ? (

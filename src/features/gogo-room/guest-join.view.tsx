@@ -13,6 +13,7 @@ import { Atmosphere, AvatarCircle, BackHeader, GlassCard, PrimaryBtn } from '@/s
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
+import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 const { neutral } = colors
 
@@ -122,10 +123,7 @@ export default function GuestJoinScreen() {
    * the start screen, which still decides between onboarding and Home — going
    * straight to the tabs skipped onboarding on a fresh install.
    */
-  function leave() {
-    if (router.canGoBack()) router.back()
-    else router.replace('/')
-  }
+  const leave = () => goBackOrHome(router)
 
   const header = (
     <View style={{ paddingTop: insets.top }}>

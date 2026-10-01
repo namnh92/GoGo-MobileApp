@@ -13,6 +13,7 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInboxTarget } from './inbox-target'
 import { styles } from './notifications.style'
+import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 export default function NotificationsScreen() {
   const { t, i18n } = useTranslation()
@@ -91,7 +92,7 @@ export default function NotificationsScreen() {
 
   const header = (
     <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => router.back()} title={t('notifications.title')} />
+      <BackHeader onBack={() => goBackOrHome(router)} title={t('notifications.title')} />
       {pushUnavailable ? (
         <Text accessibilityLiveRegion="polite" style={styles.notice}>
           {t('notifications.pushUnavailable')}
