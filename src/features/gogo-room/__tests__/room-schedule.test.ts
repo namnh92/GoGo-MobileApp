@@ -1,5 +1,52 @@
 import { expect, it } from 'vitest'
-import { isoToLocalSchedule, localScheduleToIso, roomScheduleLabel } from '../room-schedule'
+import { isoToLocalSchedule, localScheduleToIso, roomScheduleLabel, roomScheduleRange } from '../room-schedule'
+
+/**
+ * GoGo-MobileApp#201 — `constraints.endAt` was stored, edited and never
+ * rendered, so a room booked 19:00–22:00 read as "19:00" everywhere.
+ */
+function inSaigon<T>(run: () => T): T {
+  const previous = process.env.TZ
+  process.env.TZ = 'Asia/Ho_Chi_Minh'
+  try {
+    return run()
+  } finally {
+    if (previous === undefined) delete process.env.TZ
+    else process.env.TZ = previous
+  }
+}
+
+it('reads the end as a time when the outing stays inside one local day', () => {
+  inSaigon(() => {
+    const range = roomScheduleRange('2026-09-10T12:00:00Z', '2026-09-10T15:00:00Z', 'vi')
+    expect(range?.start).toContain('19:00')
+    expect(range?.start).toContain('2026')
+    // Same day: the end repeats no date.
+    expect(range?.end).toBe('22:00')
+  })
+})
+
+it('carries the date on the end when the outing crosses midnight', () => {
+  inSaigon(() => {
+    const range = roomScheduleRange('2026-09-10T15:00:00Z', '2026-09-10T18:00:00Z', 'vi')
+    expect(range?.start).toContain('22:00')
+    expect(range?.end).toContain('01:00')
+    // 11/09 locally, so the day has to be said.
+    expect(range?.end).toContain('11')
+  })
+})
+
+it('leaves out an end that is missing or not after the start', () => {
+  expect(roomScheduleRange('2026-09-10T12:00:00Z', undefined, 'vi')?.end).toBeNull()
+  expect(roomScheduleRange('2026-09-10T12:00:00Z', 'bad', 'vi')?.end).toBeNull()
+  expect(roomScheduleRange('2026-09-10T12:00:00Z', '2026-09-10T12:00:00Z', 'vi')?.end).toBeNull()
+  expect(roomScheduleRange('2026-09-10T12:00:00Z', '2026-09-10T11:00:00Z', 'vi')?.end).toBeNull()
+})
+
+it('invents no date for a room with no start, even when an end is stored', () => {
+  expect(roomScheduleRange(undefined, '2026-09-10T15:00:00Z', 'vi')).toBeNull()
+  expect(roomScheduleRange('bad', '2026-09-10T15:00:00Z', 'vi')).toBeNull()
+})
 
 it('round trips local dates and times through UTC without changing the calendar selection', () => {
   for (const input of ['10/09/2026 19:00', '29/02/2028 00:30', '01/01/2027 23:59']) {

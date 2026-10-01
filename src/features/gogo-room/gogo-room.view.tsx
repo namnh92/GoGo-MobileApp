@@ -1,4 +1,5 @@
 import { onlineManager } from '@tanstack/react-query'
+import type { TFunction } from 'i18next'
 import * as Clipboard from 'expo-clipboard'
 import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router'
 
@@ -53,13 +54,29 @@ import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { resolveInviteDisplay } from './invite-state'
-import { roomScheduleLabel } from './room-schedule'
+import { roomScheduleLabel, roomScheduleRange } from './room-schedule'
 import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import type { MessageKey } from '@/shared/i18n/types'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 const { brand } = colors
+
+/**
+ * The room's date/time chip. GoGo-MobileApp#201 — `constraints.endAt` is part
+ * of the schedule and was never rendered, so a room booked 19:00–22:00 read as
+ * "19:00". No end stored, or an end that is not after the start, leaves the
+ * chip at the start alone rather than drawing a range that cannot be true.
+ */
+function scheduleChipLabel(
+  room: Pick<RoomSummary, 'constraints' | 'scheduledDate'>,
+  locale: string,
+  t: TFunction,
+): string {
+  const range = roomScheduleRange(room.constraints?.startAt ?? room.scheduledDate, room.constraints?.endAt, locale)
+  if (!range) return t('roomSchedule.unset')
+  return range.end ? t('roomSchedule.range', { start: range.start, end: range.end }) : range.start
+}
 
 const AVATAR_COLORS = [brand.coral, brand.lavender, brand.mint, brand.amber]
 const VISIBLE_AVATARS = 3
@@ -533,10 +550,7 @@ export default function GoGoRoomScreen() {
           <Card style={styles.constraintsCard}>
             <Text variant="caption" color="text.secondary">{t('gogoRoom.constraints')}</Text>
             <View style={styles.constraintsRow}>
-              <Chip
-                icon="📅"
-                label={roomScheduleLabel(summary.constraints.startAt ?? summary.scheduledDate, i18n.language) ?? t('roomSchedule.unset')}
-              />
+              <Chip icon="📅" label={scheduleChipLabel(summary, i18n.language, t)} />
               <Chip
                 label={t('groupSetup.people', { n: participantCount })}
                 icon="👥"

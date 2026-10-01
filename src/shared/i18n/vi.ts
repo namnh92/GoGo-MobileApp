@@ -785,6 +785,8 @@ export const viMessages = {
   'roomSchedule.invalid': 'Kiểm tra ngày giờ hợp lệ; kết thúc phải sau bắt đầu.',
   'roomSchedule.locked': 'Không thể sửa lịch ở trạng thái hiện tại.',
   'roomSchedule.unset': 'Chưa đặt lịch',
+  // Khoảng thời gian kèo; `end` là giờ khi cùng ngày, cả ngày giờ khi qua ngày.
+  'roomSchedule.range': '{{start}} – {{end}}',
   'plans.title': 'Kế hoạch',
   'plans.upcoming': 'Sắp tới',
   'plans.past': 'Lịch sử',
