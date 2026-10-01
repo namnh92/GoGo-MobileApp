@@ -16,6 +16,7 @@ import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
 import { postAuthRoute } from './post-auth-route'
 import { styles } from './sign-in.style'
+import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 type Mode = 'signIn' | 'signUp'
 
@@ -107,7 +108,7 @@ export default function SignInScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} />
+        <BackHeader onBack={() => goBackOrHome(router)} />
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView

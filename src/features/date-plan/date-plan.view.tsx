@@ -48,6 +48,7 @@ import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
 import { styles } from './date-plan.style'
 import { planStart, planWhen } from './plan-title'
+import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 const { brand, neutral } = colors
 
@@ -191,7 +192,7 @@ export default function DatePlanScreen() {
 
   const header = (
     <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => router.back()} title={screenTitle()} />
+      <BackHeader onBack={() => goBackOrHome(router)} title={screenTitle()} />
     </View>
   )
 
@@ -314,7 +315,7 @@ export default function DatePlanScreen() {
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
         <BackHeader
-          onBack={() => router.back()}
+          onBack={() => goBackOrHome(router)}
           title={screenTitle()}
           right={
             <View style={styles.matchBadge}>

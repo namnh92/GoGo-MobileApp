@@ -3,7 +3,9 @@ import { loaded as mockLoaded, renderScreen } from './harness'
 
 const mockBack = jest.fn()
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack, push: jest.fn() }),
+  // `canGoBack` is part of the real router and the back control now asks it
+  // first (#268): without it the screen has no way out of a cold start.
+  useRouter: () => ({ back: mockBack, push: jest.fn(), replace: jest.fn(), canGoBack: () => true }),
   useLocalSearchParams: () => ({ placeId: 'place-1' }),
 }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))

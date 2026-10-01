@@ -16,9 +16,19 @@ const FAILED = 'Chưa cập nhật được — đây là bản đã lưu trên 
 const NO_CONNECTION = 'Không có kết nối'
 
 const mockBack = jest.fn()
+const mockReplace = jest.fn()
+/** Flipped per test: a cold start from a link has nothing behind the screen. */
+let mockCanGoBack = true
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack, push: jest.fn() }),
+  // `canGoBack` is part of the real router and the back control now asks it
+  // first (#268): without it the screen has no way out of a cold start.
+  useRouter: () => ({
+    back: mockBack,
+    push: jest.fn(),
+    replace: mockReplace,
+    canGoBack: () => mockCanGoBack,
+  }),
   useLocalSearchParams: () => ({ placeId: 'place-1' }),
 }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'guest' }) }))
@@ -64,6 +74,8 @@ async function elapseOfflineDelay() {
 beforeEach(() => {
   jest.useFakeTimers()
   mockBack.mockClear()
+  mockReplace.mockClear()
+  mockCanGoBack = true
   mockPlace = mockLoaded(PLACE)
   mockReviews = mockLoaded(REVIEWS)
 })
@@ -128,5 +140,23 @@ describe('Place Detail × connectivity', () => {
       fireEvent.press(view.getByLabelText('Quay lại'))
     })
     expect(mockBack).toHaveBeenCalledTimes(1)
+  })
+
+  /*
+   * #268 — opened cold from `gogo://places/<id>`, this screen is the whole
+   * stack. `router.back()` did nothing: an inert control on iOS with no edge
+   * swipe, and on Android the hardware button closed the app.
+   */
+  it('leaves for the start screen when the link opened it cold', async () => {
+    mockCanGoBack = false
+    const view = await renderScreen(<PlaceDetailScreen />)
+
+    await act(async () => {
+      fireEvent.press(view.getByLabelText('Quay lại'))
+    })
+
+    expect(mockBack).not.toHaveBeenCalled()
+    // `/` rather than the tabs, so a fresh install still meets onboarding.
+    expect(mockReplace).toHaveBeenCalledWith('/')
   })
 })
