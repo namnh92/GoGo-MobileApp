@@ -17,8 +17,13 @@ const mockTrack = jest.fn()
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn() }),
 }))
+const mockActor: { session: { kind: 'user'; userId: string } | null } = { session: { kind: 'user', userId: 'u' } }
 jest.mock('@/shared/providers/session-provider', () => ({
-  useSession: () => ({ status: 'user', signOut: mockSignOut }),
+  useSession: () => ({
+    session: mockActor.session,
+    status: mockActor.session ? 'user' : 'anonymous',
+    signOut: mockSignOut,
+  }),
 }))
 jest.mock('@/shared/analytics', () => ({
   track: (...args: unknown[]) => mockTrack(...args),
@@ -46,6 +51,7 @@ const pushUnavailable = new UnsubscribeNotConfirmedError(
 )
 
 beforeEach(() => {
+  mockActor.session = { kind: 'user', userId: 'u' }
   mockSessionLeft.present = true
   mockSignOut.mockReset()
   mockReplace.mockReset()
@@ -91,9 +97,11 @@ it('a credential that was already dead says the session ended and leaves like a 
   // The refresh answered 401 and the client ended the session locally; the
   // push check then failed unauthenticated. "You are still signed in" is false.
   mockSessionLeft.present = false
-  mockSignOut.mockRejectedValueOnce(
-    new UnsubscribeNotConfirmedError('unavailable', new ApiError(401, { code: 'UNAUTHORIZED', message: 'x' })),
-  )
+  mockSignOut.mockImplementationOnce(async () => {
+    // The refresh's 401 ended the session locally before the call failed.
+    mockActor.session = null
+    throw new UnsubscribeNotConfirmedError('unavailable', new ApiError(401, { code: 'UNAUTHORIZED', message: 'x' }))
+  })
   await render(<ProfileScreen />)
 
   await tapSignOut()
@@ -102,4 +110,25 @@ it('a credential that was already dead says the session ended and leaves like a 
   expect(screen.queryByText(viMessages['profile.logoutFailedPush'] as string)).toBeNull()
   expect(mockReplace).toHaveBeenCalledWith('/(tabs)')
   expect(mockTrack).toHaveBeenCalledWith('auth_sign_out_failed', { reason: 'session_ended' })
+})
+
+it('does not keep the ended-session line once someone signs in again (F-03)', async () => {
+  // The Profile tab stays mounted: sign-out lands on another tab and sign-in
+  // comes back to this same instance.
+  mockSessionLeft.present = false
+  mockSignOut.mockImplementationOnce(async () => {
+    mockActor.session = null
+    throw new UnsubscribeNotConfirmedError('unavailable', new ApiError(401, { code: 'UNAUTHORIZED', message: 'x' }))
+  })
+  const view = await render(<ProfileScreen />)
+  await tapSignOut()
+  expect(screen.getByText(viMessages['profile.logoutSessionEnded'] as string)).toBeTruthy()
+
+  mockActor.session = { kind: 'user', userId: 'someone-else' }
+  mockSessionLeft.present = true
+  await act(async () => {
+    view.rerender(<ProfileScreen />)
+  })
+
+  expect(screen.queryByText(viMessages['profile.logoutSessionEnded'] as string)).toBeNull()
 })
