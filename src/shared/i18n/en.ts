@@ -774,6 +774,7 @@ export const enMessages: Record<MessageKey, string> = {
   'roomSchedule.invalid': 'Enter a valid date and time; the end must follow the start.',
   'roomSchedule.locked': 'This plan can no longer be rescheduled.',
   'roomSchedule.unset': 'Not scheduled',
+  'roomSchedule.range': '{{start}} – {{end}}',
   'plans.title': 'Plans',
   'plans.upcoming': 'Upcoming',
   'plans.past': 'History',
