@@ -11,6 +11,7 @@ import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
+import { confirmReplaceGuest, GuestReplaceNotice } from './guest-replace-notice.view'
 import { styles } from './join-by-code.style'
 
 const MAX_NAME = 50
@@ -19,7 +20,7 @@ export default function JoinByCodeScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { status, joinAsGuest } = useSession()
+  const { status, guestRoomId, joinAsGuest } = useSession()
   const joinRoom = useJoinRoom()
   const forget = useRecentRoomsStore(state => state.forget)
 
@@ -31,6 +32,8 @@ export default function JoinByCodeScreen() {
   // A signed-in user joins as themselves; anyone else joins as a guest and has
   // to say what to call them.
   const asUser = status === 'user'
+  // #272: a guest session already on this device is replaced only on confirmation.
+  const holdsGuestRoom = status === 'guest'
   const trimmedCode = code.trim()
   const trimmedName = displayName.trim()
   const ready = trimmedCode.length > 0 && (asUser || trimmedName.length > 0)
@@ -62,6 +65,7 @@ export default function JoinByCodeScreen() {
           router.replace(`/room/${result.roomId}`)
         }
       } else {
+        if (holdsGuestRoom && !(await confirmReplaceGuest(t))) return
         const session = await joinAsGuest({ inviteCode: trimmedCode, displayName: trimmedName })
         track('gogo_partner_joined', { role: 'guest' })
         if (session.roomId) router.replace(`/room/${session.roomId}/preference`)
@@ -88,6 +92,8 @@ export default function JoinByCodeScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.body}>{t('joinByCode.body')}</Text>
+
+          {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
           <GlassCard style={styles.card}>
             <Text style={styles.label}>{t('joinByCode.codeLabel')}</Text>

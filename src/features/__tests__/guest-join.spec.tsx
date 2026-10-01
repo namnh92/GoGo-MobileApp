@@ -1,4 +1,5 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
+import { Alert } from 'react-native'
 
 import { renderScreen } from './harness'
 
@@ -102,14 +103,23 @@ describe('invite screen × session', () => {
   it.each(['anonymous', 'guest'])('joins a %s session as a guest with the name they give', async status => {
     mockSession.status = status
     mockJoinAsGuest.mockResolvedValue({ kind: 'guest', roomId: ROOM })
-    const view = await renderScreen(<GuestJoinScreen />)
+    // #272: an existing guest session is replaced only once the person confirms
+    // (guest-replace-confirm.spec covers declining); confirm here.
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation((_title, _body, buttons) => {
+      buttons?.find(button => button.style === 'destructive')?.onPress?.()
+    })
+    try {
+      const view = await renderScreen(<GuestJoinScreen />)
 
-    await fireEvent.changeText(view.getByLabelText(NAME), '  Lan  ')
-    await fireEvent.press(view.getByText(JOIN))
+      await fireEvent.changeText(view.getByLabelText(NAME), '  Lan  ')
+      await fireEvent.press(view.getByText(JOIN))
 
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM}/preference`))
-    expect(mockJoinAsGuest).toHaveBeenCalledWith({ inviteCode: CODE, displayName: 'Lan' })
-    expect(mockJoinRoom).not.toHaveBeenCalled()
+      await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM}/preference`))
+      expect(mockJoinAsGuest).toHaveBeenCalledWith({ inviteCode: CODE, displayName: 'Lan' })
+      expect(mockJoinRoom).not.toHaveBeenCalled()
+    } finally {
+      alert.mockRestore()
+    }
   })
 
   it('never navigates to a room it was not told about', async () => {
