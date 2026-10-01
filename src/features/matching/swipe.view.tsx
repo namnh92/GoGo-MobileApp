@@ -217,12 +217,15 @@ export default function SwipeScreen() {
     opacity: interpolate(translateY.get(), [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp'),
   }))
 
-  const header = (
+  // The "n / total" counter belongs to a card being voted on. Loading, error,
+  // no-run, stale, empty and done states have no card, so they get the bare
+  // header — a stale run still carrying candidates read "1 / 1" (#245).
+  const renderHeader = (withCounter: boolean) => (
     <View style={{ paddingTop: insets.top }}>
       <BackHeader
         onBack={() => router.back()}
         right={
-          candidates.length > 0 ? (
+          withCounter && candidates.length > 0 ? (
             <Text style={styles.counter}>
               {Math.min(cardIndex + 1, candidates.length)} / {candidates.length}
             </Text>
@@ -231,6 +234,7 @@ export default function SwipeScreen() {
       />
     </View>
   )
+  const header = renderHeader(false)
 
   const runState = suggestionRunState(suggestions.data)
   const needsRole = runState === 'stale' || runState === 'empty'
@@ -316,7 +320,7 @@ export default function SwipeScreen() {
 
   return (
     <Atmosphere>
-      {header}
+      {renderHeader(true)}
       <View style={{ alignItems: 'center', marginTop: -spacing[2], marginBottom: spacing[2] }}>
         <Text style={styles.header}>{t('swipe.header')}</Text>
         <Text style={styles.subheader}>{t('swipe.subheader')}</Text>
