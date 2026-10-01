@@ -1,4 +1,5 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
+import { AccessibilityInfo } from 'react-native'
 
 import { ApiError, TimeoutError } from '@/shared/api'
 
@@ -50,7 +51,8 @@ import { classifyAuthFailure } from '@/features/auth/auth-failure'
 
 const COPY = {
   emailInvalid: 'Email chưa đúng định dạng.',
-  passwordInvalid: 'Mật khẩu cần ít nhất 10 ký tự.',
+  passwordInvalid: 'Mật khẩu cần từ 10 đến 128 ký tự.',
+  signInPasswordInvalid: 'Nhập mật khẩu, tối đa 128 ký tự.',
   displayNameInvalid: 'Nhập tên từ 1 đến 50 ký tự.',
   network: 'Mất kết nối. Kiểm tra mạng rồi thử lại.',
   timeout: 'Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi thử lại.',
@@ -524,5 +526,96 @@ describe('tab lock while a submit is in flight (#274)', () => {
     expect(unlocked.props.accessibilityState).toMatchObject({ disabled: false })
     await press(unlocked)
     expect(view.getByLabelText('Tên hiển thị')).toBeTruthy()
+  })
+})
+
+/**
+ * #310 review F-01 — when every server field error attached to an input, no
+ * form-level line was set, and a field error is new text with no live region:
+ * a screen-reader user heard nothing after the request failed. The first
+ * rejected field's copy is now announced.
+ */
+describe('server field errors are announced (#273 F-01)', () => {
+  const validation = (field_errors: { field: string; message: string }[]) =>
+    jsonResponse(400, { code: 'VALIDATION_FAILED', message: 'Request validation failed', field_errors, retryable: false })
+
+  it('announces the first rejected field when every error attached to an input', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    try {
+      fetchMock.mockResolvedValue(
+        validation([
+          { field: 'email', message: 'Invalid email' },
+          { field: 'password', message: 'Too short' },
+        ]),
+      )
+      const view = await openSignUp()
+      await type(view.getByLabelText('Tên hiển thị'), 'An')
+      await type(view.getByLabelText('Email'), 'an@example.com')
+      await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+      await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+
+      expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+      expect(view.queryByText(COPY.generic)).toBeNull()
+      expect(announce).toHaveBeenCalledTimes(1)
+      expect(announce).toHaveBeenCalledWith(COPY.emailInvalid)
+    } finally {
+      announce.mockRestore()
+    }
+  })
+
+  it('announces a rejected sign-in password with the sign-in copy', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    try {
+      fetchMock.mockResolvedValue(validation([{ field: 'password', message: 'Too big' }]))
+      const view = await renderScreen(<SignInScreen />)
+      await type(view.getByLabelText('Email'), 'an@example.com')
+      await type(view.getByLabelText('Mật khẩu'), 'secret-password')
+      await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+      expect(await view.findByText(COPY.signInPasswordInvalid)).toBeTruthy()
+      expect(announce).toHaveBeenCalledWith(COPY.signInPasswordInvalid)
+    } finally {
+      announce.mockRestore()
+    }
+  })
+})
+
+/**
+ * #310 review F-02 — sign-in did not mirror the BFF bounds (email ≤ 254,
+ * password ≤ 128), and every password error said "at least 10 characters":
+ * an over-long password went to the server and came back with copy about
+ * being too short.
+ */
+describe('sign-in mirrors the BFF bounds (#273 F-02)', () => {
+  it('rejects a password over 128 characters locally, with copy that fits', async () => {
+    const view = await renderScreen(<SignInScreen />)
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'x'.repeat(129))
+    await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+    expect(await view.findByText(COPY.signInPasswordInvalid)).toBeTruthy()
+    expect(view.queryByText(/ít nhất 10/)).toBeNull()
+    expect(callsTo('/auth/login')).toHaveLength(0)
+  })
+
+  it('rejects an email over 254 characters locally', async () => {
+    const view = await renderScreen(<SignInScreen />)
+    await type(view.getByLabelText('Email'), `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(63)}.com`)
+    await type(view.getByLabelText('Mật khẩu'), 'secret-password')
+    await press(view.getByRole('button', { name: 'Đăng nhập' }))
+
+    expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
+    expect(callsTo('/auth/login')).toHaveLength(0)
+  })
+
+  it('says a sign-up password over 128 characters is out of range, not too short', async () => {
+    const view = await openSignUp()
+    await type(view.getByLabelText('Tên hiển thị'), 'An')
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'x'.repeat(129))
+    await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+
+    expect(await view.findByText(COPY.passwordInvalid)).toBeTruthy()
+    expect(callsTo('/auth/register')).toHaveLength(0)
   })
 })
