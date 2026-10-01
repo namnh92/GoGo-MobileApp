@@ -61,7 +61,19 @@ export function createLogoutConfirmation(deps: LogoutConfirmationDeps) {
    * Resolves only when the provider agrees this device is no longer live for
    * the signed-in user. Throws otherwise — the caller must not clear anything.
    */
-  return async function unsubscribeAndConfirm(): Promise<void> {
+  return async function unsubscribeAndConfirm(actor: 'user' | 'guest' = 'user'): Promise<void> {
+    if (actor === 'guest') {
+      // A guest session is room-scoped and is never bound to the provider —
+      // identity-session.ts logs the SDK *out* for one. There is no audience
+      // of theirs on this device to tear down, and the confirmation endpoint
+      // is for signed-in users only (403 USER_ONLY), so asking it can only
+      // fail: that is how a guest was left with no way out of the app (#279).
+      // The SDK is still told to log out, so nothing stays bound either way.
+      await deps.unsubscribe()
+      report('push_logout_guest_unbound')
+      return
+    }
+
     // Read the id *before* logging out, deliberately. Afterwards the SDK holds
     // an anonymous user, and if it minted a fresh subscription for that user we
     // would go on to ask about an id the signed-in user never had — the backend

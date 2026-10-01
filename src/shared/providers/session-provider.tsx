@@ -108,7 +108,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // move after step 3 — which is where it effectively sat before, because
       // clearing credentials is what used to trigger the SDK logout. Any step
       // throwing leaves the user signed in and the caller reporting failure.
-      await unsubscribeCurrentDeviceAndConfirm()
+      // A guest is never bound to the provider, so it has nothing to confirm
+      // (#279) — see `createLogoutConfirmation`.
+      await unsubscribeCurrentDeviceAndConfirm(getSession()?.kind === 'guest' ? 'guest' : 'user')
       await sessionsApi.logout(allDevices)
       useRoomStore.getState().resetDraft()
       useRoomStore.setState({ preferenceSeed: null })
