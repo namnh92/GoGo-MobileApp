@@ -117,6 +117,29 @@ export default function SwipeScreen() {
     [suggestions.data],
   )
 
+  // #290 — a run already under way resumes where this person left it. The
+  // server's `myVote` is the only record of that, so the deck starts at the
+  // first candidate without one. It is read once per run: after that the deck
+  // moves on its own, and the optimistic vote landing in the cache must not
+  // move it again (a failed vote rolls back and keeps the same card anyway).
+  const runId = suggestions.data?.run?.id
+  const [resumedRun, setResumedRun] = useState<string | undefined>(undefined)
+  const [allDecided, setAllDecided] = useState(false)
+  if (runId && candidates.length > 0 && resumedRun !== runId) {
+    const firstOpen = candidates.findIndex(candidate => !candidate.myVote)
+    setResumedRun(runId)
+    setCardIndex(firstOpen === -1 ? candidates.length : firstOpen)
+    setAllDecided(firstOpen === -1)
+  }
+  // Every card decided: go on to the result, as the last swipe would have.
+  const runReady = suggestionRunState(suggestions.data) === 'ready'
+  const finished = useRef(false)
+  useEffect(() => {
+    if (!focused || !allDecided || !runReady || leave || finished.current) return
+    finished.current = true
+    router.replace(`/room/${roomId}/match-result`)
+  }, [allDecided, focused, leave, roomId, router, runReady])
+
   const card = candidates[cardIndex]
   // The candidate carries only name and score; the rest of the card comes from
   // the place, fetched per visible card so an empty deck costs nothing.
