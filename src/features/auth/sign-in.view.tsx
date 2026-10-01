@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
@@ -25,10 +25,9 @@ const SIGN_IN_FIELDS = ['email', 'password'] as const satisfies readonly (keyof 
 const SIGN_UP_FIELDS = ['displayName', 'email', 'password'] as const satisfies readonly (keyof SignUpValues)[]
 
 /**
- * #273: put each server field error on the input it names. Focus moves to the
- * first one (#310 F-01). Returns the fields attached, in server order, and
- * whether any error had no input on this form — that one still needs the
- * generic line.
+ * #273: put each server field error on the input it names. Returns the fields
+ * attached, in server order, and whether any error had no input on this form —
+ * that one still needs the generic line.
  */
 function attachFieldErrors<T extends SignInValues | SignUpValues>(
   form: UseFormReturn<T>,
@@ -36,9 +35,10 @@ function attachFieldErrors<T extends SignInValues | SignUpValues>(
   fields: readonly string[],
 ): { attached: string[]; unattached: boolean } {
   const attached = fields.filter(field => known.includes(field))
-  attached.forEach((field, index) => {
-    // The message is never drawn — each field renders its own i18n copy.
-    form.setError(field as Parameters<typeof form.setError>[0], { type: 'server' }, { shouldFocus: index === 0 })
+  attached.forEach(field => {
+    // The message is never drawn — each field renders its own i18n copy. No
+    // `shouldFocus`: this runs mid-submit, when every input is disabled (F-04).
+    form.setError(field as Parameters<typeof form.setError>[0], { type: 'server' })
   })
   return { attached, unattached: attached.length < fields.length }
 }
@@ -70,6 +70,23 @@ export default function SignInScreen() {
   const pending = signInForm.formState.isSubmitting || signUpForm.formState.isSubmitting
 
   /**
+   * #310 F-04: the first field a server rejected, focused once the submit has
+   * settled. Focusing inside the submit did nothing on a device: every input is
+   * `editable={false}` while pending, and a disabled native view takes no focus.
+   */
+  const [focusRequest, setFocusRequest] = useState<{ id: number; form: Mode; field: keyof SignUpValues } | null>(null)
+  const focusHandled = useRef(0)
+  useEffect(() => {
+    if (pending || !focusRequest || focusHandled.current === focusRequest.id) return
+    focusHandled.current = focusRequest.id
+    if (focusRequest.form === 'signIn') {
+      if (focusRequest.field !== 'displayName') signInForm.setFocus(focusRequest.field)
+    } else {
+      signUpForm.setFocus(focusRequest.field)
+    }
+  }, [pending, focusRequest, signInForm, signUpForm])
+
+  /**
    * Where to land after authenticating, decided by an explicit `next` rather
    * than by history. `router.back()` sent someone who arrived from a deep link
    * or from onboarding straight back to the intro carousel right after they
@@ -91,6 +108,7 @@ export default function SignInScreen() {
         : attachFieldErrors(signUpForm, SIGN_UP_FIELDS, failure.fields)
       const first = attached[0] as keyof SignUpValues | undefined
       if (first) {
+        setFocusRequest(previous => ({ id: (previous?.id ?? 0) + 1, form: signingIn ? 'signIn' : 'signUp', field: first }))
         // #310 F-01: a field error is new text with no live region, and with no
         // generic line nothing else would be spoken. Say the first one.
         const copy = first === 'password' && signingIn ? 'signInPassword' : first

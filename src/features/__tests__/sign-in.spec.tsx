@@ -1,5 +1,5 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, TextInput } from 'react-native'
 
 import { ApiError, TimeoutError } from '@/shared/api'
 
@@ -617,5 +617,47 @@ describe('sign-in mirrors the BFF bounds (#273 F-02)', () => {
 
     expect(await view.findByText(COPY.passwordInvalid)).toBeTruthy()
     expect(callsTo('/auth/register')).toHaveLength(0)
+  })
+})
+
+/**
+ * #310 review F-04 — focus was requested inside `setError` while the submit was
+ * still awaiting, when every input is `editable={false}`. Natively that is a
+ * disabled view, which cannot take focus, so the request did nothing. Focus
+ * must be requested on the first rejected field once the inputs are editable.
+ */
+describe('focus moves to the first rejected field after the submit settles (#273 F-04)', () => {
+  it('focuses the first rejected input only once it is editable again', async () => {
+    const focused: { label: unknown; editable: unknown }[] = []
+    const focus = jest
+      .spyOn(TextInput.prototype as unknown as { focus: () => void }, 'focus')
+      .mockImplementation(function (this: { props: Record<string, unknown> }) {
+        focused.push({ label: this.props.accessibilityLabel, editable: this.props.editable })
+      })
+    try {
+      fetchMock.mockResolvedValue(
+        jsonResponse(400, {
+          code: 'VALIDATION_FAILED',
+          message: 'Request validation failed',
+          field_errors: [
+            { field: 'password', message: 'Too short' },
+            { field: 'email', message: 'Invalid email' },
+          ],
+          retryable: false,
+        }),
+      )
+      const view = await openSignUp()
+      await type(view.getByLabelText('Tên hiển thị'), 'An')
+      await type(view.getByLabelText('Email'), 'an@example.com')
+      await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+      await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
+
+      expect(await view.findByText(COPY.passwordInvalid)).toBeTruthy()
+      await waitFor(() => expect(focused.length).toBeGreaterThan(0))
+      // Server order: password first. No request while the input was disabled.
+      expect(focused).toEqual([{ label: 'Mật khẩu', editable: true }])
+    } finally {
+      focus.mockRestore()
+    }
   })
 })
