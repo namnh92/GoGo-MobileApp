@@ -647,6 +647,12 @@ export const enMessages: Record<MessageKey, string> = {
 
   'review.title': 'How was\nthis date?',
   'review.body': 'Your rating helps GoGo pick better next time.',
+  'review.titlePlace': 'How was\n{{name}}?',
+  'review.bodyPlace': 'This review appears on the place page once it is approved.',
+  'review.subjectLabel': 'What are you reviewing?',
+  'review.subjectOverall': 'The whole date',
+  'review.subjectDone': '{{name}} — review sent',
+  'review.another': 'Review {{name}}',
   'review.chooseStars': 'Pick a star rating',
   'review.rating.bad': 'Oh no 😢',
   'review.rating.ok': 'Not bad 😊',

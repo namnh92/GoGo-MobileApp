@@ -1,14 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useCreateReview, usePlan, type Review } from '@/shared/api'
+import { toPlanSummary, useCreateReview, usePlan, usePlanStopPlaces, type Review } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import type { MessageKey } from '@/shared/i18n/types'
 import { haptic } from '@/shared/ui/feedback'
-import { Atmosphere, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Chip, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './review.style'
@@ -16,6 +16,21 @@ import { styles } from './review.style'
 const MAX_TEXT = 2000
 /** Where the counter starts warning rather than just informing. */
 const COUNTER_WARN_AT = MAX_TEXT - 100
+
+/** The whole-outing review, which carries `planId` and no place. */
+const OVERALL = 'plan'
+
+/**
+ * FR-PLAN-007 — "review từng stop và toàn bộ trải nghiệm". A review is filed
+ * against one subject at a time: the plan, or one of its stops.
+ */
+interface Subject {
+  /** `OVERALL`, or the stop's place id. */
+  key: string
+  /** `undefined` for the whole outing; the place reviewed otherwise. */
+  placeId?: string
+  label: string
+}
 
 function ratingLabelKey(rating: number): MessageKey {
   if (rating === 0) return 'review.chooseStars'
@@ -32,17 +47,74 @@ export default function ReviewScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>()
 
   const plan = usePlan(planId)
+  const summary = useMemo(() => (plan.data ? toPlanSummary(plan.data) : null), [plan.data])
+  const stops = useMemo(() => summary?.stops ?? [], [summary])
+  const places = usePlanStopPlaces(stops)
   const createReview = useCreateReview()
 
+  /**
+   * GoGo-MobileApp#277 — the app only ever filed `{planId, rating, text}`, so
+   * every review it created was stored with `place_id = null` and could never
+   * reach a place's review list, which filters on `place_id`. The subject is
+   * what was missing, not the endpoint: `POST /reviews` has always taken an
+   * optional `placeId`.
+   *
+   * A place appears once however many stops use it — two reviews of the same
+   * place from one outing is not a thing the user is asking for.
+   */
+  const subjects = useMemo<Subject[]>(() => {
+    const seen = new Set<string>()
+    const perStop: Subject[] = []
+    stops.forEach((stop, index) => {
+      if (!stop.placeId || seen.has(stop.placeId)) return
+      seen.add(stop.placeId)
+      perStop.push({
+        key: stop.placeId,
+        placeId: stop.placeId,
+        // The place detail may still be loading, or may have failed; the stop
+        // is reviewable either way, so it falls back to its position rather
+        // than disappearing.
+        label: places.byPlaceId.get(stop.placeId)?.name ?? t('datePlan.stopOrder', { n: index + 1 }),
+      })
+    })
+    return [{ key: OVERALL, label: t('review.subjectOverall') }, ...perStop]
+  }, [stops, places.byPlaceId, t])
+
+  const [subjectKey, setSubjectKey] = useState(OVERALL)
   const [rating, setRating] = useState(0)
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<Review | null>(null)
+  /** Subjects reviewed in this sitting; the server owns the durable answer. */
+  const [sent, setSent] = useState<readonly string[]>([])
+
+  const subject = subjects.find(candidate => candidate.key === subjectKey) ?? subjects[0]
+  const remaining = subjects.filter(candidate => !sent.includes(candidate.key))
 
   function onContinue() {
     const roomId = plan.data?.roomId
     if (roomId) router.replace(`/room/${roomId}/shared-result`)
     else router.replace('/(tabs)')
+  }
+
+  /** Back to an empty form for the next unreviewed subject. */
+  function reviewAnother() {
+    const next = remaining[0]
+    if (!next) return
+    setSubjectKey(next.key)
+    setRating(0)
+    setText('')
+    setError(null)
+    setSubmitted(null)
+  }
+
+  function pick(next: Subject) {
+    if (next.key === subjectKey) return
+    setSubjectKey(next.key)
+    // The stars and the words belong to the subject they were written about.
+    setRating(0)
+    setText('')
+    setError(null)
   }
 
   async function submit() {
@@ -53,11 +125,13 @@ export default function ReviewScreen() {
     try {
       const review = await createReview.mutateAsync({
         planId,
+        ...(subject?.placeId ? { placeId: subject.placeId } : {}),
         rating,
         ...(text.trim() ? { text: text.trim() } : {}),
       })
-      track('review_submitted', { rating, status: review.status })
+      track('review_submitted', { rating, status: review.status, subject: subject?.placeId ? 'place' : 'plan' })
       haptic('success')
+      if (subject) setSent(previous => [...previous, subject.key])
       // The review does not vanish into a navigation — what happens to it next
       // is the answer the user is owed (spec §27).
       setSubmitted(review)
@@ -83,6 +157,12 @@ export default function ReviewScreen() {
             {t(pending ? 'review.successPending' : 'review.successPublished')}
           </Text>
           <View style={styles.successActions}>
+            {/* The other stops are the point of #277: one review per subject,
+                and the way to the next one is here rather than a second trip
+                through the date. */}
+            {remaining.length > 0 ? (
+              <GhostBtn label={t('review.another', { name: remaining[0].label })} onPress={reviewAnother} />
+            ) : null}
             <PrimaryBtn label={t('review.continue')} onPress={onContinue} />
           </View>
         </View>
@@ -91,6 +171,7 @@ export default function ReviewScreen() {
   }
 
   const nearLimit = text.length >= COUNTER_WARN_AT
+  const reviewingPlace = Boolean(subject?.placeId)
 
   return (
     <Atmosphere>
@@ -98,8 +179,38 @@ export default function ReviewScreen() {
         <BackHeader onBack={() => router.back()} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
-        <Text style={styles.title}>{t('review.title')}</Text>
-        <Text style={styles.body}>{t('review.body')}</Text>
+        <Text style={styles.title}>
+          {reviewingPlace ? t('review.titlePlace', { name: subject?.label }) : t('review.title')}
+        </Text>
+        <Text style={styles.body}>{reviewingPlace ? t('review.bodyPlace') : t('review.body')}</Text>
+
+        {/* One stop is not a choice; the selector only exists where there is
+            something to choose between. */}
+        {subjects.length > 1 ? (
+          <View style={styles.subjects}>
+            <Text style={styles.subjectLabel}>{t('review.subjectLabel')}</Text>
+            <View style={styles.subjectRow}>
+              {subjects.map(candidate => {
+                const isSent = sent.includes(candidate.key)
+                return (
+                  <Chip
+                    key={candidate.key}
+                    label={candidate.label}
+                    // Selection is never colour alone: `selected` prefixes a
+                    // check glyph and sets `accessibilityState.selected`, and a
+                    // subject already sent says so in its label.
+                    variant={candidate.key === subjectKey ? 'selected' : isSent ? 'positive' : 'default'}
+                    icon={isSent && candidate.key !== subjectKey ? '✓' : undefined}
+                    accessibilityLabel={
+                      isSent ? t('review.subjectDone', { name: candidate.label }) : candidate.label
+                    }
+                    onPress={() => pick(candidate)}
+                  />
+                )
+              })}
+            </View>
+          </View>
+        ) : null}
 
         <GlassCard style={styles.starsCard}>
           <View style={styles.starsRow} accessibilityRole="radiogroup">

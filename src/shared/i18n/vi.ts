@@ -654,6 +654,12 @@ export const viMessages = {
 
   'review.title': 'Bạn thấy buổi\ndate này thế nào?',
   'review.body': 'Đánh giá của bạn giúp GoGo chọn tốt hơn lần sau.',
+  'review.titlePlace': 'Bạn thấy\n{{name}} thế nào?',
+  'review.bodyPlace': 'Đánh giá này sẽ hiện ở trang địa điểm sau khi được duyệt.',
+  'review.subjectLabel': 'Bạn đang đánh giá',
+  'review.subjectOverall': 'Cả buổi hẹn',
+  'review.subjectDone': '{{name}} — đã gửi đánh giá',
+  'review.another': 'Đánh giá {{name}}',
   'review.chooseStars': 'Chọn số sao',
   'review.rating.bad': 'Tiếc quá 😢',
   'review.rating.ok': 'Được đó 😊',
