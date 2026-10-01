@@ -32,6 +32,14 @@ export function createQueryClient(): QueryClient {
         retry: (failureCount, error) =>
           failureCount < 2 && isRetryable(error) && !isUnauthorized(error),
         retryDelay: attempt => Math.min(1000 * 2 ** attempt, 10_000),
+        // GoGo-MobileApp#250: with the default (`online`), a mutation — and each
+        // of its retries — pauses while `onlineManager` says offline, and only a
+        // later online/focus event resumes it. A wrong or missed offline signal
+        // on Android left a save spinning for minutes with no error. A tap must
+        // end in an answer: run regardless, so offline fails fast with a
+        // NetworkError the screen shows, and the bounded, idempotent retries
+        // above go out on time.
+        networkMode: 'always',
       },
     },
   })
