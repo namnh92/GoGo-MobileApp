@@ -33,7 +33,6 @@ jest.mock('@/shared/api', () => {
   }
 })
 
-// eslint-disable-next-line import/first
 import ProfileScreen from '@/features/tabs/profile.view'
 
 const pushUnavailable = new UnsubscribeNotConfirmedError(

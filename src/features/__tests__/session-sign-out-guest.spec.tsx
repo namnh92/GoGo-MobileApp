@@ -28,7 +28,6 @@ jest.mock('expo-network', () => ({
   getNetworkStateAsync: jest.fn(async () => ({ isConnected: true })),
 }))
 
-// eslint-disable-next-line import/first
 import { SessionProvider, useSession } from '@/shared/providers/session-provider'
 
 type SessionApi = ReturnType<typeof useSession>
