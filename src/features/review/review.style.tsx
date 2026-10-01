@@ -8,6 +8,11 @@ export const styles = StyleSheet.create({
   title: { ...type.display, color: neutral[900] },
   body: { ...type.body, color: neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
 
+  /** #277 — which stop (or the whole outing) the stars below belong to. */
+  subjects: { marginBottom: spacing[5] },
+  subjectLabel: { ...type.caption, color: neutral[500], marginBottom: spacing[2] },
+  subjectRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+
   starsCard: { borderRadius: radius.hero, padding: spacing[6], alignItems: 'center', marginBottom: spacing[4] },
   starsRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
   /** Each star is its own control, so each one has to clear 44pt. */
