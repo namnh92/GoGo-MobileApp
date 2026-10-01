@@ -34,6 +34,15 @@ export function loaded(data: unknown): QueryLike {
   return { isPending: false, isError: false, data, error: null, refetch: jest.fn() }
 }
 
+/**
+ * Loaded by a read made after the screen opened. Screens that act only on a
+ * server read since mount (the deck seeds from `myVote`, #290) compare
+ * `dataUpdatedAt` with their mount time; a plain `loaded()` reads as a cache.
+ */
+export function fresh(data: unknown): QueryLike & { dataUpdatedAt: number } {
+  return { ...loaded(data), dataUpdatedAt: Number.MAX_SAFE_INTEGER }
+}
+
 export type Audience = 'couple' | 'group-host' | 'group-guest'
 
 /**

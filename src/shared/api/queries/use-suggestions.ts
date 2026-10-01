@@ -12,11 +12,12 @@ import type { OpBody, SuggestionsCurrent, VoteValue } from '../types'
  * answers `{ run: null, candidates: [], votes: … }` with `decisionMode` absent,
  * so screens must treat "no run yet" as an empty state, not an error.
  */
-export function useCurrentSuggestions(roomId: string | undefined) {
+export function useCurrentSuggestions(roomId: string | undefined, options: { refetchOnMount?: 'always' } = {}) {
   return useQuery({
     queryKey: queryKeys.roomSuggestions(roomId ?? ''),
     queryFn: () => suggestionsApi.getCurrentSuggestions(roomId as string),
     enabled: Boolean(roomId),
+    ...options,
   })
 }
 
