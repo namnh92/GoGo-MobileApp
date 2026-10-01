@@ -107,12 +107,12 @@ export default function PlansScreen() {
     <Atmosphere>
       <View style={{ paddingTop: insets.top + spacing[2] }}>
         <Text variant="display" style={styles.title}>{t('plans.title')}</Text>
-        {/* #247: entering an invite code must not depend on having no room yet. */}
-        {canRead ? (
+        {/* #247: for a user, entering an invite code must not depend on having
+            no room yet. Not for a guest (#314 F-01): /join would replace the
+            guest session holding their room; confirm-first is #272. */}
+        {status === 'user' ? (
           <View style={[styles.createAction, styles.headerActions]}>
-            {status === 'user' ? (
-              <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
-            ) : null}
+            <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
             <GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} />
           </View>
         ) : null}
@@ -170,10 +170,13 @@ export default function PlansScreen() {
           <EmptyState
             title={t('plans.emptyTitle')}
             body={t(tab === 'history' ? 'plans.emptyHistory' : 'plans.emptyBody')}
-            // The code entry sits in the header for anyone who can hold a room.
+            // A user has the code entry in the header; a guest keeps it here.
             action={
-              <View style={{ alignSelf: 'stretch' }}>
+              <View style={{ gap: spacing[2], alignSelf: 'stretch' }}>
                 <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
+                {status === 'guest' ? (
+                  <GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} />
+                ) : null}
               </View>
             }
           />
