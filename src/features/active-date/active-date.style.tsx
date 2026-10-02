@@ -68,4 +68,6 @@ export const styles = StyleSheet.create(theme => ({
   /** #251 — the room is not live: one message and one way out. */
   notActive: { flex: 1, paddingHorizontal: spacing[5] },
   notActiveCta: { alignSelf: 'stretch', marginTop: spacing[4] },
+  /** The room notice inside the padded not-active column (#292). */
+  notice: { marginHorizontal: 0 },
 }))

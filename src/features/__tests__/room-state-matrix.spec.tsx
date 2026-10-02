@@ -55,7 +55,7 @@ jest.mock('@/shared/api', () => ({
   // rooms are still collecting.
   useCurrentSuggestions: () => ({ isPending: false, isError: false, data: undefined, error: null }),
   useCurrentPlan: () => ({ isPending: false, isError: false, data: undefined, error: null }),
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   // Inlined rather than pulled from the harness: a jest.mock factory is
   // hoisted, so it can only close over `mock`-prefixed bindings.
   // No stored code and no listed invite: the host sees "Tạo mã mời" (#199).

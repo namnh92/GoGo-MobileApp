@@ -36,7 +36,8 @@ import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { decisionScreen, PLAN_RETRY_NOTICE, PLAN_UNAVAILABLE_NOTICE } from '@/shared/navigation/room-routing'
 import { markRoomStepShown, planStep, runStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
 import { alertWithHold, releaseOnReturn, useRoutingHold } from '@/shared/navigation/routing-hold'
-import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
+import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import { Atmosphere, AvatarCircle, BackHeader, Card, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
@@ -117,7 +118,7 @@ export default function GoGoRoomScreen() {
   // Members join and finish picking while this screen is open; the realtime
   // layer owns how that freshness arrives.
   const focused = useScreenFocused()
-  useRoomRealtime(validRoomId, 'lobby', { enabled: focused && validRoomId !== undefined })
+  const realtime = useRoomRealtime(validRoomId, 'lobby', { enabled: focused && validRoomId !== undefined })
   // Invites are host-only on the server; a member's device neither lists them
   // nor reads a stored code (#199).
   const inviteRoomId = capabilities.canInvite ? validRoomId : undefined
@@ -370,9 +371,13 @@ export default function GoGoRoomScreen() {
         {waitingForNetwork ? (
           <OfflineState />
         ) : (
-          <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[6] }}>
-            <RoomMemberSkeleton count={3} />
-          </View>
+          <>
+            {/* Still waiting on the room: how its updates arrive is already known (#292). */}
+            <RoomConnectionNotice roomId={validRoomId} status={realtime.status} visible={focused} hasData={false} />
+            <View style={{ paddingHorizontal: spacing[5], paddingTop: spacing[6] }}>
+              <RoomMemberSkeleton count={3} />
+            </View>
+          </>
         )}
       </Atmosphere>
     )
@@ -486,7 +491,13 @@ export default function GoGoRoomScreen() {
       <View style={{ paddingTop: insets.top }}>
         <BackHeader onBack={() => goBackOrHome(router)} />
       </View>
-      <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
+      <RoomConnectionNotice
+        roomId={validRoomId}
+        status={realtime.status}
+        visible={focused}
+        error={room.isError ? room.error : null}
+        onRetry={() => void room.refetch()}
+      />
       {planNotice ? (
         <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {planNotice === PLAN_RETRY_NOTICE ? t('gogoRoom.planRetry') : t('gogoRoom.planUnavailable')}

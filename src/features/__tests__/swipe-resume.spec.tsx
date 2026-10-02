@@ -40,7 +40,7 @@ jest.mock('@/shared/api', () => ({
     return { ...mockLoaded(mockState.suggestions), dataUpdatedAt: mockState.dataUpdatedAt, isPaused: mockState.isPaused }
   },
   usePlaceDetail: () => mockLoaded(null),
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   useTaxonomyLabel: () => ({ resolve: () => null }),
   useCastVote: () => ({ mutateAsync: (...args: unknown[]) => mockVote(...args), isPending: false, isError: false }),
 }))

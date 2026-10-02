@@ -33,11 +33,13 @@ import {
   type VoteValue,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { haptic, useReducedMotion } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
+import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Glyph, Text } from '@/shared/ui/text'
 import { colors, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
@@ -85,7 +87,10 @@ export default function SwipeScreen() {
   const shownRunId = suggestions.data?.run?.id
   useRoomStepShown(roomId, shownRunId ? runStep(shownRunId) : null)
   const focused = useScreenFocused()
-  useRoomRealtime(roomId, 'matching', { enabled: focused })
+  const realtime = useRoomRealtime(roomId, 'matching', { enabled: focused })
+  // Nothing cached and offline: the paused read would keep the skeleton forever (#292).
+  const suggestionsWaiting = useWaitingForNetwork(suggestions)
+  const roomWaiting = useWaitingForNetwork(room)
   const castVote = useCastVote(roomId)
 
   // #198 — voting closes when the room moves on: a plan was chosen, here or on
@@ -254,7 +259,9 @@ export default function SwipeScreen() {
   // The "n / total" counter belongs to a card being voted on. Loading, error,
   // no-run, stale, empty and done states have no card, so they get the bare
   // header — a stale run still carrying candidates read "1 / 1" (#245).
-  const renderHeader = (withCounter: boolean) => (
+  // The freshness notice sits under the header (#292), except beside a
+  // full-screen offline or error state, which already says it.
+  const renderHeader = (withCounter: boolean, withNotice = true) => (
     <View style={{ paddingTop: insets.top }}>
       <BackHeader
         onBack={() => router.back()}
@@ -266,14 +273,33 @@ export default function SwipeScreen() {
           ) : undefined
         }
       />
+      {withNotice ? (
+        <RoomConnectionNotice
+          roomId={roomId}
+          status={realtime.status}
+          visible={focused}
+          hasData={suggestions.data !== undefined}
+          error={suggestions.isError ? suggestions.error : null}
+          onRetry={() => void suggestions.refetch()}
+        />
+      ) : null}
     </View>
   )
   const header = renderHeader(false)
+  const bareHeader = renderHeader(false, false)
 
   const runState = suggestionRunState(suggestions.data)
   const needsRole = runState === 'stale' || runState === 'empty'
 
   if (suggestions.isPending || (needsRole && room.isPending)) {
+    if (suggestionsWaiting || (needsRole && roomWaiting)) {
+      return (
+        <Atmosphere>
+          {bareHeader}
+          <OfflineState />
+        </Atmosphere>
+      )
+    }
     return (
       <Atmosphere>
         {header}
@@ -284,10 +310,12 @@ export default function SwipeScreen() {
     )
   }
 
-  if (suggestions.isError) {
+  // A failed refresh keeps the cached run on screen; the notice under the
+  // header carries the failure and Retry. Only nothing cached is an error screen.
+  if (suggestions.isError && !suggestions.data) {
     return (
       <Atmosphere>
-        {header}
+        {bareHeader}
         <ErrorState error={suggestions.error} onRetry={() => void suggestions.refetch()} />
       </Atmosphere>
     )
@@ -312,7 +340,7 @@ export default function SwipeScreen() {
   if (runState === 'stale' || runState === 'empty') {
     return (
       <Atmosphere>
-        {header}
+        {room.data ? header : bareHeader}
         {room.data ? (
           // A refetch that failed keeps the cached room, and with it the role.
           <SuggestionRunNotice
@@ -334,9 +362,13 @@ export default function SwipeScreen() {
   if (!seeded) {
     return (
       <Atmosphere>
-        {header}
+        {suggestions.isPaused || suggestions.isError ? bareHeader : header}
         {suggestions.isPaused ? (
           <OfflineState />
+        ) : suggestions.isError ? (
+          // The cached deck is not confirmed, so it cannot be voted on: say the
+          // read failed rather than load forever.
+          <ErrorState error={suggestions.error} onRetry={() => void suggestions.refetch()} />
         ) : (
           <View style={styles.deck}>
             <Skeleton style={styles.skeletonCard} height={undefined} radius={24} />

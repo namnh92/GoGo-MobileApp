@@ -27,11 +27,13 @@ import {
   toRoomAudience,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { allScopes, costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
-import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconZap } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -56,7 +58,11 @@ export default function MatchResultScreen() {
   // The lobby sends people here once per run (#198); back there, it must not again.
   const shownRunId = suggestions.data?.run?.id
   useRoomStepShown(roomId, shownRunId ? runStep(shownRunId) : null)
-  useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
+  const focused = useScreenFocused()
+  const realtime = useRoomRealtime(roomId, 'matching', { enabled: focused })
+  // Nothing cached and offline: the paused reads would keep the skeleton forever (#292).
+  const roomWaiting = useWaitingForNetwork(room)
+  const suggestionsWaiting = useWaitingForNetwork(suggestions)
 
   const finalize = useFinalizeVotes(roomId)
   const regenerate = useGenerateSuggestions(roomId)
@@ -125,23 +131,49 @@ export default function MatchResultScreen() {
     regenerate.mutate(undefined, { onSuccess: () => finalize.reset() })
   }
 
+  const refetchAll = () => {
+    void room.refetch()
+    void suggestions.refetch()
+  }
+  // Under the status bar, above the content: the one freshness notice (#292).
+  const noticeSlot = (hasData: boolean) => (
+    <View style={{ paddingTop: insets.top }}>
+      <RoomConnectionNotice
+        roomId={roomId}
+        status={realtime.status}
+        visible={focused}
+        error={suggestions.isError ? suggestions.error : room.isError ? room.error : null}
+        hasData={hasData}
+        onRetry={refetchAll}
+      />
+    </View>
+  )
+
   if (room.isPending || suggestions.isPending) {
     return (
       <Atmosphere>
-        <ResultSkeleton />
+        {roomWaiting || suggestionsWaiting ? (
+          <View style={{ paddingTop: insets.top }}>
+            <OfflineState />
+          </View>
+        ) : (
+          <>
+            {noticeSlot(false)}
+            <ResultSkeleton />
+          </>
+        )}
       </Atmosphere>
     )
   }
 
-  if (room.isError || suggestions.isError) {
+  // A failed refetch keeps the cached ranking; the error screen is only for
+  // having nothing to show (APP-007).
+  if ((room.isError && !room.data) || (suggestions.isError && !suggestions.data)) {
     return (
       <Atmosphere>
         <ErrorState
           error={room.error ?? suggestions.error}
-          onRetry={() => {
-            void room.refetch()
-            void suggestions.refetch()
-          }}
+          onRetry={refetchAll}
         />
       </Atmosphere>
     )
@@ -152,6 +184,7 @@ export default function MatchResultScreen() {
     const runState = suggestionRunState(suggestions.data)
     return (
       <Atmosphere>
+        {noticeSlot(true)}
         {runState === 'stale' || runState === 'empty' ? (
           <SuggestionRunNotice roomId={roomId} state={runState} isHost={capabilities.isHost} />
         ) : (
@@ -206,7 +239,8 @@ export default function MatchResultScreen() {
 
   return (
     <Atmosphere>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: spacing[8] }}>
+      {noticeSlot(true)}
+      <ScrollView contentContainerStyle={{ paddingTop: spacing[3], paddingBottom: spacing[8] }}>
         <View style={styles.hero}>
           <PlacePhoto placeId={winner.placeId} name={winner.name} uri={null} style={StyleSheet.absoluteFill} />
           <View style={styles.heroScrim} />

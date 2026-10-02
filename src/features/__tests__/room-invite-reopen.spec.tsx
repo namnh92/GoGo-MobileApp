@@ -43,7 +43,7 @@ jest.mock('@/shared/api/endpoints/rooms', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockRoom.query,
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   // #276 — the lobby reads the run and the plan once the room has them.
   useCurrentSuggestions: () => ({ data: undefined, isPending: false, isError: false, error: null, isFetchedAfterMount: false, dataUpdatedAt: 0, refetch: jest.fn() }),
   useCurrentPlan: () => ({ data: undefined, isPending: false, isError: false, error: null, isFetchedAfterMount: false, dataUpdatedAt: 0, refetch: jest.fn() }),

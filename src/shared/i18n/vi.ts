@@ -494,6 +494,8 @@ export const viMessages = {
   'common.closed': 'Đã đóng',
   'common.staleOffline': 'Đang ngoại tuyến — đây là bản đã lưu trên máy.',
   'common.staleError': 'Chưa cập nhật được — đây là bản đã lưu trên máy.',
+  'roomRealtime.connecting': 'Đang kết nối cập nhật phòng…',
+  'roomRealtime.polling': 'Phòng cập nhật định kỳ; thay đổi có thể hiển thị chậm.',
   'matchResult.diffKept': 'Đã giữ {{name}}',
   'matchResult.diffChanged': 'Đã đổi {{from}} → {{to}}',
   'matchResult.diffSaved': 'Tiết kiệm khoảng {{amount}}',

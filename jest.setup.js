@@ -78,3 +78,14 @@ afterEach(() => {
   const found = actWarnings.splice(0)
   throw new Error(`React reported ${found.length} act(...) warning(s) during this test (GoGo-MobileApp#133):\n${found.join('\n')}`)
 })
+
+// jest-expo stubs `AppState.currentState` as a mock function; on a device it is
+// a string. Screens that gate on the foreground (#292) would read every test as
+// backgrounded. A test that needs the background sets it itself.
+beforeEach(() => {
+  Object.defineProperty(require('react-native').AppState, 'currentState', {
+    value: 'active',
+    configurable: true,
+    writable: true,
+  })
+})

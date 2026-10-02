@@ -40,7 +40,7 @@ jest.mock('@/shared/api', () => ({
   useRoomMembers: () => mockLoaded([]),
   useCurrentSuggestions: () => ({ isPending: false, isError: false, data: undefined, error: null }),
   useCurrentPlan: () => ({ isPending: false, isError: false, data: undefined, error: null }),
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   useCreateRoomInvite: () => ({ ...mockIdleMutation, stored: null, forget: jest.fn() }),
   useRoomInvites: () => ({ isPending: false, isError: false, isFetching: false, status: 'success', data: [], dataUpdatedAt: 1, refetch: jest.fn() }),
   useRevokeRoomInvite: () => mockIdleMutation,

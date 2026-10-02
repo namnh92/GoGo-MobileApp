@@ -31,7 +31,7 @@ jest.mock('@/shared/api', () => ({
   useCurrentSuggestions: () => mockFresh(mockState.suggestions),
   useCurrentPlan: () => mockLoaded(null),
   usePlaceDetail: () => mockLoaded(null),
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   useTaxonomyLabel: () => ({ resolve: () => null }),
   useCastVote: () => ({ mutateAsync: jest.fn(), isPending: false, isError: false }),
   useFinalizeVotes: () => ({ mutateAsync: jest.fn(), reset: jest.fn(), isPending: false, isError: false, error: null }),
