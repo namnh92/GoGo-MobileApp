@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles'
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
   badge: {
@@ -11,10 +11,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.pill,
     marginBottom: spacing[4],
   },
-  badgeLabel: { ...type.label, color: theme.accent.onSoft },
   title: {
-    ...type.title1,
-    color: neutral[900],
     textAlign: 'center',
   },
   pair: {
@@ -24,9 +21,8 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[3],
     marginBottom: spacing[6],
   },
-  pairName: { ...type.label, color: neutral[900] },
   details: { borderRadius: radius.hero, padding: spacing[5], marginBottom: spacing[6] },
-  detailsTitle: { ...type.bodySmall, fontWeight: '700', color: neutral[900], marginBottom: spacing[3] },
+  detailsTitle: { marginBottom: spacing[3] },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -35,8 +31,7 @@ export const styles = StyleSheet.create(theme => ({
     borderBottomWidth: 1,
     borderBottomColor: neutral[100],
   },
-  detailLabel: { ...type.bodySmall, color: neutral[500] },
-  noAccount: { ...type.bodySmall, textAlign: 'center', color: neutral[500] },
+  noAccount: { textAlign: 'center' },
   nameInput: {
     ...type.body,
     minHeight: touchTarget.min,
@@ -48,8 +43,6 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: neutral[0],
   },
   error: {
-    ...type.bodySmall,
-    color: brand.red,
     textAlign: 'center',
     marginBottom: spacing[4],
   },

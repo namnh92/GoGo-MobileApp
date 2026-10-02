@@ -2,14 +2,11 @@ import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
   scheduleInput: { ...type.body, color: neutral[900], borderWidth: 1, borderColor: neutral[300], borderRadius: radius.compact, padding: spacing[3], minHeight: touchTarget.min },
   card: { padding: spacing[5], marginTop: spacing[4], gap: spacing[3] },
-  sectionTitle: { ...type.body, fontWeight: '700', color: neutral[900] },
-  sectionBody: { ...type.bodySmall, color: neutral[500] },
-  warning: { ...type.caption, color: brand.amber },
   tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   tier: {
     paddingHorizontal: spacing[3],
@@ -18,8 +15,6 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: neutral[100],
   },
   tierActive: { backgroundColor: theme.accent.primary },
-  tierLabel: { ...type.label, color: neutral[700] },
-  tierLabelActive: { color: neutral[0] },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -29,15 +24,12 @@ export const styles = StyleSheet.create(theme => ({
     borderTopColor: neutral[100],
     paddingTop: spacing[3],
   },
-  rowTitle: { ...type.body, fontWeight: '600', color: neutral[900] },
-  rowMeta: { ...type.caption, color: neutral[500], marginTop: 2 },
+  rowMeta: { marginTop: 2 },
   rowAction: {
     minHeight: touchTarget.min,
     justifyContent: 'center',
     paddingHorizontal: spacing[3],
   },
-  rowActionLabel: { ...type.label, color: brand.red },
-  notice: { ...type.bodySmall, color: neutral[500], textAlign: 'center', marginTop: spacing[4] },
+  notice: { textAlign: 'center', marginTop: spacing[4] },
   cancelBtn: { alignItems: 'center', paddingVertical: spacing[4], marginTop: spacing[2] },
-  cancelLabel: { ...type.bodySmall, fontWeight: '600', color: brand.red },
 }))

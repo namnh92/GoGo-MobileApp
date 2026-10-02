@@ -1,10 +1,8 @@
-import { StyleSheet as RNStyleSheet } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, fill, glassFx, overlay, radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  title: { ...type.display, color: colors.neutral[900] },
-  body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
+  body: { marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
     height: 56,
     borderRadius: radius.compact,
@@ -13,9 +11,7 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'space-between',
     paddingHorizontal: spacing[5],
   },
-  optionLabel: { ...type.title2, fontWeight: '600' },
-  optionCheck: { ...type.title2, fontWeight: '700' },
-  exactLabel: { ...type.bodySmall, color: colors.neutral[500], marginBottom: spacing[3] },
+  exactLabel: { marginBottom: spacing[3] },
   timeBox: {
     flex: 1,
     backgroundColor: colors.neutral[50],
@@ -24,9 +20,9 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
   },
   timeBoxRequired: { borderWidth: 1, borderColor: theme.accent.primary },
-  requiredHint: { ...type.caption, color: theme.accent.primary, marginTop: spacing[2] },
+  requiredHint: { marginTop: spacing[2] },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...fill, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -42,7 +38,7 @@ export const styles = StyleSheet.create(theme => ({
     alignSelf: 'center',
     marginBottom: spacing[4],
   },
-  sheetTitle: { ...type.title1, color: colors.neutral[900], marginBottom: spacing[3] },
+  sheetTitle: { marginBottom: spacing[3] },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   slotBtn: {
     width: '23%',
@@ -52,7 +48,5 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  slotLabel: { ...type.label, color: colors.neutral[700] },
-  timeCaption: { ...type.caption, color: colors.neutral[500] },
-  timeValue: { ...type.title1, color: colors.neutral[900], marginTop: 2 },
+  timeValue: { marginTop: 2 },
 }))

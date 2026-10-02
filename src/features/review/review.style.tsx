@@ -1,16 +1,15 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glyph, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
 export const styles = StyleSheet.create({
-  title: { ...type.display, color: neutral[900] },
-  body: { ...type.body, color: neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
+  body: { marginTop: spacing[2], marginBottom: spacing[6] },
 
   /** #277 — which stop (or the whole outing) the stars below belong to. */
   subjects: { marginBottom: spacing[5] },
-  subjectLabel: { ...type.caption, color: neutral[500], marginBottom: spacing[2] },
+  subjectLabel: { marginBottom: spacing[2] },
   subjectRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
 
   starsCard: { borderRadius: radius.hero, padding: spacing[6], alignItems: 'center', marginBottom: spacing[4] },
@@ -22,19 +21,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  star: { fontSize: glyph.lg },
   starDim: { opacity: 0.25 },
-  ratingLabel: { ...type.body, fontWeight: '600', color: neutral[700] },
 
   inputCard: { padding: spacing[4], marginBottom: spacing[2] },
   input: { minHeight: 96, ...type.body, color: neutral[900], textAlignVertical: 'top' },
   counterRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing[4] },
-  counter: { ...type.caption, color: neutral[500] },
-  counterNear: { color: brand.amber, fontWeight: '700' },
 
-  moderationNote: { ...type.caption, color: neutral[500], lineHeight: 17, marginTop: spacing[3] },
-  error: { ...type.bodySmall, color: brand.red, marginTop: spacing[3] },
-  hint: { ...type.bodySmall, color: neutral[500], textAlign: 'center', marginBottom: spacing[2] },
+  moderationNote: { marginTop: spacing[3] },
+  error: { marginTop: spacing[3] },
+  hint: { textAlign: 'center', marginBottom: spacing[2] },
 
   // --- success -------------------------------------------------------------
   successRoot: {
@@ -44,8 +39,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[7],
     gap: spacing[3],
   },
-  successGlyph: { fontSize: glyph.hero },
-  successTitle: { ...type.title1, color: neutral[900], textAlign: 'center' },
-  successBody: { ...type.body, color: neutral[500], textAlign: 'center', lineHeight: 22 },
+  successTitle: { textAlign: 'center' },
+  successBody: { textAlign: 'center' },
   successActions: { alignSelf: 'stretch', marginTop: spacing[5] },
 })

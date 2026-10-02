@@ -3,7 +3,7 @@ import { Text as RNText, type StyleProp, type TextProps as RNTextProps, type Tex
 import { useUnistyles } from 'react-native-unistyles'
 
 import type { AppTheme } from '@/shared/ui/theme'
-import type { TypeStyle } from '@/shared/ui/tokens'
+import { glyphText, type GlyphSize, type TypeStyle } from '@/shared/ui/tokens'
 
 /**
  * The one text component (#293 §4). `variant` picks a type style — size, line
@@ -22,6 +22,7 @@ export type TextColor =
   | 'text.primary'
   | 'text.secondary'
   | 'text.tertiary'
+  | 'text.inverse'
   | 'accent.primary'
   | 'accent.onAccent'
   | 'accent.onSoft'
@@ -42,6 +43,7 @@ const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
   'text.primary': theme => theme.text.primary,
   'text.secondary': theme => theme.text.secondary,
   'text.tertiary': theme => theme.text.tertiary,
+  'text.inverse': theme => theme.text.inverse,
   'accent.primary': theme => theme.accent.primary,
   'accent.onAccent': theme => theme.accent.onAccent,
   'accent.onSoft': theme => theme.accent.onSoft,
@@ -74,4 +76,49 @@ export type TextProps = Omit<RNTextProps, 'style'> & {
 export function Text({ variant = 'body', color = 'text.primary', style, ref, ...rest }: TextProps) {
   const { theme } = useUnistyles()
   return <RNText ref={ref} {...rest} style={[theme.type[variant], { color: COLOR[color](theme) }, style]} />
+}
+
+export type GlyphProps = Omit<RNTextProps, 'style'> & {
+  size: GlyphSize
+  /** Only for a symbol drawn in a text colour (＋, ✓); emoji ignore it. */
+  color?: TextColor
+  style?: StyleProp<TextLayoutStyle>
+  ref?: Ref<RNText>
+}
+
+/**
+ * An emoji or symbol sized as a picture (#298): `size` is a `glyph` token, not
+ * a step on the type scale — a 64pt 🎉 is an illustration, not a heading. No
+ * face and no line height are set, so the glyph keeps its natural box.
+ */
+export function Glyph({ size, color, style, ref, ...rest }: GlyphProps) {
+  const { theme } = useUnistyles()
+  return (
+    <RNText
+      ref={ref}
+      {...rest}
+      style={[glyphText[size], color ? { color: COLOR[color](theme) } : null, style]}
+    />
+  )
+}
+
+/**
+ * Text sized from the box it sits in (#298): an avatar's initials and emoji
+ * scale with the avatar's `size` prop, so their size cannot be a step on any
+ * scale. This is the one place a computed `fontSize` is written
+ * (`type-scale.test.ts` lists it); initials keep the `label` face.
+ */
+export function ScaledText({ box, kind, color = 'accent.onAccent', children }: {
+  /** The side of the square the text is centred in, in points. */
+  box: number
+  kind: 'initials' | 'emoji'
+  color?: TextColor
+  children: RNTextProps['children']
+}) {
+  const { theme } = useUnistyles()
+  const style =
+    kind === 'emoji'
+      ? { fontSize: box * 0.45 }
+      : [theme.type.label, { fontSize: box * 0.38, lineHeight: box * 0.5, color: COLOR[color](theme) }]
+  return <RNText style={style}>{children}</RNText>
 }

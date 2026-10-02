@@ -1,13 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { ActivityIndicator, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { isApiError } from '@/shared/api'
 import { resolveShareLink } from '@/shared/api/endpoints/share-links'
 import { track } from '@/shared/analytics'
-import { Atmosphere, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Glyph, Text } from '@/shared/ui/text'
 
 import { styles } from './share-link.style'
 
@@ -131,7 +132,7 @@ export default function ShareLinkScreen() {
       <Atmosphere>
         <View style={styles.centre}>
           <ActivityIndicator color={theme.accent.primary} accessibilityLabel={t('shareLink.resolving')} />
-          <Text style={styles.hint}>{t('shareLink.resolving')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.hint}>{t('shareLink.resolving')}</Text>
         </View>
       </Atmosphere>
     )
@@ -150,15 +151,15 @@ export default function ShareLinkScreen() {
   return (
     <Atmosphere>
       <View style={styles.centre}>
-        <GlassCard style={styles.card}>
-          <Text style={styles.emoji}>{copy.emoji}</Text>
-          <Text accessibilityRole="header" style={styles.title}>
+        <Card padded={false} style={styles.card}>
+          <Glyph size="xl">{copy.emoji}</Glyph>
+          <Text variant="title1" accessibilityRole="header" style={styles.title}>
             {copy.title}
           </Text>
-          <Text accessibilityLiveRegion="polite" style={styles.body}>
+          <Text color="text.secondary" accessibilityLiveRegion="polite" style={styles.body}>
             {copy.body}
           </Text>
-        </GlassCard>
+        </Card>
 
         <View style={styles.actions}>
           {kind === 'failed' ? (

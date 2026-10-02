@@ -2,13 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Text, TextInput, View } from 'react-native'
+import { TextInput, View } from 'react-native'
 import { z } from 'zod'
 
 import { isApiError, isOffline, useUpdateDateOfBirth, type Me } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { haptic } from '@/shared/ui/feedback'
-import { GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { colors } from '@/shared/ui/tokens'
 
 import { checkTypedDateOfBirth, formatDateOfBirth, isoToTyped } from './date-of-birth'
@@ -87,15 +88,15 @@ export function DateOfBirthCard({ profile }: { profile: Me }) {
   }
 
   return (
-    <GlassCard style={styles.card}>
+    <Card padded={false} style={styles.card}>
       <View style={styles.header}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>
+        <Text variant="title2" accessibilityRole="header">
           {t('account.dobTitle')}
         </Text>
-        <Text style={styles.sectionBody}>{t('account.dobBody')}</Text>
+        <Text variant="bodySmall" color="text.secondary">{t('account.dobBody')}</Text>
       </View>
 
-      <Text style={label ? styles.value : styles.unset}>
+      <Text variant={!(label) ? 'body' : label ? 'body' : undefined} color={!(label) ? 'text.secondary' : label ? 'text.primary' : undefined}>
         {label ? t('account.dobCurrent', { date: label }) : t('account.dobUnset')}
       </Text>
 
@@ -122,9 +123,9 @@ export function DateOfBirthCard({ profile }: { profile: Me }) {
           />
         )}
       />
-      <Text style={styles.hint}>{t('account.dobFormat')}</Text>
+      <Text variant="caption" color="text.secondary">{t('account.dobFormat')}</Text>
       {reason ? (
-        <Text accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.problem}>
+        <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" accessibilityRole="alert">
           {t(reason === 'future' ? 'account.dobFuture' : 'account.dobInvalid')}
         </Text>
       ) : null}
@@ -140,10 +141,10 @@ export function DateOfBirthCard({ profile }: { profile: Me }) {
         {saved ? <GhostBtn label={t('account.dobClear')} onPress={() => void commit(null)} disabled={busy} /> : null}
       </View>
       {notice ? (
-        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+        <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
       ) : null}
-    </GlassCard>
+    </Card>
   )
 }

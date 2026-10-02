@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glyph, onDark, shadows, spacing, type } from '@/shared/ui/tokens'
+import { colors, shadows, spacing } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -35,16 +35,10 @@ export const styles = StyleSheet.create(theme => ({
     elevation: 10,
   },
   wordmark: {
-    ...type.display,
-    fontSize: glyph.xl,
-    lineHeight: 48,
-    color: neutral[0],
     letterSpacing: -0.5,
     marginTop: spacing[6],
   },
   tagline: {
-    ...type.body,
-    color: onDark.medium,
     marginTop: spacing[1],
   },
 }))

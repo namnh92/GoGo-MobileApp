@@ -1,14 +1,15 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
+import { Modal, Pressable, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { Atmosphere, Card, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
 import { endSlotToIso, slotToIso } from './schedule'
 import { WizardStep } from './wizard-step.view'
@@ -79,10 +80,10 @@ export default function CreateTimeScreen() {
     <Atmosphere>
       <WizardStep step="time" onBack={() => router.back()} />
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
-        <Text style={styles.title}>{t('createTime.title', { context: roomType })}</Text>
-        <Text style={styles.body}>{t('createTime.body')}</Text>
+        <Text variant="display">{t('createTime.title', { context: roomType })}</Text>
+        <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
 
-        <Text style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
+        <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
         <View style={{ gap: spacing[2], marginBottom: spacing[6] }}>
           {DURATION_PRESETS.map(preset => {
             const active = durationPreset === preset.key
@@ -96,42 +97,42 @@ export default function CreateTimeScreen() {
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
               >
-                <Text style={[styles.optionLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{label}</Text>
+                <Text variant="title2" color={active ? 'accent.onAccent' : 'text.primary'}>{label}</Text>
                 {/* Selection is never colour alone. */}
-                {active ? <Text style={[styles.optionCheck, { color: colors.neutral[0] }]}>✓</Text> : null}
+                {active ? <Text variant="title2" color="accent.onAccent">✓</Text> : null}
               </Pressable>
             )
           })}
         </View>
 
-        <GlassCard style={{ padding: spacing[4] }}>
-          <Text style={styles.exactLabel}>{t('createTime.specificTime')}</Text>
+        <Card padded={false} style={{ padding: spacing[4] }}>
+          <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.specificTime')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4] }}>
             <Pressable
               onPress={() => setPickerFor('start')}
               accessibilityRole="button"
               style={[styles.timeBox, startTime === null && styles.timeBoxRequired]}
             >
-              <Text style={styles.timeCaption}>{t('createTime.start')} *</Text>
-              <Text style={[styles.timeValue, startTime === null && { color: theme.accent.primary }]}>
+              <Text variant="caption" color="text.secondary">{t('createTime.start')} *</Text>
+              <Text variant="title1" color={startTime === null ? 'accent.primary' : 'text.primary'} style={styles.timeValue}>
                 {startTime ?? t('createTime.notSet')}
               </Text>
             </Pressable>
-            <Text style={{ color: colors.neutral[500] }}>→</Text>
+            <Text color="text.secondary">→</Text>
             <Pressable onPress={() => setPickerFor('end')} accessibilityRole="button" style={styles.timeBox}>
-              <Text style={styles.timeCaption}>{t('createTime.end')}</Text>
-              <Text style={styles.timeValue}>
+              <Text variant="caption" color="text.secondary">{t('createTime.end')}</Text>
+              <Text variant="title1" style={styles.timeValue}>
                 {endTime ?? t(durationPreset === 'evening' ? 'createTime.openEnd' : 'createTime.notSet')}
               </Text>
-              {endsNextDay ? <Text style={styles.timeCaption}>{t('createTime.nextDay')}</Text> : null}
+              {endsNextDay ? <Text variant="caption" color="text.secondary">{t('createTime.nextDay')}</Text> : null}
             </Pressable>
           </View>
           {!canContinue && (
-            <Text style={styles.requiredHint}>
+            <Text variant="caption" color="accent.primary" style={styles.requiredHint}>
               {t(durationPreset ? 'createTime.presetNeedsStart' : 'createTime.startRequired')}
             </Text>
           )}
-        </GlassCard>
+        </Card>
       </View>
       <GlassBar placement="docked" testID="create-footer">
         <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} />
@@ -143,7 +144,7 @@ export default function CreateTimeScreen() {
           <Pressable style={styles.backdrop} onPress={() => setPickerFor(null)} />
           <View style={[styles.sheet, { maxHeight: '70%' }]}>
             <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>
+            <Text variant="title1" style={styles.sheetTitle}>
               {t('createTime.pickTime')} · {t(pickerFor === 'end' ? 'createTime.end' : 'createTime.start')}
             </Text>
             <ScrollView bounces={false} contentContainerStyle={[styles.slotGrid, { paddingBottom: insets.bottom + spacing[5] }]}>
@@ -157,7 +158,7 @@ export default function CreateTimeScreen() {
                     accessibilityState={{ selected: active }}
                     style={[styles.slotBtn, active && { backgroundColor: theme.accent.primary }]}
                   >
-                    <Text style={[styles.slotLabel, active && { color: colors.neutral[0] }]}>{slot}</Text>
+                    <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>{slot}</Text>
                   </Pressable>
                 )
               })}

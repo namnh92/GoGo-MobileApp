@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, Text, TextInput, View } from 'react-native'
+import { ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, useJoinRoom } from '@/shared/api'
@@ -9,8 +9,9 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, AvatarCircle, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
-import { colors, glyph, spacing } from '@/shared/ui/tokens'
+import { Atmosphere, AvatarCircle, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Glyph, Text } from '@/shared/ui/text'
+import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
 import { confirmReplaceGuest, GuestReplaceNotice } from './guest-replace-notice.view'
@@ -164,30 +165,30 @@ export default function GuestJoinScreen() {
       >
         <View style={{ alignItems: 'center', marginBottom: spacing[6] }}>
           <View style={styles.badge}>
-            <Text style={styles.badgeLabel}>📩 {t('guestJoin.badge')}</Text>
+            <Text variant="label" color="accent.onSoft">📩 {t('guestJoin.badge')}</Text>
           </View>
-          <Text style={styles.title}>{t('guestJoin.title')}</Text>
+          <Text variant="title1" style={styles.title}>{t('guestJoin.title')}</Text>
         </View>
 
         <View style={styles.pair}>
           <View style={{ alignItems: 'center', gap: 6 }}>
             <AvatarCircle emoji="🎉" size={64} />
           </View>
-          <Text style={{ fontSize: glyph.sm }}>+</Text>
+          <Glyph size="sm">+</Glyph>
           <View style={{ alignItems: 'center', gap: 6 }}>
             <AvatarCircle emoji="😊" size={64} />
-            <Text style={[styles.pairName, { color: neutral[500] }]}>{t('guestJoin.you')}</Text>
+            <Text variant="label" color="text.secondary">{t('guestJoin.you')}</Text>
           </View>
         </View>
 
         {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
-        <GlassCard style={styles.details}>
+        <Card padded={false} style={styles.details}>
           {asUser ? (
-            <Text style={styles.detailLabel}>{t('guestJoin.asAccount')}</Text>
+            <Text variant="bodySmall" color="text.secondary">{t('guestJoin.asAccount')}</Text>
           ) : (
             <>
-              <Text style={styles.detailsTitle}>{t('guestJoin.nameLabel')}</Text>
+              <Text variant="label" style={styles.detailsTitle}>{t('guestJoin.nameLabel')}</Text>
               <TextInput
                 value={displayName}
                 onChangeText={value => {
@@ -207,10 +208,10 @@ export default function GuestJoinScreen() {
               />
             </>
           )}
-        </GlassCard>
+        </Card>
 
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
             {error}
           </Text>
         ) : null}
@@ -222,7 +223,7 @@ export default function GuestJoinScreen() {
             loading={pending}
             disabled={!asUser && !trimmedName}
           />
-          {asUser ? null : <Text style={styles.noAccount}>{t('guestJoin.noAccount')}</Text>}
+          {asUser ? null : <Text variant="bodySmall" color="text.secondary" style={styles.noAccount}>{t('guestJoin.noAccount')}</Text>}
         </View>
       </ScrollView>
     </Atmosphere>

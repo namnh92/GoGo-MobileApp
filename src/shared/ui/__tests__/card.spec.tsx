@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react-native'
 import { StyleSheet, Text } from 'react-native'
 
-import { Atmosphere, Card, GlassCard } from '@/shared/ui/primitives'
+import * as primitives from '@/shared/ui/primitives'
+import { Atmosphere, Card } from '@/shared/ui/primitives'
 import { radius, shadows, spacing, surface } from '@/shared/ui/tokens'
 
-/** #295 — `Card` per #293 §2, and the `GlassCard` alias that keeps 55 call sites unchanged. */
+/** #295 — `Card` per #293 §2. #298 removed the `GlassCard` alias; every call site is a `Card`. */
 const flat = (testID: string) => StyleSheet.flatten(screen.getByTestId(testID).props.style)
 
 describe('Card', () => {
@@ -23,16 +24,9 @@ describe('Card', () => {
   })
 })
 
-describe('GlassCard (deprecated alias)', () => {
-  it('renders an unpadded Card and ignores strong — call sites keep their own padding', async () => {
-    await render(
-      <GlassCard strong interactive style={{ padding: 12 }}>
-        <Text testID="child">x</Text>
-      </GlassCard>,
-    )
-    const card = screen.getByTestId('child').parent!
-    const style = StyleSheet.flatten(card.props.style)
-    expect(style).toMatchObject({ backgroundColor: surface.card, padding: 12 })
+describe('GlassCard', () => {
+  it('is gone (#298) — a second card component would drift from Card', () => {
+    expect(primitives).not.toHaveProperty('GlassCard')
   })
 })
 

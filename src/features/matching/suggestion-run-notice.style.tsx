@@ -1,10 +1,8 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, spacing, type } from '@/shared/ui/tokens'
-
-const { brand } = colors
+import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   actions: { alignSelf: 'stretch', gap: spacing[2] },
-  error: { ...type.bodySmall, color: brand.red, textAlign: 'center' },
+  error: { textAlign: 'center' },
 })

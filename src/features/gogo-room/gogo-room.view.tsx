@@ -5,7 +5,7 @@ import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, Platform, ScrollView, Share, Text as RNText, View } from 'react-native'
+import { AccessibilityInfo, Platform, ScrollView, Share, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -38,22 +38,11 @@ import { markRoomStepShown, planStep, runStep, wasRoomStepShown } from '@/shared
 import { alertWithHold, releaseOnReturn, useRoutingHold } from '@/shared/navigation/routing-hold'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
-import {
-  Atmosphere,
-  AvatarCircle,
-  BackHeader,
-  Chip,
-  GhostBtn,
-  Card,
-  GlassCard,
-  IconBtn,
-  PrimaryBtn,
-  SecondaryBtn,
-} from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, BackHeader, Card, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
-import { Text } from '@/shared/ui/text'
 import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
-import { colors, glyph, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { colors, spacing } from '@/shared/ui/tokens'
 
 import { resolveInviteDisplay } from './invite-state'
 import { roomScheduleLabel, roomScheduleRange } from './room-schedule'
@@ -237,7 +226,6 @@ export default function GoGoRoomScreen() {
     }
     markRoomStepShown(validRoomId, nextStep)
   }, [validRoomId, nextStep, nextPath, focused, routingHold.held, startFailures, navTick, navigation, router])
-
 
   // A cold start can restore the room and its invites from disk before the
   // session is back. Until it is, this device's stored code is unknown, not
@@ -500,9 +488,9 @@ export default function GoGoRoomScreen() {
       </View>
       <StaleNotice error={room.isError ? room.error : null} onRetry={() => void room.refetch()} />
       {planNotice ? (
-        <RNText accessibilityLiveRegion="polite" style={styles.notice}>
+        <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {planNotice === PLAN_RETRY_NOTICE ? t('gogoRoom.planRetry') : t('gogoRoom.planUnavailable')}
-        </RNText>
+        </Text>
       ) : null}
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[8] }}>
         {roomType === 'group' ? (
@@ -520,18 +508,18 @@ export default function GoGoRoomScreen() {
               ))}
               {members.length > VISIBLE_AVATARS && (
                 <View style={[styles.avatarWrap, styles.morePeople]}>
-                  <RNText style={styles.morePeopleLabel}>+{members.length - VISIBLE_AVATARS}</RNText>
+                  <Text variant="label" color="text.secondary">+{members.length - VISIBLE_AVATARS}</Text>
                 </View>
               )}
             </View>
-            <RNText style={styles.joined}>
+            <Text variant="bodySmall" color="text.secondary" style={styles.joined}>
               {t('gogoRoom.joined', { joined: members.length, total: participantCount })}
-            </RNText>
+            </Text>
           </View>
         ) : (
           <View style={styles.couplePair}>
             <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={64} imageUri={members[0]?.avatarUrl} />
-            <RNText style={{ fontSize: glyph.sm }}>+</RNText>
+            <Glyph size="sm">+</Glyph>
             {members[1] ? (
               <AvatarCircle
                 label={initial(members[1].displayName)}
@@ -547,8 +535,8 @@ export default function GoGoRoomScreen() {
           </View>
         )}
 
-        <RNText style={styles.title}>{summary.title?.trim() || t('gogoRoom.title', { context: roomType })}</RNText>
-        <RNText style={styles.body}>{t('gogoRoom.body', { context: roomType })}</RNText>
+        <Text variant="display" style={styles.title}>{summary.title?.trim() || t('gogoRoom.title', { context: roomType })}</Text>
+        <Text color="text.secondary" style={styles.body}>{t('gogoRoom.body', { context: roomType })}</Text>
 
         {/* What the room is actually constrained by — facts, composed here. */}
         {summary.constraints ? (
@@ -588,9 +576,9 @@ export default function GoGoRoomScreen() {
         {/* Per-member status, not just a count (spec §16). */}
         {members.length > 0 ? (
           <>
-            <RNText style={styles.sectionTitle}>
+            <Text variant="title2" style={styles.sectionTitle}>
               {t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })}
-            </RNText>
+            </Text>
             <View style={styles.progressTrack}>
               <View
                 style={[
@@ -603,7 +591,7 @@ export default function GoGoRoomScreen() {
               {members.map((member: RoomMember, index: number) => {
                 const chip = STATUS_CHIP[member.selectionStatus]
                 return (
-                  <GlassCard key={member.id} style={styles.memberRow}>
+                  <Card padded={false} key={member.id} style={styles.memberRow}>
                     <AvatarCircle
                       label={initial(member.displayName)}
                       size={40}
@@ -611,20 +599,20 @@ export default function GoGoRoomScreen() {
                       imageUri={member.avatarUrl}
                     />
                     <View style={styles.memberNameRow}>
-                      <RNText style={styles.memberName} numberOfLines={1}>{member.displayName}</RNText>
+                      <Text style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
                       {member.role === 'host' ? (
                         <View style={styles.hostBadge}>
-                          <RNText style={styles.hostBadgeLabel}>{t('gogoRoom.hostBadge')}</RNText>
+                          <Text variant="caption" color="accent.onSoft">{t('gogoRoom.hostBadge')}</Text>
                         </View>
                       ) : null}
                       {member.isGuest ? (
                         <View style={styles.guestBadge}>
-                          <RNText style={styles.guestBadgeLabel}>{t('gogoRoom.guestBadge')}</RNText>
+                          <Text variant="caption" color="status.infoText">{t('gogoRoom.guestBadge')}</Text>
                         </View>
                       ) : null}
                     </View>
                     <Chip label={t(chip.key)} variant={chip.variant} />
-                  </GlassCard>
+                  </Card>
                 )
               })}
             </View>
@@ -636,16 +624,16 @@ export default function GoGoRoomScreen() {
             <Text variant="caption" color="text.secondary" style={styles.cardHeading}>{t('gogoRoom.codeLabel')}</Text>
             {/* A room past collecting refuses new invites (409) and joins (410):
                 say so rather than show controls that cannot work (RULE-CORE-016). */}
-            {!joinable ? <RNText style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</RNText> : null}
+            {!joinable ? <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</Text> : null}
             {joinable && inviteDisplay.kind === 'none' ? (
               <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite}
                 loading={createInvite.isPending} disabled={createInvite.isPending || (createInvite.isError && !isRetryable(createInvite.error))} />
             ) : null}
             {joinable && inviteDisplay.kind === 'active-elsewhere' ? (
               <>
-                <RNText style={styles.inviteNote}>
+                <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>
                   {t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })}
-                </RNText>
+                </Text>
                 <SecondaryBtn
                   label={t('gogoRoom.reissueInvite')}
                   onPress={() => confirmReissue(inviteDisplay.inviteIds)}
@@ -655,15 +643,15 @@ export default function GoGoRoomScreen() {
             ) : null}
             {joinable && inviteDisplay.kind === 'unknown' ? (
               <>
-                <RNText accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.invitesLoadFailed')}</RNText>
+                <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.invitesLoadFailed')}</Text>
                 <GhostBtn label={t('common.retry')} onPress={() => void invites.refetch()} />
               </>
             ) : null}
             {reissueFailed ? (
-              <RNText accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.reissueFailed')}</RNText>
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.reissueFailed')}</Text>
             ) : null}
             {createInvite.isError ? (
-              <RNText accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.inviteFailed')}</RNText>
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.inviteFailed')}</Text>
             ) : null}
             <View style={styles.codeRow}>
               {/* `selectable` so the code can still be lifted by hand if the
@@ -741,13 +729,13 @@ export default function GoGoRoomScreen() {
           <SecondaryBtn label={t('gogoRoom.partialContinue')} onPress={confirmPartialMatching} loading={startMatching.isPending} />
         ) : null}
         {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
-          <RNText style={styles.body}>{t('gogoRoom.quorumRequired')}</RNText>
+          <Text color="text.secondary" style={styles.body}>{t('gogoRoom.quorumRequired')}</Text>
         ) : null}
 
         {startMatching.isError ? (
-          <RNText accessibilityLiveRegion="polite" style={styles.error}>
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
             {t('gogoRoom.startFailed')}
-          </RNText>
+          </Text>
         ) : null}
 
         <GhostBtn
@@ -761,7 +749,7 @@ export default function GoGoRoomScreen() {
 
         <View style={styles.noApp}>
           <View style={styles.noAppDot} />
-          <RNText style={styles.noAppLabel}>{t('gogoRoom.noApp', { context: roomType })}</RNText>
+          <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
         </View>
       </ScrollView>
     </Atmosphere>

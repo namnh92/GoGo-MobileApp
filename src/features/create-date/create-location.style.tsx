@@ -1,10 +1,9 @@
-import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, type } from '@/shared/ui/tokens'
+import { StyleSheet } from 'react-native-unistyles'
+import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing[5], paddingBottom: spacing[6] },
-  title: { ...type.display, color: colors.neutral[900] },
-  body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
+  body: { marginTop: spacing[2], marginBottom: spacing[6] },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -19,9 +18,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowTitle: { ...type.body, fontWeight: '700', color: colors.neutral[900] },
-  rowSub: { ...type.bodySmall, color: colors.neutral[500] },
-  sectionTitle: { ...type.title2, color: colors.neutral[900], marginTop: spacing[4], marginBottom: spacing[3] },
+  sectionTitle: { marginTop: spacing[4], marginBottom: spacing[3] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   radiusBtn: {
     width: '48%',
@@ -30,10 +27,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radiusLabel: { ...type.label },
   locationFallback: {
-    ...type.bodySmall,
-    color: colors.brand.amber,
     marginTop: spacing[2],
   },
   /** ADR-0022 — a profile default offered as a chip, never applied on its own. */

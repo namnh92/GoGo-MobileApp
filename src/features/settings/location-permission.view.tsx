@@ -1,11 +1,12 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, AppState, Linking, Text, View } from 'react-native'
+import { ActivityIndicator, AppState, Linking, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
-import { GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { IconMapPin } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
 
 import { styles } from './location-permission.style'
 
@@ -88,24 +89,24 @@ export function LocationPermissionSection() {
   const blocked = state === 'denied' || state === 'unavailable'
 
   return (
-    <GlassCard style={styles.card}>
+    <Card padded={false} style={styles.card}>
       <View style={styles.statusRow}>
         <View style={styles.statusIcon}>
           <IconMapPin />
         </View>
         <View style={styles.statusText}>
-          <Text style={styles.statusTitle}>{t('locationSettings.statusTitle')}</Text>
+          <Text variant="title2">{t('locationSettings.statusTitle')}</Text>
           {state === 'checking' ? (
             <ActivityIndicator color={theme.accent.primary} style={{ alignSelf: 'flex-start' }} />
           ) : (
-            <Text accessibilityLiveRegion="polite" style={blocked ? styles.statusBlocked : styles.status}>
+            <Text variant={!(blocked) ? 'bodySmall' : blocked ? 'bodySmall' : undefined} color={!(blocked) ? 'text.primary' : blocked ? 'status.warningText' : undefined} accessibilityLiveRegion="polite">
               {t(`locationSettings.status.${state}`)}
             </Text>
           )}
         </View>
       </View>
 
-      <Text style={styles.body}>{t('locationSettings.body')}</Text>
+      <Text>{t('locationSettings.body')}</Text>
 
       {state === 'denied' ? (
         <View style={styles.actions}>
@@ -121,8 +122,8 @@ export function LocationPermissionSection() {
         </View>
       ) : null}
 
-      <Text style={styles.note}>{t('locationSettings.note')}</Text>
+      <Text variant="caption" color="text.secondary">{t('locationSettings.note')}</Text>
       <GhostBtn label={t('permissionsSettings.areaInAccount')} onPress={() => router.push('/settings/account')} />
-    </GlassCard>
+    </Card>
   )
 }

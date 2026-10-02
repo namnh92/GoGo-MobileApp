@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
@@ -10,7 +10,8 @@ import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
-import { colors, spacing, onDark } from '@/shared/ui/tokens'
+import { Text } from '@/shared/ui/text'
+import { colors, spacing } from '@/shared/ui/tokens'
 import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, tierForAmount, type BudgetTier } from './budget-tiers'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-budget.style'
@@ -56,8 +57,8 @@ export default function CreateBudgetScreen() {
     <Atmosphere>
       <WizardStep step="budget" onBack={() => router.back()} />
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
-        <Text style={styles.title}>{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
-        <Text style={styles.body}>{subtitle}</Text>
+        <Text variant="display">{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
+        <Text color="text.secondary" style={styles.body}>{subtitle}</Text>
 
         {offerUsual && usualTier ? (
           <View style={styles.prefillRow}>
@@ -82,10 +83,10 @@ export default function CreateBudgetScreen() {
                 style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>
+                  <Text variant="title2" color={active ? 'accent.onAccent' : 'text.primary'}>
                     {t(`createBudget.tier.${tier.key}`)}
                   </Text>
-                  <Text style={[styles.optionSub, { color: active ? onDark.medium : colors.neutral[500] }]}>
+                  <Text variant="bodySmall" color={active ? 'onDark.medium' : 'text.secondary'} style={styles.optionSub}>
                     {t(`createBudget.tier.${tier.key}.sub`)}
                   </Text>
                 </View>

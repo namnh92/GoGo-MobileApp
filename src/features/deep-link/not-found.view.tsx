@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
 
-import { Atmosphere, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, SecondaryBtn } from '@/shared/ui/primitives'
+import { Glyph, Text } from '@/shared/ui/text'
 
 import { styles } from './share-link.style'
 
@@ -21,13 +22,13 @@ export default function NotFoundScreen() {
   return (
     <Atmosphere>
       <View style={styles.centre}>
-        <GlassCard style={styles.card}>
-          <Text style={styles.emoji}>🧭</Text>
-          <Text accessibilityRole="header" style={styles.title}>
+        <Card padded={false} style={styles.card}>
+          <Glyph size="xl">🧭</Glyph>
+          <Text variant="title1" accessibilityRole="header" style={styles.title}>
             {t('notFound.title')}
           </Text>
-          <Text style={styles.body}>{t('notFound.body')}</Text>
-        </GlassCard>
+          <Text color="text.secondary" style={styles.body}>{t('notFound.body')}</Text>
+        </Card>
         <View style={styles.actions}>
           <SecondaryBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} />
         </View>

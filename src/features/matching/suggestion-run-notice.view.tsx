@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
 
 import { useGenerateSuggestions } from '@/shared/api'
 import { EmptyState } from '@/shared/ui/async-state.view'
 import { GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 
 import { regenerateFailure } from './run-state'
 import { styles } from './suggestion-run-notice.style'
@@ -55,7 +56,7 @@ export function SuggestionRunNotice({
             />
           ) : null}
           {isHost && regenerate.isError ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
               {t(({
                 race: 'matchResult.regenerateRace',
                 quorum: 'gogoRoom.quorumRequired',

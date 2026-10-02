@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -30,9 +31,10 @@ import { allScopes, costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, Chip, GhostBtn, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconZap } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
@@ -209,14 +211,14 @@ export default function MatchResultScreen() {
           <PlacePhoto placeId={winner.placeId} name={winner.name} uri={null} style={StyleSheet.absoluteFill} />
           <View style={styles.heroScrim} />
           <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeLabel}>
+            <Text variant="label" color="text.inverse">
               ⚡ {roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')}
             </Text>
           </View>
           <View style={styles.heroBottom}>
-            <Text style={styles.heroTitle}>{winner.name}</Text>
+            <Text variant="display" color="text.inverse">{winner.name}</Text>
             {roomType === 'group' && winnerTally ? (
-              <Text style={styles.heroVotes}>
+              <Text variant="label" color="onDark.strong" style={styles.heroVotes}>
                 {t('matchResult.groupVotes', {
                   likes: (winnerTally.yes ?? 0) + (winnerTally.star ?? 0),
                   total: participantCount,
@@ -225,7 +227,7 @@ export default function MatchResultScreen() {
               </Text>
             ) : null}
             {plan.data?.totals ? (
-              <Text style={styles.heroMeta}>
+              <Text variant="bodySmall" color="onDark.medium" style={styles.heroMeta}>
                 ⏱ {Math.round((plan.data.totals.durationMinutes ?? 0) / 60)}h · 💰{' '}
                 {/* Spec §36.2: the per-person figure and the group figure together. */}
                 {allScopes(planCost(toPlanSummary(plan.data), room.data ? toRoomAudience(room.data) : null, t))
@@ -246,17 +248,17 @@ export default function MatchResultScreen() {
         ) : null}
 
         {isStale ? (
-          <Text accessibilityLiveRegion="polite" style={styles.staleWarning}>
+          <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.staleWarning}>
             ⚠️ {t('matchResult.staleCause')}
           </Text>
         ) : null}
 
         {/* Why this one — the explainable part of the score, straight from the
             pipeline rather than a written-in list. */}
-        <GlassCard style={styles.reasonCard}>
+        <Card padded={false} style={styles.reasonCard}>
           <View style={styles.reasonTitleRow}>
             <IconZap />
-            <Text style={styles.reasonTitle}>{t('matchResult.whyTitle')}</Text>
+            <Text variant="title2">{t('matchResult.whyTitle')}</Text>
           </View>
           {winner.reasonCodes.map(code => (
             <View key={code} style={styles.reasonRow}>
@@ -267,12 +269,12 @@ export default function MatchResultScreen() {
           {winner.reasonCodes.length === 0 ? (
             <Text style={styles.reasonLabel}>{t('matchResult.noReasons')}</Text>
           ) : null}
-        </GlassCard>
+        </Card>
 
         {/* The rest of the ranking, with its real tally. */}
         {candidates.length > 1 ? (
           <View style={styles.runnersUp}>
-            <Text style={styles.runnersUpTitle}>{t('matchResult.runnersUp')}</Text>
+            <Text variant="title2" style={styles.runnersUpTitle}>{t('matchResult.runnersUp')}</Text>
             {candidates.filter(candidate => candidate.placeId !== winner.placeId).slice(0, 4).map(candidate => {
               const entry = tally.get(candidate.placeId)
               return (
@@ -287,15 +289,15 @@ export default function MatchResultScreen() {
                     : router.push(`/places/${candidate.placeId}`)}
                   style={styles.runnerAction}
                 >
-                  <GlassCard style={styles.runnerRow}>
+                  <Card padded={false} style={styles.runnerRow}>
                     <View style={styles.runnerRank}>
-                      <Text style={styles.runnerRankLabel}>{candidate.rank}</Text>
+                      <Text variant="caption" color="text.secondary">{candidate.rank}</Text>
                     </View>
-                    <Text style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
-                    <Text style={styles.runnerPoints}>
+                    <Text variant="title2" style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
+                    <Text variant="label" color="text.secondary">
                       {t('matchResult.points', { count: entry?.points ?? candidate.points })}
                     </Text>
-                  </GlassCard>
+                  </Card>
                 </Pressable>
               )
             })}
@@ -322,7 +324,7 @@ export default function MatchResultScreen() {
               disabled={isStale || room.data?.status !== 'matching' || (decisionMode === 'vote' && !hasVotes)}
             />
           ) : (
-            <Text style={styles.waitingHost}>
+            <Text variant="bodySmall" color="text.secondary" style={styles.waitingHost}>
               {t(
                 isStale
                   ? 'matchResult.staleWaiting'
@@ -348,7 +350,7 @@ export default function MatchResultScreen() {
 
           <GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />
           {finalize.isError && !staleRejected ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
               {t(isApiError(finalize.error) ? ({
                 NO_VOTES: 'matchResult.noVotes',
                 NO_SUGGESTIONS: 'matchResult.emptyBody',
@@ -357,7 +359,7 @@ export default function MatchResultScreen() {
             </Text>
           ) : null}
           {regenerate.isError ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
               {t(({
                 race: 'matchResult.regenerateRace',
                 quorum: 'gogoRoom.quorumRequired',

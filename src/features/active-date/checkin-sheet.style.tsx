@@ -1,13 +1,12 @@
-import { StyleSheet as RNStyleSheet } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, glyph, overlay, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, fill, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...fill, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -24,12 +23,9 @@ export const styles = StyleSheet.create(theme => ({
     marginBottom: spacing[4],
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[4] },
-  headerEmoji: { fontSize: glyph.md },
-  title: { ...type.title2, fontWeight: '800', color: neutral[900] },
-  stopName: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
-  rateLabel: { ...type.bodySmall, fontWeight: '700', color: neutral[900], marginBottom: spacing[2] },
+  stopName: { marginTop: 2 },
+  rateLabel: { marginBottom: spacing[2] },
   starsRow: { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[4] },
-  star: { fontSize: glyph.md },
   starDim: { opacity: 0.25 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[4] },
   tagBtn: {
@@ -39,8 +35,6 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: neutral[50],
   },
   tagBtnActive: { backgroundColor: theme.accent.primary },
-  tagLabel: { ...type.label, color: neutral[500] },
-  tagLabelActive: { color: neutral[0] },
   photoRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[4], alignItems: 'center' },
   photoThumb: { width: 64, height: 64, borderRadius: radius.compact },
   /** Sits over the thumbnail while the presign → PUT round trip is in flight. */
@@ -55,7 +49,6 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     backgroundColor: overlay.scrim,
   },
-  photoFailed: { ...type.title1, color: colors.neutral[0] },
   photoAdd: {
     width: 64,
     height: 64,
@@ -66,7 +59,6 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoAddGlyph: { fontSize: glyph.sm, color: neutral[500], lineHeight: 28 },
   addPhotoBtn: {
     height: 64,
     minWidth: 64,
@@ -80,7 +72,6 @@ export const styles = StyleSheet.create(theme => ({
     gap: 2,
   },
   addPhotoLabel: { ...type.label, color: neutral[500], textAlign: 'center' },
-  photoCount: { ...type.caption, color: neutral[500] },
   billToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -94,9 +85,9 @@ export const styles = StyleSheet.create(theme => ({
     marginBottom: spacing[3],
   },
   billToggleOn: { backgroundColor: brand.lavenderSoft, borderColor: brand.lavender },
-  billToggleLabel: { ...type.bodySmall, fontWeight: '600', color: neutral[700], flexShrink: 1 },
+  billToggleLabel: { ...type.label, color: neutral[700], flexShrink: 1 },
   billToggleLabelOn: { color: brand.lavender },
-  billToggleMark: { ...type.body, fontWeight: '800', color: brand.lavender },
+  billToggleMark: { ...type.label, color: brand.lavender },
   billBox: { gap: spacing[2], marginBottom: spacing[3] },
   billHint: { ...type.caption, color: neutral[500] },
   billInput: {
@@ -113,7 +104,7 @@ export const styles = StyleSheet.create(theme => ({
   billInputTotal: { flex: 1.6 },
   billInputPeople: { flex: 1 },
   billPeopleHint: { ...type.caption, color: neutral[500] },
-  billPerPerson: { ...type.label, fontWeight: '700', color: theme.accent.primary },
+  billPerPerson: { ...type.label, color: theme.accent.primary },
   billPhotoBtn: {
     height: 44,
     borderRadius: radius.compact,
@@ -138,10 +129,9 @@ export const styles = StyleSheet.create(theme => ({
     marginBottom: spacing[3],
   },
   /** #278 — a check-in that did not land; the sheet stays open for the retry. */
-  saveFailed: { ...type.bodySmall, color: brand.red, marginBottom: spacing[3], textAlign: 'center' },
+  saveFailed: { marginBottom: spacing[3], textAlign: 'center' },
   saveBtn: { alignSelf: 'stretch' },
   skipBtn: { alignItems: 'center', paddingVertical: spacing[3] },
   skipBtnDisabled: { opacity: 0.45 },
-  skipLabel: { ...type.bodySmall, fontWeight: '500', color: neutral[500] },
-  unavailableNote: { ...type.caption, color: colors.neutral[500], marginTop: spacing[3] },
+  unavailableNote: { marginTop: spacing[3] },
 }))

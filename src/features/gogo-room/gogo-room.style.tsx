@@ -23,9 +23,7 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Was body at 700 — not a style on the scale. `label` is the heavier face.
-  morePeopleLabel: { ...theme.type.label, color: theme.text.secondary },
-  joined: { ...theme.type.bodySmall, color: theme.text.secondary, marginTop: theme.spacing[3] },
+  joined: { marginTop: theme.spacing[3] },
   couplePair: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -45,18 +43,14 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { ...theme.type.display, color: theme.text.primary, textAlign: 'center' },
+  title: { textAlign: 'center' },
   body: {
-    ...theme.type.body,
-    color: theme.text.secondary,
     textAlign: 'center',
     marginTop: theme.spacing[2],
     marginBottom: theme.spacing[6],
   },
-  error: { ...theme.type.bodySmall, color: theme.status.dangerText, textAlign: 'center', marginTop: theme.spacing[3] },
+  error: { textAlign: 'center', marginTop: theme.spacing[3] },
   notice: {
-    ...theme.type.bodySmall,
-    color: theme.text.secondary,
     textAlign: 'center',
     marginTop: theme.spacing[3],
     paddingHorizontal: theme.spacing[5],
@@ -65,7 +59,7 @@ export const styles = StyleSheet.create(theme => ({
   /** Info cards (#293 §3): padded `Card`, caption heading, body content. */
   codeCard: { marginBottom: theme.spacing[4] },
   cardHeading: { marginBottom: theme.spacing[2] },
-  inviteNote: { ...theme.type.bodySmall, color: theme.text.secondary, marginBottom: theme.spacing[3] },
+  inviteNote: { marginBottom: theme.spacing[3] },
   codeRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
   codeSkeleton: { flex: 1, height: theme.spacing[6] },
   /**
@@ -87,7 +81,6 @@ export const styles = StyleSheet.create(theme => ({
     gap: theme.spacing[2],
   },
   noAppDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.status.success },
-  noAppLabel: { ...theme.type.bodySmall, color: theme.text.secondary },
 
   /** Per-member status (spec §16) — the lobby's actual information. */
   memberList: { gap: theme.spacing[2], marginBottom: theme.spacing[5] },
@@ -103,24 +96,22 @@ export const styles = StyleSheet.create(theme => ({
   memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], flex: 1 },
   // Was body at 600. Regular: the avatar, the badge and the status chip carry
   // the row's hierarchy; the name does not need a face of its own.
-  memberName: { ...theme.type.body, color: theme.text.primary, flexShrink: 1 },
+  memberName: { flexShrink: 1 },
   hostBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: theme.radius.pill,
     backgroundColor: theme.accent.soft,
   },
-  hostBadgeLabel: { ...theme.type.caption, color: theme.accent.onSoft },
   guestBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: theme.radius.pill,
     backgroundColor: theme.status.infoSoft,
   },
-  guestBadgeLabel: { ...theme.type.caption, color: theme.status.infoText },
   constraintsCard: { marginBottom: theme.spacing[4], gap: theme.spacing[2] },
   constraintsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
-  sectionTitle: { ...theme.type.title2, color: theme.text.primary, marginBottom: theme.spacing[3] },
+  sectionTitle: { marginBottom: theme.spacing[3] },
   progressTrack: {
     height: 6,
     borderRadius: 3,

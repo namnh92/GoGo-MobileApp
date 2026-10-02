@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMe, useMyReviews, useNotificationSettings, useSaved } from '@/shared/api'
 import { track } from '@/shared/analytics'
@@ -12,9 +12,10 @@ import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/si
 import { locales } from '@/shared/i18n'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
-import { Atmosphere, AvatarCircle, GlassCard, useBottomBarInset } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, useBottomBarInset } from '@/shared/ui/primitives'
 import { IconChevronRight } from '@/shared/ui/icons'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 import { SETTINGS_ROWS } from './profile-settings-rows'
 import { styles } from './profile.style'
 
@@ -98,9 +99,9 @@ export default function ProfileScreen() {
             imageUri={me.data?.avatarUrl}
           />
           <View>
-            <Text style={styles.name}>{me.data?.displayName ?? t('profile.guestName')}</Text>
+            <Text variant="title1">{me.data?.displayName ?? t('profile.guestName')}</Text>
             {/* Guests have no email; showing a placeholder would be a lie. */}
-            <Text style={styles.email}>{me.data?.email ?? t('profile.guestSubtitle')}</Text>
+            <Text variant="bodySmall" color="text.secondary" style={styles.email}>{me.data?.email ?? t('profile.guestSubtitle')}</Text>
           </View>
         </View>
 
@@ -125,19 +126,19 @@ export default function ProfileScreen() {
               onPress={() => router.push(shortcut.route)}
               style={{ flex: 1 }}
             >
-              <GlassCard style={styles.shortcut}>
+              <Card padded={false} style={styles.shortcut}>
                 {/* A dash, not a zero: an unknown count and an empty list are
                     different facts, and only one of them is reassuring. */}
-                <Text style={shortcut.count == null ? styles.shortcutValueMuted : styles.shortcutValue}>
+                <Text variant={!(shortcut.count == null) ? 'title1' : shortcut.count == null ? 'title1' : undefined} color={!(shortcut.count == null) ? 'text.primary' : shortcut.count == null ? 'text.secondary' : undefined}>
                   {shortcut.count ?? '—'}
                 </Text>
-                <Text style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
-              </GlassCard>
+                <Text variant="caption" color="text.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
+              </Card>
             </Pressable>
           ))}
         </View>
 
-        <GlassCard style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
+        <Card padded={false} style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
           {SETTINGS_ROWS.map((row, index) => (
             <Pressable
               key={row.key}
@@ -151,23 +152,23 @@ export default function ProfileScreen() {
             >
               {/* Genuinely disabled (`disabled={!row.route}` above), so the lighter
                   neutral is the signal rather than a contrast failure. */}
-              <Text style={[styles.settingLabel, !row.route && { color: colors.neutral[300] }]}>
+              <Text color={row.route ? 'text.primary' : 'text.tertiary'}>
                 {t(`profile.settings.${row.key}`)}
               </Text>
               {row.route ? (
                 <IconChevronRight />
               ) : (
-                <Text style={styles.settingPending}>{t('profile.settings.comingSoon')}</Text>
+                <Text variant="caption" color="text.tertiary">{t('profile.settings.comingSoon')}</Text>
               )}
             </Pressable>
           ))}
-        </GlassCard>
+        </Card>
 
         {/* Demo controls (dev only): audience × UI state are independent
             dimensions (spec v3 §22); stripped from production builds. */}
         {__DEV__ && (
-          <GlassCard style={styles.card}>
-            <Text style={styles.caption}>Demo · {env.name}</Text>
+          <Card padded={false} style={styles.card}>
+            <Text variant="caption" color="text.secondary" style={styles.caption}>Demo · {env.name}</Text>
             <View style={styles.segmentRow}>
               {audiences.map(a => (
                 <Pressable
@@ -176,7 +177,7 @@ export default function ProfileScreen() {
                   onPress={() => room.setAudience(a)}
                   style={[styles.segmentBtn, room.audience === a && styles.segmentBtnActive]}
                 >
-                  <Text style={[styles.segmentLabel, room.audience === a && styles.segmentLabelActive]}>{a}</Text>
+                  <Text variant="caption" color={room.audience === a ? 'text.inverse' : 'text.secondary'}>{a}</Text>
                 </Pressable>
               ))}
             </View>
@@ -188,7 +189,7 @@ export default function ProfileScreen() {
                   onPress={() => room.setUiState(s)}
                   style={[styles.segmentBtn, room.uiState === s && styles.segmentBtnActive]}
                 >
-                  <Text style={[styles.segmentLabel, room.uiState === s && styles.segmentLabelActive]}>{s}</Text>
+                  <Text variant="caption" color={room.uiState === s ? 'text.inverse' : 'text.secondary'}>{s}</Text>
                 </Pressable>
               ))}
             </View>
@@ -200,11 +201,11 @@ export default function ProfileScreen() {
                   onPress={() => void i18n.changeLanguage(l)}
                   style={[styles.segmentBtn, i18n.resolvedLanguage === l && styles.segmentBtnActive]}
                 >
-                  <Text style={[styles.segmentLabel, i18n.resolvedLanguage === l && styles.segmentLabelActive]}>{l.toUpperCase()}</Text>
+                  <Text variant="caption" color={i18n.resolvedLanguage === l ? 'text.inverse' : 'text.secondary'}>{l.toUpperCase()}</Text>
                 </Pressable>
               ))}
             </View>
-          </GlassCard>
+          </Card>
         )}
 
         {status === 'anonymous' ? (
@@ -213,7 +214,7 @@ export default function ProfileScreen() {
             style={styles.logout}
             onPress={() => router.push('/auth/sign-in')}
           >
-            <Text style={styles.logoutLabel}>{t('auth.signInCta')}</Text>
+            <Text variant="label" color="accent.primary">{t('auth.signInCta')}</Text>
           </Pressable>
         ) : (
           <Pressable
@@ -223,13 +224,13 @@ export default function ProfileScreen() {
             accessibilityRole="button"
             accessibilityState={{ disabled: signingOut, busy: signingOut }}
           >
-            <Text style={styles.logoutLabel}>
+            <Text variant="label" color="accent.primary">
               {signingOut ? t('profile.loggingOut') : t('profile.logout')}
             </Text>
           </Pressable>
         )}
         {signOutFailure && (
-          <Text accessibilityLiveRegion="polite" style={styles.logoutError}>
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.logoutError}>
             {/* A literal lookup, so the i18n key scan reads every key this can
                 ask for, and `satisfies` makes tsc demand copy for every reason. */}
             {t(

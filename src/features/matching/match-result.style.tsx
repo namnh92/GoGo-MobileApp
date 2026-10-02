@@ -1,6 +1,5 @@
-import { StyleSheet as RNStyleSheet } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, radius, spacing, glassFx, onDark, overlay, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, fill, glassFx, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -11,7 +10,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.hero,
     overflow: 'hidden',
   },
-  heroScrim: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.scrim },
+  heroScrim: { ...fill, backgroundColor: overlay.scrim },
   heroBadge: {
     position: 'absolute',
     top: spacing[4],
@@ -21,11 +20,9 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
-  heroBadgeLabel: { ...type.label, color: neutral[0], fontWeight: '700' },
   heroBottom: { position: 'absolute', bottom: spacing[4], left: spacing[4], right: spacing[4] },
-  heroTitle: { ...type.display, color: neutral[0] },
-  heroVotes: { ...type.label, color: onDark.strong, marginTop: 4 },
-  heroMeta: { ...type.bodySmall, color: onDark.medium, marginTop: spacing[2] },
+  heroVotes: { marginTop: 4 },
+  heroMeta: { marginTop: spacing[2] },
   stopsRow: {
     flexDirection: 'row',
     gap: spacing[3],
@@ -42,9 +39,8 @@ export const styles = StyleSheet.create(theme => ({
   stopChipLabel: { ...type.label, color: neutral[500] },
   reasonCard: { marginHorizontal: spacing[5], marginTop: spacing[4], padding: spacing[5] },
   reasonTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
-  reasonTitle: { ...type.title2, color: neutral[900] },
   reasonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  reasonLabel: { ...type.body, color: neutral[700], flex: 1 },
+  reasonLabel: { flex: 1 },
   diffCard: {
     position: 'absolute',
     left: spacing[5],
@@ -57,7 +53,7 @@ export const styles = StyleSheet.create(theme => ({
   },
   diffLine: { ...type.label, color: neutral[0], marginTop: 2 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...fill, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -99,7 +95,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.compact,
     padding: spacing[3],
   },
-  lockTitle: { ...type.label, fontWeight: '700', color: neutral[900], marginBottom: spacing[2] },
+  lockTitle: { ...type.label, color: neutral[900], marginBottom: spacing[2] },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: 6 },
   radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },
@@ -112,15 +108,13 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  submitLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
+  submitLabel: { ...type.label, color: neutral[0] },
   staleWarning: {
     marginHorizontal: spacing[5],
     marginTop: spacing[3],
-    ...type.bodySmall,
-    color: brand.amber,
   },
   runnersUp: { paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] },
-  runnersUpTitle: { ...type.title2, color: neutral[900], marginBottom: spacing[1] },
+  runnersUpTitle: { marginBottom: spacing[1] },
   runnerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -128,10 +122,9 @@ export const styles = StyleSheet.create(theme => ({
     padding: spacing[3],
     gap: spacing[3],
   },
-  runnerName: { flex: 1, ...type.body, fontWeight: '600', color: neutral[900] },
-  runnerPoints: { ...type.label, color: neutral[500] },
-  waitingHost: { ...type.bodySmall, color: neutral[500], textAlign: 'center', paddingVertical: spacing[3] },
-  error: { ...type.bodySmall, color: brand.red, textAlign: 'center' },
+  runnerName: { flex: 1 },
+  waitingHost: { textAlign: 'center', paddingVertical: spacing[3] },
+  error: { textAlign: 'center' },
 
   /** Facts under the hero — price, distance and open state (spec §19). */
   factRow: {
@@ -151,7 +144,6 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  runnerRankLabel: { ...type.caption, fontWeight: '700', color: neutral[500] },
   runnerAction: {
     minHeight: touchTarget.min,
     justifyContent: 'center',

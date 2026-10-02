@@ -1,7 +1,6 @@
-import { StyleSheet as RNStyleSheet } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, fill, glassFx, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -14,7 +13,7 @@ export const styles = StyleSheet.create(theme => ({
   // --- gallery -------------------------------------------------------------
   gallery: { height: GALLERY_HEIGHT },
   galleryPage: { height: GALLERY_HEIGHT },
-  imageScrim: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.scrimLight },
+  imageScrim: { ...fill, backgroundColor: overlay.scrimLight },
   galleryDots: {
     position: 'absolute',
     bottom: spacing[7],
@@ -33,7 +32,6 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.pill,
     backgroundColor: overlay.scrimStrong,
   },
-  galleryCountLabel: { ...type.caption, color: neutral[0], fontWeight: '700' },
 
   backBtn: {
     position: 'absolute',
@@ -62,8 +60,7 @@ export const styles = StyleSheet.create(theme => ({
   // being read, while the bar below is about what to do next.
   identityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
   identityText: { flex: 1 },
-  name: { ...type.display, color: neutral[900] },
-  meta: { ...type.body, color: neutral[500], marginTop: 4 },
+  meta: { marginTop: 4 },
 
   // --- fact strip ----------------------------------------------------------
   factStrip: {
@@ -76,20 +73,15 @@ export const styles = StyleSheet.create(theme => ({
   },
   fact: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: spacing[2] },
   factDivider: { width: 1, backgroundColor: neutral[100], marginVertical: spacing[1] },
-  factValue: { ...type.title2, color: neutral[900], textAlign: 'center' },
-  factValueMuted: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
-  factCaption: { ...type.caption, color: neutral[500], textAlign: 'center' },
+  factValue: { textAlign: 'center' },
+  factValueMuted: { textAlign: 'center' },
+  factCaption: { textAlign: 'center' },
 
   openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
   openDot: { width: 8, height: 8, borderRadius: 4 },
-  open: { ...type.label, color: theme.status.successText },
-  closed: { ...type.label, color: neutral[500] },
-  hoursToggle: { ...type.bodySmall, color: theme.accent.primary, marginLeft: 'auto' },
+  hoursToggle: { marginLeft: 'auto' },
   hoursTable: { marginTop: spacing[2], gap: 4, paddingLeft: spacing[4] },
   hoursRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  hoursDay: { ...type.bodySmall, color: neutral[500] },
-  hoursValue: { ...type.bodySmall, color: neutral[900] },
-  hoursToday: { fontWeight: '700' },
 
   // --- address + map -------------------------------------------------------
   addressCard: {
@@ -100,7 +92,7 @@ export const styles = StyleSheet.create(theme => ({
   },
   mapPreview: { height: 140 },
   mapFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[4] },
-  mapFallbackLabel: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
+  mapFallbackLabel: { textAlign: 'center' },
   addressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], padding: spacing[4] },
   addressIcon: {
     width: 40,
@@ -110,10 +102,10 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addressLabel: { ...type.bodySmall, color: neutral[700], flex: 1 },
+  addressLabel: { flex: 1 },
 
   // --- sections ------------------------------------------------------------
-  sectionTitle: { ...type.title2, color: neutral[900], marginTop: spacing[6], marginBottom: spacing[3] },
+  sectionTitle: { marginTop: spacing[6], marginBottom: spacing[3] },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
 
   // --- ratings -------------------------------------------------------------
@@ -127,10 +119,6 @@ export const styles = StyleSheet.create(theme => ({
     minHeight: 96,
     justifyContent: 'center',
   },
-  ratingSource: { ...type.caption, color: neutral[500], fontWeight: '700' },
-  ratingValue: { ...type.title1, color: neutral[900] },
-  ratingCount: { ...type.caption, color: neutral[500] },
-  ratingEmpty: { ...type.bodySmall, color: neutral[500], lineHeight: 18 },
 
   // --- suitability ---------------------------------------------------------
   suitCard: {
@@ -146,10 +134,10 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: 6,
     gap: spacing[3],
   },
-  suitLabel: { ...type.bodySmall, color: neutral[700], flex: 1 },
+  suitLabel: { flex: 1 },
   suitTrack: { width: 84, height: 6, borderRadius: 3, backgroundColor: neutral[100], overflow: 'hidden' },
   suitFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 3 },
-  suitValue: { ...type.label, color: neutral[900], width: 28, textAlign: 'right' },
+  suitValue: { width: 28, textAlign: 'right' },
 
   factsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
   factCard: {
@@ -160,10 +148,10 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     gap: spacing[2],
   },
-  factLabel: { ...type.bodySmall, color: neutral[700], flexShrink: 1 },
+  factLabel: { flexShrink: 1 },
 
   // --- trust ---------------------------------------------------------------
-  attribution: { ...type.caption, color: neutral[500], marginTop: spacing[2] },
+  attribution: { marginTop: spacing[2] },
   trustCard: {
     marginTop: spacing[6],
     borderRadius: radius.card,
@@ -173,10 +161,8 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[2],
   },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  updated: { ...type.bodySmall, color: neutral[500], flex: 1 },
+  updated: { flex: 1 },
   report: { ...type.label, color: neutral[500], textDecorationLine: 'underline' },
-  reportDisabled: { ...type.label, color: neutral[300] },
-  reportHint: { ...type.caption, color: neutral[500] },
 
   // --- sticky actions ------------------------------------------------------
   // Position, gutter, glass and hairline are `GlassBar`'s (#296).
@@ -209,5 +195,4 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     gap: 6,
   },
-  dirLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
 }))

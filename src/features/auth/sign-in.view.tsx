@@ -3,13 +3,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import type { MessageKey } from '@/shared/i18n/types'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
@@ -186,8 +187,8 @@ export default function SignInScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>{t(mode === 'signIn' ? 'auth.signInTitle' : 'auth.signUpTitle')}</Text>
-          <Text style={styles.body}>{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
+          <Text variant="display" style={styles.title}>{t(mode === 'signIn' ? 'auth.signInTitle' : 'auth.signUpTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
 
           <View style={styles.tabs}>
             {(['signIn', 'signUp'] as const).map(option => {
@@ -201,7 +202,7 @@ export default function SignInScreen() {
                   accessibilityState={{ selected: active, disabled: pending }}
                   style={[styles.tab, active && styles.tabActive, pending && styles.tabDisabled]}
                 >
-                  <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                  <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'text.primary' : 'text.secondary'}>
                     {t(option === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')}
                   </Text>
                 </Pressable>
@@ -209,14 +210,14 @@ export default function SignInScreen() {
             })}
           </View>
 
-          <GlassCard style={styles.card}>
+          <Card padded={false} style={styles.card}>
             {mode === 'signUp' ? (
               <Controller
                 control={signUpForm.control}
                 name="displayName"
                 render={({ field, fieldState }) => (
                   <View style={styles.field}>
-                    <Text style={styles.label}>{t('auth.displayName')}</Text>
+                    <Text variant="label">{t('auth.displayName')}</Text>
                     <TextInput
                       ref={field.ref}
                       value={field.value}
@@ -231,7 +232,7 @@ export default function SignInScreen() {
                       accessibilityLabel={t('auth.displayName')}
                       style={[styles.input, fieldState.error && styles.inputInvalid]}
                     />
-                    {fieldState.error ? <Text style={styles.fieldError}>{t('auth.displayNameInvalid')}</Text> : null}
+                    {fieldState.error ? <Text variant="caption" color="status.dangerText">{t('auth.displayNameInvalid')}</Text> : null}
                   </View>
                 )}
               />
@@ -250,7 +251,7 @@ export default function SignInScreen() {
               name="email"
               render={({ field, fieldState }) => (
                 <View style={styles.field}>
-                  <Text style={styles.label}>{t('auth.email')}</Text>
+                  <Text variant="label">{t('auth.email')}</Text>
                   <TextInput
                     ref={field.ref}
                     value={field.value as string}
@@ -266,7 +267,7 @@ export default function SignInScreen() {
                     accessibilityLabel={t('auth.email')}
                     style={[styles.input, fieldState.error && styles.inputInvalid]}
                   />
-                  {fieldState.error ? <Text style={styles.fieldError}>{t('auth.emailInvalid')}</Text> : null}
+                  {fieldState.error ? <Text variant="caption" color="status.dangerText">{t('auth.emailInvalid')}</Text> : null}
                 </View>
               )}
             />
@@ -277,7 +278,7 @@ export default function SignInScreen() {
               name="password"
               render={({ field, fieldState }) => (
                 <View style={styles.field}>
-                  <Text style={styles.label}>{t('auth.password')}</Text>
+                  <Text variant="label">{t('auth.password')}</Text>
                   <TextInput
                     ref={field.ref}
                     value={field.value as string}
@@ -292,19 +293,19 @@ export default function SignInScreen() {
                     accessibilityLabel={t('auth.password')}
                     style={[styles.input, fieldState.error && styles.inputInvalid]}
                   />
-                  {mode === 'signUp' ? <Text style={styles.hint}>{t('auth.passwordHint')}</Text> : null}
+                  {mode === 'signUp' ? <Text variant="caption" color="text.secondary">{t('auth.passwordHint')}</Text> : null}
                   {fieldState.error ? (
-                    <Text style={styles.fieldError}>
+                    <Text variant="caption" color="status.dangerText">
                       {t(mode === 'signIn' ? 'auth.signInPasswordInvalid' : 'auth.passwordInvalid')}
                     </Text>
                   ) : null}
                 </View>
               )}
             />
-          </GlassCard>
+          </Card>
 
           {formError ? (
-            <Text accessibilityLiveRegion="polite" style={styles.formError}>
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.formError}>
               {formError}
             </Text>
           ) : null}
@@ -315,7 +316,7 @@ export default function SignInScreen() {
               onPress={mode === 'signIn' ? onSignIn : onSignUp}
               loading={pending}
             />
-            <Text style={styles.footnote}>{t('auth.guestFootnote')}</Text>
+            <Text variant="caption" color="text.secondary" style={styles.footnote}>{t('auth.guestFootnote')}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

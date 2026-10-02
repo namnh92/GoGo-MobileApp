@@ -1,16 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  useWindowDimensions,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native'
+import { useWindowDimensions, Pressable, ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -39,9 +31,10 @@ import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Chip, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, SecondaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
-import { colors, glyph, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { colors, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
 
 import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
 import { PlaceReviews } from './place-reviews.view'
@@ -220,13 +213,12 @@ export default function PlaceDetailScreen() {
               ))}
             </View>
             <View pointerEvents="none" style={styles.galleryCount}>
-              <Text style={styles.galleryCountLabel}>
+              <Text variant="caption" color="text.inverse">
                 {photoIndex + 1}/{photos.length}
               </Text>
             </View>
           </>
         ) : null}
-
 
       </View>
 
@@ -243,8 +235,8 @@ export default function PlaceDetailScreen() {
           />
           <View style={styles.identityRow}>
             <View style={styles.identityText}>
-              <Text style={styles.name}>{name}</Text>
-              {secondary ? <Text style={styles.meta}>{secondary}</Text> : null}
+              <Text variant="display">{name}</Text>
+              {secondary ? <Text color="text.secondary" style={styles.meta}>{secondary}</Text> : null}
             </View>
             {canSave ? (
               <Pressable
@@ -254,7 +246,7 @@ export default function PlaceDetailScreen() {
                 accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
                 style={[styles.saveBtn, currentlySaved && styles.saveBtnActive]}
               >
-                <Text style={{ fontSize: glyph.xs }}>{currentlySaved ? '🔖' : '📑'}</Text>
+                <Glyph size="xs">{currentlySaved ? '🔖' : '📑'}</Glyph>
               </Pressable>
             ) : null}
           </View>
@@ -264,11 +256,11 @@ export default function PlaceDetailScreen() {
           <View testID="place-detail-facts" style={styles.factStrip}>
             <View style={styles.fact}>
               {isStandalonePrice(price.unit) ? (
-                <Text style={styles.factValueMuted}>{t(priceUnitKey(price.unit))}</Text>
+                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t(priceUnitKey(price.unit))}</Text>
               ) : (
                 <>
-                  <Text style={styles.factValue} numberOfLines={1}>{price.amount}</Text>
-                  <Text style={styles.factCaption}>{t(priceUnitKey(price.unit)).replace(/^\//, '')}</Text>
+                  <Text variant="title2" style={styles.factValue} numberOfLines={1}>{price.amount}</Text>
+                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t(priceUnitKey(price.unit)).replace(/^\//, '')}</Text>
                 </>
               )}
             </View>
@@ -276,19 +268,19 @@ export default function PlaceDetailScreen() {
             <View style={styles.fact}>
               {google ? (
                 <>
-                  <Text style={styles.factValue}>★ {google.value.toFixed(1)}</Text>
-                  <Text style={styles.factCaption}>{t('rating.google')}</Text>
+                  <Text variant="title2" style={styles.factValue}>★ {google.value.toFixed(1)}</Text>
+                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('rating.google')}</Text>
                 </>
               ) : (
-                <Text style={styles.factValueMuted}>{t('placeDetail.noRating')}</Text>
+                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t('placeDetail.noRating')}</Text>
               )}
             </View>
             {detail.avgVisitMinutes != null ? (
               <>
                 <View testID="place-detail-fact-divider" style={styles.factDivider} />
                 <View style={styles.fact}>
-                  <Text style={styles.factValue}>{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
-                  <Text style={styles.factCaption}>{t('placeDetail.avgVisit')}</Text>
+                  <Text variant="title2" style={styles.factValue}>{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
+                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('placeDetail.avgVisit')}</Text>
                 </View>
               </>
             ) : null}
@@ -297,7 +289,7 @@ export default function PlaceDetailScreen() {
           {/* Colour is never the only signal — the dot repeats what the words say. */}
           <View style={styles.openRow}>
             <View style={[styles.openDot, { backgroundColor: open.openNow ? brand.mint : neutral[300] }]} />
-            <Text style={open.openNow ? styles.open : styles.closed}>{openLabel()}</Text>
+            <Text variant={!(open.openNow) ? 'label' : open.openNow ? 'label' : undefined} color={!(open.openNow) ? 'text.secondary' : open.openNow ? 'status.successText' : undefined}>{openLabel()}</Text>
             {(detail.hours ?? []).length > 0 ? (
               <Pressable
                 onPress={() => setHoursOpen(value => !value)}
@@ -305,7 +297,7 @@ export default function PlaceDetailScreen() {
                 accessibilityState={{ expanded: hoursOpen }}
                 hitSlop={hitSlop}
               >
-                <Text style={styles.hoursToggle}>
+                <Text variant="bodySmall" color="accent.primary" style={styles.hoursToggle}>
                   {t(hoursOpen ? 'placeDetail.hideHours' : 'placeDetail.showHours')}
                 </Text>
               </Pressable>
@@ -327,10 +319,10 @@ export default function PlaceDetailScreen() {
                   : t('common.closed')
                 return (
                   <View key={day} style={styles.hoursRow}>
-                    <Text style={[styles.hoursDay, day === today && styles.hoursToday]}>
+                    <Text variant={day === today ? 'label' : 'bodySmall'} color="text.secondary">
                       {t(`common.weekday.${day}`)}
                     </Text>
-                    <Text style={[styles.hoursValue, day === today && styles.hoursToday]}>{value}</Text>
+                    <Text variant={day === today ? 'label' : 'bodySmall'}>{value}</Text>
                   </View>
                 )
               })}
@@ -346,7 +338,7 @@ export default function PlaceDetailScreen() {
                   style={styles.mapPreview}
                   fallback={
                     <View style={styles.mapFallback}>
-                      <Text style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
+                      <Text variant="bodySmall" color="text.secondary" style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
                     </View>
                   }
                 />
@@ -356,7 +348,7 @@ export default function PlaceDetailScreen() {
                   <View style={styles.addressIcon}>
                     <IconMapPin />
                   </View>
-                  <Text style={styles.addressLabel}>{detail.addressText}</Text>
+                  <Text variant="bodySmall" style={styles.addressLabel}>{detail.addressText}</Text>
                 </View>
               ) : null}
             </View>
@@ -365,24 +357,24 @@ export default function PlaceDetailScreen() {
           {/* Google and GoGo measure different things and never merge into one
               star (spec §6). The contract carries no GoGo aggregate yet, so the
               second card says so in words instead of inventing a number. */}
-          <Text style={styles.sectionTitle}>{t('placeDetail.ratingsTitle')}</Text>
+          <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.ratingsTitle')}</Text>
           <View style={styles.ratingCards}>
             <View style={styles.ratingCard}>
-              <Text style={styles.ratingSource}>{t('rating.google')}</Text>
+              <Text variant="caption" color="text.secondary">{t('rating.google')}</Text>
               {google ? (
                 <>
-                  <Text style={styles.ratingValue}>★ {google.value.toFixed(1)}</Text>
+                  <Text variant="title1">★ {google.value.toFixed(1)}</Text>
                   {google.count != null ? (
-                    <Text style={styles.ratingCount}>{t('placeDetail.ratingCount', { count: google.count })}</Text>
+                    <Text variant="caption" color="text.secondary">{t('placeDetail.ratingCount', { count: google.count })}</Text>
                   ) : null}
                 </>
               ) : (
-                <Text style={styles.ratingEmpty}>{t('placeDetail.noRating')}</Text>
+                <Text variant="bodySmall" color="text.secondary">{t('placeDetail.noRating')}</Text>
               )}
             </View>
             <View style={styles.ratingCard}>
-              <Text style={styles.ratingSource}>{t('rating.gogo')}</Text>
-              <Text style={styles.ratingEmpty}>{t('rating.gogoInsufficient')}</Text>
+              <Text variant="caption" color="text.secondary">{t('rating.gogo')}</Text>
+              <Text variant="bodySmall" color="text.secondary">{t('rating.gogoInsufficient')}</Text>
             </View>
           </View>
 
@@ -392,7 +384,7 @@ export default function PlaceDetailScreen() {
 
           {vibes.length > 0 ? (
             <>
-              <Text style={styles.sectionTitle}>{t('placeDetail.goodFor')}</Text>
+              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.goodFor')}</Text>
               <View style={styles.tagRow}>
                 {vibes.map(tag => (
                   <Chip
@@ -408,15 +400,15 @@ export default function PlaceDetailScreen() {
           {/* Real suitability scores from the ranking pipeline, not invented bars. */}
           {suitability.length > 0 ? (
             <>
-              <Text style={styles.sectionTitle}>{t('placeDetail.coupleRatings')}</Text>
+              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.coupleRatings')}</Text>
               <View style={styles.suitCard}>
                 {suitability.map(([key, value]) => (
                   <View key={key} style={styles.suitRow}>
-                    <Text style={styles.suitLabel}>{taxonomyLabel('suitability', key)}</Text>
+                    <Text variant="bodySmall" style={styles.suitLabel}>{taxonomyLabel('suitability', key)}</Text>
                     <View style={styles.suitTrack}>
                       <View style={[styles.suitFill, { width: `${Math.round((value / SUITABILITY_MAX) * 100)}%` }]} />
                     </View>
-                    <Text style={styles.suitValue}>{(value * SUITABILITY_STARS).toFixed(1)}</Text>
+                    <Text variant="label" style={styles.suitValue}>{(value * SUITABILITY_STARS).toFixed(1)}</Text>
                   </View>
                 ))}
               </View>
@@ -426,13 +418,13 @@ export default function PlaceDetailScreen() {
           {/* Only attributes with real data — no generic "accessible" claims. */}
           {accessibility.length > 0 ? (
             <>
-              <Text style={styles.sectionTitle}>{t('placeDetail.attributes')}</Text>
+              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.attributes')}</Text>
               <View style={styles.factsGrid}>
                 {accessibility.map(entry => (
-                  <GlassCard key={entry.key} style={styles.factCard}>
+                  <Card padded={false} key={entry.key} style={styles.factCard}>
                     <Text>♿</Text>
-                    <Text style={styles.factLabel}>{taxonomyLabel('accessibility', entry.key as string)}</Text>
-                  </GlassCard>
+                    <Text variant="bodySmall" style={styles.factLabel}>{taxonomyLabel('accessibility', entry.key as string)}</Text>
+                  </Card>
                 ))}
               </View>
             </>
@@ -441,29 +433,28 @@ export default function PlaceDetailScreen() {
           {/* Provider facts must be shown with their attribution. */}
           <View style={styles.trustCard}>
             <View style={styles.trustRow}>
-              <Text style={styles.updated}>
+              <Text variant="bodySmall" color="text.secondary" style={styles.updated}>
                 {checkedAt
                   ? t('placeDetail.updatedAt', { date: checkedAt.toLocaleDateString(i18n.language) })
                   : t('placeDetail.updated')}
               </Text>
               {/* No report endpoint exists on `/v1` yet, so this stays visibly
                   unavailable rather than pretending to send something. */}
-              <Text
+              <Text variant="label" color="text.tertiary"
                 accessibilityRole="button"
                 accessibilityState={{ disabled: true }}
-                style={styles.reportDisabled}
               >
                 {t('placeDetail.report')}
               </Text>
             </View>
-            <Text style={styles.reportHint}>{t('placeDetail.reportUnavailable')}</Text>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.reportUnavailable')}</Text>
             {(detail.sources ?? []).map(source => (
-              <Text key={source.url ?? source.provider} style={styles.attribution}>
+              <Text variant="caption" color="text.secondary" key={source.url ?? source.provider} style={styles.attribution}>
                 {source.attribution ?? source.provider}
               </Text>
             ))}
             {photos[photoIndex]?.attribution ? (
-              <Text style={styles.attribution}>{photos[photoIndex].attribution}</Text>
+              <Text variant="caption" color="text.secondary" style={styles.attribution}>{photos[photoIndex].attribution}</Text>
             ) : null}
           </View>
         </View>
@@ -491,7 +482,7 @@ export default function PlaceDetailScreen() {
           style={({ pressed }) => [styles.dirBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
         >
           <IconNavigation color={neutral[0]} />
-          <Text style={styles.dirLabel}>{t('common.directions')}</Text>
+          <Text variant="label" color="text.inverse">{t('common.directions')}</Text>
         </Pressable>
       </GlassBar>
     </Atmosphere>

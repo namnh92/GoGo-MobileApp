@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { UnistylesRuntime, useUnistyles } from 'react-native-unistyles'
 
 import { track } from '@/shared/analytics'
 import { accentSchema, saveAccentPreference } from '@/shared/theme/accent-preference'
 import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
-import { GlassCard } from '@/shared/ui/primitives'
+import { Card } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { ACCENTS, DEFAULT_ACCENT, themes, type Accent } from '@/shared/ui/theme'
 import type { MessageKey } from '@/shared/i18n/types'
 
@@ -57,8 +58,8 @@ export function ThemeAccentCard() {
   }
 
   return (
-    <GlassCard style={styles.card}>
-      <Text style={styles.title}>{t('account.themeTitle')}</Text>
+    <Card padded={false} style={styles.card}>
+      <Text variant="title2">{t('account.themeTitle')}</Text>
       <View accessibilityRole="radiogroup" accessibilityLabel={t('account.themeTitle')} style={styles.swatches}>
         {ACCENTS.map(accent => {
           const selected = accent === current
@@ -81,7 +82,7 @@ export function ThemeAccentCard() {
           )
         })}
       </View>
-      <Text style={styles.helper}>{t('account.themeHelper')}</Text>
-    </GlassCard>
+      <Text variant="bodySmall" color="text.secondary">{t('account.themeHelper')}</Text>
+    </Card>
   )
 }

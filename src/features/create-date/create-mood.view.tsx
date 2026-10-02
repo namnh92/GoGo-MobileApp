@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 
 import { isApiError, useCreateRoom, useTaxonomies } from '@/shared/api'
 import { newIdempotencyKey } from '@/shared/api/idempotency'
@@ -14,6 +14,7 @@ import { ErrorState } from '@/shared/ui/async-state.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { WizardStep } from './wizard-step.view'
@@ -171,23 +172,23 @@ export default function CreateMoodScreen() {
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: footerInset + spacing[4] }}>
-          <Text style={styles.title}>{t('createMood.title')}</Text>
-          <Text style={styles.body}>{t('createMood.body', { max: MAX_MOODS })}</Text>
+          <Text variant="display">{t('createMood.title')}</Text>
+          <Text color="text.secondary" style={styles.body}>{t('createMood.body', { max: MAX_MOODS })}</Text>
 
           <ChipGrid options={toOptions('mood')} selected={moods} onToggle={toggleCapped(setMoods, MAX_MOODS)} />
 
-          <Text style={styles.sectionTitle}>{t('createMood.settingTitle')}</Text>
+          <Text variant="title2" style={styles.sectionTitle}>{t('createMood.settingTitle')}</Text>
           <ChipGrid options={toOptions('setting')} selected={settings} onToggle={toggleCapped(setSettings, MAX_SETTINGS)} />
 
-          <Text style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text>
+          <Text variant="title2" style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text>
           <ChipGrid
             options={toOptions('spending_style')}
             selected={spending ? [spending] : []}
             onToggle={key => setSpending(current => (current === key ? null : key))}
           />
 
-          <Text style={styles.sectionTitle}>{t('createMood.seedTitle')}</Text>
-          <Text style={styles.seedHint}>{t('createMood.seedHint')}</Text>
+          <Text variant="title2" style={styles.sectionTitle}>{t('createMood.seedTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.seedHint}>{t('createMood.seedHint')}</Text>
           <View style={styles.seedRow}>
             {seedPlaces.map(place => (
               <Chip
@@ -204,12 +205,12 @@ export default function CreateMoodScreen() {
               onPress={() => router.push('/places/search?picker=1')}
               style={styles.seedAddBtn}
             >
-              <Text style={styles.seedAddLabel}>{t('createMood.addPlace')}</Text>
+              <Text variant="label" color="text.secondary">{t('createMood.addPlace')}</Text>
             </Pressable>
           </View>
 
           {error ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
               {error}
             </Text>
           ) : null}

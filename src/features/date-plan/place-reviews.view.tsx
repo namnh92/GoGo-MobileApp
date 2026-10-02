@@ -1,7 +1,7 @@
 import { useRouter, type Href } from 'expo-router'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import {
   isApiError,
@@ -20,6 +20,7 @@ import { StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { Chip, GhostBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
+import { Text } from '@/shared/ui/text'
 import { hitSlop } from '@/shared/ui/tokens'
 import type { MessageKey } from '@/shared/i18n/types'
 
@@ -101,14 +102,14 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
   } else if (!reviews.data) {
     body = (
       <View style={styles.notice} accessibilityLiveRegion="polite">
-        <Text style={styles.noticeLabel}>
+        <Text variant="bodySmall" color="text.secondary">
           {t(isOffline(reviews.error) ? 'placeReviews.offline' : 'placeReviews.error')}
         </Text>
         <GhostBtn label={t('common.retry')} onPress={() => void reviews.refetch()} />
       </View>
     )
   } else if (reviews.data.reviews.length === 0) {
-    body = <Text style={styles.empty}>{t('placeReviews.empty')}</Text>
+    body = <Text variant="bodySmall" color="text.secondary" style={styles.empty}>{t('placeReviews.empty')}</Text>
   } else {
     body = (
       <>
@@ -120,7 +121,7 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
           onRetry={() => void reviews.refetch()}
         />
         {isHelpfulFallback(reviews.data) ? (
-          <Text style={styles.fallback}>{t('placeReviews.helpfulFallback')}</Text>
+          <Text variant="caption" color="text.secondary" style={styles.fallback}>{t('placeReviews.helpfulFallback')}</Text>
         ) : null}
         <View style={styles.list}>
           {reviews.data.reviews.map(review => (
@@ -143,10 +144,10 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
 
   return (
     <View testID="place-reviews" style={styles.section}>
-      <Text accessibilityRole="header" style={styles.title}>
+      <Text variant="title2" accessibilityRole="header">
         {t('placeReviews.title')}
       </Text>
-      <Text style={styles.source}>{t('placeReviews.source')}</Text>
+      <Text variant="caption" color="text.secondary" style={styles.source}>{t('placeReviews.source')}</Text>
       {showOrder ? (
         <View style={styles.orderRow}>
           {ORDERS.map(option => (
@@ -162,7 +163,7 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
       {body}
       {askSignIn ? (
         <View style={styles.notice} accessibilityLiveRegion="polite">
-          <Text style={styles.noticeLabel}>{t('placeReviews.signInToReact')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('placeReviews.signInToReact')}</Text>
           <GhostBtn
             label={t('auth.signInCta')}
             onPress={() => router.push(`/auth/sign-in?next=place:${placeId}` as Href)}
@@ -203,13 +204,13 @@ function ReviewRow({
         style={styles.rowContent}
       >
         <View style={styles.rowHeader}>
-          <Text style={styles.author} numberOfLines={1}>
+          <Text variant="label" style={styles.author} numberOfLines={1}>
             {author}
           </Text>
-          <Text style={styles.rating}>{t('placeReviews.rating', { rating: review.rating })}</Text>
+          <Text variant="label">{t('placeReviews.rating', { rating: review.rating })}</Text>
         </View>
-        {dateLabel ? <Text style={styles.date}>{dateLabel}</Text> : null}
-        {review.text ? <Text style={styles.text}>{review.text}</Text> : null}
+        {dateLabel ? <Text variant="caption" color="text.secondary">{dateLabel}</Text> : null}
+        {review.text ? <Text>{review.text}</Text> : null}
       </View>
       {/* The check glyph and the label repeat what the border colour says. */}
       <Pressable
@@ -222,12 +223,12 @@ function ReviewRow({
         hitSlop={hitSlop}
         style={({ pressed }) => [styles.helpfulBtn, marked && styles.helpfulBtnActive, pressed && styles.helpfulPressed]}
       >
-        <Text style={[styles.helpfulLabel, marked && styles.helpfulLabelActive]}>
+        <Text variant="label" color={marked ? 'text.primary' : 'text.primary'}>
           {`${marked ? '✓ ' : ''}${t('placeReviews.helpful', { count: review.helpfulCount })}`}
         </Text>
       </Pressable>
       {failure ? (
-        <Text accessibilityLiveRegion="polite" style={styles.failure}>
+        <Text variant="caption" accessibilityLiveRegion="polite">
           {t(failure === 'own' ? 'placeReviews.helpfulOwn' : 'placeReviews.helpfulFailed')}
         </Text>
       ) : null}

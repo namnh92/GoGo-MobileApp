@@ -76,8 +76,8 @@ describe('type scale', () => {
      * avatar — and each of those is listed here with its count.
      */
     const computedFromProp: Record<string, number> = {
-      // AvatarCircle: emoji and initials scale with the `size` prop.
-      'shared/ui/primitives.tsx': 2,
+      // ScaledText (AvatarCircle): emoji and initials scale with the avatar's `size` prop.
+      'shared/ui/text.tsx': 2,
     }
     const counts: Record<string, number> = {}
     const rows = offenders(/fontSize\s*:/)
