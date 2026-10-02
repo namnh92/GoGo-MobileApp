@@ -59,6 +59,23 @@ describe('theme accent setting', () => {
     expect(selected('orange')).toBe(false)
   })
 
+  it('follows a theme the bootstrap applies after the card mounted (#297 F-01)', async () => {
+    // Opened straight into /settings/account: the card mounts before AppProviders
+    // has read the saved key, so it first sees no theme.
+    runtime.themeName = undefined
+    await renderScreen(<ThemeAccentCard />)
+    expect(selected('orange')).toBe(true)
+
+    runtime.themeName = 'blue'
+    await screen.rerender(<ThemeAccentCard />)
+    expect(selected('blue')).toBe(true)
+    expect(selected('orange')).toBe(false)
+
+    // Orange is no longer the current theme, so choosing it applies it.
+    await fireEvent.press(screen.getByTestId('theme-swatch-orange'))
+    expect(setTheme).toHaveBeenCalledWith('orange')
+  })
+
   it('a tap applies the theme, persists it for the next launch and fires the event', async () => {
     await renderScreen(<ThemeAccentCard />)
     await fireEvent.press(screen.getByTestId('theme-swatch-green'))

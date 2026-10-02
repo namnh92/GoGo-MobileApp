@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { UnistylesRuntime } from 'react-native-unistyles'
+import { UnistylesRuntime, useUnistyles } from 'react-native-unistyles'
 
 import { track } from '@/shared/analytics'
 import { accentSchema, saveAccentPreference } from '@/shared/theme/accent-preference'
@@ -21,9 +21,9 @@ const LABEL: Record<Accent, MessageKey> = {
   purple: 'theme.purple',
 }
 
-/** What is on screen now. `AppProviders` applied the saved choice before the splash came down. */
-function activeAccent(): Accent {
-  const parsed = accentSchema.safeParse(UnistylesRuntime.themeName)
+/** A runtime theme name as an accent key; anything unusable reads as the default. */
+function toAccent(themeName: unknown): Accent {
+  const parsed = accentSchema.safeParse(themeName)
   return parsed.success ? parsed.data : DEFAULT_ACCENT
 }
 
@@ -35,12 +35,20 @@ function activeAccent(): Accent {
  */
 export function ThemeAccentCard() {
   const { t } = useTranslation()
-  const [current, setCurrent] = useState<Accent>(activeAccent)
+  // Read the runtime reactively: a route opened straight into this screen can
+  // mount before the bootstrap applies the saved theme (#297 F-01).
+  const { rt } = useUnistyles()
+  const active = toAccent(rt.themeName)
+  // The tap shows at once even before the runtime reports it back. It is kept
+  // against the theme it was made over, so any later runtime change (bootstrap,
+  // another screen) takes over again.
+  const [chosen, setChosen] = useState<{ accent: Accent; over: Accent } | null>(null)
+  const current = chosen && chosen.over === active ? chosen.accent : active
 
   function choose(accent: Accent) {
     if (accent === current) return
     UnistylesRuntime.setTheme(accent)
-    setCurrent(accent)
+    setChosen({ accent, over: active })
     // Storage failure must not undo what the user just saw change: the choice
     // holds for this session and the next launch falls back to orange.
     void saveAccentPreference(accent)
