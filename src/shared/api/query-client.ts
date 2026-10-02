@@ -27,11 +27,22 @@ export function createQueryClient(): QueryClient {
         refetchOnWindowFocus: true,
       },
       mutations: {
-        // Mutations carry an Idempotency-Key, so retrying a transport failure
-        // cannot double-apply the intent.
+        // Retried mutations must replay one Idempotency-Key per intent, so a
+        // retry cannot double-apply it: endpoints with a key take it from the
+        // hook (`useIntentKey`, or a per-intent key like useCastVote), never a
+        // fresh default per attempt (#315 F-01).
         retry: (failureCount, error) =>
           failureCount < 2 && isRetryable(error) && !isUnauthorized(error),
         retryDelay: attempt => Math.min(1000 * 2 ** attempt, 10_000),
+        // GoGo-MobileApp#250: with the default (`online`), a mutation — and each
+        // of its retries — pauses while `onlineManager` says offline, and only a
+        // later online/focus event resumes it. A wrong or missed offline signal
+        // on Android left a save spinning for minutes with no error. A tap must
+        // end in an answer: run regardless, so offline fails fast with a
+        // NetworkError the screen shows, and the bounded retries above go out
+        // on time. Retries still pause while the app is unfocused — TanStack
+        // checks focus whatever the network mode.
+        networkMode: 'always',
       },
     },
   })

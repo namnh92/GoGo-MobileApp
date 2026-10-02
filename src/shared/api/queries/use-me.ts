@@ -10,6 +10,7 @@ import { queryKeys } from '../query-keys'
 import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState } from '../review-reactions'
 import type { MyReviewReactions, OpBody, OpResponse, PlaceReviewPreview, Plan, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
+import { useIntentKey } from './use-intent-key'
 
 /** Current actor facts: `actorType` distinguishes a signed-in user from a guest. */
 export function useMe(options?: { enabled?: boolean }) {
@@ -246,8 +247,11 @@ export function useMyReviews(options?: { enabled?: boolean }) {
 /** A new review lands as `pending` moderation — never show it as published. */
 export function useCreateReview() {
   const queryClient = useQueryClient()
+  // One key per tap, replayed by automatic retries (#315 F-01).
+  const intent = useIntentKey()
   return useMutation({
-    mutationFn: (body: OpBody<'createReview'>) => meApi.createReview(body),
+    mutationFn: (body: OpBody<'createReview'>) => meApi.createReview(body, intent.keyFor(body)),
+    onSettled: (_data, _error, body) => intent.release(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.myReviews() })
     },
