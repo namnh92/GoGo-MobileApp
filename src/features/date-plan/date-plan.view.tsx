@@ -27,7 +27,8 @@ import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { costLineText, planCost, stopCostLabel } from '@/shared/pricing/plan-cost'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
-import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
+import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
+import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Card, Chip, GhostBtn, glassStyles, PrimaryBtn, SecondaryBtn, Toast } from '@/shared/ui/primitives'
@@ -60,7 +61,8 @@ export default function DatePlanScreen() {
   // A stream costs a socket, and the server caps how many one actor may hold.
   // Expo Router keeps pushed screens mounted, so a stack of plans would have
   // held one each; only the screen on top needs to be live.
-  useRoomRealtime(summary?.roomId, 'plan', { enabled: useScreenFocused() })
+  const onTop = useScreenFocused()
+  const realtime = useRoomRealtime(summary?.roomId, 'plan', { enabled: onTop })
   // The lobby opens a room's plan once (#198). Its "go to the room" below must
   // not bounce straight back here — only to a newer plan, when this one is superseded.
   useRoomStepShown(summary?.roomId, summary?.id ? planStep(summary.id) : null)
@@ -316,7 +318,13 @@ export default function DatePlanScreen() {
           }
         />
       </View>
-      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
+      <RoomConnectionNotice
+        roomId={summary.roomId}
+        status={realtime.status}
+        visible={onTop}
+        error={plan.isError ? plan.error : null}
+        onRetry={() => void plan.refetch()}
+      />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 240 }}>
         {/* A plan built before the last constraint edit is no longer the answer. */}

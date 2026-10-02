@@ -497,6 +497,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'common.closed': 'Closed',
   'common.staleOffline': 'Offline — this is the copy saved on your device.',
   'common.staleError': "Couldn't refresh — this is the copy saved on your device.",
+  'roomRealtime.connecting': 'Connecting to room updates…',
+  'roomRealtime.polling': 'Room updates periodically; changes may appear with a delay.',
   'matchResult.diffKept': 'Kept {{name}}',
   'matchResult.diffChanged': 'Swapped {{from}} → {{to}}',
   'matchResult.diffSaved': 'Saves about {{amount}}',

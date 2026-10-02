@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 
 import {
@@ -13,9 +14,12 @@ import {
   useStartMatching,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useLocaleContent } from '@/shared/i18n'
 import { useReducedMotion } from '@/shared/ui/feedback'
+import { OfflineState } from '@/shared/ui/async-state.view'
 import { AvatarCircle } from '@/shared/ui/primitives'
+import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { Glyph, Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -31,12 +35,19 @@ export default function MatchingScreen() {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
   const content = useLocaleContent()
 
   const room = useRoom(roomId)
   const suggestions = useCurrentSuggestions(roomId)
-  useRoomRealtime(roomId, 'matching', { enabled: useScreenFocused() })
+  const focused = useScreenFocused()
+  const realtime = useRoomRealtime(roomId, 'matching', { enabled: focused })
+  // Nothing cached and offline: the reads stay paused, so the "finding places"
+  // copy would promise progress that cannot happen (#292, as #253 for the lobby).
+  const roomWaiting = useWaitingForNetwork(room)
+  const suggestionsWaiting = useWaitingForNetwork(suggestions)
+  const waitingForNetwork = roomWaiting || suggestionsWaiting
   const startMatching = useStartMatching(roomId)
 
   const [messageIndex, setMessageIndex] = useState(0)
@@ -82,73 +93,96 @@ export default function MatchingScreen() {
   const failed = startMatching.isError
   const notReady = isApiError(startMatching.error) && startMatching.error.status === 409
 
-  return (
-    <View style={styles.root}>
-      <View style={styles.pair}>
-        <AvatarCircle label="G" size={64} background={theme.accent.primary} />
-        <Text variant="display" color="onDark.soft">×</Text>
-        <AvatarCircle emoji="😊" size={64} />
-      </View>
+  // A failed refresh keeps what is cached; the notice says how much to trust it.
+  const refreshError = suggestions.isError ? suggestions.error : room.isError ? room.error : null
 
-      {failed ? (
-        <View style={{ alignItems: 'center', gap: spacing[3] }}>
-          <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.failedTitle')}</Text>
-          <Text color="onDark.soft" style={styles.matchedBody}>
-            {notReady ? t('matching.notReadyBody') : t('common.errorBody')}
-          </Text>
-          {/* A 409 means the room is not ready, which retrying cannot fix;
-              anything else is worth one more attempt before giving up. */}
-          {!notReady ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => startMatching.mutate(undefined, { onSuccess: () => track('match_generated') })}
-              disabled={startMatching.isPending}
-              accessibilityState={{ disabled: startMatching.isPending, busy: startMatching.isPending }}
-              style={styles.retryBtn}
-            >
-              <Text variant="label" color="text.inverse">
-                {startMatching.isPending ? t('matching.retrying') : t('common.retry')}
-              </Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={() => router.replace(`/room/${roomId}`)} accessibilityRole="button">
-            <Text variant="label" color="accent.primary" style={styles.backLink}>{t('swipe.goToLobby')}</Text>
-          </Pressable>
+  return (
+    <View style={styles.screen}>
+      {/* Above the content, under the status bar: one notice about freshness (#292). */}
+      <View style={{ paddingTop: insets.top }}>
+        <RoomConnectionNotice
+          roomId={roomId}
+          status={realtime.status}
+          visible={focused}
+          error={refreshError}
+          hasData={suggestions.data !== undefined}
+          onRetry={() => {
+            void room.refetch()
+            void suggestions.refetch()
+          }}
+        />
+      </View>
+      <View style={styles.root}>
+        <View style={styles.pair}>
+          <AvatarCircle label="G" size={64} background={theme.accent.primary} />
+          <Text variant="display" color="onDark.soft">×</Text>
+          <AvatarCircle emoji="😊" size={64} />
         </View>
-      ) : hasRun && !isStale ? (
-        <View style={{ alignItems: 'center' }}>
-          <Glyph size="mega" style={{ marginBottom: spacing[2] }}>🎉</Glyph>
-          <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.matched')}</Text>
-          <Text color="onDark.soft" style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
-        </View>
-      ) : (
-        <View style={{ alignItems: 'center', gap: spacing[2], alignSelf: 'stretch' }}>
-          <Text color="onDark.strong" style={styles.message} accessibilityLiveRegion="polite">
-            {content.matchingMessages[messageIndex]}
-          </Text>
-          {/* Why it is taking a moment — a member cannot start the run, so say
-              so instead of spinning forever. */}
-          <Text variant="bodySmall" color="onDark.soft" style={styles.reason}>
-            {capabilities.isHost ? t('matching.reason') : t('matching.waitingForHost')}
-          </Text>
-          <View
-            style={styles.progressTrack}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.round(
-                    ((messageIndex + 1) / Math.max(content.matchingMessages.length, 1)) * 100,
-                  )}%`,
-                },
-              ]}
-            />
+
+        {waitingForNetwork && !failed ? (
+          <View style={styles.offlineCard}>
+            <OfflineState />
           </View>
-        </View>
-      )}
+        ) : failed ? (
+          <View style={{ alignItems: 'center', gap: spacing[3] }}>
+            <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.failedTitle')}</Text>
+            <Text color="onDark.soft" style={styles.matchedBody}>
+              {notReady ? t('matching.notReadyBody') : t('common.errorBody')}
+            </Text>
+            {/* A 409 means the room is not ready, which retrying cannot fix;
+                anything else is worth one more attempt before giving up. */}
+            {!notReady ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => startMatching.mutate(undefined, { onSuccess: () => track('match_generated') })}
+                disabled={startMatching.isPending}
+                accessibilityState={{ disabled: startMatching.isPending, busy: startMatching.isPending }}
+                style={styles.retryBtn}
+              >
+                <Text variant="label" color="text.inverse">
+                  {startMatching.isPending ? t('matching.retrying') : t('common.retry')}
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={() => router.replace(`/room/${roomId}`)} accessibilityRole="button">
+              <Text variant="label" color="accent.primary" style={styles.backLink}>{t('swipe.goToLobby')}</Text>
+            </Pressable>
+          </View>
+        ) : hasRun && !isStale ? (
+          <View style={{ alignItems: 'center' }}>
+            <Glyph size="mega" style={{ marginBottom: spacing[2] }}>🎉</Glyph>
+            <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.matched')}</Text>
+            <Text color="onDark.soft" style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
+          </View>
+        ) : (
+          <View style={{ alignItems: 'center', gap: spacing[2], alignSelf: 'stretch' }}>
+            <Text color="onDark.strong" style={styles.message} accessibilityLiveRegion="polite">
+              {content.matchingMessages[messageIndex]}
+            </Text>
+            {/* Why it is taking a moment — a member cannot start the run, so say
+                so instead of spinning forever. */}
+            <Text variant="bodySmall" color="onDark.soft" style={styles.reason}>
+              {capabilities.isHost ? t('matching.reason') : t('matching.waitingForHost')}
+            </Text>
+            <View
+              style={styles.progressTrack}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.round(
+                      ((messageIndex + 1) / Math.max(content.matchingMessages.length, 1)) * 100,
+                    )}%`,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        )}
+      </View>
     </View>
   )
 }

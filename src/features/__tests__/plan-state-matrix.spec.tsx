@@ -35,7 +35,7 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlan: () => mockPlan.query,
   useRoom: () => mockRoom.query,
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   usePlanStopPlaces: () => ({
     byPlaceId: new Map([['place-1', { id: 'place-1', name: 'Quán A', addressText: 'Quận 3' }]]),
     isPending: false,

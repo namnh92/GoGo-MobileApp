@@ -5,6 +5,8 @@ import { colors, night, radius, spacing } from '@/shared/ui/tokens'
 const { neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
+  /** Holds the freshness notice slot above the centred content (#292). */
+  screen: { flex: 1, backgroundColor: neutral[900] },
   root: {
     flex: 1,
     backgroundColor: neutral[900],
@@ -43,5 +45,11 @@ export const styles = StyleSheet.create(theme => ({
     borderColor: night.line,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** The shared offline state is drawn for light surfaces; give it one here. */
+  offlineCard: {
+    alignSelf: 'stretch',
+    borderRadius: radius.compact,
+    backgroundColor: theme.surface.card,
   },
 }))

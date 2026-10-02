@@ -40,7 +40,7 @@ jest.mock('@/shared/api', () => ({
       votes: { mine: {}, progress: [{ placeId: 'place-1', points: 3, yes: 3 }] },
     }),
   usePlaceDetail: () => mockLoaded(null),
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   useTaxonomyLabel: () => ({ resolve: () => null }),
   useCompletePlanStop: () => mockIdleMutation,
   useCheckinPlanStop: () => mockIdleMutation,

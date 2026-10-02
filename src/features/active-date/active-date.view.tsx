@@ -23,7 +23,8 @@ import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { stopCostLabel } from '@/shared/pricing/plan-cost'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
-import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
+import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
@@ -68,7 +69,8 @@ export default function ActiveDateScreen() {
    * screen, which is exactly the `date` phase. The cadence is the transport's
    * business, so there is no timer here.
    */
-  useRoomRealtime(summary?.roomId, 'date', { enabled: useScreenFocused(), planId })
+  const focused = useScreenFocused()
+  const realtime = useRoomRealtime(summary?.roomId, 'date', { enabled: focused, planId })
 
   const completeStop = useCompletePlanStop(planId)
   const checkinStop = useCheckinPlanStop(planId)
@@ -267,6 +269,15 @@ export default function ActiveDateScreen() {
           accessibilityLiveRegion="polite"
           style={[styles.notActive, { paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom }]}
         >
+          {/* Still watching the room: a date about to start arrives through it (#292). */}
+          <RoomConnectionNotice
+            roomId={summary.roomId}
+            status={realtime.status}
+            visible={focused}
+            error={plan.isError ? plan.error : null}
+            onRetry={() => void plan.refetch()}
+            style={styles.notice}
+          />
           <EmptyState
             title={t(
               ended
@@ -309,6 +320,14 @@ export default function ActiveDateScreen() {
     return (
       <Atmosphere>
         <View style={[styles.notActive, { paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom }]}>
+          <RoomConnectionNotice
+            roomId={summary.roomId}
+            status={realtime.status}
+            visible={focused}
+            error={plan.isError ? plan.error : null}
+            onRetry={() => void plan.refetch()}
+            style={styles.notice}
+          />
           <EmptyState
             title={t('activeDate.allDoneTitle')}
             body={t('activeDate.allDoneBody')}
@@ -352,7 +371,13 @@ export default function ActiveDateScreen() {
           </View>
         </View>
       </View>
-      <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
+      <RoomConnectionNotice
+        roomId={summary.roomId}
+        status={realtime.status}
+        visible={focused}
+        error={plan.isError ? plan.error : null}
+        onRetry={() => void plan.refetch()}
+      />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Card padded={false} style={styles.card}>

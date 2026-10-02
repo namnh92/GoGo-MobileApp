@@ -65,7 +65,7 @@ jest.mock('@/shared/api', () => ({
   usePlan: () => mockPlan.query,
   useRoom: (roomId: string | undefined) =>
     mockRoom.live ? jest.requireActual('@/shared/api').useRoom(roomId) : mockRoom.query,
-  useRoomRealtime: jest.fn(),
+  useRoomRealtime: jest.fn(() => ({ status: 'live' })),
   usePlanStopPlaces: () => ({ byPlaceId: new Map(), isPending: false }),
   useLockPlanStop: () => mockIdleMutation,
   useRegeneratePlan: () => mockIdleMutation,
