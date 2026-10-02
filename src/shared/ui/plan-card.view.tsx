@@ -15,13 +15,16 @@ import { styles } from './plan-card.style'
  * wraps, and the card grows. The meta line wraps too; the status chip stays
  * pinned to the top-right corner.
  *
- * No budget yet: `RoomListItem` carries none (GoGo-BE#637).
+ * `metaAccessibilityLabel` is the same facts as spoken sentences: "800k/người"
+ * read aloud is noise, "Ngân sách 800k mỗi người" is the fact (GoGo-BE#637).
  */
-export function PlanCard({ icon, title, meta, status, past = false, onPress, style, testID }: {
+export function PlanCard({ icon, title, meta, metaAccessibilityLabel, status, past = false, onPress, style, testID }: {
   /** Emoji for the room type. */
   icon: string
   title: string
   meta: string
+  /** The meta facts as a screen reader should say them; defaults to `meta`. */
+  metaAccessibilityLabel?: string
   status: { label: string; variant: ChipVariant }
   past?: boolean
   onPress: () => void
@@ -36,7 +39,14 @@ export function PlanCard({ icon, title, meta, status, past = false, onPress, sty
         </View>
         <View style={styles.body}>
           <Text testID="plan-card-title" variant="title2">{title}</Text>
-          <Text testID="plan-card-meta" variant="bodySmall" color="text.secondary">{meta}</Text>
+          <Text
+            testID="plan-card-meta"
+            variant="bodySmall"
+            color="text.secondary"
+            accessibilityLabel={metaAccessibilityLabel}
+          >
+            {meta}
+          </Text>
         </View>
         <Chip label={status.label} variant={status.variant} style={styles.status} />
       </Card>

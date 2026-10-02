@@ -793,6 +793,9 @@ export const viMessages = {
   'saved.newTag': 'Mới thêm',
 
   'plans.emptyHistory': 'Chưa có kèo nào trong lịch sử.',
+  'plans.budgetTotal': '{{amount}} tổng',
+  'plans.budgetPerPersonA11y': 'Ngân sách {{amount}} mỗi người',
+  'plans.budgetTotalA11y': 'Ngân sách tổng {{amount}} cho {{n}} người',
   'plans.overdue': 'Đã qua ngày',
   'roomSchedule.title': 'Ngày giờ kèo',
   'roomSchedule.format': 'Nhập ngày/tháng/năm và giờ:phút theo giờ trên thiết bị.',

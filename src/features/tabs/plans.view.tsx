@@ -11,6 +11,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useFocusedNow } from '@/shared/hooks/use-focused-now'
+import { budgetFact } from '@/shared/pricing/budget-unit'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { PlanCard } from '@/shared/ui/plan-card.view'
 import { Atmosphere, GhostBtn, SecondaryBtn, useTabDockInset } from '@/shared/ui/primitives'
@@ -63,21 +64,25 @@ export default function PlansScreen() {
   }
 
   /**
-   * Room facts, composed here — the DTO carries `type`, `participantCount` and
-   * the progress counts, never a written sentence (RULE-API-DTO).
+   * Room facts, composed here — the DTO carries `type`, `participantCount`,
+   * the progress counts and the budget facts, never a written sentence
+   * (RULE-API-DTO). Each fact also has the sentence a screen reader says; the
+   * budget sits right after the people count (#293 §3, GoGo-BE#637).
    */
-  function roomFacts(room: RoomListItem): string[] {
+  function roomFacts(room: RoomListItem): { text: string; spoken: string }[] {
     const scheduled = roomScheduleLabel(room.scheduledDate, i18n.language)
+    const plain = (text: string | null) => (text ? { text, spoken: text } : null)
     return [
-      room.type === 'group'
+      plain(room.type === 'group'
         ? t('groupSetup.people', { n: room.participantCount })
-        : t('datePlan.for2'),
-      room.completedCount != null && room.memberCount != null
+        : t('datePlan.for2')),
+      budgetFact(room.budget, room.participantCount, t),
+      plain(room.completedCount != null && room.memberCount != null
         ? t('gogoRoom.membersTitle', { joined: room.completedCount, total: room.memberCount })
-        : null,
-      scheduled ?? t('roomSchedule.unset'),
-      isOverdue(room) ? t('plans.overdue') : null,
-    ].filter((fact): fact is string => Boolean(fact))
+        : null),
+      plain(scheduled ?? t('roomSchedule.unset')),
+      plain(isOverdue(room) ? t('plans.overdue') : null),
+    ].filter((fact): fact is { text: string; spoken: string } => fact != null)
   }
 
   /**
@@ -182,22 +187,26 @@ export default function PlansScreen() {
           />
         ) : (
           <>
-            {visible.map(room => (
-              <PlanCard
-                key={room.id}
-                testID={`plan-card-${room.id}`}
-                icon={room.type === 'group' ? '👥' : '💞'}
-                title={room.title ?? t('plans.untitled')}
-                meta={roomFacts(room).join(' · ')}
-                status={{
-                  label: t(`plans.status.${room.status}`, { defaultValue: room.status }),
-                  variant: statusVariant(room),
-                }}
-                past={tab === 'history'}
-                onPress={() => openRoom(room)}
-                style={styles.card}
-              />
-            ))}
+            {visible.map(room => {
+              const facts = roomFacts(room)
+              return (
+                <PlanCard
+                  key={room.id}
+                  testID={`plan-card-${room.id}`}
+                  icon={room.type === 'group' ? '👥' : '💞'}
+                  title={room.title ?? t('plans.untitled')}
+                  meta={facts.map(fact => fact.text).join(' · ')}
+                  metaAccessibilityLabel={facts.map(fact => fact.spoken).join(', ')}
+                  status={{
+                    label: t(`plans.status.${room.status}`, { defaultValue: room.status }),
+                    variant: statusVariant(room),
+                  }}
+                  past={tab === 'history'}
+                  onPress={() => openRoom(room)}
+                  style={styles.card}
+                />
+              )
+            })}
             {rooms.isFetching && visible.length === 0 ? <RoomMemberSkeleton count={2} /> : null}
             {rooms.isFetchNextPageError ? (
               <ErrorState error={rooms.error} onRetry={() => void rooms.fetchNextPage()} />

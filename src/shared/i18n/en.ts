@@ -797,6 +797,9 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'saved.newTag': 'Just added',
 
   'plans.emptyHistory': 'No plans in your history yet.',
+  'plans.budgetTotal': '{{amount}} total',
+  'plans.budgetPerPersonA11y': 'Budget {{amount}} per person',
+  'plans.budgetTotalA11y': 'Total budget {{amount}} for {{n}} people',
   'plans.overdue': 'Past its date',
   'roomSchedule.title': 'Plan schedule',
   'roomSchedule.format': 'Enter day/month/year and hour:minute in your device time zone.',

@@ -40,6 +40,13 @@ describe('PlanCard', () => {
     expect(StyleSheet.flatten(meta.props.style)).toMatchObject({ ...type.bodySmall, color: text.secondary })
   })
 
+  it('lets the screen give the meta facts a spoken form (GoGo-BE#637)', async () => {
+    await renderCard({ meta: '4 người · 800k/người', metaAccessibilityLabel: '4 người, Ngân sách 800k mỗi người' })
+    const meta = screen.getByTestId('plan-card-meta')
+    expect(meta).toHaveTextContent('4 người · 800k/người', { exact: true })
+    expect(meta.props.accessibilityLabel).toBe('4 người, Ngân sách 800k mỗi người')
+  })
+
   it('carries the status chip with its label and variant colours', async () => {
     await renderCard()
     const label = screen.getByText('Đang chọn')
