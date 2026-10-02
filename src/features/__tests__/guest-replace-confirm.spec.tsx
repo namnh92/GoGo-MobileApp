@@ -43,11 +43,13 @@ jest.mock('@/shared/store/recentRoomsStore', () => ({
 }))
 jest.mock('@/shared/analytics', () => ({ track: jest.fn() }))
 
+import { enMessages as en } from '@/shared/i18n/en'
+import { viMessages as vi } from '@/shared/i18n/vi'
 import GuestJoinScreen from '@/features/gogo-room/guest-join.view'
 import JoinByCodeScreen from '@/features/gogo-room/join-by-code.view'
 
 const JOIN = 'Tham gia 🙌'
-const NOTICE = /đang tham gia một phòng khác với tư cách khách/
+const NOTICE = /phiên khách/
 const BACK_TO_ROOM = 'Về phòng của tôi'
 
 let alertSpy: jest.SpyInstance
@@ -117,7 +119,7 @@ describe.each(['invite link', 'typed code'] as const)('a guest already in a room
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
-  it('joins the new room once they confirm', async () => {
+  it('joins through the invite once they confirm', async () => {
     await fillAndJoin(screen)
     await act(async () => {
       lastAlertButton('destructive').onPress?.()
@@ -135,5 +137,22 @@ describe.each(['invite link', 'typed code'] as const)('someone with no session, 
     expect(view.queryByText(NOTICE)).toBeNull()
     expect(alertSpy).not.toHaveBeenCalled()
     expect(mockJoinAsGuest).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * #317 F-01 — without BE#607 the app cannot tell whether the invite is for the
+ * room the guest is already in, so the copy must not claim the rooms differ:
+ * it describes replacing the guest session, nothing more.
+ */
+describe('guestReplace copy is room-neutral', () => {
+  const claims = {
+    vi: /phòng (khác|mới|cũ)|rời phòng/i,
+    en: /(another|new|old|other) room|leave the room/i,
+  }
+  it.each([['vi', vi], ['en', en]] as const)('%s', (locale, dict) => {
+    const entries = Object.entries(dict as Record<string, string>).filter(([key]) => key.startsWith('guestReplace.'))
+    expect(entries.length).toBeGreaterThan(0)
+    for (const [key, text] of entries) expect([key, text]).toEqual([key, expect.not.stringMatching(claims[locale])])
   })
 })

@@ -26,7 +26,7 @@ export function GuestReplaceNotice({ guestRoomId }: { guestRoomId: string | null
   )
 }
 
-/** Resolves true only on an explicit "join the new room"; a dismissal keeps the session. */
+/** Resolves true only on an explicit "replace and join"; a dismissal keeps the session. */
 export function confirmReplaceGuest(t: TFunction): Promise<boolean> {
   return new Promise(resolve => {
     Alert.alert(
