@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
@@ -21,6 +22,7 @@ const BUDGET_MODES: { mode: BudgetMode; labelKey: 'groupSetup.perPerson' | 'grou
 ]
 
 export default function GroupSetupScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -67,7 +69,7 @@ export default function GroupSetupScreen() {
             hitSlop={hitSlop}
             style={[
               styles.stepBtn,
-              { backgroundColor: colors.brand.coral },
+              { backgroundColor: theme.accent.primary },
               participantCount >= MAX_PEOPLE && { opacity: 0.3 },
             ]}
           >

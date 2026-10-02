@@ -111,6 +111,16 @@ describe('PlaceCard — list', () => {
     await render(<PlaceCard place={fixture({ openNow: false, opensAtMinute: 1020 })} />)
     expect(screen.getByTestId('place-card-open')).toHaveTextContent('Đã đóng · Mở 17:00', { exact: true })
     expect(flat('place-card-open').color).toBe(text.secondary)
+    expect(screen.queryByTestId('place-card-open-dot', { includeHiddenElements: true })).toBeNull()
+  })
+
+  it('open: a status.success dot sits before the label, so it never reads as a green button (#297)', async () => {
+    await render(<PlaceCard place={fixture()} />)
+    // Decorative: hidden from the screen reader, which already hears the words.
+    const dot = screen.getByTestId('place-card-open-dot', { includeHiddenElements: true })
+    expect(StyleSheet.flatten(dot.props.style)).toMatchObject({ backgroundColor: status.success, borderRadius: 3 })
+    // Shape, not colour: the label itself has no fill.
+    expect(flat('place-card-open').backgroundColor).toBeUndefined()
   })
 
   it('unknown open state: the line is omitted', async () => {

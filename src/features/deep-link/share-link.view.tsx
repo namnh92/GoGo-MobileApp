@@ -2,16 +2,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
 import { isApiError } from '@/shared/api'
 import { resolveShareLink } from '@/shared/api/endpoints/share-links'
 import { track } from '@/shared/analytics'
 import { Atmosphere, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { colors } from '@/shared/ui/tokens'
 
 import { styles } from './share-link.style'
 
-const { brand } = colors
 
 /**
  * The landing screen for a canonical share link (`https://<host>/l/{slug}`).
@@ -37,6 +36,7 @@ type Phase =
   | { kind: 'unsupported' }
 
 export default function ShareLinkScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   // The navigator is read through a ref so it stays out of `resolve`'s deps: a
@@ -130,7 +130,7 @@ export default function ShareLinkScreen() {
     return (
       <Atmosphere>
         <View style={styles.centre}>
-          <ActivityIndicator color={brand.coral} accessibilityLabel={t('shareLink.resolving')} />
+          <ActivityIndicator color={theme.accent.primary} accessibilityLabel={t('shareLink.resolving')} />
           <Text style={styles.hint}>{t('shareLink.resolving')}</Text>
         </View>
       </Atmosphere>

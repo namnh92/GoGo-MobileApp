@@ -1,10 +1,11 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glassFx, glyph, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -34,7 +35,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterToggleActive: { borderColor: brand.coral },
+  filterToggleActive: { borderColor: theme.accent.primary },
   filterToggleIcon: { fontSize: glyph.xs },
   filterCountBadge: {
     position: 'absolute',
@@ -43,7 +44,7 @@ export const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: brand.coral,
+    backgroundColor: theme.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -55,10 +56,10 @@ export const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: brand.coral,
+    backgroundColor: theme.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: brand.coral,
+    shadowColor: theme.accent.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
@@ -79,7 +80,7 @@ export const styles = StyleSheet.create({
   priceInput: { flex: 1 },
   priceDash: { ...type.body, color: neutral[500] },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -104,7 +105,7 @@ export const styles = StyleSheet.create({
     borderRadius: radius.compact,
     backgroundColor: neutral[50],
   },
-  sheetOptionActive: { backgroundColor: brand.coral },
+  sheetOptionActive: { backgroundColor: theme.accent.primary },
   sheetOptionLabel: { ...type.label, color: neutral[700] },
   sheetOptionLabelActive: { color: neutral[0] },
   sheetApply: { marginTop: spacing[5] },
@@ -128,14 +129,12 @@ export const styles = StyleSheet.create({
   title: { ...type.bodySmall, fontWeight: '700', color: neutral[900], flexShrink: 1 },
   bookmark: { ...type.body },
   meta: { ...type.caption, color: neutral[500], marginTop: 2 },
-  statusOpen: { ...type.label, color: brand.mint },
-  statusClosed: { ...type.label, color: brand.coral },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing[2], alignItems: 'center' },
-  score: { ...type.label, fontWeight: '700', color: brand.coral },
+  score: { ...type.label, fontWeight: '700', color: theme.accent.primary },
   empty: { alignItems: 'center', paddingVertical: spacing[8], paddingHorizontal: spacing[5] },
   emptyEmoji: { fontSize: glyph.lg, marginBottom: spacing[3] },
   emptyTitle: { ...type.body, fontWeight: '700', color: neutral[900] },
   emptyHint: { ...type.bodySmall, color: neutral[500], marginTop: 4, textAlign: 'center' },
   addNewBtn: { marginTop: spacing[4], alignSelf: 'stretch' },
   sheetHint: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[2] },
-})
+}))

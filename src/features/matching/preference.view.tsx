@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -27,6 +28,7 @@ const MAX_PREFS = 3
 const TAXONOMY_KIND = 'mood'
 
 export default function PreferenceScreen() {
+  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -175,7 +177,7 @@ export default function PreferenceScreen() {
                 onPress={() => toggle(option.key)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
+                style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
               >
                 {option.emoji ? <Text style={{ fontSize: glyph.sm }}>{option.emoji}</Text> : null}
                 <Text style={[styles.optionLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>

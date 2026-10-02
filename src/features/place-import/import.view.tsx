@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { z } from 'zod'
 
@@ -92,6 +93,7 @@ function staleResolution(error: unknown): boolean {
 const PRICE_MULTIPLIER = 1000
 
 export default function PlaceImportScreen() {
+  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -277,7 +279,7 @@ export default function PlaceImportScreen() {
 
         {resolve.isPending ? (
           <View style={styles.verifyingRow}>
-            <ActivityIndicator color={colors.brand.coral} />
+            <ActivityIndicator color={theme.accent.primary} />
             <Text style={styles.verifyingLabel}>{t('placeImport.verifying')}</Text>
           </View>
         ) : (

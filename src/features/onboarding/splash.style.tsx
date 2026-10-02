@@ -1,13 +1,13 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glyph, onDark, shadows, spacing, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   root: {
     flex: 1,
-    backgroundColor: brand.coral,
+    backgroundColor: theme.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -47,4 +47,4 @@ export const styles = StyleSheet.create({
     color: onDark.medium,
     marginTop: spacing[1],
   },
-})
+}))

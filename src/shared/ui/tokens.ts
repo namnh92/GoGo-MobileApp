@@ -9,19 +9,9 @@
 
 export const colors = {
   brand: {
-    coral: '#D84F4A',
-    /**
-     * Primary CTA gradient (spec §45.2). It used to run `coral → coralDeep`, so
-     * its lightest end put white on 4.09:1 — under AA for a 15px label. Both
-     * ends are now dark enough for white text: 4.77 and 5.46. `coral` itself is
-     * unchanged and stays the brand accent on light surfaces.
-     */
-    coralDeep: '#C74552',
-    coralInk: '#B93E48',
-    coralBright: '#FF746C',
-    coralSoft: '#FFD8D4',
-    /** Faint coral wash for badges on light surfaces. */
-    coralGhost: 'rgba(216,79,74,0.1)',
+    // No coral here any more (#297): the accent is a theme role
+    // (`accents` below → `theme.accent.*`), so a screen cannot pin one colour
+    // that the "Màu chủ đề" setting is supposed to change.
     lavender: '#7667E8',
     lavenderSoft: '#E5E0FF',
     /** Translucent lavender for CTAs sitting on photos. */
@@ -230,7 +220,6 @@ export const glass = {
   regular: { background: 'rgba(255,255,255,0.56)', border: 'rgba(255,255,255,0.72)', blur: 24 },
   strong: { background: 'rgba(255,255,255,0.76)', border: 'rgba(255,255,255,0.80)', blur: 28 },
   tint: {
-    coral: 'rgba(255,216,212,0.58)',
     lavender: 'rgba(229,224,255,0.58)',
     mint: 'rgba(217,243,231,0.64)',
   },

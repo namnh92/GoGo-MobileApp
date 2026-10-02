@@ -6,6 +6,7 @@ import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, Platform, ScrollView, Share, Text as RNText, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -79,7 +80,8 @@ function scheduleChipLabel(
   return range.end ? t('roomSchedule.range', { start: range.start, end: range.end }) : range.start
 }
 
-const AVATAR_COLORS = [brand.coral, brand.lavender, brand.mint, brand.amber]
+/** Avatar fills after the first, which is the theme accent (#297). */
+const OTHER_AVATAR_COLORS = [brand.lavender, brand.mint, brand.amber]
 const VISIBLE_AVATARS = 3
 /** The API mints invites only while a room still takes members (GoGo-BE `createInvite`). */
 const JOINABLE: readonly RoomSummary['status'][] = ['draft', 'collecting']
@@ -103,6 +105,8 @@ const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'de
 }
 
 export default function GoGoRoomScreen() {
+  const { theme } = useUnistyles()
+  const avatarColors = [theme.accent.primary, ...OTHER_AVATAR_COLORS]
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -509,7 +513,7 @@ export default function GoGoRoomScreen() {
                   <AvatarCircle
                     label={initial(member.displayName)}
                     size={56}
-                    background={AVATAR_COLORS[index % AVATAR_COLORS.length]}
+                    background={avatarColors[index % avatarColors.length]}
                     imageUri={member.avatarUrl}
                   />
                 </View>
@@ -603,7 +607,7 @@ export default function GoGoRoomScreen() {
                     <AvatarCircle
                       label={initial(member.displayName)}
                       size={40}
-                      background={AVATAR_COLORS[index % AVATAR_COLORS.length]}
+                      background={avatarColors[index % avatarColors.length]}
                       imageUri={member.avatarUrl}
                     />
                     <View style={styles.memberNameRow}>

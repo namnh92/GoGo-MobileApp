@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glassFx, glyph, radius, spacing, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   content: { paddingHorizontal: spacing[5], paddingBottom: spacing[4] },
   nameLabel: { ...type.label, color: neutral[900], marginTop: spacing[4], marginBottom: spacing[2] },
   nameInput: { ...type.body, color: neutral[900], minHeight: 48, padding: spacing[3], borderWidth: 1, borderColor: neutral[300], borderRadius: radius.compact },
@@ -21,9 +21,9 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   optionActive: {
-    backgroundColor: brand.coral,
+    backgroundColor: theme.accent.primary,
     borderWidth: 1,
-    borderColor: brand.coralDeep,
+    borderColor: theme.accent.pressed,
   },
   optionPressed: { transform: [{ scale: 0.99 }], opacity: 0.95 },
   optionEmoji: { fontSize: glyph.md },
@@ -37,4 +37,4 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-})
+}))

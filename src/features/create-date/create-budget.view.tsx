@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
@@ -15,6 +16,7 @@ import { WizardStep } from './wizard-step.view'
 import { styles } from './create-budget.style'
 
 export default function CreateBudgetScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const { roomType, budgetMode } = useRoom()
@@ -77,7 +79,7 @@ export default function CreateBudgetScreen() {
                 onPress={() => { setSelected(tier); patchDraft({ budgetAmount: tier.amount }) }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
+                style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>

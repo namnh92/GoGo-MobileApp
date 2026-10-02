@@ -1,4 +1,5 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glassFx, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
@@ -9,11 +10,11 @@ const { brand, neutral } = colors
 export const GALLERY_HEIGHT = 280
 export const SHEET_OVERLAP = 28
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   // --- gallery -------------------------------------------------------------
   gallery: { height: GALLERY_HEIGHT },
   galleryPage: { height: GALLERY_HEIGHT },
-  imageScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrimLight },
+  imageScrim: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.scrimLight },
   galleryDots: {
     position: 'absolute',
     bottom: spacing[7],
@@ -81,9 +82,9 @@ export const styles = StyleSheet.create({
 
   openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
   openDot: { width: 8, height: 8, borderRadius: 4 },
-  open: { ...type.label, color: brand.mint },
+  open: { ...type.label, color: theme.status.successText },
   closed: { ...type.label, color: neutral[500] },
-  hoursToggle: { ...type.bodySmall, color: brand.coral, marginLeft: 'auto' },
+  hoursToggle: { ...type.bodySmall, color: theme.accent.primary, marginLeft: 'auto' },
   hoursTable: { marginTop: spacing[2], gap: 4, paddingLeft: spacing[4] },
   hoursRow: { flexDirection: 'row', justifyContent: 'space-between' },
   hoursDay: { ...type.bodySmall, color: neutral[500] },
@@ -147,7 +148,7 @@ export const styles = StyleSheet.create({
   },
   suitLabel: { ...type.bodySmall, color: neutral[700], flex: 1 },
   suitTrack: { width: 84, height: 6, borderRadius: 3, backgroundColor: neutral[100], overflow: 'hidden' },
-  suitFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 3 },
+  suitFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 3 },
   suitValue: { ...type.label, color: neutral[900], width: 28, textAlign: 'right' },
 
   factsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
@@ -194,19 +195,19 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveBtnActive: { borderColor: brand.coral, backgroundColor: brand.coralSoft },
+  saveBtnActive: { borderColor: theme.accent.primary, backgroundColor: theme.accent.soft },
   addBtn: { height: touchTarget.min + 8 },
   dirBtn: {
     height: touchTarget.min + 8,
     borderRadius: radius.compact,
-    // coralDeep, not coral: white on #D84F4A is 4.09:1, under AA for this
-    // label. This button paints its own background rather than going through
-    // PrimaryBtn, so it was missed when the CTA gradient was fixed (#141).
-    backgroundColor: brand.coralDeep,
+    // This button paints its own background rather than going through
+    // PrimaryBtn, so it reads the accent itself; white on every theme's
+    // `accent.primary` clears AA (`__tests__/contrast.test.ts`).
+    backgroundColor: theme.accent.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   dirLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
-})
+}))

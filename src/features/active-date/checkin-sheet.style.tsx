@@ -1,12 +1,13 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glassFx, glyph, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -37,7 +38,7 @@ export const styles = StyleSheet.create({
     borderRadius: radius.compact,
     backgroundColor: neutral[50],
   },
-  tagBtnActive: { backgroundColor: brand.coral },
+  tagBtnActive: { backgroundColor: theme.accent.primary },
   tagLabel: { ...type.label, color: neutral[500] },
   tagLabelActive: { color: neutral[0] },
   photoRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[4], alignItems: 'center' },
@@ -112,7 +113,7 @@ export const styles = StyleSheet.create({
   billInputTotal: { flex: 1.6 },
   billInputPeople: { flex: 1 },
   billPeopleHint: { ...type.caption, color: neutral[500] },
-  billPerPerson: { ...type.label, fontWeight: '700', color: brand.coral },
+  billPerPerson: { ...type.label, fontWeight: '700', color: theme.accent.primary },
   billPhotoBtn: {
     height: 44,
     borderRadius: radius.compact,
@@ -143,4 +144,4 @@ export const styles = StyleSheet.create({
   skipBtnDisabled: { opacity: 0.45 },
   skipLabel: { ...type.bodySmall, fontWeight: '500', color: neutral[500] },
   unavailableNote: { ...type.caption, color: colors.neutral[500], marginTop: spacing[3] },
-})
+}))

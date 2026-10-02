@@ -1,16 +1,16 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, spacing, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   header: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   addPlaceBtn: {
     marginLeft: 'auto',
   },
-  addPlaceLabel: { ...type.title1, fontWeight: '700', color: brand.coral },
+  addPlaceLabel: { ...type.title1, fontWeight: '700', color: theme.accent.primary },
   title: { ...type.display, color: neutral[900] },
   filterRow: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
   list: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
@@ -24,4 +24,4 @@ export const styles = StyleSheet.create({
   gridItem: { width: '48%' },
   unavailable: { width: '48%', padding: spacing[3], gap: spacing[2] },
   unavailableLabel: { ...type.bodySmall, color: neutral[500] },
-})
+}))

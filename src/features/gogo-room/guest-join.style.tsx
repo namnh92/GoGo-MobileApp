@@ -1,17 +1,17 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   badge: {
-    backgroundColor: brand.coralGhost,
+    backgroundColor: theme.accent.soft,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: radius.pill,
     marginBottom: spacing[4],
   },
-  badgeLabel: { ...type.label, color: brand.coral },
+  badgeLabel: { ...type.label, color: theme.accent.onSoft },
   title: {
     ...type.title1,
     color: neutral[900],
@@ -53,4 +53,4 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing[4],
   },
-})
+}))

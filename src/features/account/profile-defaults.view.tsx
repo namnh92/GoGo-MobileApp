@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import type { AdministrativeSelection } from '@/shared/administrative/snapshot'
@@ -15,7 +16,6 @@ import { track } from '@/shared/analytics'
 import { serviceAreaLabel } from '@/shared/location/area-label'
 import { haptic } from '@/shared/ui/feedback'
 import { Chip, GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
-import { colors } from '@/shared/ui/tokens'
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 
@@ -36,6 +36,7 @@ export const areaDisplayName = serviceAreaLabel
  * Nothing here writes to a room.
  */
 export function ProfileDefaultsCard({ profile }: { profile: Me }) {
+  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const update = useUpdateProfile()
   const administrativeVersion = useAdministrativeVersion()
@@ -121,7 +122,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
         <Text style={styles.fieldLabel}>{t('account.interests')}</Text>
         <Text style={styles.hint}>{t('account.interestsHint', { max: MAX_INTERESTS })}</Text>
         {taxonomies.isPending ? (
-          <ActivityIndicator color={colors.brand.coral} />
+          <ActivityIndicator color={theme.accent.primary} />
         ) : taxonomies.isError ? (
           <View style={styles.valueRow}>
             <Text style={styles.problem}>{t('account.interestsFailed')}</Text>

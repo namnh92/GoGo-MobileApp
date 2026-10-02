@@ -1,10 +1,11 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glassFx, glyph, onDark, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -38,7 +39,7 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   heroScrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...RNStyleSheet.absoluteFillObject,
     backgroundColor: overlay.scrim,
   },
   heroContent: {
@@ -68,8 +69,8 @@ export const styles = StyleSheet.create({
     borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: brand.coral,
-    shadowColor: brand.coral,
+    backgroundColor: theme.accent.primary,
+    shadowColor: theme.accent.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
@@ -108,4 +109,4 @@ export const styles = StyleSheet.create({
   scopeCard: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[2] },
   scopeTitle: { ...type.title2, color: neutral[900] },
   scopeBody: { ...type.bodySmall, color: neutral[500] },
-})
+}))

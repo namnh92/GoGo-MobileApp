@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, AppState, Linking, Switch, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
 import { useNotificationSettings, useSetNotificationSettings } from '@/shared/api'
 import type { MessageKey } from '@/shared/i18n/types'
@@ -35,6 +36,7 @@ const DEVICE_NOTE: Record<PushState, MessageKey> = {
  * the screen decides who sees this.
  */
 export function NotificationSwitchSection() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const settings = useNotificationSettings()
   const save = useSetNotificationSettings()
@@ -88,7 +90,7 @@ export function NotificationSwitchSection() {
             value={current?.pushEnabled ?? false}
             onValueChange={next => save.mutate({ pushEnabled: next })}
             disabled={!current || save.isPending}
-            trackColor={{ true: colors.brand.coral, false: colors.neutral[100] }}
+            trackColor={{ true: theme.accent.primary, false: colors.neutral[100] }}
             accessibilityLabel={t('notificationSettings.switchLabel')}
             accessibilityHint={t('notificationSettings.switchHint')}
           />
@@ -98,7 +100,7 @@ export function NotificationSwitchSection() {
           <View accessibilityLiveRegion="polite" style={styles.syncState}>
             {settings.isPending ? (
               <>
-                <ActivityIndicator color={colors.brand.coral} size="small" />
+                <ActivityIndicator color={theme.accent.primary} size="small" />
                 <Text style={styles.syncText}>{t('common.loading')}</Text>
               </>
             ) : (

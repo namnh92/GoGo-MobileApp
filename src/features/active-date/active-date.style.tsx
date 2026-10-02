@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   topBar: {
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[3],
@@ -12,14 +12,14 @@ export const styles = StyleSheet.create({
   },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.coral },
-  live: { ...type.caption, fontWeight: '700', color: brand.coral, letterSpacing: 0.5 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },
+  live: { ...type.caption, fontWeight: '700', color: theme.accent.primary, letterSpacing: 0.5 },
   stopCounter: { ...type.title1, color: neutral[900] },
 
   /** Dots repeat the counter visually, so they stay decorative. */
   stepDots: { flexDirection: 'row', gap: 4 },
   stepDot: { height: 6, width: 14, borderRadius: 3, backgroundColor: neutral[100] },
-  stepDotActive: { width: 24, backgroundColor: brand.coral },
+  stepDotActive: { width: 24, backgroundColor: theme.accent.primary },
   stepDotDone: { backgroundColor: brand.mint },
 
   // The current stop is the screen. Everything else is context around it.
@@ -71,4 +71,4 @@ export const styles = StyleSheet.create({
   /** #251 — the room is not live: one message and one way out. */
   notActive: { flex: 1, paddingHorizontal: spacing[5] },
   notActiveCta: { alignSelf: 'stretch', marginTop: spacing[4] },
-})
+}))

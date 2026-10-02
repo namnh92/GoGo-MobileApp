@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Animated, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import Svg, { Circle, Path } from 'react-native-svg'
 
 import { useSession } from '@/shared/providers/session-provider'
@@ -14,6 +15,7 @@ import { styles } from './splash.style'
 const SPLASH_MS = 2200
 
 export default function SplashScreen() {
+  const { theme } = useUnistyles()
   const router = useRouter()
   const { status } = useSession()
   const reducedMotion = useReducedMotion()
@@ -72,8 +74,8 @@ export default function SplashScreen() {
         style={[styles.logoBox, { opacity: entrance, transform: [{ scale: settle }] }]}
       >
         <Svg width={48} height={48} viewBox="0 0 42 42" fill="none">
-          <Circle cx={14} cy={21} r={9} fill={colors.brand.coral} />
-          <Circle cx={28} cy={21} r={9} fill={colors.brand.coral} opacity={0.6} />
+          <Circle cx={14} cy={21} r={9} fill={theme.accent.primary} />
+          <Circle cx={28} cy={21} r={9} fill={theme.accent.primary} opacity={0.6} />
           <Path
             d="M21 14 C17 14, 14 17, 14 21 C14 25, 17 28, 21 28 C25 28, 28 25, 28 21 C28 17, 25 14, 21 14Z"
             fill={colors.neutral[0]}
