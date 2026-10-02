@@ -55,15 +55,14 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
     const base = editing.current ?? room
     if (!base.constraints || !canEdit) return
     setNotice(null)
-    // The contract replaces the whole constraint (no partial PATCH), so an
-    // emptied end field clears the end; a prefilled one sent back keeps it.
-    const constraints = { ...base.constraints }
-    delete constraints.endAt
+    // RoomConstraintPatch keeps any field that is omitted (GoGo-BE#576), so an
+    // emptied end field must send `endAt: null` to clear the end; a prefilled
+    // one sent back keeps it.
     try {
       const updated = await update.mutateAsync({
-        ...constraints,
+        ...base.constraints,
         startAt: localScheduleToIso(formValues.start)!,
-        ...(formValues.end.trim() ? { endAt: localScheduleToIso(formValues.end)! } : {}),
+        endAt: formValues.end.trim() ? localScheduleToIso(formValues.end)! : null,
         expectedConstraintVersion: base.constraintVersion,
       })
       editing.current = null

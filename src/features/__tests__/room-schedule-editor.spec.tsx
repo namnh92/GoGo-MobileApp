@@ -45,7 +45,9 @@ it('clears an existing end when the host empties the field, and keeps it otherwi
   await fireEvent.changeText(view.getByLabelText('Kết thúc (không bắt buộc)'), '')
   await fireEvent.press(view.getByText('Lưu'))
   await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(2))
-  expect(mockMutate.mock.calls[1][0]).not.toHaveProperty('endAt')
+  // GoGo-BE#576: RoomConstraintPatch keeps a field that is omitted, so only an
+  // explicit null clears the end. Omitting it silently kept the old end.
+  expect(mockMutate.mock.calls[1][0]).toHaveProperty('endAt', null)
 })
 
 it('does not allow an active room to be rescheduled', async () => {
