@@ -150,7 +150,7 @@ export default function CreateMoodScreen() {
 
       {taxonomies.isPending ? (
         // A grid of chips is coming; say so with its shape, not a spinner.
-        <View style={{ paddingHorizontal: spacing[5], gap: spacing[3] }}>
+        <View testID="create-mood-pending" style={{ paddingHorizontal: spacing[5], gap: spacing[3], paddingBottom: footerInset + spacing[4] }}>
           <Skeleton width="55%" height={22} />
           <View style={styles.grid}>
             {[0, 1, 2, 3, 4, 5].map(index => (
@@ -165,7 +165,10 @@ export default function CreateMoodScreen() {
           </View>
         </View>
       ) : taxonomies.isError ? (
-        <ErrorState error={taxonomies.error} onRetry={() => void taxonomies.refetch()} />
+        // The floating footer covers these branches too; pad them like the list.
+        <View testID="create-mood-error" style={{ flex: 1, paddingBottom: footerInset + spacing[4] }}>
+          <ErrorState error={taxonomies.error} onRetry={() => void taxonomies.refetch()} />
+        </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: footerInset + spacing[4] }}>
           <Text style={styles.title}>{t('createMood.title')}</Text>
