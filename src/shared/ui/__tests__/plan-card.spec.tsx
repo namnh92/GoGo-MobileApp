@@ -54,6 +54,17 @@ describe('PlanCard', () => {
     expect(StyleSheet.flatten(label.parent!.props.style).backgroundColor).toBe(status.infoSoft)
   })
 
+  it('keeps a long status under the facts, never beside them (#298, Kế hoạch at 375pt)', async () => {
+    // Beside the column, this chip took most of a 375pt row and the title and
+    // meta wrapped one word per line. Inside the column it takes no width from them.
+    await renderCard({ status: { label: 'Đang chờ mọi người chọn', variant: 'info' } })
+    const column = screen.getByTestId('plan-card-title').parent!
+    const chip = screen.getByText('Đang chờ mọi người chọn').parent!
+    expect(chip.parent).toBe(column)
+    expect(screen.getByTestId('plan-card-meta').parent).toBe(column)
+    expect(StyleSheet.flatten(column.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+  })
+
   it('upcoming: the icon sits on the accent soft circle; past: neutral circle and faded card', async () => {
     await renderCard()
     const circle = () => StyleSheet.flatten(screen.getByText('👥').parent!.props.style)

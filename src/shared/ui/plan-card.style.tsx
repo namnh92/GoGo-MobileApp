@@ -1,7 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { glyph } from '@/shared/ui/tokens'
-
 export const styles = StyleSheet.create(theme => ({
   card: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[3] },
   /** Past plans stay readable, just clearly behind the live ones. */
@@ -15,9 +13,10 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.accent.soft,
   },
   iconPast: { backgroundColor: theme.surface.subtle },
-  glyph: { fontSize: glyph.sm },
-  // `minWidth: 0` so a long title wraps inside the column instead of pushing
-  // the status chip off the card.
+  // `minWidth: 0` so a long title wraps inside the column instead of
+  // widening the card. The column holds title, meta and status, so its width
+  // is the row minus the icon — nothing beside it competes for the space.
   body: { flex: 1, minWidth: 0, gap: 2 },
-  status: { alignSelf: 'flex-start' },
+  /** Hugs its label; a little air above so it reads as its own row. */
+  status: { alignSelf: 'flex-start', marginTop: theme.spacing[1] },
 }))
