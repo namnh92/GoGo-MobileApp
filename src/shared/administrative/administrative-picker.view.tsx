@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native'
+import { FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, LoadingState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { BackHeader, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { useAdministrativeUnits, useAdministrativeVersion } from './queries'
 import { foldName, type AdministrativeSelection, type AdministrativeUnit } from './snapshot'
 import { styles } from './administrative-picker.style'
@@ -42,10 +43,10 @@ export function AdministrativePicker({ value, onChange }: {
     <View style={styles.root}>
       {/* A form, not a saved copy: the picker never claims its choices are the device's cached data (GoGo-MobileApp#253). */}
       <StaleNotice error={version.error} hasData={false} onRetry={() => void version.refetch()} />
-      {changed ? <Text accessibilityLiveRegion="polite" style={styles.hint}>{t('administrative.changed')}</Text> : null}
-      <Text style={styles.label}>{t('administrative.province')}</Text>
+      {changed ? <Text accessibilityLiveRegion="polite" variant="bodySmall" color="text.secondary">{t('administrative.changed')}</Text> : null}
+      <Text variant="label">{t('administrative.province')}</Text>
       <SecondaryBtn label={value?.provinceName ?? t('administrative.selectProvince')} onPress={() => open('province')} />
-      <Text style={styles.label}>{t('administrative.commune')}</Text>
+      <Text variant="label">{t('administrative.commune')}</Text>
       <SecondaryBtn label={value?.communeName ?? t('administrative.wholeProvince')} disabled={!value || changed} onPress={() => open('commune')} />
       {value ? <GhostBtn label={t('administrative.clear')} onPress={() => onChange(null)} /> : null}
       <Modal visible={level !== null} animationType="slide" onRequestClose={() => setLevel(null)}>
@@ -57,7 +58,7 @@ export function AdministrativePicker({ value, onChange }: {
           {units.isPending ? (unitsWaiting ? <OfflineState /> : <LoadingState />) : !units.data ? <ErrorState error={units.error} onRetry={() => { void version.refetch(); void units.refetch() }} /> : (
             <FlatList data={filtered} keyExtractor={item => item.code} keyboardShouldPersistTaps="handled"
               ListEmptyComponent={<EmptyState title={t('administrative.empty')} />}
-              renderItem={({ item }) => <Pressable style={styles.row} accessibilityRole="button" onPress={() => select(item)}><Text style={styles.text}>{item.fullName}</Text></Pressable>} />
+              renderItem={({ item }) => <Pressable style={styles.row} accessibilityRole="button" onPress={() => select(item)}><Text>{item.fullName}</Text></Pressable>} />
           )}
         </View>
       </Modal>

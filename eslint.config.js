@@ -24,8 +24,8 @@ module.exports = defineConfig([
     // semantic colour) and style through Unistyles, so an accent change reaches
     // every surface. The primitive itself wraps React Native's `Text`; tests
     // query the host component and are not screens.
-    files: ['src/features/**/*.{ts,tsx}', 'src/shared/ui/**/*.{ts,tsx}'],
-    ignores: ['src/shared/ui/text.tsx', 'src/shared/ui/tokens.ts', '**/__tests__/**'],
+    files: ['src/features/**/*.{ts,tsx}', 'src/shared/**/*.{ts,tsx}'],
+    ignores: ['src/shared/ui/text.tsx', 'src/shared/ui/tokens.ts', 'src/shared/ui/theme.ts', '**/__tests__/**'],
     rules: {
       'no-restricted-imports': [
         'error',
