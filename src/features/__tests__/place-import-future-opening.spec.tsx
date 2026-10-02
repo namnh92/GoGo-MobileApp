@@ -117,3 +117,46 @@ it('still offers submit for an operating place', async () => {
   const button = screen.getByRole('button', { name: SUBMIT })
   expect(button.props.accessibilityState?.disabled).not.toBe(true)
 })
+
+describe('#316 review', () => {
+  it('F-01: shows PLACE_NOT_YET_OPEN beside the candidate-selection submit too', async () => {
+    mockResolve.data = {
+      status: 'CANDIDATE_SELECTION',
+      candidates: [
+        { googlePlaceId: 'ChIJa', name: 'Quán A', address: '1 Đường A' },
+        { googlePlaceId: 'ChIJb', name: 'Quán B', address: '2 Đường B' },
+      ],
+    }
+    mockSubmit.isError = true
+    mockSubmit.error = new ApiError(409, { code: 'PLACE_NOT_YET_OPEN', message: 'chưa khai trương' })
+    await renderScreen(<PlaceImportScreen />)
+    expect(screen.getByText(NOT_YET_OPEN)).toBeTruthy()
+    expect(screen.queryByText(GENERIC_FAILURE)).toBeNull()
+  })
+
+  it('F-01: keeps the generic failure beside the candidate-selection submit for other errors', async () => {
+    mockResolve.data = {
+      status: 'CANDIDATE_SELECTION',
+      candidates: [{ googlePlaceId: 'ChIJa', name: 'Quán A', address: '1 Đường A' }],
+    }
+    mockSubmit.isError = true
+    mockSubmit.error = new ApiError(500, { code: 'INTERNAL', message: 'boom' })
+    await renderScreen(<PlaceImportScreen />)
+    expect(screen.getByText(GENERIC_FAILURE)).toBeTruthy()
+  })
+
+  it('F-02: the disabled submit carries its reason, for assistive tech and on screen', async () => {
+    mockResolve.data = candidate('FUTURE_OPENING')
+    await renderScreen(<PlaceImportScreen />)
+    const button = screen.getByRole('button', { name: SUBMIT })
+    expect(button.props.accessibilityHint).toBe(NOT_YET_OPEN)
+    // The reason is printed with the button, not only in the status line above.
+    expect(screen.getByText(NOT_YET_OPEN)).toBeTruthy()
+  })
+
+  it('F-02: an enabled submit has no such hint', async () => {
+    mockResolve.data = candidate('OPERATIONAL')
+    await renderScreen(<PlaceImportScreen />)
+    expect(screen.getByRole('button', { name: SUBMIT }).props.accessibilityHint).toBeUndefined()
+  })
+})

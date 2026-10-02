@@ -24,6 +24,8 @@ import { styles } from './button.style'
 export interface ButtonProps {
   label: string
   onPress: () => void
+  /** Why the button is unavailable, or what it does, read after the label. */
+  accessibilityHint?: string
   disabled?: boolean
   loading?: boolean
   style?: StyleProp<ViewStyle>
@@ -66,7 +68,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && styles[`${kind}Pressed`], disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, disabled = false, loading = false, onAccent = false, style }: ButtonProps & {
+function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, style }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -87,6 +89,7 @@ function Button({ kind, label, onPress, disabled = false, loading = false, onAcc
       // #271: Android writes contentDescription only when label + state is
       // non-empty, so without a label a button kept saying "busy" after loading.
       accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [
         styles.base,

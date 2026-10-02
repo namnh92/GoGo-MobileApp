@@ -156,6 +156,8 @@ export default function PlaceImportScreen() {
 
   const result = resolve.data
   const candidate = result?.candidate as Candidate | undefined
+  // #131: Google lists it as opening soon; the server refuses the submit.
+  const notOpenYet = candidate?.businessStatus === 'FUTURE_OPENING'
 
   function onResolve() {
     const parsed = mapsUrlSchema.safeParse(url)
@@ -189,6 +191,11 @@ export default function PlaceImportScreen() {
    * A client that sends nothing still works; the server just pays for the extra
    * fetch, which is the rollback.
    */
+  // One reading of a submit refusal, shown beside whichever CTA sent it (#316 F-01).
+  const submitError = submit.isError
+    ? t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed')
+    : null
+
   async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false) {
     const resolutionToken = token ?? resolve.data?.resolutionToken
     try {
@@ -351,6 +358,7 @@ export default function PlaceImportScreen() {
               loading={submit.isPending || revalidating}
               style={styles.addBtn}
             />
+            {submitError ? <Text style={styles.errorLabel}>{submitError}</Text> : null}
           </View>
         ) : null}
 
@@ -486,24 +494,25 @@ export default function PlaceImportScreen() {
                   ) : null}
                 </View>
               ) : (
-                <PrimaryBtn
-                  label={t('placeImport.submit')}
-                  onPress={() => {
-                    if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)
-                  }}
-                  loading={submit.isPending || revalidating}
-                  // #131: the server refuses an unopened place (409
-                  // PLACE_NOT_YET_OPEN); the status line above says why.
-                  disabled={!candidate.googlePlaceId || candidate.businessStatus === 'FUTURE_OPENING'}
-                  style={styles.addBtn}
-                />
+                <>
+                  <PrimaryBtn
+                    label={t('placeImport.submit')}
+                    onPress={() => {
+                      if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)
+                    }}
+                    loading={submit.isPending || revalidating}
+                    // #131: the server refuses an unopened place (409
+                    // PLACE_NOT_YET_OPEN). The reason sits with the button and
+                    // is read with it (#316 F-02).
+                    disabled={!candidate.googlePlaceId || notOpenYet}
+                    accessibilityHint={notOpenYet ? t('placeImport.notYetOpen') : undefined}
+                    style={styles.addBtn}
+                  />
+                  {notOpenYet ? <Text style={styles.errorLabel}>{t('placeImport.notYetOpen')}</Text> : null}
+                </>
               )}
 
-              {submit.isError ? (
-                <Text style={styles.errorLabel}>
-                  {t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed')}
-                </Text>
-              ) : null}
+              {submitError && !notOpenYet ? <Text style={styles.errorLabel}>{submitError}</Text> : null}
 
               {/* Provider data must be shown with its attribution. */}
               {(candidate.attributions ?? []).map(attribution => (
