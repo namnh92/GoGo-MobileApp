@@ -67,8 +67,31 @@ describe('type scale', () => {
     expect(type.bodySmall.fontFamily).toBe(fontFamily.regular)
   })
 
-  it('no source file hard-codes a font size', () => {
-    expect(offenders(/fontSize: \d/)).toEqual([])
+  it('no source file writes a font size', () => {
+    /**
+     * #298: not even a token. Text takes a size from `<Text variant>`, a glyph
+     * from `<Glyph size>` (whose styles live in tokens.ts), so `fontSize:` in a
+     * screen means a size chosen outside the scale. The one exception is a size
+     * computed from a component prop — an avatar's initials scale with the
+     * avatar — and each of those is listed here with its count.
+     */
+    const computedFromProp: Record<string, number> = {
+      // AvatarCircle: emoji and initials scale with the `size` prop.
+      'shared/ui/primitives.tsx': 2,
+    }
+    const counts: Record<string, number> = {}
+    const rows = offenders(/fontSize\s*:/)
+    for (const row of rows) {
+      const file = row.slice(0, row.indexOf(':'))
+      counts[file] = (counts[file] ?? 0) + 1
+    }
+    const unexpected = rows.filter(row => {
+      const file = row.slice(0, row.indexOf(':'))
+      return counts[file] !== computedFromProp[file]
+    })
+    expect(unexpected).toEqual([])
+    // The exception list may only shrink: a listed file without the computed size is stale.
+    expect(Object.keys(computedFromProp).filter(file => !(file in counts))).toEqual([])
   })
 
   it('no source file names a font family', () => {
@@ -78,65 +101,11 @@ describe('type scale', () => {
     expect(offenders(/fontFamily:/)).toEqual([])
   })
 
-  it('no source file adds a fontWeight the type scale did not give it', () => {
-    /**
-     * Ratchet, not a ban yet. These overrides predate the embedded face and
-     * are removed screen by screen in #295–#298 (a `body` at `'700'` is not a
-     * style on the scale; each becomes `label`, `title2`, or stays Regular —
-     * a design call per line, not a mechanical rewrite). Until then every
-     * count must match this table exactly — a removed override lowers its
-     * entry in the same change, so a later one cannot creep back in under
-     * the old allowance — and a file not listed here may not have any. #298
-     * deletes the table.
-     */
-    const allowed: Record<string, number> = {
-      'features/account/account.style.tsx': 2,
-      'features/account/date-of-birth.style.tsx': 1,
-      'features/account/profile-defaults.style.tsx': 1,
-      'features/active-date/active-date.style.tsx': 3,
-      'features/active-date/checkin-sheet.style.tsx': 6,
-      'features/active-date/date-finished.style.tsx': 1,
-      'features/auth/sign-in.style.tsx': 2,
-      'features/create-date/create-location.style.tsx': 1,
-      'features/create-date/create-time.style.tsx': 2,
-      'features/create-date/group-setup.style.tsx': 2,
-      'features/date-plan/date-plan.style.tsx': 2,
-      'features/date-plan/place-detail.style.tsx': 4,
-      'features/date-plan/plan-edit.style.tsx': 1,
-      'features/gogo-room/guest-join.style.tsx': 1,
-      'features/gogo-room/room-manage.style.tsx': 3,
-      'features/home/home.style.tsx': 3,
-      'features/matching/match-result.style.tsx': 5,
-      'features/matching/matching.style.tsx': 2,
-      'features/matching/swipe.style.tsx': 4,
-      'features/notifications/notification-switch.style.tsx': 2,
-      'features/notifications/notifications.style.tsx': 1,
-      'features/onboarding/onboarding.style.tsx': 1,
-      'features/place-import/import.style.tsx': 10,
-      'features/review/my-reviews.style.tsx': 1,
-      'features/review/review.style.tsx': 2,
-      'features/review/shared-result.style.tsx': 2,
-      'features/search/search.style.tsx': 8,
-      'features/settings/location-permission.style.tsx': 1,
-      'features/tabs/profile.style.tsx': 3,
-      'features/tabs/saved.style.tsx': 1,
-      'shared/ui/async-state.style.tsx': 1,
-    }
-
-    const counts: Record<string, number> = {}
-    for (const row of offenders(/fontWeight:/)) {
-      const file = row.slice(0, row.indexOf(':'))
-      counts[file] = (counts[file] ?? 0) + 1
-    }
-
-    const drifted = Object.entries(counts)
-      .filter(([file, count]) => count !== (allowed[file] ?? 0))
-      .map(([file, count]) => `${file}: ${count} (table says ${allowed[file] ?? 0})`)
-    expect(drifted).toEqual([])
-
-    // The table may only shrink: an entry whose file is clean is stale.
-    const stale = Object.keys(allowed).filter(file => !(file in counts))
-    expect(stale).toEqual([])
+  it('no source file adds a fontWeight', () => {
+    // #298 replaced the #142–#297 ratchet table with a ban: weight is the face
+    // a `type.*` style names, so a heavier line is a different variant
+    // (`label`, `title2`), never a `fontWeight` next to one.
+    expect(offenders(/fontWeight\s*:/)).toEqual([])
   })
 
   it('glyph sizes stay out of the text scale', () => {
