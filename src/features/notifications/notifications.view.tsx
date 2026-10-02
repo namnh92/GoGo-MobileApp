@@ -1,14 +1,15 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, Pressable, Text, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
 import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, GhostBtn, GlassCard } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, GhostBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInboxTarget } from './inbox-target'
@@ -94,12 +95,12 @@ export default function NotificationsScreen() {
     <View style={{ paddingTop: insets.top }}>
       <BackHeader onBack={() => goBackOrHome(router)} title={t('notifications.title')} />
       {pushUnavailable ? (
-        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+        <Text variant="bodySmall" accessibilityLiveRegion="polite" style={styles.notice}>
           {t('notifications.pushUnavailable')}
         </Text>
       ) : null}
       {openProblem ? (
-        <Text accessibilityLiveRegion="polite" style={styles.openProblem}>
+        <Text variant="bodySmall" accessibilityLiveRegion="polite" style={styles.openProblem}>
           {openProblem === 'retry' ? t('notifications.openRetry') : t('notifications.openRefused')}
         </Text>
       ) : null}
@@ -164,21 +165,21 @@ export default function NotificationsScreen() {
               accessibilityRole="button"
               accessibilityState={{ busy }}
             >
-              <GlassCard style={[styles.row, unread && styles.rowUnread]}>
+              <Card padded={false} style={[styles.row, unread && styles.rowUnread]}>
                 {/* Unread is marked by more than colour (RULE-DS-COLOR). */}
                 <View style={styles.dotColumn}>
                   {unread ? <View style={styles.unreadDot} /> : null}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.kind, unread && styles.kindUnread]}>
+                  <Text variant={unread ? 'title2' : 'body'}>
                     {t(`notifications.kind.${item.kind}`, { defaultValue: item.kind ?? '' })}
                   </Text>
                   {created ? (
-                    <Text style={styles.time}>{created.toLocaleString(i18n.language)}</Text>
+                    <Text variant="caption" color="text.secondary" style={styles.time}>{created.toLocaleString(i18n.language)}</Text>
                   ) : null}
                 </View>
                 {busy ? <ActivityIndicator /> : null}
-              </GlassCard>
+              </Card>
             </Pressable>
           )
         }}

@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -17,7 +17,8 @@ import {
 } from '@/shared/api'
 import { formatMoney } from '@/shared/pricing/money'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
@@ -146,9 +147,9 @@ export default function RoomManageScreen() {
       >
         <RoomTitleEditor room={summary} />
         <RoomScheduleEditor room={summary} />
-        <GlassCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('roomManage.budgetTitle')}</Text>
-          <Text style={styles.sectionBody}>
+        <Card padded={false} style={styles.card}>
+          <Text variant="title2">{t('roomManage.budgetTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary">
             {t(
               constraints?.budgetMode === 'per_person'
                 ? 'groupSetup.perPerson'
@@ -166,30 +167,30 @@ export default function RoomManageScreen() {
                   accessibilityState={{ selected: active }}
                   style={[styles.tier, active && styles.tierActive]}
                 >
-                  <Text style={[styles.tierLabel, active && styles.tierLabelActive]}>
+                  <Text variant="label" color={active ? 'text.inverse' : 'text.primary'}>
                     {formatMoney(tier.amount, currency)}
                   </Text>
                 </Pressable>
               )
             })}
           </View>
-          <Text style={styles.warning}>{t('roomManage.staleWarning')}</Text>
+          <Text variant="caption" color="status.warningText">{t('roomManage.staleWarning')}</Text>
           <PrimaryBtn
             label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
             onPress={saveConstraints}
             disabled={!budgetDirty}
             loading={updateConstraints.isPending}
           />
-        </GlassCard>
+        </Card>
 
-        <GlassCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('roomManage.membersTitle')}</Text>
-          {members.length === 0 ? <Text style={styles.sectionBody}>{t('roomManage.noMembers')}</Text> : null}
+        <Card padded={false} style={styles.card}>
+          <Text variant="title2">{t('roomManage.membersTitle')}</Text>
+          {members.length === 0 ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.noMembers')}</Text> : null}
           {members.map(member => (
             <View key={member.id} style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{member.displayName}</Text>
-                <Text style={styles.rowMeta}>
+                <Text variant="title2">{member.displayName}</Text>
+                <Text variant="caption" color="text.secondary" style={styles.rowMeta}>
                   {[
                     t(`roomManage.role.${member.role}`),
                     t(`roomManage.selection.${member.selectionStatus}`),
@@ -204,26 +205,26 @@ export default function RoomManageScreen() {
                   accessibilityLabel={t('roomManage.removeConfirm')}
                   style={styles.rowAction}
                 >
-                  <Text style={styles.rowActionLabel}>{t('roomManage.removeConfirm')}</Text>
+                  <Text variant="label" color="status.dangerText">{t('roomManage.removeConfirm')}</Text>
                 </Pressable>
               ) : null}
             </View>
           ))}
-        </GlassCard>
+        </Card>
 
-        <GlassCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('roomManage.invitesTitle')}</Text>
+        <Card padded={false} style={styles.card}>
+          <Text variant="title2">{t('roomManage.invitesTitle')}</Text>
           {/* The endpoint returns metadata only — codes are shown once, at
               creation, and never listed again. */}
-          <Text style={styles.sectionBody}>{t('roomManage.invitesBody')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('roomManage.invitesBody')}</Text>
           {invites.isError ? (
-            <Text style={styles.warning}>{t('common.errorBody')}</Text>
+            <Text variant="caption" color="status.warningText">{t('common.errorBody')}</Text>
           ) : null}
           {(invites.data as { inviteId?: string; expiresAt?: string; maxUses?: number }[] | undefined)?.map(
             invite => (
               <View key={invite.inviteId} style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>
+                  <Text variant="title2">
                     {invite.maxUses != null
                       ? t('roomManage.inviteUses', { n: invite.maxUses })
                       : t('roomManage.invite')}
@@ -234,19 +235,19 @@ export default function RoomManageScreen() {
                   accessibilityRole="button"
                   style={styles.rowAction}
                 >
-                  <Text style={styles.rowActionLabel}>{t('roomManage.revoke')}</Text>
+                  <Text variant="label" color="status.dangerText">{t('roomManage.revoke')}</Text>
                 </Pressable>
               </View>
             ),
           )}
-        </GlassCard>
+        </Card>
 
-        <GlassCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('roomManage.seedTitle')}</Text>
-          <Text style={styles.sectionBody}>{t('createMood.seedHint')}</Text>
+        <Card padded={false} style={styles.card}>
+          <Text variant="title2">{t('roomManage.seedTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('createMood.seedHint')}</Text>
           {(summary.seedPlaces ?? []).map(seed => (
             <View key={seed.placeId} style={styles.row}>
-              <Text style={[styles.rowTitle, { flex: 1 }]} numberOfLines={1}>
+              <Text variant="title2" style={{ flex: 1 }} numberOfLines={1}>
                 {seed.name}
               </Text>
               <Pressable
@@ -255,7 +256,7 @@ export default function RoomManageScreen() {
                 accessibilityLabel={t('roomManage.removeConfirm')}
                 style={styles.rowAction}
               >
-                <Text style={styles.rowActionLabel}>{t('roomManage.removeConfirm')}</Text>
+                <Text variant="label" color="status.dangerText">{t('roomManage.removeConfirm')}</Text>
               </Pressable>
             </View>
           ))}
@@ -263,7 +264,7 @@ export default function RoomManageScreen() {
             label={t('roomManage.addSeedPlaces')}
             onPress={() => router.push(`/places/search?picker=1&roomId=${roomId}`)}
           />
-        </GlassCard>
+        </Card>
 
         <Pressable
           onPress={confirmCancel}
@@ -271,13 +272,13 @@ export default function RoomManageScreen() {
           accessibilityRole="button"
           style={styles.cancelBtn}
         >
-          <Text style={styles.cancelLabel}>
+          <Text variant="label" color="status.dangerText">
             {transitionRoom.isPending ? t('roomManage.cancelling') : t('roomManage.cancelRoom')}
           </Text>
         </Pressable>
 
         {notice ? (
-          <Text accessibilityLiveRegion="polite" style={styles.notice}>
+          <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
             {notice}
           </Text>
         ) : null}

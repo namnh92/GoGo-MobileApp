@@ -1,14 +1,15 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, useJoinRoom } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { confirmReplaceGuest, GuestReplaceNotice } from './guest-replace-notice.view'
@@ -95,12 +96,12 @@ export default function JoinByCodeScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.body}>{t('joinByCode.body')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t('joinByCode.body')}</Text>
 
           {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
-          <GlassCard style={styles.card}>
-            <Text style={styles.label}>{t('joinByCode.codeLabel')}</Text>
+          <Card padded={false} style={styles.card}>
+            <Text variant="label">{t('joinByCode.codeLabel')}</Text>
             <TextInput
               value={code}
               onChangeText={value => {
@@ -118,7 +119,7 @@ export default function JoinByCodeScreen() {
 
             {!asUser ? (
               <>
-                <Text style={styles.label}>{t('guestJoin.nameLabel')}</Text>
+                <Text variant="label">{t('guestJoin.nameLabel')}</Text>
                 <TextInput
                   value={displayName}
                   onChangeText={value => setDisplayName(value.slice(0, MAX_NAME))}
@@ -132,10 +133,10 @@ export default function JoinByCodeScreen() {
                 />
               </>
             ) : null}
-          </GlassCard>
+          </Card>
 
           {error ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
               {error}
             </Text>
           ) : null}
@@ -147,7 +148,7 @@ export default function JoinByCodeScreen() {
               loading={pending}
               disabled={!ready}
             />
-            {!asUser ? <Text style={styles.footnote}>{t('guestJoin.noAccount')}</Text> : null}
+            {!asUser ? <Text variant="caption" color="text.secondary" style={styles.footnote}>{t('guestJoin.noAccount')}</Text> : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

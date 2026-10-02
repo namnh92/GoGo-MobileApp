@@ -1,18 +1,27 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMyReviews, useUpdateReview, type Review } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Glyph, Text, type TextColor } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './my-reviews.style'
 
 const MAX_TEXT = 2000
+
+/** Moderation state as a label colour; an unknown state reads as secondary. */
+const STATUS_COLOR: Record<string, TextColor> = {
+  pending: 'status.warningText',
+  published: 'status.successText',
+  rejected: 'status.dangerText',
+  removed: 'text.secondary',
+}
 
 export default function MyReviewsScreen() {
   const { t, i18n } = useTranslation()
@@ -101,12 +110,12 @@ export default function MyReviewsScreen() {
           const editing = editingId === review.id
           const created = parseApiDate(review.createdAt)
           return (
-            <GlassCard key={review.id} style={styles.card}>
+            <Card padded={false} key={review.id} style={styles.card}>
               <View style={styles.headerRow}>
-                <Text style={styles.stars}>{'⭐'.repeat(editing ? draftRating : review.rating)}</Text>
+                <Text>{'⭐'.repeat(editing ? draftRating : review.rating)}</Text>
                 {/* Moderation state is a fact the author needs: a pending review
                     is not visible to anyone else yet. */}
-                <Text style={[styles.status, styles[`status_${review.status}`]]}>
+                <Text variant="label" color={STATUS_COLOR[review.status] ?? 'text.secondary'}>
                   {t(`myReviews.status.${review.status}`, { defaultValue: review.status })}
                 </Text>
               </View>
@@ -120,7 +129,7 @@ export default function MyReviewsScreen() {
                         onPress={() => setDraftRating(value)}
                         accessibilityLabel={t('review.starAria', { count: value })}
                       >
-                        <Text style={[styles.starPick, value > draftRating && styles.starDim]}>⭐</Text>
+                        <Glyph size="sm" style={value > draftRating && styles.starDim}>⭐</Glyph>
                       </Pressable>
                     ))}
                   </View>
@@ -133,7 +142,7 @@ export default function MyReviewsScreen() {
                     style={styles.input}
                   />
                   {/* Editing sends it back to pending, so say so before saving. */}
-                  <Text style={styles.hint}>{t('myReviews.editResetsModeration')}</Text>
+                  <Text variant="caption" color="text.secondary">{t('myReviews.editResetsModeration')}</Text>
                   <View style={styles.actions}>
                     <GhostBtn label={t('account.deleteCancel')} onPress={() => setEditingId(null)} />
                     <PrimaryBtn
@@ -146,14 +155,14 @@ export default function MyReviewsScreen() {
                 </>
               ) : (
                 <>
-                  {review.text ? <Text style={styles.text}>{review.text}</Text> : null}
+                  {review.text ? <Text variant="bodySmall">{review.text}</Text> : null}
                   {created ? (
-                    <Text style={styles.date}>{created.toLocaleDateString(i18n.language)}</Text>
+                    <Text variant="caption" color="text.secondary">{created.toLocaleDateString(i18n.language)}</Text>
                   ) : null}
                   <GhostBtn label={t('myReviews.edit')} onPress={() => startEdit(review)} />
                 </>
               )}
-            </GlassCard>
+            </Card>
           )
         })}
       </ScrollView>

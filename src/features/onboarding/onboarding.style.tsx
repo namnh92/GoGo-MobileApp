@@ -1,12 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, glassFx, glyph, spacing, type } from '@/shared/ui/tokens'
+import { colors, glassFx, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  skip: {
-    ...type.bodySmall,
-    fontWeight: '500',
-    color: colors.neutral[500],
-  },
   body: {
     flex: 1,
     alignItems: 'center',
@@ -42,20 +37,13 @@ export const styles = StyleSheet.create(theme => ({
     borderWidth: 1,
     borderColor: colors.neutral[100],
   },
-  chipLabel: { ...type.label,
-  },
   emoji: {
-    fontSize: glyph.xl,
     marginTop: spacing[2],
   },
   title: {
-    ...type.display,
-    color: colors.neutral[900],
     textAlign: 'center',
   },
   slideBody: {
-    ...type.body,
-    color: colors.neutral[500],
     textAlign: 'center',
   },
   footer: {

@@ -1,9 +1,6 @@
-import { StyleSheet as RNStyleSheet } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, glyph, onDark, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { fill, glassFx, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   header: {
@@ -14,8 +11,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingTop: spacing[2],
     paddingBottom: spacing[4],
   },
-  greeting: { ...type.display, color: neutral[900] },
-  subtitle: { ...type.body, color: neutral[500], marginTop: 2 },
+  subtitle: { marginTop: 2 },
 
   searchBar: {
     flexDirection: 'row',
@@ -30,7 +26,6 @@ export const styles = StyleSheet.create(theme => ({
     borderColor: glassFx.borderLight,
     paddingHorizontal: spacing[4],
   },
-  searchBarLabel: { ...type.body, color: neutral[500] },
 
   hero: {
     marginHorizontal: spacing[5],
@@ -39,7 +34,7 @@ export const styles = StyleSheet.create(theme => ({
     overflow: 'hidden',
   },
   heroScrim: {
-    ...RNStyleSheet.absoluteFillObject,
+    ...fill,
     backgroundColor: overlay.scrim,
   },
   heroContent: {
@@ -57,9 +52,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.pill,
     marginBottom: spacing[3],
   },
-  heroBadgeLabel: { ...type.caption, color: neutral[0], fontWeight: '700' },
-  heroTitle: { ...type.title1, color: neutral[0] },
-  heroBody: { ...type.bodySmall, color: onDark.medium, marginTop: 4, marginBottom: spacing[4] },
+  heroBody: { marginTop: 4, marginBottom: spacing[4] },
 
   // One dominant CTA (spec §7): "Tạo kèo" is filled, "Chọn nhanh" is outlined.
   heroActions: { flexDirection: 'row', gap: spacing[3], alignItems: 'center' },
@@ -76,7 +69,6 @@ export const styles = StyleSheet.create(theme => ({
     shadowRadius: 14,
     elevation: 4,
   },
-  heroPrimaryLabel: { ...type.body, color: neutral[0], fontWeight: '700' },
   heroSecondary: {
     height: touchTarget.min + 4,
     paddingHorizontal: spacing[5],
@@ -86,7 +78,6 @@ export const styles = StyleSheet.create(theme => ({
     borderWidth: 1.5,
     borderColor: glassFx.borderLight,
   },
-  heroSecondaryLabel: { ...type.body, color: neutral[0], fontWeight: '600' },
 
   presetRow: { paddingHorizontal: spacing[5], gap: spacing[2] },
 
@@ -96,17 +87,13 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'space-between',
     marginBottom: spacing[3],
   },
-  sectionTitle: { ...type.title2, color: neutral[900] },
-  sectionHint: { ...type.bodySmall, color: neutral[500] },
 
   stateCard: { padding: spacing[6], alignItems: 'center' },
-  stateEmoji: { fontSize: glyph.xl, marginBottom: spacing[3] },
-  stateTitle: { ...type.title2, color: neutral[900], textAlign: 'center' },
-  stateBody: { ...type.bodySmall, color: neutral[500], marginTop: 4, textAlign: 'center', lineHeight: 19 },
+  stateEmoji: { marginBottom: spacing[3] },
+  stateTitle: { textAlign: 'center' },
+  stateBody: { marginTop: 4, textAlign: 'center' },
   stateActions: { alignSelf: 'stretch', gap: spacing[2], marginTop: spacing[5] },
   /** ADM-204 — which location scoped the suggestions, said in words. */
-  scopeLabel: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[3] },
+  scopeLabel: { marginBottom: spacing[3] },
   scopeCard: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[2] },
-  scopeTitle: { ...type.title2, color: neutral[900] },
-  scopeBody: { ...type.bodySmall, color: neutral[500] },
 }))

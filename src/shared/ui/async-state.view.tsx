@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { isForbidden, isOffline } from '@/shared/api'
 import { currentOfflineSpell, useOnlineStatus } from '@/shared/api/queries/use-online-status'
 import { GhostBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 
 import { styles } from './async-state.style'
 
@@ -19,7 +20,7 @@ export function LoadingState({ label }: { label?: string }) {
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={label ?? t('common.loading')} style={styles.container}>
       <ActivityIndicator />
-      <Text style={styles.body}>{label ?? t('common.loading')}</Text>
+      <Text variant="bodySmall" color="text.secondary" style={styles.body}>{label ?? t('common.loading')}</Text>
     </View>
   )
 }
@@ -27,8 +28,8 @@ export function LoadingState({ label }: { label?: string }) {
 export function EmptyState({ title, body, action }: { title: string; body?: string; action?: React.ReactNode }) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      {body ? <Text style={styles.body}>{body}</Text> : null}
+      <Text variant="title2" style={styles.title}>{title}</Text>
+      {body ? <Text variant="bodySmall" color="text.secondary" style={styles.body}>{body}</Text> : null}
       {action}
     </View>
   )
@@ -54,8 +55,8 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 
   return (
     <View accessibilityLiveRegion="polite" style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.body}>{body}</Text>
+      <Text variant="title2" style={styles.title}>{title}</Text>
+      <Text variant="bodySmall" color="text.secondary" style={styles.body}>{body}</Text>
       {/* Retrying a permission failure just fails again. */}
       {onRetry && !forbidden ? <GhostBtn label={t('common.retry')} onPress={onRetry} /> : null}
     </View>
@@ -95,8 +96,8 @@ export function OfflineState() {
   useOfflineAnnouncement(true, t('common.offlineBody'))
   return (
     <View accessibilityLiveRegion="polite" style={styles.container}>
-      <Text style={styles.title}>{t('common.offlineTitle')}</Text>
-      <Text style={styles.body}>{t('common.offlineBody')}</Text>
+      <Text variant="title2" style={styles.title}>{t('common.offlineTitle')}</Text>
+      <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t('common.offlineBody')}</Text>
     </View>
   )
 }
@@ -143,7 +144,7 @@ export function StaleNotice({
   if (!shown) return null
   return (
     <View style={[styles.staleBar, style]} accessibilityLiveRegion="polite">
-      <Text style={styles.staleLabel} numberOfLines={2}>
+      <Text variant="bodySmall" color="status.warningText" style={styles.staleLabel} numberOfLines={2}>
         {offline ? t('common.staleOffline') : t('common.staleError')}
       </Text>
       {onRetry && online ? <GhostBtn label={t('common.retry')} onPress={onRetry} /> : null}

@@ -1,13 +1,14 @@
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, AppState, Linking, Switch, Text, View } from 'react-native'
+import { ActivityIndicator, AppState, Linking, Switch, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { useNotificationSettings, useSetNotificationSettings } from '@/shared/api'
 import type { MessageKey } from '@/shared/i18n/types'
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
-import { GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { colors } from '@/shared/ui/tokens'
 
 import { styles } from './notification-switch.style'
@@ -79,11 +80,11 @@ export function NotificationSwitchSection() {
 
   return (
     <View>
-      <GlassCard style={styles.card}>
+      <Card padded={false} style={styles.card}>
         <View style={styles.row}>
           <View style={styles.rowText}>
-            <Text style={styles.rowLabel}>{t('notificationSettings.switchLabel')}</Text>
-            <Text style={styles.rowHint}>{t('notificationSettings.switchHint')}</Text>
+            <Text variant="label">{t('notificationSettings.switchLabel')}</Text>
+            <Text variant="bodySmall" color="text.secondary">{t('notificationSettings.switchHint')}</Text>
           </View>
           <Switch
             // Until the first answer there is no truthful value: off and locked.
@@ -101,23 +102,23 @@ export function NotificationSwitchSection() {
             {settings.isPending ? (
               <>
                 <ActivityIndicator color={theme.accent.primary} size="small" />
-                <Text style={styles.syncText}>{t('common.loading')}</Text>
+                <Text variant="bodySmall" color="text.secondary">{t('common.loading')}</Text>
               </>
             ) : (
               <>
-                <Text style={styles.error}>{t('notificationSettings.loadFailed')}</Text>
+                <Text variant="bodySmall" color="status.dangerText" style={styles.error}>{t('notificationSettings.loadFailed')}</Text>
                 <GhostBtn label={t('common.retry')} onPress={() => void settings.refetch()} />
               </>
             )}
           </View>
         ) : null}
 
-        {carriedOver ? <Text style={styles.hint}>{t('notificationSettings.migratedOff')}</Text> : null}
-      </GlassCard>
+        {carriedOver ? <Text variant="bodySmall" color="status.warningText">{t('notificationSettings.migratedOff')}</Text> : null}
+      </Card>
 
       {save.isError ? (
         <View accessibilityLiveRegion="polite">
-          <Text style={styles.error}>{t('notificationSettings.saveFailed')}</Text>
+          <Text variant="bodySmall" color="status.dangerText" style={styles.error}>{t('notificationSettings.saveFailed')}</Text>
           {save.variables ? (
             <GhostBtn
               label={t('notificationSettings.retrySave')}
@@ -127,11 +128,10 @@ export function NotificationSwitchSection() {
         </View>
       ) : null}
 
-      <Text style={styles.subTitle}>{t('notificationSettings.deviceTitle')}</Text>
-      <GlassCard style={styles.deviceCard}>
-        <Text
+      <Text variant="label" color="text.secondary" style={styles.subTitle}>{t('notificationSettings.deviceTitle')}</Text>
+      <Card padded={false} style={styles.deviceCard}>
+        <Text variant={!(pushState === 'granted' || pushState === 'checking') ? 'bodySmall' : pushState === 'granted' || pushState === 'checking' ? 'bodySmall' : undefined} color={!(pushState === 'granted' || pushState === 'checking') ? 'status.warningText' : pushState === 'granted' || pushState === 'checking' ? 'text.primary' : undefined}
           accessibilityLiveRegion="polite"
-          style={pushState === 'granted' || pushState === 'checking' ? styles.note : styles.warning}
         >
           {t(DEVICE_NOTE[pushState])}
         </Text>
@@ -144,13 +144,13 @@ export function NotificationSwitchSection() {
           <GhostBtn label={t('common.retry')} onPress={refreshPushState} />
         ) : null}
         {settingsError ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
             {t('notificationSettings.openSettingsFailed')}
           </Text>
         ) : null}
-      </GlassCard>
+      </Card>
 
-      <Text style={styles.caption}>{t('notificationSettings.inboxNote')}</Text>
+      <Text variant="caption" color="text.secondary" style={styles.caption}>{t('notificationSettings.inboxNote')}</Text>
     </View>
   )
 }

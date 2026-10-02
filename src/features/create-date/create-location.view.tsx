@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
@@ -14,8 +14,9 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { IconCheck, IconMapPin } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Chip, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { Atmosphere, Card, Chip, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './create-location.style'
 import { WizardStep } from './wizard-step.view'
@@ -108,8 +109,8 @@ export default function CreateLocationScreen() {
     <Atmosphere>
       <WizardStep step="location" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[6] }]} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{t('createLocation.title')}</Text>
-        <Text style={styles.body}>{t('createLocation.body')}</Text>
+        <Text variant="display">{t('createLocation.title')}</Text>
+        <Text color="text.secondary" style={styles.body}>{t('createLocation.body')}</Text>
 
         {/* Current location — the permission is asked here, on tap, never on
             launch, and every refusal leaves the area picker as the way on. */}
@@ -119,20 +120,20 @@ export default function CreateLocationScreen() {
           accessibilityRole="radio"
           accessibilityState={{ selected: usingCurrent, busy: location.state.status === 'asking' }}
         >
-          <GlassCard style={styles.rowCard}>
+          <Card padded={false} style={styles.rowCard}>
             <View style={[styles.rowIcon, { backgroundColor: theme.accent.soft }]}>
               <IconMapPin />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>{t('createLocation.current')}</Text>
-              <Text style={styles.rowSub}>{currentSubtitle}</Text>
+              <Text variant="title2">{t('createLocation.current')}</Text>
+              <Text variant="bodySmall" color="text.secondary">{currentSubtitle}</Text>
             </View>
             {location.state.status === 'asking' ? <ActivityIndicator /> : usingCurrent && <IconCheck />}
-          </GlassCard>
+          </Card>
         </Pressable>
 
         {location.state.status === 'denied' || location.state.status === 'unavailable' ? (
-          <Text accessibilityLiveRegion="polite" style={styles.locationFallback}>
+          <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
             {location.state.status === 'denied'
               ? t('createLocation.permissionDenied')
               : t('createLocation.locationUnavailable')}
@@ -141,7 +142,7 @@ export default function CreateLocationScreen() {
 
         {usingCurrent ? (
           <>
-            <Text style={styles.sectionTitle}>{t('createLocation.maxDistance')}</Text>
+            <Text variant="title2" style={styles.sectionTitle}>{t('createLocation.maxDistance')}</Text>
             <View style={styles.grid}>
               {RADIUS_OPTIONS.map(option => {
                 const active = radiusM === option
@@ -154,7 +155,7 @@ export default function CreateLocationScreen() {
                     accessibilityState={{ selected: active }}
                     style={[styles.radiusBtn, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
                   >
-                    <Text style={[styles.radiusLabel, { color: active ? colors.neutral[0] : colors.neutral[500] }]}>
+                    <Text variant="label" color={active ? 'accent.onAccent' : 'text.secondary'}>
                       {label}
                     </Text>
                   </Pressable>
@@ -164,7 +165,7 @@ export default function CreateLocationScreen() {
           </>
         ) : null}
 
-        <Text style={styles.sectionTitle}>{t('createLocation.areaTitle')}</Text>
+        <Text variant="title2" style={styles.sectionTitle}>{t('createLocation.areaTitle')}</Text>
         {offerHomeArea ? (
           <View style={styles.prefillRow}>
             <Chip
@@ -177,7 +178,7 @@ export default function CreateLocationScreen() {
         ) : null}
         <AdministrativePicker value={administrativeArea} onChange={chooseArea} />
         {staleArea ? (
-          <Text accessibilityLiveRegion="polite" style={styles.locationFallback}>
+          <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
             {t('administrative.changed')}
           </Text>
         ) : null}

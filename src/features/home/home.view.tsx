@@ -2,8 +2,8 @@ import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { Pressable, ScrollView, View } from 'react-native'
+import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -24,18 +24,11 @@ import { useRoom, useRoomStore, type QuickPreset } from '@/shared/store/roomStor
 import { haptic } from '@/shared/ui/feedback'
 import { IconSearch } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import {
-  Atmosphere,
-  AvatarCircle,
-  Chip,
-  GhostBtn,
-  GlassCard,
-  SecondaryBtn,
-  useBottomBarInset,
-} from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, SecondaryBtn, useBottomBarInset } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
+import { Glyph, Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './home.style'
@@ -145,8 +138,8 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: barInset + spacing[6] }}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{t('home.greeting')}</Text>
-            <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
+            <Text variant="display">{t('home.greeting')}</Text>
+            <Text color="text.secondary" style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
           <Pressable
             onPress={() => router.push('/(tabs)/profile')}
@@ -175,7 +168,7 @@ export default function HomeScreen() {
           style={styles.searchBar}
         >
           <IconSearch />
-          <Text style={styles.searchBarLabel}>{t('search.placeholder')}</Text>
+          <Text color="text.secondary">{t('search.placeholder')}</Text>
         </Pressable>
 
         {/* Brand surface rather than a stock photo of somewhere GoGo has no
@@ -185,10 +178,10 @@ export default function HomeScreen() {
           <View style={styles.heroScrim} />
           <View style={styles.heroContent}>
             <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeLabel}>🌙 {t('home.heroBadge')}</Text>
+              <Text variant="caption" color="text.inverse">🌙 {t('home.heroBadge')}</Text>
             </View>
-            <Text style={styles.heroTitle}>{t('home.heroTitle')}</Text>
-            <Text style={styles.heroBody}>{t('home.heroBody')}</Text>
+            <Text variant="title1" color="text.inverse">{t('home.heroTitle')}</Text>
+            <Text variant="bodySmall" color="onDark.medium" style={styles.heroBody}>{t('home.heroBody')}</Text>
             <View style={styles.heroActions}>
               <Pressable
                 accessibilityRole="button"
@@ -198,7 +191,7 @@ export default function HomeScreen() {
                 }}
                 style={({ pressed }) => [styles.heroPrimary, pressed && { transform: [{ scale: 0.98 }] }]}
               >
-                <Text style={styles.heroPrimaryLabel}>{t('home.createDate')}</Text>
+                <Text variant="label" color="text.inverse">{t('home.createDate')}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -208,7 +201,7 @@ export default function HomeScreen() {
                 }}
                 style={({ pressed }) => [styles.heroSecondary, pressed && { opacity: 0.8 }]}
               >
-                <Text style={styles.heroSecondaryLabel}>{t('home.quickPick')}</Text>
+                <Text variant="label" color="text.inverse">{t('home.quickPick')}</Text>
               </Pressable>
             </View>
           </View>
@@ -237,20 +230,20 @@ export default function HomeScreen() {
 
         <View style={{ paddingHorizontal: spacing[5], marginTop: spacing[6] }}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('home.suggested')}</Text>
+            <Text variant="title2">{t('home.suggested')}</Text>
             {visualState === 'default' ? (
-              <Text style={styles.sectionHint}>{t('home.suggestedHint')}</Text>
+              <Text variant="bodySmall" color="text.secondary">{t('home.suggestedHint')}</Text>
             ) : null}
           </View>
 
           {scope.status === 'ready' && scope.source === 'none' ? (
-            <GlassCard style={styles.scopeCard}>
-              <Text style={styles.scopeTitle}>{t('home.scopeNoneTitle')}</Text>
-              <Text style={styles.scopeBody}>
+            <Card padded={false} style={styles.scopeCard}>
+              <Text variant="title2">{t('home.scopeNoneTitle')}</Text>
+              <Text variant="bodySmall" color="text.secondary">
                 {t(scope.reason === 'area_needs_reselection' ? 'home.scopeReselectBody' : 'home.scopeNoneBody')}
               </Text>
               {location.state.status === 'denied' || location.state.status === 'unavailable' ? (
-                <Text accessibilityLiveRegion="polite" style={styles.scopeBody}>
+                <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">
                   {t(location.state.status === 'denied' ? 'home.locationDenied' : 'home.locationUnavailable')}
                 </Text>
               ) : null}
@@ -262,9 +255,9 @@ export default function HomeScreen() {
                 />
                 <GhostBtn label={t('home.chooseArea')} onPress={chooseArea} />
               </View>
-            </GlassCard>
+            </Card>
           ) : scopeLabel ? (
-            <Text accessibilityLiveRegion="polite" style={styles.scopeLabel}>
+            <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.scopeLabel}>
               {scopeLabel}
             </Text>
           ) : null}
@@ -273,22 +266,22 @@ export default function HomeScreen() {
           {visualState === 'loading' && <PlaceListSkeleton count={3} />}
 
           {visualState === 'empty' && (
-            <GlassCard style={styles.stateCard}>
-              <Text style={styles.stateEmoji}>🗺️</Text>
-              <Text style={styles.stateTitle}>{t('home.emptyTitle')}</Text>
-              <Text style={styles.stateBody}>{t('home.emptyBody')}</Text>
+            <Card padded={false} style={styles.stateCard}>
+              <Glyph size="xl" style={styles.stateEmoji}>🗺️</Glyph>
+              <Text variant="title2" style={styles.stateTitle}>{t('home.emptyTitle')}</Text>
+              <Text variant="bodySmall" color="text.secondary" style={styles.stateBody}>{t('home.emptyBody')}</Text>
               <View style={styles.stateActions}>
                 <SecondaryBtn label={t('home.recoverNearest')} onPress={() => router.push('/places/search')} />
                 <GhostBtn label={t('home.createManual')} onPress={startCreate} />
               </View>
-            </GlassCard>
+            </Card>
           )}
 
           {(visualState === 'error' || offlineCard) && (
-            <GlassCard style={styles.stateCard}>
-              <Text style={styles.stateEmoji}>📡</Text>
-              <Text style={styles.stateTitle}>{offlineCard ? t('common.offlineTitle') : t('home.error')}</Text>
-              <Text style={styles.stateBody} accessibilityLiveRegion={offlineCard ? 'polite' : undefined}>
+            <Card padded={false} style={styles.stateCard}>
+              <Glyph size="xl" style={styles.stateEmoji}>📡</Glyph>
+              <Text variant="title2" style={styles.stateTitle}>{offlineCard ? t('common.offlineTitle') : t('home.error')}</Text>
+              <Text variant="bodySmall" color="text.secondary" style={styles.stateBody} accessibilityLiveRegion={offlineCard ? 'polite' : undefined}>
                 {offlineCard
                   ? t('common.offlineBody')
                   : areaVersionChanged
@@ -312,7 +305,7 @@ export default function HomeScreen() {
                   <GhostBtn label={t('home.createManual')} onPress={startCreate} />
                 )}
               </View>
-            </GlassCard>
+            </Card>
           )}
 
           {visualState === 'default' && (

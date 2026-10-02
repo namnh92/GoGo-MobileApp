@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -23,6 +23,7 @@ import { ErrorState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, IconBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
+import { Glyph, Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './search.style'
@@ -209,10 +210,10 @@ export default function SearchScreen() {
           active={activeFilterCount > 0}
           style={styles.filterToggle}
         >
-          <Text style={styles.filterToggleIcon}>⚙️</Text>
+          <Glyph size="xs">⚙️</Glyph>
           {activeFilterCount > 0 && (
             <View style={styles.filterCountBadge}>
-              <Text style={styles.filterCountLabel}>{activeFilterCount}</Text>
+              <Text variant="label" color="text.inverse">{activeFilterCount}</Text>
             </View>
           )}
         </IconBtn>
@@ -256,9 +257,9 @@ export default function SearchScreen() {
               <PlaceListSkeleton count={4} />
             ) : (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>🔍</Text>
-                <Text style={styles.emptyTitle}>{t('search.empty')}</Text>
-                <Text style={styles.emptyHint}>{t('search.emptyHint')}</Text>
+                <Glyph size="lg" style={styles.emptyEmoji}>🔍</Glyph>
+                <Text variant="title2">{t('search.empty')}</Text>
+                <Text variant="bodySmall" color="text.secondary" style={styles.emptyHint}>{t('search.emptyHint')}</Text>
                 <GhostBtn label={t('search.clearFilters')} onPress={clearFilters} />
               </View>
             )
@@ -286,7 +287,7 @@ export default function SearchScreen() {
         accessibilityLabel={t('search.addNew')}
         style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing[5] }, pressed && { transform: [{ scale: 0.95 }] }]}
       >
-        <Text style={styles.fabIcon}>＋</Text>
+        <Glyph size="sm" color="text.inverse">＋</Glyph>
       </Pressable>
 
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
@@ -300,9 +301,9 @@ export default function SearchScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}
             >
-              <Text style={styles.sheetTitle}>{t('search.filters')}</Text>
+              <Text variant="title2" style={styles.sheetTitle}>{t('search.filters')}</Text>
 
-              <Text style={styles.sheetSection}>{t('search.filterDistance')}</Text>
+              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterDistance')}</Text>
               {hasOrigin ? (
                 <TextInput
                   value={maxKm}
@@ -315,10 +316,10 @@ export default function SearchScreen() {
               ) : (
                 // Without an origin the server cannot rank by distance, and a
                 // disabled control with a reason beats one that silently no-ops.
-                <Text style={styles.sheetHint}>{t('search.distanceNeedsArea')}</Text>
+                <Text variant="bodySmall" color="text.secondary" style={styles.sheetHint}>{t('search.distanceNeedsArea')}</Text>
               )}
 
-              <Text style={styles.sheetSection}>{t('search.filterPrice')}</Text>
+              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterPrice')}</Text>
               <View style={styles.priceRow}>
                 <TextInput
                   value={priceFrom}
@@ -328,7 +329,7 @@ export default function SearchScreen() {
                   keyboardType="numeric"
                   style={[styles.sheetInput, styles.priceInput]}
                 />
-                <Text style={styles.priceDash}>–</Text>
+                <Text color="text.secondary">–</Text>
                 <TextInput
                   value={priceTo}
                   onChangeText={setPriceTo}
@@ -339,7 +340,7 @@ export default function SearchScreen() {
                 />
               </View>
 
-              <Text style={styles.sheetSection}>{t('search.filterSuited')}</Text>
+              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterSuited')}</Text>
               <View style={styles.sheetOptionRow}>
                 {SUITED_OPTIONS.map((option, index) => (
                   <Chip
@@ -351,7 +352,7 @@ export default function SearchScreen() {
                 ))}
               </View>
 
-              <Text style={styles.sheetSection}>{t('search.filterCategory')}</Text>
+              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterCategory')}</Text>
               <View style={styles.sheetOptionRow}>
                 {categories.map(category => (
                   <Chip
@@ -369,7 +370,7 @@ export default function SearchScreen() {
                 onPress={clearFilters}
                 style={styles.sheetClear}
               >
-                <Text style={styles.sheetClearLabel}>{t('search.clearFilters')}</Text>
+                <Text variant="bodySmall" color="text.secondary">{t('search.clearFilters')}</Text>
               </Pressable>
             </ScrollView>
           </View>

@@ -61,11 +61,17 @@ export const border = {
   hairline: colors.neutral[100],
 } as const
 
-/** Text colours on light surfaces. `tertiary` is placeholder-only: 1.6:1. */
+/**
+ * Text colours. `primary`/`secondary`/`tertiary` sit on light surfaces;
+ * `tertiary` is placeholder-only: 1.6:1. `inverse` is white for a label on a
+ * filled surface — a status fill, a photo scrim, a dark badge. On an accent
+ * fill use `accent.onAccent` instead, so a theme can change it.
+ */
 export const text = {
   primary: colors.neutral[900],
   secondary: colors.neutral[500],
   tertiary: colors.neutral[300],
+  inverse: colors.neutral[0],
 } as const
 
 /**
@@ -308,6 +314,27 @@ export const glyph = {
   mega: 64,
 } as const
 
+/**
+ * Glyph text styles for `<Glyph size>` (#298). The size is the only thing a
+ * glyph takes from here; it lives in this file so no screen writes `fontSize`.
+ */
+export const glyphText = {
+  xs: { fontSize: glyph.xs },
+  sm: { fontSize: glyph.sm },
+  md: { fontSize: glyph.md },
+  lg: { fontSize: glyph.lg },
+  xl: { fontSize: glyph.xl },
+  hero: { fontSize: glyph.hero },
+  mega: { fontSize: glyph.mega },
+} as const satisfies Record<keyof typeof glyph, { fontSize: number }>
+
+/**
+ * A layer that covers its parent — scrims, backdrops, image overlays. React
+ * Native's `StyleSheet.absoluteFillObject` has no Unistyles counterpart that
+ * can be spread (its type is a registered style), so style files spread this.
+ */
+export const fill = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as const
+
 export const spacing = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48] as const
 
 export const radius = {
@@ -338,4 +365,5 @@ export const hitSlop = { top: 8, bottom: 8, left: 8, right: 8 } as const
 export type BrandColor = keyof typeof colors.brand
 export type NeutralColor = keyof typeof colors.neutral
 export type TypeStyle = keyof typeof type
+export type GlyphSize = keyof typeof glyph
 export type AccentName = keyof typeof accents

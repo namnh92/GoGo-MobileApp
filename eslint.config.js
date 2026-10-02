@@ -19,4 +19,31 @@ module.exports = defineConfig([
     files: ['**/*.spec.tsx'],
     rules: { 'import/first': 'off' },
   },
+  {
+    // #298 (#293 §4): screens draw text through the `Text` primitive (variant +
+    // semantic colour) and style through Unistyles, so an accent change reaches
+    // every surface. The primitive itself wraps React Native's `Text`; tests
+    // query the host component and are not screens.
+    files: ['src/features/**/*.{ts,tsx}', 'src/shared/**/*.{ts,tsx}'],
+    ignores: ['src/shared/ui/text.tsx', 'src/shared/ui/tokens.ts', 'src/shared/ui/theme.ts', '**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'react-native',
+              importNames: ['Text'],
+              message: "Use `Text` from '@/shared/ui/text' (variant + semantic colour).",
+            },
+            {
+              name: 'react-native',
+              importNames: ['StyleSheet'],
+              message: "Use `StyleSheet` from 'react-native-unistyles' so styles follow the theme.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ])

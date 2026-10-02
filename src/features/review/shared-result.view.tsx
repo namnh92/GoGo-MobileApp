@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, Share, View } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -20,6 +21,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconShare } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './shared-result.style'
@@ -106,7 +108,7 @@ export default function SharedResultScreen() {
           paddingBottom: insets.bottom + spacing[6],
         }}
       >
-        <Text style={styles.title}>
+        <Text variant="title1" color="text.inverse" style={styles.title}>
           {roomType === 'group'
             ? `${t('matchResult.groupTitle')} · ${participantCount} 👥`
             : t('sharedResult.title')}
@@ -115,9 +117,9 @@ export default function SharedResultScreen() {
         {/* The pipeline's match score, labelled as such — not a user rating. */}
         {matchScore ? (
           <View style={styles.scoreCard}>
-            <Text style={styles.score}>{matchScore}</Text>
-            <Text style={styles.scoreMax}>/ {SCORE_MAX}</Text>
-            <Text style={styles.scoreCaption}>{t('sharedResult.matchScore')}</Text>
+            <Text variant="display" color="text.inverse">{matchScore}</Text>
+            <Text color="onDark.medium">/ {SCORE_MAX}</Text>
+            <Text variant="caption" color="onDark.soft" style={styles.scoreCaption}>{t('sharedResult.matchScore')}</Text>
           </View>
         ) : null}
 
@@ -132,9 +134,9 @@ export default function SharedResultScreen() {
             />
             <View style={styles.heroScrim} />
             <View style={styles.heroBody}>
-              <Text style={styles.winnerName} numberOfLines={2}>{winner.name}</Text>
+              <Text variant="display" color="text.inverse" style={styles.winnerName} numberOfLines={2}>{winner.name}</Text>
               {winnerDetail.data?.addressText ? (
-                <Text style={styles.heroMeta} numberOfLines={1}>{winnerDetail.data.addressText}</Text>
+                <Text variant="bodySmall" color="onDark.strong" style={styles.heroMeta} numberOfLines={1}>{winnerDetail.data.addressText}</Text>
               ) : null}
             </View>
           </View>
@@ -142,15 +144,15 @@ export default function SharedResultScreen() {
 
         {scoreParts.length > 0 ? (
           <View style={styles.darkCard}>
-            <Text style={styles.caption}>{t('sharedResult.common', { context: roomType })}</Text>
+            <Text variant="caption" color="text.secondary" style={styles.caption}>{t('sharedResult.common', { context: roomType })}</Text>
             {scoreParts.map(([key, value]) => (
               <View key={key} style={styles.interestRow}>
                 <View style={{ flex: 1 }}>
                   <View style={styles.interestHeader}>
-                    <Text style={styles.interestLabel}>
+                    <Text variant="label" color="text.inverse">
                       {t(`suggestion.component.${key}`, { defaultValue: key })}
                     </Text>
-                    <Text style={styles.interestPct}>{Math.round(value * 100)}%</Text>
+                    <Text variant="caption" color="onDark.soft">{Math.round(value * 100)}%</Text>
                   </View>
                   <View style={styles.track}>
                     <View style={[styles.fill, { width: `${Math.round(value * 100)}%` }]} />
@@ -164,15 +166,15 @@ export default function SharedResultScreen() {
         {/* Facts from the plan, not invented compatibility percentages. */}
         {summary ? (
           <View style={styles.darkCard}>
-            <Text style={styles.caption}>{t('sharedResult.stats')}</Text>
+            <Text variant="caption" color="text.secondary" style={styles.caption}>{t('sharedResult.stats')}</Text>
             <View style={styles.statsGrid}>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>{t('sharedResult.stops')}</Text>
-                <Text style={styles.statValue}>{summary.stops.length}</Text>
+                <Text variant="caption" color="onDark.soft" style={styles.statLabel}>{t('sharedResult.stops')}</Text>
+                <Text variant="title1" color="text.inverse">{summary.stops.length}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>{t('datePlan.time')}</Text>
-                <Text style={styles.statValue}>
+                <Text variant="caption" color="onDark.soft" style={styles.statLabel}>{t('datePlan.time')}</Text>
+                <Text variant="title1" color="text.inverse">
                   {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m
                 </Text>
               </View>
@@ -180,17 +182,17 @@ export default function SharedResultScreen() {
                   crowds the other out of a stat card. */}
               {totalLine ? (
                 <View style={styles.statCard}>
-                  <Text style={styles.statLabel}>
+                  <Text variant="caption" color="onDark.soft" style={styles.statLabel}>
                     {totalLine.amount ? scopeLabel(totalLine) : t('datePlan.total')}
                   </Text>
-                  <Text style={styles.statValue}>{totalLine.amount ?? totalLine.unit}</Text>
+                  <Text variant="title1" color="text.inverse">{totalLine.amount ?? totalLine.unit}</Text>
                 </View>
               ) : null}
               {/* Only a per-person amount the API stated — never a total divided up. */}
               {cost?.perPerson?.amount ? (
                 <View style={styles.statCard}>
-                  <Text style={styles.statLabel}>{t('sharedResult.perPerson')}</Text>
-                  <Text style={styles.statValue}>{cost.perPerson.amount}</Text>
+                  <Text variant="caption" color="onDark.soft" style={styles.statLabel}>{t('sharedResult.perPerson')}</Text>
+                  <Text variant="title1" color="text.inverse">{cost.perPerson.amount}</Text>
                 </View>
               ) : null}
             </View>
@@ -205,14 +207,14 @@ export default function SharedResultScreen() {
           style={({ pressed }) => [styles.shareBtn, styles.shareIsPrimary, pressed && { opacity: 0.9 }]}
         >
           <IconShare />
-          <Text style={styles.shareLabel}>{t('sharedResult.share')}</Text>
+          <Text variant="label" color="text.inverse">{t('sharedResult.share')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => router.replace('/(tabs)')}
           style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.8 }]}
         >
-          <Text style={styles.shareLabel}>{t('sharedResult.nextDate')}</Text>
+          <Text variant="label" color="text.inverse">{t('sharedResult.nextDate')}</Text>
         </Pressable>
       </ScrollView>
     </View>

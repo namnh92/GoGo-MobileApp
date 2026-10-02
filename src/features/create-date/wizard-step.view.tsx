@@ -1,7 +1,8 @@
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BackHeader, ProgressDots } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 
 import { WizardActions } from './wizard-actions.view'
 import { styles } from './wizard-step.style'
@@ -35,7 +36,7 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
           onBack={onBack}
           right={
             <View>
-              <Text style={styles.stepLabel} accessibilityLabel={`${index + 1}/${total}`}>
+              <Text variant="label" color="text.secondary" accessibilityLabel={`${index + 1}/${total}`}>
                 {index + 1} / {total}
               </Text>
               <WizardActions step={step} />

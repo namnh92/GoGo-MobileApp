@@ -2,11 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Text, TextInput } from 'react-native'
+import { TextInput } from 'react-native'
 import { z } from 'zod'
 
 import { isApiError, useUpdateRoomConstraints, type RoomSummary } from '@/shared/api'
-import { GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 
 import { isoToLocalSchedule, localScheduleToIso } from './room-schedule'
 import { styles } from './room-manage.style'
@@ -81,9 +82,9 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
   }
 
   return (
-    <GlassCard style={styles.card}>
-      <Text style={styles.sectionTitle}>{t('roomSchedule.title')}</Text>
-      <Text style={styles.sectionBody}>{t('roomSchedule.format')}</Text>
+    <Card padded={false} style={styles.card}>
+      <Text variant="title2">{t('roomSchedule.title')}</Text>
+      <Text variant="bodySmall" color="text.secondary">{t('roomSchedule.format')}</Text>
       {(['start', 'end'] as const).map(name => (
         <Controller
           key={name}
@@ -91,7 +92,7 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
           name={name}
           render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
             <>
-              <Text style={styles.rowTitle}>{t(`roomSchedule.${name}`)}</Text>
+              <Text variant="title2">{t(`roomSchedule.${name}`)}</Text>
               <TextInput
                 accessibilityLabel={t(`roomSchedule.${name}`)}
                 style={styles.scheduleInput}
@@ -107,7 +108,7 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
                 placeholder={t('roomSchedule.placeholder')}
               />
               {error ? (
-                <Text accessibilityLiveRegion="polite" style={styles.warning}>
+                <Text variant="caption" color="status.warningText" accessibilityLiveRegion="polite">
                   {t('roomSchedule.invalid')}
                 </Text>
               ) : null}
@@ -115,7 +116,7 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
           )}
         />
       ))}
-      <Text style={styles.warning}>{t(canEdit ? 'roomManage.staleWarning' : 'roomSchedule.locked')}</Text>
+      <Text variant="caption" color="status.warningText">{t(canEdit ? 'roomManage.staleWarning' : 'roomSchedule.locked')}</Text>
       <PrimaryBtn
         label={t('account.save')}
         loading={update.isPending}
@@ -123,10 +124,10 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
         onPress={() => void form.handleSubmit(submit)()}
       />
       {notice ? (
-        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+        <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
       ) : null}
-    </GlassCard>
+    </Card>
   )
 }

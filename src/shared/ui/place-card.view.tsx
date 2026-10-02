@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { Pressable, StyleSheet as RNStyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import {
   formatMinuteOfDay,
@@ -196,7 +196,7 @@ export function PlaceCard({
       <View style={[styles.wrap, style]}>
         <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
           <View style={styles.heroCard}>
-            <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
+            <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
             <View style={styles.heroScrim} />
             <View style={styles.heroBody}>
               <Text variant="title1" color="onDark.strong" numberOfLines={2}>{place.name}</Text>
@@ -222,7 +222,7 @@ export function PlaceCard({
         <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
           <Card padded={false} style={styles.gridCard}>
             <View style={styles.gridThumbWrap}>
-              <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={RNStyleSheet.absoluteFill} />
+              <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
             </View>
             <View style={styles.gridBody}>
               <Text variant="title2" numberOfLines={1}>{place.name}</Text>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { ActivityIndicator, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
@@ -15,9 +15,10 @@ import {
 import { track } from '@/shared/analytics'
 import { serviceAreaLabel } from '@/shared/location/area-label'
 import { haptic } from '@/shared/ui/feedback'
-import { Chip, GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
+import { Text } from '@/shared/ui/text'
 
 import { styles } from './profile-defaults.style'
 
@@ -100,18 +101,18 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
   }
 
   return (
-    <GlassCard style={styles.card}>
+    <Card padded={false} style={styles.card}>
       <View>
-        <Text style={styles.sectionTitle}>{t('account.defaultsTitle')}</Text>
-        <Text style={styles.sectionBody}>{t('account.defaultsBody')}</Text>
+        <Text variant="title2">{t('account.defaultsTitle')}</Text>
+        <Text variant="bodySmall" color="text.secondary">{t('account.defaultsBody')}</Text>
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>{t('account.homeArea')}</Text>
+        <Text variant="label">{t('account.homeArea')}</Text>
         {area === undefined && !profile.homeAdministrativeArea && profile.homeArea ? (
           <View>
             <Text style={styles.value}>{areaDisplayName(profile.homeArea)}</Text>
-            <Text style={styles.hint}>{t('account.legacyArea')}</Text>
+            <Text variant="caption" color="text.secondary">{t('account.legacyArea')}</Text>
             <GhostBtn label={t('account.homeAreaClear')} onPress={() => setArea(null)} />
           </View>
         ) : null}
@@ -119,13 +120,13 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>{t('account.interests')}</Text>
-        <Text style={styles.hint}>{t('account.interestsHint', { max: MAX_INTERESTS })}</Text>
+        <Text variant="label">{t('account.interests')}</Text>
+        <Text variant="caption" color="text.secondary">{t('account.interestsHint', { max: MAX_INTERESTS })}</Text>
         {taxonomies.isPending ? (
           <ActivityIndicator color={theme.accent.primary} />
         ) : taxonomies.isError ? (
           <View style={styles.valueRow}>
-            <Text style={styles.problem}>{t('account.interestsFailed')}</Text>
+            <Text variant="bodySmall" color="status.warningText">{t('account.interestsFailed')}</Text>
             <GhostBtn label={t('common.retry')} onPress={() => void taxonomies.refetch()} />
           </View>
         ) : (
@@ -144,7 +145,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>{t('account.usualBudget')}</Text>
+        <Text variant="label">{t('account.usualBudget')}</Text>
         <View style={styles.chips}>
           <Chip
             label={t('account.usualBudgetNone')}
@@ -169,11 +170,11 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
         loading={update.isPending}
       />
       {notice ? (
-        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+        <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
       ) : null}
 
-    </GlassCard>
+    </Card>
   )
 }

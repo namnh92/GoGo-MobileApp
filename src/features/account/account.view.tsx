@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, Pressable, ScrollView, Share, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -19,7 +19,8 @@ import { pickAvatar } from '@/shared/media/pick-avatar'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, LoadingState } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { Atmosphere, AvatarCircle, BackHeader, GhostBtn, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, BackHeader, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 import type { MessageKey } from '@/shared/i18n/types'
 
@@ -214,7 +215,7 @@ export default function AccountScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
-        <GlassCard style={styles.card}>
+        <Card padded={false} style={styles.card}>
           <View style={styles.avatarRow}>
             <View style={styles.avatarWrap}>
               <AvatarCircle label={initial} size={80} imageUri={me.data?.avatarUrl} />
@@ -225,8 +226,8 @@ export default function AccountScreen() {
               ) : null}
             </View>
             <View style={styles.avatarText}>
-              <Text style={styles.sectionTitle}>{t('account.avatarTitle')}</Text>
-              <Text style={canUpload ? styles.sectionBody : styles.avatarHint}>
+              <Text variant="title2">{t('account.avatarTitle')}</Text>
+              <Text variant={!(canUpload) ? 'bodySmall' : canUpload ? 'bodySmall' : undefined} color={!(canUpload) ? 'status.warningText' : canUpload ? 'text.secondary' : undefined}>
                 {canUpload ? t('account.avatarBody') : t('account.avatarUnavailable')}
               </Text>
             </View>
@@ -244,14 +245,14 @@ export default function AccountScreen() {
             ) : null}
           </View>
           {avatarNotice ? (
-            <Text accessibilityLiveRegion="polite" style={styles.notice}>
+            <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
               {avatarNotice}
             </Text>
           ) : null}
-        </GlassCard>
+        </Card>
 
-        <GlassCard style={styles.card}>
-          <Text style={styles.label}>{t('auth.displayName')}</Text>
+        <Card padded={false} style={styles.card}>
+          <Text variant="label">{t('auth.displayName')}</Text>
           <TextInput
             value={displayName}
             onChangeText={value => setName(value.slice(0, MAX_NAME))}
@@ -261,7 +262,7 @@ export default function AccountScreen() {
             accessibilityLabel={t('auth.displayName')}
             style={styles.input}
           />
-          <Text style={styles.email}>{me.data?.email ?? ''}</Text>
+          <Text variant="bodySmall" color="text.secondary">{me.data?.email ?? ''}</Text>
           <PrimaryBtn
             label={updateProfile.isPending ? t('account.saving') : t('account.save')}
             onPress={saveName}
@@ -269,7 +270,7 @@ export default function AccountScreen() {
             loading={updateProfile.isPending}
             style={styles.saveBtn}
           />
-        </GlassCard>
+        </Card>
 
         {/* #293 §6: under the display name, above the data section. */}
         <ThemeAccentCard />
@@ -279,19 +280,19 @@ export default function AccountScreen() {
 
         {me.data ? <ProfileDefaultsCard profile={me.data} /> : null}
 
-        <GlassCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('account.dataTitle')}</Text>
-          <Text style={styles.sectionBody}>{t('account.exportBody')}</Text>
+        <Card padded={false} style={styles.card}>
+          <Text variant="title2">{t('account.dataTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('account.exportBody')}</Text>
           <GhostBtn
             label={busy === 'export' ? t('account.exporting') : t('account.export')}
             onPress={onExport}
           />
-        </GlassCard>
+        </Card>
 
-        <GlassCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('account.deleteTitle')}</Text>
-          <Text style={styles.sectionBody}>{t('account.deleteBody')}</Text>
-          <Text style={styles.sectionBody}>{t('account.deleteKept')}</Text>
+        <Card padded={false} style={styles.card}>
+          <Text variant="title2">{t('account.deleteTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('account.deleteBody')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('account.deleteKept')}</Text>
           <Pressable
             onPress={onDelete}
             disabled={busy === 'delete'}
@@ -299,14 +300,14 @@ export default function AccountScreen() {
             accessibilityState={{ disabled: busy === 'delete', busy: busy === 'delete' }}
             style={styles.deleteBtn}
           >
-            <Text style={styles.deleteLabel}>
+            <Text variant="label" color="status.dangerText">
               {busy === 'delete' ? t('account.deleting') : t('account.deleteConfirm')}
             </Text>
           </Pressable>
-        </GlassCard>
+        </Card>
 
         {notice ? (
-          <Text accessibilityLiveRegion="polite" style={styles.notice}>
+          <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
             {notice}
           </Text>
         ) : null}

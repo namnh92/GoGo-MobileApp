@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -14,7 +14,8 @@ import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
-import { colors, onDark, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { WizardActions } from './wizard-actions.view'
 import { styles } from './create-type.style'
@@ -72,8 +73,8 @@ export default function CreateTypeScreen() {
         <BackHeader onBack={() => router.back()} right={<WizardActions step="type" />} />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}>
-        <Text style={styles.title}>{t('createType.title')}</Text>
-        <Text style={styles.nameLabel}>{t('createType.roomName')}</Text>
+        <Text variant="display" style={styles.title}>{t('createType.title')}</Text>
+        <Text variant="label" style={styles.nameLabel}>{t('createType.roomName')}</Text>
         <Controller
           control={control}
           name="title"
@@ -104,12 +105,12 @@ export default function CreateTypeScreen() {
                   pressed && styles.optionPressed,
                 ]}
               >
-                <Text style={styles.optionEmoji}>{option.emoji}</Text>
+                <Glyph size="md">{option.emoji}</Glyph>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.optionTitle, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>
+                  <Text variant="title2" color={active ? 'accent.onAccent' : 'text.primary'}>
                     {t(option.titleKey)}
                   </Text>
-                  <Text style={[styles.optionDesc, { color: active ? onDark.medium : colors.neutral[500] }]}>
+                  <Text variant="bodySmall" color={active ? 'onDark.medium' : 'text.secondary'} style={styles.optionDesc}>
                     {t(option.descKey)}
                   </Text>
                 </View>

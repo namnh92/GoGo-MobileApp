@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
 import { markOnboardingComplete } from '@/shared/storage/onboarding'
 import type { MessageKey } from '@/shared/i18n/types'
-import { Atmosphere, GhostBtn, GlassCard, PrimaryBtn, ProgressDots } from '@/shared/ui/primitives'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { Atmosphere, Card, GhostBtn, PrimaryBtn, ProgressDots } from '@/shared/ui/primitives'
+import { Glyph, Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 import { styles } from './onboarding.style'
 
 interface Slide {
@@ -49,23 +50,23 @@ export default function OnboardingScreen() {
     <Atmosphere>
       <View style={{ paddingTop: insets.top + spacing[3], alignItems: 'flex-end', paddingHorizontal: spacing[6] }}>
         <Pressable disabled={finishing} onPress={finish} accessibilityRole="button">
-          <Text style={styles.skip}>{t('onboarding.skip')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('onboarding.skip')}</Text>
         </Pressable>
       </View>
 
       <View style={styles.body}>
-        <GlassCard style={styles.visual}>
+        <Card padded={false} style={styles.visual}>
           <View style={styles.chipRow}>
             {slideChips[slide].map((chip, i) => (
               <View key={chip} style={[styles.chip, i % 2 === 0 ? styles.chipCoral : styles.chipGlass]}>
-                <Text style={[styles.chipLabel, i % 2 === 0 ? { color: colors.neutral[0] } : { color: colors.neutral[900] }]}>{chip}</Text>
+                <Text variant="label" color={i % 2 === 0 ? 'accent.onAccent' : 'text.primary'}>{chip}</Text>
               </View>
             ))}
           </View>
-        </GlassCard>
-        <Text style={styles.emoji}>{current.emoji}</Text>
-        <Text style={styles.title}>{t(current.titleKey)}</Text>
-        <Text style={styles.slideBody}>{t(current.bodyKey)}</Text>
+        </Card>
+        <Glyph size="xl" style={styles.emoji}>{current.emoji}</Glyph>
+        <Text variant="display" style={styles.title}>{t(current.titleKey)}</Text>
+        <Text color="text.secondary" style={styles.slideBody}>{t(current.bodyKey)}</Text>
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing[6] }]}>

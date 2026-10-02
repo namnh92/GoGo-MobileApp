@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { z } from 'zod'
@@ -16,7 +16,8 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, BackHeader, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './import.style'
@@ -258,8 +259,8 @@ export default function PlaceImportScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>{t('placeImport.title')}</Text>
-        <Text style={styles.body}>{t('placeImport.body')}</Text>
+        <Text variant="display" style={styles.title}>{t('placeImport.title')}</Text>
+        <Text color="text.secondary" style={styles.body}>{t('placeImport.body')}</Text>
 
         <TextInput
           value={url}
@@ -275,12 +276,12 @@ export default function PlaceImportScreen() {
           accessibilityLabel={t('placeImport.title')}
           style={[styles.input, invalid && styles.inputError]}
         />
-        {invalid && <Text style={styles.errorLabel}>{t('placeImport.invalidUrl')}</Text>}
+        {invalid && <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.invalidUrl')}</Text>}
 
         {resolve.isPending ? (
           <View style={styles.verifyingRow}>
             <ActivityIndicator color={theme.accent.primary} />
-            <Text style={styles.verifyingLabel}>{t('placeImport.verifying')}</Text>
+            <Text variant="bodySmall" color="text.secondary">{t('placeImport.verifying')}</Text>
           </View>
         ) : (
           <PrimaryBtn
@@ -293,14 +294,14 @@ export default function PlaceImportScreen() {
 
         {resolve.isError ? (
           <View style={styles.rejectedCard}>
-            <Text style={styles.rejectedTitle}>
+            <Text variant="title2" color="status.dangerText">
               {t(
                 providerUnavailable(resolve.error)
                   ? 'placeImport.providerUnavailableTitle'
                   : 'placeImport.rejectedTitle',
               )}
             </Text>
-            <Text style={styles.rejectedReason}>
+            <Text variant="bodySmall" style={styles.rejectedReason}>
               {providerUnavailable(resolve.error)
                 ? t('placeImport.providerUnavailable')
                 : isApiError(resolve.error) && resolve.error.status === 429
@@ -312,7 +313,7 @@ export default function PlaceImportScreen() {
               onPress={reset}
               style={styles.tryAgain}
             >
-              <Text style={styles.tryAgainLabel}>{t('placeImport.tryAgain')}</Text>
+              <Text variant="label" color="text.secondary">{t('placeImport.tryAgain')}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -320,10 +321,10 @@ export default function PlaceImportScreen() {
         {/* Already in the catalog — send the user to it instead of creating a
             duplicate submission. */}
         {result?.status === 'ALREADY_EXISTS' ? (
-          <GlassCard style={styles.resultCard}>
+          <Card padded={false} style={styles.resultCard}>
             <View style={styles.resultBody}>
-              <Text style={styles.placeName}>{candidate?.name ?? t('placeImport.existsTitle')}</Text>
-              <Text style={styles.placeAddress}>{t('placeImport.existsBody')}</Text>
+              <Text variant="title2">{candidate?.name ?? t('placeImport.existsTitle')}</Text>
+              <Text variant="bodySmall" color="text.secondary" style={styles.placeAddress}>{t('placeImport.existsBody')}</Text>
               {result.existingPlaceId ? (
                 <PrimaryBtn
                   label={t('placeImport.openPlace')}
@@ -332,13 +333,13 @@ export default function PlaceImportScreen() {
                 />
               ) : null}
             </View>
-          </GlassCard>
+          </Card>
         ) : null}
 
         {/* The link matched more than one place; the user picks which. */}
         {result?.status === 'CANDIDATE_SELECTION' ? (
           <View style={styles.resultCard}>
-            <Text style={styles.candidateTitle}>{t('placeImport.pickCandidate')}</Text>
+            <Text variant="label" style={styles.candidateTitle}>{t('placeImport.pickCandidate')}</Text>
             {(result.candidates ?? []).map(option => {
               const active = selectedGooglePlaceId === option.googlePlaceId
               return (
@@ -349,8 +350,8 @@ export default function PlaceImportScreen() {
                   accessibilityState={{ selected: active }}
                   style={[styles.candidateRow, active && styles.candidateRowActive]}
                 >
-                  <Text style={styles.candidateName}>{option.name}</Text>
-                  <Text style={styles.candidateAddress}>{option.address}</Text>
+                  <Text variant="title2">{option.name}</Text>
+                  <Text variant="bodySmall" color="text.secondary" style={styles.candidateAddress}>{option.address}</Text>
                 </Pressable>
               )
             })}
@@ -363,12 +364,12 @@ export default function PlaceImportScreen() {
               loading={submit.isPending || revalidating}
               style={styles.addBtn}
             />
-            {submitError ? <Text style={styles.errorLabel}>{submitError}</Text> : null}
+            {submitError ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{submitError}</Text> : null}
           </View>
         ) : null}
 
         {result?.status === 'RESOLVED' && candidate ? (
-          <GlassCard style={styles.resultCard}>
+          <Card padded={false} style={styles.resultCard}>
             <PlacePhoto
               placeId={candidate.googlePlaceId ?? url}
               name={candidate.name}
@@ -377,13 +378,13 @@ export default function PlaceImportScreen() {
             />
             <View style={styles.resultBody}>
               <View style={styles.verifiedBadge}>
-                <Text style={styles.verifiedBadgeLabel}>{t('placeImport.verifiedBadge')}</Text>
+                <Text variant="label" color="status.successText">{t('placeImport.verifiedBadge')}</Text>
               </View>
-              <Text style={styles.placeName}>{candidate.name}</Text>
-              <Text style={styles.placeAddress}>{candidate.address}</Text>
+              <Text variant="title2">{candidate.name}</Text>
+              <Text variant="bodySmall" color="text.secondary" style={styles.placeAddress}>{candidate.address}</Text>
 
               {candidate.googleRating != null ? (
-                <Text style={styles.placeReviews}>
+                <Text variant="label" style={styles.placeReviews}>
                   {t('placeImport.reviews', {
                     rating: candidate.googleRating,
                     // `n` is the display string; `count` picks the plural form (#270).
@@ -396,7 +397,7 @@ export default function PlaceImportScreen() {
               {/* Google's business status is a fact worth surfacing: submitting a
                   closed place wastes a moderator's time and the user's. */}
               {candidate.businessStatus && candidate.businessStatus !== 'OPERATIONAL' ? (
-                <Text style={styles.warning}>
+                <Text variant="bodySmall" color="status.warningText" style={styles.warning}>
                   {t(`placeImport.businessStatus.${candidate.businessStatus}`, {
                     defaultValue: t('placeImport.businessStatusUnknown'),
                   })}
@@ -407,9 +408,9 @@ export default function PlaceImportScreen() {
                   when the submitter fills it in, and nothing here is required. */}
               {!submit.isSuccess ? (
                 <View style={styles.metaSection}>
-                  <Text style={styles.metaTitle}>{t('placeImport.metaTitle')}</Text>
+                  <Text variant="label">{t('placeImport.metaTitle')}</Text>
 
-                  <Text style={styles.metaLabel}>{t('placeImport.metaCategory')}</Text>
+                  <Text variant="label" style={styles.metaLabel}>{t('placeImport.metaCategory')}</Text>
                   <View style={styles.chipRow}>
                     {taxonomyOptions('category').map(option => {
                       const active = category === option.key
@@ -421,13 +422,13 @@ export default function PlaceImportScreen() {
                           accessibilityState={{ selected: active }}
                           style={[styles.chip, active && styles.chipActive]}
                         >
-                          <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{option.label}</Text>
+                          <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onAccent' : 'text.primary'}>{option.label}</Text>
                         </Pressable>
                       )
                     })}
                   </View>
 
-                  <Text style={styles.metaLabel}>{t('placeImport.metaVibes', { max: MAX_VIBES })}</Text>
+                  <Text variant="label" style={styles.metaLabel}>{t('placeImport.metaVibes', { max: MAX_VIBES })}</Text>
                   <View style={styles.chipRow}>
                     {taxonomyOptions('mood').map(option => {
                       const active = vibes.includes(option.key)
@@ -439,13 +440,13 @@ export default function PlaceImportScreen() {
                           accessibilityState={{ selected: active }}
                           style={[styles.chip, active && styles.chipActive]}
                         >
-                          <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{option.label}</Text>
+                          <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onAccent' : 'text.primary'}>{option.label}</Text>
                         </Pressable>
                       )
                     })}
                   </View>
 
-                  <Text style={styles.metaLabel}>{t('placeImport.metaPrice')}</Text>
+                  <Text variant="label" style={styles.metaLabel}>{t('placeImport.metaPrice')}</Text>
                   <View style={styles.priceRow}>
                     <TextInput
                       value={priceMin}
@@ -478,14 +479,14 @@ export default function PlaceImportScreen() {
 
               {submit.isSuccess ? (
                 <View>
-                  <Text style={styles.addedLabel}>
+                  <Text variant="label" color="status.successText" style={styles.addedLabel}>
                     {submit.data?.status === 'ALREADY_EXISTS'
                       ? t('placeImport.existsBody')
                       : t('placeImport.pendingReview')}
                   </Text>
                   {/* Polled until a moderator decides. */}
                   {submission.data?.status ? (
-                    <Text style={styles.submissionStatus}>
+                    <Text variant="bodySmall" color="text.secondary" style={styles.submissionStatus}>
                       {t(`placeImport.submissionStatus.${submission.data.status}`, {
                         defaultValue: submission.data.status,
                       })}
@@ -513,26 +514,26 @@ export default function PlaceImportScreen() {
                     accessibilityHint={notOpenYet ? t('placeImport.notYetOpen') : undefined}
                     style={styles.addBtn}
                   />
-                  {notOpenYet ? <Text style={styles.errorLabel}>{t('placeImport.notYetOpen')}</Text> : null}
+                  {notOpenYet ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.notYetOpen')}</Text> : null}
                 </>
               )}
 
-              {submitError && !notOpenYet ? <Text style={styles.errorLabel}>{submitError}</Text> : null}
+              {submitError && !notOpenYet ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{submitError}</Text> : null}
 
               {/* Provider data must be shown with its attribution. */}
               {(candidate.attributions ?? []).map(attribution => (
-                <Text key={attribution} style={styles.attribution}>
+                <Text variant="caption" color="text.secondary" key={attribution} style={styles.attribution}>
                   {attribution}
                 </Text>
               ))}
             </View>
-          </GlassCard>
+          </Card>
         ) : null}
 
         {result?.status === 'UNRESOLVED' ? (
           <View style={styles.rejectedCard}>
-            <Text style={styles.rejectedTitle}>{t('placeImport.rejectedTitle')}</Text>
-            <Text style={styles.rejectedReason}>
+            <Text variant="title2" color="status.dangerText">{t('placeImport.rejectedTitle')}</Text>
+            <Text variant="bodySmall" style={styles.rejectedReason}>
               {t(`placeImport.reason.${result.reasonCodes?.[0] ?? 'NOT_FOUND'}`, {
                 defaultValue: t('placeImport.reason.NOT_FOUND'),
               })}

@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -30,20 +30,11 @@ import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import {
-  Atmosphere,
-  BackHeader,
-  Chip,
-  GhostBtn,
-  GlassCard,
-  PrimaryBtn,
-  SecondaryBtn,
-  Toast,
-  glassStyles,
-} from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, Chip, GhostBtn, glassStyles, PrimaryBtn, SecondaryBtn, Toast } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconNavigation } from '@/shared/ui/icons'
-import { colors, glyph, hitSlop, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
@@ -225,7 +216,6 @@ export default function DatePlanScreen() {
     )
   }
 
-
   /**
    * What the bottom bar offers depends on the room's status and the caller's
    * role, both from the server: only the host can start (the API answers
@@ -238,7 +228,7 @@ export default function DatePlanScreen() {
     if (!room.data) {
       return room.isError ? (
         <View style={styles.startNotice} accessibilityLiveRegion="polite">
-          <Text style={styles.startNoticeLabel}>{t('datePlan.roomUnavailable')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.startNoticeLabel}>{t('datePlan.roomUnavailable')}</Text>
           <GhostBtn label={t('common.retry')} onPress={() => void room.refetch()} />
         </View>
       ) : (
@@ -274,7 +264,7 @@ export default function DatePlanScreen() {
             style={styles.goBtn}
           />
           {startDate.isError || notStarted ? (
-            <Text accessibilityLiveRegion="polite" style={styles.startError}>
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.startError}>
               {t(
                 notStarted
                   ? 'datePlan.notStartable'
@@ -293,7 +283,7 @@ export default function DatePlanScreen() {
     }
     return (
       <View style={styles.startNotice} accessibilityLiveRegion="polite">
-        <Text style={styles.startNoticeLabel}>
+        <Text variant="bodySmall" color="text.secondary" style={styles.startNoticeLabel}>
           {t(
             roomStatus === 'ready'
               ? 'datePlan.waitingHost'
@@ -321,7 +311,7 @@ export default function DatePlanScreen() {
           title={screenTitle()}
           right={
             <View style={styles.matchBadge}>
-              <Text style={styles.matchBadgeLabel}>⚡ {t('datePlan.match')}</Text>
+              <Text variant="caption" color="status.successText">⚡ {t('datePlan.match')}</Text>
             </View>
           }
         />
@@ -330,7 +320,7 @@ export default function DatePlanScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 240 }}>
         {/* A plan built before the last constraint edit is no longer the answer. */}
-        {summary.isStale ? <Text style={styles.staleWarning}>⚠️ {t('datePlan.stale')}</Text> : null}
+        {summary.isStale ? <Text variant="bodySmall" color="status.warningText" style={styles.staleWarning}>⚠️ {t('datePlan.stale')}</Text> : null}
 
         {/* Someone edited or rebuilt this plan — possibly on another device. */}
         {summary.status === 'superseded' ? (
@@ -338,7 +328,7 @@ export default function DatePlanScreen() {
             onPress={() => router.replace(`/room/${summary.roomId}`)}
             accessibilityRole="button"
           >
-            <Text style={styles.staleWarning}>⚠️ {t('datePlan.superseded')}</Text>
+            <Text variant="bodySmall" color="status.warningText" style={styles.staleWarning}>⚠️ {t('datePlan.superseded')}</Text>
           </Pressable>
         ) : null}
 
@@ -357,11 +347,11 @@ export default function DatePlanScreen() {
                   {/* Minutes and distance both come from the optimizer. The
                       contract carries no travel *mode*, so none is claimed. */}
                   <View style={styles.legRail}>
-                    <Text style={styles.legLabel}>
+                    <Text variant="bodySmall" color="text.secondary">
                       {t('datePlan.travelLeg', { n: stop.travelMinutesFromPrev })}
                     </Text>
                     {stop.travelDistanceMFromPrev != null ? (
-                      <Text style={styles.legDistance}>
+                      <Text variant="bodySmall" color="text.secondary">
                         · {formatDistance(stop.travelDistanceMFromPrev)}
                       </Text>
                     ) : null}
@@ -377,9 +367,9 @@ export default function DatePlanScreen() {
                       stop.isLocked && styles.timelineDotLocked,
                     ]}
                   >
-                    <Text style={{ fontSize: glyph.xs }}>
+                    <Glyph size="xs">
                       {stop.status === 'completed' ? '✅' : stop.isLocked ? '🔒' : '📍'}
-                    </Text>
+                    </Glyph>
                   </View>
                   {index < summary.stops.length - 1 && <View style={styles.timelineLine} />}
                 </View>
@@ -389,7 +379,8 @@ export default function DatePlanScreen() {
                   style={{ flex: 1 }}
                   onPress={() => router.push(`/places/${stop.placeId}`)}
                 >
-                  <GlassCard
+                  <Card
+                    padded={false}
                     style={[
                       styles.stopCard,
                       stop.isLocked && styles.stopCardLocked,
@@ -401,7 +392,7 @@ export default function DatePlanScreen() {
                       <View style={styles.stopHeader}>
                         {/* A room with no `startAt` gets no scheduled times, so
                             the order is shown rather than an empty clock. */}
-                        <Text style={styles.stopTime}>
+                        <Text variant="title2" color="accent.primary">
                           {stop.arriveLabel ?? t('datePlan.stopOrder', { n: index + 1 })}
                         </Text>
                         <View style={styles.stopBadges}>
@@ -428,24 +419,19 @@ export default function DatePlanScreen() {
                                   : { backgroundColor: neutral[100] },
                               ]}
                             >
-                              <Text style={{ fontSize: glyph.xs }}>{stop.isLocked ? '🔒' : '🔓'}</Text>
-                              <Text
-                                style={[
-                                  styles.lockBtnLabel,
-                                  { color: stop.isLocked ? theme.accent.primary : neutral[500] },
-                                ]}
-                              >
+                              <Glyph size="xs">{stop.isLocked ? '🔒' : '🔓'}</Glyph>
+                              <Text variant="caption" color={stop.isLocked ? 'accent.primary' : 'text.secondary'}>
                                 {t(stop.isLocked ? 'datePlan.locked' : 'datePlan.lockable')}
                               </Text>
                             </Pressable>
                           )}
                         </View>
                       </View>
-                      <Text style={styles.stopName}>{name}</Text>
-                      {place?.addressText ? <Text style={styles.stopArea}>{place.addressText}</Text> : null}
+                      <Text variant="title2">{name}</Text>
+                      {place?.addressText ? <Text variant="bodySmall" color="text.secondary" style={styles.stopArea}>{place.addressText}</Text> : null}
                       <View style={styles.stopPriceRow}>
-                        {stopCost ? <Text style={styles.stopPrice}>{stopCost}</Text> : null}
-                        <Text style={styles.stopDuration}>
+                        {stopCost ? <Text variant="label">{stopCost}</Text> : null}
+                        <Text variant="bodySmall" color="text.secondary">
                           · {t('datePlan.minutes', { n: stop.durationMinutes })}
                         </Text>
                       </View>
@@ -455,7 +441,7 @@ export default function DatePlanScreen() {
                           onPress={() => router.push(`/places/${stop.placeId}`)}
                           style={styles.detailBtn}
                         >
-                          <Text style={styles.detailLabel}>{t('common.details')}</Text>
+                          <Text variant="label" color="text.secondary">{t('common.details')}</Text>
                         </Pressable>
                         <Pressable
                           accessibilityRole="button"
@@ -466,11 +452,11 @@ export default function DatePlanScreen() {
                           style={styles.directionBtn}
                         >
                           <IconNavigation />
-                          <Text style={styles.directionLabel}>{t('common.directions')}</Text>
+                          <Text variant="label">{t('common.directions')}</Text>
                         </Pressable>
                       </View>
                     </View>
-                  </GlassCard>
+                  </Card>
                 </Pressable>
               </View>
             </View>
@@ -481,27 +467,27 @@ export default function DatePlanScreen() {
       <View style={[styles.summaryBar, { paddingBottom: insets.bottom + spacing[3] }]}>
         <View style={styles.summaryRow}>
           <View style={styles.summaryColMain}>
-            <Text style={styles.summaryCaption}>{t('datePlan.total')}</Text>
+            <Text variant="caption" color="text.secondary">{t('datePlan.total')}</Text>
             {/* One formatter owns the amount and its scope (GoGo-MobileApp#249).
                 They are separate texts so the scope wraps under the amount
                 instead of being truncated off a narrow screen. */}
             <View style={styles.summaryAmountRow}>
-              {cost.primary.amount ? <Text style={styles.summaryValue}>{cost.primary.amount}</Text> : null}
-              <Text style={cost.primary.amount ? styles.summaryUnit : styles.summaryValue}>{cost.primary.unit}</Text>
+              {cost.primary.amount ? <Text variant="title2">{cost.primary.amount}</Text> : null}
+              <Text variant={!(cost.primary.amount) ? 'title2' : cost.primary.amount ? 'caption' : undefined} color={!(cost.primary.amount) ? 'text.primary' : cost.primary.amount ? 'text.secondary' : undefined}>{cost.primary.unit}</Text>
             </View>
             {cost.secondary ? (
-              <Text style={styles.summarySecondary}>{costLineText(cost.secondary)}</Text>
+              <Text variant="caption" color="text.secondary" style={styles.summarySecondary}>{costLineText(cost.secondary)}</Text>
             ) : null}
             {/* Computed from the upper bound — never soften it. */}
             {summary.overBudget ? (
-              <Text style={styles.summaryOverBudget} numberOfLines={1}>
+              <Text variant="caption" color="status.dangerText" style={styles.summaryOverBudget} numberOfLines={1}>
                 {t('datePlan.overBudget')}
               </Text>
             ) : null}
           </View>
           <View style={styles.summaryCol}>
-            <Text style={styles.summaryCaption}>{t('datePlan.time')}</Text>
-            <Text style={styles.summaryValue}>
+            <Text variant="caption" color="text.secondary">{t('datePlan.time')}</Text>
+            <Text variant="title2">
               {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m
             </Text>
           </View>

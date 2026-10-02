@@ -1,14 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { toPlanSummary, useCreateReview, usePlan, usePlanStopPlaces, type Review } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import type { MessageKey } from '@/shared/i18n/types'
 import { haptic } from '@/shared/ui/feedback'
-import { Atmosphere, BackHeader, Chip, GhostBtn, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Glyph, Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './review.style'
@@ -158,11 +159,11 @@ export default function ReviewScreen() {
     return (
       <Atmosphere>
         <View style={styles.successRoot}>
-          <Text style={styles.successGlyph}>{pending ? '🕓' : '🎉'}</Text>
-          <Text style={styles.successTitle} accessibilityRole="header">
+          <Glyph size="hero">{pending ? '🕓' : '🎉'}</Glyph>
+          <Text variant="title1" style={styles.successTitle} accessibilityRole="header">
             {t('review.successTitle')}
           </Text>
-          <Text style={styles.successBody} accessibilityLiveRegion="polite">
+          <Text color="text.secondary" style={styles.successBody} accessibilityLiveRegion="polite">
             {t(pending ? 'review.successPending' : 'review.successPublished')}
           </Text>
           <View style={styles.successActions}>
@@ -188,16 +189,16 @@ export default function ReviewScreen() {
         <BackHeader onBack={() => router.back()} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
-        <Text style={styles.title}>
+        <Text variant="display">
           {reviewingPlace ? t('review.titlePlace', { name: subject?.label }) : t('review.title')}
         </Text>
-        <Text style={styles.body}>{reviewingPlace ? t('review.bodyPlace') : t('review.body')}</Text>
+        <Text color="text.secondary" style={styles.body}>{reviewingPlace ? t('review.bodyPlace') : t('review.body')}</Text>
 
         {/* One stop is not a choice; the selector only exists where there is
             something to choose between. */}
         {subjects.length > 1 ? (
           <View style={styles.subjects}>
-            <Text style={styles.subjectLabel}>{t('review.subjectLabel')}</Text>
+            <Text variant="caption" color="text.secondary" style={styles.subjectLabel}>{t('review.subjectLabel')}</Text>
             <View style={styles.subjectRow}>
               {subjects.map(candidate => {
                 const isSent = sent.includes(candidate.key)
@@ -223,7 +224,7 @@ export default function ReviewScreen() {
           </View>
         ) : null}
 
-        <GlassCard style={styles.starsCard}>
+        <Card padded={false} style={styles.starsCard}>
           <View style={styles.starsRow} accessibilityRole="radiogroup">
             {[1, 2, 3, 4, 5].map(value => (
               <Pressable
@@ -237,14 +238,14 @@ export default function ReviewScreen() {
                 accessibilityLabel={t('review.starAria', { count: value })}
                 style={styles.starTap}
               >
-                <Text style={[styles.star, value > rating && styles.starDim]}>⭐</Text>
+                <Glyph size="lg" style={[value > rating && styles.starDim]}>⭐</Glyph>
               </Pressable>
             ))}
           </View>
-          <Text style={styles.ratingLabel} accessibilityLiveRegion="polite">
+          <Text variant="label" accessibilityLiveRegion="polite">
             {t(ratingLabelKey(rating))}
           </Text>
-        </GlassCard>
+        </Card>
 
         {/*
           The highlight chips are gone: `POST /reviews` takes only `rating` and
@@ -252,7 +253,7 @@ export default function ReviewScreen() {
           (GoGo-BE#171). Collecting chips that could not be submitted would be
           worse than not offering them.
         */}
-        <GlassCard style={styles.inputCard}>
+        <Card padded={false} style={styles.inputCard}>
           <TextInput
             value={text}
             onChangeText={value => setText(value.slice(0, MAX_TEXT))}
@@ -262,26 +263,26 @@ export default function ReviewScreen() {
             accessibilityLabel={t('review.placeholder')}
             style={styles.input}
           />
-        </GlassCard>
+        </Card>
         {/* The count only matters as the limit approaches; until then it is
             quiet rather than absent, so the cap is never a surprise. */}
         <View style={styles.counterRow}>
-          <Text style={[styles.counter, nearLimit && styles.counterNear]}>
+          <Text variant={nearLimit ? 'label' : 'caption'} color={nearLimit ? 'status.warningText' : 'text.secondary'}>
             {text.length} / {MAX_TEXT}
           </Text>
         </View>
 
         {/* A new review is queued for moderation, never published on the spot. */}
-        <Text style={styles.moderationNote}>{t('review.moderationNote')}</Text>
+        <Text variant="caption" color="text.secondary" style={styles.moderationNote}>{t('review.moderationNote')}</Text>
 
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
             {error}
           </Text>
         ) : null}
       </ScrollView>
       <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[2] }}>
-        {rating === 0 ? <Text style={styles.hint}>{t('review.chooseStars')}</Text> : null}
+        {rating === 0 ? <Text variant="bodySmall" color="text.secondary" style={styles.hint}>{t('review.chooseStars')}</Text> : null}
         <PrimaryBtn
           label={createReview.isPending ? t('review.submitting') : t('review.submit')}
           onPress={submit}

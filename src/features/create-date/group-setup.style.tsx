@@ -1,13 +1,11 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, glassFx, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
   title: {
-    ...type.display,
-    color: neutral[900],
     marginTop: spacing[2],
   },
   stepper: {
@@ -25,11 +23,7 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnLabel: { ...type.title1, fontWeight: '700' },
-  count: { ...type.title1, color: neutral[900] },
   sectionTitle: {
-    ...type.title2,
-    color: neutral[900],
     marginTop: spacing[6],
     marginBottom: spacing[3],
   },
@@ -62,7 +56,5 @@ export const styles = StyleSheet.create(theme => ({
     shadowRadius: 6,
     elevation: 2,
   },
-  segmentLabel: { ...type.label, color: neutral[500] },
-  segmentLabelActive: { color: theme.accent.primary, fontWeight: '700' },
-  helper: { ...type.bodySmall, color: neutral[500], marginTop: spacing[3] },
+  helper: { marginTop: spacing[3] },
 }))

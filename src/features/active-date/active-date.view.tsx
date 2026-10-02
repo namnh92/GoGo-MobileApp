@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -27,10 +27,11 @@ import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/a
 import { haptic } from '@/shared/ui/feedback'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, Chip, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
-import { glyph, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { CheckinSheet, type CheckinDraft } from './checkin-sheet.view'
 import { styles } from './active-date.style'
@@ -326,9 +327,9 @@ export default function ActiveDateScreen() {
           <View>
             <View style={styles.liveRow}>
               <View style={styles.liveDot} />
-              <Text style={styles.live}>{t('activeDate.live')}</Text>
+              <Text variant="caption" color="accent.primary" style={styles.live}>{t('activeDate.live')}</Text>
             </View>
-            <Text style={styles.stopCounter} accessibilityLiveRegion="polite">
+            <Text variant="title1" accessibilityLiveRegion="polite">
               {t('activeDate.stop', { n: currentIndex + 1, total: stops.length })}
             </Text>
           </View>
@@ -354,14 +355,14 @@ export default function ActiveDateScreen() {
       <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
-        <GlassCard style={styles.card}>
+        <Card padded={false} style={styles.card}>
           <PlacePhoto placeId={stop.placeId} name={placeName} uri={null} style={styles.cardImage} />
           <View style={styles.cardBody}>
             <View style={styles.cardHeader}>
               <Chip label={t('activeDate.ongoing')} icon="📍" variant="positive" />
             </View>
-            <Text style={styles.name}>{placeName}</Text>
-            {address ? <Text style={styles.area}>{address}</Text> : null}
+            <Text variant="display">{placeName}</Text>
+            {address ? <Text color="text.secondary" style={styles.area}>{address}</Text> : null}
 
             <View style={styles.factRow}>
               {stop.arriveLabel ? <Chip label={stop.arriveLabel} icon="🕘" variant="default" /> : null}
@@ -376,7 +377,7 @@ export default function ActiveDateScreen() {
                 style={styles.mapThumb}
                 fallback={
                   <View style={styles.mapFallback}>
-                    <Text style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
+                    <Text variant="bodySmall" color="text.secondary" style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
                   </View>
                 }
               />
@@ -404,7 +405,7 @@ export default function ActiveDateScreen() {
                 style={({ pressed }) => [styles.dirBtn, pressed && { opacity: 0.85 }]}
               >
                 <IconNavigation />
-                <Text style={styles.dirLabel}>{t('common.directions')}</Text>
+                <Text variant="label">{t('common.directions')}</Text>
               </Pressable>
             </View>
 
@@ -412,27 +413,27 @@ export default function ActiveDateScreen() {
                 and why — connectivity is only one of the reasons. A room that
                 is not active never gets here: it renders its own state above. */}
             {completeStop.isError ? (
-              <Text accessibilityLiveRegion="polite" style={styles.failure}>
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.failure}>
                 {t(isOffline(completeStop.error) ? 'activeDate.completeFailed' : 'activeDate.completeFailedRetry')}
               </Text>
             ) : null}
           </View>
-        </GlassCard>
+        </Card>
 
         {nextStop && (
-          <GlassCard style={styles.nextCard}>
-            <Text style={{ fontSize: glyph.sm }}>📍</Text>
+          <Card padded={false} style={styles.nextCard}>
+            <Glyph size="sm">📍</Glyph>
             <View style={{ flex: 1 }}>
-              <Text style={styles.nextCaption}>{t('activeDate.next')}</Text>
-              <Text style={styles.nextName}>{places.byPlaceId.get(nextStop.placeId)?.name ?? ''}</Text>
-              <Text style={styles.nextMeta}>
+              <Text variant="caption" color="text.secondary" style={styles.nextCaption}>{t('activeDate.next')}</Text>
+              <Text variant="title2" style={styles.nextName}>{places.byPlaceId.get(nextStop.placeId)?.name ?? ''}</Text>
+              <Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
                 {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)]
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
             </View>
             <IconArrowRight />
-          </GlassCard>
+          </Card>
         )}
       </ScrollView>
 

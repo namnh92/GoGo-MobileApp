@@ -1,7 +1,6 @@
-import { StyleSheet as RNStyleSheet } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, glyph, overlay, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, fill, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -36,7 +35,6 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
   },
   filterToggleActive: { borderColor: theme.accent.primary },
-  filterToggleIcon: { fontSize: glyph.xs },
   filterCountBadge: {
     position: 'absolute',
     top: -4,
@@ -49,7 +47,6 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  filterCountLabel: { ...type.label, fontWeight: '700', color: neutral[0] },
   fab: {
     position: 'absolute',
     right: spacing[5],
@@ -65,7 +62,6 @@ export const styles = StyleSheet.create(theme => ({
     shadowRadius: 20,
     elevation: 8,
   },
-  fabIcon: { fontSize: glyph.sm, fontWeight: '700', color: neutral[0], lineHeight: 30 },
   sheetInput: {
     ...type.bodySmall,
     height: 46,
@@ -78,9 +74,8 @@ export const styles = StyleSheet.create(theme => ({
   },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   priceInput: { flex: 1 },
-  priceDash: { ...type.body, color: neutral[500] },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...fill, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -96,8 +91,8 @@ export const styles = StyleSheet.create(theme => ({
     alignSelf: 'center',
     marginBottom: spacing[4],
   },
-  sheetTitle: { ...type.title2, fontWeight: '800', color: neutral[900], marginBottom: spacing[2] },
-  sheetSection: { ...type.label, fontWeight: '700', color: neutral[500], marginTop: spacing[3], marginBottom: spacing[2] },
+  sheetTitle: { marginBottom: spacing[2] },
+  sheetSection: { marginTop: spacing[3], marginBottom: spacing[2] },
   sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   sheetOption: {
     paddingHorizontal: 12,
@@ -110,7 +105,6 @@ export const styles = StyleSheet.create(theme => ({
   sheetOptionLabelActive: { color: neutral[0] },
   sheetApply: { marginTop: spacing[5] },
   sheetClear: { alignItems: 'center', paddingVertical: spacing[3] },
-  sheetClearLabel: { ...type.bodySmall, fontWeight: '500', color: neutral[500] },
   filterBtn: {
     paddingHorizontal: spacing[4],
     paddingVertical: 8,
@@ -126,15 +120,14 @@ export const styles = StyleSheet.create(theme => ({
   thumb: { width: 96, alignSelf: 'stretch', minHeight: 96 },
   cardBody: { flex: 1, padding: spacing[3] },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2] },
-  title: { ...type.bodySmall, fontWeight: '700', color: neutral[900], flexShrink: 1 },
+  title: { ...type.label, color: neutral[900], flexShrink: 1 },
   bookmark: { ...type.body },
   meta: { ...type.caption, color: neutral[500], marginTop: 2 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing[2], alignItems: 'center' },
-  score: { ...type.label, fontWeight: '700', color: theme.accent.primary },
+  score: { ...type.label, color: theme.accent.primary },
   empty: { alignItems: 'center', paddingVertical: spacing[8], paddingHorizontal: spacing[5] },
-  emptyEmoji: { fontSize: glyph.lg, marginBottom: spacing[3] },
-  emptyTitle: { ...type.body, fontWeight: '700', color: neutral[900] },
-  emptyHint: { ...type.bodySmall, color: neutral[500], marginTop: 4, textAlign: 'center' },
+  emptyEmoji: { marginBottom: spacing[3] },
+  emptyHint: { marginTop: 4, textAlign: 'center' },
   addNewBtn: { marginTop: spacing[4], alignSelf: 'stretch' },
-  sheetHint: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[2] },
+  sheetHint: { marginBottom: spacing[2] },
 }))

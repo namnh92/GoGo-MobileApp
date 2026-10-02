@@ -3,7 +3,6 @@ import { Animated, View, type DimensionValue, type StyleProp, type ViewStyle } f
 
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { Card } from '@/shared/ui/card.view'
-import { GlassCard } from '@/shared/ui/primitives'
 import { motion, radius, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './skeleton.style'
@@ -81,13 +80,13 @@ export function PlaceCardSkeleton() {
 
 export function PlaceGridSkeleton() {
   return (
-    <GlassCard style={styles.gridCard}>
+    <Card padded={false} style={styles.gridCard}>
       <Skeleton style={styles.gridThumb} height={undefined} radius={0} />
       <View style={styles.gridBody}>
         <Skeleton width="80%" height={14} />
         <Skeleton width="55%" height={10} />
       </View>
-    </GlassCard>
+    </Card>
   )
 }
 

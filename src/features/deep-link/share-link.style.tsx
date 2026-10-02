@@ -1,7 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, glyph, radius, spacing, type } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   centre: {
@@ -18,10 +16,9 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[3],
     alignSelf: 'stretch',
   },
-  emoji: { fontSize: glyph.xl },
-  title: { ...type.title1, color: neutral[900], textAlign: 'center' },
-  body: { ...type.body, color: neutral[500], textAlign: 'center' },
-  hint: { ...type.bodySmall, color: neutral[500], textAlign: 'center' },
+  title: { textAlign: 'center' },
+  body: { textAlign: 'center' },
+  hint: { textAlign: 'center' },
   actions: { alignSelf: 'stretch', gap: spacing[3], marginTop: spacing[2] },
   badge: {
     backgroundColor: theme.accent.soft,

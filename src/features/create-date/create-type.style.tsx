@@ -1,16 +1,14 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, glyph, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, glassFx, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
   content: { paddingHorizontal: spacing[5], paddingBottom: spacing[4] },
-  nameLabel: { ...type.label, color: neutral[900], marginTop: spacing[4], marginBottom: spacing[2] },
+  nameLabel: { marginTop: spacing[4], marginBottom: spacing[2] },
   nameInput: { ...type.body, color: neutral[900], minHeight: 48, padding: spacing[3], borderWidth: 1, borderColor: neutral[300], borderRadius: radius.compact },
   title: {
-    ...type.display,
-    color: neutral[900],
     marginTop: spacing[2],
   },
   option: {
@@ -26,9 +24,7 @@ export const styles = StyleSheet.create(theme => ({
     borderColor: theme.accent.pressed,
   },
   optionPressed: { transform: [{ scale: 0.99 }], opacity: 0.95 },
-  optionEmoji: { fontSize: glyph.md },
-  optionTitle: { ...type.title2 },
-  optionDesc: { ...type.bodySmall, marginTop: 4, lineHeight: 19 },
+  optionDesc: { marginTop: 4 },
   check: {
     width: 24,
     height: 24,

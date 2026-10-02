@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, Text, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useLocatedArea } from '@/shared/administrative/queries'
@@ -10,8 +10,9 @@ import { useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, Chip, GhostBtn, GlassCard, IconBtn, useBottomBarInset } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, IconBtn, useBottomBarInset } from '@/shared/ui/primitives'
 import { PlaceGridSkeleton } from '@/shared/ui/skeleton.view'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { groupSavedByArea, type CurrentArea } from './saved-groups'
@@ -84,10 +85,10 @@ export default function SavedScreen() {
     }
     if (!entry.place) {
       return (
-        <GlassCard key={entry.key} style={styles.unavailable}>
-          <Text style={styles.unavailableLabel}>{t('saved.placeUnavailable')}</Text>
+        <Card padded={false} key={entry.key} style={styles.unavailable}>
+          <Text variant="bodySmall" color="text.secondary">{t('saved.placeUnavailable')}</Text>
           <GhostBtn label={t('saved.remove')} onPress={() => unsave(entry)} />
-        </GlassCard>
+        </Card>
       )
     }
     return (
@@ -107,13 +108,13 @@ export default function SavedScreen() {
     <Atmosphere>
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>{t('saved.title')}</Text>
+          <Text variant="display">{t('saved.title')}</Text>
           <IconBtn
             onPress={() => router.push('/places/import')}
             accessibilityLabel={t('saved.addPlace')}
             style={styles.addPlaceBtn}
           >
-            <Text style={styles.addPlaceLabel}>＋</Text>
+            <Text variant="title1" color="accent.primary">＋</Text>
           </IconBtn>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -156,7 +157,7 @@ export default function SavedScreen() {
           {groups.map(group => (
             <View key={group.key} style={styles.group}>
               <View style={styles.groupHeader}>
-                <Text accessibilityRole="header" style={styles.groupTitle}>
+                <Text variant="title2" accessibilityRole="header">
                   {group.kind === 'province'
                     ? group.provinceName
                     : t(group.kind === 'unknown' ? 'saved.group.unknown' : 'saved.group.multipleProvinces')}
@@ -169,7 +170,7 @@ export default function SavedScreen() {
                 group.communes.map(commune => (
                   <View key={commune.key} style={styles.subgroup}>
                     <View style={styles.groupHeader}>
-                      <Text accessibilityRole="header" style={styles.subgroupTitle}>
+                      <Text variant="label" accessibilityRole="header">
                         {commune.kind === 'commune' ? commune.communeName : t('saved.group.multipleCommunes')}
                       </Text>
                       {commune.isCurrent ? <Chip label={t('saved.currentArea')} variant="info" /> : null}

@@ -2,8 +2,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { Pressable, View } from 'react-native'
+import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   interpolate,
@@ -39,7 +39,8 @@ import { haptic, useReducedMotion } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
-import { colors, glyph, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { colors, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
 import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
@@ -259,7 +260,7 @@ export default function SwipeScreen() {
         onBack={() => router.back()}
         right={
           withCounter && candidates.length > 0 ? (
-            <Text style={styles.counter}>
+            <Text variant="label">
               {Math.min(cardIndex + 1, candidates.length)} / {candidates.length}
             </Text>
           ) : undefined
@@ -372,12 +373,12 @@ export default function SwipeScreen() {
     <Atmosphere>
       {renderHeader(true)}
       <View style={{ alignItems: 'center', marginTop: -spacing[2], marginBottom: spacing[2] }}>
-        <Text style={styles.header}>{t('swipe.header')}</Text>
-        <Text style={styles.subheader}>{t('swipe.subheader')}</Text>
+        <Text variant="label" color="text.secondary">{t('swipe.header')}</Text>
+        <Text variant="caption" color="text.secondary">{t('swipe.subheader')}</Text>
       </View>
 
       {castVote.isError ? (
-        <Text accessibilityLiveRegion="polite" style={styles.subheader}>
+        <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite">
           {t(isRoomNotMatching(castVote.error) ? 'swipe.votingClosed' : 'swipe.saveFailed')}
         </Text>
       ) : null}
@@ -405,7 +406,7 @@ export default function SwipeScreen() {
 
               {categoryLabel ? (
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryLabel}>{categoryLabel}</Text>
+                  <Text variant="caption">{categoryLabel}</Text>
                 </View>
               ) : null}
 
@@ -413,25 +414,25 @@ export default function SwipeScreen() {
                 style={[styles.overlay, { left: 20, backgroundColor: brand.mint }, likeStyle]}
                 pointerEvents="none"
               >
-                <Text style={styles.overlayLabel}>{t('swipe.like')}</Text>
+                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.like')}</Text>
               </Animated.View>
               <Animated.View
                 style={[styles.overlay, { right: 20, backgroundColor: theme.status.danger }, nopeStyle]}
                 pointerEvents="none"
               >
-                <Text style={styles.overlayLabel}>{t('swipe.pass')}</Text>
+                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.pass')}</Text>
               </Animated.View>
               <Animated.View
                 style={[styles.overlay, { alignSelf: 'center', backgroundColor: brand.lavender }, starStyle]}
                 pointerEvents="none"
               >
-                <Text style={styles.overlayLabel}>{t('swipe.star')}</Text>
+                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.star')}</Text>
               </Animated.View>
 
               <View style={styles.overImage}>
-                <Text style={styles.overTitle} numberOfLines={2}>{card.name}</Text>
+                <Text variant="display" color="text.inverse" numberOfLines={2}>{card.name}</Text>
                 {detail.data?.addressText ? (
-                  <Text style={styles.overMeta} numberOfLines={1}>📍 {detail.data.addressText}</Text>
+                  <Text variant="bodySmall" color="onDark.strong" numberOfLines={1}>📍 {detail.data.addressText}</Text>
                 ) : null}
               </View>
             </View>
@@ -441,23 +442,23 @@ export default function SwipeScreen() {
               <View style={styles.factRow}>
                 {price ? (
                   isStandalonePrice(price.unit) ? (
-                    <Text style={styles.priceUnknown}>{t(priceUnitKey(price.unit))}</Text>
+                    <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
                   ) : (
-                    <Text style={styles.price}>
+                    <Text variant="title2">
                       {price.amount}
-                      <Text style={styles.priceUnit}>{t(priceUnitKey(price.unit))}</Text>
+                      <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
                     </Text>
                   )
                 ) : null}
                 {place?.distanceM != null ? (
-                  <Text style={styles.meta}>· {formatDistance(place.distanceM)}</Text>
+                  <Text variant="bodySmall" color="text.secondary">· {formatDistance(place.distanceM)}</Text>
                 ) : null}
                 {hasHours ? (
                   <>
                     <View
                       style={[styles.openDot, { backgroundColor: open.openNow ? brand.mint : neutral[300] }]}
                     />
-                    <Text style={open.openNow ? styles.open : styles.closed}>{openLabel}</Text>
+                    <Text variant={!(open.openNow) ? 'caption' : open.openNow ? 'caption' : undefined} color={!(open.openNow) ? 'text.secondary' : open.openNow ? 'status.successText' : undefined}>{openLabel}</Text>
                   </>
                 ) : null}
               </View>
@@ -489,9 +490,9 @@ export default function SwipeScreen() {
               hitSlop={hitSlop}
               style={({ pressed }) => [styles.actionBtn, glassStyles.card, pressed && { transform: [{ scale: 0.94 }] }]}
             >
-              <Text style={{ fontSize: glyph.sm }}>✕</Text>
+              <Glyph size="sm">✕</Glyph>
             </Pressable>
-            <Text style={styles.actionCaption}>{t('swipe.passLabel')}</Text>
+            <Text variant="caption" color="text.secondary">{t('swipe.passLabel')}</Text>
           </View>
           <View style={styles.actionCol}>
             <Pressable
@@ -507,9 +508,9 @@ export default function SwipeScreen() {
                 pressed && { transform: [{ scale: 0.94 }] },
               ]}
             >
-              <Text style={{ fontSize: glyph.sm }}>❤️</Text>
+              <Glyph size="sm">❤️</Glyph>
             </Pressable>
-            <Text style={styles.actionCaption}>{t('swipe.likeLabel')}</Text>
+            <Text variant="caption" color="text.secondary">{t('swipe.likeLabel')}</Text>
           </View>
           <View style={styles.actionCol}>
             <Pressable
@@ -521,9 +522,9 @@ export default function SwipeScreen() {
               hitSlop={hitSlop}
               style={({ pressed }) => [styles.actionBtn, styles.actionBtnStar, pressed && { transform: [{ scale: 0.94 }] }]}
             >
-              <Text style={{ fontSize: glyph.sm }}>⭐</Text>
+              <Glyph size="sm">⭐</Glyph>
             </Pressable>
-            <Text style={styles.actionCaption}>{t('swipe.starLabel')}</Text>
+            <Text variant="caption" color="text.secondary">{t('swipe.starLabel')}</Text>
           </View>
         </View>
       </View>

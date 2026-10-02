@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import { PlanCard } from '@/shared/ui/plan-card.view'
-import { accents, status, surface, text, type } from '@/shared/ui/tokens'
+import { accents, spacing, status, surface, text, type } from '@/shared/ui/tokens'
 
 /** #295 — PlanCard per #293 §3: strings in, full title, facts on one wrapping line. */
 const LONG_TITLE = 'Kèo cà phê cuối tuần với cả nhóm đại học ở Quận 3'
@@ -52,6 +52,48 @@ describe('PlanCard', () => {
     const label = screen.getByText('Đang chọn')
     expect(StyleSheet.flatten(label.props.style).color).toBe(status.infoText)
     expect(StyleSheet.flatten(label.parent!.props.style).backgroundColor).toBe(status.infoSoft)
+  })
+
+  it('keeps a long status under the facts, never beside them (#298, Kế hoạch at 375pt)', async () => {
+    // Beside the column, this chip took most of a 375pt row and the title and
+    // meta wrapped one word per line. Inside the column it takes no width from them.
+    await renderCard({ status: { label: 'Đang chờ mọi người chọn', variant: 'info' } })
+    const column = screen.getByTestId('plan-card-title').parent!
+    const chip = screen.getByText('Đang chờ mọi người chọn').parent!
+    expect(chip.parent).toBe(column)
+    expect(screen.getByTestId('plan-card-meta').parent).toBe(column)
+    expect(StyleSheet.flatten(column.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+  })
+
+  /**
+   * Jest has no layout engine, so this cannot measure line wraps — the device
+   * screenshots at 320/375/430pt are that evidence. What it does pin is the
+   * width budget that caused the squeeze: the card row may hold only the
+   * fixed 48pt icon and the flexible text column, so the column gets the row
+   * minus the icon at every phone width. With the chip as a third child the
+   * column got what a long status left over (~50pt at 375).
+   */
+  it.each([320, 375, 430])('at %ipt the text column gets the whole row minus the icon', async width => {
+    await renderCard({ status: { label: 'Đang chờ mọi người chọn', variant: 'info' } })
+    const icon = screen.getByText('👥').parent!
+    const row = icon.parent!
+    const column = screen.getByTestId('plan-card-title').parent!
+    expect(row.children).toEqual([icon, column])
+
+    const rowStyle = StyleSheet.flatten(row.props.style)
+    const iconStyle = StyleSheet.flatten(icon.props.style)
+    expect(rowStyle.flexDirection).toBe('row')
+    expect(StyleSheet.flatten(column.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+
+    // Kế hoạch list: spacing[5] screen gutter each side, card padding, icon, one gap.
+    const columnWidth =
+      width - 2 * spacing[5] - 2 * (rowStyle.padding as number) - (iconStyle.width as number) - (rowStyle.gap as number)
+    // ~13 title2 characters per line; the reported squeeze left room for one short word.
+    expect(columnWidth).toBeGreaterThanOrEqual(180)
+
+    // Never truncated: the title and the facts wrap inside the column.
+    expect(screen.getByTestId('plan-card-title').props.numberOfLines).toBeUndefined()
+    expect(screen.getByTestId('plan-card-meta').props.numberOfLines).toBeUndefined()
   })
 
   it('upcoming: the icon sits on the accent soft circle; past: neutral circle and faded card', async () => {

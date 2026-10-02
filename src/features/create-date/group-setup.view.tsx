@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { WizardActions } from './wizard-actions.view'
@@ -41,9 +42,9 @@ export default function GroupSetupScreen() {
         <BackHeader onBack={() => router.back()} right={<WizardActions step="group-setup" />} />
       </View>
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
-        <Text style={styles.title}>{t('groupSetup.title')}</Text>
+        <Text variant="display" style={styles.title}>{t('groupSetup.title')}</Text>
 
-        <GlassCard style={styles.stepper}>
+        <Card padded={false} style={styles.stepper}>
           <Pressable
             onPress={() => step(-1)}
             disabled={participantCount <= MIN_PEOPLE}
@@ -56,9 +57,9 @@ export default function GroupSetupScreen() {
               participantCount <= MIN_PEOPLE && { opacity: 0.3 },
             ]}
           >
-            <Text style={[styles.stepBtnLabel, { color: colors.neutral[900] }]}>−</Text>
+            <Text variant="title1">−</Text>
           </Pressable>
-          <Text style={styles.count} accessibilityLiveRegion="polite">
+          <Text variant="title1" accessibilityLiveRegion="polite">
             {t('groupSetup.people', { n: participantCount })}
           </Text>
           <Pressable
@@ -73,11 +74,11 @@ export default function GroupSetupScreen() {
               participantCount >= MAX_PEOPLE && { opacity: 0.3 },
             ]}
           >
-            <Text style={[styles.stepBtnLabel, { color: colors.neutral[0] }]}>+</Text>
+            <Text variant="title1" color="accent.onAccent">+</Text>
           </Pressable>
-        </GlassCard>
+        </Card>
 
-        <Text style={styles.sectionTitle}>{t('groupSetup.budgetBy')}</Text>
+        <Text variant="title2" style={styles.sectionTitle}>{t('groupSetup.budgetBy')}</Text>
         <View style={styles.segmented} accessibilityRole="radiogroup">
           {BUDGET_MODES.map(option => {
             const active = budgetMode === option.mode
@@ -92,7 +93,7 @@ export default function GroupSetupScreen() {
                 accessibilityState={{ selected: active }}
                 style={[styles.segment, active && styles.segmentActive]}
               >
-                <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+                <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.primary' : 'text.secondary'}>
                   {t(option.labelKey)}
                 </Text>
               </Pressable>
@@ -101,7 +102,7 @@ export default function GroupSetupScreen() {
         </View>
         {/* Which mode is chosen changes what every price in the room means, so
             it is spelled out rather than left to the label alone. */}
-        <Text style={styles.helper}>
+        <Text variant="bodySmall" color="text.secondary" style={styles.helper}>
           {t(budgetMode === 'per_person' ? 'groupSetup.perPersonHelp' : 'groupSetup.groupTotalHelp', {
             n: participantCount,
           })}

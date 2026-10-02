@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -12,14 +12,10 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     gap: spacing[4],
   },
-  name: { ...type.title1, color: neutral[900] },
-  email: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
+  email: { marginTop: 2 },
 
   card: { marginHorizontal: spacing[5], padding: spacing[4], marginBottom: spacing[4] },
   caption: {
-    ...type.caption,
-    fontWeight: '700',
-    color: neutral[500],
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: spacing[3],
@@ -41,9 +37,7 @@ export const styles = StyleSheet.create(theme => ({
     minHeight: touchTarget.min + 32,
     justifyContent: 'center',
   },
-  shortcutValue: { ...type.title1, color: neutral[900] },
-  shortcutValueMuted: { ...type.title1, color: neutral[500] },
-  shortcutLabel: { ...type.caption, color: neutral[500], textAlign: 'center' },
+  shortcutLabel: { textAlign: 'center' },
 
   settingRow: {
     flexDirection: 'row',
@@ -55,8 +49,6 @@ export const styles = StyleSheet.create(theme => ({
     borderBottomWidth: 1,
     borderBottomColor: neutral[100],
   },
-  settingLabel: { ...type.body, color: neutral[900] },
-  settingPending: { ...type.caption, color: neutral[300] },
 
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   segmentBtn: {
@@ -66,8 +58,6 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: neutral[50],
   },
   segmentBtnActive: { backgroundColor: theme.accent.primary },
-  segmentLabel: { ...type.caption, fontWeight: '600', color: neutral[500] },
-  segmentLabelActive: { color: neutral[0] },
 
   logout: {
     alignItems: 'center',
@@ -76,6 +66,5 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: spacing[3],
     marginBottom: spacing[6],
   },
-  logoutLabel: { ...type.body, fontWeight: '700', color: theme.accent.primary },
-  logoutError: { ...type.bodySmall, color: theme.status.dangerText, textAlign: 'center', paddingHorizontal: spacing[4] },
+  logoutError: { textAlign: 'center', paddingHorizontal: spacing[4] },
 }))

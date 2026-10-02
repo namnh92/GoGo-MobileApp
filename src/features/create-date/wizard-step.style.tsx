@@ -1,8 +1,7 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, spacing, type } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   dots: { paddingHorizontal: spacing[5], paddingBottom: spacing[4] },
-  stepLabel: { ...type.label, color: colors.neutral[500] },
 })

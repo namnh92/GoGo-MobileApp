@@ -1,14 +1,15 @@
-import { glyph, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ScrollView, Text, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom, useFinishDate, toRoomAudience } from '@/shared/api'
 import { costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
-import { Atmosphere, GlassCard, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 
 import { styles } from './date-finished.style'
@@ -125,19 +126,19 @@ export default function DateFinishedScreen() {
         <View style={{ alignSelf: 'stretch' }}>
           <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
         </View>
-      <Text style={styles.burst}>✨</Text>
-      <Text style={styles.title}>{t('dateFinished.title')}</Text>
-      <Text style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>
+      <Glyph size="mega" style={styles.burst}>✨</Glyph>
+      <Text variant="display">{t('dateFinished.title')}</Text>
+      <Text color="text.secondary" style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>
 
-      <GlassCard style={styles.card}>
+      <Card padded={false} style={styles.card}>
         {summary.stops.map((stop, index) => (
           <Fragment key={stop.id}>
             {index > 0 && <View style={styles.connector} />}
             <View style={styles.stopRow}>
-              <Text style={{ fontSize: glyph.xs }}>{stop.status === 'completed' ? '✅' : '⚪️'}</Text>
+              <Glyph size="xs">{stop.status === 'completed' ? '✅' : '⚪️'}</Glyph>
               <View style={{ flex: 1 }}>
-                <Text style={styles.stopName}>{places.byPlaceId.get(stop.placeId)?.name ?? ''}</Text>
-                <Text style={styles.stopRating}>
+                <Text variant="title2">{places.byPlaceId.get(stop.placeId)?.name ?? ''}</Text>
+                <Text variant="caption" style={styles.stopRating}>
                   {stop.arriveLabel ?? t('datePlan.stopOrder', { n: index + 1 })}
                 </Text>
               </View>
@@ -146,23 +147,23 @@ export default function DateFinishedScreen() {
           </Fragment>
         ))}
         <View style={styles.footer}>
-          <Text style={styles.footerMeta}>
+          <Text variant="bodySmall" color="text.secondary">
             {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m ·{' '}
             {/* Scoped, and `~` while a stop's price is uncertain. */}
             {costLineText(cost.primary)}
             {cost.secondary ? ` · ${costLineText(cost.secondary)}` : ''}
           </Text>
-          <Text style={styles.footerMeta}>
+          <Text variant="bodySmall" color="text.secondary">
             {t('dateFinished.stopsDone', { done: completed.length, total: summary.stops.length })}
           </Text>
         </View>
-      </GlassCard>
+      </Card>
 
       {/* Leaving is what strands a room `active`, so the way out stays shut
           while the room is unknown or still open. */}
       {roomOffline ? (
         <View style={styles.closing}>
-          <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+          <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.closingNote}>
             {t('dateFinished.roomOffline')}
           </Text>
         </View>
@@ -170,13 +171,13 @@ export default function DateFinishedScreen() {
         <View style={styles.closing}>
           {roomUnreadable ? (
             <>
-              <Text accessibilityLiveRegion="polite" style={styles.closingFailed}>
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.closingFailed}>
                 {t('dateFinished.roomUnknown')}
               </Text>
               <SecondaryBtn label={t('dateFinished.closeRetry')} onPress={() => void refetchRoom()} />
             </>
           ) : (
-            <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+            <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.closingNote}>
               {t('dateFinished.roomLoading')}
             </Text>
           )}
@@ -187,7 +188,7 @@ export default function DateFinishedScreen() {
               the room not yet refetched — is still the room being closed. */}
           {finishDate.isError ? (
             <>
-              <Text accessibilityLiveRegion="polite" style={styles.closingFailed}>
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.closingFailed}>
                 {t('dateFinished.closeFailed')}
               </Text>
               <SecondaryBtn
@@ -196,7 +197,7 @@ export default function DateFinishedScreen() {
               />
             </>
           ) : (
-            <Text accessibilityLiveRegion="polite" style={styles.closingNote}>
+            <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.closingNote}>
               {t('dateFinished.closing')}
             </Text>
           )}

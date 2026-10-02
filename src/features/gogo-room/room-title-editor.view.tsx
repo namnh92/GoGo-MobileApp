@@ -2,11 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Text, TextInput } from 'react-native'
+import { TextInput } from 'react-native'
 import { z } from 'zod'
 
 import { isApiError, useRenameRoom, type RoomSummary } from '@/shared/api'
-import { GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, SecondaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 
 import { styles } from './room-manage.style'
 
@@ -50,9 +51,9 @@ export function RoomTitleEditor({ room }: { room: RoomSummary }) {
   }
 
   return (
-    <GlassCard style={styles.card}>
-      <Text style={styles.sectionTitle}>{t('roomTitle.title')}</Text>
-      <Text style={styles.sectionBody}>{t('roomTitle.body')}</Text>
+    <Card padded={false} style={styles.card}>
+      <Text variant="title2">{t('roomTitle.title')}</Text>
+      <Text variant="bodySmall" color="text.secondary">{t('roomTitle.body')}</Text>
       <Controller
         control={form.control}
         name="title"
@@ -69,14 +70,14 @@ export function RoomTitleEditor({ room }: { room: RoomSummary }) {
               placeholder={t('plans.untitled')}
             />
             {error ? (
-              <Text accessibilityLiveRegion="polite" style={styles.warning}>
+              <Text variant="caption" color="status.warningText" accessibilityLiveRegion="polite">
                 {t('roomTitle.tooLong')}
               </Text>
             ) : null}
           </>
         )}
       />
-      {canEdit ? null : <Text style={styles.warning}>{t('roomTitle.locked')}</Text>}
+      {canEdit ? null : <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text>}
       <SecondaryBtn
         label={rename.isPending ? t('account.saving') : t('account.save')}
         onPress={() => void form.handleSubmit(submit)()}
@@ -84,10 +85,10 @@ export function RoomTitleEditor({ room }: { room: RoomSummary }) {
         disabled={!canEdit || !isDirty}
       />
       {notice ? (
-        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+        <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
       ) : null}
-    </GlassCard>
+    </Card>
   )
 }

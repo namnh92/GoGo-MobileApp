@@ -1,8 +1,9 @@
 import { Image } from 'expo-image'
-import { Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { View, type StyleProp, type ViewStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { IconMapPin } from '@/shared/ui/icons'
+import { Glyph } from '@/shared/ui/text'
 
 import { styles } from './place-photo.style'
 
@@ -67,7 +68,7 @@ export function PlacePhoto({
       style={[styles.placeholder, style]}
     >
       {icon ? (
-        <Text style={styles.placeholderGlyph}>{icon}</Text>
+        <Glyph size="md">{icon}</Glyph>
       ) : (
         <IconMapPin size={28} color={theme.text.secondary} />
       )}

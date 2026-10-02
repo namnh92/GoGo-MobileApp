@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, night, onDark, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, night, radius, spacing } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -18,11 +18,10 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[4],
     marginBottom: spacing[7],
   },
-  times: { ...type.display, color: onDark.soft },
 
   /** What is happening, and why it is taking a moment (spec §18). */
-  message: { ...type.body, color: onDark.strong, fontWeight: '600', textAlign: 'center' },
-  reason: { ...type.bodySmall, color: onDark.soft, textAlign: 'center' },
+  message: { textAlign: 'center' },
+  reason: { textAlign: 'center' },
   progressTrack: {
     alignSelf: 'stretch',
     height: 4,
@@ -33,9 +32,9 @@ export const styles = StyleSheet.create(theme => ({
   },
   progressFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 2 },
 
-  matched: { ...type.display, color: neutral[0], textAlign: 'center' },
-  matchedBody: { ...type.body, color: onDark.soft, marginTop: spacing[2], textAlign: 'center' },
-  backLink: { ...type.label, color: theme.accent.primary, textDecorationLine: 'underline' },
+  matched: { textAlign: 'center' },
+  matchedBody: { marginTop: spacing[2], textAlign: 'center' },
+  backLink: { textDecorationLine: 'underline' },
   retryBtn: {
     minHeight: 48,
     paddingHorizontal: spacing[6],
@@ -45,5 +44,4 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  retryLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
 }))

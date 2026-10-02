@@ -1,17 +1,15 @@
-import { StyleSheet } from 'react-native'
-import { colors, radius, spacing, glassFx, type } from '@/shared/ui/tokens'
+import { StyleSheet } from 'react-native-unistyles'
+import { radius, spacing, glassFx } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
-  title: { ...type.display, color: colors.neutral[900] },
-  body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
+  body: { marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
     borderRadius: radius.card,
     padding: spacing[4],
     flexDirection: 'row',
     alignItems: 'center',
   },
-  optionTitle: { ...type.title2 },
-  optionSub: { ...type.bodySmall, marginTop: 2 },
+  optionSub: { marginTop: 2 },
   checkBubble: {
     width: 24,
     height: 24,

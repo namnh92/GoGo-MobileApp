@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import {
@@ -16,7 +16,8 @@ import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { AvatarCircle } from '@/shared/ui/primitives'
-import { glyph, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { decisionScreen } from '@/shared/navigation/room-routing'
 
@@ -85,14 +86,14 @@ export default function MatchingScreen() {
     <View style={styles.root}>
       <View style={styles.pair}>
         <AvatarCircle label="G" size={64} background={theme.accent.primary} />
-        <Text style={styles.times}>×</Text>
+        <Text variant="display" color="onDark.soft">×</Text>
         <AvatarCircle emoji="😊" size={64} />
       </View>
 
       {failed ? (
         <View style={{ alignItems: 'center', gap: spacing[3] }}>
-          <Text style={styles.matched}>{t('matching.failedTitle')}</Text>
-          <Text style={styles.matchedBody}>
+          <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.failedTitle')}</Text>
+          <Text color="onDark.soft" style={styles.matchedBody}>
             {notReady ? t('matching.notReadyBody') : t('common.errorBody')}
           </Text>
           {/* A 409 means the room is not ready, which retrying cannot fix;
@@ -105,29 +106,29 @@ export default function MatchingScreen() {
               accessibilityState={{ disabled: startMatching.isPending, busy: startMatching.isPending }}
               style={styles.retryBtn}
             >
-              <Text style={styles.retryLabel}>
+              <Text variant="label" color="text.inverse">
                 {startMatching.isPending ? t('matching.retrying') : t('common.retry')}
               </Text>
             </Pressable>
           ) : null}
           <Pressable onPress={() => router.replace(`/room/${roomId}`)} accessibilityRole="button">
-            <Text style={styles.backLink}>{t('swipe.goToLobby')}</Text>
+            <Text variant="label" color="accent.primary" style={styles.backLink}>{t('swipe.goToLobby')}</Text>
           </Pressable>
         </View>
       ) : hasRun && !isStale ? (
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: glyph.mega, marginBottom: spacing[2] }}>🎉</Text>
-          <Text style={styles.matched}>{t('matching.matched')}</Text>
-          <Text style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
+          <Glyph size="mega" style={{ marginBottom: spacing[2] }}>🎉</Glyph>
+          <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.matched')}</Text>
+          <Text color="onDark.soft" style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
         </View>
       ) : (
         <View style={{ alignItems: 'center', gap: spacing[2], alignSelf: 'stretch' }}>
-          <Text style={styles.message} accessibilityLiveRegion="polite">
+          <Text color="onDark.strong" style={styles.message} accessibilityLiveRegion="polite">
             {content.matchingMessages[messageIndex]}
           </Text>
           {/* Why it is taking a moment — a member cannot start the run, so say
               so instead of spinning forever. */}
-          <Text style={styles.reason}>
+          <Text variant="bodySmall" color="onDark.soft" style={styles.reason}>
             {capabilities.isHost ? t('matching.reason') : t('matching.waitingForHost')}
           </Text>
           <View

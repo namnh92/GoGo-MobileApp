@@ -10,7 +10,6 @@ const RING = SWATCH + 2 * (RING_GAP + RING_WIDTH)
 
 export const styles = StyleSheet.create(theme => ({
   card: { padding: theme.spacing[5], marginTop: theme.spacing[4], gap: theme.spacing[3] },
-  title: { ...theme.type.title2, color: theme.text.primary },
   swatches: { flexDirection: 'row', gap: theme.spacing[3] },
   ring: {
     width: RING,
@@ -28,5 +27,4 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  helper: { ...theme.type.bodySmall, color: theme.text.secondary },
 }))

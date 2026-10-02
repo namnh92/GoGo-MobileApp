@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { Animated, Text, View } from 'react-native'
+import { Animated, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import Svg, { Circle, Path } from 'react-native-svg'
 
@@ -8,6 +8,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { hasCompletedOnboarding, markOnboardingComplete } from '@/shared/storage/onboarding'
 
 import { useReducedMotion } from '@/shared/ui/feedback'
+import { Glyph, Text } from '@/shared/ui/text'
 import { colors, motion } from '@/shared/ui/tokens'
 
 import { styles } from './splash.style'
@@ -84,8 +85,8 @@ export default function SplashScreen() {
       </Animated.View>
 
       <Animated.View style={{ opacity: entrance, transform: [{ translateY: rise }], alignItems: 'center' }}>
-        <Text style={styles.wordmark} accessibilityRole="header">GoGo</Text>
-        <Text style={styles.tagline}>Có kèo, đi đâu.</Text>
+        <Glyph size="xl" color="text.inverse" style={styles.wordmark} accessibilityRole="header">GoGo</Glyph>
+        <Text color="onDark.medium" style={styles.tagline}>Có kèo, đi đâu.</Text>
       </Animated.View>
     </View>
   )

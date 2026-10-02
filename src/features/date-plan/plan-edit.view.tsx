@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -14,7 +14,8 @@ import {
   useRoom,
 } from '@/shared/api'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './plan-edit.style'
@@ -142,15 +143,15 @@ export default function PlanEditScreen() {
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
       >
-        <Text style={styles.body}>{t('planEdit.body', { max: MAX_STOPS })}</Text>
+        <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t('planEdit.body', { max: MAX_STOPS })}</Text>
 
         {draft.map((stop, index) => (
-          <GlassCard key={`${stop.placeId}-${index}`} style={styles.row}>
+          <Card padded={false} key={`${stop.placeId}-${index}`} style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name} numberOfLines={1}>
+              <Text variant="title2" numberOfLines={1}>
                 {places.byPlaceId.get(stop.placeId)?.name ?? ''}
               </Text>
-              <Text style={styles.meta}>
+              <Text variant="caption" color="text.secondary" style={styles.meta}>
                 {t('datePlan.minutes', { n: stop.durationMinutes })}
                 {stop.isLocked ? ` · ${t('planEdit.locked')}` : ''}
               </Text>
@@ -161,7 +162,7 @@ export default function PlanEditScreen() {
               accessibilityLabel={t('planEdit.moveUp')}
               style={[styles.iconBtn, index === 0 && styles.iconBtnDisabled]}
             >
-              <Text style={styles.iconLabel}>↑</Text>
+              <Text>↑</Text>
             </Pressable>
             <Pressable
               onPress={() => move(index, 1)}
@@ -169,7 +170,7 @@ export default function PlanEditScreen() {
               accessibilityLabel={t('planEdit.moveDown')}
               style={[styles.iconBtn, index === draft.length - 1 && styles.iconBtnDisabled]}
             >
-              <Text style={styles.iconLabel}>↓</Text>
+              <Text>↓</Text>
             </Pressable>
             <Pressable
               onPress={() => remove(index)}
@@ -177,13 +178,13 @@ export default function PlanEditScreen() {
               accessibilityLabel={t('roomManage.removeConfirm')}
               style={[styles.iconBtn, draft.length <= MIN_STOPS && styles.iconBtnDisabled]}
             >
-              <Text style={styles.removeLabel}>✕</Text>
+              <Text color="status.dangerText">✕</Text>
             </Pressable>
-          </GlassCard>
+          </Card>
         ))}
 
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
             {error}
           </Text>
         ) : null}

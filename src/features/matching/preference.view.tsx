@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -19,7 +19,8 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
-import { colors, glyph, spacing } from '@/shared/ui/tokens'
+import { Glyph, Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './preference.style'
 
@@ -159,8 +160,8 @@ export default function PreferenceScreen() {
         <BackHeader onBack={() => router.back()} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5] }}>
-        <Text style={styles.title}>{t('preference.title')}</Text>
-        <Text style={styles.body}>{t('preference.body')}</Text>
+        <Text variant="display" style={styles.title}>{t('preference.title')}</Text>
+        <Text color="text.secondary" style={styles.body}>{t('preference.body')}</Text>
 
         {offerSaved ? (
           <View style={styles.prefillRow}>
@@ -179,8 +180,8 @@ export default function PreferenceScreen() {
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
               >
-                {option.emoji ? <Text style={{ fontSize: glyph.sm }}>{option.emoji}</Text> : null}
-                <Text style={[styles.optionLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>
+                {option.emoji ? <Glyph size="sm">{option.emoji}</Glyph> : null}
+                <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>
                   {option.label}
                 </Text>
               </Pressable>
@@ -189,7 +190,7 @@ export default function PreferenceScreen() {
         </View>
 
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
             {error}
           </Text>
         ) : null}

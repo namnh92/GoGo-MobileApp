@@ -2,11 +2,12 @@ import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useUploadImage, type PlanStopRow } from '@/shared/api'
 import { PrimaryBtn } from '@/shared/ui/primitives'
+import { Glyph, Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { CHECKIN_TAGS } from './checkin-tags'
@@ -132,16 +133,16 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
             contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}
           >
             <View style={styles.headerRow}>
-              <Text style={styles.headerEmoji}>📍</Text>
+              <Glyph size="md">📍</Glyph>
               <View style={{ flex: 1 }}>
-                <Text style={styles.title}>{t('checkin.title')}</Text>
-                <Text style={styles.stopName} numberOfLines={1}>
+                <Text variant="title2">{t('checkin.title')}</Text>
+                <Text variant="bodySmall" color="text.secondary" style={styles.stopName} numberOfLines={1}>
                   {placeName}
                 </Text>
               </View>
             </View>
 
-            <Text style={styles.rateLabel}>{t('checkin.rate')}</Text>
+            <Text variant="label" style={styles.rateLabel}>{t('checkin.rate')}</Text>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map(value => (
                 <Pressable
@@ -149,7 +150,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
                   onPress={() => setRating(value)}
                   accessibilityLabel={t('review.starAria', { count: value })}
                 >
-                  <Text style={[styles.star, value > rating && styles.starDim]}>⭐</Text>
+                  <Glyph size="md" style={[value > rating && styles.starDim]}>⭐</Glyph>
                 </Pressable>
               ))}
             </View>
@@ -165,7 +166,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
                     accessibilityState={{ selected: active }}
                     style={[styles.tagBtn, active && styles.tagBtnActive]}
                   >
-                    <Text style={[styles.tagLabel, active && styles.tagLabelActive]}>
+                    <Text variant="label" color={active ? 'text.inverse' : 'text.secondary'}>
                       {tag.emoji} {t(`checkin.tag.${tag.key}`)}
                     </Text>
                   </Pressable>
@@ -204,7 +205,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
                   ) : null}
                   {photo.failed ? (
                     <View style={styles.photoOverlay}>
-                      <Text style={styles.photoFailed}>!</Text>
+                      <Text variant="title1" color="text.inverse">!</Text>
                     </View>
                   ) : null}
                 </Pressable>
@@ -216,19 +217,19 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
                   accessibilityLabel={t('checkin.addPhoto')}
                   style={styles.photoAdd}
                 >
-                  <Text style={styles.photoAddGlyph}>+</Text>
+                  <Glyph size="sm" color="text.secondary">+</Glyph>
                 </Pressable>
               ) : null}
-              <Text style={styles.photoCount}>{t('checkin.photoCount', { n: photos.length })}</Text>
+              <Text variant="caption" color="text.secondary">{t('checkin.photoCount', { n: photos.length })}</Text>
             </View>
             {photos.some(p => p.failed) ? (
-              <Text accessibilityLiveRegion="polite" style={styles.unavailableNote}>
+              <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite" style={styles.unavailableNote}>
                 {t('checkin.photoFailed')}
               </Text>
             ) : null}
 
             {error ? (
-              <Text accessibilityLiveRegion="polite" style={styles.saveFailed}>
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.saveFailed}>
                 {error}
               </Text>
             ) : null}
@@ -245,7 +246,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
               onPress={skip}
               style={[styles.skipBtn, pending && styles.skipBtnDisabled]}
             >
-              <Text style={styles.skipLabel}>{t('checkin.skip')}</Text>
+              <Text variant="bodySmall" color="text.secondary">{t('checkin.skip')}</Text>
             </Pressable>
           </ScrollView>
         </View>

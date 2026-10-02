@@ -1,8 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, spacing, type } from '@/shared/ui/tokens'
-
-const { brand, neutral } = colors
+import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   card: { padding: spacing[5], marginTop: spacing[3], gap: spacing[4] },
@@ -16,10 +14,5 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.accent.soft,
   },
   statusText: { flex: 1, gap: 2 },
-  statusTitle: { ...type.body, fontWeight: '700', color: neutral[900] },
-  status: { ...type.bodySmall, color: neutral[700] },
-  statusBlocked: { ...type.bodySmall, color: brand.amber },
-  body: { ...type.body, color: neutral[700] },
-  note: { ...type.caption, color: neutral[500] },
   actions: { flexDirection: 'row', gap: spacing[2] },
 }))

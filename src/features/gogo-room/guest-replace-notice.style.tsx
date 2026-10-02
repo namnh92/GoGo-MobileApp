@@ -1,6 +1,6 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, status, type } from '@/shared/ui/tokens'
+import { colors, radius, spacing, status } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -19,5 +19,4 @@ export const styles = StyleSheet.create({
     borderColor: status.warningText,
     backgroundColor: neutral[0],
   },
-  body: { ...type.bodySmall, color: neutral[900] },
 })

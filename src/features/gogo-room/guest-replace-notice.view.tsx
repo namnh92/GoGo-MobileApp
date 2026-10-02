@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { Alert, Text, View } from 'react-native'
+import { Alert, View } from 'react-native'
 
 import { GhostBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 
 import { styles } from './guest-replace-notice.style'
 
@@ -18,7 +19,7 @@ export function GuestReplaceNotice({ guestRoomId }: { guestRoomId: string | null
   const router = useRouter()
   return (
     <View accessibilityLiveRegion="polite" style={styles.container}>
-      <Text style={styles.body}>{t('guestReplace.notice')}</Text>
+      <Text variant="bodySmall">{t('guestReplace.notice')}</Text>
       {guestRoomId ? (
         <GhostBtn label={t('guestReplace.backToRoom')} onPress={() => router.replace(`/room/${guestRoomId}`)} />
       ) : null}

@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text as RNText, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import type { Plan } from '@/shared/api'
 import { Card, GhostBtn } from '@/shared/ui/primitives'
-import { Text } from '@/shared/ui/text'
+import { Glyph, Text } from '@/shared/ui/text'
 
 import { styles } from './saved-plan-card.style'
 
@@ -22,7 +22,7 @@ export function SavedPlanCard({ plan, onOpen, onRemove }: { plan?: Plan; onOpen:
         onPress={onOpen}
         style={styles.body}
       >
-        <RNText style={styles.glyph}>🗓️</RNText>
+        <Glyph size="sm">🗓️</Glyph>
         <View style={styles.text}>
           <Text variant="title2">{t('saved.plan.title')}</Text>
           <Text variant="bodySmall" color="text.secondary">
