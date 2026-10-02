@@ -430,7 +430,7 @@ describe('the host', () => {
     const view = await renderRoom()
 
     await act(async () => {
-      fireEvent.press(screen.getByText(viMessages['gogoRoom.startMatching']))
+      await fireEvent.press(screen.getByText(viMessages['gogoRoom.startMatching']))
     })
     await settle()
 
@@ -456,7 +456,7 @@ describe('the host', () => {
     const view = await renderRoom()
 
     await act(async () => {
-      fireEvent.press(screen.getByText(viMessages['gogoRoom.startMatching']))
+      await fireEvent.press(screen.getByText(viMessages['gogoRoom.startMatching']))
     })
     await settle()
     // Mid-start, the lobby leaves the host alone.
@@ -497,7 +497,7 @@ describe('the host', () => {
     const view = await renderRoom()
 
     await act(async () => {
-      fireEvent.press(screen.getByText(viMessages['gogoRoom.invite']))
+      await fireEvent.press(screen.getByText(viMessages['gogoRoom.invite']))
     })
     await poll({ room: host({ status: 'ready' }, false), plan })
     expect(view.pathname()).toBe(LOBBY)
@@ -524,7 +524,7 @@ describe('the host', () => {
       const view = await renderRoom()
 
       await act(async () => {
-        fireEvent.press(screen.getByText(viMessages['gogoRoom.invite']))
+        await fireEvent.press(screen.getByText(viMessages['gogoRoom.invite']))
       })
       await poll({ room: host({ status: 'ready' }, false), plan })
       // The module already resolved; the chooser is another activity.
@@ -547,7 +547,7 @@ describe('the host', () => {
     const view = await renderRoom()
 
     await act(async () => {
-      fireEvent.press(screen.getByText(viMessages['gogoRoom.partialContinue']))
+      await fireEvent.press(screen.getByText(viMessages['gogoRoom.partialContinue']))
     })
     await poll({ room: host({ status: 'ready' }, false), plan })
     expect(view.pathname()).toBe(LOBBY)

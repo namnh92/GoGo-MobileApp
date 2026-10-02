@@ -77,14 +77,14 @@ async function fillAndJoin(screen: Screen) {
   const view = await renderScreen(screen === 'invite link' ? <GuestJoinScreen /> : <JoinByCodeScreen />)
   if (screen === 'typed code') {
     await act(async () => {
-      fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
+      await fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
     })
   }
   await act(async () => {
-    fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
+    await fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
   })
   await act(async () => {
-    fireEvent.press(view.getByText(JOIN))
+    await fireEvent.press(view.getByText(JOIN))
   })
   return view
 }
@@ -98,7 +98,7 @@ describe.each(['invite link', 'typed code'] as const)('a guest already in a room
   it('can go back to the room they are in, keeping the session', async () => {
     const view = await renderScreen(screen === 'invite link' ? <GuestJoinScreen /> : <JoinByCodeScreen />)
     await act(async () => {
-      fireEvent.press(view.getByText(BACK_TO_ROOM))
+      await fireEvent.press(view.getByText(BACK_TO_ROOM))
     })
     expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM_A}`)
     expect(mockJoinAsGuest).not.toHaveBeenCalled()

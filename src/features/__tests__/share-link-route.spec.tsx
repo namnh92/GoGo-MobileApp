@@ -60,7 +60,7 @@ describe('share link route', () => {
       campaign: null,
     })
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/r/Af82Xc'))
   })
@@ -77,7 +77,7 @@ describe('share link route', () => {
       campaign: null,
     })
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/plans/${planId}`))
   })
@@ -94,7 +94,7 @@ describe('share link route', () => {
       campaign: null,
     })
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/places/${placeId}`))
   })
@@ -102,7 +102,7 @@ describe('share link route', () => {
   it.each([404, 410])('explains a dead link (%i) instead of navigating', async status => {
     mockResolveShareLink.mockRejectedValue(apiError(status))
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
 
     await waitFor(() => expect(screen.getByText('Liên kết không còn dùng được')).toBeTruthy())
     expect(mockReplace).not.toHaveBeenCalled()
@@ -113,7 +113,7 @@ describe('share link route', () => {
   it('offers a retry when the resolve fails for a transient reason', async () => {
     mockResolveShareLink.mockRejectedValue(new Error('network down'))
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
 
     await waitFor(() => expect(screen.getByText('Chưa mở được liên kết')).toBeTruthy())
     expect(screen.getByText('Thử lại')).toBeTruthy()
@@ -131,7 +131,7 @@ describe('share link route', () => {
       campaign: null,
     })
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
 
     await waitFor(() =>
       expect(screen.getByText('Bản app này chưa mở được link đó')).toBeTruthy(),
@@ -146,7 +146,7 @@ describe('share link route', () => {
   it('shows the dead-link screen for a route with no slug, without calling the API', async () => {
     mockParams = {}
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
 
     await waitFor(() => expect(screen.getByText('Liên kết không còn dùng được')).toBeTruthy())
     expect(mockResolveShareLink).not.toHaveBeenCalled()
@@ -166,9 +166,9 @@ describe('share link route', () => {
       }),
     )
 
-    render(<ShareLinkScreen />)
+    await render(<ShareLinkScreen />)
     await waitFor(() => expect(mockResolveShareLink).toHaveBeenCalled())
-    screen.unmount()
+    await screen.unmount()
 
     settle({
       type: 'PLAN',

@@ -88,7 +88,7 @@ it('does not offer a submit the server will refuse, and says why', async () => {
   const button = screen.getByRole('button', { name: SUBMIT })
   expect(button.props.accessibilityState?.disabled).toBe(true)
   await act(async () => {
-    fireEvent.press(screen.getByText(SUBMIT))
+    await fireEvent.press(screen.getByText(SUBMIT))
   })
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
 })

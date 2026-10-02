@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
 
 /**
@@ -22,6 +22,11 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 const inbox = { pages: [{ notifications: [{ id: 'n1', kind: 'invite' }] }] }
+
+// GoGo-MobileApp#133: deliver TanStack's observer notifications inside the act
+// that caused them; its default scheduler defers them past the act.
+beforeAll(() => notifyManager.setScheduler(callback => callback()))
+afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
 
 beforeEach(() => {
   // gcTime Infinity: a mutation schedules a 5-minute garbage-collection timer

@@ -67,7 +67,7 @@ describe('location settings', () => {
     const view = await renderScreen(<LocationSettingsScreen />)
     expect(await view.findByText(/Chưa hỏi/)).toBeTruthy()
     await act(async () => {
-      fireEvent.press(view.getByText('Cho phép'))
+      await fireEvent.press(view.getByText('Cho phép'))
     })
     expect(mockRequest).toHaveBeenCalledTimes(1)
     expect(await view.findByText('Đã cho phép.')).toBeTruthy()
@@ -78,7 +78,7 @@ describe('location settings', () => {
     const view = await renderScreen(<LocationSettingsScreen />)
     expect(await view.findByText(/Đang tắt trong Cài đặt/)).toBeTruthy()
     expect(view.queryByText('Cho phép')).toBeNull()
-    fireEvent.press(view.getByText('Mở Cài đặt'))
+    await fireEvent.press(view.getByText('Mở Cài đặt'))
     expect(Linking.openSettings).toHaveBeenCalledTimes(1)
     expect(mockRequest).not.toHaveBeenCalled()
   })
@@ -111,7 +111,7 @@ describe('location settings', () => {
   it('keeps the default area in Account, not in a permission', async () => {
     const view = await renderScreen(<LocationSettingsScreen />)
     await act(async () => {
-      fireEvent.press(view.getByText('Chọn khu vực mặc định trong Tài khoản'))
+      await fireEvent.press(view.getByText('Chọn khu vực mặc định trong Tài khoản'))
     })
     expect(mockPush).toHaveBeenCalledWith('/settings/account')
   })

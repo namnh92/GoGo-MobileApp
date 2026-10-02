@@ -106,11 +106,11 @@ describe('a deck whose room has moved on', () => {
       expect(mockReplace).not.toHaveBeenCalled()
       roomRead(status, Date.now() + 1000)
       await act(async () => {
-        view.rerender(<Swipe />)
+        await view.rerender(<Swipe />)
       })
       expect(mockReplace).toHaveBeenCalledWith('/room/room-1')
       await act(async () => {
-        view.rerender(<Swipe />)
+        await view.rerender(<Swipe />)
       })
       expect(mockReplace).toHaveBeenCalledTimes(1)
     },
@@ -126,7 +126,7 @@ describe('a deck whose room has moved on', () => {
     const view = await renderScreen(<Swipe />)
     roomRead('matching', Date.now() + 1000)
     await act(async () => {
-      view.rerender(<Swipe />)
+      await view.rerender(<Swipe />)
     })
     expect(mockReplace).not.toHaveBeenCalled()
     expect(view.getByText('Place One')).toBeTruthy()

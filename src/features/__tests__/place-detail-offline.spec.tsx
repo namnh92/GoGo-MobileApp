@@ -137,7 +137,7 @@ describe('Place Detail × connectivity', () => {
     await elapseOfflineDelay()
     expect(view.getByText(NO_CONNECTION)).toBeTruthy()
     await act(async () => {
-      fireEvent.press(view.getByLabelText('Quay lại'))
+      await fireEvent.press(view.getByLabelText('Quay lại'))
     })
     expect(mockBack).toHaveBeenCalledTimes(1)
   })
@@ -152,7 +152,7 @@ describe('Place Detail × connectivity', () => {
     const view = await renderScreen(<PlaceDetailScreen />)
 
     await act(async () => {
-      fireEvent.press(view.getByLabelText('Quay lại'))
+      await fireEvent.press(view.getByLabelText('Quay lại'))
     })
 
     expect(mockBack).not.toHaveBeenCalled()

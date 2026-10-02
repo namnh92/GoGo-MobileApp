@@ -89,7 +89,7 @@ function deferred<T>() {
 
 async function tap(view: Awaited<ReturnType<typeof renderScreen>>, label: string, index = 0) {
   await act(async () => {
-    fireEvent.press(view.getAllByText(label)[index])
+    await fireEvent.press(view.getAllByText(label)[index])
   })
 }
 

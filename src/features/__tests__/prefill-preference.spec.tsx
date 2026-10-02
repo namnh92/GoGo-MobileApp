@@ -71,7 +71,7 @@ describe('saved interests prefill on the preference screen', () => {
   it('fills the local draft on a tap, skipping keys the room no longer offers, and saves nothing', async () => {
     const view = await renderScreen(<PreferenceScreen />)
     await act(async () => {
-      fireEvent.press(view.getByText(CHIP))
+      await fireEvent.press(view.getByText(CHIP))
     })
     expect(view.getByText('Thư giãn')).toBeTruthy()
     expect(view.getByText('Ấm cúng')).toBeTruthy()

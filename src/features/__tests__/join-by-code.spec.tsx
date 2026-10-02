@@ -46,10 +46,10 @@ function apiError(status: number, code: string): ApiError {
 async function submitCode() {
   const view = await renderScreen(<JoinByCodeScreen />)
   await act(async () => {
-    fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
+    await fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
   })
   await act(async () => {
-    fireEvent.press(view.getByText('Tham gia 🙌'))
+    await fireEvent.press(view.getByText('Tham gia 🙌'))
   })
   return view
 }
@@ -73,13 +73,13 @@ describe('join by code × error code', () => {
     mockJoinAsGuest.mockRejectedValue(apiError(410, 'ROOM_EXPIRED'))
     const view = await renderScreen(<JoinByCodeScreen />)
     await act(async () => {
-      fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
+      await fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
     })
     await act(async () => {
-      fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
+      await fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
     })
     await act(async () => {
-      fireEvent.press(view.getByText('Tham gia 🙌'))
+      await fireEvent.press(view.getByText('Tham gia 🙌'))
     })
     expect(await view.findByText(ROOM_EXPIRED)).toBeTruthy()
     expect(view.queryByText(EXPIRED)).toBeNull()

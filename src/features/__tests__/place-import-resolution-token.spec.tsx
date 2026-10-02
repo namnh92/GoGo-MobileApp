@@ -84,7 +84,7 @@ const LINK = 'https://maps.google.com/maps?place_id=ChIJtest'
  */
 async function pressSubmit(): Promise<void> {
   await act(async () => {
-    fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   })
 }
 
@@ -103,7 +103,7 @@ async function openWithPreview(): Promise<void> {
   // here leaves React with an open act scope, and every later render in the
   // file comes back empty.
   await act(async () => {
-    fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), LINK)
+    await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), LINK)
   })
 }
 

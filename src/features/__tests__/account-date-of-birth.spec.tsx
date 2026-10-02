@@ -70,13 +70,31 @@ type View = Awaited<ReturnType<typeof mount>>
 
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => {
-    fireEvent.press(element)
+    await fireEvent.press(element)
+  })
+}
+
+/**
+ * Two taps that land before React re-renders the disabled button. Two
+ * concurrent `fireEvent.press` calls would each open their own act scope and
+ * overlap (GoGo-MobileApp#133), so walk to the nearest `onPress` the way RNTL's
+ * own lookup does and call it twice inside one act.
+ */
+async function doublePress(element: Parameters<typeof fireEvent.press>[0]) {
+  type Fiber = { memoizedProps?: { onPress?: () => void } | null; return: Fiber | null }
+  let fiber = (element as unknown as { unstable_fiber: Fiber | null }).unstable_fiber
+  while (fiber && !fiber.memoizedProps?.onPress) fiber = fiber.return
+  const onPress = fiber?.memoizedProps?.onPress
+  if (!onPress) throw new Error('no onPress handler above this element')
+  await act(async () => {
+    onPress()
+    onPress()
   })
 }
 
 async function typeDate(view: View, text: string) {
   await act(async () => {
-    fireEvent.changeText(view.getByLabelText(INPUT), text)
+    await fireEvent.changeText(view.getByLabelText(INPUT), text)
   })
 }
 
@@ -201,10 +219,7 @@ describe('date of birth in account information', () => {
     await typeDate(view, '01/01/2000')
     const save = view.getByText(SAVE)
     // Both presses land before React re-renders the disabled button.
-    await act(async () => {
-      fireEvent.press(save)
-      fireEvent.press(save)
-    })
+    await doublePress(save)
     await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalled())
     await act(async () => {
       answer({ ...server.profile!, dateOfBirth: '2000-01-01' })
@@ -213,10 +228,7 @@ describe('date of birth in account information', () => {
     expect(mockUpdateProfile).toHaveBeenCalledTimes(1)
 
     const clear = view.getByText(CLEAR)
-    await act(async () => {
-      fireEvent.press(clear)
-      fireEvent.press(clear)
-    })
+    await doublePress(clear)
     await act(async () => {
       answer({ ...server.profile!, dateOfBirth: null })
     })

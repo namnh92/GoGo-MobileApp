@@ -48,6 +48,7 @@ jest.mock('@/shared/api', () => ({
 
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { queryKeys } from '@/shared/api/query-keys'
+import { resetSseTransportForTests } from '@/shared/api/realtime/transport'
 import ActiveDateScreen from '@/features/active-date/active-date.view'
 
 const DONE = 'Kết thúc date 🎉'
@@ -118,6 +119,10 @@ beforeEach(() => {
   mockPlan.query = loaded(plan)
 })
 afterEach(() => client.clear())
+// The screen mounts the real room transport; each unmount leaves its 5 s idle
+// grace timer, and the last one held the jest worker past its exit
+// (GoGo-MobileApp#133). The module's own test seam clears it.
+afterAll(() => resetSseTransportForTests())
 
 describe('a room that is not active', () => {
   it('never shows the live screen, and makes the way back to the plan the one action', async () => {

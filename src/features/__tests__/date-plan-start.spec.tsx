@@ -149,6 +149,10 @@ beforeEach(() => {
 })
 afterEach(() => {
   onlineManager.setOnline(true)
+  // MutationCache.clear() drops mutations without cancelling their GC timers; with
+  // the app client's 5-minute mutation gcTime those held the jest worker open
+  // until it was force-exited (GoGo-MobileApp#133). destroy() cancels them.
+  for (const mutation of client.getMutationCache().getAll()) mutation.destroy()
   client.clear()
 })
 

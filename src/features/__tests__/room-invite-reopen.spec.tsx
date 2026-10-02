@@ -140,7 +140,7 @@ describe('host invite after reopen (#199)', () => {
   it('shows the code this device created after the room is reopened, creating it once', async () => {
     const first = await open()
     const create = await screen.findByText('Tạo mã mời')
-    await act(async () => { fireEvent.press(create) })
+    await act(async () => { await fireEvent.press(create) })
     expect(await screen.findByText(CODE)).toBeTruthy()
     await first.unmount()
 
@@ -245,7 +245,7 @@ describe('host invite after reopen (#199)', () => {
       await open()
       expect(await screen.findByText(ACTIVE_NOTE)).toBeTruthy()
       expect(screen.queryByText('Tạo mã mời')).toBeNull()
-      await act(async () => { fireEvent.press(screen.getByText('Tạo mã mới')) })
+      await act(async () => { await fireEvent.press(screen.getByText('Tạo mã mới')) })
       // Revoking is destructive: nothing happens before the host confirms.
       expect(mockRevoke).not.toHaveBeenCalled()
       expect(alert.mock.calls[0][1]).toBe('Mã đang dùng sẽ ngừng hoạt động. Người đã vào phòng không bị ảnh hưởng; ai chưa vào cần mã mới.')
@@ -273,7 +273,7 @@ describe('host invite after reopen (#199)', () => {
     try {
       await open()
       const reissue = await screen.findByText('Tạo mã mới')
-      await act(async () => { fireEvent.press(reissue) })
+      await act(async () => { await fireEvent.press(reissue) })
       expect(alert.mock.calls[0][1]).toBe('Cả 2 mã đang dùng sẽ ngừng hoạt động. Người đã vào phòng không bị ảnh hưởng; ai chưa vào cần mã mới.')
       await answer(alert, 'destructive')
 
@@ -294,7 +294,7 @@ describe('host invite after reopen (#199)', () => {
     try {
       await open()
       const reissue = await screen.findByText('Tạo mã mới')
-      await act(async () => { fireEvent.press(reissue) })
+      await act(async () => { await fireEvent.press(reissue) })
       // Another phone creates an invite while the confirmation is open.
       server = [...server, row({ inviteId: 'invite-b' })]
       await answer(alert, 'destructive')
@@ -314,7 +314,7 @@ describe('host invite after reopen (#199)', () => {
     try {
       await open()
       const reissue = await screen.findByText('Tạo mã mới')
-      await act(async () => { fireEvent.press(reissue) })
+      await act(async () => { await fireEvent.press(reissue) })
       await answer(alert, 'cancel')
       expect(mockRevoke).not.toHaveBeenCalled()
       expect(mockCreate).not.toHaveBeenCalled()
@@ -334,12 +334,12 @@ describe('host invite after reopen (#199)', () => {
     try {
       await open()
       const reissue = await screen.findByText('Tạo mã mới')
-      await act(async () => { fireEvent.press(reissue) })
+      await act(async () => { await fireEvent.press(reissue) })
       await answer(alert, 'destructive')
 
       expect(await screen.findByText('Chưa tạo được mã mời. Bạn vẫn có thể quản lý phòng và chọn sở thích.')).toBeTruthy()
       expect(screen.queryByText(ACTIVE_NOTE)).toBeNull()
-      await act(async () => { fireEvent.press(screen.getByText('Tạo mã mời')) })
+      await act(async () => { await fireEvent.press(screen.getByText('Tạo mã mời')) })
 
       expect(await screen.findByText(CODE)).toBeTruthy()
       expect(mockRevoke).toHaveBeenCalledTimes(1)
@@ -358,7 +358,7 @@ describe('host invite after reopen (#199)', () => {
     try {
       await open()
       const reissue = await screen.findByText('Tạo mã mới')
-      await act(async () => { fireEvent.press(reissue) })
+      await act(async () => { await fireEvent.press(reissue) })
       await answer(alert, 'destructive')
       expect(await screen.findByText('Chưa thu hồi được mã cũ. Thử lại nhé.')).toBeTruthy()
       expect(mockCreate).not.toHaveBeenCalled()
@@ -403,8 +403,8 @@ describe('host invite after reopen (#199)', () => {
       expect(await screen.findByText(CODE)).toBeTruthy()
       expect(screen.getByText(CLOSED)).toBeTruthy()
       expect(screen.getByLabelText('Copy').props.accessibilityState?.disabled).toBe(true)
-      await act(async () => { fireEvent.press(screen.getByText(SHARE)) })
-      await act(async () => { fireEvent.press(screen.getByLabelText('Copy')) })
+      await act(async () => { await fireEvent.press(screen.getByText(SHARE)) })
+      await act(async () => { await fireEvent.press(screen.getByLabelText('Copy')) })
       expect(share).not.toHaveBeenCalled()
       expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
       await finish()
@@ -420,13 +420,13 @@ describe('host invite after reopen (#199)', () => {
     try {
       await open()
       expect(await screen.findByText(CODE)).toBeTruthy()
-      await act(async () => { fireEvent.press(screen.getByText(SHARE)) })
+      await act(async () => { await fireEvent.press(screen.getByText(SHARE)) })
       await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
       expect(JSON.stringify(share.mock.calls[0][0])).toContain(CODE)
 
       server = [row({ revoked: true })]
       const listCalls = mockList.mock.calls.length
-      await act(async () => { fireEvent.press(screen.getByText(SHARE)) })
+      await act(async () => { await fireEvent.press(screen.getByText(SHARE)) })
       expect(await screen.findByText('Tạo mã mời')).toBeTruthy()
       expect(mockList.mock.calls.length).toBeGreaterThan(listCalls)
       expect(share).toHaveBeenCalledTimes(1)
@@ -443,7 +443,7 @@ describe('host invite after reopen (#199)', () => {
     await open()
     expect(await screen.findByText(CODE)).toBeTruthy()
     server = [row({ revoked: true })]
-    await act(async () => { fireEvent.press(screen.getByLabelText('Copy')) })
+    await act(async () => { await fireEvent.press(screen.getByLabelText('Copy')) })
     expect(await screen.findByText('Tạo mã mời')).toBeTruthy()
     expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
     await finish()
@@ -483,7 +483,7 @@ describe('host invite after reopen (#199)', () => {
   it('never writes a code to AsyncStorage or to the persisted query cache', async () => {
     const first = await open()
     const create = await screen.findByText('Tạo mã mời')
-    await act(async () => { fireEvent.press(create) })
+    await act(async () => { await fireEvent.press(create) })
     expect(await screen.findByText(CODE)).toBeTruthy()
     await first.unmount()
     await open()
