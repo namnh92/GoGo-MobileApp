@@ -89,7 +89,11 @@ export default function GuestJoinScreen() {
     try {
       if (asUser) {
         const result = await joinRoom.mutateAsync({ inviteCode })
-        track('gogo_partner_joined', { role: 'member' })
+        // GoGo-BE#607: count a join only when the server says this request created
+        // the membership. A member or the host reopening the invite gets
+        // `alreadyMember: true`; a server older than alpha.49 sends no flag, which is
+        // unknown, not a new join.
+        if (result?.alreadyMember === false) track('gogo_partner_joined', { role: 'member' })
         if (!result?.roomId) {
           setError(t('guestJoin.failed'))
           return
