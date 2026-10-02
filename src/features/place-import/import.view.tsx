@@ -217,6 +217,9 @@ export default function PlaceImportScreen() {
     const parsed = mapsUrlSchema.safeParse(url)
     if (!parsed.success) return
     setRevalidating(true)
+    // The stale-token refusal is spent; if the re-resolve comes back with a new
+    // answer (several candidates), it must not open beside that old error (#316 F-03).
+    submit.reset()
     try {
       const fresh = await resolve.mutateAsync({ url: parsed.data, ...(roomId ? { roomId } : {}) })
       // A link that no longer resolves — the place closed, or now matches

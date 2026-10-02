@@ -178,11 +178,18 @@ describe('APP-042 — the resolve proof reaches submit', () => {
       candidates: [],
     })
 
+    mockSubmit.reset.mockClear()
     await openWithPreview()
     await pressSubmit()
 
     expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(1)
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+    // #316 F-03: the stale-token refusal is cleared before the re-resolve, so
+    // the new candidate list does not open beside a failure that no longer applies.
+    expect(mockSubmit.reset).toHaveBeenCalled()
+    expect(mockSubmit.reset.mock.invocationCallOrder[0]).toBeLessThan(
+      mockResolve.mutateAsync.mock.invocationCallOrder[0],
+    )
   })
 
   it('submits without a token rather than failing, when the preview issued none', async () => {
