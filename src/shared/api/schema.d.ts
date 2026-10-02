@@ -281,7 +281,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Host-only: new constraint version; marks scores/plans stale */
+        /**
+         * Host-only: new constraint version; marks scores/plans stale
+         * @description Partial update (BE-BFF-021): a field left out keeps the value the room already has, and an explicit null clears it. budgetMode and budgetAmount are always required — an edit states the unit it means (GoGo-BE#559). Before this, an omitted field was cleared, so a client editing the budget by spreading RoomSummary.constraints wiped originLat/originLng, coordinates the summary does not return and the client cannot send back.
+         */
         patch: operations["updateRoomConstraints"];
         trace?: never;
     };
@@ -298,7 +301,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Host-only: validated room state transition (SRS §7.2) */
+        /**
+         * Host-only: validated room state transition (SRS §7.2)
+         * @description Host-only is enforced server-side before the state machine runs (GoGo-BE#602), so this answers `403 HOST_ONLY` to a member who is not the host, `403 NOT_A_MEMBER` to an actor with no active membership, and `403 ROOM_SCOPE_VIOLATION` to a guest session bound to another room.
+         */
         patch: operations["transitionRoom"];
         trace?: never;
     };
@@ -1057,6 +1063,32 @@ export interface paths {
         get: operations["listAdministrativeMappings"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/administrative-mappings/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moderation: confirm many proposals, one decision each (ADM-024)
+         * @description A boundary release lets the resolver answer for the whole catalogue at once, so a reviewer can agree with hundreds of proposals in a sitting. This is the request that carries them.
+         *
+         *     It is not a bulk write. Every entry takes the same path as the single-place route: its own transaction, its own row lock, its own re-read of the active dataset, its own hierarchy check, its own `expectedUpdatedAt`, and its own audit row. A batch is N decisions one person took at one moment, and the audit log says exactly that.
+         *
+         *     **Partial success is normal.** A place another reviewer touched a second ago fails alone, as `conflict`; an entry whose pair is not current in the active dataset fails alone, as `refused` with the reason. The response is `201` either way — the request succeeded, and the report says what happened to each place.
+         *
+         *     Two conditions refuse the whole batch and write nothing: the same place listed twice (`DUPLICATE_PLACE_IN_BATCH` — two `expectedUpdatedAt` values for one row, the second wrong the moment the first commits), and no published administrative dataset (`ADMINISTRATIVE_DATASET_UNAVAILABLE`).
+         */
+        post: operations["verifyAdministrativeMappingsBatch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4974,11 +5006,11 @@ export interface components {
             canonical: {
                 [key: string]: number;
             };
-            /** @description Quarantine rows only, by classification. This is the review queue, and it is deliberately not derivable from the import report's `classification`, which counts promoted rows too. */
+            /** @description Quarantine rows still open on this version, by classification. This is the review queue, and it is deliberately not derivable from the import report's `classification`, which counts promoted rows too. A row whose decision a materialisation carried into this version is settled and no longer counted here. */
             backlog: {
                 [key: string]: number;
             };
-            /** @description Rows by the state of their effective decision: UNDECIDED, ACCEPTED_DRAFT, REJECTED_DRAFT, SUPERSEDED. */
+            /** @description Rows by the state of their effective decision: UNDECIDED, ACCEPTED_DRAFT, REJECTED_DRAFT, SUPERSEDED, MATERIALIZED_ACCEPT, MATERIALIZED_REJECT, SOURCE_SETTLED. The last three are settled on this version, not drafts, and a draft decision on such a row reports as the draft. */
             decisions: {
                 [key: string]: number;
             };
@@ -5002,8 +5034,8 @@ export interface components {
             };
             candidateCount: number;
             affectedPlaceCount: number;
-            /** @enum {string} */
-            decisionState: "UNDECIDED" | "ACCEPTED_DRAFT" | "REJECTED_DRAFT" | "SUPERSEDED";
+            /** @description Grows with the review model (GoGo-BE#619 added the MATERIALIZED_* pair, GoGo-BE#622 SOURCE_SETTLED — another row of the same source carried the decision), so it is declared extensible: a client treats a value it does not know as "not actionable here", never as a malformed response. */
+            decisionState: string;
             /** Format: date-time */
             decidedAt: string | null;
             sourceProvenance: string;
@@ -5062,8 +5094,32 @@ export interface components {
                 status: string;
             };
             decision: components["schemas"]["AdministrativeOverrideDecisionRecord"] | null;
-            /** @enum {string} */
-            decisionState: "UNDECIDED" | "ACCEPTED_DRAFT" | "REJECTED_DRAFT" | "SUPERSEDED";
+            /** @description The decision a materialisation carried into this dataset version for this row. Null on a version nobody has decided this row for. It is settled: a reviewer reads it, and re-deciding it in a draft set is a deliberate second act, not an edit of this one. */
+            materialized?: {
+                /** @enum {string} */
+                decision: "ACCEPT" | "REJECT";
+                /** @description On a carried REJECT that retracted an earlier round's override: the successor that override named, now withdrawn. Null otherwise. */
+                retracted: {
+                    targetCode: string;
+                    /** Format: uuid */
+                    decisionId: string | null;
+                } | null;
+                /** @description The canonical successor the accepted edge names; null for a rejection. */
+                targetCode: string | null;
+                reason: string | null;
+                /** Format: date-time */
+                decidedAt: string | null;
+            } | null;
+            /** @description Set when another row of this row's source carried the reviewer override this version holds: the source already has its one successor, so this row is settled by it and cannot be accepted onto anything else (OVERRIDE_SOURCE_ALREADY_RESOLVED). Null otherwise. */
+            sourceSettled?: {
+                targetCode: string;
+                /** @description The round that wrote the edge, e.g. `override:r1`. */
+                sourceVersion: string;
+                /** Format: uuid */
+                decisionId: string | null;
+            } | null;
+            /** @description Grows with the review model (GoGo-BE#619 added the MATERIALIZED_* pair, GoGo-BE#622 SOURCE_SETTLED — another row of the same source carried the decision), so it is declared extensible: a client treats a value it does not know as "not actionable here", never as a malformed response. */
+            decisionState: string;
             /** @description Append-only, newest first. Nothing here is ever rewritten. */
             history: components["schemas"]["AdministrativeOverrideDecisionRecord"][];
         };
@@ -5110,6 +5166,13 @@ export interface components {
             supersededDecisionId: string | null;
             /** Format: date-time */
             decidedAt: string;
+            /** @description Set on a REJECT taken on the row a base override was decided on: when materialised, that override's edge is not carried and the source is unresolved again (ADM-028). Null for every other decision. */
+            retracts: {
+                /** Format: uuid */
+                decisionId: string | null;
+                targetCode: string;
+                sourceVersion: string;
+            } | null;
         };
         AdministrativeMaterializeResult: {
             /** Format: uuid */
@@ -5132,6 +5195,8 @@ export interface components {
                 rejected: number;
                 /** @description Canonical edges written. A rejection produces none — it changes the derived dataset's provenance, not its content. */
                 edges: number;
+                /** @description Base override edges not carried into the derived version because the row they were decided on was rejected this round (ADM-028). */
+                retracted: number;
             };
         };
         /** @description Places whose administrative claim does not resolve against the dataset being activated. Reported, never written: whether a claim a person verified should be demoted is the mapping work's decision (#459/#461/#462). */
@@ -5225,6 +5290,37 @@ export interface components {
              * @description The place's `updatedAt` as the reviewer saw it. A mismatch is 409 PLACE_MODIFIED rather than a lost update.
              */
             expectedUpdatedAt: string;
+        };
+        AdministrativeMappingBatchEntry: {
+            /** Format: uuid */
+            placeId: string;
+            provinceCode: string;
+            communeCode: string;
+            /** @description Pre-2025-07-01 evidence. Checked against the historical set. */
+            legacyDistrictCode?: string | null;
+            /**
+             * Format: date-time
+             * @description Per entry, never per batch: a reviewer decides about the row they saw, and the rows in a batch were read at the same moment but move independently afterwards.
+             */
+            expectedUpdatedAt: string;
+        };
+        AdministrativeMappingBatchResult: {
+            /** Format: uuid */
+            placeId: string;
+            /** @enum {string} */
+            outcome: "verified" | "conflict" | "refused";
+            status: components["schemas"]["AdministrativeMappingStatus"] | null;
+            datasetVersion: string | null;
+            /** @description The refusal's error code, so the reviewer is told why rather than that it failed. */
+            code: string | null;
+            message: string | null;
+        };
+        AdministrativeMappingBatchReport: {
+            requested: number;
+            verified: number;
+            conflicts: number;
+            refused: number;
+            results: components["schemas"]["AdministrativeMappingBatchResult"][];
         };
         AdministrativeMappingListItem: {
             /** Format: uuid */
@@ -5359,11 +5455,37 @@ export interface components {
             dietaryKeys?: string[];
             accessibilityKeys?: string[];
         };
-        /** @description A room's current constraint version as read back (RoomSummary.constraints). */
+        /** @description BE-BFF-021 — the body of a constraint PATCH. Same fields as RoomConstraintInput, with the update semantics made explicit: absent keeps the stored value, null clears it. Clearing endAt, an area or an origin is therefore an explicit null rather than an omission. */
+        RoomConstraintPatch: {
+            originText?: string | null;
+            originLat?: number | null;
+            originLng?: number | null;
+            /** @description As on RoomConstraintInput: omitted keeps the stored area, null clears it. Setting an area replaces areaKey. */
+            administrativeArea?: components["schemas"]["AdministrativeAreaInput"] | null;
+            /** @description Legacy service-area key. Cleared and ignored while administrativeArea is set. */
+            areaKey?: string | null;
+            radiusM?: number | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Null clears the end of the window. Omitting it keeps whatever the room has — the one behaviour that changed with BE-BFF-021.
+             */
+            endAt?: string | null;
+            /**
+             * @description Required on every edit, and held to the same rule as create: a couple room must be `total` (GoGo-BE#559).
+             * @enum {string}
+             */
+            budgetMode: "total" | "per_person";
+            /** @description Integer minor units, interpreted per budgetMode. Required on every edit. */
+            budgetAmount: number;
+            currency?: string;
+            dietaryKeys?: string[];
+            accessibilityKeys?: string[];
+        };
+        /** @description A room's current constraint version as read back (RoomSummary.constraints). Exact origin coordinates are deliberately absent: they have a limited retention window and the server has never returned them here. A client that needs to leave them untouched simply omits them from a constraint PATCH, which keeps the stored value (BE-BFF-021, GoGo-BE#576). */
         RoomConstraints: {
             originText?: string;
-            originLat?: number;
-            originLng?: number;
             /** @description ADM-020 — the stored canonical area with the labels saved when it was chosen, or null. status is needs_reselection when its dataset is no longer the published one; the room keeps its labels, and suggestions are refused with 409 ADMINISTRATIVE_VERSION_CHANGED until the host chooses again or clears it. */
             administrativeArea: components["schemas"]["AdministrativeArea"] | null;
             /** @description Legacy service-area key. Cleared and ignored while administrativeArea is set. */
@@ -6708,7 +6830,20 @@ export interface components {
             /** Format: uuid */
             id?: string;
             kind?: components["schemas"]["NotificationKind"];
+            /** @description Free-form per kind. Rows the outbox writes (`invite`, `preference_reminder`, `plan_ready`, `plan_changed`, `date_reminder`) also carry where the row opens, in the same shape as push data v1: `route`, `entityType`, `entityId`. Plan kinds name the plan current at fan-out, or the room when there is none; a later edit or regenerate can supersede that plan, so a client opening a stale row falls back to the room's current plan. Older rows lack the three fields — route them by `roomId`. */
             payload?: {
+                eventType?: string;
+                /** Format: uuid */
+                roomId?: string;
+                /** Format: uuid */
+                resourceId?: string;
+                /** @description Canonical app link, `gogo://plan/{id}` or `gogo://room/{id}`. */
+                route?: string;
+                /** @description Grows with push data v1; route an unknown value by `roomId`. */
+                entityType?: string;
+                /** Format: uuid */
+                entityId?: string;
+            } & {
                 [key: string]: unknown;
             };
             /** Format: date-time */
@@ -9158,7 +9293,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RoomConstraintInput"] & {
+                "application/json": components["schemas"]["RoomConstraintPatch"] & {
                     expectedConstraintVersion: number;
                     participantCount?: number;
                 };
@@ -9172,6 +9307,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoomSummary"];
+                };
+            };
+            /** @description INVALID_SCHEDULE when the merged window runs backwards — the request's startAt or endAt against whichever half the room already has — or INVALID_BUDGET_MODE when a couple room is edited as per_person (GoGo-BE#559). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -9207,6 +9351,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoomSummary"];
                 };
             };
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -9422,7 +9567,18 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Joined (idempotent — re-joining returns the existing membership) */
+            /**
+             * @description Joined (idempotent — re-joining returns the existing membership).
+             *     `alreadyMember` tells the two apart (GoGo-BE#607): `false` for a
+             *     new membership created by this request, `true` when the caller
+             *     already held an active membership (host included): that membership
+             *     is returned and no `participant.joined` is announced. A re-entry
+             *     recognised up front spends no invite use; a concurrent first join
+             *     that loses the race may already have spent one. Clients count a join
+             *     only when it is `false`. A response without `alreadyMember` comes
+             *     from a server older than 1.0.0-alpha.49: treat it as unknown, not
+             *     `false`.
+             */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -9430,15 +9586,21 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** Format: uuid */
-                        roomId?: string;
+                        roomId: string;
                         /** Format: uuid */
-                        memberId?: string;
+                        memberId: string;
                         /** @enum {string} */
-                        role?: "host" | "member";
+                        role: "host" | "member";
+                        alreadyMember: boolean;
                     };
                 };
             };
-            /** @description Invite expired/revoked/spent or room not joinable */
+            /**
+             * @description Invite expired/revoked/spent (`INVITE_NOT_USABLE`), room no longer
+             *     taking members (`ROOM_NOT_JOINABLE`), or room past its expiry
+             *     (`ROOM_EXPIRED`, GoGo-BE#606 — same as the guest route). Someone
+             *     already an active member is answered with their membership instead.
+             */
             410: {
                 headers: {
                     [name: string]: unknown;
@@ -10204,7 +10366,7 @@ export interface operations {
             query?: {
                 /** @description Comma-separated quarantine classifications. */
                 classification?: string;
-                /** @description Comma-separated subset of UNDECIDED, ACCEPTED_DRAFT, REJECTED_DRAFT, SUPERSEDED. */
+                /** @description Comma-separated subset of UNDECIDED, ACCEPTED_DRAFT, REJECTED_DRAFT, SUPERSEDED, MATERIALIZED_ACCEPT, MATERIALIZED_REJECT. */
                 decisionState?: string;
                 limit?: number;
                 cursor?: string;
@@ -10320,7 +10482,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Refused, and audited. OVERRIDE_SET_NOT_DRAFT, OVERRIDE_SET_REVISION_CONFLICT when somebody else decided a row first, QUARANTINE_ROW_NOT_IN_DATASET, QUARANTINE_ROW_HAS_NO_SOURCE, OVERRIDE_TARGET_NOT_FOUND when the named identity is not in this dataset, OVERRIDE_TARGET_NOT_CURRENT, OVERRIDE_TARGET_HIERARCHY_INVALID, OVERRIDE_TARGET_IS_SOURCE, or OVERRIDE_EDGE_ALREADY_CANONICAL. */
+            /** @description Refused, and audited. OVERRIDE_SET_NOT_DRAFT, OVERRIDE_SET_REVISION_CONFLICT when somebody else decided a row first, QUARANTINE_ROW_NOT_IN_DATASET, QUARANTINE_ROW_HAS_NO_SOURCE, OVERRIDE_TARGET_NOT_FOUND when the named identity is not in this dataset, OVERRIDE_TARGET_NOT_CURRENT, OVERRIDE_TARGET_HIERARCHY_INVALID, OVERRIDE_TARGET_IS_SOURCE, OVERRIDE_EDGE_ALREADY_CANONICAL, and — because one source has one successor whatever row it was decided on — OVERRIDE_SOURCE_ALREADY_RESOLVED when the base already carries a reviewer override for this source onto another target, OVERRIDE_SOURCE_CONFLICT_IN_DRAFT when this draft already accepts another target on a sibling row, and OVERRIDE_SOURCE_ALREADY_DECIDED_IN_DRAFT when it already accepts the same one. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10508,6 +10670,40 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    verifyAdministrativeMappingsBatch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Client-generated key for retryable mutations. Repeating a request with the same key returns the original result instead of re-applying it. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    entries: components["schemas"]["AdministrativeMappingBatchEntry"][];
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The batch ran; every entry carries its own outcome */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministrativeMappingBatchReport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["AdministrativeUnavailable"];
         };
     };
     getAdministrativeRemediation: {
