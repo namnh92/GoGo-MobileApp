@@ -8,6 +8,8 @@ export const styles = StyleSheet.create({
   title: { ...type.display, color: neutral[900] },
   body: { ...type.body, color: neutral[500], marginTop: spacing[2], marginBottom: spacing[5] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  pending: { paddingHorizontal: spacing[5], gap: spacing[3] },
+  errorWrap: { flex: 1 },
   seedHint: { ...type.bodySmall, color: neutral[500], marginBottom: spacing[3], marginTop: -spacing[2] },
   seedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], alignItems: 'center' },
   seedAddBtn: {
