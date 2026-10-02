@@ -13,6 +13,7 @@ import { Atmosphere, AvatarCircle, BackHeader, GlassCard, PrimaryBtn } from '@/s
 import { colors, glyph, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
+import { confirmReplaceGuest, GuestReplaceNotice } from './guest-replace-notice.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 const { neutral } = colors
@@ -33,7 +34,7 @@ export default function GuestJoinScreen() {
   const router = useRouter()
   const navigation = useNavigation()
   const insets = useSafeAreaInsets()
-  const { status, joinAsGuest } = useSession()
+  const { status, guestRoomId, joinAsGuest } = useSession()
   const joinRoom = useJoinRoom()
   const forget = useRecentRoomsStore(state => state.forget)
   const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
@@ -43,6 +44,8 @@ export default function GuestJoinScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const asUser = status === 'user'
+  // #272: a guest session already on this device is replaced only on confirmation.
+  const holdsGuestRoom = status === 'guest'
   const trimmedName = displayName.trim()
 
   /**
@@ -97,6 +100,7 @@ export default function GuestJoinScreen() {
         return
       }
 
+      if (holdsGuestRoom && !(await confirmReplaceGuest(t))) return
       // Issues a room-scoped guest session and persists it to the Keychain —
       // no account, and the token reaches no other room.
       const session = await joinAsGuest({ inviteCode, displayName: trimmedName })
@@ -171,6 +175,8 @@ export default function GuestJoinScreen() {
             <Text style={[styles.pairName, { color: neutral[500] }]}>{t('guestJoin.you')}</Text>
           </View>
         </View>
+
+        {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
         <GlassCard style={styles.details}>
           {asUser ? (
