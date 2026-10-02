@@ -111,3 +111,28 @@ describe('iOS map provider (ADR 0005)', () => {
     expect(JSON.stringify(config.extra)).not.toContain('android-key-under-test')
   })
 })
+
+describe('iOS development team (GoGo-MobileApp#166)', () => {
+  afterEach(() => {
+    delete process.env.APPLE_TEAM_ID
+  })
+
+  it('sets ios.appleTeamId from APPLE_TEAM_ID, so prebuild writes DEVELOPMENT_TEAM', async () => {
+    process.env.APPLE_TEAM_ID = ' ABCDE12345 '
+    const config = await loadConfig('dev')
+    // Expo's DevelopmentTeam mod applies this to every native target,
+    // the notification service extension included.
+    expect(config.ios?.appleTeamId).toBe('ABCDE12345')
+  })
+
+  it.each([undefined, '', '   '])('leaves ios.appleTeamId unset when APPLE_TEAM_ID is %j', async value => {
+    if (value !== undefined) process.env.APPLE_TEAM_ID = value
+    const config = await loadConfig('dev')
+    expect(config.ios).not.toHaveProperty('appleTeamId')
+  })
+
+  it('rejects a value that is not a 10-character Apple team id', async () => {
+    process.env.APPLE_TEAM_ID = 'undefined'
+    await expect(loadConfig('dev')).rejects.toThrow(/APPLE_TEAM_ID/)
+  })
+})
