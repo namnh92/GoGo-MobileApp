@@ -103,6 +103,20 @@ if (!googleMapsIosApiKey || !googleMapsAndroidApiKey) {
   throw new Error('GOOGLE_MAPS_IOS_API_KEY and GOOGLE_MAPS_ANDROID_API_KEY are required for Expo commands and native builds')
 }
 
+/**
+ * Apple development team for every iOS target (app + notification service
+ * extension). Without it prebuild leaves DEVELOPMENT_TEAM empty and
+ * `xcodebuild` fails with `No Account for Team "undefined"` (#166).
+ *
+ * Optional: simulator builds and Android do not need it, so absent means the
+ * field stays unset and Xcode keeps whatever the developer selected. A value
+ * that is present but malformed throws — that is the "undefined" string again.
+ */
+const appleTeamId = process.env.APPLE_TEAM_ID?.trim() || undefined
+if (appleTeamId && !/^[A-Z0-9]{10}$/.test(appleTeamId)) {
+  throw new Error('APPLE_TEAM_ID must be a 10-character Apple team id when set')
+}
+
 // Same required contract in every remote environment. The marker prevents a
 // DEV-generated file being reused accidentally for a staging/production build.
 const configEnvironment = flavor === 'stag' ? 'staging' : flavor
@@ -139,6 +153,7 @@ const config: ExpoConfig = {
   icon: './assets/icon.png',
   ios: {
     bundleIdentifier: identity.bundleId,
+    ...(appleTeamId ? { appleTeamId } : {}),
     buildNumber: process.env.IOS_BUILD_NUMBER || '1',
     supportsTablet: false,
     // Only the flavour the domain actually names can verify (see app-identity).

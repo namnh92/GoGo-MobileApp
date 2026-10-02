@@ -77,6 +77,12 @@ SHA-1 chứng chỉ ký. Không in hoặc commit key. Đổi key hoặc thêm na
 `npx expo prebuild && pnpm ios` / `pnpm android`; chỉ reload Metro không đủ.
 Binary cũ thiếu Google SDK/key hiển thị fallback và danh sách (ADR 0008).
 
+Build iOS cho máy thật cần `APPLE_TEAM_ID` (team id Apple, 10 ký tự) trong
+`.env.local`: prebuild ghi nó thành `DEVELOPMENT_TEAM` cho app và notification
+extension, nên không phải truyền `DEVELOPMENT_TEAM=` tay cho `xcodebuild`. Biến
+này tuỳ chọn — để trống thì simulator và Android vẫn build; giá trị sai định dạng
+làm fail build.
+
 Intro hoàn tất một lần mỗi lượt cài; khi kết thúc sẽ hỏi quyền thông báo.
 Mở lại app giữ phiên; cài lại xóa phiên Keychain cũ. Bản nâng cấp đầu tiên có
 installation marker sẽ yêu cầu đăng nhập lại một lần. Android tắt backup app
