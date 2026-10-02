@@ -281,6 +281,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'gogoRoom.body': "You'll each pick separately. Nobody sees the other's choices until you match.",
   'gogoRoom.body_group': "Everyone picks separately. Nobody sees each other's choices until the results are in.",
   'gogoRoom.codeLabel': 'GoGo Room code',
+  'gogoRoom.areaNeedsReselection': 'Area needs choosing again',
   'gogoRoom.constraints': 'Room settings',
   'gogoRoom.membersTitle': 'Members · {{joined}}/{{total}} finished picking',
   'gogoRoom.hostBadge': 'Host',

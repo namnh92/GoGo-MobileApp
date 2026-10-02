@@ -276,6 +276,7 @@ export const viMessages = {
   'gogoRoom.body': 'Hai người sẽ chọn riêng. Không ai thấy lựa chọn của người kia cho tới khi match.',
   'gogoRoom.body_group': 'Mỗi người chọn riêng. Không ai thấy lựa chọn của người khác cho tới khi có kết quả.',
   'gogoRoom.codeLabel': 'Mã GoGo Room',
+  'gogoRoom.areaNeedsReselection': 'Khu vực cần chọn lại',
   'gogoRoom.constraints': 'Điều kiện phòng',
   'gogoRoom.membersTitle': 'Thành viên · {{joined}}/{{total}} đã chọn xong',
   'gogoRoom.hostBadge': 'Chủ phòng',
