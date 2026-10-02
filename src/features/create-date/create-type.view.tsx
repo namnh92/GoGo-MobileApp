@@ -11,6 +11,7 @@ import { track } from '@/shared/analytics'
 import { useRoom, useRoomStore, type RoomType } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { colors, onDark, spacing } from '@/shared/ui/tokens'
 
@@ -33,6 +34,8 @@ export default function CreateTypeScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const [footerHeight, setFooterHeight] = useState(0)
+  const footerInset = useBottomBarInset(footerHeight)
   const { roomType, setAudience } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
   const { control, handleSubmit } = useForm({
@@ -66,7 +69,7 @@ export default function CreateTypeScreen() {
       <View style={{ paddingTop: insets.top }}>
         <BackHeader onBack={() => router.back()} right={<WizardActions step="type" />} />
       </View>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}>
         <Text style={styles.title}>{t('createType.title')}</Text>
         <Text style={styles.nameLabel}>{t('createType.roomName')}</Text>
         <Controller
@@ -119,9 +122,9 @@ export default function CreateTypeScreen() {
           })}
         </View>
       </ScrollView>
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing[6] }]}>
+      <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={handleSubmit(next)} disabled={!selected} />
-      </View>
+      </GlassBar>
     </Atmosphere>
   )
 }

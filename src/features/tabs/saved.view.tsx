@@ -10,7 +10,7 @@ import { useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, Chip, GhostBtn, GlassCard, IconBtn, useTabDockInset } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, GhostBtn, GlassCard, IconBtn, useBottomBarInset } from '@/shared/ui/primitives'
 import { PlaceGridSkeleton } from '@/shared/ui/skeleton.view'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -31,7 +31,7 @@ export default function SavedScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { status } = useSession()
-  const dockInset = useTabDockInset()
+  const barInset = useBottomBarInset()
 
   const canSave = status === 'user'
   const saved = useSavedEntries({ enabled: canSave })
@@ -152,7 +152,7 @@ export default function SavedScreen() {
           action={<GhostBtn label={t('saved.browse')} onPress={() => router.push('/places/search')} />}
         />
       ) : (
-        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: dockInset }]}>
+        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: barInset + spacing[6] }]}>
           {groups.map(group => (
             <View key={group.key} style={styles.group}>
               <View style={styles.groupHeader}>

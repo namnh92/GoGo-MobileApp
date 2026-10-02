@@ -238,9 +238,21 @@ export const glass = {
   /**
    * Tab bar and fixed bottom action bars (#293 §5): iOS 26 native glass where
    * `isLiquidGlassSupported`, else a blur with a 78 % `surface.card` wash and a
-   * one-point `border.hairline` on top. `blur` is the Figma radius; `intensity`
-   * is the `expo-blur` setting that stands in for it (0–100, provisional until
-   * #296 measures it on a device — the wash, not the blur, carries contrast).
+   * one-point `border.hairline` on top (`GlassBar`, #296).
+   *
+   * `blur` is the Figma radius (24pt CSS-style blur). `expo-blur` has no radius:
+   * on iOS `intensity` is the fraction of a `UIBlurEffect(.light)` animator
+   * (0–100), and a full system light blur reads at roughly a 30pt radius, so
+   * 24 → 60 is the stand-in. It is provisional until design compares it on a
+   * device, and it is safe to re-tune because the wash, not the blur, carries
+   * contrast: `__tests__/contrast.test.ts` measures text on the wash alone.
+   *
+   * Android renders the wash with no blur at all (`GlassBar`): `expo-blur`
+   * draws no real blur there unless `experimentalBlurMethod` is switched on,
+   * and that path re-renders the content behind it every frame — the frame
+   * cost the spec tells us not to pay on the Samsung test device.
+   *
+   * `wash` is `surface.card` (#FFFFFF) at 78 %.
    */
   bar: {
     blur: 24,

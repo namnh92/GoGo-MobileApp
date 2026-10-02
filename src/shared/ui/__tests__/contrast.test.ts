@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ACCENTS, themes } from '../theme'
-import { accents, colors, status, text } from '../tokens'
+import { accents, colors, glass, status, surface, text } from '../tokens'
 
 /**
  * GoGo-MobileApp#141. Contrast is a number, so it can be a test rather than an
@@ -143,5 +143,68 @@ describe('status text (#293 §1)', () => {
 
   it('the success fill is not a text colour — which is why successText exists', () => {
     expect(contrast(status.success, WHITE)).toBeLessThan(AA_LARGE)
+  })
+})
+
+describe('glass bar wash (#296, #293 §5)', () => {
+  /**
+   * Text on the tab bar and the bottom action bars sits on `glass.bar.wash`
+   * (`surface.card` at 78 %) over whatever scrolls underneath. Measured with no
+   * blur: the blur only averages the backdrop, and on Android there is none, so
+   * the wash alone has to carry the 4.5:1 (#296 AC).
+   */
+  function parseRgba(value: string): { rgb: [number, number, number]; alpha: number } {
+    const match = /^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/.exec(value)
+    if (!match) throw new Error(`not an rgba() token: ${value}`)
+    return { rgb: [Number(match[1]), Number(match[2]), Number(match[3])], alpha: Number(match[4]) }
+  }
+
+  /** Source-over: the wash composited onto an opaque backdrop. */
+  function composite(wash: string, backdrop: string): string {
+    const { rgb, alpha } = parseRgba(wash)
+    const channels = rgb.map((value, index) => {
+      const under = parseInt(backdrop.slice(1 + index * 2, 3 + index * 2), 16)
+      return Math.round(value * alpha + under * (1 - alpha))
+    })
+    return `#${channels.map(value => value.toString(16).padStart(2, '0')).join('')}`
+  }
+
+  it('the wash is surface.card at 78 %', () => {
+    const { rgb, alpha } = parseRgba(glass.bar.wash)
+    expect(`#${rgb.map(value => value.toString(16).padStart(2, '0')).join('').toUpperCase()}`).toBe(surface.card)
+    expect(alpha).toBe(0.78)
+  })
+
+  // Light content: a white card, the canvas, and `surface.subtle` — the
+  // darkest light surface in the app (skeletons, photo placeholders, disabled
+  // fills), so the worst case of "light content running under the bar".
+  const LIGHT_BACKDROPS = [
+    ['a white card', surface.card],
+    ['the canvas', surface.canvas],
+    ['surface.subtle (worst light case)', surface.subtle],
+  ] as const
+
+  describe.each(LIGHT_BACKDROPS)('over %s', (_label, backdrop) => {
+    const bar = composite(glass.bar.wash, backdrop)
+
+    it.each([
+      ['text.primary', text.primary],
+      ['text.secondary (inactive tab label)', text.secondary],
+    ])('%s reads at AA', (_name, fg) => {
+      expect(contrast(fg, bar)).toBeGreaterThanOrEqual(AA_TEXT)
+    })
+
+    it.each(ACCENTS)('accent.primary of %s reads at AA (active tab label, 11pt — not large text)', accent => {
+      expect(contrast(accents[accent].primary, bar)).toBeGreaterThanOrEqual(AA_TEXT)
+    })
+  })
+
+  it('documents the limit: dark content (a photo) under the wash drops secondary text below AA', () => {
+    // Not a pass condition — a record of where the 78 % wash stops being
+    // enough, so nobody reads the tests above as "any backdrop". Mid-grey
+    // measures 3.92; `neutral[300]` (lines, not areas) 4.47. A screen that
+    // scrolls photos under a bar is the case to watch on device.
+    expect(contrast(text.secondary, composite(glass.bar.wash, '#808080'))).toBeLessThan(AA_TEXT)
+    expect(contrast(text.primary, composite(glass.bar.wash, '#000000'))).toBeGreaterThanOrEqual(AA_TEXT)
   })
 })

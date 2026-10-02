@@ -90,7 +90,6 @@ describe('type scale', () => {
      * deletes the table.
      */
     const allowed: Record<string, number> = {
-      'app/(tabs)/_layout.tsx': 1,
       'features/account/account.style.tsx': 2,
       'features/account/date-of-birth.style.tsx': 1,
       'features/account/profile-defaults.style.tsx': 1,

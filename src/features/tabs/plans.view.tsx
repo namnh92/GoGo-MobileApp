@@ -14,7 +14,7 @@ import { useFocusedNow } from '@/shared/hooks/use-focused-now'
 import { budgetFact } from '@/shared/pricing/budget-unit'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { PlanCard } from '@/shared/ui/plan-card.view'
-import { Atmosphere, GhostBtn, SecondaryBtn, useTabDockInset } from '@/shared/ui/primitives'
+import { Atmosphere, GhostBtn, SecondaryBtn, useBottomBarInset } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -30,7 +30,7 @@ export default function PlansScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const dockInset = useTabDockInset()
+  const barInset = useBottomBarInset()
   const { status } = useSession()
   const now = useFocusedNow()
 
@@ -151,7 +151,7 @@ export default function PlansScreen() {
         onRetry={() => void rooms.refetch()}
       />
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: dockInset }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: barInset + spacing[6] }}>
         {!canRead ? (
           <EmptyState
             title={t('plans.emptyTitle')}

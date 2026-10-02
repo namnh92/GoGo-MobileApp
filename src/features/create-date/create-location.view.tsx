@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
@@ -13,6 +12,7 @@ import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { IconCheck, IconMapPin } from '@/shared/ui/icons'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 
@@ -31,7 +31,8 @@ const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 export default function CreateLocationScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
+  const [footerHeight, setFooterHeight] = useState(0)
+  const footerInset = useBottomBarInset(footerHeight)
   const { area: gpsLabel, setArea } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
   const administrativeArea = useRoomStore(state => state.administrativeArea)
@@ -104,7 +105,7 @@ export default function CreateLocationScreen() {
   return (
     <Atmosphere>
       <WizardStep step="location" onBack={() => router.back()} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[6] }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{t('createLocation.title')}</Text>
         <Text style={styles.body}>{t('createLocation.body')}</Text>
 
@@ -179,9 +180,9 @@ export default function CreateLocationScreen() {
           </Text>
         ) : null}
       </ScrollView>
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing[6] }]}>
+      <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={next} />
-      </View>
+      </GlassBar>
     </Atmosphere>
   )
 }

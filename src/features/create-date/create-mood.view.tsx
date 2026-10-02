@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, useCreateRoom, useTaxonomies } from '@/shared/api'
 import { newIdempotencyKey } from '@/shared/api/idempotency'
@@ -12,6 +11,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { ErrorState } from '@/shared/ui/async-state.view'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { spacing } from '@/shared/ui/tokens'
@@ -55,7 +55,8 @@ function ChipGrid({ options, selected, onToggle }: {
 export default function CreateMoodScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
+  const [footerHeight, setFooterHeight] = useState(0)
+  const footerInset = useBottomBarInset(footerHeight)
   const { status, session } = useSession()
   const { seedPlaces, removeSeedPlace } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
@@ -166,7 +167,7 @@ export default function CreateMoodScreen() {
       ) : taxonomies.isError ? (
         <ErrorState error={taxonomies.error} onRetry={() => void taxonomies.refetch()} />
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[4] }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: footerInset + spacing[4] }}>
           <Text style={styles.title}>{t('createMood.title')}</Text>
           <Text style={styles.body}>{t('createMood.body', { max: MAX_MOODS })}</Text>
 
@@ -212,14 +213,14 @@ export default function CreateMoodScreen() {
         </ScrollView>
       )}
 
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
+      <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn
           label={createRoom.isPending ? t('createMood.creating') : t('createMood.cta')}
           onPress={submit}
           loading={createRoom.isPending}
           disabled={taxonomies.isPending || taxonomies.isError}
         />
-      </View>
+      </GlassBar>
     </Atmosphere>
   )
 }
