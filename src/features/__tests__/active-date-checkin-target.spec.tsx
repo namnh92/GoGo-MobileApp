@@ -55,6 +55,7 @@ jest.mock('@/shared/api', () => ({
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { queryKeys } from '@/shared/api/query-keys'
 import ActiveDateScreen from '@/features/active-date/active-date.view'
+import { resetSseTransportForTests } from '@/shared/api/realtime/transport'
 
 const DONE_STEP = 'Xong bước này ✓'
 const FINISH = 'Kết thúc date 🎉'
@@ -185,6 +186,10 @@ beforeEach(() => {
   )
 })
 afterEach(() => client.clear())
+// The screen mounts the real room transport; each unmount leaves its 5 s idle
+// grace timer, and the last one held the jest worker past its exit
+// (GoGo-MobileApp#133). The module's own test seam clears it.
+afterAll(() => resetSseTransportForTests())
 
 describe('checking in after completing a stop', () => {
   it('files the check-in against the stop just completed, and names that stop', async () => {

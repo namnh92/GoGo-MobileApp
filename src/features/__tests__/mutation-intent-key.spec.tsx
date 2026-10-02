@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
 
 /**
@@ -43,9 +43,15 @@ function keys(): unknown[] {
   return mockPost.mock.calls.map(call => (call[2] as { idempotencyKey?: string } | undefined)?.idempotencyKey)
 }
 
+// GoGo-MobileApp#133: deliver TanStack's observer notifications inside the act
+// that caused them (its default scheduler defers them past the act), and keep
+// the 5-minute mutation GC timer from holding the jest worker open.
+beforeAll(() => notifyManager.setScheduler(callback => callback()))
+afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
+
 beforeEach(() => {
   mockPost.mockReset()
-  queryClient = new QueryClient({ defaultOptions: { mutations: { retry: 1, retryDelay: 0 } } })
+  queryClient = new QueryClient({ defaultOptions: { mutations: { retry: 1, retryDelay: 0, gcTime: Infinity } } })
 })
 
 const cases = [

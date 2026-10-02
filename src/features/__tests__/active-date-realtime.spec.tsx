@@ -188,7 +188,7 @@ describe('active date · staying level with the other phone (#285)', () => {
 
     const again = async () => {
       await act(async () => {
-        view.rerender(
+        await view.rerender(
           <QueryClientProvider client={client}>
             <ActiveDateScreen />
           </QueryClientProvider>,

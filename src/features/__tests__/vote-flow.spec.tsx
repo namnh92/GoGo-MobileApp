@@ -172,7 +172,7 @@ describe('host mode runner-ups (#198: members now reach this screen from the lob
     const view = await renderScreen(<MatchResult />)
 
     await act(async () => {
-      fireEvent.press(view.getByLabelText('Place Two'))
+      await fireEvent.press(view.getByLabelText('Place Two'))
     })
 
     expect(mockPush).toHaveBeenCalledWith('/places/place-2')

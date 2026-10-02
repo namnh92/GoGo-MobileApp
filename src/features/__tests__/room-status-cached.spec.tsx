@@ -88,7 +88,11 @@ function appClient(): QueryClient {
 function savedCache(entries: [readonly unknown[], unknown][]): PersistedClient {
   const previousLaunch = appClient()
   for (const [key, data] of entries) previousLaunch.setQueryData(key, data, { updatedAt: Date.now() - HOUR })
-  return { timestamp: Date.now(), buster: '', clientState: dehydrate(previousLaunch) }
+  const clientState = dehydrate(previousLaunch)
+  // Only the dehydrated copy is used; the client itself would keep a 24-hour GC
+  // timer per entry alive past the suite (GoGo-MobileApp#133).
+  previousLaunch.clear()
+  return { timestamp: Date.now(), buster: '', clientState }
 }
 
 /** A disk read that finishes when the test says: after the lobby has mounted. */
@@ -140,7 +144,12 @@ beforeEach(() => {
   mockGetCurrentPlan.mockReset()
 })
 
-afterEach(() => {
+afterEach(async () => {
+  // A read still in flight settles after clear() and schedules a 24-hour GC
+  // timer on the removed query, which held the jest worker open
+  // (GoGo-MobileApp#133). Cancel first so it settles while the cache can still
+  // destroy it.
+  await client.cancelQueries()
   client.clear()
   jest.useRealTimers()
 })

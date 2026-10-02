@@ -252,7 +252,7 @@ describe('closing the room from the summary (#269)', () => {
     const view = await openSummary()
     await waitFor(() => expect(statusCalls()).toHaveLength(1))
 
-    view.rerender(
+    await view.rerender(
       <QueryClientProvider client={client}>
         <DateFinishedScreen />
       </QueryClientProvider>,
@@ -363,7 +363,11 @@ describe('closing the room from the summary (#269)', () => {
       // closed until the network is back.
       expect(reviewDisabled()).toBe(false)
     } finally {
-      onlineManager.setOnline(true)
+      // Back online resumes the paused room read while the screen is still
+      // mounted; its state update belongs inside act (GoGo-MobileApp#133).
+      await act(async () => {
+        onlineManager.setOnline(true)
+      })
     }
   })
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react-native'
+import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, renderHook, waitFor } from '@testing-library/react-native'
 
 /**
  * APP-006's acceptance is "optimistic action rollback đúng". Three mutations
@@ -46,11 +46,18 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
+// GoGo-MobileApp#133: deliver TanStack's observer notifications inside the act
+// that caused them; its default scheduler defers them past the act.
+beforeAll(() => notifyManager.setScheduler(callback => callback()))
+afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
+
 beforeEach(() => {
   // Retries would mask a rollback: the cache would be restored and re-applied
-  // several times before the test looked at it.
+  // several times before the test looked at it. gcTime: Infinity — the default
+  // 5-minute GC timer from every setQueryData outlives the suite and kept the
+  // jest worker alive until it was force-exited (GoGo-MobileApp#133).
   queryClient = new QueryClient({
-    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    defaultOptions: { mutations: { retry: false, gcTime: Infinity }, queries: { retry: false, gcTime: Infinity } },
   })
   jest.clearAllMocks()
 })
@@ -72,13 +79,17 @@ describe('voting', () => {
     queryClient.setQueryData(key, before)
 
     const { result } = await renderHook(() => useCastVote(roomId), { wrapper })
-    result.current.mutate({ placeId: 'place-1', value: 'yes' })
+    await act(async () => {
+      result.current.mutate({ placeId: 'place-1', value: 'yes' })
+    })
 
     await waitFor(() => {
       const now = queryClient.getQueryData<typeof before>(key)
       expect(now?.candidates[0].myVote).toBe('yes')
     })
-    resolve({ matched: false })
+    await act(async () => {
+      resolve({ matched: false })
+    })
   })
 
   it('puts the old vote back when the call fails', async () => {
@@ -86,7 +97,9 @@ describe('voting', () => {
     queryClient.setQueryData(key, before)
 
     const { result } = await renderHook(() => useCastVote(roomId), { wrapper })
-    result.current.mutate({ placeId: 'place-1', value: 'yes' })
+    await act(async () => {
+      result.current.mutate({ placeId: 'place-1', value: 'yes' })
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(key)).toEqual(before)
@@ -96,7 +109,9 @@ describe('voting', () => {
     mockCastVote.mockRejectedValue(new Error('offline'))
 
     const { result } = await renderHook(() => useCastVote(roomId), { wrapper })
-    result.current.mutate({ placeId: 'place-1', value: 'yes' })
+    await act(async () => {
+      result.current.mutate({ placeId: 'place-1', value: 'yes' })
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(key)).toBeUndefined()
@@ -120,13 +135,17 @@ describe('locking a stop', () => {
     queryClient.setQueryData(key, before)
 
     const { result } = await renderHook(() => useLockPlanStop(planId), { wrapper })
-    result.current.mutate({ stopId: 'stop-1', locked: true })
+    await act(async () => {
+      result.current.mutate({ stopId: 'stop-1', locked: true })
+    })
 
     await waitFor(() => {
       const now = queryClient.getQueryData<typeof before>(key)
       expect(now?.stops[0].isLocked).toBe(true)
     })
-    resolve(before)
+    await act(async () => {
+      resolve(before)
+    })
   })
 
   it('unlocks again when the call fails, leaving the other stop alone', async () => {
@@ -134,7 +153,9 @@ describe('locking a stop', () => {
     queryClient.setQueryData(key, before)
 
     const { result } = await renderHook(() => useLockPlanStop(planId), { wrapper })
-    result.current.mutate({ stopId: 'stop-1', locked: true })
+    await act(async () => {
+      result.current.mutate({ stopId: 'stop-1', locked: true })
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(key)).toEqual(before)
@@ -151,12 +172,16 @@ describe('saving a place', () => {
     queryClient.setQueryData(key, before)
 
     const { result } = await renderHook(() => useToggleSaved(), { wrapper })
-    result.current.mutate({ type: 'place', id: 'place-1', saved: false })
+    await act(async () => {
+      result.current.mutate({ type: 'place', id: 'place-1', saved: false })
+    })
 
     await waitFor(() => {
       expect(queryClient.getQueryData<typeof before>(key)).toHaveLength(2)
     })
-    resolve(undefined)
+    await act(async () => {
+      resolve(undefined)
+    })
   })
 
   it('removes it again when the call fails', async () => {
@@ -164,7 +189,9 @@ describe('saving a place', () => {
     queryClient.setQueryData(key, before)
 
     const { result } = await renderHook(() => useToggleSaved(), { wrapper })
-    result.current.mutate({ type: 'place', id: 'place-1', saved: false })
+    await act(async () => {
+      result.current.mutate({ type: 'place', id: 'place-1', saved: false })
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(key)).toEqual(before)
@@ -175,7 +202,9 @@ describe('saving a place', () => {
     queryClient.setQueryData(key, before)
 
     const { result } = await renderHook(() => useToggleSaved(), { wrapper })
-    result.current.mutate({ type: 'place', id: 'place-9', saved: true })
+    await act(async () => {
+      result.current.mutate({ type: 'place', id: 'place-9', saved: true })
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(key)).toEqual(before)

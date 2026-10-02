@@ -5,7 +5,7 @@ import { failed, loaded, renderScreen, type QueryLike } from './harness'
 /** A press that changes state flushes only inside an awaited act here. */
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => {
-    fireEvent.press(element)
+    await fireEvent.press(element)
   })
 }
 
@@ -90,7 +90,7 @@ describe('profile defaults card', () => {
     expect(view.getByText('✓ Thư giãn')).toBeTruthy()
     expect(view.getByText('✓ 300–500k')).toBeTruthy()
     const save = view.getByText('Lưu mặc định')
-    fireEvent.press(save)
+    await fireEvent.press(save)
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 

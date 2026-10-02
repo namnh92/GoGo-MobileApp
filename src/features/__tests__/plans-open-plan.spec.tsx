@@ -59,7 +59,7 @@ it.each([
   const view = await renderScreen(<PlansScreen />)
 
   await act(async () => {
-    fireEvent.press(view.getByText(title))
+    await fireEvent.press(view.getByText(title))
   })
 
   expect(mockPush).toHaveBeenCalledTimes(1)

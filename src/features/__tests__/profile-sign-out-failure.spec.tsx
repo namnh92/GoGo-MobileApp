@@ -60,7 +60,7 @@ beforeEach(() => {
 
 async function tapSignOut() {
   await act(async () => {
-    fireEvent.press(screen.getByText(viMessages['profile.logout'] as string))
+    await fireEvent.press(screen.getByText(viMessages['profile.logout'] as string))
   })
 }
 
@@ -127,7 +127,7 @@ it('does not keep the ended-session line once someone signs in again (F-03)', as
   mockActor.session = { kind: 'user', userId: 'someone-else' }
   mockSessionLeft.present = true
   await act(async () => {
-    view.rerender(<ProfileScreen />)
+    await view.rerender(<ProfileScreen />)
   })
 
   expect(screen.queryByText(viMessages['profile.logoutSessionEnded'] as string)).toBeNull()

@@ -18,13 +18,13 @@ import { renderScreen } from './harness'
 
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => {
-    fireEvent.press(element)
+    await fireEvent.press(element)
   })
 }
 
 async function type(element: Parameters<typeof fireEvent.changeText>[0], value: string) {
   await act(async () => {
-    fireEvent.changeText(element, value)
+    await fireEvent.changeText(element, value)
   })
 }
 

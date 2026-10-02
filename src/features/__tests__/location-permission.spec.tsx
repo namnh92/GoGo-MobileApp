@@ -75,14 +75,14 @@ describe('location permission', () => {
 
   it('shows the resolved area once the user grants it', async () => {
     const view = await renderScreen(<CreateLocationScreen />)
-    fireEvent.press(view.getByText(PROMPT))
+    await fireEvent.press(view.getByText(PROMPT))
     expect((await view.findAllByText(/Thảo Điền, TP\.HCM/)).length).toBeGreaterThan(0)
   })
 
   it('explains the fallback when the user denies it', async () => {
     mockPermission.status = 'denied'
     const view = await renderScreen(<CreateLocationScreen />)
-    fireEvent.press(view.getByText(PROMPT))
+    await fireEvent.press(view.getByText(PROMPT))
     expect((await view.findAllByText(DENIED)).length).toBeGreaterThan(0)
   })
 
@@ -91,7 +91,7 @@ describe('location permission', () => {
   it('degrades to the picker when the location call itself fails', async () => {
     mockModuleMissing.value = true
     const view = await renderScreen(<CreateLocationScreen />)
-    fireEvent.press(view.getByText(PROMPT))
+    await fireEvent.press(view.getByText(PROMPT))
     expect((await view.findAllByText(UNAVAILABLE)).length).toBeGreaterThan(0)
   })
 })

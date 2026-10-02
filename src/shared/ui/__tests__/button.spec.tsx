@@ -23,7 +23,7 @@ const labelColor = (label: string) => flat(screen.getByText(label)).color
 async function holdDown(name: string) {
   const touch = { timestamp: 0, locationX: 0, locationY: 0, pageX: 0, pageY: 0, touches: [], changedTouches: [] }
   await act(async () => {
-    fireEvent(button(name), 'responderGrant', {
+    await fireEvent(button(name), 'responderGrant', {
       nativeEvent: touch,
       persist: () => {},
       currentTarget: { measure: () => {} },
@@ -187,7 +187,7 @@ describe.each([
     expect(host().props.accessibilityState).toMatchObject({ busy: true })
 
     await act(async () => {
-      view.rerender(<Btn label="Đăng nhập" onPress={jest.fn()} />)
+      await view.rerender(<Btn label="Đăng nhập" onPress={jest.fn()} />)
     })
     expect(host().props.accessibilityLabel).toBe('Đăng nhập')
     expect(host().props.accessibilityState).toMatchObject({ busy: false, disabled: false })

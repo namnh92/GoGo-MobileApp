@@ -67,7 +67,7 @@ const ENTRIES = [
 
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => {
-    fireEvent.press(element)
+    await fireEvent.press(element)
   })
 }
 

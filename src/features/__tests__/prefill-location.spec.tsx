@@ -83,7 +83,7 @@ const CHIP = /Dùng khu vực mặc định: Phường Bến Thành, Thành ph�
 
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => {
-    fireEvent.press(element)
+    await fireEvent.press(element)
   })
 }
 
@@ -173,7 +173,10 @@ describe('position and area exclude each other', () => {
     expect(mockPush).toHaveBeenCalledWith('/create/time')
     expect(useRoomStore.getState().radiusM).toBeNull()
 
-    useRoomStore.getState().patchDraft({ budgetAmount: 300_000 })
+    // The screen is still mounted and subscribed to the store (GoGo-MobileApp#133).
+    await act(async () => {
+      useRoomStore.getState().patchDraft({ budgetAmount: 300_000 })
+    })
     const constraint = toCreateRoomBody(useRoomStore.getState()).constraint
     expect(constraint.administrativeArea).toEqual({ datasetVersion: 'ds-2026', provinceCode: '79', communeCode: '26734' })
     expect(constraint).not.toHaveProperty('originLat')

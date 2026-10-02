@@ -55,7 +55,7 @@ it('shows exactly one switch, carrying the account value', async () => {
 it('saves the choice on toggle and nothing else', async () => {
   const screen = await renderScreen(<NotificationSettings />)
   await act(async () => {
-    fireEvent(screen.getByRole('switch'), 'valueChange', false)
+    await fireEvent(screen.getByRole('switch'), 'valueChange', false)
   })
   expect(mockMutate).toHaveBeenCalledTimes(1)
   expect(mockMutate).toHaveBeenCalledWith({ pushEnabled: false })
@@ -72,7 +72,7 @@ it('stays off and locked while the first read runs, and retries a failed read in
   mockSettings = { data: undefined, isPending: false, isError: true, refetch }
   const failed = await renderScreen(<NotificationSettings />)
   await act(async () => {
-    fireEvent.press(failed.getByText('Thử lại'))
+    await fireEvent.press(failed.getByText('Thử lại'))
   })
   expect(refetch).toHaveBeenCalledTimes(1)
 })
@@ -91,7 +91,7 @@ it('says a failed save was rolled back and retries the same choice', async () =>
   expect(screen.getByRole('switch').props.value).toBe(true)
   expect(screen.getByText(/Công tắc đã trở về trạng thái trước/)).toBeTruthy()
   await act(async () => {
-    fireEvent.press(screen.getByText('Thử lưu lại'))
+    await fireEvent.press(screen.getByText('Thử lưu lại'))
   })
   expect(mockMutate).toHaveBeenCalledWith({ pushEnabled: false })
 })
@@ -161,7 +161,7 @@ it('shows a recoverable error when Settings cannot be opened, and drops it once 
   jest.spyOn(Linking, 'openSettings').mockRejectedValueOnce(new Error('unavailable'))
   const screen = await renderScreen(<NotificationSettings />)
   await act(async () => {
-    fireEvent.press(await screen.findByText('Mở Cài đặt thông báo'))
+    await fireEvent.press(await screen.findByText('Mở Cài đặt thông báo'))
   })
   expect(screen.getByText(/Không mở được Cài đặt/)).toBeTruthy()
 

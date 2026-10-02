@@ -96,7 +96,7 @@ describe('cached data × connectivity', () => {
     const view = await renderScreen(<StaleNotice error={new Error('500')} onRetry={retry} />)
     expect(view.getByText(FAILED)).toBeTruthy()
     await act(async () => {
-      fireEvent.press(view.getByText(RETRY))
+      await fireEvent.press(view.getByText(RETRY))
     })
     expect(retry).toHaveBeenCalledTimes(1)
   })

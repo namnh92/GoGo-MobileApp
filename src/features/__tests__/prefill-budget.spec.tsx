@@ -85,7 +85,7 @@ describe('usual budget prefill on the budget step', () => {
     useRoomStore.getState().patchDraft({ budgetAmount: 800_000 })
     const set = await renderScreen(<CreateBudgetScreen />)
     expect(set.queryByText(/Dùng ngân sách thường dùng/)).toBeNull()
-    set.unmount()
+    await set.unmount()
 
     useRoomStore.getState().resetDraft()
     mockMe.query = loaded({ usualBudget: null })

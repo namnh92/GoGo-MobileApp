@@ -82,9 +82,9 @@ describe.each(SCREENS)('%s × run state × role', (_name, element, waitingCopy) 
     expect(view.getByText(/Thử chỉnh điều kiện phòng rồi tạo lại gợi ý/)).toBeTruthy()
     expect(view.queryByText(WAITING)).toBeNull()
 
-    await act(async () => { fireEvent.press(view.getByText(REFRESH)) })
+    await act(async () => { await fireEvent.press(view.getByText(REFRESH)) })
     expect(mockRegenerate).toHaveBeenCalledTimes(1)
-    await act(async () => { fireEvent.press(view.getByText(ADJUST)) })
+    await act(async () => { await fireEvent.press(view.getByText(ADJUST)) })
     expect(mockPush).toHaveBeenCalledWith('/room/room-1/manage')
   })
 
@@ -166,7 +166,7 @@ it('swipe: never falls back to member copy when the room failed to load', async 
   const view = await renderScreen(<Swipe />)
   expect(view.queryByText(EMPTY_TITLE)).toBeNull()
   expect(view.queryByText(/Đợi chủ phòng/)).toBeNull()
-  await act(async () => { fireEvent.press(view.getByText('Thử lại')) })
+  await act(async () => { await fireEvent.press(view.getByText('Thử lại')) })
   expect(refetch).toHaveBeenCalled()
 })
 

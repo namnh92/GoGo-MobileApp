@@ -53,3 +53,21 @@ jest.mock('react-native-safe-area-context', () => {
     initialWindowMetrics: { insets, frame },
   }
 })
+
+// GoGo-MobileApp#133 — React's act(...) environment warnings fail the test that
+// produced them. They used to scroll by as noise (RNTL 14's render, fireEvent,
+// rerender and unmount are async; an unawaited one updates state outside act),
+// which made a real defect's warning impossible to tell apart. Every message
+// still reaches the real console.error in full; nothing is swallowed.
+const ACT_WARNING = /not wrapped in act\(|overlapping act\(\) calls|not configured to support act\(/
+const actWarnings = []
+const printError = console.error
+console.error = (...args) => {
+  if (typeof args[0] === 'string' && ACT_WARNING.test(args[0])) actWarnings.push(args[0].split('\n')[0])
+  printError(...args)
+}
+afterEach(() => {
+  if (actWarnings.length === 0) return
+  const found = actWarnings.splice(0)
+  throw new Error(`React reported ${found.length} act(...) warning(s) during this test (GoGo-MobileApp#133):\n${found.join('\n')}`)
+})

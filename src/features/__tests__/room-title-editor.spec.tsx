@@ -12,12 +12,12 @@ import { RoomTitleEditor } from '@/features/gogo-room/room-title-editor.view'
 
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => {
-    fireEvent.press(element)
+    await fireEvent.press(element)
   })
 }
 async function type(element: Parameters<typeof fireEvent.changeText>[0], text: string) {
   await act(async () => {
-    fireEvent.changeText(element, text)
+    await fireEvent.changeText(element, text)
   })
 }
 

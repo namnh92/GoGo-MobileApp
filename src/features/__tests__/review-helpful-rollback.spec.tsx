@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react-native'
+import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, renderHook, waitFor } from '@testing-library/react-native'
 
 /**
  * APP-060 (#219) — the helpful toggle writes to the cache before the server
@@ -54,6 +54,11 @@ function deferred() {
   return { promise, resolve, reject }
 }
 
+// GoGo-MobileApp#133: deliver TanStack's observer notifications inside the act
+// that caused them; its default scheduler defers them past the act.
+beforeAll(() => notifyManager.setScheduler(callback => callback()))
+afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
+
 beforeEach(() => {
   // Retries would mask a rollback: restored and re-applied before the assertion.
   queryClient = new QueryClient({
@@ -74,12 +79,16 @@ it('moves the count in both orders before the server answers, and puts it back w
   mockMark.mockReturnValue(call.promise)
   const { result } = await renderHook(() => useToggleReviewHelpful(placeId), { wrapper })
 
-  result.current.mutate({ reviewId: 'r1', helpful: true })
+  await act(async () => {
+    result.current.mutate({ reviewId: 'r1', helpful: true })
+  })
   await waitFor(() => expect(countIn(latestKey)).toBe(3))
   expect(countIn(helpfulKey)).toBe(3)
   expect(myMarks()).toEqual(['r1'])
 
-  call.reject(new Error('offline'))
+  await act(async () => {
+    call.reject(new Error('offline'))
+  })
   await waitFor(() => expect(countIn(latestKey)).toBe(2))
   expect(countIn(helpfulKey)).toBe(2)
   expect(myMarks()).toEqual([])
@@ -89,7 +98,9 @@ it("settles on the server's count", async () => {
   mockMark.mockResolvedValue({ reviewId: 'r1', helpfulCount: 9, reactedByMe: true })
   const { result } = await renderHook(() => useToggleReviewHelpful(placeId), { wrapper })
 
-  result.current.mutate({ reviewId: 'r1', helpful: true })
+  await act(async () => {
+    result.current.mutate({ reviewId: 'r1', helpful: true })
+  })
 
   await waitFor(() => expect(countIn(latestKey)).toBe(9))
   expect(countIn(helpfulKey)).toBe(9)
@@ -102,11 +113,15 @@ it('counts nothing when a retry marks a review that is already marked', async ()
   mockMark.mockReturnValue(call.promise)
   const { result } = await renderHook(() => useToggleReviewHelpful(placeId), { wrapper })
 
-  result.current.mutate({ reviewId: 'r1', helpful: true })
+  await act(async () => {
+    result.current.mutate({ reviewId: 'r1', helpful: true })
+  })
   await waitFor(() => expect(mockMark).toHaveBeenCalledTimes(1))
   expect(countIn(latestKey)).toBe(2)
 
-  call.resolve({ reviewId: 'r1', helpfulCount: 2, reactedByMe: true })
+  await act(async () => {
+    call.resolve({ reviewId: 'r1', helpfulCount: 2, reactedByMe: true })
+  })
   await waitFor(() => expect(result.current.isSuccess).toBe(true))
   expect(countIn(latestKey)).toBe(2)
   expect(myMarks()).toEqual(['r1'])
@@ -118,11 +133,15 @@ it('removes a mark optimistically and restores it when removal fails', async () 
   mockUnmark.mockReturnValue(call.promise)
   const { result } = await renderHook(() => useToggleReviewHelpful(placeId), { wrapper })
 
-  result.current.mutate({ reviewId: 'r1', helpful: false })
+  await act(async () => {
+    result.current.mutate({ reviewId: 'r1', helpful: false })
+  })
   await waitFor(() => expect(countIn(latestKey)).toBe(1))
   expect(myMarks()).toEqual([])
 
-  call.reject(new Error('boom'))
+  await act(async () => {
+    call.reject(new Error('boom'))
+  })
   await waitFor(() => expect(myMarks()).toEqual(['r1']))
   expect(countIn(latestKey)).toBe(2)
 })

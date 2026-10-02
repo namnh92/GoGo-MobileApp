@@ -99,7 +99,13 @@ beforeEach(() => {
     return plan
   })
 })
-afterEach(() => client.clear())
+afterEach(() => {
+  // MutationCache.clear() drops mutations without cancelling their GC timers; with
+  // the app client's 5-minute mutation gcTime those held the jest worker open
+  // until it was force-exited (GoGo-MobileApp#133). destroy() cancels them.
+  for (const mutation of client.getMutationCache().getAll()) mutation.destroy()
+  client.clear()
+})
 
 describe('useStartDate', () => {
   it('moves the room to active, then the room, its plan and the Plans tabs read again', async () => {
