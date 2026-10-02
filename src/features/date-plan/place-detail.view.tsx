@@ -38,6 +38,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
 import { colors, glyph, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
@@ -60,6 +61,7 @@ export default function PlaceDetailScreen() {
   const insets = useSafeAreaInsets()
   const { width, height } = useWindowDimensions()
   const [actionHeight, setActionHeight] = useState(0)
+  const actionInset = useBottomBarInset(actionHeight)
   // The floating back button keeps a strip of its own above the page scroll,
   // so an expanded sheet never slides underneath it.
   const headerHeight = insets.top + touchTarget.min + spacing[4]
@@ -176,7 +178,7 @@ export default function PlaceDetailScreen() {
       <ScrollView
         testID="place-detail-scroll"
         style={{ marginTop: headerHeight }}
-        contentContainerStyle={{ paddingBottom: actionHeight }}
+        contentContainerStyle={{ paddingBottom: actionInset }}
         // Two rests: the hero gallery, and the sheet's top edge — after that
         // the content scrolls freely.
         snapToOffsets={[0, GALLERY_HEIGHT - SHEET_OVERLAP]}
@@ -230,7 +232,7 @@ export default function PlaceDetailScreen() {
 
       {/* One vertical scroll surface lets the gallery leave the viewport as
           the sheet expands, then continues through the content naturally. */}
-      <View testID="place-detail-sheet" style={[styles.sheet, { minHeight: height - headerHeight - actionHeight }]}>
+      <View testID="place-detail-sheet" style={[styles.sheet, { minHeight: height - headerHeight - actionInset }]}>
         <View style={styles.body}>
           {/* On the sheet: between the gallery and the sheet, the sheet's rounded
               top edge covered half of the bar (#253). */}
@@ -478,10 +480,7 @@ export default function PlaceDetailScreen() {
           <IconChevronLeft />
         </Pressable>
 
-      <View
-        onLayout={event => setActionHeight(event.nativeEvent.layout.height)}
-        style={[styles.actionBar, { paddingBottom: insets.bottom + spacing[4] }]}
-      >
+      <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight} style={styles.actionBar}>
         <SecondaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} style={styles.addBtn} />
         <Pressable
           accessibilityRole="button"
@@ -494,7 +493,7 @@ export default function PlaceDetailScreen() {
           <IconNavigation color={neutral[0]} />
           <Text style={styles.dirLabel}>{t('common.directions')}</Text>
         </Pressable>
-      </View>
+      </GlassBar>
     </Atmosphere>
   )
 }

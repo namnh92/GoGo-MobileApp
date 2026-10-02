@@ -3,7 +3,6 @@ import { colors, radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing[5], paddingBottom: spacing[6] },
-  footer: { paddingHorizontal: spacing[5], paddingTop: spacing[4] },
   title: { ...type.display, color: colors.neutral[900] },
   body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
   rowCard: {

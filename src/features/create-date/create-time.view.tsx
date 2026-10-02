@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
+import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, GlassCard, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
@@ -130,9 +131,9 @@ export default function CreateTimeScreen() {
           )}
         </GlassCard>
       </View>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
+      <GlassBar placement="docked" testID="create-footer">
         <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} />
-      </View>
+      </GlassBar>
 
       {/* Time slot picker sheet */}
       <Modal visible={pickerFor !== null} transparent animationType="slide" onRequestClose={() => setPickerFor(null)}>

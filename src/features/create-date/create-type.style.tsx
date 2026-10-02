@@ -37,8 +37,4 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footer: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[4],
-  },
 })

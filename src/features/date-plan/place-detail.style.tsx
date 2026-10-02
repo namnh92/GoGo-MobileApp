@@ -178,16 +178,8 @@ export const styles = StyleSheet.create({
   reportHint: { ...type.caption, color: neutral[500] },
 
   // --- sticky actions ------------------------------------------------------
+  // Position, gutter, glass and hairline are `GlassBar`'s (#296).
   actionBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: glassFx.bar,
-    borderTopWidth: 1,
-    borderTopColor: neutral[100],
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[4],
     // Stacked, not split: each CTA gets the full width, so a Vietnamese label
     // is never the reason a button has to shrink.
     gap: spacing[3],

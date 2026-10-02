@@ -14,24 +14,39 @@ function useAccent(): string {
   return useUnistyles().theme.accent.primary
 }
 
+/**
+ * Tab icons (#296, #293 §5): the active tab is a *filled* glyph in the accent,
+ * an inactive one an outline in `text.secondary`. Shape, not only colour,
+ * carries the state (RULE-DS), and the outline clears 3:1 as a UI glyph on the
+ * bar's wash, which the old `neutral[300]` (1.8:1) did not.
+ */
+function useTabIconColors(active?: boolean) {
+  const { theme } = useUnistyles()
+  return {
+    tint: active ? theme.accent.primary : theme.text.secondary,
+    /** Detail drawn inside a filled glyph — the door, the calendar rule. */
+    cut: theme.accent.onAccent,
+  }
+}
+
 export function IconHome({ active }: { active?: boolean }) {
-  const accent = useAccent()
+  const { tint, cut } = useTabIconColors(active)
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={active ? accent : neutral[300]} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <Polyline points="9 22 9 12 15 12 15 22" />
+    <Svg testID={active ? 'icon-home-filled' : 'icon-home'} width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={tint} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill={active ? tint : 'none'} />
+      <Polyline points="9 22 9 12 15 12 15 22" stroke={active ? cut : tint} />
     </Svg>
   )
 }
 
 export function IconCalendar({ active }: { active?: boolean }) {
-  const accent = useAccent()
+  const { tint, cut } = useTabIconColors(active)
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={active ? accent : neutral[300]} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Rect x={3} y={4} width={18} height={18} rx={3} />
+    <Svg testID={active ? 'icon-calendar-filled' : 'icon-calendar'} width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={tint} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Rect x={3} y={4} width={18} height={18} rx={3} fill={active ? tint : 'none'} />
       <Line x1={16} y1={2} x2={16} y2={6} />
       <Line x1={8} y1={2} x2={8} y2={6} />
-      <Line x1={3} y1={10} x2={21} y2={10} />
+      <Line x1={3} y1={10} x2={21} y2={10} stroke={active ? cut : tint} />
     </Svg>
   )
 }
@@ -46,19 +61,21 @@ export function IconBookmark({ active, filled = false, size = 22, color }: {
   size?: number
   color?: string
 }) {
+  const { tint } = useTabIconColors(active)
   const accent = useAccent()
-  const stroke = color ?? (active || filled ? accent : neutral[300])
+  const solid = filled || active === true
+  const stroke = color ?? (filled ? accent : tint)
   return (
-    <Svg testID={filled ? 'icon-bookmark-filled' : 'icon-bookmark'} width={size} height={size} viewBox="0 0 24 24" fill={filled ? stroke : 'none'} stroke={stroke} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <Svg testID={solid ? 'icon-bookmark-filled' : 'icon-bookmark'} width={size} height={size} viewBox="0 0 24 24" fill={solid ? stroke : 'none'} stroke={stroke} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </Svg>
   )
 }
 
 export function IconUser({ active }: { active?: boolean }) {
-  const accent = useAccent()
+  const { tint } = useTabIconColors(active)
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={active ? accent : neutral[300]} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <Svg testID={active ? 'icon-user-filled' : 'icon-user'} width={22} height={22} viewBox="0 0 24 24" fill={active ? tint : 'none'} stroke={tint} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <Circle cx={12} cy={7} r={4} />
     </Svg>

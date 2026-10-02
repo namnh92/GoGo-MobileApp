@@ -41,6 +41,13 @@ jest.mock('@callstack/liquid-glass', () => ({
   LiquidGlassContainerView: require('react-native').View,
 }))
 
+// `GlassBar`'s iOS fallback (#296). expo-blur's view manager is native-only;
+// without this every screen under a glass bar logs a missing-manager warning.
+// A plain View keeps the layer (and its testID wrapper) in the tree.
+jest.mock('expo-blur', () => ({
+  BlurView: require('react-native').View,
+}))
+
 jest.mock('react-native-safe-area-context', () => {
   const insets = { top: 47, bottom: 34, left: 0, right: 0 }
   const frame = { x: 0, y: 0, width: 390, height: 844 }

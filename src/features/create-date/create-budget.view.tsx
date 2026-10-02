@@ -2,11 +2,11 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
+import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 import { colors, spacing, onDark } from '@/shared/ui/tokens'
@@ -17,7 +17,6 @@ import { styles } from './create-budget.style'
 export default function CreateBudgetScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { roomType, budgetMode } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
   const draftBudgetAmount = useRoomStore(state => state.budgetAmount)
@@ -98,9 +97,9 @@ export default function CreateBudgetScreen() {
           })}
         </View>
       </View>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
+      <GlassBar placement="docked" testID="create-footer">
         <PrimaryBtn label={t('common.continue')} onPress={next} />
-      </View>
+      </GlassBar>
     </Atmosphere>
   )
 }

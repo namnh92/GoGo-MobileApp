@@ -30,7 +30,7 @@ import {
   GhostBtn,
   GlassCard,
   SecondaryBtn,
-  useTabDockInset,
+  useBottomBarInset,
 } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
@@ -50,7 +50,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
   const { uiState, setUiState, quickPreset, setQuickPreset } = useRoom()
-  const dockInset = useTabDockInset()
+  const barInset = useBottomBarInset()
 
   const { status } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
@@ -141,7 +141,7 @@ export default function HomeScreen() {
 
   return (
     <Atmosphere>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: dockInset }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: barInset + spacing[6] }}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{t('home.greeting')}</Text>

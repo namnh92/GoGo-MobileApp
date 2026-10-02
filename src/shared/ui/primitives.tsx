@@ -14,6 +14,7 @@ import { border, hitSlop, shadows, spacing, surface, touchTarget } from '@/share
 
 export { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn, type ButtonProps } from '@/shared/ui/button.view'
 export { Card } from '@/shared/ui/card.view'
+export { useBottomBarInset } from '@/shared/ui/bottom-bar-inset'
 
 /**
  * Static card look for the call sites that still spread it into their own
@@ -236,13 +237,6 @@ export function Toast({ message }: { message: string }) {
       <RNText style={styles.toastLabel}>{message}</RNText>
     </View>
   )
-}
-
-/** Height reserved by the floating glass tab dock — tab screens pad scroll
- *  content by this so the dock never covers the last row. */
-export function useTabDockInset(): number {
-  const insets = useSafeAreaInsets()
-  return 64 + insets.bottom + spacing[6]
 }
 
 const styles = StyleSheet.create(theme => ({

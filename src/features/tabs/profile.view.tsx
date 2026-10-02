@@ -12,7 +12,7 @@ import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/si
 import { locales } from '@/shared/i18n'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
-import { Atmosphere, AvatarCircle, GlassCard, useTabDockInset } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, GlassCard, useBottomBarInset } from '@/shared/ui/primitives'
 import { IconChevronRight } from '@/shared/ui/icons'
 import { colors, spacing } from '@/shared/ui/tokens'
 import { SETTINGS_ROWS } from './profile-settings-rows'
@@ -31,7 +31,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const room = useRoom()
   const router = useRouter()
-  const dockInset = useTabDockInset()
+  const barInset = useBottomBarInset()
   const { session, status, signOut } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const [signingOut, setSigningOut] = useState(false)
@@ -90,7 +90,7 @@ export default function ProfileScreen() {
 
   return (
     <Atmosphere>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: dockInset }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: barInset + spacing[6] }}>
         <View style={styles.headerRow}>
           <AvatarCircle
             label={(me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()}

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
+import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, BackHeader, GlassCard, PrimaryBtn } from '@/shared/ui/primitives'
 import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
 
@@ -104,9 +105,9 @@ export default function GroupSetupScreen() {
           })}
         </Text>
       </View>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
+      <GlassBar placement="docked" testID="create-footer">
         <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/location')} />
-      </View>
+      </GlassBar>
     </Atmosphere>
   )
 }
