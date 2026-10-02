@@ -36,6 +36,7 @@ import { decisionScreen, PLAN_RETRY_NOTICE, PLAN_UNAVAILABLE_NOTICE } from '@/sh
 import { markRoomStepShown, planStep, runStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
 import { alertWithHold, releaseOnReturn, useRoutingHold } from '@/shared/navigation/routing-hold'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
+import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import {
   Atmosphere,
   AvatarCircle,
@@ -556,6 +557,15 @@ export default function GoGoRoomScreen() {
                 icon="👥"
                 variant="default"
               />
+              {/* GoGo-MobileApp#246 — the area saved with the room, with the labels
+                  stored when it was chosen. A dataset change keeps those labels
+                  and says in words that the host must choose again. */}
+              {summary.constraints.administrativeArea ? (
+                <Chip icon="📍" label={administrativeAreaLabel(summary.constraints.administrativeArea)} variant="default" />
+              ) : null}
+              {summary.constraints.administrativeArea?.status === 'needs_reselection' ? (
+                <Chip icon="⚠️" label={t('gogoRoom.areaNeedsReselection')} variant="warning" />
+              ) : null}
               {summary.constraints.budgetAmount ? (
                 <Chip
                   label={`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(
