@@ -771,6 +771,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
     'GoGo cannot verify places at the moment. Please try again later.',
   'placeImport.businessStatus.CLOSED_TEMPORARILY': '⚠️ Google reports this place as temporarily closed.',
   'placeImport.businessStatus.CLOSED_PERMANENTLY': '⚠️ Google reports this place as permanently closed.',
+  'placeImport.businessStatus.FUTURE_OPENING': '⚠️ Google lists this place as not open yet. Add it again once it has opened.',
+  'placeImport.notYetOpen': 'Google lists this place as not open yet. Add it again once it has opened.',
   'placeImport.businessStatusUnknown': '⚠️ Google has not confirmed this place is operating.',
   'placeImport.reason.CLOSED': 'This place has closed.',
   'placeImport.reason.INVALID_URL': 'That link is invalid or broken.',
