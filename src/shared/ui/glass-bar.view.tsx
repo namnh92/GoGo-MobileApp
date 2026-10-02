@@ -17,7 +17,8 @@ export { TAB_BAR_HEIGHT, useBottomBarInset } from './bottom-bar-inset'
  * - `blur` — older iOS: `expo-blur` under the 78 % wash.
  * - `wash` — Android: the wash alone (see `glass.bar` in `tokens.ts`).
  *
- * The wash is on every non-native path, so contrast never depends on the blur.
+ * The wash is on every path — system glass included (#296 F-01) — so contrast
+ * never depends on the blurred layer.
  */
 export type GlassMaterial = 'native' | 'blur' | 'wash'
 
@@ -36,15 +37,13 @@ const NATIVE_FILL = { flex: 1 } as const
 
 function Material({ material }: { material: GlassMaterial }) {
   const { theme } = useUnistyles()
-  if (material === 'native') {
-    return (
-      <View testID="glass-bar-native" pointerEvents="none" style={styles.fill}>
-        <LiquidGlassView effect="regular" colorScheme="light" tintColor={glassFx.nativeTint} style={NATIVE_FILL} />
-      </View>
-    )
-  }
   return (
     <>
+      {material === 'native' ? (
+        <View testID="glass-bar-native" pointerEvents="none" style={styles.fill}>
+          <LiquidGlassView effect="regular" colorScheme="light" tintColor={glassFx.nativeTint} style={NATIVE_FILL} />
+        </View>
+      ) : null}
       {material === 'blur' ? (
         <View testID="glass-bar-blur" pointerEvents="none" style={styles.fill}>
           <BlurView intensity={theme.glass.bar.intensity} tint="light" style={NATIVE_FILL} />
