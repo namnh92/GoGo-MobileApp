@@ -1,7 +1,8 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { colors, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   title: { ...type.display, color: colors.neutral[900] },
   body: { ...type.body, color: colors.neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
@@ -22,10 +23,10 @@ export const styles = StyleSheet.create({
     padding: spacing[3],
     alignItems: 'center',
   },
-  timeBoxRequired: { borderWidth: 1, borderColor: colors.brand.coral },
-  requiredHint: { ...type.caption, color: colors.brand.coral, marginTop: spacing[2] },
+  timeBoxRequired: { borderWidth: 1, borderColor: theme.accent.primary },
+  requiredHint: { ...type.caption, color: theme.accent.primary, marginTop: spacing[2] },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -54,4 +55,4 @@ export const styles = StyleSheet.create({
   slotLabel: { ...type.label, color: colors.neutral[700] },
   timeCaption: { ...type.caption, color: colors.neutral[500] },
   timeValue: { ...type.title1, color: colors.neutral[900], marginTop: 2 },
-})
+}))

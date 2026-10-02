@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
@@ -27,6 +28,7 @@ type PickerTarget = 'start' | 'end' | null
  * end once a start exists, and Continue is never unlocked by an invented time.
  */
 export default function CreateTimeScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -92,7 +94,7 @@ export default function CreateTimeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={label}
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: colors.brand.coral } : glassStyles.card]}
+                style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
               >
                 <Text style={[styles.optionLabel, { color: active ? colors.neutral[0] : colors.neutral[900] }]}>{label}</Text>
                 {/* Selection is never colour alone. */}
@@ -111,7 +113,7 @@ export default function CreateTimeScreen() {
               style={[styles.timeBox, startTime === null && styles.timeBoxRequired]}
             >
               <Text style={styles.timeCaption}>{t('createTime.start')} *</Text>
-              <Text style={[styles.timeValue, startTime === null && { color: colors.brand.coral }]}>
+              <Text style={[styles.timeValue, startTime === null && { color: theme.accent.primary }]}>
                 {startTime ?? t('createTime.notSet')}
               </Text>
             </Pressable>
@@ -153,7 +155,7 @@ export default function CreateTimeScreen() {
                     onPress={() => pickSlot(slot)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
-                    style={[styles.slotBtn, active && { backgroundColor: colors.brand.coral }]}
+                    style={[styles.slotBtn, active && { backgroundColor: theme.accent.primary }]}
                   >
                     <Text style={[styles.slotLabel, active && { color: colors.neutral[0] }]}>{slot}</Text>
                   </Pressable>

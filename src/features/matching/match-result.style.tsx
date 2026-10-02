@@ -1,16 +1,17 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { colors, radius, spacing, glassFx, onDark, overlay, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   hero: {
     marginHorizontal: spacing[5],
     height: 300,
     borderRadius: radius.hero,
     overflow: 'hidden',
   },
-  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrim },
+  heroScrim: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.scrim },
   heroBadge: {
     position: 'absolute',
     top: spacing[4],
@@ -56,7 +57,7 @@ export const styles = StyleSheet.create({
   },
   diffLine: { ...type.label, color: neutral[0], marginTop: 2 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
+  backdrop: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.backdrop },
   sheet: {
     backgroundColor: glassFx.sheet,
     borderTopLeftRadius: radius.sheet,
@@ -101,13 +102,13 @@ export const styles = StyleSheet.create({
   lockTitle: { ...type.label, fontWeight: '700', color: neutral[900], marginBottom: spacing[2] },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: 6 },
   radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.coral },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },
   lockLabel: { ...type.bodySmall, color: neutral[900] },
   submitBtn: {
     height: 48,
     marginTop: spacing[3],
     borderRadius: radius.compact,
-    backgroundColor: brand.coral,
+    backgroundColor: theme.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -155,4 +156,4 @@ export const styles = StyleSheet.create({
     minHeight: touchTarget.min,
     justifyContent: 'center',
   },
-})
+}))

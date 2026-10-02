@@ -93,6 +93,7 @@ const ROOT = join(SRC, '..')
  */
 const COMPUTED_KEYS: Record<string, readonly string[]> = {
   'src/features/account/account.view.tsx': ['avatarErrorKey(error)'], // returns MessageKey
+  'src/features/account/theme-accent.view.tsx': ['LABEL[accent]'], // Record<Accent, MessageKey>
   'src/features/create-date/create-type.view.tsx': ['option.titleKey', 'option.descKey'], // typed as key literals
   'src/features/create-date/group-setup.view.tsx': ['option.labelKey'], // typed as key literals
   'src/features/date-plan/place-detail.view.tsx': ['priceUnitKey(price.unit)'], // priceUnitKey returns MessageKey

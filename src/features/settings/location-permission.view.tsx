@@ -2,10 +2,10 @@ import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, AppState, Linking, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
 import { GhostBtn, GlassCard, SecondaryBtn } from '@/shared/ui/primitives'
 import { IconMapPin } from '@/shared/ui/icons'
-import { colors } from '@/shared/ui/tokens'
 
 import { styles } from './location-permission.style'
 
@@ -46,6 +46,7 @@ async function readPermission(): Promise<LocationPermissionState> {
  * permission, and stays in Account information (ADR-0022, ADM-203).
  */
 export function LocationPermissionSection() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const [state, setState] = useState<LocationPermissionState>('checking')
@@ -95,7 +96,7 @@ export function LocationPermissionSection() {
         <View style={styles.statusText}>
           <Text style={styles.statusTitle}>{t('locationSettings.statusTitle')}</Text>
           {state === 'checking' ? (
-            <ActivityIndicator color={colors.brand.coral} style={{ alignSelf: 'flex-start' }} />
+            <ActivityIndicator color={theme.accent.primary} style={{ alignSelf: 'flex-start' }} />
           ) : (
             <Text accessibilityLiveRegion="polite" style={blocked ? styles.statusBlocked : styles.status}>
               {t(`locationSettings.status.${state}`)}

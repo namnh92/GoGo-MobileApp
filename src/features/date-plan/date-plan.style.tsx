@@ -1,9 +1,9 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { colors, radius, spacing, glassFx, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   matchBadge: {
     backgroundColor: brand.mintSoft,
     paddingHorizontal: 10,
@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
   stopCard: { overflow: 'hidden', marginBottom: spacing[3] },
   stopImage: { width: '100%', height: 140 },
   stopHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  stopTime: { ...type.title2, color: brand.coral },
+  stopTime: { ...type.title2, color: theme.accent.primary },
   lockBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -114,7 +114,7 @@ export const styles = StyleSheet.create({
    * Locked / required / completed must be told apart without colour (spec §20):
    * a locked stop carries a left edge, a padlock and the word, not just a tint.
    */
-  stopCardLocked: { borderLeftWidth: 4, borderLeftColor: brand.coral },
+  stopCardLocked: { borderLeftWidth: 4, borderLeftColor: theme.accent.primary },
   stopCardCompleted: { opacity: 0.75 },
   stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legRail: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -126,5 +126,5 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  timelineDotLocked: { borderWidth: 2, borderColor: brand.coral },
-})
+  timelineDotLocked: { borderWidth: 2, borderColor: theme.accent.primary },
+}))

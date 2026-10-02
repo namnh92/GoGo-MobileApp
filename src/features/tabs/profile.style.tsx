@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   headerRow: {
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[4],
@@ -65,7 +65,7 @@ export const styles = StyleSheet.create({
     borderRadius: radius.compact,
     backgroundColor: neutral[50],
   },
-  segmentBtnActive: { backgroundColor: brand.coral },
+  segmentBtnActive: { backgroundColor: theme.accent.primary },
   segmentLabel: { ...type.caption, fontWeight: '600', color: neutral[500] },
   segmentLabelActive: { color: neutral[0] },
 
@@ -76,6 +76,6 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     marginBottom: spacing[6],
   },
-  logoutLabel: { ...type.body, fontWeight: '700', color: brand.coral },
-  logoutError: { ...type.bodySmall, color: brand.coral, textAlign: 'center', paddingHorizontal: spacing[4] },
-})
+  logoutLabel: { ...type.body, fontWeight: '700', color: theme.accent.primary },
+  logoutError: { ...type.bodySmall, color: theme.status.dangerText, textAlign: 'center', paddingHorizontal: spacing[4] },
+}))

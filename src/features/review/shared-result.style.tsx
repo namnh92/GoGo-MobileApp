@@ -1,13 +1,14 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { colors, radius, spacing, night, onDark, overlay, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   root: { flex: 1, backgroundColor: neutral[900] },
   title: { ...type.title1, color: neutral[0], textAlign: 'center', marginTop: spacing[4] },
   scoreCard: {
-    backgroundColor: brand.coral,
+    backgroundColor: theme.accent.primary,
     borderRadius: radius.sheet,
     padding: spacing[6],
     marginTop: spacing[4],
@@ -35,7 +36,7 @@ export const styles = StyleSheet.create({
   interestLabel: { ...type.label, color: neutral[0] },
   interestPct: { ...type.caption, color: onDark.soft },
   track: { height: 6, borderRadius: 3, backgroundColor: night.line, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: brand.coral, borderRadius: 3 },
+  fill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 3 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
   statCard: { width: '47%', backgroundColor: night.raised, borderRadius: radius.compact, padding: spacing[3] },
   statLabel: { ...type.caption, color: onDark.soft, marginBottom: 4 },
@@ -65,13 +66,13 @@ export const styles = StyleSheet.create({
     marginBottom: spacing[4],
     justifyContent: 'flex-end',
   },
-  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: overlay.scrim },
+  heroScrim: { ...RNStyleSheet.absoluteFillObject, backgroundColor: overlay.scrim },
   heroBody: { padding: spacing[5], gap: 4 },
   heroMeta: { ...type.bodySmall, color: onDark.strong, textAlign: 'center' },
   shareIsPrimary: {
-    backgroundColor: brand.coral,
-    borderColor: brand.coral,
+    backgroundColor: theme.accent.primary,
+    borderColor: theme.accent.primary,
     marginTop: 0,
     marginBottom: spacing[2],
   },
-})
+}))

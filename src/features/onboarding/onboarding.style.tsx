@@ -1,7 +1,7 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 import { colors, glassFx, glyph, spacing, type } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   skip: {
     ...type.bodySmall,
     fontWeight: '500',
@@ -35,7 +35,7 @@ export const styles = StyleSheet.create({
     borderRadius: 16,
   },
   chipCoral: {
-    backgroundColor: colors.brand.coral,
+    backgroundColor: theme.accent.primary,
   },
   chipGlass: {
     backgroundColor: glassFx.cardWash,
@@ -62,4 +62,4 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
     gap: spacing[2],
   },
-})
+}))

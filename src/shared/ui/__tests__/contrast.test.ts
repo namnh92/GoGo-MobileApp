@@ -33,7 +33,7 @@ function contrast(a: string, b: string): number {
   return (hi! + 0.05) / (lo! + 0.05)
 }
 
-const { neutral, brand } = colors
+const { neutral } = colors
 /** The app background, and the reason "on white" alone is not enough. */
 const IVORY = neutral[50]
 const WHITE = neutral[0]
@@ -48,16 +48,13 @@ describe('colour contrast', () => {
     expect(contrast(fg, bg)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 
-  it.each([
-    ['gradient start', brand.coralDeep],
-    ['gradient end', brand.coralInk],
-  ])('white on the primary CTA %s reads at AA', (_label, background) => {
-    expect(contrast(neutral[0], background)).toBeGreaterThanOrEqual(AA_TEXT)
-  })
+  // The coral CTA gradient and the coral accent went with #297: every accent
+  // surface now reads `theme.accent.*`, measured per theme below.
 
-  it('keeps coral usable as an accent on light surfaces', () => {
-    // Not AA for body text, and not used for it — headings and icons only.
-    expect(contrast(brand.coral, neutral[0])).toBeGreaterThanOrEqual(AA_LARGE)
+  it('white on the swipe "pass" stamp reads at AA — it is status.danger, not the accent (#297)', () => {
+    // Under the green theme an accent-coloured "pass" would match the mint
+    // "like" stamp beside it; the two must stay apart in every theme.
+    expect(contrast(WHITE, status.danger)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 
   it('neutral[300] stays out of the text palette', () => {
@@ -114,6 +111,20 @@ describe('accent themes (#293 §6)', () => {
       expect(themes[accent].accent).toEqual(accents[accent])
       expect(themes[accent].shadows.cta.shadowColor).toBe(primary)
     })
+  })
+})
+
+describe('"Đang mở" under the green theme (#293 §6, #297)', () => {
+  it('colour alone cannot tell the open label from a green button — so the label carries a dot and no fill', () => {
+    // Record, not a pass condition on colour: `status.successText` and the
+    // green `accent.primary` are both dark greens (~1.06:1 apart). The spec's
+    // fallback applies — the darker success step plus the round dot — and the
+    // shape does the separating: a button is a filled pill with white text, the
+    // open label is coloured text after a dot on the card surface. The dot is
+    // asserted in place-card.spec.tsx; this keeps the reason next to the numbers.
+    expect(contrast(status.successText, accents.green.primary)).toBeLessThan(AA_LARGE)
+    expect(status.successText).not.toBe(accents.green.primary)
+    expect(contrast(status.successText, WHITE)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 })
 

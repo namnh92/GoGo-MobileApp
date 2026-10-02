@@ -1,10 +1,11 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glassFx, onDark, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   counter: { ...type.label, color: neutral[900] },
   header: { ...type.bodySmall, color: neutral[500], fontWeight: '600' },
   subheader: { ...type.caption, color: neutral[500] },
@@ -17,7 +18,7 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: spacing[3],
   },
-  progressFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 2 },
+  progressFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 2 },
 
   deck: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   card: {
@@ -31,7 +32,7 @@ export const styles = StyleSheet.create({
   // Imagery carries the card (spec §17): two thirds of it, with a gradient
   // rather than a flat scrim so the top of the photo stays bright.
   imageWrap: { flex: 1 },
-  imageGradient: { ...StyleSheet.absoluteFillObject },
+  imageGradient: { ...RNStyleSheet.absoluteFillObject },
   categoryBadge: {
     position: 'absolute',
     top: spacing[3],
@@ -66,7 +67,7 @@ export const styles = StyleSheet.create({
   priceUnknown: { ...type.bodySmall, color: neutral[500] },
   meta: { ...type.bodySmall, color: neutral[500] },
   openDot: { width: 6, height: 6, borderRadius: 3 },
-  open: { ...type.caption, fontWeight: '700', color: brand.mint },
+  open: { ...type.caption, fontWeight: '700', color: theme.status.successText },
   closed: { ...type.caption, fontWeight: '700', color: neutral[500] },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 
@@ -91,4 +92,4 @@ export const styles = StyleSheet.create({
   actionCaption: { ...type.caption, color: neutral[500] },
 
   skeletonCard: { flex: 1, maxHeight: 520, borderRadius: radius.hero },
-})
+}))

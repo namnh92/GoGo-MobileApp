@@ -131,20 +131,30 @@ function RatingPriceLine({ place }: { place: PlaceCardModel }) {
   )
 }
 
-/** Line 4. No dot: the words carry the state, so colour is never the only signal. */
+/**
+ * Line 4. The words carry the state, so colour is never the only signal. Open
+ * also gets the round `status.success` dot (#293 §6, #297): under the green
+ * theme `status.successText` is the same dark green as a filled button, and
+ * the dot plus the absence of a fill is what keeps "Đang mở" from reading as
+ * a control.
+ */
 function OpenLine({ place }: { place: PlaceCardModel }) {
   const state = useOpenLabel(place)
   if (!state) return null
   return (
-    <Text
-      testID="place-card-open"
-      variant="label"
-      color={state.open ? 'status.successText' : 'text.secondary'}
-      numberOfLines={1}
-      ellipsizeMode="tail"
-    >
-      {state.label}
-    </Text>
+    <View style={styles.openRow}>
+      {state.open ? <View testID="place-card-open-dot" style={styles.openDot} accessibilityElementsHidden importantForAccessibility="no" /> : null}
+      <Text
+        testID="place-card-open"
+        variant="label"
+        color={state.open ? 'status.successText' : 'text.secondary'}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={styles.openLabel}
+      >
+        {state.label}
+      </Text>
+    </View>
   )
 }
 

@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, glassFx, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   title: {
     ...type.display,
     color: neutral[900],
@@ -63,6 +63,6 @@ export const styles = StyleSheet.create({
     elevation: 2,
   },
   segmentLabel: { ...type.label, color: neutral[500] },
-  segmentLabelActive: { color: brand.coral, fontWeight: '700' },
+  segmentLabelActive: { color: theme.accent.primary, fontWeight: '700' },
   helper: { ...type.bodySmall, color: neutral[500], marginTop: spacing[3] },
-})
+}))

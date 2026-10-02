@@ -147,3 +147,24 @@ trên; **design xác nhận lại**, test vẫn là cổng.
 
 Chưa làm trong B: ngân sách trên PlanCard (`RoomListItem` chưa có —
 GoGo-BE#637); hero Home và "Đánh giá" (D, #297); tab bar/thanh đáy glass (C, #296).
+
+## Bổ sung D — GoGo-MobileApp#297 (2026-10-02)
+
+1. **Cài đặt "Màu chủ đề"** ở màn Tài khoản, ngay dưới thẻ Tên hiển thị:
+   `ThemeAccentCard` (`features/account/theme-accent.*`), 4 swatch tròn 44 pt,
+   vòng 2 pt + dấu tích + `accessibilityState.selected`. Chạm →
+   `UnistylesRuntime.setTheme` → `saveAccentPreference` → analytics
+   `theme_accent_changed { accent }`. Lưu thất bại vẫn giữ màu trong phiên.
+2. **Mọi điểm nhấn đọc `theme.accent.*`.** Bảng `colors.brand.coral*` và
+   `glass.tint.coral` bị xoá khỏi `tokens.ts`; `__tests__/accent-refs.test.ts`
+   chặn tham chiếu coral quay lại (cùng phép grep của AC). Style file dùng
+   `StyleSheet.create(theme => …)`; giá trị đi vào prop (spinner, Switch, SVG,
+   avatar) đọc `useUnistyles().theme`.
+3. **Không phải điểm nhấn thì không đổi theo chủ đề:** nhãn "Đang mở" chuyển từ
+   `brand.mint` (2,69 trên trắng) sang `status.successText` + chấm
+   `status.success`; dấu "Bỏ qua" khi vuốt là `status.danger` (để không trùng
+   màu dấu "Thích" mint ở chủ đề Xanh lá); lỗi đăng xuất là `status.dangerText`.
+4. **Xanh lá và "Đang mở":** `status.successText` và `accent.primary` của Xanh lá
+   chỉ cách nhau ~1,06:1 — màu không phân biệt được. Theo §6, phân biệt bằng hình
+   dạng: nhãn là chữ sau chấm tròn, không có nền; nút là khối nền đặc chữ trắng.
+   Design có thể tinh chỉnh lại một trong hai màu.

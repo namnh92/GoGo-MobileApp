@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   title: { ...type.display, color: neutral[900], marginTop: spacing[2] },
   body: { ...type.body, color: neutral[500], marginTop: spacing[2], marginBottom: spacing[6] },
   input: {
@@ -73,7 +73,7 @@ export const styles = StyleSheet.create({
     borderColor: neutral[100],
     marginBottom: spacing[2],
   },
-  candidateRowActive: { borderColor: brand.coral, backgroundColor: brand.coralGhost },
+  candidateRowActive: { borderColor: theme.accent.primary, backgroundColor: theme.accent.soft },
   candidateName: { ...type.body, fontWeight: '700', color: neutral[900] },
   candidateAddress: { ...type.bodySmall, color: neutral[500], marginTop: 2 },
   metaSection: { marginTop: spacing[4], gap: spacing[2] },
@@ -86,11 +86,11 @@ export const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: neutral[100],
   },
-  chipActive: { backgroundColor: brand.coral },
+  chipActive: { backgroundColor: theme.accent.primary },
   chipLabel: { ...type.bodySmall, color: neutral[700] },
   chipLabelActive: { color: neutral[0], fontWeight: '600' },
   priceRow: { flexDirection: 'row', gap: spacing[2] },
   priceInput: { flex: 1 },
   noteInput: { minHeight: 72, textAlignVertical: 'top', paddingTop: spacing[3] },
   submissionStatus: { ...type.bodySmall, color: neutral[500], marginTop: spacing[2] },
-})
+}))

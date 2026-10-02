@@ -15,6 +15,9 @@ export const styles = StyleSheet.create(theme => ({
   nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[2] },
   name: { flex: 1 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: theme.spacing[2] },
+  openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.status.success },
+  openLabel: { flexShrink: 1 },
 
   // --- grid ---------------------------------------------------------------
   gridCard: { overflow: 'hidden' },

@@ -26,6 +26,7 @@ import type { MessageKey } from '@/shared/i18n/types'
 import { styles } from './account.style'
 import { DateOfBirthCard } from './date-of-birth.view'
 import { ProfileDefaultsCard } from './profile-defaults.view'
+import { ThemeAccentCard } from './theme-accent.view'
 
 const MAX_NAME = 50
 
@@ -269,6 +270,9 @@ export default function AccountScreen() {
             style={styles.saveBtn}
           />
         </GlassCard>
+
+        {/* #293 §6: under the display name, above the data section. */}
+        <ThemeAccentCard />
 
         {/* Keyed by account: a different sign-in never inherits the last one's typing. */}
         {me.data ? <DateOfBirthCard key={me.data.id} profile={me.data} /> : null}

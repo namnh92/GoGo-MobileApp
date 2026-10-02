@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, night, onDark, radius, spacing, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   root: {
     flex: 1,
     backgroundColor: neutral[900],
@@ -31,11 +31,11 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: spacing[5],
   },
-  progressFill: { height: '100%', backgroundColor: brand.coral, borderRadius: 2 },
+  progressFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 2 },
 
   matched: { ...type.display, color: neutral[0], textAlign: 'center' },
   matchedBody: { ...type.body, color: onDark.soft, marginTop: spacing[2], textAlign: 'center' },
-  backLink: { ...type.label, color: brand.coral, textDecorationLine: 'underline' },
+  backLink: { ...type.label, color: theme.accent.primary, textDecorationLine: 'underline' },
   retryBtn: {
     minHeight: 48,
     paddingHorizontal: spacing[6],
@@ -46,4 +46,4 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryLabel: { ...type.body, fontWeight: '700', color: neutral[0] },
-})
+}))

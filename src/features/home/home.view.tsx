@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -35,16 +36,16 @@ import {
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './home.style'
 
-const { brand } = colors
 
 const PRESET_KEYS: QuickPreset[] = ['tonight', 'weekend', 'special']
 const RAIL_SIZE = 5
 
 export default function HomeScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -180,7 +181,7 @@ export default function HomeScreen() {
         {/* Brand surface rather than a stock photo of somewhere GoGo has no
             relationship with. */}
         <View style={styles.hero}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: brand.coralDeep }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.accent.primary }]} />
           <View style={styles.heroScrim} />
           <View style={styles.heroContent}>
             <View style={styles.heroBadge}>

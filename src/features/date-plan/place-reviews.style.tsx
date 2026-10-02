@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
 
 import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   section: { marginTop: spacing[6] },
   title: { ...type.title2, color: neutral[900] },
   source: { ...type.caption, color: neutral[500], marginTop: spacing[1] },
@@ -34,7 +34,7 @@ export const styles = StyleSheet.create({
     borderColor: neutral[300],
     backgroundColor: neutral[0],
   },
-  helpfulBtnActive: { borderColor: brand.coral },
+  helpfulBtnActive: { borderColor: theme.accent.primary },
   helpfulPressed: { opacity: 0.85 },
   helpfulLabel: { ...type.label, color: neutral[700] },
   helpfulLabelActive: { color: neutral[900] },
@@ -42,4 +42,4 @@ export const styles = StyleSheet.create({
   empty: { ...type.bodySmall, color: neutral[500], marginTop: spacing[3] },
   notice: { marginTop: spacing[3], gap: spacing[2], alignItems: 'flex-start' },
   noticeLabel: { ...type.bodySmall, color: neutral[500] },
-})
+}))

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { track } from '@/shared/analytics'
@@ -31,6 +32,7 @@ const options: {
 ]
 
 export default function CreateTypeScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -114,7 +116,7 @@ export default function CreateTypeScreen() {
                 {/* Selection is not colour alone. */}
                 {active ? (
                   <View style={styles.check}>
-                    <IconCheck color={colors.brand.coral} size={14} />
+                    <IconCheck color={theme.accent.primary} size={14} />
                   </View>
                 ) : null}
               </Pressable>

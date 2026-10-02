@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   interpolate,
@@ -67,6 +68,7 @@ const ACTION_VOTES: Record<'pass' | 'yes' | 'star', VoteValue> = {
 type Action = keyof typeof ACTION_VOTES
 
 export default function SwipeScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -414,7 +416,7 @@ export default function SwipeScreen() {
                 <Text style={styles.overlayLabel}>{t('swipe.like')}</Text>
               </Animated.View>
               <Animated.View
-                style={[styles.overlay, { right: 20, backgroundColor: brand.coral }, nopeStyle]}
+                style={[styles.overlay, { right: 20, backgroundColor: theme.status.danger }, nopeStyle]}
                 pointerEvents="none"
               >
                 <Text style={styles.overlayLabel}>{t('swipe.pass')}</Text>
@@ -501,7 +503,7 @@ export default function SwipeScreen() {
               hitSlop={hitSlop}
               style={({ pressed }) => [
                 styles.actionBtn,
-                { backgroundColor: brand.coral },
+                { backgroundColor: theme.accent.primary },
                 pressed && { transform: [{ scale: 0.94 }] },
               ]}
             >

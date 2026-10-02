@@ -2,6 +2,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -50,9 +51,10 @@ import { styles } from './date-plan.style'
 import { planStart, planWhen } from './plan-title'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
-const { brand, neutral } = colors
+const { neutral } = colors
 
 export default function DatePlanScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -422,7 +424,7 @@ export default function DatePlanScreen() {
                               style={[
                                 styles.lockBtn,
                                 stop.isLocked
-                                  ? { backgroundColor: brand.coralSoft }
+                                  ? { backgroundColor: theme.accent.soft }
                                   : { backgroundColor: neutral[100] },
                               ]}
                             >
@@ -430,7 +432,7 @@ export default function DatePlanScreen() {
                               <Text
                                 style={[
                                   styles.lockBtnLabel,
-                                  { color: stop.isLocked ? brand.coral : neutral[500] },
+                                  { color: stop.isLocked ? theme.accent.primary : neutral[500] },
                                 ]}
                               >
                                 {t(stop.isLocked ? 'datePlan.locked' : 'datePlan.lockable')}

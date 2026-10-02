@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
 import {
   isApiError,
@@ -15,7 +16,7 @@ import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { AvatarCircle } from '@/shared/ui/primitives'
-import { colors, glyph, spacing } from '@/shared/ui/tokens'
+import { glyph, spacing } from '@/shared/ui/tokens'
 
 import { decisionScreen } from '@/shared/navigation/room-routing'
 
@@ -26,6 +27,7 @@ import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 const MESSAGE_INTERVAL_MS = 1400
 
 export default function MatchingScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
@@ -82,7 +84,7 @@ export default function MatchingScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.pair}>
-        <AvatarCircle label="G" size={64} background={colors.brand.coral} />
+        <AvatarCircle label="G" size={64} background={theme.accent.primary} />
         <Text style={styles.times}>×</Text>
         <AvatarCircle emoji="😊" size={64} />
       </View>
