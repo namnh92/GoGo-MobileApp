@@ -47,6 +47,9 @@ export type AnalyticsEvent =
   | 'room_route_gave_up'
   // #293 §6: which accent the user picked in "Màu chủ đề" (`{ accent }`).
   | 'theme_accent_changed'
+  // #291: the server refused a room stream (429). Facts only — whether it named
+  // a wait and how many streams this device still held; never a room or actor id.
+  | 'realtime_stream_rate_limited'
 
 export type AnalyticsProps = Record<string, string | number | boolean>
 

@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 
+import { track } from '../../analytics'
 import { currentAccessGrant } from '../client'
 import { EXPIRY_SKEW_MS, getSession, subscribeToSession, type Session } from '../session'
 import { env } from '@/shared/config/env'
@@ -894,6 +895,15 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           // on the usual two-second backoff is what earned the refusal, so wait
           // the time the server named — or a whole limit period when it named
           // none — and keep the room fed by polling meanwhile.
+          //
+          // Recorded because #291 deferred a client-side pool until a refusal is
+          // actually seen on a device. Facts only, never a room or actor id.
+          track('realtime_stream_rate_limited', {
+            retry_after_named: retryAfterMs !== undefined,
+            // Sockets this device still holds at the moment of refusal (this
+            // one is already gone): our share of the server's ceiling.
+            open_streams: [...streams.values()].filter(other => other.connection !== null).length,
+          })
           startFallback(stream)
           // Nothing is watching: the hand-off timer is about to dispose this
           // stream, and a retry scheduled now would open a socket for a screen

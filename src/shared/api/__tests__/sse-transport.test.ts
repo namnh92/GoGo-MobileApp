@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { track } from '../../analytics'
 import { queryKeys } from '../query-keys'
 import type { AppActivity } from '../realtime/app-activity'
 import { parseSseChunk, type SseConnectOptions } from '../realtime/sse-connection'
@@ -17,6 +18,8 @@ import {
   type RoomRealtimeStatus,
   type RoomRealtimeTransport,
 } from '../realtime/transport'
+
+vi.mock('../../analytics', () => ({ track: vi.fn() }))
 
 vi.mock('../realtime/app-activity', () => ({
   appActivity: { isActive: () => true, subscribe: () => () => undefined },
@@ -221,6 +224,8 @@ describe('parseSseChunk', () => {
 describe('sseTransport', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    // `restoreAllMocks` leaves a module mock's calls in place.
+    vi.mocked(track).mockClear()
   })
   afterEach(() => {
     resetSseTransportForTests()
@@ -651,6 +656,8 @@ describe('sseTransport', () => {
 describe('sseTransport × a screen routed by plan id', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    // `restoreAllMocks` leaves a module mock's calls in place.
+    vi.mocked(track).mockClear()
   })
   afterEach(() => {
     resetSseTransportForTests()
@@ -1250,6 +1257,11 @@ describe('sseTransport × a screen routed by plan id', () => {
     // The ceiling is the server's to enforce; the client's job is to stop
     // knocking and keep the room fed meanwhile.
     expect(h.fallback.live()).toHaveLength(1)
+    // #291: the refusal is recorded, so the pool question can be decided on data.
+    expect(track).toHaveBeenCalledWith('realtime_stream_rate_limited', {
+      retry_after_named: true,
+      open_streams: 0,
+    })
     await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
     expect(h.connector.opened).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(5_000)
@@ -1264,9 +1276,40 @@ describe('sseTransport × a screen routed by plan id', () => {
 
     h.connector.last().onClose({ status: 429 })
     expect(h.fallback.live()).toHaveLength(1)
+    expect(track).toHaveBeenCalledWith('realtime_stream_rate_limited', {
+      retry_after_named: false,
+      open_streams: 0,
+    })
     await vi.advanceTimersByTimeAsync(SSE_RECONNECT_MAX_MS)
     // A refusal with no Retry-After still means "not yet" for longer than an
     // ordinary dropped socket.
     expect(h.connector.opened).toHaveLength(1)
+  })
+
+  it('records how many streams this device still held when refused', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    h.transport.subscribe({ roomId: 'room-2', phase: 'plan', queryClient: h.client })
+    await flush()
+    const [first, second] = h.connector.opened
+    first!.onOpen()
+    second!.onOpen()
+
+    first!.onClose({ status: 429 })
+    // The refused socket is already gone; the other room's is still ours.
+    expect(track).toHaveBeenCalledWith('realtime_stream_rate_limited', {
+      retry_after_named: false,
+      open_streams: 1,
+    })
+  })
+
+  it('does not record an ordinary dropped socket as a refusal', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.connector.last().onClose({ status: null })
+    expect(track).not.toHaveBeenCalled()
   })
 })
