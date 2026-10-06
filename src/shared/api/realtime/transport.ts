@@ -6,7 +6,7 @@ import { EXPIRY_SKEW_MS, getSession, subscribeToSession, type Session } from '..
 import { env } from '@/shared/config/env'
 
 import { appActivity, type AppActivity } from './app-activity'
-import { eventQueryKeys, ROOM_PHASE_EVENTS, type RoomEventType, type RoomPhase } from './room-events'
+import { eventQueryKeys, isRoomEventType, ROOM_PHASE_EVENTS, type RoomEventType, type RoomPhase } from './room-events'
 import { xhrSseConnector, type SseConnection, type SseConnector } from './sse-connection'
 
 /**
@@ -840,6 +840,12 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
           refetchSubscribed(stream)
           return
         }
+
+        // Anything else that is not a room event — `event: error` above all,
+        // which Nest writes with a per-connection id after the headers are out
+        // and then closes — is no resume point and invalidates nothing. The
+        // close that follows drives the fallback and backoff (#330).
+        if (!isRoomEventType(event.type)) return
 
         // Nobody is watching — the hand-off window. Advancing the resume point
         // here would drop the event twice over: not delivered now, and not
