@@ -326,6 +326,43 @@ describe('sseTransport', () => {
     expect(h.connector.last().headers['last-event-id']).toBe('42')
   })
 
+  /**
+   * #330 — a handler that fails after the headers are out makes Nest write
+   * `event: error` with the per-connection counter as its id (`id: 1` on DEV
+   * ffa4579). Taking that as the resume point sent a cursor from no room on
+   * the next reconnect and earned a needless resync.
+   */
+  it('never takes a resume point from an error frame', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+
+    h.connector.last().onEvent(sse('plan.updated', { planId: 'p1' }, '42'))
+    h.connector.last().onEvent({ type: 'error', id: '1', data: '{"statusCode":403}' })
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+
+    expect(h.connector.last().headers['last-event-id']).toBe('42')
+  })
+
+  it('does not start a resume point from an error frame on a fresh stream', async () => {
+    const h = harness()
+    h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
+    await flush()
+    h.connector.last().onOpen()
+    h.keys()
+
+    h.connector.last().onEvent({ type: 'error', id: '1', data: '{}' })
+    expect(h.keys()).toEqual([])
+    h.connector.last().onClose({ status: null })
+    await vi.advanceTimersByTimeAsync(SSE_RECONNECT_BASE_MS)
+    await flush()
+
+    expect(h.connector.last().headers['last-event-id']).toBeUndefined()
+  })
+
   it('refetches everything the screens show when the server says the replay window was exceeded', async () => {
     const h = harness()
     h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })

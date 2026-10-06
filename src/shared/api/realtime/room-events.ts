@@ -8,18 +8,33 @@ import { queryKeys } from '../query-keys'
  * below is transitional, and everything above this file is already written
  * against events rather than against a timer.
  */
-export type RoomEventType =
-  | 'room.status_changed'
-  | 'participant.joined'
-  | 'participant.left'
-  | 'participant.selection_changed'
-  | 'matching.started'
-  | 'matching.completed'
-  | 'matching.failed'
-  | 'suggestions.generated'
-  | 'suggestions.updated'
-  | 'vote.changed'
-  | 'plan.updated'
+export const ROOM_EVENT_TYPES = [
+  'room.status_changed',
+  'participant.joined',
+  'participant.left',
+  'participant.selection_changed',
+  'matching.started',
+  'matching.completed',
+  'matching.failed',
+  'suggestions.generated',
+  'suggestions.updated',
+  'vote.changed',
+  'plan.updated',
+] as const
+
+export type RoomEventType = (typeof ROOM_EVENT_TYPES)[number]
+
+const ROOM_EVENT_TYPE_SET: ReadonlySet<string> = new Set(ROOM_EVENT_TYPES)
+
+/**
+ * Whether an SSE frame is a room event — the only kind that carries a room
+ * sequence. Everything else on the wire (`heartbeat`, `resync`, an `error`
+ * Nest writes after the headers went out) gets its `id` from a per-connection
+ * counter that means nothing in this room (#330).
+ */
+export function isRoomEventType(type: string): type is RoomEventType {
+  return ROOM_EVENT_TYPE_SET.has(type)
+}
 
 export interface RoomEvent {
   type: RoomEventType
