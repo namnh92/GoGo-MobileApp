@@ -381,7 +381,7 @@ export default function ActiveDateScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Card padded={false} style={styles.card}>
-          <PlacePhoto placeId={stop.placeId} name={placeName} uri={null} style={styles.cardImage} />
+          <PlacePhoto placeId={stop.placeId} name={placeName} uri={stopPlace?.photoUrl ?? null} style={styles.cardImage} />
           <View style={styles.cardBody}>
             <View style={styles.cardHeader}>
               <Chip label={t('activeDate.ongoing')} icon="📍" variant="positive" />

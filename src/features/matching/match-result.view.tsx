@@ -202,6 +202,7 @@ export default function MatchResultScreen() {
   const winnerTally = tally.get(winner.placeId)
 
   const winnerPlace = winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : null
+  const winnerPhoto = winnerPlace?.photoUrl ?? null
   const winnerOpen = openStateFromHours(winnerDetail.data?.hours)
   const winnerPrice = winnerPlace ? placePriceParts(winnerPlace) : null
   const winnerFacts: { key: string; label: string; icon?: string; variant: 'default' | 'positive' | 'warning' }[] = []
@@ -242,7 +243,7 @@ export default function MatchResultScreen() {
       {noticeSlot(true)}
       <ScrollView contentContainerStyle={{ paddingTop: spacing[3], paddingBottom: spacing[8] }}>
         <View style={styles.hero}>
-          <PlacePhoto placeId={winner.placeId} name={winner.name} uri={null} style={StyleSheet.absoluteFill} />
+          <PlacePhoto placeId={winner.placeId} name={winner.name} uri={winnerPhoto} style={StyleSheet.absoluteFill} />
           <View style={styles.heroScrim} />
           <View style={styles.heroBadge}>
             <Text variant="label" color="text.inverse">

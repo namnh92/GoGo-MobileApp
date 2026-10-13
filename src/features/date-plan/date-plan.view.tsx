@@ -395,7 +395,7 @@ export default function DatePlanScreen() {
                       stop.status === 'completed' && styles.stopCardCompleted,
                     ]}
                   >
-                    <PlacePhoto placeId={stop.placeId} name={name} uri={null} style={styles.stopImage} />
+                    <PlacePhoto placeId={stop.placeId} name={name} uri={place?.photoUrl ?? null} style={styles.stopImage} />
                     <View style={{ padding: spacing[4] }}>
                       <View style={styles.stopHeader}>
                         {/* A room with no `startAt` gets no scheduled times, so
