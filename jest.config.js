@@ -6,8 +6,14 @@
  */
 module.exports = {
   preset: 'jest-expo',
-  testMatch: ['<rootDir>/src/**/*.spec.tsx'],
-  moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+  // `.spec.ts` too: pure-logic jest suites (GoGo-MobileApp#336). vitest owns
+  // `*.test.ts`, so the two runners never pick the same file.
+  testMatch: ['<rootDir>/src/**/*.spec.tsx', '<rootDir>/src/**/*.spec.ts'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    // No native runtime under jest, and no spec may ever send an event.
+    '^@sentry/react-native$': '<rootDir>/__mocks__/@sentry/react-native.ts',
+  },
   // Unistyles has no native runtime under jest. Its mocks stub the Nitro
   // module and resolve every `StyleSheet.create(theme => …)` against the first
   // registered theme, so the config must load right after them — and before

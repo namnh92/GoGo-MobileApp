@@ -13,12 +13,18 @@ const envSchema = z.object({
   // against that host's association files, so a missing value has to fail the
   // way a missing API URL does rather than silently pick one.
   EXPO_PUBLIC_WEB_BASE_URL: z.url(),
+  // Crash reporting (GoGo-MobileApp#336, GoGo-Infra ADR-0011). Config, not a
+  // secret: it ships in the binary. `''` or the literal `off` = no reporting;
+  // anything else must be a DSN, which `initSentry` checks. `app.config.ts`
+  // refuses a stag/prod build that states neither.
+  EXPO_PUBLIC_SENTRY_DSN: z.string().default(''),
 })
 
 const parsed = envSchema.safeParse({
   EXPO_PUBLIC_ENV: process.env.EXPO_PUBLIC_ENV,
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
   EXPO_PUBLIC_WEB_BASE_URL: process.env.EXPO_PUBLIC_WEB_BASE_URL,
+  EXPO_PUBLIC_SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN,
 })
 
 if (!parsed.success) {
@@ -29,4 +35,5 @@ export const env = {
   name: parsed.data.EXPO_PUBLIC_ENV,
   apiUrl: parsed.data.EXPO_PUBLIC_API_URL,
   webBaseUrl: parsed.data.EXPO_PUBLIC_WEB_BASE_URL,
+  sentryDsn: parsed.data.EXPO_PUBLIC_SENTRY_DSN,
 } as const

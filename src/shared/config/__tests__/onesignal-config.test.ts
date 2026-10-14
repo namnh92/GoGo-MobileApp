@@ -14,6 +14,8 @@ function configure(environment: string) {
   vi.stubEnv('TENJIN_ANDROID_SDK_KEY', 'test-android')
   vi.stubEnv('ONESIGNAL_REST_API_KEY', 'server-secret-must-not-ship')
   vi.stubEnv('ONESIGNAL_IDENTITY_VERIFICATION_KEY', 'signing-secret-must-not-ship')
+  // stag/prod must state a crash-reporting decision (GoGo-MobileApp#336).
+  vi.stubEnv('EXPO_PUBLIC_SENTRY_DSN', environment === 'dev' ? '' : 'off')
 }
 
 describe('provider build contract', () => {

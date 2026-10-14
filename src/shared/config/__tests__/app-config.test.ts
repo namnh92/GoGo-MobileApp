@@ -6,8 +6,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
  * copy of its logic. The identifier a build ships with is the one thing here
  * that cannot be fixed after an upload.
  */
-async function loadConfig(flavor: string | undefined) {
+/**
+ * `sentryDsn` defaults to what CI passes: nothing on dev, `off` on stag/prod
+ * (GoGo-MobileApp#336). Set on every call, so no case inherits the previous
+ * case's value.
+ */
+async function loadConfig(flavor: string | undefined, sentryDsn?: string) {
   vi.resetModules()
+  const dsn = sentryDsn ?? (flavor === 'stag' || flavor === 'prod' ? 'off' : undefined)
+  if (dsn === undefined) delete process.env.EXPO_PUBLIC_SENTRY_DSN
+  else process.env.EXPO_PUBLIC_SENTRY_DSN = dsn
   if (flavor === undefined) delete process.env.EXPO_PUBLIC_ENV
   else process.env.EXPO_PUBLIC_ENV = flavor
   process.env.GOOGLE_MAPS_IOS_API_KEY ??= 'ios-key-under-test'
@@ -24,6 +32,7 @@ async function loadConfig(flavor: string | undefined) {
 
 afterEach(() => {
   process.env.EXPO_PUBLIC_ENV = 'dev'
+  delete process.env.EXPO_PUBLIC_SENTRY_DSN
 })
 
 describe('app identity', () => {
@@ -134,5 +143,40 @@ describe('iOS development team (GoGo-MobileApp#166)', () => {
   it('rejects a value that is not a 10-character Apple team id', async () => {
     process.env.APPLE_TEAM_ID = 'undefined'
     await expect(loadConfig('dev')).rejects.toThrow(/APPLE_TEAM_ID/)
+  })
+})
+
+describe('crash reporting decision (GoGo-MobileApp#336, ADR-0011 D-3)', () => {
+  const DSN = 'https://0123456789abcdef0123456789abcdef@o0.ingest.us.sentry.io/4512252504178688'
+
+  it.each(['stag', 'prod'])('%s refuses a build that states no decision', async flavor => {
+    await expect(loadConfig(flavor, '')).rejects.toThrow(/EXPO_PUBLIC_SENTRY_DSN is required for/)
+  })
+
+  it.each(['stag', 'prod'])('%s accepts the literal off or a DSN', async flavor => {
+    await expect(loadConfig(flavor, 'off')).resolves.toBeDefined()
+    await expect(loadConfig(flavor, DSN)).resolves.toBeDefined()
+  })
+
+  it.each([
+    ['prod', 'OFF'],
+    ['prod', 'Off'],
+    ['stag', 'false'],
+    ['stag', '0'],
+    ['prod', 'not-a-dsn'],
+    ['dev', 'OFF'],
+  ])('%s refuses %s — one spelling of off', async (flavor, value) => {
+    await expect(loadConfig(flavor, value)).rejects.toThrow(/EXPO_PUBLIC_SENTRY_DSN/)
+  })
+
+  it('dev may be empty', async () => {
+    await expect(loadConfig('dev', '')).resolves.toBeDefined()
+    await expect(loadConfig('dev')).resolves.toBeDefined()
+  })
+
+  it('never puts the DSN into the native config', async () => {
+    const config = await loadConfig('prod', DSN)
+    expect(JSON.stringify(config)).not.toContain('0123456789abcdef0123456789abcdef')
+    expect(JSON.stringify(config.plugins)).not.toContain('@sentry')
   })
 })
