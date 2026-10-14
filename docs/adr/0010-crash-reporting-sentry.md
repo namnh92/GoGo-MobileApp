@@ -19,7 +19,10 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   không có DSN hoặc `off`; `OFF`, `false`, `0` là lỗi gõ, không phải quyết định.
 - **Environment:** `dev | staging | prod` theo flavour (`stag → staging`), không lấy từ `__DEV__`. `release`/`dist`
   do SDK đọc từ native (`max.gogo.<flavour>@<version>+<build>`, kiểm trên envelope đầu tiên của lượt relay).
-- **User:** chỉ `{ id }` của user đã đăng nhập; khách và đăng xuất → `null`.
+- **User:** chỉ `{ id }` của user đã đăng nhập; khách và đăng xuất → `null`. Ngoại lệ đã chấp nhận (owner
+  2026-10-14): crash native khi chưa có user mang `user.id` = installation id ngẫu nhiên do SDK native tự gắn (đo được
+  trên Android, sentry-android 8.60.0); `beforeSend` không chạy trên crash native và SDK không có tuỳ chọn tắt. Event
+  JS vẫn là `{ id }` hoặc không có `user`.
 - **Redaction:** chạy mọi dòng của oracle `redaction-cases.v1.json`, vendored nguyên văn tại
   `src/shared/observability/__fixtures__/`:
 
