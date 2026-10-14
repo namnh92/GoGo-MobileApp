@@ -31,6 +31,10 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
 - **Native:** không thêm Expo config plugin, không đổi Metro. SDK native tự link qua autolinking. `beforeSend` của JS
   không chạy trên crash native, nên breadcrumb mạng native của iOS (URL đầy đủ) bị tắt bằng
   `enableNetworkBreadcrumbs: false`; breadcrumb native gộp vào event JS đi qua cùng allowlist trong `beforeSend`.
+  SDK chép global/isolation scope sang native ngay khi ghi, và báo cáo crash/watchdog native dựng từ bản chép đó. Vì vậy
+  `sentry.ts` bọc `setUser`, `setTag(s)`, `setExtra(s)`, `setContext`, `setAttribute(s)` để giá trị đã được rebuild và
+  redact trước khi SDK chép. Lượt relay trên iPhone bắt được một báo cáo watchdog chứa giá trị thô trước khi có lớp bọc này.
+- **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 
 ## Hệ quả
 
@@ -38,5 +42,8 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   native chỉ có symbol hệ thống. Một crash native ở pha 1 đếm được và gắn được với release, **không đọc được**. Bản dev
   client (Metro) đọc được. Upload là issue riêng ở pha 2.
 - Thêm native module → mọi dev client đang cài trên máy test phải build lại.
+- **Dev client Android:** expo-dev-launcher bắt exception native trước Sentry, nên crash native chỉ đo được trên bản
+  release. iOS tự gửi báo cáo `WatchdogTermination` khi app bị kết thúc từ ngoài (kể cả `devicectl`); các báo cáo này
+  cũng đi qua lớp bọc scope ở trên.
 - **Kill switch:** tắt client key của `gogo-mobile` trên Sentry để ngừng lưu; build lại với `off` để ngừng gửi.
 - **Rollback:** revert PR này; bản đã cài vẫn gửi tới khi build lại với `off` hoặc tắt client key.
