@@ -9,8 +9,14 @@ import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
  * ADR-0011, `docs/adr/0010-crash-reporting-sentry.md`). `sentry-usage.spec.ts`
  * fails when anything else imports it.
  *
- * Scope is errors and native crashes only (ADR-0011 D-1): no tracing, no
- * replay, no screenshots, no sessions, `sendDefaultPii: false`.
+ * Scope is errors, native crashes and release-health sessions (ADR-0011 D-1,
+ * GoGo-Infra ADR-0012a D-2): no tracing, no replay, no screenshots,
+ * `sendDefaultPii: false`. Sessions are produced by the native SDKs and never
+ * pass `beforeSend`; their payload is fixed by the SDK (`sid`, `did`, status,
+ * counters, `seq`, `attrs { release, environment }`). Measured on both
+ * platforms (ADR-0012a D-2, relay of PR #339): `did` is the native
+ * installation id in every state, signed in included — the app user id set by
+ * `setSentryUser` never reaches a session.
  *
  * Structural limits — nothing to pattern-match, so nothing to miss (D-9):
  * - `event.user` is rebuilt as `{ id }` or removed;
@@ -815,7 +821,8 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
     dsn,
     environment: options.environment,
     sendDefaultPii: false,
-    enableAutoSessionTracking: false,
+    // Release health (ADR-0012a D-2): the denominator of the crash-free SLO.
+    enableAutoSessionTracking: true,
     enableAutoPerformanceTracing: false,
     attachScreenshot: false,
     attachViewHierarchy: false,

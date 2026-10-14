@@ -8,7 +8,9 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
 
 - **Thư viện:** `@sentry/react-native` **8.30.0**, ghim đúng phiên bản. Project Sentry `gogo-mobile` (org `gogo-vn`).
 - **Phạm vi:** lỗi JS chưa bắt, promise bị reject không xử lý, crash native iOS/Android, lỗi render qua root error
-  boundary. Không tracing, không replay, không screenshot/view hierarchy, không session, `sendDefaultPii: false`.
+  boundary. Không tracing, không replay, không screenshot/view hierarchy, `sendDefaultPii: false`. Session (release
+  health) bật theo GoGo-Infra ADR-0012a D-2: `enableAutoSessionTracking: true`, khoảng 30 s mặc định; session do SDK
+  native gửi, không qua `beforeSend`, nội dung kiểm bằng lượt relay phần session.
   Không ghi `contract` trên Mobile ở pha 1: app không có tầng Zod trung tâm cho response.
 - **Không gửi:** `ApiError`, `NetworkError`, `TimeoutError`, `AbortError` — lọc theo `error.name` (không đổi khi
   minify), không bao giờ theo nội dung message.

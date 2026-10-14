@@ -211,7 +211,7 @@ describe('init', () => {
     expect(options).toMatchObject({
       environment: 'staging',
       sendDefaultPii: false,
-      enableAutoSessionTracking: false,
+      enableAutoSessionTracking: true,
       enableAutoPerformanceTracing: false,
       attachScreenshot: false,
       attachViewHierarchy: false,
@@ -230,6 +230,15 @@ describe('init', () => {
       'replaysOnErrorSampleRate', 'enableCaptureFailedRequests', 'integrations', 'release', 'dist']) {
       expect(options).not.toHaveProperty(key)
     }
+  })
+
+  it('turns release-health sessions on without sending default PII (ADR-0012a D-2)', () => {
+    initSentry({ dsn: 'https://k@o0.ingest.us.sentry.io/1', environment: 'dev' })
+    expect(sdk.init).toHaveBeenCalledTimes(1)
+    const options = sdk.init.mock.calls[0][0]
+    expect(options.enableAutoSessionTracking).toBe(true)
+    expect(options.sendDefaultPii).toBe(false)
+    expect(options).not.toHaveProperty('sessionTrackingIntervalMillis')
   })
 
   it('accepts the http DSN of the local acceptance relay', () => {
