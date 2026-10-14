@@ -341,7 +341,7 @@ describe('beyond the oracle (shared-shape regressions)', () => {
  * copy must already be redacted.
  */
 describe('native scope copy', () => {
-  const SECRET = 'SENTINEL_TOKEN_000000000'
+  const SECRET = 'SCOPE_SECRET_TOKEN_000000000'
 
   function init() {
     initSentry({ dsn: 'https://k@o0.ingest.us.sentry.io/1', environment: 'dev' })
