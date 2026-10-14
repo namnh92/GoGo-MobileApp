@@ -164,6 +164,9 @@ describe('crash reporting decision (GoGo-MobileApp#336, ADR-0011 D-3)', () => {
     ['stag', 'false'],
     ['stag', '0'],
     ['prod', 'not-a-dsn'],
+    ['prod', 'https://k@o0.ingest.us.sentry.io:99999/1'],
+    ['prod', 'https://k@o0.ingest.us.sentry.io/abc'],
+    ['prod', 'ftp://k@o0.ingest.us.sentry.io/1'],
     ['dev', 'OFF'],
   ])('%s refuses %s — one spelling of off', async (flavor, value) => {
     await expect(loadConfig(flavor, value)).rejects.toThrow(/EXPO_PUBLIC_SENTRY_DSN/)

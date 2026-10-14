@@ -106,9 +106,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * `name=value` in a URL, a bare query string or free text. The value stops at
- * the next separator, whitespace or quote, so text after a URL survives.
+ * the next separator (`&`, `;`, `#`), whitespace or quote, so text after a URL
+ * survives and `page=2;password=x` is two parameters, not one.
  */
-const QUERY_PARAMETER = /(^|[?&;\s])([A-Za-z_][\w.-]*)=([^&#\s"'<>]*)/g
+const QUERY_PARAMETER = /(^|[?&;\s])([A-Za-z_][\w.-]*)=([^&#;\s"'<>]*)/g
 /** `"name": 10.7` or `"name":"abc"` inside JSON text. */
 const JSON_MEMBER = /"([A-Za-z_]\w*)"(\s*:\s*)(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|"(?:[^"\\]|\\.)*")/g
 /** A JSON key and its colon; the value is measured by {@link jsonValueEnd}. */
@@ -170,23 +171,61 @@ function jsonValueEnd(text: string, start: number): number {
     }
     return text.length
   }
-  const number = /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(text.slice(start, start + 64))
-  return number ? start + number[0].length : start
+  return numberEnd(text, start)
+}
+
+function isDigit(ch: string | undefined): boolean {
+  return ch !== undefined && ch >= '0' && ch <= '9'
+}
+
+/** End of a JSON number at `start`, scanned whole — a long one is never cut and its tail left behind. */
+function numberEnd(text: string, start: number): number {
+  let i = start
+  if (text[i] === '-') i++
+  const digits = i
+  while (isDigit(text[i])) i++
+  if (i === digits) return start
+  if (text[i] === '.' && isDigit(text[i + 1])) {
+    i++
+    while (isDigit(text[i])) i++
+  }
+  if (text[i] === 'e' || text[i] === 'E') {
+    let j = i + 1
+    if (text[j] === '+' || text[j] === '-') j++
+    if (isDigit(text[j])) {
+      while (isDigit(text[j])) j++
+      i = j
+    }
+  }
+  return i
 }
 
 // --- stage 2: credential path segments -----------------------------------------
 
-/** `/r/<code>`, `%2Fl%2F<slug>`, `invite/`, `share-links/`, `room(s)/` — the keyword is a whole segment. */
-const CREDENTIAL_SEGMENT = /(\/|%2F)(share-links|invite|rooms|room|r|l)(\/|%2F)/gi
+/** Segments whose *next* segment is a credential (`room`/`rooms`: see {@link isRoomCode}). */
+const CREDENTIAL_KEYWORDS: ReadonlySet<string> = new Set(['r', 'l', 'invite', 'share-links', 'room', 'rooms'])
 const ROOM_SEGMENT = /^[A-Za-z0-9_-]{6,64}$/
+
+/** Length of the path separator at `i`: `/` → 1, `%2F` (any case) → 3, else 0. */
+function separatorAt(text: string, i: number): number {
+  if (text[i] === '/') return 1
+  return text[i] === '%' && text[i + 1] === '2' && (text[i + 2] === 'F' || text[i + 2] === 'f') ? 3 : 0
+}
 
 function isSegmentStop(text: string, i: number): boolean {
   const ch = text[i]
-  if (ch === '/' || ch === '?' || ch === '#' || ch === '&' || /\s/.test(ch ?? '')) return true
-  return ch === '%' && text[i + 1] === '2' && (text[i + 2] === 'F' || text[i + 2] === 'f')
+  return ch === '?' || ch === '#' || ch === '&' || ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' ||
+    separatorAt(text, i) > 0
+}
+
+function segmentEnd(text: string, from: number): number {
+  let i = from
+  while (i < text.length && !isSegmentStop(text, i)) i++
+  return i
 }
 
 function percentDecode(raw: string): string {
+  if (!raw.includes('%')) return raw
   try {
     return decodeURIComponent(raw)
   } catch {
@@ -199,30 +238,44 @@ function isRoomCode(segment: string): boolean {
 }
 
 /**
- * A room segment is a code only when it looks like one and is not a uuid —
- * `/v1/rooms/<uuid>` is an id, not a credential (C-21). The others are always
- * credentials. The room rule sees the raw segment and its percent-decoded
- * form, and a match in either redacts the raw span (C-2c).
+ * One pass over the path segments. A segment equal to a keyword — compared on
+ * its percent-decoded form, so `inv%69te` is `invite` — makes the next segment
+ * a candidate. `r | l | invite | share-links` candidates are always
+ * credentials; a `room | rooms` candidate only when it looks like a code and
+ * is not a uuid (`/v1/rooms/<uuid>` is an id, C-21), judged on the raw segment
+ * and its decoded form. Either way the raw span is what gets redacted (C-2c).
  */
 function redactSegments(text: string): string {
   let out = ''
   let last = 0
-  CREDENTIAL_SEGMENT.lastIndex = 0
-  for (let match = CREDENTIAL_SEGMENT.exec(text); match; match = CREDENTIAL_SEGMENT.exec(text)) {
-    const start = match.index + match[0].length
-    let end = start
-    while (end < text.length && !isSegmentStop(text, end)) end++
-    // The separator after the keyword may open the next match (`/r//r/x`).
-    CREDENTIAL_SEGMENT.lastIndex = end > start ? end : start - match[3]!.length
-    if (end === start) continue
-    const raw = text.slice(start, end)
-    const keyword = match[2]!.toLowerCase()
-    const credential = keyword === 'room' || keyword === 'rooms'
-      ? isRoomCode(raw) || isRoomCode(percentDecode(raw))
-      : true
-    if (!credential) continue
-    out += `${text.slice(last, start)}${REDACTED}`
-    last = end
+  let i = 0
+  while (i < text.length) {
+    const sep = separatorAt(text, i)
+    if (sep === 0) {
+      i++
+      continue
+    }
+    const keywordStart = i + sep
+    const keywordEnd = segmentEnd(text, keywordStart)
+    const nextSep = separatorAt(text, keywordEnd)
+    if (keywordEnd > keywordStart && nextSep > 0) {
+      const keyword = percentDecode(text.slice(keywordStart, keywordEnd)).toLowerCase()
+      if (CREDENTIAL_KEYWORDS.has(keyword)) {
+        const start = keywordEnd + nextSep
+        const end = segmentEnd(text, start)
+        const raw = text.slice(start, end)
+        const credential = end > start &&
+          (keyword === 'room' || keyword === 'rooms' ? isRoomCode(raw) || isRoomCode(percentDecode(raw)) : true)
+        if (credential) {
+          out += `${text.slice(last, start)}${REDACTED}`
+          last = end
+          i = end
+          continue
+        }
+      }
+    }
+    // The separator that ends this segment starts the next one (`/r//r/x`).
+    i = keywordEnd > keywordStart ? keywordEnd : keywordStart
   }
   return out + text.slice(last)
 }
@@ -238,40 +291,69 @@ const MAPS_DATA_POSITION = /!3d-?\d+(?:\.\d+)?!4d-?\d+(?:\.\d+)?/g
  * `@` (`%40`), which ends in a digit.
  */
 const COORDINATE_PAIR = /(^|%40|[^\w.])-?\d{1,3}\.\d{3,}\s*(?:,|%2C)\s*-?\d{1,3}\.\d{3,}(?![\w.])/gi
-/** WKT/EWKT head up to its `(`; bounded quantifiers only, the body is measured by {@link balancedEnd}. */
-const WKT_HEAD = /\b(?:SRID=\d{1,10};[ \t]{0,8})?(?:MULTI)?(?:POINT|LINESTRING|POLYGON|GEOMETRYCOLLECTION)(?:[ \t]{0,8}(?:ZM|Z|M))?[ \t]{0,8}\(/gi
+/** A WKT geometry keyword; what follows (dimension, whitespace of any length, `(`) is scanned by hand. */
+const WKT_KEYWORD = /\b(?:MULTI)?(?:POINT|LINESTRING|POLYGON|GEOMETRYCOLLECTION)/gi
+const SRID_PREFIX = /SRID=\d{1,10};$/i
 
+function isSpace(ch: string | undefined): boolean {
+  return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === '\f' || ch === '\v'
+}
+
+function isWordChar(ch: string | undefined): boolean {
+  return ch !== undefined && /\w/.test(ch)
+}
+
+/** Index of the `(` that opens the geometry after `from`, or -1: whitespace, optional `Z`/`M`/`ZM`, whitespace. */
+function wktOpen(text: string, from: number): number {
+  let j = from
+  while (isSpace(text[j])) j++
+  const dim = text.slice(j, j + 2).toUpperCase()
+  if (dim === 'ZM' && !isWordChar(text[j + 2])) j += 2
+  else if ((dim[0] === 'Z' || dim[0] === 'M') && !isWordChar(text[j + 1])) j += 1
+  while (isSpace(text[j])) j++
+  return text[j] === '(' ? j : -1
+}
+
+/** Index just past the `)` that closes the `(` at `open`, across lines; unterminated → end of text. Linear. */
 function balancedEnd(text: string, open: number): number {
   let depth = 0
   for (let i = open; i < text.length; i++) {
     const ch = text[i]
-    if (ch === '\n') return -1
     if (ch === '(') depth++
     else if (ch === ')') {
       depth--
       if (depth === 0) return i + 1
     }
   }
-  return -1
+  return text.length
 }
 
-function lineEnd(text: string, from: number): number {
-  const newline = text.indexOf('\n', from)
-  return newline < 0 ? text.length : newline
-}
-
-/** The whole geometry, head included; one cut off before its `)` runs to the end of its line. */
+/**
+ * The whole geometry, `SRID=…;` prefix and keyword included, whatever the
+ * whitespace and line breaks inside it (`POINT(\n106.7 10.7)`). One cut off
+ * before its `)` runs to the end of the text. Each character is visited a
+ * bounded number of times: the scan resumes after whatever was consumed.
+ */
 function redactWkt(text: string): string {
   let out = ''
   let last = 0
-  WKT_HEAD.lastIndex = 0
-  for (let match = WKT_HEAD.exec(text); match; match = WKT_HEAD.exec(text)) {
-    const open = match.index + match[0].length - 1
+  WKT_KEYWORD.lastIndex = 0
+  for (let match = WKT_KEYWORD.exec(text); match; match = WKT_KEYWORD.exec(text)) {
+    const keywordEnd = match.index + match[0].length
+    const open = wktOpen(text, keywordEnd)
+    if (open < 0) {
+      WKT_KEYWORD.lastIndex = keywordEnd
+      continue
+    }
+    let start = match.index
+    let k = start
+    while (k > last && isSpace(text[k - 1])) k--
+    const prefix = SRID_PREFIX.exec(text.slice(Math.max(last, k - 17), k))
+    if (prefix) start = k - prefix[0].length
     const end = balancedEnd(text, open)
-    const stop = end < 0 ? lineEnd(text, open) : end
-    out += `${text.slice(last, match.index)}${REDACTED}`
-    last = stop
-    WKT_HEAD.lastIndex = Math.max(stop, match.index + 1)
+    out += `${text.slice(last, start)}${REDACTED}`
+    last = end
+    WKT_KEYWORD.lastIndex = end
   }
   return out + text.slice(last)
 }
@@ -395,9 +477,12 @@ export function redactDeep<T>(value: T): T {
 }
 
 function walk(value: unknown, path: string, ancestors: Set<object>, depth: number): unknown {
+  if (value === null || value === undefined) return value
+  // Before any leaf handling: below the limit, a primitive is as unread as an object.
+  if (depth >= MAX_DEPTH) return REDACTED
   if (typeof value === 'string') return redactText(value)
-  if (value === null || typeof value !== 'object') return value
-  if (depth >= MAX_DEPTH || ancestors.has(value)) return REDACTED
+  if (typeof value !== 'object') return value
+  if (ancestors.has(value)) return REDACTED
   ancestors.add(value)
   try {
     if (Array.isArray(value)) {
@@ -553,8 +638,19 @@ export function sentryEnvironment(flavor: 'dev' | 'stag' | 'prod'): SentryEnviro
   return flavor === 'stag' ? 'staging' : flavor
 }
 
-/** `https://<key>@<host>/<project>`; `http` is accepted for the local envelope relay of the acceptance run. */
-const DSN = /^https?:\/\/[^@/\s]+@[^/\s]+\/\d+$/
+/**
+ * `https://<key>@<host>[:port]/<project>`; `http` is accepted for the local
+ * envelope relay of the acceptance run. Checked by hand rather than with
+ * `URL`: React Native's `URL` does not implement the getters this would need.
+ */
+const DSN = /^https?:\/\/[A-Za-z0-9]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*(?::(\d{1,5}))?\/\d+$/
+
+export function isDsn(value: string): boolean {
+  const match = DSN.exec(value)
+  if (!match) return false
+  const port = match[1]
+  return port === undefined || (Number(port) >= 1 && Number(port) <= 65535)
+}
 
 let enabled = false
 
@@ -565,7 +661,7 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
     enabled = false
     return
   }
-  if (!DSN.test(dsn)) throw new Error('Invalid SENTRY DSN: expected https://<key>@<host>/<project> or "off"')
+  if (!isDsn(dsn)) throw new Error('Invalid SENTRY DSN: expected https://<key>@<host>/<project> or "off"')
   Sentry.init({
     dsn,
     environment: options.environment,
@@ -575,6 +671,9 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
     attachScreenshot: false,
     attachViewHierarchy: false,
     enableNativeCrashHandling: true,
+    // Errors only (D-1): client reports are a separate envelope of SDK
+    // statistics, sent even when every event is dropped.
+    sendClientReports: false,
     beforeSend,
     beforeBreadcrumb,
     // Read by the native iOS SDK from the options dictionary (not in the RN

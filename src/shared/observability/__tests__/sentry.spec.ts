@@ -261,3 +261,57 @@ describe('defence in depth (C-19)', () => {
     expect(beforeSend({ type: undefined } as ErrorEvent, { originalException: error })).toBeNull()
   })
 })
+
+/**
+ * Beyond the oracle: defects GoGo-CMS#239's review round 1 found in the same
+ * shape (F-01…F-09 there). Each row here failed on 01fc032.
+ */
+describe('beyond the oracle (shared-shape regressions)', () => {
+  it.each([
+    ['`;` ends a value', 'page=2;password=hunter', 'page=2;password=[redacted]'],
+    ['`;` ends a value in a URL', 'https://x/y?page=2;token=abc', 'https://x/y?page=2;token=[redacted]'],
+    ['percent-encoded keyword', '/inv%69te/ABCDEF', '/inv%69te/[redacted]'],
+    ['percent-encoded keyword, encoded separators', 'gogo://%72%2FYDi_00PB1z4FSQZjpLbgdw', 'gogo://%72%2F[redacted]'],
+    ['upper-case keyword', 'https://go.gogo.id.vn/R/abcdefg', 'https://go.gogo.id.vn/R/[redacted]'],
+    ['WKT across lines', 'POINT(\n106.7009 10.7769)', '[redacted]'],
+    ['WKT with long whitespace', `POINT${' '.repeat(20)}(106.7009 10.7769)`, '[redacted]'],
+    ['WKT dimension glued to keyword', 'POINTZ(106.7009 10.7769 3)', '[redacted]'],
+    ['WKT unterminated runs to end of text', 'bad POINT(106.7009\n10.7769', 'bad [redacted]'],
+    ['SRID prefix with spaces', 'SRID=4326; POINT(106.7009 10.7769) ok', '[redacted] ok'],
+    ['an English word is not WKT', 'points (two) and pointer(x)', 'points (two) and pointer(x)'],
+  ])('%s', (_name, input, expected) => {
+    expect(redactText(input)).toBe(expected)
+  })
+
+  it('redacts a long number under a container key whole', () => {
+    const digits = '1'.repeat(80)
+    expect(redactText(`{"point": ${digits}, "id": 1}`)).toBe('{"point": "[redacted]", "id": 1}')
+  })
+
+  it('redacts a primitive at exactly the depth limit', () => {
+    let value: unknown = 'abc'
+    for (let i = 0; i < 32; i++) value = { a: value }
+    let out = redactDeep(value) as Record<string, unknown>
+    for (let i = 0; i < 31; i++) out = out.a as Record<string, unknown>
+    expect(out.a).toBe('[redacted]')
+    let number: unknown = 10.7769
+    for (let i = 0; i < 32; i++) number = { a: number }
+    expect(JSON.stringify(redactDeep(number))).not.toContain('10.7769')
+  })
+
+  it('sends no client reports (errors only, D-1)', () => {
+    initSentry({ dsn: 'https://k@o0.ingest.us.sentry.io/1', environment: 'dev' })
+    expect(sdk.init.mock.calls[0][0].sendClientReports).toBe(false)
+  })
+
+  it.each([
+    'https://k@o0.ingest.us.sentry.io:99999/1',
+    'https://k@o0.ingest.us.sentry.io:0/1',
+    'https://k@o0.ingest.us.sentry.io/abc',
+    'https://k@/1',
+    'https://@o0.ingest.us.sentry.io/1',
+    'ftp://k@o0.ingest.us.sentry.io/1',
+  ])('refuses the malformed DSN %s', dsn => {
+    expect(() => initSentry({ dsn, environment: 'dev' })).toThrow('Invalid SENTRY DSN')
+  })
+})

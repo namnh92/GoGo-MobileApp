@@ -154,8 +154,11 @@ if (![tenjinIosSdkKey, tenjinAndroidSdkKey].every(key => key && /^[A-Za-z0-9_-]+
  * running app applies the same rule in `initSentry`.
  */
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() ?? ''
-const SENTRY_DSN = /^https?:\/\/[^@/\s]+@[^/\s]+\/\d+$/
-if (!(sentryDsn === 'off' || SENTRY_DSN.test(sentryDsn) || (flavor === 'dev' && sentryDsn === ''))) {
+const SENTRY_DSN = /^https?:\/\/[A-Za-z0-9]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*(?::(\d{1,5}))?\/\d+$/
+const sentryDsnMatch = SENTRY_DSN.exec(sentryDsn)
+const isSentryDsn = sentryDsnMatch !== null &&
+  (sentryDsnMatch[1] === undefined || (Number(sentryDsnMatch[1]) >= 1 && Number(sentryDsnMatch[1]) <= 65535))
+if (!(sentryDsn === 'off' || isSentryDsn || (flavor === 'dev' && sentryDsn === ''))) {
   throw new Error(
     flavor === 'dev'
       ? 'EXPO_PUBLIC_SENTRY_DSN must be empty, "off" or a DSN (https://<key>@<host>/<project>)'
