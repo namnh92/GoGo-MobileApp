@@ -17,7 +17,7 @@ const BOUNDARY = 'src/shared/observability/sentry.ts'
 const ALLOWED_CALLS: RegExp[] = [
   /Sentry\.init\(\{\n\s+dsn,\n\s+environment: options\.environment,\n\s+sendDefaultPii: false,/,
   /Sentry\.captureException\(error, \{ tags: \{ kind: context\.kind \} \}\)/,
-  /Sentry\.setUser\(id \? \{ id \} : null\)/,
+  /Sentry\.setUser\(appUserId \? \{ id: appUserId \} : null\)/,
   /Sentry\.wrap\(component as ComponentType<Record<string, unknown>>\)/,
   /guardScope\(Sentry\.getGlobalScope\(\)\)/,
   /guardScope\(Sentry\.getIsolationScope\(\)\)/,

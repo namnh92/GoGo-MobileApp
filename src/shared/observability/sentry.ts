@@ -72,8 +72,13 @@ const CREDENTIAL_NAMES: ReadonlySet<string> = new Set([
 ])
 
 const EXACT_COORDINATE_NAME = /^(?:lat|lng|lon|latitude|longitude)$/i
-/** `originLat`, `homeLongitude` — camelCase, so `flat` or `plateau` never match. */
-const CAMEL_COORDINATE_SUFFIX = /[a-z0-9](?:Lat|Lng|Lon|Latitude|Longitude)$/
+/**
+ * `originLat`, `homeLONGITUDE` — a capital `L` after a lowercase letter or
+ * digit marks the compound, so `flat` or `plateau` never match.
+ */
+const CAMEL_COORDINATE_SUFFIX = /[a-z0-9]L(?:at|ng|on|atitude|ongitude|AT|NG|ON|ATITUDE|ONGITUDE)$/
+/** `ORIGINLAT` — an all-capitals name has no case boundary left, so the suffix alone decides (`FLAT` is accepted loss). */
+const UPPER_COORDINATE_SUFFIX = /^[A-Z0-9]*(?:LAT|LNG|LON|LATITUDE|LONGITUDE)$/
 /** `origin_lat`, `Origin_Lat`. */
 const SNAKE_COORDINATE_SUFFIX = /_(?:lat|lng|lon|latitude|longitude)$/i
 /** Keys whose whole value is a position or a set of positions, whatever its shape (C-7). */
@@ -88,7 +93,12 @@ function isCredentialName(name: string): boolean {
 }
 
 function isCoordinateName(name: string): boolean {
-  return EXACT_COORDINATE_NAME.test(name) || CAMEL_COORDINATE_SUFFIX.test(name) || SNAKE_COORDINATE_SUFFIX.test(name)
+  return (
+    EXACT_COORDINATE_NAME.test(name) ||
+    CAMEL_COORDINATE_SUFFIX.test(name) ||
+    UPPER_COORDINATE_SUFFIX.test(name) ||
+    SNAKE_COORDINATE_SUFFIX.test(name)
+  )
 }
 
 function isContainerName(name: string): boolean {
@@ -105,33 +115,34 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // --- stage 1: named parameters and JSON keys ----------------------------------
 
 /**
- * `name=value` in a URL, a bare query string or free text. The value stops at
- * the next separator (`&`, `;`, `#`), whitespace or quote, so text after a URL
- * survives and `page=2;password=x` is two parameters, not one.
+ * `name=value` in a URL, a bare query string, a fragment or free text. The
+ * name starts at any character that cannot be part of a name (`?`, `&`, `#`,
+ * `(`, `,`, whitespace…), so `error(token=abc)` and `#token=abc` are found.
+ * The value stops at the next separator, whitespace, quote or closing bracket,
+ * so the text around it survives and `page=2;password=x` is two parameters.
  */
-const QUERY_PARAMETER = /(^|[?&;\s])([A-Za-z_][\w.-]*)=([^&#;\s"'<>]*)/g
-/** `"name": 10.7` or `"name":"abc"` inside JSON text. */
-const JSON_MEMBER = /"([A-Za-z_]\w*)"(\s*:\s*)(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|"(?:[^"\\]|\\.)*")/g
+const QUERY_PARAMETER = /(^|[^\w.-])([A-Za-z_][\w.-]*)=([^&#;\s"'<>()[\]{},]*)/g
 /** A JSON key and its colon; the value is measured by {@link jsonValueEnd}. */
 const JSON_KEY = /"([A-Za-z_]\w*)"\s*:\s*/g
 
 function redactNamed(text: string): string {
-  return redactJsonContainers(text)
-    .replace(QUERY_PARAMETER, (match, lead: string, name: string) =>
-      isRedactedName(name) ? `${lead}${name}=${REDACTED}` : match,
-    )
-    .replace(JSON_MEMBER, (match, name: string, colon: string) =>
-      isCredentialName(name) || isCoordinateName(name) ? `"${name}"${colon}"${REDACTED}"` : match,
-    )
+  return redactJsonKeys(text).replace(QUERY_PARAMETER, (match, lead: string, name: string) =>
+    isRedactedName(name) ? `${lead}${name}=${REDACTED}` : match,
+  )
 }
 
-/** `"bounds": {…}` / `"coordinates": [[…]]` in JSON text: the whole value. */
-function redactJsonContainers(text: string): string {
+/**
+ * `"token": "abc"`, `"lat": 10.7`, `"bounds": {…}`, `"token": ["abc"]` in JSON
+ * text: for every redacted name the whole value — string, number, array or
+ * object, measured by {@link jsonValueEnd} — becomes the quoted literal, so the
+ * text stays JSON. `null`, `true`, `false` stay.
+ */
+function redactJsonKeys(text: string): string {
   let out = ''
   let last = 0
   JSON_KEY.lastIndex = 0
   for (let match = JSON_KEY.exec(text); match; match = JSON_KEY.exec(text)) {
-    if (!isContainerName(match[1] ?? '')) continue
+    if (!isRedactedName(match[1] ?? '')) continue
     const start = match.index + match[0].length
     const end = jsonValueEnd(text, start)
     if (end <= start) continue
@@ -623,12 +634,18 @@ function isIgnoredEvent(event: ErrorEvent, hint?: EventHint): boolean {
   return typeof thrown?.type === 'string' && IGNORED_ERROR_NAMES.has(thrown.type)
 }
 
+/**
+ * The user the app itself declared through {@link setSentryUser} — never what
+ * the event arrives with: the SDK merges the native scope's user (the native
+ * SDK's installation id when nobody is signed in) into JS events.
+ */
+let appUserId: string | null = null
+
 export function beforeSend(event: ErrorEvent, hint?: EventHint): ErrorEvent | null {
   if (isIgnoredEvent(event, hint)) return null
-  const { user, request, breadcrumbs, ...rest } = event
+  const { user: _incoming, request, breadcrumbs, ...rest } = event
   const out = redactDeep(rest) as ErrorEvent
-  const rebuiltUser = rebuildUser(user)
-  if (rebuiltUser) out.user = rebuiltUser
+  if (appUserId) out.user = { id: appUserId }
   if (request) out.request = rebuildRequest(request)
   if (breadcrumbs) {
     out.breadcrumbs = breadcrumbs
@@ -728,7 +745,20 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
     // Read by the native iOS SDK from the options dictionary (not in the RN
     // types): its URLSession breadcrumbs carry full URLs into native crash
     // reports, which `beforeSend` never sees.
-    ...({ enableNetworkBreadcrumbs: false } as object),
+    //
+    // Native automatic breadcrumbs never pass `beforeBreadcrumb` and land in
+    // native crash reports as recorded (iOS `ui.lifecycle` carries screen
+    // titles). Off on both platforms; the JS breadcrumbs the SDK copies to
+    // native have already been rebuilt.
+    ...({
+      enableNetworkBreadcrumbs: false,
+      enableAutoBreadcrumbTracking: false,
+      enableNetworkEventBreadcrumbs: false,
+      enableActivityLifecycleBreadcrumbs: false,
+      enableAppLifecycleBreadcrumbs: false,
+      enableSystemEventBreadcrumbs: false,
+      enableAppComponentBreadcrumbs: false,
+    } as object),
   })
   guardScope(Sentry.getGlobalScope())
   guardScope(Sentry.getIsolationScope())
@@ -744,8 +774,9 @@ export function captureError(error: unknown, context: { kind: ErrorKind }): void
 
 /** A pseudonymous user id, or `null` for guests and signed-out (D-8). */
 export function setSentryUser(id: string | null): void {
+  appUserId = id || null
   if (!enabled) return
-  Sentry.setUser(id ? { id } : null)
+  Sentry.setUser(appUserId ? { id: appUserId } : null)
 }
 
 /** `Sentry.wrap` when enabled — its touch boundary records breadcrumbs — else the component itself. */
@@ -756,4 +787,5 @@ export function wrapRoot(component: ComponentType): ComponentType {
 /** Test seam: forget whether `initSentry` ran. */
 export function resetSentryForTests(): void {
   enabled = false
+  appUserId = null
 }

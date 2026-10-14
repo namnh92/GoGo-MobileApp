@@ -33,7 +33,10 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   Bỏ C-14.5/C-14.6 (chỉ CMS) — spec khẳng định đúng hai dòng đó. Redactor không dùng lookbehind và đã chạy qua Hermes.
 - **Native:** không thêm Expo config plugin, không đổi Metro. SDK native tự link qua autolinking. `beforeSend` của JS
   không chạy trên crash native, nên breadcrumb mạng native của iOS (URL đầy đủ) bị tắt bằng
-  `enableNetworkBreadcrumbs: false`; breadcrumb native gộp vào event JS đi qua cùng allowlist trong `beforeSend`.
+  `enableNetworkBreadcrumbs: false`, và mọi breadcrumb tự động native cũng tắt (iOS `enableAutoBreadcrumbTracking`,
+  Android `enable{ActivityLifecycle,AppLifecycle,SystemEvent,AppComponent,NetworkEvent}Breadcrumbs`) vì chúng không qua
+  hook JS nào — `ui.lifecycle` của iOS mang tiêu đề màn hình. Breadcrumb native gộp vào event JS đi qua cùng allowlist
+  trong `beforeSend`; `user` của event JS chỉ lấy từ `setSentryUser`, không tin `user` event mang theo.
   SDK chép global/isolation scope sang native ngay khi ghi, và báo cáo crash/watchdog native dựng từ bản chép đó. Vì vậy
   `sentry.ts` bọc `setUser`, `setTag(s)`, `setExtra(s)`, `setContext`, `setAttribute(s)` để giá trị đã được rebuild và
   redact trước khi SDK chép. Lượt relay trên iPhone bắt được một báo cáo watchdog chứa giá trị thô trước khi có lớp bọc này.

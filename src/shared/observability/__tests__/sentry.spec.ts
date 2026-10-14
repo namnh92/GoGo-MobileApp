@@ -96,6 +96,8 @@ describe('breadcrumb', () => {
 describe('user', () => {
   it.each(casesFor('user').map(c => [c.id, c] as const))('%s', (_id, row) => {
     expect(rebuildUser(row.input as Parameters<typeof rebuildUser>[0])).toEqual(row.expected)
+    // In the app the id comes from `setSentryUser`, never from the event (F-01).
+    setSentryUser((row.input as { id?: string } | null)?.id ?? null)
     const event = { type: undefined, ...(row.input ? { user: row.input } : {}) } as unknown as ErrorEvent
     const out = beforeSend(event, {})
     if (row.expected === null) expect(out).not.toHaveProperty('user')
@@ -215,6 +217,12 @@ describe('init', () => {
       attachViewHierarchy: false,
       enableNativeCrashHandling: true,
       enableNetworkBreadcrumbs: false,
+      enableAutoBreadcrumbTracking: false,
+      enableNetworkEventBreadcrumbs: false,
+      enableActivityLifecycleBreadcrumbs: false,
+      enableAppLifecycleBreadcrumbs: false,
+      enableSystemEventBreadcrumbs: false,
+      enableAppComponentBreadcrumbs: false,
       beforeSend,
       beforeBreadcrumb,
     })
@@ -367,5 +375,33 @@ describe('native scope copy', () => {
   it('leaves the scopes alone when reporting is off', () => {
     initSentry({ dsn: 'off', environment: 'dev' })
     expect((Sdk as unknown as { getGlobalScope: jest.Mock }).getGlobalScope).not.toHaveBeenCalled()
+  })
+})
+
+/** GoGo-MobileApp#337 Sol round 1 (F-01, F-04, F-05, F-06). Each row failed on 579343c. */
+describe('review round 1 regressions', () => {
+  it.each([
+    ['F-04 name after a bracket', 'error(token=abc) failed', 'error(token=[redacted]) failed'],
+    ['F-04 name in a fragment', 'https://x/y#token=abc', 'https://x/y#token=[redacted]'],
+    ['F-04 name after a comma', 'a=1,inviteCode=ABCDEF', 'a=1,inviteCode=[redacted]'],
+    ['F-04 name after a colon', 'detail:password=hunter', 'detail:password=[redacted]'],
+    ['F-05 all-capitals compound', 'ORIGINLAT=10.123456 ORIGIN_LNG=106.1', 'ORIGINLAT=[redacted] ORIGIN_LNG=[redacted]'],
+    ['F-05 mixed-case compound', 'homeLONGITUDE=1 destLAT=2', 'homeLONGITUDE=[redacted] destLAT=[redacted]'],
+    ['F-05 ordinary words stay', 'flat=1 plateau=2 islands=3', 'flat=1 plateau=2 islands=3'],
+    ['F-06 array value', '{"token":["abc","def"],"page":2}', '{"token":"[redacted]","page":2}'],
+    ['F-06 object value', '{"refreshToken":{"v":"abc"},"ok":true}', '{"refreshToken":"[redacted]","ok":true}'],
+    ['F-06 coordinate array', '{"lat":[10.123456]}', '{"lat":"[redacted]"}'],
+    ['F-06 null stays', '{"token":null}', '{"token":null}'],
+  ])('%s', (_name, input, expected) => {
+    expect(redactText(input)).toBe(expected)
+  })
+
+  it('F-01 never trusts the user an event arrives with', () => {
+    const event = { type: undefined, user: { id: 'da4f2545f76d45838793644bb57f573f' } } as unknown as ErrorEvent
+    expect(beforeSend(event, {})).not.toHaveProperty('user')
+    setSentryUser('5f1c2a3e-1234-4abc-8def-0123456789ab')
+    expect(beforeSend(event, {})?.user).toEqual({ id: '5f1c2a3e-1234-4abc-8def-0123456789ab' })
+    setSentryUser(null)
+    expect(beforeSend(event, {})).not.toHaveProperty('user')
   })
 })
