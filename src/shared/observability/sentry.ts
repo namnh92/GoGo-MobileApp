@@ -13,8 +13,10 @@ import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
  * GoGo-Infra ADR-0012a D-2): no tracing, no replay, no screenshots,
  * `sendDefaultPii: false`. Sessions are produced by the native SDKs and never
  * pass `beforeSend`; their payload is fixed by the SDK (`sid`, `did`, status,
- * counters, `attrs`), and `did` follows the scope user that `guardScope`
- * rebuilds to `{ id }`.
+ * counters, `seq`, `attrs { release, environment }`). Measured on both
+ * platforms (ADR-0012a D-2, relay of PR #339): `did` is the native
+ * installation id in every state, signed in included — the app user id set by
+ * `setSentryUser` never reaches a session.
  *
  * Structural limits — nothing to pattern-match, so nothing to miss (D-9):
  * - `event.user` is rebuilt as `{ id }` or removed;
