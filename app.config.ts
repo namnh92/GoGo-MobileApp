@@ -141,6 +141,31 @@ if (![tenjinIosSdkKey, tenjinAndroidSdkKey].every(key => key && /^[A-Za-z0-9_-]+
   throw new Error('Both TENJIN SDK keys are required in every environment')
 }
 
+/**
+ * Crash reporting must be a decision on every build that can reach a store
+ * (GoGo-MobileApp#336, GoGo-Infra ADR-0011 D-3). stag and prod carry a DSN or
+ * the literal `off`; empty throws, because a store build silently without
+ * crash reporting is found after upload, and an explicit `off` is a choice.
+ * One spelling of off: `OFF`, `false` or `0` are typos, not decisions. dev may
+ * be empty (local builds, CI). `http` is accepted for the local envelope relay
+ * of the acceptance run; SSM delivery (`mobile-env.py`) admits only `https`.
+ *
+ * Inline, like everything here: this file cannot import `sentry.ts`. The
+ * running app applies the same rule in `initSentry`.
+ */
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() ?? ''
+const SENTRY_DSN = /^https?:\/\/[A-Za-z0-9]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*(?::(\d{1,5}))?\/\d+$/
+const sentryDsnMatch = SENTRY_DSN.exec(sentryDsn)
+const isSentryDsn = sentryDsnMatch !== null &&
+  (sentryDsnMatch[1] === undefined || (Number(sentryDsnMatch[1]) >= 1 && Number(sentryDsnMatch[1]) <= 65535))
+if (!(sentryDsn === 'off' || isSentryDsn || (flavor === 'dev' && sentryDsn === ''))) {
+  throw new Error(
+    flavor === 'dev'
+      ? 'EXPO_PUBLIC_SENTRY_DSN must be empty, "off" or a DSN (https://<key>@<host>/<project>)'
+      : `EXPO_PUBLIC_SENTRY_DSN is required for ${flavor}: a DSN (https://<key>@<host>/<project>) or "off"`,
+  )
+}
+
 const config: ExpoConfig = {
   name: identity.appName,
   slug: 'gogo',

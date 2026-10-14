@@ -84,7 +84,12 @@ jobs:
             # line.
             provider_env="$flavor"
             if [ "$flavor" = stag ]; then provider_env=staging; fi
-            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" TENJIN_CONFIG_ENV="$provider_env" npx expo config --type prebuild --json \
+            # stag/prod must state a crash-reporting decision (GoGo-MobileApp#336);
+            # `off` is that decision for a job that never sends an event. dev
+            # stays empty, which is the case a local build takes.
+            sentry_dsn=""
+            if [ "$flavor" != dev ]; then sentry_dsn=off; fi
+            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" TENJIN_CONFIG_ENV="$provider_env" EXPO_PUBLIC_SENTRY_DSN="$sentry_dsn" npx expo config --type prebuild --json \
               | sed -n '/^{/,$p' > "/tmp/config.$flavor.json"
             echo "  $flavor: config resolves"
           done

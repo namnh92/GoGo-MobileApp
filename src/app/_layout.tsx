@@ -1,9 +1,14 @@
+// First, before anything else evaluates: crash reporting (GoGo-MobileApp#336).
+import '@/shared/observability/bootstrap'
+
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 
 import '@/shared/i18n'
 import { NotificationClickRouter } from '@/shared/notifications/notification-click-router'
+import { RootErrorBoundary } from '@/shared/observability/root-error-boundary.view'
+import { wrapRoot } from '@/shared/observability/sentry'
 import { AppProviders } from '@/shared/providers/app-providers'
 import { surface } from '@/shared/ui/tokens'
 
@@ -13,17 +18,22 @@ import { surface } from '@/shared/ui/tokens'
 // is not fatal — the worst case is the old behaviour, a brief default frame.
 void SplashScreen.preventAutoHideAsync().catch(() => {})
 
-export default function RootLayout() {
+function RootLayout() {
   return (
-    <AppProviders>
-      <StatusBar style="dark" />
-      <NotificationClickRouter />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: surface.canvas },
-        }}
-      />
-    </AppProviders>
+    // Outside the providers on purpose: it catches their failures too.
+    <RootErrorBoundary>
+      <AppProviders>
+        <StatusBar style="dark" />
+        <NotificationClickRouter />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: surface.canvas },
+          }}
+        />
+      </AppProviders>
+    </RootErrorBoundary>
   )
 }
+
+export default wrapRoot(RootLayout)
