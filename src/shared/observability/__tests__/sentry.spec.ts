@@ -25,10 +25,20 @@ import { MOBILE_CASES, ORACLE, casesFor, inputOf, type OracleCase } from './orac
  * only knows how to feed them in.
  */
 
-const sdk = Sdk as unknown as { init: jest.Mock; captureException: jest.Mock; setUser: jest.Mock; wrap: jest.Mock }
+type FakeScope = { forwarded: [string, ...unknown[]][] }
+const sdk = Sdk as unknown as {
+  init: jest.Mock
+  captureException: jest.Mock
+  setUser: jest.Mock
+  wrap: jest.Mock
+  globalScope: FakeScope
+  isolationScope: FakeScope
+  resetScopesForTests: () => void
+}
 
 beforeEach(() => {
   resetSentryForTests()
+  sdk.resetScopesForTests()
   jest.clearAllMocks()
 })
 
@@ -313,5 +323,49 @@ describe('beyond the oracle (shared-shape regressions)', () => {
     'ftp://k@o0.ingest.us.sentry.io/1',
   ])('refuses the malformed DSN %s', dsn => {
     expect(() => initSentry({ dsn, environment: 'dev' })).toThrow('Invalid SENTRY DSN')
+  })
+})
+
+/**
+ * Native crash and watchdog reports are built from the scope the SDK copies to
+ * native, never from `beforeSend` (relay run 2026-10-14, iPhone: a watchdog
+ * report carried raw `setContext`/`setTag`/`setUser` values). What reaches the
+ * copy must already be redacted.
+ */
+describe('native scope copy', () => {
+  const SECRET = 'SENTINEL_TOKEN_000000000'
+
+  function init() {
+    initSentry({ dsn: 'https://k@o0.ingest.us.sentry.io/1', environment: 'dev' })
+  }
+
+  it.each(['globalScope', 'isolationScope'] as const)('%s setters forward only redacted values', which => {
+    init()
+    const getters = Sdk as unknown as Record<string, () => Record<string, (...a: unknown[]) => unknown>>
+    const scope = getters[which === 'globalScope' ? 'getGlobalScope' : 'getIsolationScope']!()
+    scope.setUser({ id: 'u1', email: 'probe.sentinel@gmail.com', ip_address: '1.2.3.4' })
+    scope.setUser({ email: 'probe.sentinel@gmail.com' })
+    scope.setTag('probe_token', SECRET)
+    scope.setTag('token', 'abc')
+    scope.setTags({ token: 'abc', note: `see ${SECRET}` })
+    scope.setExtra('url', 'https://go.gogo.id.vn/r/YDi_00PB1z4FSQZjpLbgdw')
+    scope.setExtras({ inviteCode: 'x', where: 'lat=10.123456' })
+    scope.setContext('probe', { originLat: 10.123456, token: SECRET, nested: { email: 'a@b.co' } })
+    scope.setContext('cleared', null)
+    scope.setAttribute('origin', '10.123456,106.123456')
+    scope.setAttributes({ msg: `x ${SECRET}` })
+    const forwarded = JSON.stringify(sdk[which].forwarded)
+    for (const leak of [SECRET, 'gmail', 'ip_address', '10.123456', 'YDi_00PB1z4FSQZjpLbgdw', '"abc"', 'a@b.co']) {
+      expect(forwarded).not.toContain(leak)
+    }
+    expect(sdk[which].forwarded).toContainEqual(['setUser', { id: 'u1' }])
+    expect(sdk[which].forwarded).toContainEqual(['setUser', null])
+    expect(sdk[which].forwarded).toContainEqual(['setContext', 'probe', { originLat: '[redacted]', token: '[redacted]', nested: { email: '[redacted]' } }])
+    expect(sdk[which].forwarded).toContainEqual(['setContext', 'cleared', null])
+  })
+
+  it('leaves the scopes alone when reporting is off', () => {
+    initSentry({ dsn: 'off', environment: 'dev' })
+    expect((Sdk as unknown as { getGlobalScope: jest.Mock }).getGlobalScope).not.toHaveBeenCalled()
   })
 })

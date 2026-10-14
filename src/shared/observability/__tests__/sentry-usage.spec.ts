@@ -19,6 +19,8 @@ const ALLOWED_CALLS: RegExp[] = [
   /Sentry\.captureException\(error, \{ tags: \{ kind: context\.kind \} \}\)/,
   /Sentry\.setUser\(id \? \{ id \} : null\)/,
   /Sentry\.wrap\(component as ComponentType<Record<string, unknown>>\)/,
+  /guardScope\(Sentry\.getGlobalScope\(\)\)/,
+  /guardScope\(Sentry\.getIsolationScope\(\)\)/,
 ]
 
 function sourceFiles(dir: string): string[] {

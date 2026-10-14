@@ -476,6 +476,15 @@ export function redactDeep<T>(value: T): T {
   return walk(value, '', new Set<object>(), 0) as T
 }
 
+/** One value as it would sit at `path` of an event: named key rules first, then the walk. */
+function redactAt(key: string, value: unknown, path: string): unknown {
+  if (value === null || value === undefined) return value
+  if (OPAQUE_PATHS.has(path)) return value
+  if (isContainerName(key) || isCredentialName(key)) return REDACTED
+  if (isCoordinateName(key) && typeof value !== 'object') return REDACTED
+  return walk(value, path, new Set<object>(), 1)
+}
+
 function walk(value: unknown, path: string, ancestors: Set<object>, depth: number): unknown {
   if (value === null || value === undefined) return value
   // Before any leaf handling: below the limit, a primitive is as unread as an object.
@@ -629,6 +638,46 @@ export function beforeSend(event: ErrorEvent, hint?: EventHint): ErrorEvent | nu
   return out
 }
 
+// --- native scope sync ---------------------------------------------------------
+
+type SyncedScope = ReturnType<typeof Sentry.getIsolationScope>
+
+/**
+ * The SDK copies the global and isolation scopes into the native SDKs as they
+ * are written (`setUser`, `setTag(s)`, `setExtra(s)`, `setContext`,
+ * `setAttribute(s)`), and a native crash or watchdog report is built from
+ * that copy — `beforeSend` never sees it. Breadcrumbs are copied only after
+ * `beforeBreadcrumb`, so they are already rebuilt. Every other setter is
+ * wrapped here so its value is rebuilt and redacted before the SDK forwards
+ * it: the native copy then holds what an event would have held, whoever calls
+ * the setter.
+ */
+function guardScope(scope: SyncedScope): void {
+  const setUser = scope.setUser.bind(scope)
+  scope.setUser = user => setUser(rebuildUser(user))
+  const setTag = scope.setTag.bind(scope)
+  scope.setTag = (key, value) => setTag(key, redactAt(key, value, `tags.${key}`) as typeof value)
+  const setTags = scope.setTags.bind(scope)
+  scope.setTags = tags =>
+    setTags(Object.fromEntries(Object.entries(tags).map(([k, v]) => [k, redactAt(k, v, `tags.${k}`)])) as typeof tags)
+  const setExtra = scope.setExtra.bind(scope)
+  scope.setExtra = (key, value) => setExtra(key, redactAt(key, value, `extra.${key}`) as typeof value)
+  const setExtras = scope.setExtras.bind(scope)
+  scope.setExtras = extras =>
+    setExtras(Object.fromEntries(Object.entries(extras).map(([k, v]) => [k, redactAt(k, v, `extra.${k}`)])) as typeof extras)
+  const setContext = scope.setContext.bind(scope)
+  scope.setContext = (key, context) =>
+    setContext(key, redactAt(key, context, `contexts.${key}`) as typeof context)
+  const setAttribute = scope.setAttribute.bind(scope)
+  scope.setAttribute = ((key: string, value: unknown) =>
+    setAttribute(key, redactAt(key, value, `attributes.${key}`) as never)) as typeof scope.setAttribute
+  const setAttributes = scope.setAttributes.bind(scope)
+  scope.setAttributes = ((attributes: Record<string, unknown>) =>
+    setAttributes(Object.fromEntries(
+      Object.entries(attributes).map(([k, v]) => [k, redactAt(k, v, `attributes.${k}`)]),
+    ) as never)) as typeof scope.setAttributes
+}
+
 // --- init and helpers ------------------------------------------------------------
 
 export type SentryEnvironment = 'dev' | 'staging' | 'prod'
@@ -681,6 +730,8 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
     // reports, which `beforeSend` never sees.
     ...({ enableNetworkBreadcrumbs: false } as object),
   })
+  guardScope(Sentry.getGlobalScope())
+  guardScope(Sentry.getIsolationScope())
   enabled = true
 }
 
