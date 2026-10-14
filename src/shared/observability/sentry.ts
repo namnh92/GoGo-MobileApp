@@ -72,15 +72,33 @@ const CREDENTIAL_NAMES: ReadonlySet<string> = new Set([
 ])
 
 const EXACT_COORDINATE_NAME = /^(?:lat|lng|lon|latitude|longitude)$/i
-/**
- * `originLat`, `homeLONGITUDE` — a capital `L` after a lowercase letter or
- * digit marks the compound, so `flat` or `plateau` never match.
- */
-const CAMEL_COORDINATE_SUFFIX = /[a-z0-9]L(?:at|ng|on|atitude|ongitude|AT|NG|ON|ATITUDE|ONGITUDE)$/
-/** `ORIGINLAT` — an all-capitals name has no case boundary left, so the suffix alone decides (`FLAT` is accepted loss). */
-const UPPER_COORDINATE_SUFFIX = /^[A-Z0-9]*(?:LAT|LNG|LON|LATITUDE|LONGITUDE)$/
-/** `origin_lat`, `Origin_Lat`. */
+/** `origin_lat`, `Origin_Lat`, `ORIGIN_LNG`. */
 const SNAKE_COORDINATE_SUFFIX = /_(?:lat|lng|lon|latitude|longitude)$/i
+/** The coordinate word a compound name ends with, in any case; the prefix before it is judged by {@link isCompoundCoordinateName}. */
+const COORDINATE_SUFFIX = /(?:latitude|longitude|lat|lng|lon)$/i
+/** A camelCase boundary: the prefix ends in a lowercase letter or digit and the suffix starts with its capital. */
+const CAMEL_BOUNDARY = /[a-z0-9]$/
+/** An uppercased identifier: `ORIGIN` in `ORIGINLAT` / `ORIGINLat`. */
+const UPPER_PREFIX = /^[A-Z0-9]{2,}$/
+
+/**
+ * `originLat`, `homeLONGITUDE`, `ORIGINLAT`, `ORIGINLat` — a compound whose
+ * last word is a coordinate. Names compare case-insensitively, but a glued
+ * compound only exists where a word boundary can be seen: a camelCase step
+ * (`…nL…`), or an all-capitals prefix of two or more characters, which is
+ * what uppercasing a camelCase name leaves behind. A single capital before
+ * the suffix is not a word (`FLAT`, `SLAT`, `ALON` stay), and an all-lowercase
+ * run has no boundary at all (`flat`, `plateau`, `originlat` stay — the same
+ * rule as GoGo-BE). Accepted loss: an all-capitals word that happens to end in
+ * a coordinate word after two or more letters (`SPLAT`, `SALON`) is redacted.
+ */
+function isCompoundCoordinateName(name: string): boolean {
+  const suffix = COORDINATE_SUFFIX.exec(name)
+  if (!suffix || suffix.index === 0) return false
+  const prefix = name.slice(0, suffix.index)
+  if (CAMEL_BOUNDARY.test(prefix)) return suffix[0][0] === 'L'
+  return UPPER_PREFIX.test(prefix)
+}
 /** Keys whose whole value is a position or a set of positions, whatever its shape (C-7). */
 const COORDINATE_CONTAINER_NAME = /^(?:coordinates|bbox|bounds|viewport|latlng|ll|geom|geometry|point|origin)$/i
 
@@ -93,12 +111,7 @@ function isCredentialName(name: string): boolean {
 }
 
 function isCoordinateName(name: string): boolean {
-  return (
-    EXACT_COORDINATE_NAME.test(name) ||
-    CAMEL_COORDINATE_SUFFIX.test(name) ||
-    UPPER_COORDINATE_SUFFIX.test(name) ||
-    SNAKE_COORDINATE_SUFFIX.test(name)
-  )
+  return EXACT_COORDINATE_NAME.test(name) || SNAKE_COORDINATE_SUFFIX.test(name) || isCompoundCoordinateName(name)
 }
 
 function isContainerName(name: string): boolean {
@@ -115,20 +128,90 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // --- stage 1: named parameters and JSON keys ----------------------------------
 
 /**
- * `name=value` in a URL, a bare query string, a fragment or free text. The
- * name starts at any character that cannot be part of a name (`?`, `&`, `#`,
- * `(`, `,`, whitespace…), so `error(token=abc)` and `#token=abc` are found.
- * The value stops at the next separator, whitespace, quote or closing bracket,
- * so the text around it survives and `page=2;password=x` is two parameters.
+ * `name=` in a URL, a bare query string, a fragment or free text. The name
+ * starts at any character that cannot be part of a name (`?`, `&`, `#`, `(`,
+ * `,`, `=`, whitespace…), so `error(token=abc)`, `#token=abc` and
+ * `redirect=https://x/?token=abc` are all found. The value is measured by
+ * {@link parameterValueEnd}.
  */
-const QUERY_PARAMETER = /(^|[^\w.-])([A-Za-z_][\w.-]*)=([^&#;\s"'<>()[\]{},]*)/g
-/** A JSON key and its colon; the value is measured by {@link jsonValueEnd}. */
-const JSON_KEY = /"([A-Za-z_]\w*)"\s*:\s*/g
+const PARAMETER_NAME = /(^|[^\w.-])([A-Za-z_][\w.-]*)=/g
+/** A JSON key (`invite-code` and `x.y` included) and its colon; the value is measured by {@link jsonValueEnd}. */
+const JSON_KEY = /"([A-Za-z_][\w.-]*)"\s*:\s*/g
+
+function isValueStop(ch: string | undefined): boolean {
+  return (
+    ch === undefined || ch === '&' || ch === '#' || ch === ';' || ch === ',' || ch === '<' || ch === '>' ||
+    ch === ')' || ch === ']' || ch === '}' || ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r'
+  )
+}
+
+/** Index just past the bracket group opening at `open`, any bracket kind counting; unterminated → end of text. */
+function bracketEnd(text: string, open: number): number {
+  let depth = 0
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '(' || ch === '[' || ch === '{') depth++
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      depth--
+      if (depth === 0) return i + 1
+    }
+  }
+  return text.length
+}
+
+/** Index just past the quoted run opening at `open`; unterminated → end of text. */
+function quoteEnd(text: string, open: number): number {
+  const close = text.indexOf(text[open]!, open + 1)
+  return close < 0 ? text.length : close + 1
+}
+
+/**
+ * End of a parameter value that starts at `start`: plain characters up to the
+ * next separator, whitespace or closing bracket — and a bracket group or a
+ * quoted run met on the way is consumed whole, so `password=(hunter)` and
+ * `inviteCode="ABC12"` lose the complete value, not an empty one. An
+ * unterminated group or quote runs to the end of the text: the rest of a
+ * message is worth less than a credential. Linear.
+ */
+function parameterValueEnd(text: string, start: number): number {
+  let i = start
+  while (i < text.length) {
+    const ch = text[i]
+    if (ch === '(' || ch === '[' || ch === '{') i = bracketEnd(text, i)
+    else if (ch === '"' || ch === "'") i = quoteEnd(text, i)
+    else if (isValueStop(ch)) break
+    else i++
+  }
+  return i
+}
+
+/**
+ * Every `name=value` whose name is a credential or coordinate loses its whole
+ * value. A name that is kept keeps nothing of its value for itself: the scan
+ * resumes at its `=`, so a parameter nested in it (`redirect=…?token=abc`,
+ * `q=token=abc`) is found as well.
+ */
+function redactParameters(text: string): string {
+  let out = ''
+  let last = 0
+  PARAMETER_NAME.lastIndex = 0
+  for (let match = PARAMETER_NAME.exec(text); match; match = PARAMETER_NAME.exec(text)) {
+    const nameStart = match.index + match[1]!.length
+    const equals = nameStart + match[2]!.length
+    if (!isRedactedName(match[2]!)) {
+      PARAMETER_NAME.lastIndex = equals
+      continue
+    }
+    const end = parameterValueEnd(text, equals + 1)
+    out += `${text.slice(last, equals + 1)}${REDACTED}`
+    last = end
+    PARAMETER_NAME.lastIndex = end
+  }
+  return out + text.slice(last)
+}
 
 function redactNamed(text: string): string {
-  return redactJsonKeys(text).replace(QUERY_PARAMETER, (match, lead: string, name: string) =>
-    isRedactedName(name) ? `${lead}${name}=${REDACTED}` : match,
-  )
+  return redactParameters(redactJsonKeys(text))
 }
 
 /**

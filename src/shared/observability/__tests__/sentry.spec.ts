@@ -405,3 +405,31 @@ describe('review round 1 regressions', () => {
     expect(beforeSend(event, {})).not.toHaveProperty('user')
   })
 })
+
+/** GoGo-MobileApp#337 Sol round 2 residue (F-05, F-06, F-07), fixed by Fable. Each row failed on 1b419f9. */
+describe('review round 2 residue', () => {
+  it.each([
+    ['F-05 all-capitals prefix, camel suffix', 'ORIGINLat=10.123456', 'ORIGINLat=[redacted]'],
+    ['F-05 all-capitals prefix, lowercase suffix', 'ORIGINlat=10.123456 HOMElongitude=1', 'ORIGINlat=[redacted] HOMElongitude=[redacted]'],
+    ['F-05 capitalised camel', 'OriginLat=1 HomeLongitude=2', 'OriginLat=[redacted] HomeLongitude=[redacted]'],
+    ['F-05 single capital before the suffix is not a word', 'FLAT=1 SLAT=2 ALON=3 Flat=4', 'FLAT=1 SLAT=2 ALON=3 Flat=4'],
+    ['F-05 lowercase glued stays, as on the backend', 'originlat=1 flatten=2', 'originlat=1 flatten=2'],
+    ['F-05 accepted loss: a capitals word ending in a coordinate word', 'SPLAT=1', 'SPLAT=[redacted]'],
+    ['F-06 hyphenated JSON key', '{"invite-code":["ABCDEF"]}', '{"invite-code":"[redacted]"}'],
+    ['F-06 hyphenated JSON key, string', '{"refresh-token":"abc","x-request-id":"r1"}', '{"refresh-token":"[redacted]","x-request-id":"r1"}'],
+    ['F-06 dotted key is not a credential name; the email stage still catches the value', '{"user.email":"a@b.co"}', '{"user.email":"[redacted-email]"}'],
+    ['F-07 bracketed value', 'password=(hunter)', 'password=[redacted]'],
+    ['F-07 bracketed value in text', 'login failed: password=(hun ter) retry', 'login failed: password=[redacted] retry'],
+    ['F-07 bracket inside a plain value', 'token=abc(def)ghi&page=2', 'token=[redacted]&page=2'],
+    ['F-07 nested brackets', 'inviteCode=[A(B)C]', 'inviteCode=[redacted]'],
+    ['F-07 unterminated bracket runs to the end', 'token=(abc def', 'token=[redacted]'],
+    ['F-07 quoted value', 'inviteCode="ABC12" ok', 'inviteCode=[redacted] ok'],
+    ['F-07 single-quoted value', "token='abc' ok", 'token=[redacted] ok'],
+    ['F-07 closing bracket still ends a value', 'error(token=abc)', 'error(token=[redacted])'],
+    ['F-07 nested parameter in a kept value', 'redirect=https://x/?token=abc&page=2', 'redirect=https://x/?token=[redacted]&page=2'],
+    ['F-07 parameter right after a kept =', 'q=token=abc', 'q=token=[redacted]'],
+    ['F-07 kept value keeps its brackets', 'q=(a,b) page=2', 'q=(a,b) page=2'],
+  ])('%s', (_name, input, expected) => {
+    expect(redactText(input)).toBe(expected)
+  })
+})

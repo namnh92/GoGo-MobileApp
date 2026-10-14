@@ -39,6 +39,12 @@ describe('redactText stays fast on adversarial input (local rows)', () => {
     ['repeated ;password=', ';password='.repeat(10_000)],
     ['long number under container key', `"point": ${'1'.repeat(100_000)}`],
     ['repeated SRID=1;', 'SRID=1;'.repeat(14_000)],
+    ['repeated password=(', 'password=('.repeat(10_000)],
+    ['repeated token="', 'token="'.repeat(14_000)],
+    ['repeated =(', '=('.repeat(50_000)],
+    ['repeated ORIGINLat=', 'ORIGINLat='.repeat(10_000)],
+    ['repeated "invite-code":[', '"invite-code":['.repeat(7_000)],
+    ['repeated q=token=', 'q=token='.repeat(12_500)],
   ])('%s', (name, input) => {
     const started = performance.now()
     redactText(input)
