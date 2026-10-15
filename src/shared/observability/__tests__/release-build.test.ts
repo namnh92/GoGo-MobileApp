@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -13,12 +14,18 @@ import { APPLY_SENTRY_GRADLE, pbxproj, writeNativeProject } from './sentry-nativ
  * absent → SENTRY_DISABLE_AUTO_UPLOAD=true and a warning. Everything in between
  * is refused before `expo` starts.
  *
- * `npx` is a stub on PATH that records its arguments and the Sentry variables
- * it was started with, so no build runs.
+ * `npx` is a stub on PATH, so no build runs. Like `expo run`, it first loads the
+ * project's dotenv files through the real `@expo/env` — the late load that
+ * happens after this script's checks — and then records its arguments and the
+ * Sentry variables the native build would see.
  */
 
 const ROOT = path.resolve(__dirname, '../../../..')
 const TOKEN = 'stub-upload-token-0123456789'
+// `@expo/env` is a dependency of `expo`, not of this package (pnpm does not hoist it).
+const EXPO_ENV = createRequire(createRequire(path.join(ROOT, 'package.json')).resolve('expo/package.json')).resolve(
+  '@expo/env',
+)
 
 let sandbox: string
 let project: string
@@ -34,10 +41,21 @@ beforeEach(() => {
   writeFileSync(
     path.join(bin, 'npx'),
     [
-      '#!/usr/bin/env bash',
-      'echo "args=$*" > "$RECORD"',
-      'echo "disable=${SENTRY_DISABLE_AUTO_UPLOAD:-}" >> "$RECORD"',
-      'echo "token=${SENTRY_AUTH_TOKEN:+set}" >> "$RECORD"',
+      '#!/usr/bin/env node',
+      "const { writeFileSync } = require('node:fs')",
+      "process.env.NODE_ENV = 'production'",
+      `require(${JSON.stringify(EXPO_ENV)}).load(process.cwd(), { force: true, silent: true })`,
+      'const e = process.env',
+      'const lines = [',
+      "  `args=${process.argv.slice(2).join(' ')}`,",
+      "  `disable=${e.SENTRY_DISABLE_AUTO_UPLOAD ?? ''}`,",
+      "  `token=${e.SENTRY_AUTH_TOKEN ? 'set' : ''}`,",
+      "  `allow=${e.SENTRY_ALLOW_FAILURE ?? ''}`,",
+      "  `xcode=${e.SENTRY_DISABLE_XCODE_DEBUG_UPLOAD ?? ''}`,",
+      "  `native=${e.SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD ?? ''}`,",
+      "  `dsn=${e.EXPO_PUBLIC_SENTRY_DSN ? 'loaded' : ''}`,",
+      ']',
+      "writeFileSync(e.RECORD, lines.join('\\n') + '\\n')",
       '',
     ].join('\n'),
   )
@@ -79,14 +97,14 @@ describe('scripts/release-build.sh', () => {
     writeNativeProject(project)
     const result = run([platform, '--device', '0000'], { SENTRY_AUTH_TOKEN: TOKEN })
     expect(result.status).toBe(0)
-    expect(result.recorded).toBe(`${args}\ndisable=\ntoken=set\n`)
+    expect(result.recorded).toBe(`${args}\ndisable=false\ntoken=set\nallow=false\nxcode=false\nnative=false\ndsn=\n`)
     expect(result.stdout + result.stderr).not.toContain(TOKEN)
   })
 
   it.each(['ios', 'android'])('%s without a token builds, skips upload and says so', platform => {
     const result = run([platform])
     expect(result.status).toBe(0)
-    expect(result.recorded).toContain('disable=true\ntoken=\n')
+    expect(result.recorded).toContain('disable=true\ntoken=\nallow=false\nxcode=false\nnative=false\n')
     expect(result.stderr).toMatch(/no SENTRY_AUTH_TOKEN — this release build will not be symbolicated/)
   })
 
@@ -131,7 +149,35 @@ describe('scripts/release-build.sh', () => {
     writeNativeProject(project, { xcodeEnvLocal: 'export NODE_BINARY=/opt/homebrew/bin/node\n' })
     const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN })
     expect(result.status).toBe(0)
-    expect(result.recorded).toContain('disable=\ntoken=set\n')
+    expect(result.recorded).toContain('disable=false\ntoken=set\nallow=false\nxcode=false\nnative=false\n')
+  })
+
+  // `expo run` loads .env, .env.local, .env.<mode> and .env.<mode>.local after
+  // this script has run (the stub does the same through the real @expo/env),
+  // so a SENTRY_ assignment there would reach the native build unchecked.
+  it.each([
+    ['.env.local', 'SENTRY_DISABLE_AUTO_UPLOAD=true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    ['.env', 'export SENTRY_ALLOW_FAILURE=true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    ['.env.production', '  SENTRY_DISABLE_XCODE_DEBUG_UPLOAD = true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    ['.env.production.local', 'SENTRY_AUTH_TOKEN=sntrys_file_held\n', {}],
+    ['.env.development.local', 'SENTRY_URL=https://elsewhere.example/\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+  ] as const)('refuses a SENTRY_ assignment in %s before expo starts', (file, text, env) => {
+    writeNativeProject(project)
+    writeFileSync(path.join(project, file), `EXPO_PUBLIC_ENV=dev\n${text}`)
+    const result = run(['ios'], env)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain(`${file} sets a SENTRY_ variable`)
+    expect(result.recorded).toBe('')
+    expect(result.stderr + result.stdout).not.toContain('sntrys_file_held')
+  })
+
+  it('accepts the DSN in .env.local and a documented token line in .env.example; every switch keeps its pinned value after Expo loads the files', () => {
+    writeNativeProject(project)
+    writeFileSync(path.join(project, '.env.local'), 'EXPO_PUBLIC_SENTRY_DSN=https://k@o0.ingest.us.sentry.io/1\n')
+    writeFileSync(path.join(project, '.env.example'), 'SENTRY_AUTH_TOKEN=\nSENTRY_DISABLE_AUTO_UPLOAD=true\n')
+    const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).toBe(0)
+    expect(result.recorded).toContain('disable=false\ntoken=set\nallow=false\nxcode=false\nnative=false\ndsn=loaded\n')
   })
 
   it.each([

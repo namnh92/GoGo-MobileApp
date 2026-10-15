@@ -68,6 +68,19 @@ for xcode_env in ios/.xcode.env ios/.xcode.env.local ios/.xcode.env.updates; do
     die "${xcode_env} mentions SENTRY_ — Xcode sources it after this script's checks; remove that line (the token comes from exec-with.sh, the switches from this script)"
   fi
 done
+# `expo run` loads the project's dotenv files (@expo/env: .env, .env.local,
+# .env.<mode>, .env.<mode>.local) after these checks and before the native
+# build starts, so a SENTRY_* assignment there — a switch, or the token kept in
+# a file — reaches the upload scripts unchecked. EXPO_PUBLIC_SENTRY_DSN is app
+# config, not a build switch, and does not match. .env.example is never loaded.
+shopt -s nullglob
+for dotenv in .env .env.*; do
+  [[ "$dotenv" == .env.example ]] && continue
+  if grep -Eq '^[[:space:]]*(export[[:space:]]+)?SENTRY_[A-Za-z0-9_]*[[:space:]]*=' "$dotenv"; then
+    die "${dotenv} sets a SENTRY_ variable — Expo loads it after this script's checks; remove that line (the token comes from exec-with.sh, the switches from this script)"
+  fi
+done
+shopt -u nullglob
 
 if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
   [[ "${SENTRY_DISABLE_AUTO_UPLOAD:-}" != "true" ]] \
@@ -78,10 +91,15 @@ if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
   if [[ -d "$platform" ]] && ! node scripts/lib/sentry-native.mjs . "$platform"; then
     die "${platform}/ is not wired to upload (above) — it predates the Sentry plugin; run: npx expo prebuild -p ${platform} --clean"
   fi
+  export SENTRY_DISABLE_AUTO_UPLOAD=false
 else
   export SENTRY_DISABLE_AUTO_UPLOAD=true
   echo "release-build: warning: no SENTRY_AUTH_TOKEN — this release build will not be symbolicated in Sentry" >&2
 fi
+# Every switch gets its final value here. The SDK only acts on the literal
+# "true", and nothing loaded later (@expo/env never overrides a variable that
+# is already set) can change a value defined now.
+export SENTRY_ALLOW_FAILURE=false SENTRY_DISABLE_XCODE_DEBUG_UPLOAD=false SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD=false
 
 if [[ "$platform" == ios ]]; then
   exec npx expo run:ios --configuration Release "$@"

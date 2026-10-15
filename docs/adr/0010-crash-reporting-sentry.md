@@ -34,7 +34,8 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
 
   Bỏ C-14.5/C-14.6 (chỉ CMS) — spec khẳng định đúng hai dòng đó. Redactor không dùng lookbehind và đã chạy qua Hermes.
 - **Native:** ~~không thêm Expo config plugin, không đổi Metro~~ — **sửa 2026-10-15 (#340, pha 2):** có config plugin
-  `@sentry/react-native/expo` (chỉ `organization`/`project`/`url`) và `metro.config.js` = `getSentryExpoConfig` mặc định,
+  `@sentry/react-native/expo` (chỉ `organization`/`project`/`url`, đăng ký qua `plugins/with-sentry-uploads.js`) và
+  `metro.config.js` = `getSentryExpoConfig`,
   xem mục *Upload symbol (pha 2)* bên dưới. SDK native tự link qua autolinking. `beforeSend` của JS
   không chạy trên crash native, nên breadcrumb mạng native của iOS (URL đầy đủ) bị tắt bằng
   `enableNetworkBreadcrumbs: false`, và mọi breadcrumb tự động native cũng tắt (iOS `enableAutoBreadcrumbTracking`,
@@ -54,7 +55,10 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
 - **Upload symbol (pha 2, #340, 2026-10-15; GoGo-Infra ADR-0011 D-5 pha 2).** Shape:
   `dev/handoffs/sa-shape-mobile-340-sentry-uploads.fable.md` (workspace). Bản **Release** upload source map JS (Hermes,
   cả hai nền tảng) và dSYM (iOS) lên `gogo-mobile` ngay trong lúc build:
-  - Config plugin ghi `ios/` và `android/` `sentry.properties` (org/project/url, **không** token), bọc phase Xcode
+  - Config plugin đăng ký qua wrapper `plugins/with-sentry-uploads.js`, không bằng tuple `['@sentry/react-native/expo',
+    {…}]` trong `app.config.ts`: Expo serialize mọi entry `plugins` kèm options vào config công khai nhúng trong binary
+    (`EXConstants.bundle/app.config`) và manifest của dev server, nên org/project sẽ đi theo app (Astra F-21). Plugin ghi
+    `ios/` và `android/` `sentry.properties` (org/project/url, **không** token), bọc phase Xcode
     "Bundle React Native code and images" bằng `sentry-xcode.sh`, thêm phase "Upload Debug Symbols to Sentry", và
     `apply from: sentry.gradle.kts`. `getSentryExpoConfig` gắn Debug ID vào bundle và map để Sentry khớp theo định danh; mọi
     tuỳ chọn khác tắt và ghi tên (middleware source context, `sentry.options.json`, release cho web, annotate, bọc
@@ -75,8 +79,14 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
     `.env.sentry-build-plugin`, **mọi dòng `SENTRY_` trong `ios/.xcode.env`, `.xcode.env.local`, `.xcode.env.updates`**
     (phase Xcode source ba file này *sau* khi script đã kiểm env — phase bundle source trực tiếp, phase dSYM qua
     `with-environment.sh` của react-native — nên một dòng ở đó tái tạo đúng trạng thái bị từ chối hoặc đưa token
-    nằm trong file vào build), cấu hình khác Release, và thư mục native chưa nối upload. Build Release chạy thẳng `expo run` không qua script và không token sẽ **hỏng** ở bước upload (lỗi SDK nêu
-    tên biến) — đúng ý.
+    nằm trong file vào build), **mọi phép gán `SENTRY_*` trong file dotenv Expo nạp** (`.env`, `.env.local`,
+    `.env.<mode>`, `.env.<mode>.local`; `expo run` nạp chúng qua `@expo/env` *sau* khi script đã kiểm, trước khi build
+    native — Astra F-20; `EXPO_PUBLIC_SENTRY_DSN` là config app, không khớp; `.env.example` không bao giờ được nạp), cấu
+    hình khác Release, và thư mục native chưa nối upload. Sau các bước kiểm, script **tự đặt giá trị cuối** cho mọi công
+    tắc (`SENTRY_DISABLE_AUTO_UPLOAD` = `false`/`true` theo token, `SENTRY_ALLOW_FAILURE`,
+    `SENTRY_DISABLE_XCODE_DEBUG_UPLOAD`, `SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD` = `false`): SDK chỉ xét đúng chuỗi `true`,
+    và `@expo/env` không ghi đè biến đã có. Test chạy `@expo/env` thật trong stub `expo run`. Build Release chạy thẳng
+    `expo run` không qua script và không token sẽ **hỏng** ở bước upload (lỗi SDK nêu tên biến) — đúng ý.
   - **Vá SDK (pnpm patch, ghim 8.30.0):** `sentry-xcode-debug-files.sh` của SDK in `error:` khi upload dSYM hỏng rồi
     kết thúc file với exit 0 — build xanh, không có symbol native. `patches/@sentry__react-native@8.30.0.patch`
     (khai ở `pnpm-workspace.yaml`, áp khi `pnpm install`) thêm `exit "$UPLOAD_EXIT_CODE"` vào nhánh lỗi; không dựa
@@ -95,3 +105,10 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   cũng đi qua lớp bọc scope ở trên.
 - **Kill switch:** tắt client key của `gogo-mobile` trên Sentry để ngừng lưu; build lại với `off` để ngừng gửi.
 - **Rollback:** revert PR này; bản đã cài vẫn gửi tới khi build lại với `off` hoặc tắt client key.
+  **Rollback riêng pha 2 (#340, Astra F-22):** revert PR #340 (bỏ wrapper plugin, `metro.config.js`,
+  `scripts/release-build.sh`, patch + `pnpm-workspace.yaml`) → `pnpm install --frozen-lockfile` trên lockfile đã revert →
+  **sinh lại cả hai project native**: `rm -rf ios android && npx expo prebuild --clean` (hoặc `prebuild -p <platform>
+  --clean` trên từng máy build). `ios/` và `android/` bị gitignore và `expo run` dùng lại project native có sẵn, nên
+  chỉ revert code thì phase upload, `sentry.properties` và `apply from … sentry.gradle.kts` vẫn còn — build Release
+  không token khi đó vẫn thử upload và hỏng. Báo lỗi pha 1 (`sentry.ts`, DSN, redaction) không bị rollback này chạm tới.
+  Token `ci/<env>/sentry/mobile-auth-token` thu hồi trên Sentry nếu bỏ hẳn pha 2.
