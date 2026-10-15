@@ -2,6 +2,8 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, glassFx } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: spacing[5] },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
     borderRadius: radius.card,

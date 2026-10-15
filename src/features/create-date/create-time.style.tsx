@@ -2,6 +2,8 @@ import { StyleSheet } from 'react-native-unistyles'
 import { colors, fill, glassFx, overlay, radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: spacing[5] },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
     height: 56,

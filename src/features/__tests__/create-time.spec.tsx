@@ -1,4 +1,4 @@
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
 
 import { renderScreen } from './harness'
 
@@ -103,4 +103,14 @@ it('drops an end that a later start overtakes, and treats "Cả tối" as no end
   await press(view.getByText('Tiếp tục'))
   expect(useRoomStore.getState()).toMatchObject({ endAt: null })
   expect(mockPush).toHaveBeenCalledWith('/create/budget')
+})
+
+// #333: at 375pt the end-time row sat under the bottom bar of a step that
+// could not scroll. The step's content now lives in a scroll view.
+it('keeps the end-time row inside the step scroll view (#333)', async () => {
+  const view = await renderScreen(<CreateTimeScreen />)
+  // A real scroll view (host RCTScrollView), not a View that kept the test ID.
+  const scroll = view.getByTestId('create-time-scroll')
+  expect(scroll.type).toBe('RCTScrollView')
+  expect(within(scroll).getByText('Kết thúc')).toBeTruthy()
 })

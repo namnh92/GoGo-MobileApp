@@ -1,4 +1,4 @@
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
 
@@ -100,4 +100,14 @@ describe('usual budget prefill on the budget step', () => {
     expect(tierForAmount(1_500_000).key).toBe('to1500')
     expect(tierForAmount(9_000_000).key).toBe('flexible')
   })
+})
+
+// #333: at 375pt the last tier sat under the bottom bar of a step that could
+// not scroll. The step's content now lives in a scroll view.
+it('keeps the last tier inside the step scroll view (#333)', async () => {
+  const view = await renderScreen(<CreateBudgetScreen />)
+  // A real scroll view (host RCTScrollView), not a View that kept the test ID.
+  const scroll = view.getByTestId('create-budget-scroll')
+  expect(scroll.type).toBe('RCTScrollView')
+  expect(within(scroll).getByText('Không quan trọng')).toBeTruthy()
 })
