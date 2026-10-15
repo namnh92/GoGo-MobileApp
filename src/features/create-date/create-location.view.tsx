@@ -118,6 +118,7 @@ export default function CreateLocationScreen() {
           onPress={useDeviceLocation}
           disabled={location.state.status === 'asking'}
           accessibilityRole="radio"
+          accessibilityLabel={`${t('createLocation.current')}, ${currentSubtitle}`}
           accessibilityState={{ selected: usingCurrent, busy: location.state.status === 'asking' }}
         >
           <Card padded={false} style={styles.rowCard}>

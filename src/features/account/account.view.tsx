@@ -297,6 +297,7 @@ export default function AccountScreen() {
             onPress={onDelete}
             disabled={busy === 'delete'}
             accessibilityRole="button"
+            accessibilityLabel={busy === 'delete' ? t('account.deleting') : t('account.deleteConfirm')}
             accessibilityState={{ disabled: busy === 'delete', busy: busy === 'delete' }}
             style={styles.deleteBtn}
           >

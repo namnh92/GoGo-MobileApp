@@ -63,6 +63,19 @@ describe('accessibility', () => {
     expect(offenders).toEqual([])
   })
 
+  // #271: Android writes contentDescription only when label + state is
+  // non-empty, so a control that reports `busy` with no label keeps announcing
+  // "busy" after the work ends, whatever its visible text says.
+  it('labels every control that reports busy', () => {
+    const offenders = files.flatMap(file =>
+      openingTags(readFileSync(file, 'utf8'), 'Pressable')
+        .filter(({ tag }) => /accessibilityState=\{\{[^}]*\bbusy:/.test(tag))
+        .filter(({ tag }) => !tag.includes('accessibilityLabel'))
+        .map(({ line }) => `${file.replace(SOURCE_ROOT, 'src')}:${line}`),
+    )
+    expect(offenders).toEqual([])
+  })
+
   it('keeps every control under 44pt reachable through a hit slop', () => {
     const SMALL = /\b(?:height|width):\s*(?:[0-9]|[1-3][0-9]|4[0-3])\b/
     const offenders = files
