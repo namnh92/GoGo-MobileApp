@@ -106,5 +106,8 @@ describe('usual budget prefill on the budget step', () => {
 // not scroll. The step's content now lives in a scroll view.
 it('keeps the last tier inside the step scroll view (#333)', async () => {
   const view = await renderScreen(<CreateBudgetScreen />)
-  expect(within(view.getByTestId('create-budget-scroll')).getByText('Không quan trọng')).toBeTruthy()
+  // A real scroll view (host RCTScrollView), not a View that kept the test ID.
+  const scroll = view.getByTestId('create-budget-scroll')
+  expect(scroll.type).toBe('RCTScrollView')
+  expect(within(scroll).getByText('Không quan trọng')).toBeTruthy()
 })
