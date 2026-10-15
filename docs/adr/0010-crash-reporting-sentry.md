@@ -56,13 +56,18 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   cả hai nền tảng) và dSYM (iOS) lên `gogo-mobile` ngay trong lúc build:
   - Config plugin ghi `ios/` và `android/` `sentry.properties` (org/project/url, **không** token), bọc phase Xcode
     "Bundle React Native code and images" bằng `sentry-xcode.sh`, thêm phase "Upload Debug Symbols to Sentry", và
-    `apply from: sentry.gradle.kts`. `getSentryExpoConfig` gắn Debug ID vào bundle và map để Sentry khớp theo định danh.
-    `pnpm check:native` kiểm cả bốn điều đó.
+    `apply from: sentry.gradle.kts`. `getSentryExpoConfig` gắn Debug ID vào bundle và map để Sentry khớp theo định danh; mọi
+    tuỳ chọn khác tắt và ghi tên (middleware source context, `sentry.options.json`, release cho web, annotate, bọc
+    error boundary) — còn lại thứ SDK luôn áp: gộp frame Sentry trong LogBox (dev) và resolve module chỉ-server thành
+    rỗng. `scripts/lib/sentry-native.mjs` kiểm bốn điểm nối (thân phase Xcode, phase dSYM có trong buildPhases của
+    target, dòng `apply from … sentry.gradle.kts` không bị comment, `sentry.properties` không token) — CI chạy qua
+    `pnpm check:native`, script build chạy trước mỗi build có token.
   - Chạy qua `scripts/release-build.sh <ios|android> …`, gọi bằng GoGo-Infra `exec-with.sh <env>
     sentry/mobile-auth-token -- …` — token chỉ nằm trong env của tiến trình build. Hai trạng thái: có token → upload
     hỏng là build hỏng; không token → `SENTRY_DISABLE_AUTO_UPLOAD=true` + một dòng cảnh báo, build vẫn chạy. Script
-    từ chối `SENTRY_ALLOW_FAILURE`, `.env.sentry-build-plugin`, cấu hình khác Release, và thư mục native sinh trước
-    plugin. Build Release chạy thẳng `expo run` không qua script và không token sẽ **hỏng** ở bước upload (lỗi SDK nêu
+    từ chối shell tracing (`set -x` in token), `SENTRY_ALLOW_FAILURE`, `SENTRY_DISABLE_XCODE_DEBUG_UPLOAD`,
+    `SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD` (mỗi biến tạo trạng thái thứ ba: build xanh mà thiếu artifact),
+    `.env.sentry-build-plugin`, cấu hình khác Release, và thư mục native chưa nối upload. Build Release chạy thẳng `expo run` không qua script và không token sẽ **hỏng** ở bước upload (lỗi SDK nêu
     tên biến) — đúng ý.
   - Cấu hình Debug (dev client) không upload.
   - **ProGuard/R8 không áp dụng:** bản release Android chưa minify (`android.enableMinifyInReleaseBuilds` mặc định
