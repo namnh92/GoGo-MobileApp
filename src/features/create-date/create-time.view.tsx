@@ -6,7 +6,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
-import { GlassBar } from '@/shared/ui/glass-bar.view'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Card, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -74,12 +74,20 @@ export default function CreateTimeScreen() {
     setPickerFor(null)
   }
 
+  // #333: at 375pt the end-time row ran under the bar; the step scrolls now.
+  const [footerHeight, setFooterHeight] = useState(0)
+  const footerInset = useBottomBarInset(footerHeight)
+
   const slotOptions = pickerFor === 'end' && startTime ? TIME_SLOTS.filter(s => s > startTime) : TIME_SLOTS
 
   return (
     <Atmosphere>
       <WizardStep step="time" onBack={() => router.back()} />
-      <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
+      <ScrollView
+        testID="create-time-scroll"
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
+      >
         <Text variant="display">{t('createTime.title', { context: roomType })}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
 
@@ -133,8 +141,8 @@ export default function CreateTimeScreen() {
             </Text>
           )}
         </Card>
-      </View>
-      <GlassBar placement="docked" testID="create-footer">
+      </ScrollView>
+      <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} />
       </GlassBar>
 

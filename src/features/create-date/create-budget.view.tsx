@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { GlassBar } from '@/shared/ui/glass-bar.view'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -47,6 +47,10 @@ export default function CreateBudgetScreen() {
     router.push('/create/mood')
   }
 
+  // #333: at 375pt the last tier ran under the bar; the step scrolls now.
+  const [footerHeight, setFooterHeight] = useState(0)
+  const footerInset = useBottomBarInset(footerHeight)
+
   // Group budget carries its scope explicitly — no couple copy on group flows.
   const subtitle =
     roomType === 'group'
@@ -56,7 +60,11 @@ export default function CreateBudgetScreen() {
   return (
     <Atmosphere>
       <WizardStep step="budget" onBack={() => router.back()} />
-      <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
+      <ScrollView
+        testID="create-budget-scroll"
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
+      >
         <Text variant="display">{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{subtitle}</Text>
 
@@ -99,8 +107,8 @@ export default function CreateBudgetScreen() {
             )
           })}
         </View>
-      </View>
-      <GlassBar placement="docked" testID="create-footer">
+      </ScrollView>
+      <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={next} />
       </GlassBar>
     </Atmosphere>
