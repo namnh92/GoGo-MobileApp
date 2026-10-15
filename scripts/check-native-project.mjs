@@ -23,6 +23,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { sentryNativeProblems } from "./lib/sentry-native.mjs";
 
 const root = process.cwd();
 const problems = [];
@@ -242,58 +243,16 @@ if (!existsSync(path.join(root, "android"))) {
 //
 // `@sentry/react-native/expo` wires the Release build to upload the JS source
 // map and (iOS) dSYMs. A native project generated without it builds green and
-// uploads nothing — the same silent shape as the stale Pods above. And the
-// properties file it writes must never carry the token: it sits in the native
-// project of every build.
-
-const sentryPbxproj = existsSync(iosDir)
-  ? readdirSync(iosDir)
-      .filter((name) => name.endsWith(".xcodeproj"))
-      .map((name) => path.join(iosDir, name, "project.pbxproj"))
-      .find(existsSync)
-  : undefined;
-if (sentryPbxproj) {
-  const project = readFileSync(sentryPbxproj, "utf8");
-  if (!project.includes("/scripts/sentry-xcode.sh")) {
-    problems.push(
-      "the Xcode 'Bundle React Native code and images' phase does not run sentry-xcode.sh — " +
-        "Release builds would upload no source map. Regenerate with `npx expo prebuild -p ios --clean`.",
-    );
-  } else notes.push("ios bundle phase uploads the source map (sentry-xcode.sh)");
-  if (!project.includes('name = "Upload Debug Symbols to Sentry"')) {
-    problems.push(
-      "the Xcode project has no 'Upload Debug Symbols to Sentry' phase — native crashes would stay " +
-        "unsymbolicated. Regenerate with `npx expo prebuild -p ios --clean`.",
-    );
-  } else notes.push("ios uploads dSYMs (Upload Debug Symbols to Sentry)");
-}
-
-const appGradle = path.join(root, "android", "app", "build.gradle");
-if (existsSync(appGradle)) {
-  if (!readFileSync(appGradle, "utf8").includes('"sentry.gradle.kts"')) {
-    problems.push(
-      "android/app/build.gradle does not apply sentry.gradle.kts — Release builds would upload no " +
-        "source map. Regenerate with `npx expo prebuild -p android --clean`.",
-    );
-  } else notes.push("android applies sentry.gradle.kts");
-}
+// uploads nothing — the same silent shape as the stale Pods above. The checks
+// live in scripts/lib/sentry-native.mjs because release-build.sh runs them too.
 
 for (const platform of ["ios", "android"]) {
   if (!existsSync(path.join(root, platform))) continue;
-  const props = path.join(root, platform, "sentry.properties");
-  if (!existsSync(props)) {
-    problems.push(`${platform}/sentry.properties is missing — the Sentry plugin did not run.`);
-    continue;
-  }
-  const text = readFileSync(props, "utf8");
-  if (/^\s*auth\.token\s*=/m.test(text)) {
-    problems.push(
-      `${platform}/sentry.properties contains auth.token — the upload token belongs in the build ` +
-        "process environment only (scripts/release-build.sh via GoGo-Infra exec-with.sh).",
-    );
-  } else if (!/^defaults\.org=gogo-vn$/m.test(text) || !/^defaults\.project=gogo-mobile$/m.test(text)) {
-    problems.push(`${platform}/sentry.properties does not name gogo-vn/gogo-mobile.`);
-  } else notes.push(`${platform}/sentry.properties names gogo-vn/gogo-mobile, no token`);
+  const found = sentryNativeProblems(root, platform);
+  if (found.length > 0) {
+    for (const problem of found)
+      problems.push(`${problem}. Regenerate with \`npx expo prebuild -p ${platform} --clean\`.`);
+  } else notes.push(`${platform} uploads to Sentry gogo-mobile; sentry.properties carries no token`);
 }
 
 // --- report ----------------------------------------------------------------

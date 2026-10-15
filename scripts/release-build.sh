@@ -21,6 +21,12 @@
 
 set -euo pipefail
 
+# Tracing would print SENTRY_AUTH_TOKEN the first time it is expanded, into the
+# build log kept as evidence. Refuse before any expansion.
+case "$-" in
+  *x*) echo "release-build: refusing to run with shell tracing enabled — 'set +x', then re-run." >&2; exit 1 ;;
+esac
+
 die() {
   echo "release-build: $*" >&2
   exit 1
@@ -41,7 +47,12 @@ done
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-[[ -z "${SENTRY_ALLOW_FAILURE:-}" ]] || die "SENTRY_ALLOW_FAILURE is not allowed: a failed upload must fail the build"
+# Each of these turns part of the upload off while the build still succeeds — a
+# third state between "uploaded" and "said it did not". SENTRY_DISABLE_AUTO_UPLOAD
+# is the one switch, and this script sets it itself.
+for knob in SENTRY_ALLOW_FAILURE SENTRY_DISABLE_XCODE_DEBUG_UPLOAD SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD; do
+  [[ -z "${!knob:-}" ]] || die "${knob} is not allowed: an upload either happens and must succeed, or the token is absent"
+done
 # sentry-xcode.sh reads this file on its own if it exists; a token kept there
 # outlives the build and travels with the working tree.
 [[ ! -e .env.sentry-build-plugin ]] || die ".env.sentry-build-plugin exists — delete it; the token comes from exec-with.sh only"
@@ -50,14 +61,10 @@ if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
   [[ "${SENTRY_DISABLE_AUTO_UPLOAD:-}" != "true" ]] \
     || die "SENTRY_AUTH_TOKEN is set and SENTRY_DISABLE_AUTO_UPLOAD=true — pick one"
   # A native project generated before the plugin existed builds green and
-  # uploads nothing. Missing directories are fine: `expo run` generates them.
-  if [[ "$platform" == ios && -d ios ]]; then
-    grep -qs 'sentry-xcode.sh' ios/*.xcodeproj/project.pbxproj \
-      || die "ios/ predates the Sentry plugin — run: npx expo prebuild -p ios --clean"
-  fi
-  if [[ "$platform" == android && -d android ]]; then
-    grep -qs 'sentry.gradle' android/app/build.gradle \
-      || die "android/ predates the Sentry plugin — run: npx expo prebuild -p android --clean"
+  # uploads nothing. Missing directories are fine: `expo run` generates them
+  # with the plugin. The check is the one CI runs (scripts/lib/sentry-native.mjs).
+  if [[ -d "$platform" ]] && ! node scripts/lib/sentry-native.mjs . "$platform"; then
+    die "${platform}/ is not wired to upload (above) — it predates the Sentry plugin; run: npx expo prebuild -p ${platform} --clean"
   fi
 else
   export SENTRY_DISABLE_AUTO_UPLOAD=true

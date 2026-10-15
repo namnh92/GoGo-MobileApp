@@ -68,11 +68,21 @@ describe('Sentry is used only through the #336 boundary', () => {
     expect(config.replace(/\/\/.*$/gm, '')).not.toMatch(/authToken|SENTRY_AUTH_TOKEN|disableAutoUpload/)
   })
 
-  it('Metro adds the Sentry serializer with default options and nothing else', () => {
+  it('Metro adds the Sentry serializer with every optional behaviour off', () => {
     const metro = readFileSync(path.join(ROOT, 'metro.config.js'), 'utf8')
     const code = metro.replace(/\/\*[\s\S]*?\*\//g, '').trim()
     expect(code).toBe(
-      "const { getSentryExpoConfig } = require('@sentry/react-native/metro')\n\nmodule.exports = getSentryExpoConfig(__dirname)",
+      [
+        "const { getSentryExpoConfig } = require('@sentry/react-native/metro')",
+        '',
+        'module.exports = getSentryExpoConfig(__dirname, {',
+        '  enableSourceContextInDevelopment: false,',
+        '  optionsFile: false,',
+        '  injectReleaseForWeb: false,',
+        '  annotateReactComponents: false,',
+        '  autoWrapExpoRouterErrorBoundary: false,',
+        '})',
+      ].join('\n'),
     )
   })
 })
