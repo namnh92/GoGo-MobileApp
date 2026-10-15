@@ -16,7 +16,7 @@ React Native iOS/Android app for GoGo (couple/group date planning).
 | Simple mount/unmount | `moti` | Optional — compatibility spike vs Reanimated 4 first |
 | Blur / glass | `@callstack/liquid-glass` + `expo-blur` | Chốt — installed |
 | Gradient | `expo-linear-gradient` | Chốt — installed |
-| Crash / error reporting | `@sentry/react-native` 8.30.0 (pinned) | Chốt (ADR 0010, GoGo-Infra ADR-0011) — SDK only in `src/shared/observability/sentry.ts`; no config plugin, no uploads (phase 2) |
+| Crash / error reporting | `@sentry/react-native` 8.30.0 (pinned) | Chốt (ADR 0010, GoGo-Infra ADR-0011) — SDK only in `src/shared/observability/sentry.ts`; config plugin `@sentry/react-native/expo` + `getSentryExpoConfig` upload source maps/dSYMs on Release builds via `scripts/release-build.sh` (#340); token never in `.env*` or `sentry.properties` |
 
 ## Structure
 

@@ -33,7 +33,9 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   ```
 
   Bỏ C-14.5/C-14.6 (chỉ CMS) — spec khẳng định đúng hai dòng đó. Redactor không dùng lookbehind và đã chạy qua Hermes.
-- **Native:** không thêm Expo config plugin, không đổi Metro. SDK native tự link qua autolinking. `beforeSend` của JS
+- **Native:** ~~không thêm Expo config plugin, không đổi Metro~~ — **sửa 2026-10-15 (#340, pha 2):** có config plugin
+  `@sentry/react-native/expo` (chỉ `organization`/`project`/`url`) và `metro.config.js` = `getSentryExpoConfig` mặc định,
+  xem mục *Upload symbol (pha 2)* bên dưới. SDK native tự link qua autolinking. `beforeSend` của JS
   không chạy trên crash native, nên breadcrumb mạng native của iOS (URL đầy đủ) bị tắt bằng
   `enableNetworkBreadcrumbs: false`, và mọi breadcrumb tự động native cũng tắt (iOS `enableAutoBreadcrumbTracking`,
   Android `enable{ActivityLifecycle,AppLifecycle,SystemEvent,AppComponent,NetworkEvent}Breadcrumbs`) vì chúng không qua
@@ -49,6 +51,24 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
 - **Không upload source map, dSYM, ProGuard ở pha 1 (ADR-0011 D-5).** Frame JS của bản release bị minify; frame crash
   native chỉ có symbol hệ thống. Một crash native ở pha 1 đếm được và gắn được với release, **không đọc được**. Bản dev
   client (Metro) đọc được. Upload là issue riêng ở pha 2.
+- **Upload symbol (pha 2, #340, 2026-10-15; GoGo-Infra ADR-0011 D-5 pha 2).** Shape:
+  `dev/handoffs/sa-shape-mobile-340-sentry-uploads.fable.md` (workspace). Bản **Release** upload source map JS (Hermes,
+  cả hai nền tảng) và dSYM (iOS) lên `gogo-mobile` ngay trong lúc build:
+  - Config plugin ghi `ios/` và `android/` `sentry.properties` (org/project/url, **không** token), bọc phase Xcode
+    "Bundle React Native code and images" bằng `sentry-xcode.sh`, thêm phase "Upload Debug Symbols to Sentry", và
+    `apply from: sentry.gradle.kts`. `getSentryExpoConfig` gắn Debug ID vào bundle và map để Sentry khớp theo định danh.
+    `pnpm check:native` kiểm cả bốn điều đó.
+  - Chạy qua `scripts/release-build.sh <ios|android> …`, gọi bằng GoGo-Infra `exec-with.sh <env>
+    sentry/mobile-auth-token -- …` — token chỉ nằm trong env của tiến trình build. Hai trạng thái: có token → upload
+    hỏng là build hỏng; không token → `SENTRY_DISABLE_AUTO_UPLOAD=true` + một dòng cảnh báo, build vẫn chạy. Script
+    từ chối `SENTRY_ALLOW_FAILURE`, `.env.sentry-build-plugin`, cấu hình khác Release, và thư mục native sinh trước
+    plugin. Build Release chạy thẳng `expo run` không qua script và không token sẽ **hỏng** ở bước upload (lỗi SDK nêu
+    tên biến) — đúng ý.
+  - Cấu hình Debug (dev client) không upload.
+  - **ProGuard/R8 không áp dụng:** bản release Android chưa minify (`android.enableMinifyInReleaseBuilds` mặc định
+    tắt), frame Java đã đọc được. Bật minify là issue riêng, kéo theo upload mapping. Symbol NDK ngoài phạm vi.
+  - Code mapping `gogo-mobile` đặt sau event symbolicate đầu tiên, theo đường dẫn frame thấy được.
+  - Không đổi `sentry.ts`, redaction, oracle, allowlist (`debug_meta` đã có trong allowlist của ADR-0011 D-9).
 - Thêm native module → mọi dev client đang cài trên máy test phải build lại.
 - **Dev client Android:** expo-dev-launcher bắt exception native trước Sentry, nên crash native chỉ đo được trên bản
   release. iOS tự gửi báo cáo `WatchdogTermination` khi app bị kết thúc từ ngoài (kể cả `devicectl`); các báo cáo này

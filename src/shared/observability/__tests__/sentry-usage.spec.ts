@@ -55,16 +55,24 @@ describe('Sentry is used only through the #336 boundary', () => {
     for (const shape of ALLOWED_CALLS) expect(text).toMatch(shape)
   })
 
-  it('adds no Expo config plugin and no Metro wrapper (ADR-0011 D-5: no uploads)', () => {
+  // GoGo-MobileApp#340 replaced phase 1's "no plugin, no Metro wrapper"
+  // (ADR 0010, ADR-0011 D-5 phase 2). What still has to hold: neither carries a
+  // credential, and neither changes what the app sends.
+  it('the config plugin carries project coordinates only', () => {
     const config = readFileSync(path.join(ROOT, 'app.config.ts'), 'utf8')
-    expect(config).not.toMatch(/@sentry\/react-native\/expo/)
-    for (const name of ['metro.config.js', 'metro.config.ts']) {
-      const file = path.join(ROOT, name)
-      try {
-        expect(readFileSync(file, 'utf8')).not.toMatch(/@sentry/)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      }
-    }
+    const entries = config.match(/\['@sentry\/react-native\/expo'[^\]]*\]/g) ?? []
+    expect(entries).toEqual([
+      "['@sentry/react-native/expo', { organization: 'gogo-vn', project: 'gogo-mobile', url: 'https://sentry.io/' }]",
+    ])
+    // Code only: the comment above the entry explains why these are absent.
+    expect(config.replace(/\/\/.*$/gm, '')).not.toMatch(/authToken|SENTRY_AUTH_TOKEN|disableAutoUpload/)
+  })
+
+  it('Metro adds the Sentry serializer with default options and nothing else', () => {
+    const metro = readFileSync(path.join(ROOT, 'metro.config.js'), 'utf8')
+    const code = metro.replace(/\/\*[\s\S]*?\*\//g, '').trim()
+    expect(code).toBe(
+      "const { getSentryExpoConfig } = require('@sentry/react-native/metro')\n\nmodule.exports = getSentryExpoConfig(__dirname)",
+    )
   })
 })

@@ -180,6 +180,20 @@ describe('crash reporting decision (GoGo-MobileApp#336, ADR-0011 D-3)', () => {
   it('never puts the DSN into the native config', async () => {
     const config = await loadConfig('prod', DSN)
     expect(JSON.stringify(config)).not.toContain('0123456789abcdef0123456789abcdef')
-    expect(JSON.stringify(config.plugins)).not.toContain('@sentry')
+  })
+
+  // GoGo-MobileApp#340, ADR-0011 D-5 phase 2. The plugin writes its options into
+  // ios/ and android/ `sentry.properties`; a token among them would sit in the
+  // native project of every build. `disableAutoUpload` would bake a fixed answer
+  // into build.gradle instead of letting `scripts/release-build.sh` decide.
+  it.each(['dev', 'stag', 'prod'])('%s registers the Sentry plugin with project coordinates only', async flavor => {
+    const config = await loadConfig(flavor)
+    const entries = (config.plugins ?? []).filter(
+      plugin => (Array.isArray(plugin) ? plugin[0] : plugin) === '@sentry/react-native/expo',
+    )
+    expect(entries).toEqual([
+      ['@sentry/react-native/expo', { organization: 'gogo-vn', project: 'gogo-mobile', url: 'https://sentry.io/' }],
+    ])
+    expect(JSON.stringify(config.extra ?? {})).not.toMatch(/sentry/i)
   })
 })

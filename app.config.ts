@@ -224,6 +224,14 @@ const config: ExpoConfig = {
     ['onesignal-expo-plugin', { mode: oneSignalApnsMode, iPhoneDeploymentTarget: '15.1' }],
     'expo-router',
     'expo-dev-client',
+    // GoGo-MobileApp#340, ADR-0011 D-5 phase 2: a Release build uploads its
+    // JavaScript source map and (iOS) dSYMs to gogo-mobile, so a crash reads as
+    // source file and line. Writes ios/ and android/ `sentry.properties` with
+    // these three values only. No `authToken` here — it would be written into
+    // those files — and no `disableAutoUpload`, which would bake a fixed answer
+    // into build.gradle: `scripts/release-build.sh` decides per build from
+    // SENTRY_AUTH_TOKEN. Debug configurations never upload.
+    ['@sentry/react-native/expo', { organization: 'gogo-vn', project: 'gogo-mobile', url: 'https://sentry.io/' }],
     // Inter, embedded at build time (ADR-0009): iOS gets the files as bundle
     // resources plus `UIAppFonts`, Android gets `assets/fonts/`. File name =
     // PostScript name, so `fontFamily: 'Inter-Bold'` resolves on both. No
