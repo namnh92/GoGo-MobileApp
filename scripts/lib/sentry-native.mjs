@@ -5,14 +5,21 @@
  *
  * `@sentry/react-native/expo` (8.30.0) writes four things at prebuild. A native
  * project missing any of them builds green and uploads nothing, so a marker
- * anywhere in the file is not enough: each check looks at the one place the
- * build executes.
+ * anywhere in the file is not enough: each check reads the one place the build
+ * executes, and rejects the two ways the plugin itself can switch an upload off
+ * at prebuild time (`disableAutoUpload`), because that decision belongs to the
+ * build's environment (`scripts/release-build.sh`), not to the generated tree.
  *
- *   iOS      the "Bundle React Native code and images" phase's shellScript runs
- *            sentry-xcode.sh (source map); an "Upload Debug Symbols to Sentry"
- *            phase whose shellScript runs sentry-xcode-debug-files.sh (dSYMs) and
- *            that the target lists in its buildPhases.
- *   Android  an uncommented `apply from: … "sentry.gradle.kts")` in app/build.gradle.
+ *   iOS      the application target's buildPhases list both the "Bundle React
+ *            Native code and images" phase, whose shellScript runs
+ *            sentry-xcode.sh (source map), and an "Upload Debug Symbols to Sentry"
+ *            phase whose shellScript runs sentry-xcode-debug-files.sh (dSYMs).
+ *            Neither script bakes a `SENTRY_*=` assignment. A phase that exists
+ *            but hangs off the notification-service extension never runs for the
+ *            app, so membership is checked on the application target, by id.
+ *   Android  an `apply from: … "sentry.gradle.kts")` line outside any comment in
+ *            app/build.gradle, and no `shouldSentryAutoUploadGeneral` override
+ *            (what the plugin writes for `disableAutoUpload: true`).
  *   both     <platform>/sentry.properties names gogo-vn/gogo-mobile and carries
  *            no auth.token — the token lives in the build's environment only.
  *
@@ -24,51 +31,110 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** One PBX object's body, by the comment Xcode writes after its id. */
-function pbxObject(project, name) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(
-    `^\\t\\t[0-9A-F]{24} /\\* ${escaped} \\*/ = \\{\\n([\\s\\S]*?)^\\t\\t\\};`,
-    "m",
-  ).exec(project);
-  return match ? match[1] : null;
+const BUNDLE_PHASE = "Bundle React Native code and images";
+const SYMBOLS_PHASE = "Upload Debug Symbols to Sentry";
+const APPLICATION = '"com.apple.product-type.application"';
+
+/** Every top-level PBX object: `{ id, comment, body }`. Nested blocks sit deeper than two tabs. */
+function pbxObjects(project) {
+  return [...project.matchAll(/^\t\t([0-9A-F]{24}) \/\* (.*?) \*\/ = \{\n([\s\S]*?)^\t\t\};/gm)].map((m) => ({
+    id: m[1],
+    comment: m[2],
+    body: m[3],
+  }));
 }
 
-function shellScript(body) {
-  const match = /^\t\t\tshellScript = (".*");$/m.exec(body ?? "");
-  return match ? JSON.parse(match[1]) : null;
+/** The one shell-script phase Xcode annotates with `name`, or null. */
+function shellPhase(objects, name) {
+  const phase = objects.find((o) => o.comment === name && /^\t\t\tisa = PBXShellScriptBuildPhase;$/m.test(o.body));
+  if (!phase) return null;
+  const match = /^\t\t\tshellScript = (".*");$/m.exec(phase.body);
+  return { id: phase.id, script: match ? JSON.parse(match[1]) : "" };
 }
 
-/** Problems with the iOS project text; `[]` when it uploads both artifacts. */
+/** Ids listed in a target's `buildPhases = ( … );`. */
+function buildPhaseIds(targetBody) {
+  const match = /^\t\t\tbuildPhases = \(\n([\s\S]*?)^\t\t\t\);/m.exec(targetBody);
+  return match ? [...match[1].matchAll(/^\t\t\t\t([0-9A-F]{24}) \/\*/gm)].map((m) => m[1]) : [];
+}
+
+/** A `SENTRY_X=` line in a phase is the plugin's `disableAutoUpload`, or a hand edit. */
+const BAKED_VARIABLE = /^\s*(?:export\s+)?(SENTRY_[A-Z0-9_]+)=/m;
+
+/** Problems with the iOS project text; `[]` when the app target uploads both artifacts. */
 export function iosProblems(project) {
   const problems = [];
-  const bundle = shellScript(pbxObject(project, "Bundle React Native code and images"));
+  const objects = pbxObjects(project);
+
+  const bundle = shellPhase(objects, BUNDLE_PHASE);
   if (bundle === null) {
-    problems.push("the Xcode project has no 'Bundle React Native code and images' phase");
-  } else if (!bundle.includes("/scripts/sentry-xcode.sh")) {
-    problems.push(
-      "the Xcode 'Bundle React Native code and images' phase does not run sentry-xcode.sh — " +
-        "Release builds would upload no source map",
-    );
+    problems.push(`the Xcode project has no '${BUNDLE_PHASE}' phase`);
+  } else if (!bundle.script.includes("/scripts/sentry-xcode.sh")) {
+    problems.push(`the Xcode '${BUNDLE_PHASE}' phase does not run sentry-xcode.sh — Release builds would upload no source map`);
   }
-  const symbols = shellScript(pbxObject(project, "Upload Debug Symbols to Sentry"));
+
+  const symbols = shellPhase(objects, SYMBOLS_PHASE);
   if (symbols === null) {
-    problems.push(
-      "the Xcode project has no 'Upload Debug Symbols to Sentry' phase — native crashes would stay unsymbolicated",
-    );
-  } else if (!symbols.includes("/scripts/sentry-xcode-debug-files.sh")) {
-    problems.push("the 'Upload Debug Symbols to Sentry' phase does not run sentry-xcode-debug-files.sh");
-  } else if (!/^\t\t\t\t[0-9A-F]{24} \/\* Upload Debug Symbols to Sentry \*\/,$/m.test(project)) {
-    problems.push("the 'Upload Debug Symbols to Sentry' phase exists but no target runs it (not in buildPhases)");
+    problems.push(`the Xcode project has no '${SYMBOLS_PHASE}' phase — native crashes would stay unsymbolicated`);
+  } else if (!symbols.script.includes("/scripts/sentry-xcode-debug-files.sh")) {
+    problems.push(`the '${SYMBOLS_PHASE}' phase does not run sentry-xcode-debug-files.sh`);
+  }
+
+  for (const [name, phase] of [
+    [BUNDLE_PHASE, bundle],
+    [SYMBOLS_PHASE, symbols],
+  ]) {
+    const baked = phase && BAKED_VARIABLE.exec(phase.script);
+    if (baked) {
+      problems.push(
+        `the '${name}' phase bakes ${baked[1]}= into the project — the plugin was given disableAutoUpload, ` +
+          "or the phase was hand-edited; whether a build uploads is decided per build by scripts/release-build.sh",
+      );
+    }
+  }
+
+  const apps = objects.filter(
+    (o) => /^\t\t\tisa = PBXNativeTarget;$/m.test(o.body) && o.body.includes(`productType = ${APPLICATION};`),
+  );
+  if (apps.length === 0) {
+    problems.push("the Xcode project has no application target (productType com.apple.product-type.application)");
+  }
+  for (const app of apps) {
+    const ids = buildPhaseIds(app.body);
+    for (const [name, phase] of [
+      [BUNDLE_PHASE, bundle],
+      [SYMBOLS_PHASE, symbols],
+    ]) {
+      if (phase && !ids.includes(phase.id)) {
+        problems.push(
+          `the '${name}' phase exists but is not in the application target '${app.comment}' buildPhases — ` +
+            "the app build never runs it",
+        );
+      }
+    }
   }
   return problems;
 }
 
+/** Gradle text with `/* … */` blocks and whole-line `//` comments removed. */
+function stripGradleComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+}
+
 /** Problems with android/app/build.gradle text. */
 export function androidProblems(appGradle) {
-  return /^apply from: .*"sentry\.gradle\.kts"\)\s*$/m.test(appGradle)
-    ? []
-    : ["android/app/build.gradle does not apply sentry.gradle.kts — Release builds would upload no source map"];
+  const code = stripGradleComments(appGradle);
+  const problems = [];
+  if (!/^apply from: .*"sentry\.gradle\.kts"\)\s*$/m.test(code)) {
+    problems.push("android/app/build.gradle does not apply sentry.gradle.kts — Release builds would upload no source map");
+  }
+  if (code.includes("shouldSentryAutoUploadGeneral")) {
+    problems.push(
+      "android/app/build.gradle overrides shouldSentryAutoUploadGeneral — the plugin was given disableAutoUpload; " +
+        "whether a build uploads is decided per build by scripts/release-build.sh",
+    );
+  }
+  return problems;
 }
 
 /** Problems with one platform's sentry.properties text (`null` = file missing). */

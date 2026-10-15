@@ -109,6 +109,31 @@ describe('scripts/release-build.sh', () => {
     expect(result.recorded).toBe('')
   })
 
+  // The Xcode phases source ios/.xcode.env, .xcode.env.local and .xcode.env.updates
+  // after this script has run, so a Sentry switch or token kept there would
+  // re-create a refused state inside the build.
+  it.each([
+    ['xcodeEnvLocal', 'export SENTRY_ALLOW_FAILURE=true\n', { SENTRY_AUTH_TOKEN: TOKEN }, 'ios/.xcode.env.local'],
+    ['xcodeEnvLocal', 'export SENTRY_DISABLE_AUTO_UPLOAD=true\n', { SENTRY_AUTH_TOKEN: TOKEN }, 'ios/.xcode.env.local'],
+    ['xcodeEnvLocal', 'SENTRY_DISABLE_XCODE_DEBUG_UPLOAD=true\n', {}, 'ios/.xcode.env.local'],
+    ['xcodeEnvUpdates', 'export SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD=true\n', { SENTRY_AUTH_TOKEN: TOKEN }, 'ios/.xcode.env.updates'],
+    ['xcodeEnv', 'export NODE_BINARY=$(command -v node)\nexport SENTRY_AUTH_TOKEN=sntrys_file_held\n', {}, 'ios/.xcode.env'],
+  ] as const)('refuses a SENTRY_ line in %s before expo starts', (file, text, env, named) => {
+    writeNativeProject(project, { [file]: text })
+    const result = run(['ios'], env)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain(`${named} mentions SENTRY_`)
+    expect(result.recorded).toBe('')
+    expect(result.stderr + result.stdout).not.toContain('sntrys_file_held')
+  })
+
+  it('accepts the .xcode.env prebuild writes (NODE_BINARY only) and an unrelated .xcode.env.local', () => {
+    writeNativeProject(project, { xcodeEnvLocal: 'export NODE_BINARY=/opt/homebrew/bin/node\n' })
+    const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).toBe(0)
+    expect(result.recorded).toContain('disable=\ntoken=set\n')
+  })
+
   it.each([
     ['ios', 'no Upload Debug Symbols phase', { pbxproj: pbxproj({ symbolsScript: null }) }],
     ['ios', 'a bundle phase without sentry-xcode.sh', { pbxproj: pbxproj({ bundleScript: 'react-native-xcode.sh' }) }],

@@ -10,7 +10,9 @@
 #
 # Two states, nothing in between:
 #   SENTRY_AUTH_TOKEN set    the build uploads the JS source map (and dSYMs on
-#                            iOS); a failed upload fails the build.
+#                            iOS); a failed upload fails the build. The SDK's own
+#                            dSYM phase script exits 0 on failure — the repo
+#                            patches it (patches/@sentry__react-native@8.30.0.patch).
 #   SENTRY_AUTH_TOKEN unset  the build ships unsymbolicated, with one warning.
 # SENTRY_ALLOW_FAILURE is refused: it turns an unreadable release into a line
 # in a log nobody reads.
@@ -56,6 +58,16 @@ done
 # sentry-xcode.sh reads this file on its own if it exists; a token kept there
 # outlives the build and travels with the working tree.
 [[ ! -e .env.sentry-build-plugin ]] || die ".env.sentry-build-plugin exists — delete it; the token comes from exec-with.sh only"
+# The Xcode phases source these three files *after* this script has checked
+# its environment (the bundle phase inline, the dSYM phase through
+# react-native's with-environment.sh), so a SENTRY_* line in any of them would
+# re-create exactly the state refused above, or hand the build a token kept in
+# a file. They exist to set NODE_BINARY and nothing else.
+for xcode_env in ios/.xcode.env ios/.xcode.env.local ios/.xcode.env.updates; do
+  if [[ -f "$xcode_env" ]] && grep -q 'SENTRY_' "$xcode_env"; then
+    die "${xcode_env} mentions SENTRY_ — Xcode sources it after this script's checks; remove that line (the token comes from exec-with.sh, the switches from this script)"
+  fi
+done
 
 if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
   [[ "${SENTRY_DISABLE_AUTO_UPLOAD:-}" != "true" ]] \

@@ -81,6 +81,8 @@ describe('Sentry is used only through the #336 boundary', () => {
         '  injectReleaseForWeb: false,',
         '  annotateReactComponents: false,',
         '  autoWrapExpoRouterErrorBoundary: false,',
+        '  includeWebReplay: false,',
+        '  includeWebFeedback: false,',
         '})',
       ].join('\n'),
     )

@@ -58,17 +58,32 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
     "Bundle React Native code and images" bằng `sentry-xcode.sh`, thêm phase "Upload Debug Symbols to Sentry", và
     `apply from: sentry.gradle.kts`. `getSentryExpoConfig` gắn Debug ID vào bundle và map để Sentry khớp theo định danh; mọi
     tuỳ chọn khác tắt và ghi tên (middleware source context, `sentry.options.json`, release cho web, annotate, bọc
-    error boundary) — còn lại thứ SDK luôn áp: gộp frame Sentry trong LogBox (dev) và resolve module chỉ-server thành
-    rỗng. `scripts/lib/sentry-native.mjs` kiểm bốn điểm nối (thân phase Xcode, phase dSYM có trong buildPhases của
-    target, dòng `apply from … sentry.gradle.kts` không bị comment, `sentry.properties` không token) — CI chạy qua
-    `pnpm check:native`, script build chạy trước mỗi build có token.
+    error boundary, và hai gói chỉ-web replay/feedback resolve thành rỗng — `includeWebReplay`/`includeWebFeedback`
+    mặc định là "có nếu được import") — còn lại thứ SDK luôn áp: gộp frame Sentry trong LogBox (dev) và resolve module
+    chỉ-server thành rỗng. `scripts/lib/sentry-native.mjs` kiểm các điểm nối tại đúng chỗ build thực thi: thân hai
+    phase Xcode chạy script SDK và **không nướng** dòng `SENTRY_*=` nào (plugin ghi `export
+    SENTRY_DISABLE_AUTO_UPLOAD=true` khi được cho `disableAutoUpload`); cả hai phase nằm trong `buildPhases` của
+    **target ứng dụng** (theo id, không tính target extension của OneSignal); dòng `apply from … sentry.gradle.kts`
+    ngoài mọi comment `//` và `/* */` và không có `project.ext.shouldSentryAutoUploadGeneral` (bản Android của
+    `disableAutoUpload`); `sentry.properties` không token. CI chạy qua `pnpm check:native`, script build chạy trước mỗi
+    build có token.
   - Chạy qua `scripts/release-build.sh <ios|android> …`, gọi bằng GoGo-Infra `exec-with.sh <env>
     sentry/mobile-auth-token -- …` — token chỉ nằm trong env của tiến trình build. Hai trạng thái: có token → upload
     hỏng là build hỏng; không token → `SENTRY_DISABLE_AUTO_UPLOAD=true` + một dòng cảnh báo, build vẫn chạy. Script
     từ chối shell tracing (`set -x` in token), `SENTRY_ALLOW_FAILURE`, `SENTRY_DISABLE_XCODE_DEBUG_UPLOAD`,
     `SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD` (mỗi biến tạo trạng thái thứ ba: build xanh mà thiếu artifact),
-    `.env.sentry-build-plugin`, cấu hình khác Release, và thư mục native chưa nối upload. Build Release chạy thẳng `expo run` không qua script và không token sẽ **hỏng** ở bước upload (lỗi SDK nêu
+    `.env.sentry-build-plugin`, **mọi dòng `SENTRY_` trong `ios/.xcode.env`, `.xcode.env.local`, `.xcode.env.updates`**
+    (phase Xcode source ba file này *sau* khi script đã kiểm env — phase bundle source trực tiếp, phase dSYM qua
+    `with-environment.sh` của react-native — nên một dòng ở đó tái tạo đúng trạng thái bị từ chối hoặc đưa token
+    nằm trong file vào build), cấu hình khác Release, và thư mục native chưa nối upload. Build Release chạy thẳng `expo run` không qua script và không token sẽ **hỏng** ở bước upload (lỗi SDK nêu
     tên biến) — đúng ý.
+  - **Vá SDK (pnpm patch, ghim 8.30.0):** `sentry-xcode-debug-files.sh` của SDK in `error:` khi upload dSYM hỏng rồi
+    kết thúc file với exit 0 — build xanh, không có symbol native. `patches/@sentry__react-native@8.30.0.patch`
+    (khai ở `pnpm-workspace.yaml`, áp khi `pnpm install`) thêm `exit "$UPLOAD_EXIT_CODE"` vào nhánh lỗi; không dựa
+    vào việc Xcode có coi dòng `error:` là fatal hay không. `sentry-xcode-scripts.test.ts` chạy cả hai script SDK thật
+    với một sentry-cli giả và ghim: dSYM hỏng → phase hỏng với đúng mã lỗi; `SENTRY_ALLOW_FAILURE=true` chỉ còn cảnh
+    báo (lý do script build từ chối biến này); patch còn trong `node_modules`. **Nâng SDK phải xem lại patch** — nếu
+    upstream đã sửa thì bỏ patch, chưa thì làm lại patch trên bản mới; test trên vẫn là cổng.
   - Cấu hình Debug (dev client) không upload.
   - **ProGuard/R8 không áp dụng:** bản release Android chưa minify (`android.enableMinifyInReleaseBuilds` mặc định
     tắt), frame Java đã đọc được. Bật minify là issue riêng, kéo theo upload mapping. Symbol NDK ngoài phạm vi.
