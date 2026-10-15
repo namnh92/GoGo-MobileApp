@@ -159,10 +159,13 @@ export default function NotificationsScreen() {
           const unread = !item.readAt
           const created = parseApiDate(item.createdAt)
           const busy = openingId !== null && openingId === item.id
+          const kindLabel = t(`notifications.kind.${item.kind}`, { defaultValue: item.kind ?? '' })
           return (
             <Pressable
               onPress={() => void open(item)}
               accessibilityRole="button"
+              // #271: a busy control needs a label, or Android keeps saying "busy".
+              accessibilityLabel={created ? `${kindLabel}, ${created.toLocaleString(i18n.language)}` : kindLabel}
               accessibilityState={{ busy }}
             >
               <Card padded={false} style={[styles.row, unread && styles.rowUnread]}>
@@ -171,9 +174,7 @@ export default function NotificationsScreen() {
                   {unread ? <View style={styles.unreadDot} /> : null}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant={unread ? 'title2' : 'body'}>
-                    {t(`notifications.kind.${item.kind}`, { defaultValue: item.kind ?? '' })}
-                  </Text>
+                  <Text variant={unread ? 'title2' : 'body'}>{kindLabel}</Text>
                   {created ? (
                     <Text variant="caption" color="text.secondary" style={styles.time}>{created.toLocaleString(i18n.language)}</Text>
                   ) : null}
