@@ -222,6 +222,7 @@ export default function ProfileScreen() {
             onPress={signOutNow}
             disabled={signingOut}
             accessibilityRole="button"
+            accessibilityLabel={signingOut ? t('profile.loggingOut') : t('profile.logout')}
             accessibilityState={{ disabled: signingOut, busy: signingOut }}
           >
             <Text variant="label" color="accent.primary">

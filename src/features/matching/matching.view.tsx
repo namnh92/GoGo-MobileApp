@@ -136,6 +136,7 @@ export default function MatchingScreen() {
                 accessibilityRole="button"
                 onPress={() => startMatching.mutate(undefined, { onSuccess: () => track('match_generated') })}
                 disabled={startMatching.isPending}
+                accessibilityLabel={startMatching.isPending ? t('matching.retrying') : t('common.retry')}
                 accessibilityState={{ disabled: startMatching.isPending, busy: startMatching.isPending }}
                 style={styles.retryBtn}
               >
