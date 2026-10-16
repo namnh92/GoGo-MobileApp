@@ -21,6 +21,8 @@ const ALLOWED_CALLS: RegExp[] = [
   /Sentry\.wrap\(component as ComponentType<Record<string, unknown>>\)/,
   /guardScope\(Sentry\.getGlobalScope\(\)\)/,
   /guardScope\(Sentry\.getIsolationScope\(\)\)/,
+  // #341: the screen tag, a route template, written through the guarded scope.
+  /Sentry\.getIsolationScope\(\)\.setTag\('screen', template\)/,
 ]
 
 function sourceFiles(dir: string): string[] {
@@ -60,6 +62,15 @@ describe('Sentry is used only through the #336 boundary', () => {
     const calls = [...text.matchAll(/Sentry\.(\w+)\(/g)].map(match => match[0])
     expect(calls).toHaveLength(ALLOWED_CALLS.length)
     for (const shape of ALLOWED_CALLS) expect(text).toMatch(shape)
+  })
+
+  // #341: the tag is fed from the root layout, once, inside the providers and
+  // before the navigator — the one place that sees every route.
+  it('mounts the screen tag once in the root layout', () => {
+    const layout = readFileSync(path.join(ROOT, 'src/app/_layout.tsx'), 'utf8')
+    expect(layout.match(/<SentryScreenTag \/>/g)).toHaveLength(1)
+    expect(layout.indexOf('<SentryScreenTag />')).toBeGreaterThan(layout.indexOf('<AppProviders>'))
+    expect(layout.indexOf('<SentryScreenTag />')).toBeLessThan(layout.indexOf('<Stack'))
   })
 
   // GoGo-MobileApp#340 replaced phase 1's "no plugin, no Metro wrapper"

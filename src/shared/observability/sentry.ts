@@ -30,7 +30,7 @@ import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
  *
  * Pattern limits — text an operator needs: every remaining string goes
  * through {@link redactText}, whose rule order is fixed by the oracle
- * (`__fixtures__/redaction-cases.v1.json`, vendored verbatim from GoGo-Infra).
+ * (`__fixtures__/redaction-cases.v2.json`, vendored verbatim from GoGo-Infra).
  *
  * Every scanner here is linear in its input (oracle C-16 feeds 100 kB
  * adversarial strings), and no pattern uses lookbehind: the redactor runs on
@@ -305,6 +305,13 @@ function numberEnd(text: string, start: number): number {
 /** Segments whose *next* segment is a credential (`room`/`rooms`: see {@link isRoomCode}). */
 const CREDENTIAL_KEYWORDS: ReadonlySet<string> = new Set(['r', 'l', 'invite', 'share-links', 'room', 'rooms'])
 const ROOM_SEGMENT = /^[A-Za-z0-9_-]{6,64}$/
+/**
+ * A route-template placeholder — expo-router `[inviteCode]`, React Router
+ * `:id` — names a parameter, it is not one (ADR-0011 D-9, oracle v2 C-24).
+ * No invite code, slug or room code can match: they are `[A-Za-z0-9_-]` only.
+ * Judged on the raw segment: an encoded `%5B…%5D` is not a template.
+ */
+const PLACEHOLDER_SEGMENT = /^(?:\[[A-Za-z][A-Za-z0-9]*\]|:[A-Za-z][A-Za-z0-9]*)$/
 
 /** Length of the path separator at `i`: `/` → 1, `%2F` (any case) → 3, else 0. */
 function separatorAt(text: string, i: number): number {
@@ -340,10 +347,11 @@ function isRoomCode(segment: string): boolean {
 /**
  * One pass over the path segments. A segment equal to a keyword — compared on
  * its percent-decoded form, so `inv%69te` is `invite` — makes the next segment
- * a candidate. `r | l | invite | share-links` candidates are always
- * credentials; a `room | rooms` candidate only when it looks like a code and
- * is not a uuid (`/v1/rooms/<uuid>` is an id, C-21), judged on the raw segment
- * and its decoded form. Either way the raw span is what gets redacted (C-2c).
+ * a candidate. `r | l | invite | share-links` candidates are credentials
+ * unless they are a route-template placeholder (C-24); a `room | rooms`
+ * candidate only when it looks like a code and is not a uuid
+ * (`/v1/rooms/<uuid>` is an id, C-21), judged on the raw segment and its
+ * decoded form. Either way the raw span is what gets redacted (C-2c).
  */
 function redactSegments(text: string): string {
   let out = ''
@@ -364,7 +372,7 @@ function redactSegments(text: string): string {
         const start = keywordEnd + nextSep
         const end = segmentEnd(text, start)
         const raw = text.slice(start, end)
-        const credential = end > start &&
+        const credential = end > start && !PLACEHOLDER_SEGMENT.test(raw) &&
           (keyword === 'room' || keyword === 'rooms' ? isRoomCode(raw) || isRoomCode(percentDecode(raw)) : true)
         if (credential) {
           out += `${text.slice(last, start)}${REDACTED}`
@@ -867,6 +875,20 @@ export function setSentryUser(id: string | null): void {
   appUserId = id || null
   if (!enabled) return
   Sentry.setUser(appUserId ? { id: appUserId } : null)
+}
+
+/**
+ * The screen an event happened on, as the expo-router route template
+ * (`/room/[roomId]/preference`) — never a pathname, which carries the room or
+ * invite code (GoGo-MobileApp#341). Written to the isolation scope, the one
+ * `Sentry.setTag` writes: `guardScope` redacts the value, then the SDK copies
+ * it to the native scope, so a native crash carries the same tag. No clear:
+ * after mount there is always a screen, and an `undefined` tag would reach the
+ * native SDKs as a string.
+ */
+export function setSentryScreen(template: string): void {
+  if (!enabled) return
+  Sentry.getIsolationScope().setTag('screen', template)
 }
 
 /** `Sentry.wrap` when enabled — its touch boundary records breadcrumbs — else the component itself. */

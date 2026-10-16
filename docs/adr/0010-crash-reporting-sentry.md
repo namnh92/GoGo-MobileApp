@@ -25,11 +25,12 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   2026-10-14): crash native khi chưa có user mang `user.id` = installation id ngẫu nhiên do SDK native tự gắn (đo được
   trên Android, sentry-android 8.60.0); `beforeSend` không chạy trên crash native và SDK không có tuỳ chọn tắt. Event
   JS vẫn là `{ id }` hoặc không có `user`.
-- **Redaction:** chạy mọi dòng của oracle `redaction-cases.v1.json`, vendored nguyên văn tại
-  `src/shared/observability/__fixtures__/`:
+- **Redaction:** chạy mọi dòng của oracle `redaction-cases.v2.json`, vendored nguyên văn tại
+  `src/shared/observability/__fixtures__/` (v1 bị thay ngày 2026-10-16, #341; v2 = mọi ca v1 không đổi + C-24):
 
   ```
-  v1 sha256 decf6c4336269b086b209a4d27a9c36ca2c392b307c9d76e4b24883a4f4ef6a0  (GoGo-Infra 7c2a09a)
+  v2 sha256 c9f6c9ca06040858721a7665eb996f2173e345f337cce55078b5c472f7abc9d1  (GoGo-Infra#229)
+  v1 sha256 decf6c4336269b086b209a4d27a9c36ca2c392b307c9d76e4b24883a4f4ef6a0  (GoGo-Infra 7c2a09a, đã thay)
   ```
 
   Bỏ C-14.5/C-14.6 (chỉ CMS) — spec khẳng định đúng hai dòng đó. Redactor không dùng lookbehind và đã chạy qua Hermes.
@@ -45,6 +46,17 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   SDK chép global/isolation scope sang native ngay khi ghi, và báo cáo crash/watchdog native dựng từ bản chép đó. Vì vậy
   `sentry.ts` bọc `setUser`, `setTag(s)`, `setExtra(s)`, `setContext`, `setAttribute(s)` để giá trị đã được rebuild và
   redact trước khi SDK chép. Lượt relay trên iPhone bắt được một báo cáo watchdog chứa giá trị thô trước khi có lớp bọc này.
+- **Tag màn hình (#341, 2026-10-16; shape `dev/handoffs/sa-shape-mobile-341-screen-tag.fable.md` rev 2):** mọi event
+  JS và crash native mang tag `screen` = route template của expo-router (`/room/[roomId]/preference`, `/(tabs)/plans`,
+  màn khởi động = `/`), lấy từ `useSegments()` — tên file dưới `src/app/`, không bao giờ từ `usePathname()` (pathname mang
+  mã phòng/mã mời thô; uuid thì redactor không che, C-21). `SentryScreenTag` (`screen-tag.view.tsx`, không render gì)
+  gắn một lần trong `src/app/_layout.tsx`, gọi `setSentryScreen` trong effect → `getIsolationScope().setTag('screen', …)`:
+  lớp bọc scope redact giá trị, SDK chép sang native scope, nên crash native mang cùng tag mà không cần code native.
+  Redactor stage 2 giữ segment là placeholder của route template (`[name]`, `:name`) sau `r | l | invite |
+  share-links` — mã thật chỉ gồm `[A-Za-z0-9_-]` (ADR-0011 D-9, C-24). Mọi template của app được test đi qua redactor
+  không đổi. **Giới hạn (owner chấp nhận 2026-10-16):** effect chạy sau commit, nên lỗi ném ngay trong lần render đầu
+  của màn mới (root boundary bắt) mang tag màn trước; lỗi trong effect, handler, promise và native mang đúng tag.
+  Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 
 ## Hệ quả
@@ -100,7 +112,8 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   - **ProGuard/R8 không áp dụng:** bản release Android chưa minify (`android.enableMinifyInReleaseBuilds` mặc định
     tắt), frame Java đã đọc được. Bật minify là issue riêng, kéo theo upload mapping. Symbol NDK ngoài phạm vi.
   - Code mapping `gogo-mobile` đặt sau event symbolicate đầu tiên, theo đường dẫn frame thấy được.
-  - Không đổi `sentry.ts`, redaction, oracle, allowlist (`debug_meta` đã có trong allowlist của ADR-0011 D-9).
+  - Không đổi `sentry.ts`, redaction, oracle, allowlist (`debug_meta` đã có trong allowlist của ADR-0011 D-9) — đúng ở
+    #340; #341 sau đó thêm `setSentryScreen`, luật placeholder và oracle v2 (mục *Tag màn hình*).
 - Thêm native module → mọi dev client đang cài trên máy test phải build lại.
 - **Dev client Android:** expo-dev-launcher bắt exception native trước Sentry, nên crash native chỉ đo được trên bản
   release. iOS tự gửi báo cáo `WatchdogTermination` khi app bị kết thúc từ ngoài (kể cả `devicectl`); các báo cáo này

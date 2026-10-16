@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar'
 import '@/shared/i18n'
 import { NotificationClickRouter } from '@/shared/notifications/notification-click-router'
 import { RootErrorBoundary } from '@/shared/observability/root-error-boundary.view'
+import { SentryScreenTag } from '@/shared/observability/screen-tag.view'
 import { wrapRoot } from '@/shared/observability/sentry'
 import { AppProviders } from '@/shared/providers/app-providers'
 import { surface } from '@/shared/ui/tokens'
@@ -25,6 +26,7 @@ function RootLayout() {
       <AppProviders>
         <StatusBar style="dark" />
         <NotificationClickRouter />
+        <SentryScreenTag />
         <Stack
           screenOptions={{
             headerShown: false,

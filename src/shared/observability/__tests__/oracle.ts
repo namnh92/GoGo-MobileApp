@@ -1,7 +1,7 @@
-import oracle from '../__fixtures__/redaction-cases.v1.json'
+import oracle from '../__fixtures__/redaction-cases.v2.json'
 
 /**
- * GoGo-Infra ADR-0011 oracle v1, vendored verbatim (sha256 pinned in
+ * GoGo-Infra ADR-0011 oracle v2, vendored verbatim (sha256 pinned in
  * `docs/adr/0010-crash-reporting-sentry.md`). A row this client cannot pass is
  * a change to the ADR, never a local exception or a skipped row.
  */
