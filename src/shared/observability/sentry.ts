@@ -309,9 +309,10 @@ const ROOM_SEGMENT = /^[A-Za-z0-9_-]{6,64}$/
  * A route-template placeholder — expo-router `[inviteCode]`, React Router
  * `:id` — names a parameter, it is not one (ADR-0011 D-9, oracle v2 C-24).
  * No invite code, slug or room code can match: they are `[A-Za-z0-9_-]` only.
- * Judged on the raw segment: an encoded `%5B…%5D` is not a template.
+ * Letters only, so no later stage rewrites the name (C-24.9e). Judged on the
+ * raw segment: an encoded `%5B…%5D` is not a template (C-24.9d).
  */
-const PLACEHOLDER_SEGMENT = /^(?:\[[A-Za-z][A-Za-z0-9]*\]|:[A-Za-z][A-Za-z0-9]*)$/
+const PLACEHOLDER_SEGMENT = /^(?:\[[A-Za-z]+\]|:[A-Za-z]+)$/
 
 /** Length of the path separator at `i`: `/` → 1, `%2F` (any case) → 3, else 0. */
 function separatorAt(text: string, i: number): number {
@@ -883,7 +884,7 @@ export function setSentryUser(id: string | null): void {
  * placeholder (`[roomId]`). Digits are refused because no route name has one
  * and every code and id does — the redactor alone keeps a raw uuid (C-21).
  */
-const SCREEN_TEMPLATE = /^\/(?:(?:[A-Za-z_+()-]+|\[[A-Za-z][A-Za-z0-9]*\])(?:\/(?:[A-Za-z_+()-]+|\[[A-Za-z][A-Za-z0-9]*\]))*)?$/
+const SCREEN_TEMPLATE = /^\/(?:(?:[A-Za-z_+()-]+|\[[A-Za-z]+\])(?:\/(?:[A-Za-z_+()-]+|\[[A-Za-z]+\]))*)?$/
 
 /** Sent in place of anything that is not a template (D-7 addition 3: never the real path). */
 export const UNKNOWN_SCREEN = 'unknown'

@@ -3,10 +3,12 @@ import { router, Stack } from 'expo-router'
 import { act, renderRouter } from 'expo-router/testing-library'
 import { readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { Component, useLayoutEffect } from 'react'
 import { Text } from 'react-native'
 
 import { initSentry, isScreenTemplate, redactText, resetSentryForTests, setSentryScreen } from '../sentry'
 import { SentryScreenTag, screenTemplate } from '../screen-tag.view'
+import { SCREEN_TEMPLATES } from '../screen-templates'
 
 /**
  * GoGo-MobileApp#341 — the `screen` tag is the route template, never the
@@ -79,6 +81,55 @@ describe('SentryScreenTag', () => {
     expect(screens()).toEqual(['/r/[inviteCode]', '/room/[roomId]/preference'])
   })
 
+  // Sol F-01 (PR #349): Expo Router appends a `?screen=` query value to the segments.
+  it.each([
+    ['a uuid', '5f1c2a3e-1234-4abc-8def-0123456789ab'],
+    ['a letters-only value', 'lettersonly'],
+  ])('sends `unknown` when a link carries ?screen= with %s, cold and warm', async (_label, value) => {
+    enable()
+    await renderRouter(app(), { initialUrl: `/r/${CODE}?screen=${value}` })
+    await act(async () => router.push(`/room/${CODE}/preference?screen=${value}`))
+    const everything = JSON.stringify([...sdk.isolationScope.forwarded, ...sdk.globalScope.forwarded])
+    expect(everything).not.toContain(value)
+    expect(everything).not.toContain(CODE)
+    expect(screens()).not.toContain(expect.stringContaining('/r/[inviteCode]/'))
+    expect(screens()[0]).toBe('unknown')
+  })
+
+  // Sol F-02 (PR #349): measured, not assumed. The root layout re-renders with
+  // the new segments after the new screen has mounted, so the screen's mount
+  // handlers still see the previous tag; once the navigation settles the tag is
+  // the new screen. A layout effect in SentryScreenTag gives the same result.
+  // Pinned so a change in expo-router's ordering is noticed (ADR 0010).
+  it('is the previous screen during the new screen mount, its own once navigation settles', async () => {
+    enable()
+    const atMount: unknown[] = []
+    const latest = () => screens()[screens().length - 1]
+    function HookScreen() {
+      useLayoutEffect(() => {
+        atMount.push(latest())
+      }, [])
+      return <Text>preference</Text>
+    }
+    class ClassScreen extends Component {
+      componentDidMount() {
+        atMount.push(latest())
+      }
+      render() {
+        return <Text>join</Text>
+      }
+    }
+    await renderRouter(
+      { ...app(), 'room/[roomId]/preference': HookScreen, 'r/[inviteCode]': () => <ClassScreen /> },
+      { initialUrl: '/' },
+    )
+    await act(async () => router.push(`/room/${CODE}/preference`))
+    expect(latest()).toBe('/room/[roomId]/preference')
+    await act(async () => router.push(`/r/${CODE}`))
+    expect(latest()).toBe('/r/[inviteCode]')
+    expect(atMount).toEqual(['/', '/room/[roomId]/preference'])
+  })
+
   it('does nothing while Sentry is off', async () => {
     await renderRouter(app(), { initialUrl: `/r/${CODE}` })
     expect(sdk.isolationScope.forwarded).toEqual([])
@@ -113,7 +164,8 @@ function routeTemplates(dir: string, base = dir): string[] {
   return readdirSync(dir).flatMap(name => {
     const full = path.join(dir, name)
     if (statSync(full).isDirectory()) return routeTemplates(full, base)
-    if (!/\.tsx?$/.test(name) || name.startsWith('_') || name === '+native-intent.tsx') return []
+    // Exactly the two files that are not screens (Sol F-03): any other name is a route.
+    if (!/\.tsx?$/.test(name) || /^(?:_layout|\+native-intent)\.tsx?$/.test(name)) return []
     const segments = path.relative(base, full).replace(/\.tsx?$/, '').split(path.sep)
     if (segments[segments.length - 1] === 'index') segments.pop()
     return [screenTemplate(segments)]
@@ -123,13 +175,15 @@ function routeTemplates(dir: string, base = dir): string[] {
 describe('route templates', () => {
   const templates = routeTemplates(path.resolve(__dirname, '../../../app')).sort()
 
-  it('finds the app routes', () => {
+  it('is exactly the list the tag may send', () => {
     expect(templates).toEqual(expect.arrayContaining(['/', '/(tabs)', '/r/[inviteCode]', '/l/[slug]', '/+not-found']))
+    expect(templates).toEqual([...SCREEN_TEMPLATES].sort())
   })
 
   // A new route whose name a redaction stage would rewrite fails here, not in Discord.
   it.each(templates.map(t => [t]))('%s survives the redactor unchanged and is sent as itself', template => {
     expect(redactText(template)).toBe(template)
     expect(isScreenTemplate(template)).toBe(true)
+    expect(screenTemplate(template === '/' ? [] : template.slice(1).split('/'))).toBe(template)
   })
 })

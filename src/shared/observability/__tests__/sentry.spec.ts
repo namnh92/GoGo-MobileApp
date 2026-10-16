@@ -46,7 +46,7 @@ describe('oracle v2', () => {
   it('is the vendored v2 and every row is accounted for', () => {
     expect(ORACLE.version).toBe(2)
     expect(ORACLE.literal).toBe('[redacted]')
-    expect(ORACLE.cases).toHaveLength(132)
+    expect(ORACLE.cases).toHaveLength(135)
     // The only rows this client does not run are the ones tagged for the CMS
     // alone; a new platform tag must be read before it can be skipped.
     const skipped = ORACLE.cases.filter(c => !MOBILE_CASES.includes(c)).map(c => c.id)

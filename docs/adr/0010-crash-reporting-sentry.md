@@ -29,7 +29,7 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   `src/shared/observability/__fixtures__/` (v1 bị thay ngày 2026-10-16, #341; v2 = mọi ca v1 không đổi + C-24):
 
   ```
-  v2 sha256 c9f6c9ca06040858721a7665eb996f2173e345f337cce55078b5c472f7abc9d1  (GoGo-Infra#229)
+  v2 sha256 6cf5c1487985428e9bc7cbbc4fb07eaa4456fc624eda1b05ee507f77847e8d37  (GoGo-Infra#229)
   v1 sha256 decf6c4336269b086b209a4d27a9c36ca2c392b307c9d76e4b24883a4f4ef6a0  (GoGo-Infra 7c2a09a, đã thay)
   ```
 
@@ -50,14 +50,16 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   JS và crash native mang tag `screen` = route template của expo-router (`/room/[roomId]/preference`, `/(tabs)/plans`,
   màn khởi động = `/`), lấy từ `useSegments()` — tên file dưới `src/app/`, không bao giờ từ `usePathname()` (pathname mang
   mã phòng/mã mời thô; uuid thì redactor không che, C-21). `SentryScreenTag` (`screen-tag.view.tsx`, không render gì)
-  gắn một lần trong `src/app/_layout.tsx`, gọi `setSentryScreen` trong effect → `getIsolationScope().setTag('screen', …)`:
+  gắn một lần trong `src/app/_layout.tsx`; chỉ template có trong `screen-templates.ts` (test khoá bằng danh sách file
+  `src/app/`) được gửi nguyên văn — expo-router nối giá trị query `?screen=` vào segment; gọi `setSentryScreen` trong effect → `getIsolationScope().setTag('screen', …)`:
   lớp bọc scope redact giá trị, SDK chép sang native scope, nên crash native mang cùng tag mà không cần code native.
-  Redactor stage 2 giữ segment là placeholder của route template (`[name]`, `:name`) sau `r | l | invite |
+  Redactor stage 2 giữ segment thô đúng dạng placeholder (`[name]`, `:name`, `name` chỉ gồm chữ) sau `r | l | invite |
   share-links` — mã thật chỉ gồm `[A-Za-z0-9_-]` (ADR-0011 D-9, C-24). Giá trị không phải template (segment tĩnh có chữ
   số, uuid, mã, query) gửi thành `unknown`, không bao giờ là đường dẫn thật (bổ sung D-7 số 3 trên GoGo-Infra#208,
   comment 6209622583): SDK native không xoá được tag, và giữ tag cũ thì chỉ sai màn. Mọi template của app được test đi
-  qua redactor không đổi và được gửi nguyên văn. **Giới hạn (owner chấp nhận 2026-10-16):** effect chạy sau commit, nên lỗi ném ngay trong lần render đầu
-  của màn mới (root boundary bắt) mang tag màn trước; lỗi trong effect, handler, promise và native mang đúng tag.
+  qua redactor không đổi và được gửi nguyên văn. **Giới hạn:** root layout nhận segment mới ở commit sau commit mount màn mới (đo trong test, Sol F-02 PR #349),
+  nên lỗi ném đồng bộ khi màn mới render **hoặc mount** (effect, `componentDidMount`) mang tag màn trước; từ khi điều
+  hướng xong, lỗi trong handler, promise và native mang đúng tag. `useLayoutEffect` không đổi kết quả.
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 

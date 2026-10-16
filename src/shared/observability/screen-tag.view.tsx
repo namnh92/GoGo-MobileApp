@@ -1,25 +1,31 @@
 import { useSegments } from 'expo-router'
 import { useEffect } from 'react'
 
-import { setSentryScreen } from './sentry'
+import { SCREEN_TEMPLATES } from './screen-templates'
+import { setSentryScreen, UNKNOWN_SCREEN } from './sentry'
 
 /**
  * The route template of the screen on top: `/room/[roomId]/preference`, `/(tabs)/plans`,
- * `/` for the launch screen (the one route with no segments). Segments are the
- * file names under `src/app/`, so the value never carries a parameter — the
- * room or invite code lives in the pathname, which is never read here.
+ * `/` for the launch screen (the one route with no segments). Only a template
+ * the app declares ({@link SCREEN_TEMPLATES}) is returned as itself; anything
+ * else — Expo Router appends a `?screen=` query value to the segments — is
+ * `unknown`. The pathname, which carries the room or invite code, is never read.
  */
 export function screenTemplate(segments: readonly string[]): string {
-  return `/${segments.join('/')}`
+  const template = `/${segments.join('/')}`
+  return SCREEN_TEMPLATES.has(template) ? template : UNKNOWN_SCREEN
 }
 
 /**
  * GoGo-MobileApp#341 — tags every Sentry event, JS and native, with the screen
- * it happened on. Renders nothing; mounted once in the root layout.
+ * it happened on. Renders nothing; mounted once in the root layout, before the
+ * navigator.
  *
- * Set from an effect, so it follows a committed navigation: an error thrown in
- * the first render of a screen (caught by the root boundary) still carries the
- * previous screen. Accepted (owner, 2026-10-16); ADR 0010.
+ * The root layout learns the new segments in a later commit than the one that
+ * mounts the new screen, so an error thrown synchronously while that screen
+ * renders or mounts (its effects, `componentDidMount`) carries the previous
+ * screen; from the next task on, the tag is the new one. A layout effect here
+ * changes nothing (measured, Sol F-02 on PR #349). ADR 0010.
  */
 export function SentryScreenTag() {
   const template = screenTemplate(useSegments())
