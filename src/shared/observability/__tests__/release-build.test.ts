@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -36,6 +36,10 @@ beforeEach(() => {
   mkdirSync(path.join(project, 'scripts/lib'), { recursive: true })
   cpSync(path.join(ROOT, 'scripts/release-build.sh'), path.join(project, 'scripts/release-build.sh'))
   cpSync(path.join(ROOT, 'scripts/lib/sentry-native.mjs'), path.join(project, 'scripts/lib/sentry-native.mjs'))
+  cpSync(path.join(ROOT, 'scripts/lib/dotenv-sentry-keys.mjs'), path.join(project, 'scripts/lib/dotenv-sentry-keys.mjs'))
+  // The dotenv check resolves Expo's own parser from the project; point the
+  // sandbox at this checkout's node_modules.
+  symlinkSync(path.join(ROOT, 'node_modules'), path.join(project, 'node_modules'))
   const bin = path.join(sandbox, 'bin')
   mkdirSync(bin)
   writeFileSync(
@@ -161,6 +165,9 @@ describe('scripts/release-build.sh', () => {
     ['.env.production', '  SENTRY_DISABLE_XCODE_DEBUG_UPLOAD = true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
     ['.env.production.local', 'SENTRY_AUTH_TOKEN=sntrys_file_held\n', {}],
     ['.env.development.local', 'SENTRY_URL=https://elsewhere.example/\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    // dotenv's grammar also takes `KEY: value` (Astra F-20, round 2).
+    ['.env.local', 'SENTRY_AUTH_TOKEN: sntrys_file_held\n', {}],
+    ['.env', 'export SENTRY_DISABLE_AUTO_UPLOAD: true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
   ] as const)('refuses a SENTRY_ assignment in %s before expo starts', (file, text, env) => {
     writeNativeProject(project)
     writeFileSync(path.join(project, file), `EXPO_PUBLIC_ENV=dev\n${text}`)
@@ -173,7 +180,11 @@ describe('scripts/release-build.sh', () => {
 
   it('accepts the DSN in .env.local and a documented token line in .env.example; every switch keeps its pinned value after Expo loads the files', () => {
     writeNativeProject(project)
-    writeFileSync(path.join(project, '.env.local'), 'EXPO_PUBLIC_SENTRY_DSN=https://k@o0.ingest.us.sentry.io/1\n')
+    // The commented line is not an assignment to dotenv, so it is not one here either.
+    writeFileSync(
+      path.join(project, '.env.local'),
+      'EXPO_PUBLIC_SENTRY_DSN=https://k@o0.ingest.us.sentry.io/1\n# SENTRY_AUTH_TOKEN=never-set\n',
+    )
     writeFileSync(path.join(project, '.env.example'), 'SENTRY_AUTH_TOKEN=\nSENTRY_DISABLE_AUTO_UPLOAD=true\n')
     const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN })
     expect(result.status).toBe(0)

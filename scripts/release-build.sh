@@ -71,16 +71,26 @@ done
 # `expo run` loads the project's dotenv files (@expo/env: .env, .env.local,
 # .env.<mode>, .env.<mode>.local) after these checks and before the native
 # build starts, so a SENTRY_* assignment there — a switch, or the token kept in
-# a file — reaches the upload scripts unchecked. EXPO_PUBLIC_SENTRY_DSN is app
-# config, not a build switch, and does not match. .env.example is never loaded.
+# a file — reaches the upload scripts unchecked. What counts as an assignment
+# is decided by the parser @expo/env itself uses (dotenv also accepts
+# `KEY: value`), via scripts/lib/dotenv-sentry-keys.mjs, which prints names only.
+# EXPO_PUBLIC_SENTRY_DSN is app config, not a build switch, and does not match.
+# .env.example is never loaded.
 shopt -s nullglob
+dotenv_files=()
 for dotenv in .env .env.*; do
   [[ "$dotenv" == .env.example ]] && continue
-  if grep -Eq '^[[:space:]]*(export[[:space:]]+)?SENTRY_[A-Za-z0-9_]*[[:space:]]*=' "$dotenv"; then
-    die "${dotenv} sets a SENTRY_ variable — Expo loads it after this script's checks; remove that line (the token comes from exec-with.sh, the switches from this script)"
-  fi
+  [[ -f "$dotenv" ]] && dotenv_files+=("$dotenv")
 done
 shopt -u nullglob
+if ((${#dotenv_files[@]})); then
+  offending=$(node scripts/lib/dotenv-sentry-keys.mjs "${dotenv_files[@]}") && rc=0 || rc=$?
+  if ((rc == 1)); then
+    die "$(cut -f1 <<<"$offending" | sort -u | paste -sd, -) sets a SENTRY_ variable ($(cut -f2 <<<"$offending" | paste -sd, -)) — Expo loads it after this script's checks; remove that line (the token comes from exec-with.sh, the switches from this script)"
+  elif ((rc != 0)); then
+    die "could not check the dotenv files with Expo's parser (exit ${rc})"
+  fi
+fi
 
 if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
   [[ "${SENTRY_DISABLE_AUTO_UPLOAD:-}" != "true" ]] \

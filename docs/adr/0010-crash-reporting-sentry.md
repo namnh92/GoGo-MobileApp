@@ -81,7 +81,9 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
     `with-environment.sh` của react-native — nên một dòng ở đó tái tạo đúng trạng thái bị từ chối hoặc đưa token
     nằm trong file vào build), **mọi phép gán `SENTRY_*` trong file dotenv Expo nạp** (`.env`, `.env.local`,
     `.env.<mode>`, `.env.<mode>.local`; `expo run` nạp chúng qua `@expo/env` *sau* khi script đã kiểm, trước khi build
-    native — Astra F-20; `EXPO_PUBLIC_SENTRY_DSN` là config app, không khớp; `.env.example` không bao giờ được nạp), cấu
+    native — Astra F-20; "phép gán" do chính parser dotenv của `@expo/env` quyết định qua
+    `scripts/lib/dotenv-sentry-keys.mjs`, nên cả dạng `KEY: value` cũng bị từ chối và chỉ in tên biến, không in giá trị;
+    `EXPO_PUBLIC_SENTRY_DSN` là config app, không khớp; `.env.example` không bao giờ được nạp), cấu
     hình khác Release, và thư mục native chưa nối upload. Sau các bước kiểm, script **tự đặt giá trị cuối** cho mọi công
     tắc (`SENTRY_DISABLE_AUTO_UPLOAD` = `false`/`true` theo token, `SENTRY_ALLOW_FAILURE`,
     `SENTRY_DISABLE_XCODE_DEBUG_UPLOAD`, `SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD` = `false`): SDK chỉ xét đúng chuỗi `true`,
