@@ -146,6 +146,21 @@ describe('PlaceCard — list', () => {
     expect(screen.queryByText('Lãng mạn')).toBeNull()
   })
 
+  // #332: at 375pt the two chips sat on two lines. jest has no layout, so this
+  // locks what keeps them on one: no wrap, and chip + label shrink to ellipsis.
+  it('tags: one row — chips shrink and ellipsise instead of wrapping (#332)', async () => {
+    await render(<PlaceCard place={fixture()} tags={['Không gian yên tĩnh để trò chuyện', 'Có chỗ đậu xe ô tô rộng']} />)
+    const label = screen.getByText('Không gian yên tĩnh để trò chuyện')
+    const chip = label.parent
+    const row = chip?.parent
+    const flat = (node: typeof label | null | undefined) => StyleSheet.flatten(node?.props.style) ?? {}
+    expect(flat(row).flexDirection).toBe('row')
+    expect(flat(row).flexWrap ?? 'nowrap').toBe('nowrap')
+    expect(flat(chip)).toMatchObject({ flexShrink: 1, minWidth: 0 })
+    expect(flat(label).flexShrink).toBe(1)
+    expect(label.props.numberOfLines).toBe(1)
+  })
+
   it('save toggle: 44×44, checked state, filled glyph in the accent when saved', async () => {
     const onToggle = jest.fn()
     await render(<PlaceCard place={fixture()} saved onToggleSave={onToggle} />)
