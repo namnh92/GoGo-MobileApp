@@ -1,0 +1,15 @@
+diff --git a/scripts/sentry-xcode-debug-files.sh b/scripts/sentry-xcode-debug-files.sh
+index d05f2012c63ff22aee0e4941f1cb467baf042ec2..c5c52a5aa85df295971c9c734cce00e9852f6a31 100755
+--- a/scripts/sentry-xcode-debug-files.sh
++++ b/scripts/sentry-xcode-debug-files.sh
+@@ -232,6 +232,10 @@ else
+     else
+       echo "error: sentry-cli - To disable native debug files auto upload, set SENTRY_DISABLE_AUTO_UPLOAD=true in your environment variables. Or to allow failing upload, set SENTRY_ALLOW_FAILURE=true"
+       echo "error: sentry-cli - $SENTRY_UPLOAD_COMMAND_OUTPUT"
++      # GoGo-MobileApp#340 (patched, pinned 8.30.0): the upstream script ends
++      # here with exit status 0, so a failed dSYM upload only prints `error:`
++      # and the build is green without symbols. Fail the phase deterministically.
++      exit "$UPLOAD_EXIT_CODE"
+     fi
+   fi
+   set -x -e # re-enable

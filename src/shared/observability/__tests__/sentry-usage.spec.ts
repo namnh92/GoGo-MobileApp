@@ -41,11 +41,18 @@ describe('Sentry is used only through the #336 boundary', () => {
     path.join(ROOT, 'app.config.ts'),
   ]
 
+  // The one other importer is the build-time config plugin wrapper (#340): it
+  // runs at prebuild, is never bundled, and loads nothing but Sentry's Expo plugin.
   it('imports the SDK only in sentry.ts', () => {
     const importers = files
       .filter(file => /from ['"]@sentry\/|require\(['"]@sentry\/|import ['"]@sentry\//.test(readFileSync(file, 'utf8')))
       .map(file => path.relative(ROOT, file))
-    expect(importers).toEqual([BOUNDARY])
+      .sort()
+    expect(importers).toEqual(['plugins/with-sentry-uploads.js', BOUNDARY])
+    const wrapper = readFileSync(path.join(ROOT, 'plugins/with-sentry-uploads.js'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '')
+    expect([...wrapper.matchAll(/['"](@sentry\/[^'"]+)['"]/g)].map(match => match[1])).toEqual(['@sentry/react-native/expo'])
   })
 
   it('makes only the allowed calls, in the allowed shape', () => {
@@ -55,16 +62,38 @@ describe('Sentry is used only through the #336 boundary', () => {
     for (const shape of ALLOWED_CALLS) expect(text).toMatch(shape)
   })
 
-  it('adds no Expo config plugin and no Metro wrapper (ADR-0011 D-5: no uploads)', () => {
-    const config = readFileSync(path.join(ROOT, 'app.config.ts'), 'utf8')
-    expect(config).not.toMatch(/@sentry\/react-native\/expo/)
-    for (const name of ['metro.config.js', 'metro.config.ts']) {
-      const file = path.join(ROOT, name)
-      try {
-        expect(readFileSync(file, 'utf8')).not.toMatch(/@sentry/)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      }
-    }
+  // GoGo-MobileApp#340 replaced phase 1's "no plugin, no Metro wrapper"
+  // (ADR 0010, ADR-0011 D-5 phase 2). What still has to hold: neither carries a
+  // credential, and neither changes what the app sends.
+  it('the config plugin is registered through the wrapper and carries no credential or upload switch', () => {
+    const config = readFileSync(path.join(ROOT, 'app.config.ts'), 'utf8').replace(/\/\/.*$/gm, '')
+    expect(config).toContain("'./plugins/with-sentry-uploads.js'")
+    expect(config).not.toMatch(/@sentry\/react-native\/expo|authToken|SENTRY_AUTH_TOKEN|disableAutoUpload/)
+    // Code only: the header comment explains why these are absent.
+    const wrapper = readFileSync(path.join(ROOT, 'plugins/with-sentry-uploads.js'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '')
+    expect(wrapper).toContain("require('@sentry/react-native/expo')")
+    expect(wrapper).not.toMatch(/authToken|SENTRY_AUTH_TOKEN|disableAutoUpload/)
+  })
+
+  it('Metro adds the Sentry serializer with every optional behaviour off', () => {
+    const metro = readFileSync(path.join(ROOT, 'metro.config.js'), 'utf8')
+    const code = metro.replace(/\/\*[\s\S]*?\*\//g, '').trim()
+    expect(code).toBe(
+      [
+        "const { getSentryExpoConfig } = require('@sentry/react-native/metro')",
+        '',
+        'module.exports = getSentryExpoConfig(__dirname, {',
+        '  enableSourceContextInDevelopment: false,',
+        '  optionsFile: false,',
+        '  injectReleaseForWeb: false,',
+        '  annotateReactComponents: false,',
+        '  autoWrapExpoRouterErrorBoundary: false,',
+        '  includeWebReplay: false,',
+        '  includeWebFeedback: false,',
+        '})',
+      ].join('\n'),
+    )
   })
 })

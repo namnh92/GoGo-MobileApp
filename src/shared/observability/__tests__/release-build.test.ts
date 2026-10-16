@@ -1,0 +1,226 @@
+import { spawnSync } from 'node:child_process'
+import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
+import { APPLY_SENTRY_GRADLE, pbxproj, writeNativeProject } from './sentry-native-fixture'
+
+/**
+ * GoGo-MobileApp#340, ADR-0011 D-5 phase 2 — `scripts/release-build.sh` is the
+ * one place that decides whether a release build uploads to Sentry. Two states
+ * only: token present → upload, and a failed upload fails the build; token
+ * absent → SENTRY_DISABLE_AUTO_UPLOAD=true and a warning. Everything in between
+ * is refused before `expo` starts.
+ *
+ * `npx` is a stub on PATH, so no build runs. Like `expo run`, it first loads the
+ * project's dotenv files through the real `@expo/env` — the late load that
+ * happens after this script's checks — and then records its arguments and the
+ * Sentry variables the native build would see.
+ */
+
+const ROOT = path.resolve(__dirname, '../../../..')
+const TOKEN = 'stub-upload-token-0123456789'
+// `@expo/env` is a dependency of `expo`, not of this package (pnpm does not hoist it).
+const EXPO_ENV = createRequire(createRequire(path.join(ROOT, 'package.json')).resolve('expo/package.json')).resolve(
+  '@expo/env',
+)
+
+let sandbox: string
+let project: string
+
+beforeEach(() => {
+  sandbox = mkdtempSync(path.join(tmpdir(), 'release-build-'))
+  project = path.join(sandbox, 'app')
+  mkdirSync(path.join(project, 'scripts/lib'), { recursive: true })
+  cpSync(path.join(ROOT, 'scripts/release-build.sh'), path.join(project, 'scripts/release-build.sh'))
+  cpSync(path.join(ROOT, 'scripts/lib/sentry-native.mjs'), path.join(project, 'scripts/lib/sentry-native.mjs'))
+  cpSync(path.join(ROOT, 'scripts/lib/dotenv-sentry-keys.mjs'), path.join(project, 'scripts/lib/dotenv-sentry-keys.mjs'))
+  // The dotenv check resolves Expo's own parser from the project; point the
+  // sandbox at this checkout's node_modules.
+  symlinkSync(path.join(ROOT, 'node_modules'), path.join(project, 'node_modules'))
+  const bin = path.join(sandbox, 'bin')
+  mkdirSync(bin)
+  writeFileSync(
+    path.join(bin, 'npx'),
+    [
+      '#!/usr/bin/env node',
+      "const { writeFileSync } = require('node:fs')",
+      "process.env.NODE_ENV = 'production'",
+      `require(${JSON.stringify(EXPO_ENV)}).load(process.cwd(), { force: true, silent: true })`,
+      'const e = process.env',
+      'const lines = [',
+      "  `args=${process.argv.slice(2).join(' ')}`,",
+      "  `disable=${e.SENTRY_DISABLE_AUTO_UPLOAD ?? ''}`,",
+      "  `token=${e.SENTRY_AUTH_TOKEN ? 'set' : ''}`,",
+      "  `allow=${e.SENTRY_ALLOW_FAILURE ?? ''}`,",
+      "  `xcode=${e.SENTRY_DISABLE_XCODE_DEBUG_UPLOAD ?? ''}`,",
+      "  `native=${e.SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD ?? ''}`,",
+      "  `dsn=${e.EXPO_PUBLIC_SENTRY_DSN ? 'loaded' : ''}`,",
+      ']',
+      "writeFileSync(e.RECORD, lines.join('\\n') + '\\n')",
+      '',
+    ].join('\n'),
+  )
+  chmodSync(path.join(bin, 'npx'), 0o755)
+})
+
+afterEach(() => rmSync(sandbox, { recursive: true, force: true }))
+
+const KNOBS = [
+  'SENTRY_AUTH_TOKEN',
+  'SENTRY_DISABLE_AUTO_UPLOAD',
+  'SENTRY_ALLOW_FAILURE',
+  'SENTRY_DISABLE_XCODE_DEBUG_UPLOAD',
+  'SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD',
+]
+
+function run(args: string[], env: Record<string, string | undefined> = {}, shellFlags: string[] = []) {
+  const record = path.join(sandbox, 'record')
+  const base = { ...process.env }
+  for (const name of KNOBS) delete base[name]
+  const result = spawnSync('bash', [...shellFlags, path.join(project, 'scripts/release-build.sh'), ...args], {
+    env: { ...base, PATH: `${path.join(sandbox, 'bin')}:${process.env.PATH}`, RECORD: record, ...env },
+    encoding: 'utf8',
+  })
+  let recorded = ''
+  try {
+    recorded = readFileSync(record, 'utf8')
+  } catch {
+    recorded = ''
+  }
+  return { status: result.status, stderr: result.stderr, stdout: result.stdout, recorded }
+}
+
+describe('scripts/release-build.sh', () => {
+  it.each([
+    ['ios', 'args=expo run:ios --configuration Release --device 0000'],
+    ['android', 'args=expo run:android --variant release --device 0000'],
+  ])('%s with a token builds Release and leaves upload on', (platform, args) => {
+    writeNativeProject(project)
+    const result = run([platform, '--device', '0000'], { SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).toBe(0)
+    expect(result.recorded).toBe(`${args}\ndisable=false\ntoken=set\nallow=false\nxcode=false\nnative=false\ndsn=\n`)
+    expect(result.stdout + result.stderr).not.toContain(TOKEN)
+  })
+
+  it.each(['ios', 'android'])('%s without a token builds, skips upload and says so', platform => {
+    const result = run([platform])
+    expect(result.status).toBe(0)
+    expect(result.recorded).toContain('disable=true\ntoken=\nallow=false\nxcode=false\nnative=false\n')
+    expect(result.stderr).toMatch(/no SENTRY_AUTH_TOKEN — this release build will not be symbolicated/)
+  })
+
+  it.each([
+    ['no platform', [], {}],
+    ['an unknown platform', ['web'], {}],
+    ['a configuration override', ['ios', '--configuration', 'Debug'], {}],
+    ['a variant override', ['android', '--variant=debug'], {}],
+    ['a token with upload disabled', ['ios'], { SENTRY_AUTH_TOKEN: TOKEN, SENTRY_DISABLE_AUTO_UPLOAD: 'true' }],
+  ] as const)('refuses %s before expo starts', (_name, args, env) => {
+    const result = run([...args], env)
+    expect(result.status).not.toBe(0)
+    expect(result.recorded).toBe('')
+  })
+
+  it('refuses when .env.sentry-build-plugin exists', () => {
+    writeFileSync(path.join(project, '.env.sentry-build-plugin'), 'SENTRY_AUTH_TOKEN=x\n')
+    const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).not.toBe(0)
+    expect(result.recorded).toBe('')
+  })
+
+  // The Xcode phases source ios/.xcode.env, .xcode.env.local and .xcode.env.updates
+  // after this script has run, so a Sentry switch or token kept there would
+  // re-create a refused state inside the build.
+  it.each([
+    ['xcodeEnvLocal', 'export SENTRY_ALLOW_FAILURE=true\n', { SENTRY_AUTH_TOKEN: TOKEN }, 'ios/.xcode.env.local'],
+    ['xcodeEnvLocal', 'export SENTRY_DISABLE_AUTO_UPLOAD=true\n', { SENTRY_AUTH_TOKEN: TOKEN }, 'ios/.xcode.env.local'],
+    ['xcodeEnvLocal', 'SENTRY_DISABLE_XCODE_DEBUG_UPLOAD=true\n', {}, 'ios/.xcode.env.local'],
+    ['xcodeEnvUpdates', 'export SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD=true\n', { SENTRY_AUTH_TOKEN: TOKEN }, 'ios/.xcode.env.updates'],
+    ['xcodeEnv', 'export NODE_BINARY=$(command -v node)\nexport SENTRY_AUTH_TOKEN=sntrys_file_held\n', {}, 'ios/.xcode.env'],
+  ] as const)('refuses a SENTRY_ line in %s before expo starts', (file, text, env, named) => {
+    writeNativeProject(project, { [file]: text })
+    const result = run(['ios'], env)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain(`${named} mentions SENTRY_`)
+    expect(result.recorded).toBe('')
+    expect(result.stderr + result.stdout).not.toContain('sntrys_file_held')
+  })
+
+  it('accepts the .xcode.env prebuild writes (NODE_BINARY only) and an unrelated .xcode.env.local', () => {
+    writeNativeProject(project, { xcodeEnvLocal: 'export NODE_BINARY=/opt/homebrew/bin/node\n' })
+    const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).toBe(0)
+    expect(result.recorded).toContain('disable=false\ntoken=set\nallow=false\nxcode=false\nnative=false\n')
+  })
+
+  // `expo run` loads .env, .env.local, .env.<mode> and .env.<mode>.local after
+  // this script has run (the stub does the same through the real @expo/env),
+  // so a SENTRY_ assignment there would reach the native build unchecked.
+  it.each([
+    ['.env.local', 'SENTRY_DISABLE_AUTO_UPLOAD=true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    ['.env', 'export SENTRY_ALLOW_FAILURE=true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    ['.env.production', '  SENTRY_DISABLE_XCODE_DEBUG_UPLOAD = true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    ['.env.production.local', 'SENTRY_AUTH_TOKEN=sntrys_file_held\n', {}],
+    ['.env.development.local', 'SENTRY_URL=https://elsewhere.example/\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+    // dotenv's grammar also takes `KEY: value` (Astra F-20, round 2).
+    ['.env.local', 'SENTRY_AUTH_TOKEN: sntrys_file_held\n', {}],
+    ['.env', 'export SENTRY_DISABLE_AUTO_UPLOAD: true\n', { SENTRY_AUTH_TOKEN: TOKEN }],
+  ] as const)('refuses a SENTRY_ assignment in %s before expo starts', (file, text, env) => {
+    writeNativeProject(project)
+    writeFileSync(path.join(project, file), `EXPO_PUBLIC_ENV=dev\n${text}`)
+    const result = run(['ios'], env)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain(`${file} sets a SENTRY_ variable`)
+    expect(result.recorded).toBe('')
+    expect(result.stderr + result.stdout).not.toContain('sntrys_file_held')
+  })
+
+  it('accepts the DSN in .env.local and a documented token line in .env.example; every switch keeps its pinned value after Expo loads the files', () => {
+    writeNativeProject(project)
+    // The commented line is not an assignment to dotenv, so it is not one here either.
+    writeFileSync(
+      path.join(project, '.env.local'),
+      'EXPO_PUBLIC_SENTRY_DSN=https://k@o0.ingest.us.sentry.io/1\n# SENTRY_AUTH_TOKEN=never-set\n',
+    )
+    writeFileSync(path.join(project, '.env.example'), 'SENTRY_AUTH_TOKEN=\nSENTRY_DISABLE_AUTO_UPLOAD=true\n')
+    const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).toBe(0)
+    expect(result.recorded).toContain('disable=false\ntoken=set\nallow=false\nxcode=false\nnative=false\ndsn=loaded\n')
+  })
+
+  it.each([
+    ['ios', 'no Upload Debug Symbols phase', { pbxproj: pbxproj({ symbolsScript: null }) }],
+    ['ios', 'a bundle phase without sentry-xcode.sh', { pbxproj: pbxproj({ bundleScript: 'react-native-xcode.sh' }) }],
+    ['android', 'the legacy sentry.gradle', { appGradle: APPLY_SENTRY_GRADLE.replace('"sentry.gradle.kts"', '"sentry.gradle"') }],
+    ['android', 'a commented-out apply', { appGradle: `// ${APPLY_SENTRY_GRADLE}` }],
+  ] as const)('%s refuses a native project with %s', (platform, _name, files) => {
+    writeNativeProject(project, files)
+    const result = run([platform], { SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/is not wired to upload/)
+    expect(result.recorded).toBe('')
+  })
+
+  it.each(['SENTRY_DISABLE_XCODE_DEBUG_UPLOAD', 'SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD', 'SENTRY_ALLOW_FAILURE'])(
+    'refuses %s — no third state between uploaded and said-so',
+    knob => {
+      writeNativeProject(project)
+      const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN, [knob]: 'true' })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain(`${knob} is not allowed`)
+      expect(result.recorded).toBe('')
+    },
+  )
+
+  it('refuses shell tracing before the token is expanded', () => {
+    writeNativeProject(project)
+    const result = run(['ios'], { SENTRY_AUTH_TOKEN: TOKEN }, ['-x'])
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/shell tracing enabled/)
+    expect(result.stderr + result.stdout).not.toContain(TOKEN)
+    expect(result.recorded).toBe('')
+  })
+})

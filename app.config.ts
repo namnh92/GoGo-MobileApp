@@ -224,6 +224,13 @@ const config: ExpoConfig = {
     ['onesignal-expo-plugin', { mode: oneSignalApnsMode, iPhoneDeploymentTarget: '15.1' }],
     'expo-router',
     'expo-dev-client',
+    // GoGo-MobileApp#340, ADR-0011 D-5 phase 2: a Release build uploads its
+    // JavaScript source map and (iOS) dSYMs to gogo-mobile. Sentry's plugin is
+    // applied inside this file with the project's coordinates, so the public
+    // config embedded in the binary names the file and nothing else (plugin
+    // options are serialized into it). `scripts/release-build.sh` decides per
+    // build from SENTRY_AUTH_TOKEN. Debug configurations never upload.
+    './plugins/with-sentry-uploads.js',
     // Inter, embedded at build time (ADR-0009): iOS gets the files as bundle
     // resources plus `UIAppFonts`, Android gets `assets/fonts/`. File name =
     // PostScript name, so `fontFamily: 'Inter-Bold'` resolves on both. No

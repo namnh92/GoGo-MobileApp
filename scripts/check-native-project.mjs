@@ -23,6 +23,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { sentryNativeProblems } from "./lib/sentry-native.mjs";
 
 const root = process.cwd();
 const problems = [];
@@ -236,6 +237,22 @@ if (!existsSync(path.join(root, "android"))) {
       `android autolinking could not be resolved: ${error.message.split("\n")[0]}`,
     );
   }
+}
+
+// --- Sentry uploads (GoGo-MobileApp#340, ADR-0011 D-5 phase 2) -------------
+//
+// `@sentry/react-native/expo` wires the Release build to upload the JS source
+// map and (iOS) dSYMs. A native project generated without it builds green and
+// uploads nothing — the same silent shape as the stale Pods above. The checks
+// live in scripts/lib/sentry-native.mjs because release-build.sh runs them too.
+
+for (const platform of ["ios", "android"]) {
+  if (!existsSync(path.join(root, platform))) continue;
+  const found = sentryNativeProblems(root, platform);
+  if (found.length > 0) {
+    for (const problem of found)
+      problems.push(`${problem}. Regenerate with \`npx expo prebuild -p ${platform} --clean\`.`);
+  } else notes.push(`${platform} uploads to Sentry gogo-mobile; sentry.properties carries no token`);
 }
 
 // --- report ----------------------------------------------------------------

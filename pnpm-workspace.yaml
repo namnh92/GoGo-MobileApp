@@ -1,0 +1,2 @@
+patchedDependencies:
+  '@sentry/react-native@8.30.0': patches/@sentry__react-native@8.30.0.patch

@@ -180,6 +180,32 @@ describe('crash reporting decision (GoGo-MobileApp#336, ADR-0011 D-3)', () => {
   it('never puts the DSN into the native config', async () => {
     const config = await loadConfig('prod', DSN)
     expect(JSON.stringify(config)).not.toContain('0123456789abcdef0123456789abcdef')
-    expect(JSON.stringify(config.plugins)).not.toContain('@sentry')
+  })
+
+  // GoGo-MobileApp#340, ADR-0011 D-5 phase 2. Expo serializes every `plugins`
+  // entry, options included, into the public config embedded in the binary
+  // (EXConstants.bundle/app.config) and served by the dev server, so the Sentry
+  // plugin is registered through a local wrapper that holds the coordinates.
+  it.each(['dev', 'stag', 'prod'])('%s registers Sentry through the wrapper and ships no coordinates', async flavor => {
+    const config = await loadConfig(flavor)
+    const names = (config.plugins ?? []).map(plugin => (Array.isArray(plugin) ? plugin[0] : plugin))
+    expect(names).toContain('./plugins/with-sentry-uploads.js')
+    expect(names).not.toContain('@sentry/react-native/expo')
+    expect(JSON.stringify(config)).not.toMatch(/gogo-vn|gogo-mobile|sentry\.io/)
+  })
+
+  // The wrapper's options become ios/ and android/ `sentry.properties`: a token
+  // among them would sit in the native project of every build, and
+  // `disableAutoUpload` would bake a fixed answer into build.gradle instead of
+  // letting `scripts/release-build.sh` decide.
+  it('the wrapper passes project coordinates only', async () => {
+    const plugin = (await import('../../../../plugins/with-sentry-uploads.js')) as {
+      SENTRY_UPLOAD_TARGET: Record<string, string>
+    }
+    expect(plugin.SENTRY_UPLOAD_TARGET).toEqual({
+      organization: 'gogo-vn',
+      project: 'gogo-mobile',
+      url: 'https://sentry.io/',
+    })
   })
 })
