@@ -106,7 +106,14 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
     giá trị `setSentryScreen` ghi gần nhất — màn đã ổn định, chậm một commit so với mount. Crash native không chạy được
     JS nên không có cách gán theo event: crash native ngay trong commit mount màn mới mang màn trước (giới hạn còn lại,
     chỉ ở đường này). Lỗi SDK tự bắt thường xảy ra sau khi điều hướng xong (handler, promise, timer) nên tag đã đúng; một
-    promise bị reject ngay trong microtask của commit mount vẫn có thể mang màn trước — chưa đo, không nằm trong AC.
+    promise bị reject ngay trong microtask của commit mount màn mới thì scope chưa chắc đã đổi — **owner quyết 2026-10-16
+    (trong phiên, ghi ở `dev/handoffs/review-state-GoGo-MobileApp-349.md`): đưa vào AC, không để là giới hạn ngoài AC.**
+    Ô đo, trong lượt relay trên máy thật (cổng PR, cùng lượt với cửa sổ khởi động ở trên): điều hướng *nóng* từ màn đang
+    ổn định sang màn mới; promise bị reject không xử lý ngay trong commit mount của chính màn mới (render /
+    `useLayoutEffect` / `componentDidMount`); SDK bắt qua unhandled rejection, không `throw` cho error boundary bắt (đó
+    là đường JS đã đo ở trên); **mong đợi `screen` = template của màn mới vừa mount**, theo D-7 bổ sung 3 (tag = màn của
+    event) và phán quyết F-04. Cơ chế ghi scope không hứa giá trị này: nhận màn trước là FAIL → finding trả về vai SA,
+    không phải giới hạn được chấp nhận, không phải lỗi script.
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 
