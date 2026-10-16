@@ -873,9 +873,20 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
 
 export type ErrorKind = 'boundary'
 
+/**
+ * Reports an error the app caught itself (the root error boundary). The event
+ * carries the screen the navigator holds **at this moment** (event-local,
+ * ADR 0010 "Tag màn hình"): a throw while a new screen renders or mounts is
+ * reported in that screen's commit, one commit before the root layout learns
+ * the new segments and `setSentryScreen` moves the scope — and the boundary
+ * has unmounted the navigator by then, so the scope would name the previous
+ * screen for good. Read synchronously here, in `componentDidCatch`, before any
+ * passive cleanup can forget the navigator's state; never in `beforeSend`,
+ * which runs a microtask later.
+ */
 export function captureError(error: unknown, context: { kind: ErrorKind }): void {
   if (!enabled) return
-  Sentry.captureException(error, { tags: { kind: context.kind } })
+  Sentry.captureException(error, { tags: { kind: context.kind, ...screenTag() } })
 }
 
 /** A pseudonymous user id, or `null` for guests and signed-out (D-8). */
@@ -907,20 +918,52 @@ export function isScreenTemplate(value: string): boolean {
 }
 
 /**
- * The screen an event happened on, as the expo-router route template
+ * The admission gate (ADR-0011 D-12), the one place a screen value is decided
+ * before it leaves the device — for the scope write and for the read at
+ * capture alike, whatever the caller passed. A value that is not a template is
+ * sent as {@link UNKNOWN_SCREEN}: the native SDKs cannot remove a tag (an
+ * `undefined` arrives as the string `"undefined"`), and keeping the previous
+ * screen would name the wrong one.
+ */
+function admitScreen(value: string): string {
+  return isScreenTemplate(value) ? value : UNKNOWN_SCREEN
+}
+
+/**
+ * The screen the navigator holds right now, as a route template, or `null`
+ * when there is no navigator state to read. Registered by
+ * `screen-tag.view.tsx`, the module that knows expo-router; this file stays
+ * free of it so `bootstrap.ts` can run before the router loads. What the
+ * reader returns is admitted here, never trusted.
+ */
+export type ScreenReader = () => string | null
+
+let readScreen: ScreenReader = () => null
+
+export function setScreenReader(read: ScreenReader): void {
+  readScreen = read
+}
+
+/** The `screen` tag of a JS event, read at capture; nothing when there is no navigator — the scope's value then stands. */
+function screenTag(): { screen: string } | Record<string, never> {
+  const value = readScreen()
+  return value === null ? {} : { screen: admitScreen(value) }
+}
+
+/**
+ * The screen the app has settled on, as the expo-router route template
  * (`/room/[roomId]/preference`) — never a pathname, which carries the room or
- * invite code (GoGo-MobileApp#341). This is the reporting boundary: admission
- * happens here, before the SDK syncs the scope to native, whatever the caller
- * passed. A value that is not a template is sent as {@link UNKNOWN_SCREEN}:
- * the native SDKs cannot remove a tag (an `undefined` arrives as the string
- * `"undefined"`), and keeping the previous screen would name the wrong one.
- * Written to the isolation scope, the one `Sentry.setTag` writes: `guardScope`
- * redacts it as well, then the SDK copies it to the native scope, so a native
- * crash carries the same tag.
+ * invite code (GoGo-MobileApp#341). Written to the isolation scope, the one
+ * `Sentry.setTag` writes: `guardScope` redacts it as well, then the SDK
+ * copies it to the native scope, so a native crash carries it — the native
+ * path's only source (ADR 0010: a native crash cannot run JS). Errors the SDK
+ * catches on its own (unhandled errors, rejections) take it too; errors the
+ * app reports itself do not depend on it — `captureError` reads the screen at
+ * capture.
  */
 export function setSentryScreen(template: string): void {
   if (!enabled) return
-  Sentry.getIsolationScope().setTag('screen', isScreenTemplate(template) ? template : UNKNOWN_SCREEN)
+  Sentry.getIsolationScope().setTag('screen', admitScreen(template))
 }
 
 /** `Sentry.wrap` when enabled — its touch boundary records breadcrumbs — else the component itself. */

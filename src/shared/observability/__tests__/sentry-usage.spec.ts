@@ -16,13 +16,14 @@ const BOUNDARY = 'src/shared/observability/sentry.ts'
 /** Every SDK call `sentry.ts` makes, in the shape it makes it. */
 const ALLOWED_CALLS: RegExp[] = [
   /Sentry\.init\(\{\n\s+dsn,\n\s+environment: options\.environment,\n\s+sendDefaultPii: false,/,
-  /Sentry\.captureException\(error, \{ tags: \{ kind: context\.kind \} \}\)/,
+  // #341: a JS event carries the screen read at capture, admitted in this file.
+  /Sentry\.captureException\(error, \{ tags: \{ kind: context\.kind, \.\.\.screenTag\(\) \} \}\)/,
   /Sentry\.setUser\(appUserId \? \{ id: appUserId \} : null\)/,
   /Sentry\.wrap\(component as ComponentType<Record<string, unknown>>\)/,
   /guardScope\(Sentry\.getGlobalScope\(\)\)/,
   /guardScope\(Sentry\.getIsolationScope\(\)\)/,
-  // #341: the screen tag, a route template, written through the guarded scope.
-  /Sentry\.getIsolationScope\(\)\.setTag\('screen', isScreenTemplate\(template\) \? template : UNKNOWN_SCREEN\)/,
+  // #341: the screen tag, a route template, admitted and written through the guarded scope.
+  /Sentry\.getIsolationScope\(\)\.setTag\('screen', admitScreen\(template\)\)/,
 ]
 
 function sourceFiles(dir: string): string[] {

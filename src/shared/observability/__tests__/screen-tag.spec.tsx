@@ -4,12 +4,21 @@ import { router, Stack } from 'expo-router'
 import { act, renderRouter } from 'expo-router/testing-library'
 import { readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { Component, useEffect, useLayoutEffect } from 'react'
+import type { ErrorEvent } from '@sentry/react-native'
+import { Component, useEffect, useLayoutEffect, type ReactNode } from 'react'
 import { Text } from 'react-native'
 
 import { redirectSystemPath } from '@/app/+native-intent'
 
-import { initSentry, isScreenTemplate, redactText, resetSentryForTests, setSentryScreen } from '../sentry'
+import {
+  beforeSend,
+  captureError,
+  initSentry,
+  isScreenTemplate,
+  redactText,
+  resetSentryForTests,
+  setSentryScreen,
+} from '../sentry'
 import { SentryScreenTag, screenTemplate } from '../screen-tag.view'
 import { SCREEN_TEMPLATES } from '../screen-templates'
 
@@ -25,7 +34,12 @@ import { SCREEN_TEMPLATES } from '../screen-templates'
 jest.mock('expo-router/build/testing-library/expect', () => ({}))
 
 type FakeScope = { forwarded: [string, ...unknown[]][] }
-const sdk = Sdk as unknown as { isolationScope: FakeScope; globalScope: FakeScope; resetScopesForTests: () => void }
+const sdk = Sdk as unknown as {
+  isolationScope: FakeScope
+  globalScope: FakeScope
+  resetScopesForTests: () => void
+  captureException: jest.Mock
+}
 
 const CODE = 'YDi_00PB1z4FSQZjpLbgdw'
 const UUID = '5f1c2a3e-1234-4abc-8def-0123456789ab'
@@ -75,6 +89,7 @@ function app() {
     index: () => <Text>splash</Text>,
     '(tabs)/_layout': () => <Stack />,
     '(tabs)/index': () => <Text>home</Text>,
+    '(tabs)/plans': () => <Text>plans</Text>,
     'r/[inviteCode]': () => <Text>join</Text>,
     'room/[roomId]/preference': () => <Text>preference</Text>,
     'plans/[planId]/index': () => <Text>plan</Text>,
@@ -97,6 +112,15 @@ describe('launch seed', () => {
   it('seeds nothing while Sentry is off', () => {
     initSentry({ dsn: 'off', environment: 'dev' })
     expect(sdk.isolationScope.forwarded).toEqual([])
+  })
+
+  // First in the file on purpose: the router keeps its state for the life of
+  // the process, so "no navigator state yet" exists only before the first
+  // `renderRouter` — as in the app, only before the first commit.
+  it('an error before any navigator state exists carries the seeded launch screen', () => {
+    enable()
+    captureError(new Error('providers failed'), { kind: 'boundary' })
+    expect(sentScreen()).toBe(LAUNCH)
   })
 })
 
@@ -173,58 +197,165 @@ describe('SentryScreenTag', () => {
     spy.mockRestore()
   })
 
-  // Sol F-02 (PR #349): measured on the writer itself, not assumed. The root
-  // layout re-renders with the new segments after the new screen has mounted,
-  // so the screen's mount handlers still see the previous tag; once the
-  // navigation settles the tag is the new screen. The phase the writer runs in
-  // (`useEffect` shipped, `useLayoutEffect` the proposed fix) does not change
-  // that. Pinned so a change in expo-router's ordering is noticed (ADR 0010).
-  it.each([
-    ['useEffect', useEffect],
-    ['useLayoutEffect', useLayoutEffect],
-  ])('with a %s writer: the previous screen during the new screen mount, its own once settled', async (_name, useWriteEffect) => {
-    enable()
-    const atMount: unknown[] = []
-    const latest = () => screens()[screens().length - 1]
-    function HookScreen() {
-      useLayoutEffect(() => {
-        atMount.push(latest())
-      }, [])
-      return <Text>preference</Text>
-    }
-    class ClassScreen extends Component {
-      componentDidMount() {
-        atMount.push(latest())
-      }
-      render() {
-        return <Text>join</Text>
-      }
-    }
-    await renderRouter(
-      {
-        ...app(),
-        _layout: () => (
-          <>
-            <SentryScreenTag useWriteEffect={useWriteEffect} />
-            <Stack />
-          </>
-        ),
-        'room/[roomId]/preference': HookScreen,
-        'r/[inviteCode]': () => <ClassScreen />,
-      },
-      { initialUrl: '/' },
-    )
-    await act(async () => router.push(`/room/${CODE}/preference`))
-    expect(latest()).toBe('/room/[roomId]/preference')
-    await act(async () => router.push(`/r/${CODE}`))
-    expect(latest()).toBe('/r/[inviteCode]')
-    expect(atMount).toEqual(['/', '/room/[roomId]/preference'])
-  })
-
   it('does nothing while Sentry is off', async () => {
     await renderRouter(app(), { initialUrl: `/r/${CODE}` })
     expect(sdk.isolationScope.forwarded).toEqual([])
     expect(screens()).toEqual([])
+  })
+})
+
+type Phase = 'render' | 'useLayoutEffect' | 'componentDidMount' | 'useEffect'
+
+function Throws({ message }: { message: string }): never {
+  throw new Error(message)
+}
+
+/** A screen that throws once, in the given phase of its first mount. */
+function failing(phase: Phase, label: string) {
+  class DidMount extends Component<{ children: ReactNode }> {
+    componentDidMount() {
+      throw new Error(`${label} ${phase}`)
+    }
+    render() {
+      return this.props.children
+    }
+  }
+  return function Screen() {
+    useLayoutEffect(() => {
+      if (phase === 'useLayoutEffect') throw new Error(`${label} ${phase}`)
+    }, [])
+    useEffect(() => {
+      if (phase === 'useEffect') throw new Error(`${label} ${phase}`)
+    }, [])
+    if (phase === 'render') return <Throws message={`${label} ${phase}`} />
+    if (phase === 'componentDidMount') {
+      return (
+        <DidMount>
+          <Text>{label}</Text>
+        </DidMount>
+      )
+    }
+    return <Text>{label}</Text>
+  }
+}
+
+/** The root error boundary's shape: above the tag and the navigator, reports through `captureError`. */
+class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(error: unknown) {
+    captureError(error, { kind: 'boundary' })
+  }
+  render() {
+    return this.state.failed ? <Text>failed</Text> : this.props.children
+  }
+}
+
+function layoutWithBoundary() {
+  return (
+    <Boundary>
+      <SentryScreenTag />
+      <Stack />
+    </Boundary>
+  )
+}
+
+/**
+ * The `screen` tag of the one JS event, as the SDK would send it: the scope's
+ * value, the capture context's over it, then `beforeSend`. The jest stand-in
+ * records the capture; the merge order is the SDK's.
+ */
+function sentScreen(): unknown {
+  expect(sdk.captureException).toHaveBeenCalledTimes(1)
+  const [error, context] = sdk.captureException.mock.calls[0] as [unknown, { tags?: Record<string, unknown> }]
+  const event = { type: undefined, tags: { screen: screens().at(-1), ...context.tags } } as unknown as ErrorEvent
+  return beforeSend(event, { originalException: error })?.tags?.screen
+}
+
+/**
+ * Sol F-02 / Astra F-04 (PR #349), owner 2026-10-16: an error reported while
+ * the new screen renders or mounts carries that screen. The root layout learns
+ * the new segments one commit after the screen mounted, so the scope still
+ * holds the previous screen then — and once the boundary has caught the error
+ * the navigator is gone and the scope never learns it. A JS event therefore
+ * reads the screen from the navigation container's state at capture (ADR
+ * 0010); these go through a boundary, the shape the root layout has.
+ */
+describe('a JS event carries the screen the navigator holds at capture', () => {
+  const PREFERENCE = '/room/[roomId]/preference'
+  let consoleError: jest.SpyInstance
+  beforeEach(() => {
+    // React logs every caught error; the tag is the point here.
+    consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
+  })
+  afterEach(() => consoleError.mockRestore())
+
+  it.each<Phase>(['render', 'useLayoutEffect', 'componentDidMount', 'useEffect'])(
+    'a throw in %s of the new screen is tagged with that screen, not the previous one',
+    async phase => {
+      enable()
+      await renderRouter(
+        { ...app(), _layout: layoutWithBoundary, 'room/[roomId]/preference': failing(phase, 'preference') },
+        { initialUrl: '/places/search' },
+      )
+      expect(navigated()).toEqual(['/places/search'])
+      await act(async () => router.push(`/room/${CODE}/preference`))
+      // The scope still names the previous screen: only the event-local read can name the new one.
+      expect(navigated()).toEqual(['/places/search'])
+      expect(sentScreen()).toBe(PREFERENCE)
+      expect(JSON.stringify(sdk.captureException.mock.calls)).not.toContain(CODE)
+      expect(forwarded()).not.toContain(CODE)
+    },
+  )
+
+  // A nested navigator's first commit: the container holds the tab group and
+  // what the link or push named below it (expo-router's own derivation,
+  // `getRouteInfoFromState`), before the tab navigator has pushed its state up.
+  // Measured, not assumed — the ADR states the result.
+  it.each<[string, Phase]>([
+    ['render', 'render'],
+    ['componentDidMount', 'componentDidMount'],
+  ])('a throw in %s of a tab reached by a cold link, with the tab navigator mounting, is tagged with the tab', async (_label, phase) => {
+    enable()
+    await renderRouter(
+      { ...app(), _layout: layoutWithBoundary, '(tabs)/plans': failing(phase, 'plans') },
+      { initialUrl: '/(tabs)/plans' },
+    )
+    expect(sentScreen()).toBe('/(tabs)/plans')
+  })
+
+  it.each<[string, Phase]>([
+    ['render', 'render'],
+    ['componentDidMount', 'componentDidMount'],
+  ])('a throw in %s of a tab reached by a push, with the tab navigator mounting, is tagged with the tab', async (_label, phase) => {
+    enable()
+    await renderRouter(
+      { ...app(), _layout: layoutWithBoundary, '(tabs)/plans': failing(phase, 'plans') },
+      { initialUrl: '/places/search' },
+    )
+    await act(async () => router.push('/(tabs)/plans'))
+    expect(sentScreen()).toBe('/(tabs)/plans')
+  })
+
+  // A-10 on the capture path: a `?screen=` suffix the link appended is no template, so `unknown`, never the sibling.
+  it('a throw in render of a cold-linked leaf with ?screen=<sibling> is tagged `unknown`, never the sibling', async () => {
+    enable()
+    await renderRouter(
+      { ...app(), _layout: layoutWithBoundary, 'places/search': failing('render', 'search') },
+      { initialUrl: '/places/search?screen=import' },
+    )
+    expect(sentScreen()).toBe(UNKNOWN)
+  })
+
+  it('reports nothing while Sentry is off', async () => {
+    await renderRouter(
+      { ...app(), _layout: layoutWithBoundary, 'room/[roomId]/preference': failing('render', 'preference') },
+      { initialUrl: '/' },
+    )
+    await act(async () => router.push(`/room/${CODE}/preference`))
+    expect(sdk.captureException).not.toHaveBeenCalled()
   })
 })
 
