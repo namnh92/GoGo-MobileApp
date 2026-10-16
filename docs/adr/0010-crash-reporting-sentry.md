@@ -26,10 +26,10 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   trên Android, sentry-android 8.60.0); `beforeSend` không chạy trên crash native và SDK không có tuỳ chọn tắt. Event
   JS vẫn là `{ id }` hoặc không có `user`.
 - **Redaction:** chạy mọi dòng của oracle `redaction-cases.v2.json`, vendored nguyên văn tại
-  `src/shared/observability/__fixtures__/` (v1 bị thay ngày 2026-10-16, #341; v2 = mọi ca v1 không đổi + C-24):
+  `src/shared/observability/__fixtures__/` (v1 bị thay ngày 2026-10-16, #341; v2 = mọi ca v1 không đổi + C-24.1…C-24.13):
 
   ```
-  v2 sha256 6cf5c1487985428e9bc7cbbc4fb07eaa4456fc624eda1b05ee507f77847e8d37  (GoGo-Infra#229)
+  v2 sha256 5869939957e5f68280974f9d34fb8896d4df117873b84a3b19bf2e3edb7c213e  (GoGo-Infra#229)
   v1 sha256 decf6c4336269b086b209a4d27a9c36ca2c392b307c9d76e4b24883a4f4ef6a0  (GoGo-Infra 7c2a09a, đã thay)
   ```
 
@@ -46,20 +46,40 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   SDK chép global/isolation scope sang native ngay khi ghi, và báo cáo crash/watchdog native dựng từ bản chép đó. Vì vậy
   `sentry.ts` bọc `setUser`, `setTag(s)`, `setExtra(s)`, `setContext`, `setAttribute(s)` để giá trị đã được rebuild và
   redact trước khi SDK chép. Lượt relay trên iPhone bắt được một báo cáo watchdog chứa giá trị thô trước khi có lớp bọc này.
-- **Tag màn hình (#341, 2026-10-16; shape `dev/handoffs/sa-shape-mobile-341-screen-tag.fable.md` rev 2):** mọi event
-  JS và crash native mang tag `screen` = route template của expo-router (`/room/[roomId]/preference`, `/(tabs)/plans`,
-  màn khởi động = `/`), lấy từ `useSegments()` — tên file dưới `src/app/`, không bao giờ từ `usePathname()` (pathname mang
-  mã phòng/mã mời thô; uuid thì redactor không che, C-21). `SentryScreenTag` (`screen-tag.view.tsx`, không render gì)
-  gắn một lần trong `src/app/_layout.tsx`; chỉ template có trong `screen-templates.ts` (test khoá bằng danh sách file
-  `src/app/`) được gửi nguyên văn — expo-router nối giá trị query `?screen=` vào segment; gọi `setSentryScreen` trong effect → `getIsolationScope().setTag('screen', …)`:
+- **Tag màn hình (#341, 2026-10-16; shape `dev/handoffs/sa-shape-mobile-341-screen-tag.fable.md` rev 2; sửa sau review
+  PR #349 — Sol F-02/F-04/F-05, Astra A-F-01/A-F-03):** mọi event JS và crash native mang tag `screen` = route template
+  của expo-router (`/room/[roomId]/preference`, `/(tabs)/plans`, màn khởi động = `/`), lấy từ `useSegments()` — tên file
+  dưới `src/app/`, không bao giờ từ `usePathname()` (pathname mang mã phòng/mã mời thô; uuid thì redactor không che, C-21).
+  `SentryScreenTag` (`screen-tag.view.tsx`, không render gì) gắn một lần trong `src/app/_layout.tsx`, chỉ nối segment rồi
+  gọi `setSentryScreen` trong effect. **Cửa nhận (ADR-0011 D-12) nằm ở `setSentryScreen`**, trước khi SDK chép scope sang
+  native, dù ai gọi: giá trị có trong `screen-templates.ts` (sinh từ danh sách file `src/app/`, test khoá hai bên khớp
+  nhau) và đi qua redactor không đổi thì gửi nguyên văn; mọi giá trị khác (pathname mang mã, uuid, slug chỉ chữ như
+  `/places/alice`, query, fragment, thiếu/thừa `/`, thêm segment, khác hoa thường) gửi thành `unknown` — bảng A-1…A-11
+  của D-12 chạy trong `screen-tag.spec.tsx`. Thành viên danh sách, không phải hình dạng: regex nhận `/places/alice`,
+  redactor giữ uuid (C-24.12); cả hai không nói giá trị từ đâu ra. `unknown` là sentinel được chấp nhận (bổ sung D-7 số 4
+  trên GoGo-Infra#208, 2026-10-16 — thay câu "template không khớp mẫu thì bỏ tag" của bổ sung số 3): SDK native không xoá
+  được tag (`undefined` tới native thành chuỗi `"undefined"`), giữ tag cũ thì chỉ sai màn; oracle C-24.13 khoá redactor
+  giữ nguyên sentinel. Tập giá trị rời máy = danh sách template ∪ `unknown`. `getIsolationScope().setTag('screen', …)`:
   lớp bọc scope redact giá trị, SDK chép sang native scope, nên crash native mang cùng tag mà không cần code native.
   Redactor stage 2 giữ segment thô đúng dạng placeholder (`[name]`, `:name`, `name` chỉ gồm chữ) sau `r | l | invite |
-  share-links` — mã thật chỉ gồm `[A-Za-z0-9_-]` (ADR-0011 D-9, C-24). Giá trị không phải template (segment tĩnh có chữ
-  số, uuid, mã, query) gửi thành `unknown`, không bao giờ là đường dẫn thật (bổ sung D-7 số 3 trên GoGo-Infra#208,
-  comment 6209622583): SDK native không xoá được tag, và giữ tag cũ thì chỉ sai màn. Mọi template của app được test đi
-  qua redactor không đổi và được gửi nguyên văn. **Giới hạn:** root layout nhận segment mới ở commit sau commit mount màn mới (đo trong test, Sol F-02 PR #349),
-  nên lỗi ném đồng bộ khi màn mới render **hoặc mount** (effect, `componentDidMount`) mang tag màn trước; từ khi điều
-  hướng xong, lỗi trong handler, promise và native mang đúng tag. `useLayoutEffect` không đổi kết quả.
+  share-links` — mã thật chỉ gồm `[A-Za-z0-9_-]` (ADR-0011 D-9, C-24). Mọi template của app được test đi qua redactor
+  không đổi và được gửi nguyên văn.
+  **Khởi động:** `initSentry` gieo `/` ngay khi bật SDK, trước khi render gì (Sol F-05, Astra A-F-03) — lỗi trong
+  `AppProviders` hay cây khởi động mang `/`, không trống; iOS giữ native scope qua các lần chạy (đo ở relay #336: crash
+  lần chạy 2 mang tag đặt ở lần 1) nên không gieo thì crash sớm mang màn của lần chạy trước. Cửa sổ còn lại: crash native
+  giữa lúc SDK native khởi động và lúc tag `/` tới native scope, trên iOS có thể mang màn lần chạy trước — **chờ owner
+  chấp nhận** (câu hỏi trên PR #349), chưa chấp nhận ở đây. Báo cáo crash của lần chạy trước được ghi cùng scope lúc
+  crash, gieo `/` không viết đè: relay §3.1 kiểm — lần chạy 3 giao crash của lần 2 với tag `/room/[roomId]/preference`,
+  không phải `/`.
+  **`?screen=` trong link (Sol F-01/F-04, đo trong test):** expo-router nối nguyên giá trị query `?screen=` vào segment
+  của màn lá (`/places/search?screen=import` → `places,search,import`) và giữ `index` với thư mục có index
+  (`/plans/<id>?screen=active` → `plans,[planId],index,active`), nên link lạnh hay link nóng từ hệ điều hành (qua
+  `+native-intent`) chỉ cho ra `unknown`, không ra màn khác; chỉ một template lá không-index là tiền tố của template khác
+  mới mở lại đường này — test khoá cây `src/app/` không có route như vậy; thêm route như vậy phải có chốt mới trước.
+  **Giới hạn:** root layout nhận segment mới ở commit sau commit mount màn mới (đo trên chính `SentryScreenTag` với cả
+  `useEffect` lẫn `useLayoutEffect`, Sol F-02 PR #349), nên lỗi ném đồng bộ khi màn mới render **hoặc mount** (effect,
+  `componentDidMount`) mang tag màn trước; từ khi điều hướng xong, lỗi trong handler, promise và native mang đúng tag.
+  Owner đã chấp nhận phần render (Q-3, shape §5); phần mount rộng hơn **chờ owner chấp nhận** (câu hỏi trên PR #349).
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 

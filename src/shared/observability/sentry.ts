@@ -4,6 +4,8 @@ import type { ComponentType } from 'react'
 
 import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
 
+import { SCREEN_TEMPLATES } from './screen-templates'
+
 /**
  * GoGo-MobileApp#336 — the only file that touches the Sentry SDK (GoGo-Infra
  * ADR-0011, `docs/adr/0010-crash-reporting-sentry.md`). `sentry-usage.spec.ts`
@@ -862,6 +864,11 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
   guardScope(Sentry.getGlobalScope())
   guardScope(Sentry.getIsolationScope())
   enabled = true
+  // Sol F-05 / Astra A-F-03 (PR #349): nothing has rendered yet, so until the
+  // first navigation effect an event would carry no screen — or, on iOS, the
+  // previous run's (the native scope outlives the process). Seed the launch
+  // screen now; the SDK copies it to native with the rest of the scope.
+  setSentryScreen(LAUNCH_SCREEN)
 }
 
 export type ErrorKind = 'boundary'
@@ -878,30 +885,38 @@ export function setSentryUser(id: string | null): void {
   Sentry.setUser(appUserId ? { id: appUserId } : null)
 }
 
-/**
- * A route template as expo-router names it: `/`, or segments that are either a
- * file name without digits (`room`, `(tabs)`, `+not-found`, `group-setup`) or a
- * placeholder (`[roomId]`). Digits are refused because no route name has one
- * and every code and id does — the redactor alone keeps a raw uuid (C-21).
- */
-const SCREEN_TEMPLATE = /^\/(?:(?:[A-Za-z_+()-]+|\[[A-Za-z]+\])(?:\/(?:[A-Za-z_+()-]+|\[[A-Za-z]+\]))*)?$/
+/** The launch screen (`src/app/index.tsx`, the one route with no segments), seeded by `initSentry`. */
+export const LAUNCH_SCREEN = '/'
 
-/** Sent in place of anything that is not a template (D-7 addition 3: never the real path). */
+/**
+ * Sent in place of anything that is not a declared template — the admitted
+ * sentinel (ADR-0011 D-12; D-7 record addition 4 on GoGo-Infra#208), never
+ * the real path.
+ */
 export const UNKNOWN_SCREEN = 'unknown'
 
+/**
+ * Admission (ADR-0011 D-12): a value is a screen only when it is one of the
+ * templates the app declares — `screen-templates.ts`, generated from `src/app/`
+ * and pinned to it by test — and the redactor leaves it alone. Membership, not
+ * shape: a regex accepts `/places/alice`, and the redactor keeps a raw uuid
+ * (C-21, C-24.12); neither says where the value came from.
+ */
 export function isScreenTemplate(value: string): boolean {
-  return SCREEN_TEMPLATE.test(value) && redactText(value) === value
+  return SCREEN_TEMPLATES.has(value) && redactText(value) === value
 }
 
 /**
  * The screen an event happened on, as the expo-router route template
  * (`/room/[roomId]/preference`) — never a pathname, which carries the room or
- * invite code (GoGo-MobileApp#341). A value that is not a template is sent as
- * {@link UNKNOWN_SCREEN}: the native SDKs cannot remove a tag (an `undefined`
- * arrives as the string `"undefined"`), and keeping the previous screen would
- * name the wrong one. Written to the isolation scope, the one `Sentry.setTag`
- * writes: `guardScope` redacts it as well, then the SDK copies it to the native
- * scope, so a native crash carries the same tag.
+ * invite code (GoGo-MobileApp#341). This is the reporting boundary: admission
+ * happens here, before the SDK syncs the scope to native, whatever the caller
+ * passed. A value that is not a template is sent as {@link UNKNOWN_SCREEN}:
+ * the native SDKs cannot remove a tag (an `undefined` arrives as the string
+ * `"undefined"`), and keeping the previous screen would name the wrong one.
+ * Written to the isolation scope, the one `Sentry.setTag` writes: `guardScope`
+ * redacts it as well, then the SDK copies it to the native scope, so a native
+ * crash carries the same tag.
  */
 export function setSentryScreen(template: string): void {
   if (!enabled) return
