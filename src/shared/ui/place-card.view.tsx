@@ -256,7 +256,7 @@ export function PlaceCard({
             {visibleTags.length > 0 ? (
               <View style={styles.tags}>
                 {visibleTags.map(tag => (
-                  <Chip key={tag} label={tag} variant="info" />
+                  <Chip key={tag} label={tag} variant="info" style={styles.tagChip} />
                 ))}
               </View>
             ) : null}

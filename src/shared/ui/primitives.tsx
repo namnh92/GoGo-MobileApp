@@ -90,7 +90,8 @@ export function Chip({ label, variant = 'default', icon, onPress, accessibilityL
   const body = (pressed: boolean) => (
     <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], style]}>
       {icon ? <Text variant="bodySmall">{icon}</Text> : null}
-      <Text variant="label" color={CHIP_LABEL[variant]} numberOfLines={1}>
+      {/* Shrinks with a chip its row constrains, so the label ellipsises (#332). */}
+      <Text variant="label" color={CHIP_LABEL[variant]} numberOfLines={1} style={styles.chipLabel}>
         {selected ? `✓ ${label}` : label}
       </Text>
     </View>
@@ -239,6 +240,7 @@ const styles = StyleSheet.create(theme => ({
     borderRadius: theme.radius.pill,
     borderWidth: 1,
   },
+  chipLabel: { flexShrink: 1 },
   chip_default: { backgroundColor: theme.surface.card, borderColor: theme.border.hairline },
   chip_defaultPressed: { backgroundColor: theme.surface.subtle },
   chip_selected: { backgroundColor: theme.accent.primary, borderColor: theme.accent.primary },
