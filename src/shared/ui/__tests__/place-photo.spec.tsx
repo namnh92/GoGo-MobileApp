@@ -7,8 +7,11 @@ jest.mock('expo-image', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   Image: require('react-native').Image,
 }))
-const mockReduced = { value: false }
-jest.mock('@/shared/ui/feedback', () => ({ useReducedMotion: () => mockReduced.value, motionDuration: (d: number, r: boolean) => (r ? 0 : d) }))
+const mockReduced: { value: boolean | null } = { value: false }
+jest.mock('@/shared/ui/feedback', () => ({
+  useReducedMotionPreference: () => mockReduced.value,
+  motionDuration: (d: number, r: boolean) => (r ? 0 : d),
+}))
 
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { motion } from '@/shared/ui/tokens'
@@ -74,10 +77,53 @@ describe('PlacePhoto', () => {
 
   it('fades in on the motion token, and cuts in under reduced motion', async () => {
     const view = await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
-    expect(screen.getByTestId('place-photo-image').props.transition).toBe(motion.fast)
+    expect(screen.getByTestId('place-photo-image').props.transition).toBe(motion.standard)
     await view.unmount()
     mockReduced.value = true
     await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
     expect(screen.getByTestId('place-photo-image').props.transition).toBe(0)
+  })
+
+  // Sol #348 F-03: a cached image can land before the OS answers.
+  it('cuts in while the reduced-motion answer is not known yet', async () => {
+    mockReduced.value = null
+    await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    expect(screen.getByTestId('place-photo-image').props.transition).toBe(0)
+  })
+
+  // Sol #348 F-04: design-system motion is 150–300 ms.
+  it('uses a fade inside the 150–300 ms range', () => {
+    expect(motion.standard).toBeGreaterThanOrEqual(150)
+    expect(motion.standard).toBeLessThanOrEqual(300)
+  })
+
+  // Sol #348 F-01: a new URL never shows the previous picture over its stand-in.
+  it('a new URL starts over: stand-in back, image not recycled from the last one', async () => {
+    const next = 'https://assets.example/places/p2.jpg'
+    const view = await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    await fire('onLoad')
+    await view.rerender(<PlacePhoto placeId="p2" uri={next} />)
+    expect(screen.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
+    expect(screen.getByTestId('place-photo-image').props.recyclingKey).toBe(next)
+  })
+
+  // Sol #348 F-02: the outcome of one URL never decides another visit to it.
+  it('A fails, B, then A again: A gets a fresh attempt', async () => {
+    const other = 'https://assets.example/places/p2.jpg'
+    const view = await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    await fire('onError')
+    await view.rerender(<PlacePhoto placeId="p1" uri={other} />)
+    await view.rerender(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    expect(screen.getByTestId('place-photo-image').props.source).toEqual({ uri: PHOTO })
+    expect(screen.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
+  })
+
+  it('A loaded, B, then A again: A waits for its own load', async () => {
+    const other = 'https://assets.example/places/p2.jpg'
+    const view = await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    await fire('onLoad')
+    await view.rerender(<PlacePhoto placeId="p1" uri={other} />)
+    await view.rerender(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    expect(screen.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
   })
 })
