@@ -878,17 +878,33 @@ export function setSentryUser(id: string | null): void {
 }
 
 /**
+ * A route template as expo-router names it: `/`, or segments that are either a
+ * file name without digits (`room`, `(tabs)`, `+not-found`, `group-setup`) or a
+ * placeholder (`[roomId]`). Digits are refused because no route name has one
+ * and every code and id does — the redactor alone keeps a raw uuid (C-21).
+ */
+const SCREEN_TEMPLATE = /^\/(?:(?:[A-Za-z_+()-]+|\[[A-Za-z][A-Za-z0-9]*\])(?:\/(?:[A-Za-z_+()-]+|\[[A-Za-z][A-Za-z0-9]*\]))*)?$/
+
+/** Sent in place of anything that is not a template (D-7 addition 3: never the real path). */
+export const UNKNOWN_SCREEN = 'unknown'
+
+export function isScreenTemplate(value: string): boolean {
+  return SCREEN_TEMPLATE.test(value) && redactText(value) === value
+}
+
+/**
  * The screen an event happened on, as the expo-router route template
  * (`/room/[roomId]/preference`) — never a pathname, which carries the room or
- * invite code (GoGo-MobileApp#341). Written to the isolation scope, the one
- * `Sentry.setTag` writes: `guardScope` redacts the value, then the SDK copies
- * it to the native scope, so a native crash carries the same tag. No clear:
- * after mount there is always a screen, and an `undefined` tag would reach the
- * native SDKs as a string.
+ * invite code (GoGo-MobileApp#341). A value that is not a template is sent as
+ * {@link UNKNOWN_SCREEN}: the native SDKs cannot remove a tag (an `undefined`
+ * arrives as the string `"undefined"`), and keeping the previous screen would
+ * name the wrong one. Written to the isolation scope, the one `Sentry.setTag`
+ * writes: `guardScope` redacts it as well, then the SDK copies it to the native
+ * scope, so a native crash carries the same tag.
  */
 export function setSentryScreen(template: string): void {
   if (!enabled) return
-  Sentry.getIsolationScope().setTag('screen', template)
+  Sentry.getIsolationScope().setTag('screen', isScreenTemplate(template) ? template : UNKNOWN_SCREEN)
 }
 
 /** `Sentry.wrap` when enabled — its touch boundary records breadcrumbs — else the component itself. */

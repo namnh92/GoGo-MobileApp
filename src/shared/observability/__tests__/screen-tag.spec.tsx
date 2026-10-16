@@ -5,7 +5,7 @@ import { readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { Text } from 'react-native'
 
-import { initSentry, redactText, resetSentryForTests, setSentryScreen } from '../sentry'
+import { initSentry, isScreenTemplate, redactText, resetSentryForTests, setSentryScreen } from '../sentry'
 import { SentryScreenTag, screenTemplate } from '../screen-tag.view'
 
 /**
@@ -87,12 +87,24 @@ describe('SentryScreenTag', () => {
 })
 
 describe('setSentryScreen', () => {
-  // The belt under the template rule: a pathname passed by mistake still loses its code.
-  it('redacts a pathname before the SDK copies it to native', () => {
+  // D-7 addition 3: a value that is not a template never leaves as a path.
+  it('sends `unknown` for anything that is not a route template', () => {
     enable()
     setSentryScreen(`/room/${CODE}/preference`)
     setSentryScreen(`/r/${CODE}`)
-    expect(screens()).toEqual(['/room/[redacted]/preference', '/r/[redacted]'])
+    setSentryScreen('/places/5f1c2a3e-1234-4abc-8def-0123456789ab')
+    setSentryScreen('/room/[roomId]?tab=1')
+    setSentryScreen('room/[roomId]')
+    setSentryScreen('')
+    expect(screens()).toEqual(['unknown', 'unknown', 'unknown', 'unknown', 'unknown', 'unknown'])
+  })
+
+  it('keeps a template as it is', () => {
+    enable()
+    for (const template of ['/', '/(tabs)', '/+not-found', '/create/group-setup', '/r/[inviteCode]']) {
+      setSentryScreen(template)
+    }
+    expect(screens()).toEqual(['/', '/(tabs)', '/+not-found', '/create/group-setup', '/r/[inviteCode]'])
   })
 })
 
@@ -116,7 +128,8 @@ describe('route templates', () => {
   })
 
   // A new route whose name a redaction stage would rewrite fails here, not in Discord.
-  it.each(templates.map(t => [t]))('%s survives the redactor unchanged', template => {
+  it.each(templates.map(t => [t]))('%s survives the redactor unchanged and is sent as itself', template => {
     expect(redactText(template)).toBe(template)
+    expect(isScreenTemplate(template)).toBe(true)
   })
 })

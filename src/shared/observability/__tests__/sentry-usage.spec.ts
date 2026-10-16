@@ -22,7 +22,7 @@ const ALLOWED_CALLS: RegExp[] = [
   /guardScope\(Sentry\.getGlobalScope\(\)\)/,
   /guardScope\(Sentry\.getIsolationScope\(\)\)/,
   // #341: the screen tag, a route template, written through the guarded scope.
-  /Sentry\.getIsolationScope\(\)\.setTag\('screen', template\)/,
+  /Sentry\.getIsolationScope\(\)\.setTag\('screen', isScreenTemplate\(template\) \? template : UNKNOWN_SCREEN\)/,
 ]
 
 function sourceFiles(dir: string): string[] {

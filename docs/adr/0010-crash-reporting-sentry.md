@@ -53,8 +53,10 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   gắn một lần trong `src/app/_layout.tsx`, gọi `setSentryScreen` trong effect → `getIsolationScope().setTag('screen', …)`:
   lớp bọc scope redact giá trị, SDK chép sang native scope, nên crash native mang cùng tag mà không cần code native.
   Redactor stage 2 giữ segment là placeholder của route template (`[name]`, `:name`) sau `r | l | invite |
-  share-links` — mã thật chỉ gồm `[A-Za-z0-9_-]` (ADR-0011 D-9, C-24). Mọi template của app được test đi qua redactor
-  không đổi. **Giới hạn (owner chấp nhận 2026-10-16):** effect chạy sau commit, nên lỗi ném ngay trong lần render đầu
+  share-links` — mã thật chỉ gồm `[A-Za-z0-9_-]` (ADR-0011 D-9, C-24). Giá trị không phải template (segment tĩnh có chữ
+  số, uuid, mã, query) gửi thành `unknown`, không bao giờ là đường dẫn thật (bổ sung D-7 số 3 trên GoGo-Infra#208,
+  comment 6209622583): SDK native không xoá được tag, và giữ tag cũ thì chỉ sai màn. Mọi template của app được test đi
+  qua redactor không đổi và được gửi nguyên văn. **Giới hạn (owner chấp nhận 2026-10-16):** effect chạy sau commit, nên lỗi ném ngay trong lần render đầu
   của màn mới (root boundary bắt) mang tag màn trước; lỗi trong effect, handler, promise và native mang đúng tag.
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
