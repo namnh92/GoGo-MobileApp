@@ -51,6 +51,7 @@ export function PlacePhoto({ uri, style, icon, ...rest }: Props) {
 function PhotoAttempt({ uri, name, icon, style, accessibilityLabel }: Props & { uri: string }) {
   const reduced = useReducedMotionPreference()
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading')
+  const label = accessibilityLabel ?? name
 
   if (status === 'failed') {
     return <Pin icon={icon} testID="place-photo-placeholder" style={[styles.placeholder, style]} />
@@ -74,7 +75,10 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel }: Props & { 
         transition={motionDuration(motion.standard, reduced !== false)}
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('failed')}
-        accessibilityLabel={accessibilityLabel ?? name}
+        // expo-image is not an accessibility element by default, so a label on
+        // its own is never read. Opt in only when there is one (Sol #348 F-06).
+        accessible={label !== undefined}
+        accessibilityLabel={label}
       />
     </View>
   )

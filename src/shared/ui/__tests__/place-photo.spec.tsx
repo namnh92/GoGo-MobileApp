@@ -47,9 +47,20 @@ describe('PlacePhoto', () => {
 
   it('loading: the pin tile waits under the image, which carries the name', async () => {
     await render(<PlacePhoto placeId="p1" name="Cà phê" uri={PHOTO} />)
-    expect(screen.getByTestId('place-photo-image').props.accessibilityLabel).toBe('Cà phê')
+    const image = screen.getByTestId('place-photo-image')
+    expect(image.props.accessibilityLabel).toBe('Cà phê')
+    // Sol #348 F-06: expo-image is not an accessibility element by default, so
+    // a label alone is never read; the labelled image must opt in.
+    expect(image.props.accessible).toBe(true)
     const waiting = screen.getByTestId('place-photo-loading', { includeHiddenElements: true })
     expect(waiting.props.accessibilityElementsHidden).toBe(true)
+  })
+
+  it('an image with nothing to say is not an accessibility element', async () => {
+    await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    const image = screen.getByTestId('place-photo-image')
+    expect(image.props.accessibilityLabel).toBeUndefined()
+    expect(image.props.accessible).not.toBe(true)
   })
 
   it('loaded: the stand-in goes away', async () => {
