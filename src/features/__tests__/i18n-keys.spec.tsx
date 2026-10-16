@@ -338,4 +338,45 @@ describe('English plurals', () => {
     expect(singulars.size).toBeGreaterThanOrEqual(Object.keys(SINGULAR).length)
     expect(withoutCount).toEqual([])
   })
+
+  /**
+   * Hermes (iOS and Android builds of this app) has no `Intl.PluralRules`;
+   * Node, where this suite runs, does. i18next 26 then falls back to a built-in
+   * `count === 1 ? 'one' : 'other'` rule for a bare language code, which is the
+   * right rule for both catalogs. Nothing else in the app supplies plural rules,
+   * so this pins the fallback: an i18next upgrade that drops it would bring
+   * "1 ratings" back on the device while the test above stays green.
+   */
+  describe('without Intl.PluralRules, as on Hermes', () => {
+    const original = Intl.PluralRules
+    let hermesEn: ReturnType<typeof i18n.getFixedT>
+    let hermesVi: ReturnType<typeof i18n.getFixedT>
+
+    beforeAll(() => {
+      // Removed on purpose: this is the Hermes runtime.
+      Reflect.deleteProperty(Intl, 'PluralRules')
+      jest.isolateModules(() => {
+        const fresh = jest.requireActual<{ default: typeof i18n }>('@/shared/i18n').default
+        hermesEn = fresh.getFixedT('en')
+        hermesVi = fresh.getFixedT('vi')
+      })
+    })
+    afterAll(() => {
+      Object.defineProperty(Intl, 'PluralRules', { value: original, writable: true, configurable: true })
+    })
+
+    it('really runs without the API', () => {
+      expect(typeof Intl.PluralRules).toBe('undefined')
+    })
+
+    it.each(Object.entries(SINGULAR))('%s is still singular for 1 and plural for 2 in English', (key, [extra, singular]) => {
+      expect(hermesEn(key, { ...extra, count: 1 })).toBe(singular)
+      expect(hermesEn(key, { ...extra, count: 2, ...(extra.n ? { n: '2' } : {}) })).toBe(en(key, { ...extra, count: 2, ...(extra.n ? { n: '2' } : {}) }))
+    })
+
+    it.each(Object.keys(SINGULAR))('%s keeps its one Vietnamese form', key => {
+      const [extra] = SINGULAR[key]
+      expect(hermesVi(key, { ...extra, count: 1 })).toBe(vi(key, { ...extra, count: 1 }))
+    })
+  })
 })
