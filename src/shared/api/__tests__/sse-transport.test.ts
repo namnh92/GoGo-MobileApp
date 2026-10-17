@@ -559,6 +559,25 @@ describe('sseTransport', () => {
     expect(seen.length).toBeGreaterThan(0)
   })
 
+  it('replays that status on a microtask, so a test that awaits anything sees it (#360)', async () => {
+    const h = harness()
+    const seen: RoomRealtimeStatus[] = []
+    h.transport.subscribe({
+      roomId: ROOM_ID,
+      phase: 'plan',
+      queryClient: h.client,
+      onStatusChange: status => seen.push(status),
+    })
+
+    // No timer is advanced here — only microtasks drain. A replay queued with
+    // `setTimeout` would still be pending, which is what it was: the update
+    // then reached React after the test that caused it had returned, outside
+    // `act`, and the #133 guard failed whichever test ran next (#360).
+    await Promise.resolve()
+
+    expect(seen).toEqual(['connecting'])
+  })
+
   it('drops the socket in the background and opens a new one on return', async () => {
     const h = harness()
     h.transport.subscribe({ roomId: ROOM_ID, phase: 'plan', queryClient: h.client })
