@@ -154,7 +154,7 @@ app (§5).
 | Ngôn ngữ mặc định của listing | Tiếng Việt | mặc định sản phẩm (AGENTS.md) |
 | Mô tả ngắn (Play, ≤ 80 ký tự) | "Chốt chỗ đi chơi cùng nhau: cùng chọn, cùng bỏ phiếu, có lịch trình." (68) | giới hạn 80 ký tự: https://support.google.com/googleplay/android-developer/answer/9866151 |
 | Mô tả dài | bản nháp ở §9 | giới hạn số ký tự: đọc trực tiếp trên console khi điền (trang hỗ trợ không in số) — `CẦN XÁC NHẬN` |
-| URL chính sách quyền riêng tư | **chưa có** | GoGo-FE không có trang nào về quyền riêng tư (`grep -i privacy GoGo-FE/src` = rỗng) → **Q4** |
+| URL chính sách quyền riêng tư | **chưa có** | GoGo-FE không có trang nào về quyền riêng tư (`grep -i privacy GoGo-FE/src` = rỗng) → namnh92/GoGo-FE#3, **Q4** |
 | Email hỗ trợ | namnh@gogo.id.vn | miền của sản phẩm |
 | Ảnh chụp màn hình iOS | bắt buộc ≥ 1 ảnh cho iPhone màn Dynamic Island: 1179 × 2556 (dọc), chấp nhận 1206 × 2622; nếu listing có iPad thì ≥ 1 ảnh iPad 13": 2064 × 2752 hoặc 2048 × 2732. Tối đa 10 ảnh/kích cỡ, `.png`/`.jpg`, không alpha. | https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications/ |
 | Ảnh và icon Play | icon 512 × 512 PNG 32-bit có alpha (≤ 1024 KB); feature graphic 1024 × 500 JPEG hoặc PNG 24-bit không alpha; ≥ 2 ảnh chụp, cạnh 320–3840 px, cạnh lớn ≤ 2× cạnh nhỏ; nên ≥ 4 ảnh ở ≥ 1080 px để đủ điều kiện quảng bá. | https://support.google.com/googleplay/android-developer/answer/9866151 |
@@ -183,7 +183,7 @@ app (§5).
 | Q1 | Tenjin trên iOS: khai "dùng để tracking" + thêm màn ATT, hay giữ không-IDFA và khai "không tracking"? | Đo nguồn cài đặt là "advertising measurement" trong định nghĩa của Apple (§6). Khai tracking mà không có ATT là lệch; khai không-tracking mà có liên kết dữ liệu bên thứ ba cũng lệch. | Giữ không-IDFA (hiện trạng), khai "không tracking", và ghi rõ với Tenjin rằng app không gửi IDFA. Nếu marketing cần IDFA thì phải thêm ATT trước — đó là một issue riêng, không phải một ô trong form. Cần ý kiến pháp lý. |
 | Q2 | Trên Play, Tenjin là nhà cung cấp xử lý theo uỷ quyền hay bên thứ ba nhận dữ liệu chia sẻ? | Quyết định ba dòng "chia sẻ" ở §7. | Khai **có chia sẻ** cho Tenjin (an toàn hơn, khó bị coi là khai thiếu), trừ khi hợp đồng/DPA với Tenjin nói rõ quan hệ xử lý theo uỷ quyền. Cần đọc DPA. |
 | Q3 | Số tiền hoá đơn tự khai (D7) có khai vào Financial info không? | Hai form đều có ô "other financial info". | **Khai**. Đây là số tiền người dùng nhập, dù không phải thông tin thanh toán; khai thừa không bị phạt, khai thiếu thì bị. |
-| Q4 | Trang chính sách quyền riêng tư: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách; không có URL thì không nộp được. GoGo-FE hiện không có trang nào. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
+| Q4 | Trang chính sách quyền riêng tư: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách; không có URL thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì, khai mục đích nào? | Mục đích khai phải khớp việc dùng thật. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
 
 ## 11. Cách kiểm tài liệu này (AC-5 của #354)
