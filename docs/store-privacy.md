@@ -14,7 +14,7 @@ khai báo sai là lý do bị từ chối bản nộp hoặc bị gỡ khỏi c�
 | --- | --- | --- |
 | GoGo BE (`https://api-*.gogo.id.vn/v1`) | máy chủ của chính sản phẩm | của GoGo |
 | OneSignal | gửi push | nhà cung cấp xử lý theo uỷ quyền |
-| Tenjin | đo nguồn cài đặt (attribution) | **xem Q2** — xử lý theo uỷ quyền hay bên thứ ba |
+| Tenjin | đo nguồn cài đặt (attribution) | **bên thứ ba nhận dữ liệu chia sẻ** (owner chốt 2026-10-17, §12 D-2) |
 | Sentry | crash/error + session release-health | nhà cung cấp xử lý theo uỷ quyền |
 | Google Maps Platform | vẽ bản đồ trong app (SDK Maps, **cả iOS và Android**) | nhà cung cấp xử lý theo uỷ quyền |
 
@@ -87,7 +87,8 @@ Không gửi: danh bạ, lịch, tin nhắn, sức khoẻ, thông tin thanh toá
   khác 0 đọc được và `connect` trả `{"code":200}`.
 - **iOS không thu IDFA.** Repo không có `expo-tracking-transparency` (`package.json`) và không có
   `NSUserTrackingUsageDescription` trong `app.config.ts`, nên không có màn ATT — không có ATT thì iOS không
-  cấp IDFA; Tenjin chỉ còn IDFV + IP. Hệ quả cho khai báo: xem **Q1**.
+  cấp IDFA; Tenjin chỉ còn IDFV + IP. Hệ quả cho khai báo: khai **không dùng để tracking** (owner chốt
+  2026-10-17, §12 D-1 — đọc cả dòng rủi ro ở đó trước khi nộp).
 
 **Phía Sentry đã bật sẵn để giảm dữ liệu** (khai báo phải khớp những thứ này, không khai theo mặc định của
 SDK): `scrubIPAddresses` bật cho cả ba project và rule Advanced Data Scrubbing `[Remove][Anything] from
@@ -140,12 +141,12 @@ data collected from your app about a particular end-user or device with a data b
 | User Content · Other User Content | có | App Functionality | có | không | D8, D9, D17, D23 |
 | Search History | có | App Functionality | có | không | D11 |
 | Identifiers · User ID | có | App Functionality | có | không | D13, D15, D19 |
-| Identifiers · Device ID | có | App Functionality, Analytics | có | **Q1** | D12, D14, D16, T1, T2, T4 |
+| Identifiers · Device ID | có | App Functionality, Analytics | có | không (§12 D-1) | D12, D14, D16, T1, T2, T4 |
 | Usage Data · Product Interaction | có | App Functionality, Analytics | có | không | D18, D20, D21, D22 (chức năng); T1 (dữ liệu phiên), D14 (Analytics) |
-| Usage Data · Advertising Data | có | Analytics | có | **Q1** | D14, T2 |
+| Usage Data · Advertising Data | có | Analytics | có | không (§12 D-1) | D14, T2 |
 | Diagnostics · Crash Data | có | App Functionality | có | không | D15, D16 |
 | Diagnostics · Other Diagnostic Data | có | App Functionality | có | không | T3 (context thiết bị của SDK Sentry), T4 |
-| Financial Info · Other Financial Info | **Q3** | App Functionality | có | không | D7, D17 (ngân sách tự đặt) |
+| Financial Info · Other Financial Info | có (§12 D-3) | App Functionality | có | không | D7, D17 (ngân sách tự đặt), D23 (khoảng giá tự khai) |
 | Other Data | có | App Functionality | có | không | D4 (Apple không có loại con cho ngày sinh) |
 
 Không thu, khai "No": Health & Fitness, Financial Info (Payment/Credit), Sensitive Info, Contacts, Browsing
@@ -163,7 +164,9 @@ Sensitive Info của Apple có khuyết tật) — kiểm lại dòng này mỗi
 
 Mỗi loại Play hỏi: *thu / chia sẻ*, *xử lý tạm thời*, *bắt buộc hay người dùng chọn*, *mục đích*. "Chia sẻ"
 của Play **không** tính việc chuyển cho nhà cung cấp xử lý theo uỷ quyền — vì vậy OneSignal và Sentry khai
-"thu, không chia sẻ"; Tenjin là **Q2**.
+"thu, không chia sẻ". **Tenjin khai là bên thứ ba nhận dữ liệu chia sẻ** (owner chốt 2026-10-17, §12 D-2),
+nên hai dòng mang dữ liệu Tenjin trả lời "có chia sẻ" kèm mục đích chia sẻ riêng — Play hỏi mục đích thu và
+mục đích chia sẻ thành hai câu khác nhau.
 
 | Loại · loại con | Thu | Chia sẻ | Tạm thời | Bắt buộc | Mục đích | Dẫn từ |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -172,14 +175,14 @@ của Play **không** tính việc chuyển cho nhà cung cấp xử lý theo u�
 | Personal info · Name | có | không | không | bắt buộc (tài khoản) | App functionality, Account management | D3 |
 | Personal info · User IDs | có | không | không | bắt buộc | App functionality | D13, D15, D19 — cả ba đích là nhà cung cấp xử lý theo uỷ quyền; **Tenjin không nhận id người dùng** (`grep -ri -e customerUserId -e setCustomer -e sendEvent src/shared/acquisition` rỗng; ranh giới ghi ở `initialize.ts:20`), nên Q2 không chi phối dòng này |
 | Personal info · Other info | có | không | không | người dùng chọn | App functionality | D4 |
-| Financial info · Other financial info | **Q3** | không | không | người dùng chọn | App functionality | D7, D17 |
+| Financial info · Other financial info | có (§12 D-3) | không | không | người dùng chọn | App functionality | D7, D17, D23 |
 | Photos and videos · Photos | có | không | không | người dùng chọn | App functionality | D5, D6 |
-| App activity · App interactions | có | **Q2** | không | bắt buộc | App functionality, Analytics | D18, D20, D21, D22; T1, D14 |
+| App activity · App interactions | có | **có** — Tenjin (§12 D-2); OneSignal và GoGo BE không tính là chia sẻ | không | bắt buộc | thu: App functionality, Analytics · **chia sẻ: Analytics, Advertising/marketing** | D18, D20, D21, D22; T1, D14 |
 | App activity · In-app search history | có | không | không | người dùng chọn | App functionality | D11 |
 | App activity · Other user-generated content | có | không | không | người dùng chọn | App functionality | D8, D9, D17, D23 |
 | App info and performance · Crash logs | có | không | không | bắt buộc | App functionality, Fraud prevention/security | D15 |
 | App info and performance · Diagnostics | có | không | không | bắt buộc | App functionality | D16, T3, T4 |
-| Device or other IDs | có | **Q2** | không | bắt buộc | App functionality, Advertising/marketing | D12, D14, D16, T1, T2, T4 |
+| Device or other IDs | có | **có** — Tenjin (§12 D-2) | không | bắt buộc | thu: App functionality, Advertising/marketing · **chia sẻ: Analytics, Advertising/marketing** | D12, D14, D16, T1, T2, T4 |
 
 Mật khẩu (D2) không có loại tương ứng ở Play, như ở Apple — xem ghi chú cuối §6.
 
@@ -226,11 +229,10 @@ app (§5), nhưng URL web mà Play đòi thì chưa có (§5, §8).
 
 ## 10. Câu hỏi còn mở (owner quyết, một số cần ý kiến pháp lý)
 
+Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12. Còn lại hai câu:
+
 | # | Câu hỏi | Vì sao nó chặn | Khuyến nghị |
 | --- | --- | --- | --- |
-| Q1 | Tenjin trên iOS: khai "dùng để tracking" + thêm màn ATT, hay giữ không-IDFA và khai "không tracking"? | Đo nguồn cài đặt là "advertising measurement" trong định nghĩa của Apple (§6). Khai tracking mà không có ATT là lệch; khai không-tracking mà có liên kết dữ liệu bên thứ ba cũng lệch. | Giữ không-IDFA (hiện trạng), khai "không tracking", và ghi rõ với Tenjin rằng app không gửi IDFA. Nếu marketing cần IDFA thì phải thêm ATT trước — đó là một issue riêng, không phải một ô trong form. **Lưu ý cho người ký:** không-IDFA *không* đồng nghĩa không-tracking — đối sánh install theo IP + tín hiệu thiết bị là fingerprinting theo hướng dẫn ATT của Apple và bị cấm bất kể nhãn khai; đường Apple chấp nhận là SKAdNetwork / AdAttributionKit. Cần ý kiến pháp lý. |
-| Q2 | Trên Play, Tenjin là nhà cung cấp xử lý theo uỷ quyền hay bên thứ ba nhận dữ liệu chia sẻ? | Quyết định hai dòng "chia sẻ" ở §7 (App interactions, Device or other IDs). | Khai **có chia sẻ** cho Tenjin (an toàn hơn, khó bị coi là khai thiếu), trừ khi hợp đồng/DPA với Tenjin nói rõ quan hệ xử lý theo uỷ quyền. Cần đọc DPA. |
-| Q3 | Số tiền hoá đơn tự khai (D7), ngân sách người dùng tự đặt (D17) và khoảng giá tự khai khi góp địa điểm (D23) có khai vào Financial info không? | Hai form đều có ô "other financial info". | **Khai**. Đây là số tiền người dùng nhập, dù không phải thông tin thanh toán; khai thừa không bị phạt, khai thiếu thì bị. |
 | Q4 | Trang chính sách quyền riêng tư **và** trang yêu cầu xoá dữ liệu: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách, và Play còn đòi URL yêu cầu xoá dữ liệu cho app có tạo tài khoản; thiếu một trong hai thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì — ý định sản phẩm, không phải sự thật trong repo? | Hiện trạng đo được: **không có cổng tuổi** ("No minimum age applies", `openapi/gogo.v1.yaml:403`) và không consumer nào ngoài `/me` + export; app chỉ hiện và sửa nó (`src/features/account/date-of-birth.view.tsx`, `src/shared/api/queries/use-me.ts:38`). Vì vậy §6/§7 khai `App Functionality` theo đúng hiện trạng; câu còn mở là có thêm mục đích nào không. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
 
@@ -244,6 +246,31 @@ app (§5), nhưng URL web mà Play đòi thì chưa có (§5, §8).
    lời ở §5 và §1.
 3. Listing: §8 đủ để điền tên, mô tả, từ khoá, URL, email, phân loại; ô `CẦN XÁC NHẬN`, Q4 và hai URL còn
    thiếu (chính sách quyền riêng tư, yêu cầu xoá dữ liệu) là phần đã biết, không phải phát hiện lúc nộp.
+   Hai câu còn mở là Q4 và Q5; §6 và §7 không còn ô nào chờ quyết định.
 4. Hai khẳng định **có điều kiện**, phải kiểm lại ngay trước mỗi lần nộp vì không có commit nào ghim chúng:
    mã hoá khi truyền (§1 — đọc manifest của bản release) và `scrubIPAddresses` + rule `$user.geo.**` (§3 —
    đọc lại trong console Sentry).
+
+## 12. Quyết định của owner (có ngày, kèm rủi ro đã nhận)
+
+Ghi ở đây thay vì để trong §10, vì một ô khai báo không được treo vào một câu hỏi. Nguồn kèm theo:
+`.claude/rules/execution-policy.md` §8 2026-10-17.
+
+**D-1 (2026-10-17) — Tenjin trên iOS: giữ không-IDFA, khai "không dùng để tracking".** Hiện trạng đo được:
+không có `expo-tracking-transparency` trong `package.json`, không có `NSUserTrackingUsageDescription` trong
+`app.config.ts`, nên không có màn ATT và iOS không cấp IDFA; Tenjin chỉ nhận IDFV + IP (§3, T2).
+
+> **Rủi ro owner đã nhận, không được xoá dòng này.** Không-IDFA *không* đồng nghĩa không-tracking: đối sánh
+> install theo IP cộng tín hiệu thiết bị là fingerprinting theo hướng dẫn ATT của Apple và bị cấm bất kể nhãn
+> khai. Đường Apple chấp nhận là SKAdNetwork / AdAttributionKit. Nếu marketing cần IDFA, hoặc nếu App Review
+> chất vấn, quyết định này phải mở lại — khi đó cần màn ATT **trước**, và nhãn đổi sang "dùng để tracking".
+
+**D-2 (2026-10-17) — Tenjin khai là bên thứ ba nhận dữ liệu chia sẻ trên Play.** An toàn hơn khi chưa ai đọc
+DPA của Tenjin: khai thừa một quan hệ chia sẻ không bị phạt, khai thiếu thì bị. Áp cho hai dòng của §7
+(`App activity · App interactions`, `Device or other IDs`), kèm mục đích chia sẻ `Analytics,
+Advertising/marketing`. Đổi lại thành "xử lý theo uỷ quyền" **chỉ khi** DPA của Tenjin nói rõ quan hệ đó —
+đọc DPA là việc còn nợ, không phải điều kiện chặn nộp.
+
+**D-3 (2026-10-17) — số tiền người dùng tự nhập khai vào Financial info (`other financial info`), cả hai
+form.** Ba chỗ: hoá đơn check-in (D7), ngân sách phòng tự đặt (D17), khoảng giá khi góp địa điểm (D23). Không
+phải thông tin thanh toán, nhưng là số tiền do người dùng nhập; khai thừa không bị phạt, khai thiếu thì bị.
