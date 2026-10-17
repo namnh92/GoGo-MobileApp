@@ -1030,8 +1030,17 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       }
       if (onStatusChange) {
         stream.listeners.add(onStatusChange)
+        // Replayed on a microtask, not a timer. It must not be synchronous —
+        // `sse-transport.test.ts` pins that, so a subscriber never gets a
+        // callback before `subscribe` has returned it an unsubscribe — but a
+        // *macrotask* outlives a fast test body: the resulting `setReported`
+        // (`use-room-realtime.ts`) then landed after the test returned, outside
+        // `act`, and the #133 guard raised it against whichever test ran next.
+        // That is how `develop` went red on a commit touching only markdown
+        // (#360, CI run 39046475891). A microtask is drained by any `await` the
+        // test already does, so the update stays inside the test that caused it.
         const current = stream.status
-        setTimeout(() => onStatusChange(current), 0)
+        queueMicrotask(() => onStatusChange(current))
       }
 
       // A phase that appeared mid-stream needs its own poller, at whichever
