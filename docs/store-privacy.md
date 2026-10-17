@@ -105,7 +105,7 @@ ai đổi ở đó thì khai báo này sai mà không có commit nào. Bằng ch
 | Quyền | Khi nào | Chuỗi hiện cho người dùng |
 | --- | --- | --- |
 | Vị trí khi dùng app | người dùng chọn "dùng vị trí của tôi" | `app.config.ts:271-274` — nói rõ có đường chọn khu vực thủ công |
-| Thư viện ảnh | thêm ảnh check-in, ảnh đại diện | `app.config.ts:264-266` — **chuỗi hiện tại chỉ nói ảnh check-in**, trong khi `src/shared/media/pick-avatar.ts:74` xin đúng quyền đó cho ảnh đại diện. Apple từ chối purpose string không phủ hết việc dùng → sửa chuỗi trước khi nộp (issue code riêng) |
+| Thư viện ảnh | thêm ảnh đại diện (`src/shared/media/pick-avatar.ts:74`), thêm ảnh check-in (`src/features/active-date/checkin-sheet.view.tsx:73`) | `app.config.ts:269-270` — chuỗi nói cả hai việc (#356). `src/shared/config/__tests__/media-permission.test.ts` buộc mỗi call site có từ khoá mục đích trong chuỗi, nên một call site thứ ba sẽ làm test đỏ thay vì âm thầm ship purpose string thiếu |
 | Thông báo | sau khi đăng nhập, trước khi đăng ký subscription | `src/shared/notifications/permission.ts` |
 
 Không xin: vị trí nền, camera, danh bạ, lịch, micro.
