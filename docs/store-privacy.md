@@ -46,6 +46,14 @@ Không có SDK analytics nào: `track()` chỉ `console.debug` tại máy, khôn
 | D15 | Crash, lỗi, breadcrumb đã lọc | `src/shared/observability/sentry.ts:733` (`beforeSend`), `:699` (`beforeBreadcrumb`), `:823-845` | Sentry | sửa lỗi | `user.id` = id người dùng khi đã đăng nhập, ngược lại là installation id của SDK native (`sentry.ts:16-19`, ADR 0010) | tuỳ chọn theo DSN của bản build |
 | D16 | Session release-health (`sid`, `did`, status, counters, `seq`) | `src/shared/observability/sentry.ts:14-19,825` | Sentry | tỉ lệ crash-free | `did` = installation id native, **không** phải id người dùng | như D15 |
 
+| D17 | Nội dung phòng: tên phòng, ngày/giờ kèo, ngân sách + chế độ (tổng / theo đầu người), khu vực | `src/shared/api/endpoints/rooms.ts:18,69,135` | GoGo BE | chức năng cốt lõi của sản phẩm | có | bắt buộc để dùng app |
+| D18 | Sở thích đã chọn, lượt vuốt và lượt bỏ phiếu | `src/shared/api/endpoints/preferences.ts:15,25`; `endpoints/suggestions.ts:23,37` | GoGo BE | ghép lựa chọn, bỏ phiếu, chốt kế hoạch | có | bắt buộc theo luồng |
+| D19 | Thành viên phòng và lời mời đã tạo | `src/shared/api/endpoints/rooms.ts:139,149,164,171,176` | GoGo BE | quản lý phòng, mời người đi cùng | có | bắt buộc theo luồng |
+| D20 | Mục đã lưu (địa điểm, kế hoạch) | `src/shared/api/endpoints/me.ts:14,18` | GoGo BE | danh sách đã lưu | có | tuỳ chọn |
+| D21 | Cài đặt thông báo | `src/shared/api/endpoints/me.ts:83` | GoGo BE | tôn trọng lựa chọn nhận thông báo | có | tuỳ chọn |
+| D22 | Thay đổi lịch trình: khoá điểm, hoàn thành điểm, tạo lại | `src/shared/api/endpoints/plans.ts:19,24,35,47` | GoGo BE | chức năng cốt lõi | có | bắt buộc theo luồng |
+
+Mã mời và slug của link chia sẻ không mang PII theo `security.md`, nên không là một dòng dữ liệu người dùng.
 Không gửi: danh bạ, lịch, tin nhắn, sức khoẻ, thông tin thanh toán, mật khẩu của bên thứ ba, vị trí nền
 (`app.config.ts:275-276` tắt cả hai nền tảng).
 
@@ -104,14 +112,14 @@ data collected from your app about a particular end-user or device with a data b
 | Contact Info · Name | có | App Functionality | có | không | D3 |
 | Location · Precise Location | có | App Functionality | có | không | D10 |
 | User Content · Photos or Videos | có | App Functionality | có | không | D5, D6 |
-| User Content · Other User Content | có | App Functionality | có | không | D8, D9 |
+| User Content · Other User Content | có | App Functionality | có | không | D8, D9, D17 |
 | Search History | có | App Functionality | có | không | D11 |
-| Identifiers · User ID | có | App Functionality | có | không | D13, D15 |
+| Identifiers · User ID | có | App Functionality | có | không | D13, D15, D19 |
 | Identifiers · Device ID | có | App Functionality, Analytics | có | **Q1** | D12, D14, D16, T1, T2 |
-| Usage Data · Product Interaction | có | Analytics | có | không | T1 (dữ liệu phiên), D14 |
+| Usage Data · Product Interaction | có | App Functionality, Analytics | có | không | D18, D22 (chức năng); T1 (dữ liệu phiên), D14 (Analytics) |
 | Usage Data · Advertising Data | có | Analytics | có | **Q1** | D14, T2 |
 | Diagnostics · Crash Data | có | App Functionality | có | không | D15, D16 |
-| Financial Info · Other Financial Info | **Q3** | App Functionality | có | không | D7 |
+| Financial Info · Other Financial Info | **Q3** | App Functionality | có | không | D7, D17 (ngân sách tự đặt) |
 | Other Data | có | App Functionality | có | không | D4 (Apple không có loại con cho ngày sinh) |
 
 Không thu, khai "No": Health & Fitness, Financial Info (Payment/Credit), Sensitive Info, Contacts, Browsing
@@ -131,13 +139,13 @@ của Play **không** tính việc chuyển cho nhà cung cấp xử lý theo u�
 | Location · Precise location | có | không | không | người dùng chọn | App functionality | D10 |
 | Personal info · Email address | có | không | không | bắt buộc (tài khoản) | Account management | D1 |
 | Personal info · Name | có | không | không | bắt buộc (tài khoản) | App functionality, Account management | D3 |
-| Personal info · User IDs | có | **Q2** | không | bắt buộc | App functionality | D13, D15 |
+| Personal info · User IDs | có | **Q2** | không | bắt buộc | App functionality | D13, D15, D19 |
 | Personal info · Other info | có | không | không | người dùng chọn | App functionality | D4 |
-| Financial info · Other financial info | **Q3** | không | không | người dùng chọn | App functionality | D7 |
+| Financial info · Other financial info | **Q3** | không | không | người dùng chọn | App functionality | D7, D17 |
 | Photos and videos · Photos | có | không | không | người dùng chọn | App functionality | D5, D6 |
-| App activity · App interactions | có | **Q2** | không | bắt buộc | Analytics | T1, D14 |
+| App activity · App interactions | có | **Q2** | không | bắt buộc | App functionality, Analytics | D18, D22; T1, D14 |
 | App activity · In-app search history | có | không | không | người dùng chọn | App functionality | D11 |
-| App activity · Other user-generated content | có | không | không | người dùng chọn | App functionality | D8, D9 |
+| App activity · Other user-generated content | có | không | không | người dùng chọn | App functionality | D8, D9, D17 |
 | App info and performance · Crash logs | có | không | không | bắt buộc | App functionality, Fraud prevention/security | D15 |
 | App info and performance · Diagnostics | có | không | không | bắt buộc | App functionality | D16, T3 |
 | Device or other IDs | có | **Q2** | không | bắt buộc | App functionality, Advertising/marketing | D12, D14, D16, T1, T2 |
@@ -182,7 +190,7 @@ app (§5).
 | --- | --- | --- | --- |
 | Q1 | Tenjin trên iOS: khai "dùng để tracking" + thêm màn ATT, hay giữ không-IDFA và khai "không tracking"? | Đo nguồn cài đặt là "advertising measurement" trong định nghĩa của Apple (§6). Khai tracking mà không có ATT là lệch; khai không-tracking mà có liên kết dữ liệu bên thứ ba cũng lệch. | Giữ không-IDFA (hiện trạng), khai "không tracking", và ghi rõ với Tenjin rằng app không gửi IDFA. Nếu marketing cần IDFA thì phải thêm ATT trước — đó là một issue riêng, không phải một ô trong form. Cần ý kiến pháp lý. |
 | Q2 | Trên Play, Tenjin là nhà cung cấp xử lý theo uỷ quyền hay bên thứ ba nhận dữ liệu chia sẻ? | Quyết định ba dòng "chia sẻ" ở §7. | Khai **có chia sẻ** cho Tenjin (an toàn hơn, khó bị coi là khai thiếu), trừ khi hợp đồng/DPA với Tenjin nói rõ quan hệ xử lý theo uỷ quyền. Cần đọc DPA. |
-| Q3 | Số tiền hoá đơn tự khai (D7) có khai vào Financial info không? | Hai form đều có ô "other financial info". | **Khai**. Đây là số tiền người dùng nhập, dù không phải thông tin thanh toán; khai thừa không bị phạt, khai thiếu thì bị. |
+| Q3 | Số tiền hoá đơn tự khai (D7) và ngân sách người dùng tự đặt (D17) có khai vào Financial info không? | Hai form đều có ô "other financial info". | **Khai**. Đây là số tiền người dùng nhập, dù không phải thông tin thanh toán; khai thừa không bị phạt, khai thiếu thì bị. |
 | Q4 | Trang chính sách quyền riêng tư: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách; không có URL thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì, khai mục đích nào? | Mục đích khai phải khớp việc dùng thật. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
 
