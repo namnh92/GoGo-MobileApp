@@ -82,7 +82,7 @@ Không gửi: danh bạ, lịch, tin nhắn, sức khoẻ, thông tin thanh toá
 - **Android thu ba định danh, không phải một.** Build khai `com.google.android.gms.permission.AD_ID`
   (`plugins/with-tenjin-android.js:23`) và thêm `play-services-ads-identifier` (`:6`),
   `play-services-appset` (`:7` — App Set ID) và `installreferrer` (`:8` — Install Referrer của Play).
-  Đo thật trên APK đã build, không phải suy từ dependency: `docs/tenjin-android-verification-2026-09-08.md:31-34,41`
+  Đo thật trên APK đã build, không phải suy từ dependency: `docs/tenjin-android-verification-2026-09-08.md:31-34,41,44`
   ghi `AdvertisingIdClient`, `AppSet`, `InstallReferrerClient` có trong APK, `AD_ID: granted=true`, một GAID
   khác 0 đọc được và `connect` trả `{"code":200}`.
 - **iOS không thu IDFA.** Repo không có `expo-tracking-transparency` (`package.json`) và không có
@@ -170,7 +170,7 @@ của Play **không** tính việc chuyển cho nhà cung cấp xử lý theo u�
 | Location · Precise location | có | không | không | người dùng chọn | App functionality | D10 |
 | Personal info · Email address | có | không | không | bắt buộc (tài khoản) | Account management | D1 |
 | Personal info · Name | có | không | không | bắt buộc (tài khoản) | App functionality, Account management | D3 |
-| Personal info · User IDs | có | không | không | bắt buộc | App functionality | D13, D15, D19 — cả ba đích là nhà cung cấp xử lý theo uỷ quyền; **Tenjin không nhận id người dùng** (`grep -riE "customerUserId|setCustomer|sendEvent" src/shared/acquisition` rỗng; ranh giới ghi ở `initialize.ts:20`), nên Q2 không chi phối dòng này |
+| Personal info · User IDs | có | không | không | bắt buộc | App functionality | D13, D15, D19 — cả ba đích là nhà cung cấp xử lý theo uỷ quyền; **Tenjin không nhận id người dùng** (`grep -ri -e customerUserId -e setCustomer -e sendEvent src/shared/acquisition` rỗng; ranh giới ghi ở `initialize.ts:20`), nên Q2 không chi phối dòng này |
 | Personal info · Other info | có | không | không | người dùng chọn | App functionality | D4 |
 | Financial info · Other financial info | **Q3** | không | không | người dùng chọn | App functionality | D7, D17 |
 | Photos and videos · Photos | có | không | không | người dùng chọn | App functionality | D5, D6 |
@@ -229,7 +229,7 @@ app (§5), nhưng URL web mà Play đòi thì chưa có (§5, §8).
 | # | Câu hỏi | Vì sao nó chặn | Khuyến nghị |
 | --- | --- | --- | --- |
 | Q1 | Tenjin trên iOS: khai "dùng để tracking" + thêm màn ATT, hay giữ không-IDFA và khai "không tracking"? | Đo nguồn cài đặt là "advertising measurement" trong định nghĩa của Apple (§6). Khai tracking mà không có ATT là lệch; khai không-tracking mà có liên kết dữ liệu bên thứ ba cũng lệch. | Giữ không-IDFA (hiện trạng), khai "không tracking", và ghi rõ với Tenjin rằng app không gửi IDFA. Nếu marketing cần IDFA thì phải thêm ATT trước — đó là một issue riêng, không phải một ô trong form. **Lưu ý cho người ký:** không-IDFA *không* đồng nghĩa không-tracking — đối sánh install theo IP + tín hiệu thiết bị là fingerprinting theo hướng dẫn ATT của Apple và bị cấm bất kể nhãn khai; đường Apple chấp nhận là SKAdNetwork / AdAttributionKit. Cần ý kiến pháp lý. |
-| Q2 | Trên Play, Tenjin là nhà cung cấp xử lý theo uỷ quyền hay bên thứ ba nhận dữ liệu chia sẻ? | Quyết định ba dòng "chia sẻ" ở §7. | Khai **có chia sẻ** cho Tenjin (an toàn hơn, khó bị coi là khai thiếu), trừ khi hợp đồng/DPA với Tenjin nói rõ quan hệ xử lý theo uỷ quyền. Cần đọc DPA. |
+| Q2 | Trên Play, Tenjin là nhà cung cấp xử lý theo uỷ quyền hay bên thứ ba nhận dữ liệu chia sẻ? | Quyết định hai dòng "chia sẻ" ở §7 (App interactions, Device or other IDs). | Khai **có chia sẻ** cho Tenjin (an toàn hơn, khó bị coi là khai thiếu), trừ khi hợp đồng/DPA với Tenjin nói rõ quan hệ xử lý theo uỷ quyền. Cần đọc DPA. |
 | Q3 | Số tiền hoá đơn tự khai (D7), ngân sách người dùng tự đặt (D17) và khoảng giá tự khai khi góp địa điểm (D23) có khai vào Financial info không? | Hai form đều có ô "other financial info". | **Khai**. Đây là số tiền người dùng nhập, dù không phải thông tin thanh toán; khai thừa không bị phạt, khai thiếu thì bị. |
 | Q4 | Trang chính sách quyền riêng tư **và** trang yêu cầu xoá dữ liệu: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách, và Play còn đòi URL yêu cầu xoá dữ liệu cho app có tạo tài khoản; thiếu một trong hai thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì — ý định sản phẩm, không phải sự thật trong repo? | Hiện trạng đo được: **không có cổng tuổi** ("No minimum age applies", `openapi/gogo.v1.yaml:403`) và không consumer nào ngoài `/me` + export; app chỉ hiện và sửa nó (`src/features/account/date-of-birth.view.tsx`, `src/shared/api/queries/use-me.ts:38`). Vì vậy §6/§7 khai `App Functionality` theo đúng hiện trạng; câu còn mở là có thêm mục đích nào không. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
