@@ -594,13 +594,20 @@ describe('sseTransport', () => {
     await flush()
     h.connector.last().onOpen()
 
+    // Not synchronous: `onOpen` has queued `live`, but nothing has reached the
+    // subscriber yet. Pinned here, not only on the replay path, so a `setStatus`
+    // that started calling listeners inline would fail this test rather than
+    // slip past a tail check.
+    expect(seen).toEqual(['connecting'])
+
     // Every status goes through the same deferral, so this needs no timer
     // either. The first fix for #360 moved only the replay and left `setStatus`
     // on a macrotask — the same leak, for every status the stream reports after
-    // subscribe.
+    // subscribe. One microtask, and the exact sequence: `live` arrived, once,
+    // and after `connecting`.
     await Promise.resolve()
 
-    expect(seen.at(-1)).toBe('live')
+    expect(seen).toEqual(['connecting', 'live'])
   })
 
   it('drops the socket in the background and opens a new one on return', async () => {
