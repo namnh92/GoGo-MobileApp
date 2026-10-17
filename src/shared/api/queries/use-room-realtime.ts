@@ -40,9 +40,9 @@ export function useRoomRealtime(
     if (!active || !roomId) return
 
     const key = subscriptionKey(roomId, phase, planId)
-    // The transport replays its current status on a timer after `subscribe`,
-    // so a callback can land after this subscription is gone — the previous
-    // room's "live" would otherwise become this room's (#292).
+    // The transport replays its current status on a microtask after
+    // `subscribe`, so a callback can land after this subscription is gone — the
+    // previous room's "live" would otherwise become this room's (#292).
     let current = true
     const unsubscribe = roomRealtimeTransport.subscribe({
       roomId,
