@@ -57,15 +57,20 @@ function holdContainer(): Container | null {
  * before anything rendered — a cold link's screen, or nothing (`/`). After
  * that the handle is always held; the store's copy, which the router refreshes
  * from the post-commit `state` event, is never read again.
+ *
+ * `null` means one thing only: no navigator state exists yet, and the scope's
+ * seeded `/` is the right answer. A state that exists but cannot be read or
+ * named — `getRouteInfoFromState` refuses a shape it does not know, as it
+ * would after an incompatible expo-router change — is a *failure* and is
+ * **thrown**, not swallowed (Astra F-05, PR #230): the scope may hold the
+ * previous screen, and a `null` here would let the event inherit it with no
+ * sign that the read failed. What a failure is sent as is decided in
+ * `sentry.ts`, the reporting boundary.
  */
 function navigatorScreen(): string | null {
   const state = holdContainer()?.getState() ?? store.state
   if (!state) return null
-  try {
-    return screenTemplate(getRouteInfoFromState(state).segments)
-  } catch {
-    return null
-  }
+  return screenTemplate(getRouteInfoFromState(state).segments)
 }
 
 // At module evaluation, so the reader exists before any screen renders and is

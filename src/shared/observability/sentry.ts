@@ -930,11 +930,13 @@ function admitScreen(value: string): string {
 }
 
 /**
- * The screen the navigator holds right now, as a route template, or `null`
- * when there is no navigator state to read. Registered by
- * `screen-tag.view.tsx`, the module that knows expo-router; this file stays
- * free of it so `bootstrap.ts` can run before the router loads. What the
- * reader returns is admitted here, never trusted.
+ * The screen the navigator holds right now, as a route template; `null` only
+ * when there is no navigator state to read yet (before the first commit — the
+ * seeded launch screen is then the right value); **throws** when a state
+ * exists but cannot be read or named. Registered by `screen-tag.view.tsx`, the
+ * module that knows expo-router; this file stays free of it so `bootstrap.ts`
+ * can run before the router loads. What the reader returns is admitted here,
+ * never trusted.
  */
 export type ScreenReader = () => string | null
 
@@ -944,9 +946,23 @@ export function setScreenReader(read: ScreenReader): void {
   readScreen = read
 }
 
-/** The `screen` tag of a JS event, read at capture; nothing when there is no navigator — the scope's value then stands. */
+/**
+ * The `screen` tag of a JS event, read at capture. Absence and failure are
+ * different answers (Astra F-05, PR #230): with no navigator state yet the tag
+ * is left to the scope, whose seeded `/` is correct; a reader that throws —
+ * the state exists but could not be read or named, as after an incompatible
+ * expo-router change — sends the admitted {@link UNKNOWN_SCREEN}, because the
+ * scope may still hold the previous screen and inheriting it would misattribute
+ * the event with nothing marking the value as stale. The report always goes
+ * out: this runs inside `componentDidCatch`, where a throw would be fatal.
+ */
 function screenTag(): { screen: string } | Record<string, never> {
-  const value = readScreen()
+  let value: string | null
+  try {
+    value = readScreen()
+  } catch {
+    value = UNKNOWN_SCREEN
+  }
   return value === null ? {} : { screen: admitScreen(value) }
 }
 

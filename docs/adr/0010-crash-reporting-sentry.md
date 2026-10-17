@@ -46,10 +46,11 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   SDK chép global/isolation scope sang native ngay khi ghi, và báo cáo crash/watchdog native dựng từ bản chép đó. Vì vậy
   `sentry.ts` bọc `setUser`, `setTag(s)`, `setExtra(s)`, `setContext`, `setAttribute(s)` để giá trị đã được rebuild và
   redact trước khi SDK chép. Lượt relay trên iPhone bắt được một báo cáo watchdog chứa giá trị thô trước khi có lớp bọc này.
-- **Tag màn hình (#341, 2026-10-16; shape `dev/handoffs/sa-shape-mobile-341-screen-tag.fable.md` rev 2; sửa sau review
-  PR #349 — Sol F-02/F-04/F-05, Astra A-F-01/A-F-03/F-03/F-04; owner 2026-10-16 "gán tag theo event"):** mọi event JS và
-  crash native mang tag `screen` = route template của expo-router (`/room/[roomId]/preference`, `/(tabs)/plans`, màn khởi
-  động = `/`) — tên file dưới `src/app/`, không bao giờ từ `usePathname()` (pathname mang mã phòng/mã mời thô; uuid thì
+- **Tag màn hình (#341, 2026-10-16; shape `dev/handoffs/sa-shape-mobile-341-screen-tag.fable.md` rev 3; sửa sau review
+  PR #349 — Sol F-02/F-04/F-05, Astra A-F-01/A-F-03/F-03/F-04, vòng 3 F-04/F-05 (2026-10-17); owner 2026-10-16 "gán tag
+  theo event"):** mọi event JS và crash native mang tag `screen` = route template của expo-router
+  (`/room/[roomId]/preference`, `/(tabs)/plans`, màn khởi động = `/`) — tên file dưới `src/app/`, không bao giờ từ
+  `usePathname()` (pathname mang mã phòng/mã mời thô; uuid thì
   redactor không che, C-21). Hai đường, mỗi đường một bảo đảm (mục *Hai đường gán tag* bên dưới): lỗi app tự báo (root
   error boundary → `captureError`) **đọc màn hình từ state của navigation container ngay lúc bắt** (`navigatorScreen()`
   trong `screen-tag.view.tsx`, đăng ký với `sentry.ts` qua `setScreenReader`); crash native và lỗi SDK tự bắt đọc **tag
@@ -99,21 +100,47 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
     spec: tab `(tabs)/plans` mở lạnh bằng link hay đẩy bằng `router.push` khi tab navigator mới mount, lỗi ở render hay
     `componentDidMount` đều mang `/(tabs)/plans`; link lạnh mang `?screen=<anh em>` cho `unknown` (A-10), không cho màn
     anh em; lỗi trước khi có state navigator nào (providers hỏng ở commit đầu, không URL) mang `/` đã gieo. Không đọc
-    trong `beforeSend`: nó chạy ở microtask sau, khi cleanup của commit lỗi có thể đã quên state. Hai module nội bộ
-    expo-router (`build/global-state/router-store`, `routeInfo`) là import đường dẫn trong, spec khoá — đổi bản expo-router
-    làm suite không nạp được, không âm thầm sai; Q-3 (lỗi render đầu mang màn trước, shape §5) không còn cần cho đường này.
+    trong `beforeSend`: nó chạy ở microtask sau, khi cleanup của commit lỗi có thể đã quên state.
+    **Vắng ≠ hỏng (Astra F-05, vòng 3, 2026-10-17):** reader trả `null` chỉ khi *chưa có state navigator nào* (trước commit
+    đầu) — tag để cho scope, `/` đã gieo đứng; state có mà đọc hay đặt tên thất bại (`getRouteInfoFromState` ném lỗi với
+    hình dạng state nó không biết — sau một lần đổi expo-router không tương thích) thì reader **ném**, `screenTag` trong
+    `sentry.ts` bắt và gửi `unknown` qua `admitScreen`, không để event thừa kế màn trước đang nằm trong scope mà không có
+    dấu gì là cũ; báo cáo vẫn đi (ném trong `componentDidCatch` là chết app). Pin: `screen-tag.spec.tsx` "a throw while
+    naming an existing navigation state is tagged `unknown`" — FAIL trên ab6d111 (`Expected "unknown" / Received
+    "/places/search"`, `astra-f05-fail-before-ab6d111.txt`), PASS sau; hợp đồng phía boundary (null → scope đứng, ném →
+    `unknown`, giá trị → `admitScreen`) pin riêng trong `sentry.spec.ts` "the screen read at capture".
+    Hai module nội bộ expo-router (`build/global-state/router-store`, `routeInfo`) là import đường dẫn trong, không có tiền
+    lệ production; ba kiểu lệch khi đổi bản expo-router, mỗi kiểu một lưới riêng: (a) module dời/đổi tên → hỏng ngay lúc nạp
+    (suite không nạp được, bundle Metro lỗi), không âm thầm; (b) đổi ngữ nghĩa state nội bộ mà đường dẫn giữ nguyên →
+    **không** hỏng lúc nạp — chỉ các ô hành vi của spec chạy qua router thật (link lạnh, push nóng, tab mount, bốn pha mount,
+    `?screen=`) bắt được, nên suite này là cổng mỗi lần nâng expo-router, một ô đỏ nghĩa là xem lại reader, không sửa
+    expected; (c) lúc chạy thật: đọc/đặt tên ném lỗi → `unknown` (F-05); trả về một template *có khai báo* nhưng sai màn →
+    lúc chạy không gì phát hiện được, chỉ spec khi nâng bản bắt — đó là phần còn lại của sự phụ thuộc này. Q-3 (lỗi render
+    đầu mang màn trước, shape §5) không còn cần cho đường này.
   - **Đường native (crash native, watchdog) và lỗi SDK tự bắt (unhandled error / rejection):** đọc tag trong scope, tức
     giá trị `setSentryScreen` ghi gần nhất — màn đã ổn định, chậm một commit so với mount. Crash native không chạy được
-    JS nên không có cách gán theo event: crash native ngay trong commit mount màn mới mang màn trước (giới hạn còn lại,
-    chỉ ở đường này). Lỗi SDK tự bắt thường xảy ra sau khi điều hướng xong (handler, promise, timer) nên tag đã đúng; một
-    promise bị reject ngay trong microtask của commit mount màn mới thì scope chưa chắc đã đổi — **owner quyết 2026-10-16
-    (trong phiên, ghi ở `dev/handoffs/review-state-GoGo-MobileApp-349.md`): đưa vào AC, không để là giới hạn ngoài AC.**
-    Ô đo, trong lượt relay trên máy thật (cổng PR, cùng lượt với cửa sổ khởi động ở trên): điều hướng *nóng* từ màn đang
-    ổn định sang màn mới; promise bị reject không xử lý ngay trong commit mount của chính màn mới (render /
-    `useLayoutEffect` / `componentDidMount`); SDK bắt qua unhandled rejection, không `throw` cho error boundary bắt (đó
-    là đường JS đã đo ở trên); **mong đợi `screen` = template của màn mới vừa mount**, theo D-7 bổ sung 3 (tag = màn của
-    event) và phán quyết F-04. Cơ chế ghi scope không hứa giá trị này: nhận màn trước là FAIL → finding trả về vai SA,
-    không phải giới hạn được chấp nhận, không phải lỗi script.
+    JS nên không có cách gán theo event. Cơ chế ghi scope **không hứa** đúng màn cho hai ô dưới đây, và cả hai **không phải
+    giới hạn được chấp nhận** — owner không chấp nhận cửa sổ mount (phán quyết F-04, 2026-10-16) và cũng không cho ngoại lệ
+    native-mount (Astra F-04 nửa còn lại, vòng 3, 2026-10-17) — mà là **ô AC**, đo trong lượt relay trên máy thật (cổng
+    PR, cùng lượt với cửa sổ khởi động ở trên); mong đợi theo D-7 bổ sung 3 (tag = màn của event) và phán quyết F-04;
+    nhận màn trước là **FAIL** → finding trả về vai SA, không phải giới hạn được chấp nhận, không phải lỗi script:
+    - *Rejection SDK bắt trong commit mount* — **owner quyết 2026-10-16 (trong phiên, ghi ở
+      `dev/handoffs/review-state-GoGo-MobileApp-349.md`): đưa vào AC, không để là giới hạn ngoài AC.** Điều hướng *nóng*
+      từ màn đang ổn định sang màn mới; promise bị reject không xử lý ngay trong commit mount của chính màn mới (render /
+      `useLayoutEffect` / `componentDidMount`); SDK bắt qua unhandled rejection, không `throw` cho error boundary bắt (đó
+      là đường JS đã đo ở trên); **mong đợi `screen` = template của màn mới vừa mount.** Lỗi SDK tự bắt thường xảy ra sau
+      khi điều hướng xong (handler, promise, timer) nên tag đã đúng; ô này là trường hợp còn lại.
+    - *Crash native trong commit mount* (Astra F-04 nửa còn lại): điều hướng *nóng* từ màn đang ổn định sang màn mới; crash
+      native gây ngay trong commit mount của chính màn mới (render / `useLayoutEffect` / `componentDidMount`), trước effect
+      ghi scope của màn đó; **mong đợi `screen` = template của màn mới vừa mount.** Theo phép đo hiện có (scope đổi một
+      commit sau mount, cả hai loại effect) cơ chế hôm nay dự kiến cho màn trước ở ô này; FAIL thì hướng sửa là dời ghi
+      scope về lúc dispatch điều hướng (state container đã đổi trước khi màn mới render — cùng nguồn `navigatorScreen()`
+      đọc), không phải chấp nhận cửa sổ.
+
+    **Ba ô còn mở, cùng một danh sách với ADR-0011 D-12 (GoGo-Infra), đều đo trong lượt relay và đều giữ merge PR #349 +
+    GoGo-Infra PR #230:** (1) cửa sổ khởi động iOS (F-03, mục *Khởi động* ở trên — không chấp nhận, không vá native);
+    (2) rejection SDK bắt trong commit mount; (3) crash native trong commit mount. Ngoài ba ô này, đường native/SDK không
+    ghi "giới hạn còn lại" nào khác.
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 

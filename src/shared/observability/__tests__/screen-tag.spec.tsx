@@ -2,6 +2,9 @@ import * as Sdk from '@sentry/react-native'
 import * as Linking from 'expo-linking'
 import { router, Stack } from 'expo-router'
 import { act, renderRouter } from 'expo-router/testing-library'
+// The naming step of the capture-time reader (`screen-tag.view.tsx`), spied on
+// below to make it fail for a state that exists (Astra F-05).
+import * as RouteInfo from 'expo-router/build/global-state/routeInfo'
 import { readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import type { ErrorEvent } from '@sentry/react-native'
@@ -347,6 +350,32 @@ describe('a JS event carries the screen the navigator holds at capture', () => {
       { initialUrl: '/places/search?screen=import' },
     )
     expect(sentScreen()).toBe(UNKNOWN)
+  })
+
+  // Astra F-05 (PR #230 round 3): the reader could not *name* a navigation
+  // state that exists — an incompatible internal-state change after an
+  // expo-router upgrade is the case; a throw while looking the state up takes
+  // the same path. That is a failure, not the absence `launch seed` pins (no
+  // state yet → the seeded `/` stands): the scope still holds the previous
+  // screen, and inheriting it would misattribute silently. The event says
+  // `unknown` — the admitted sentinel — and the scope is left as it was.
+  it('a throw while naming an existing navigation state is tagged `unknown`, never the scope\'s previous screen', async () => {
+    enable()
+    await renderRouter(app(), { initialUrl: '/places/search' })
+    expect(navigated()).toEqual(['/places/search'])
+    let named = 0
+    const naming = jest.spyOn(RouteInfo, 'getRouteInfoFromState').mockImplementation(() => {
+      named += 1
+      throw new Error('incompatible navigation state')
+    })
+    try {
+      captureError(new Error('render failed'), { kind: 'boundary' })
+    } finally {
+      naming.mockRestore()
+    }
+    expect(named).toBe(1)
+    expect(sentScreen()).toBe(UNKNOWN)
+    expect(navigated()).toEqual(['/places/search'])
   })
 
   it('reports nothing while Sentry is off', async () => {
