@@ -7,7 +7,7 @@ import type { RoomRealtimeStatus } from '@/shared/api'
 /**
  * GoGo-MobileApp#292 — the status a room screen shows must belong to the
  * subscription that screen holds now. The SSE transport replays its current
- * status on a timer after `subscribe`, so a report can arrive after the
+ * status on a microtask after `subscribe`, so a report can arrive after the
  * subscription it describes is gone.
  */
 
@@ -56,7 +56,7 @@ describe('useRoomRealtime · whose status it is (#292)', () => {
 
     await hook.rerender({ roomId: 'room-b' })
     expect(mockSubscriptions[0].active).toBe(false)
-    // Room A's replay timer fires after it was torn down.
+    // Room A's replayed status arrives after it was torn down.
     await report(0, 'live')
     expect(hook.result.current.status).toBe('connecting')
 

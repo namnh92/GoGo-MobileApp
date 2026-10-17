@@ -487,17 +487,36 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
   const readSession = options.initialSession ?? getSession
 
   /**
-   * Status reaches subscribers asynchronously. `subscribe` runs inside a React
-   * effect and a subscriber sets state from this, so calling it synchronously
-   * would set state during render.
+   * Every status a subscriber learns goes through here, on a microtask.
+   *
+   * **Not synchronously:** a callback must not reach a subscriber before
+   * `subscribe` has handed back its unsubscribe — that is the window
+   * `use-room-realtime.ts` closes with its `current` flag, and
+   * `sse-transport.test.ts` pins it. (The older note here said a synchronous
+   * call "would set state during render"; it would not — `subscribe` runs
+   * inside an effect, not during render.)
+   *
+   * **Not on a timer:** a macrotask outlives a fast test body. The
+   * subscriber's `setReported` then ran after its test had returned, outside
+   * `act`, and the #133 guard raised it against whichever test ran next — which
+   * is how `develop` went red on a commit touching only markdown (#360). A
+   * microtask is drained by any `await` a test already does.
+   *
+   * One primitive for both paths — this one and the replay in `subscribe` — so
+   * the two cannot drift apart again: the first fix for #360 moved the replay
+   * and left this one on a timer.
    */
+  const notifyLater = (notify: () => void) => {
+    queueMicrotask(notify)
+  }
+
   const setStatus = (stream: SseStream, status: RoomRealtimeStatus) => {
     if (stream.status === status) return
     stream.status = status
     const listeners = [...stream.listeners]
-    setTimeout(() => {
+    notifyLater(() => {
       for (const listener of listeners) listener(status)
-    }, 0)
+    })
   }
 
   /**
@@ -1030,17 +1049,11 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
       }
       if (onStatusChange) {
         stream.listeners.add(onStatusChange)
-        // Replayed on a microtask, not a timer. It must not be synchronous —
-        // `sse-transport.test.ts` pins that, so a subscriber never gets a
-        // callback before `subscribe` has returned it an unsubscribe — but a
-        // *macrotask* outlives a fast test body: the resulting `setReported`
-        // (`use-room-realtime.ts`) then landed after the test returned, outside
-        // `act`, and the #133 guard raised it against whichever test ran next.
-        // That is how `develop` went red on a commit touching only markdown
-        // (#360, CI run 39046475891). A microtask is drained by any `await` the
-        // test already does, so the update stays inside the test that caused it.
+        // Same deferral as every other status (see `notifyLater`): a late
+        // subscriber learns the current status without a callback arriving
+        // before `subscribe` has returned its unsubscribe.
         const current = stream.status
-        queueMicrotask(() => onStatusChange(current))
+        notifyLater(() => onStatusChange(current))
       }
 
       // A phase that appeared mid-stream needs its own poller, at whichever

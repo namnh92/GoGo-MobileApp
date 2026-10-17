@@ -569,6 +569,10 @@ describe('sseTransport', () => {
       onStatusChange: status => seen.push(status),
     })
 
+    // Nothing yet: still not synchronous. Pinning both halves in one test, so
+    // the contract cannot go one-sided if the neighbouring test is edited.
+    expect(seen).toEqual([])
+
     // No timer is advanced here — only microtasks drain. A replay queued with
     // `setTimeout` would still be pending, which is what it was: the update
     // then reached React after the test that caused it had returned, outside
@@ -576,6 +580,34 @@ describe('sseTransport', () => {
     await Promise.resolve()
 
     expect(seen).toEqual(['connecting'])
+  })
+
+  it('reports a later status on a microtask too, not only the subscribe replay (#360)', async () => {
+    const h = harness()
+    const seen: RoomRealtimeStatus[] = []
+    h.transport.subscribe({
+      roomId: ROOM_ID,
+      phase: 'plan',
+      queryClient: h.client,
+      onStatusChange: status => seen.push(status),
+    })
+    await flush()
+    h.connector.last().onOpen()
+
+    // Not synchronous: `onOpen` has queued `live`, but nothing has reached the
+    // subscriber yet. Pinned here, not only on the replay path, so a `setStatus`
+    // that started calling listeners inline would fail this test rather than
+    // slip past a tail check.
+    expect(seen).toEqual(['connecting'])
+
+    // Every status goes through the same deferral, so this needs no timer
+    // either. The first fix for #360 moved only the replay and left `setStatus`
+    // on a macrotask — the same leak, for every status the stream reports after
+    // subscribe. One microtask, and the exact sequence: `live` arrived, once,
+    // and after `connecting`.
+    await Promise.resolve()
+
+    expect(seen).toEqual(['connecting', 'live'])
   })
 
   it('drops the socket in the background and opens a new one on return', async () => {
