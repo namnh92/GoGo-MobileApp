@@ -37,7 +37,7 @@ describe('deferred deep link survives the install and resumes once', () => {
     await store.remember(`gogo-dev://plan/${PLAN}`)
     expect(await store.take()).toEqual({ kind: 'plan', planId: PLAN })
     expect(await store.take()).toBeNull()
-    expect(storage.dump()).toEqual({})
+    expect(storage.dump()[PENDING_DEEP_LINK_KEY]).toBeUndefined()
   })
 
   it('first writer wins: a second report does not overwrite a pending one', async () => {
@@ -72,7 +72,7 @@ describe('deferred deep link survives the install and resumes once', () => {
     clock += PENDING_DEEP_LINK_TTL_MS + 1
     expect(await store.take()).toBeNull()
     expect(events).toContain('deferred_link_expired')
-    expect(storage.dump()).toEqual({})
+    expect(storage.dump()[PENDING_DEEP_LINK_KEY]).toBeUndefined()
   })
 
   it('resumes right up to the deadline', async () => {

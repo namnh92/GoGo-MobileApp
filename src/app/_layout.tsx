@@ -5,6 +5,7 @@ import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 
+import { DeferredLinkResumer } from '@/shared/acquisition/deferred-link-resumer'
 import '@/shared/i18n'
 import { NotificationClickRouter } from '@/shared/notifications/notification-click-router'
 import { RootErrorBoundary } from '@/shared/observability/root-error-boundary.view'
@@ -25,6 +26,7 @@ function RootLayout() {
       <AppProviders>
         <StatusBar style="dark" />
         <NotificationClickRouter />
+        <DeferredLinkResumer />
         <Stack
           screenOptions={{
             headerShown: false,

@@ -2,11 +2,11 @@ import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import Tenjin from 'react-native-tenjin'
 
-import { setSecureItem, getSecureItem, deleteSecureItem } from '@/shared/storage/secure-store'
-
 import { createDeferredLinkCollector } from './deferred-link'
 import { createTenjinInitializer } from './initialize'
-import { createPendingDeepLinkStore } from './pending-deep-link'
+import { pendingDeepLinks } from './pending-deep-links'
+
+export { pendingDeepLinks }
 
 const initialize = createTenjinInitializer(
   Tenjin,
@@ -18,24 +18,22 @@ const initialize = createTenjinInitializer(
   'googleplay',
 )
 
-/**
- * A deferred link is not a preference — a ROOM_INVITE slug *is* the invite
- * code — so it lives in secure storage, the same place the session does.
- */
-export const pendingDeepLinks = createPendingDeepLinkStore({
-  storage: {
-    get: getSecureItem,
-    set: setSecureItem,
-    remove: deleteSecureItem,
-  },
-  report: (event) => console.warn(event),
-})
-
 const collectDeferredLink = createDeferredLinkCollector({
   sdk: Tenjin,
   store: pendingDeepLinks,
   report: (event) => console.warn(event),
 })
+
+let settled: Promise<void> = Promise.resolve()
+
+/**
+ * Resolves once this launch's attribution report has been written down or
+ * given up on (the collector is bounded). The resume waits on it, so a link
+ * reported a few seconds after sign-in is not left for the next launch.
+ */
+export function deferredLinkSettled(): Promise<void> {
+  return settled
+}
 
 /** Warns and returns on missing configuration — see the note in
  *  `shared/notifications/bootstrap.ts` (review finding F4). */
@@ -53,5 +51,5 @@ export function initializeAcquisitionSdk() {
   // After connect, because attribution is only known once the SDK has talked
   // to Tenjin. Deliberately not awaited: a launch must not wait on a provider
   // round trip, and the store is what carries the answer to whoever needs it.
-  void collectDeferredLink()
+  settled = collectDeferredLink().catch(() => {})
 }

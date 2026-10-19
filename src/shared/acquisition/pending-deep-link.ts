@@ -23,7 +23,15 @@
  *     junk value cannot sit in storage failing forever;
  *   - **never a credential in the clear.** A ROOM_INVITE slug *is* the invite
  *     code, so the entry holds the parsed action, not the raw URL, and it goes
- *     to secure storage rather than plain key-value storage.
+ *     to secure storage rather than plain key-value storage;
+ *   - **once per install, not once per launch.** An attribution SDK answers
+ *     with the install's attribution whenever it is asked, so the same link is
+ *     reported again on every launch. Without a record of what was already
+ *     resumed, a link taken today is stored again tomorrow and the person is
+ *     sent back to it each time they open the app (GoGo-MobileApp#364). The
+ *     record is a digest of the action, never the action, and it outlives a
+ *     sign-out on purpose: the report belongs to the install, so clearing it
+ *     would hand the same link to whoever signs in next.
  */
 import { parseDeepLink, type DeepLinkAction } from '@/shared/navigation/deep-link'
 
@@ -31,6 +39,20 @@ export const PENDING_DEEP_LINK_KEY = 'gogo.pending_deep_link'
 
 /** Beyond this an install is history, not an intention. */
 export const PENDING_DEEP_LINK_TTL_MS = 24 * 60 * 60 * 1000
+
+/** Digest of the last action handed over, so a repeated report is not stored again. */
+export const CONSUMED_DEEP_LINK_KEY = 'gogo.deferred_link_consumed'
+
+/** FNV-1a, 32 bit: identifies an action without keeping its slug on the device. */
+function digest(action: DeepLinkAction): string {
+  const text = JSON.stringify(action)
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(16)
+}
 
 type StoredEntry = { action: DeepLinkAction; storedAt: number }
 
@@ -76,6 +98,10 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
         report(`deferred_link_discarded:${action.reason}`)
         return false
       }
+      if ((await deps.storage.get(CONSUMED_DEEP_LINK_KEY)) === digest(action)) {
+        report('deferred_link_ignored:already_consumed')
+        return false
+      }
       const existing = await read()
       if (existing) {
         // First writer wins: a real cold-start URL is the better signal and is
@@ -103,6 +129,8 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
         return null
       }
       await deps.storage.remove(PENDING_DEEP_LINK_KEY)
+      // Expired or not, this report has had its turn.
+      await deps.storage.set(CONSUMED_DEEP_LINK_KEY, digest(entry.action))
       if (now() - entry.storedAt > PENDING_DEEP_LINK_TTL_MS) {
         report('deferred_link_expired')
         return null
@@ -111,7 +139,10 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
       return entry.action
     },
 
-    /** For a sign-out, where another person's pending intent must not survive. */
+    /**
+     * For a sign-out, where another person's pending intent must not survive.
+     * The consumed digest stays — see the header.
+     */
     async clear(): Promise<void> {
       await deps.storage.remove(PENDING_DEEP_LINK_KEY)
     },

@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { setOnSessionExpired } from '@/shared/api/client'
 import * as roomsApi from '@/shared/api/endpoints/rooms'
 import * as sessionsApi from '@/shared/api/endpoints/sessions'
+import { pendingDeepLinks } from '@/shared/acquisition/pending-deep-links'
 import { unsubscribeCurrentDeviceAndConfirm } from '@/shared/notifications/logout-confirmation-bootstrap'
 import { purgeCachedUserData } from '@/shared/api/query-client'
 import {
@@ -115,6 +116,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       useRoomStore.getState().resetDraft()
       useRoomStore.setState({ preferenceSeed: null })
       await purge()
+      // #364: not in `purge`, which sign-in also runs — the invite someone
+      // installed from must survive their own sign-in, not another person's.
+      await pendingDeepLinks.clear()
     },
     [purge],
   )
@@ -124,6 +128,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     useRoomStore.getState().resetDraft()
     useRoomStore.setState({ preferenceSeed: null })
     await purge()
+    await pendingDeepLinks.clear()
   }, [purge])
 
   const value = useMemo<SessionContextValue>(() => {
