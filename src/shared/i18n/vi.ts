@@ -622,6 +622,11 @@ export const viMessages = {
 
   'checkin.title': 'Check-in điểm này',
   'checkin.rate': 'Điểm này thế nào?',
+  'consent.tracking.systemPrompt': 'GoGo dùng mã quảng cáo của thiết bị để biết bạn cài app từ lời mời hay liên kết nào, và để đo hiệu quả các chiến dịch quảng cáo của GoGo. GoGo không hiển thị quảng cáo trong app.',
+  'consent.tracking.title': 'Giúp GoGo biết bạn đến từ đâu',
+  'consent.tracking.body': 'Ở bước tiếp theo, iPhone sẽ hỏi bạn có cho GoGo theo dõi không. Nếu bạn cho phép, GoGo biết được lời mời hay liên kết nào đã đưa bạn đến, để mời thêm bạn bè dễ hơn. Từ chối thì mọi tính năng vẫn dùng bình thường, và bạn đổi lại được trong Cài đặt.',
+  'consent.tracking.continue': 'Tiếp tục',
+  'consent.tracking.later': 'Để sau',
   'checkin.addPhoto': '📷 Thêm ảnh check-in',
   'checkin.photoCount': '{{n}}/3 ảnh',
   'checkin.notePlaceholder': 'Cảm nhận nhanh… (không bắt buộc)',

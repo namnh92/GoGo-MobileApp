@@ -23,6 +23,12 @@ jest.mock('@/shared/acquisition/bootstrap', () => ({
 }))
 jest.mock('@/shared/acquisition/pending-deep-links', () => ({ pendingDeepLinks: { take: () => mockTake() } }))
 jest.mock('@/shared/analytics', () => ({ track: jest.fn() }))
+// #366: on iOS the resume also waits for the tracking question to be over.
+let mockAnswerTracking!: () => void
+const mockTrackingSettled = new Promise<void>(resolve => {
+  mockAnswerTracking = resolve
+})
+jest.mock('@/shared/consent/tracking', () => ({ trackingConsent: { settled: () => mockTrackingSettled } }))
 
 import { DeferredLinkResumer } from '../deferred-link-resumer'
 
@@ -46,6 +52,11 @@ it('waits for the splash and a session, then opens the pending link once', async
   mockState.status = 'user'
   mockState.segments = ['(tabs)']
   await view.rerender(<DeferredLinkResumer />)
+  await settle()
+  // Signed in, but the tracking sheet is still up.
+  expect(mockTake).not.toHaveBeenCalled()
+
+  mockAnswerTracking()
   await settle()
   expect(mockTake).toHaveBeenCalledTimes(1)
   expect(mockPush).toHaveBeenCalledTimes(1)

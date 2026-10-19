@@ -2,6 +2,7 @@ import { useRouter, useSegments } from 'expo-router'
 import { useEffect } from 'react'
 import { Linking } from 'react-native'
 
+import { trackingConsent } from '@/shared/consent/tracking'
 import { openDeepLinkAction } from '@/shared/navigation/open-deep-link'
 import { notificationClicks } from '@/shared/notifications/notification-clicks'
 import { useSession } from '@/shared/providers/session-provider'
@@ -49,7 +50,9 @@ export function DeferredLinkResumer() {
     // Module scope: at most one open per process, whatever remounts the layout.
     resume ??= createDeferredLinkResume({
       store: pendingDeepLinks,
-      settled: deferredLinkSettled,
+      // On iOS also after the tracking question (#366): an MMP may hold its
+      // report until it knows the answer.
+      settled: () => Promise.all([deferredLinkSettled(), trackingConsent.settled()]).then(() => undefined),
       initialUrl: () => Linking.getInitialURL(),
       open: (action) => openDeepLinkAction(router, action, 'deferred'),
       sessionKey: () => signedIn.key,

@@ -282,7 +282,23 @@ const config: ExpoConfig = {
       },
     ],
     'expo-secure-store',
+    [
+      'expo-tracking-transparency',
+      {
+        // GoGo-MobileApp#366 — the owner's words (2026-10-19). Equal to
+        // `consent.tracking.systemPrompt` in vi and to `locales/vi.json`;
+        // `tracking-permission.test.ts` fails when they drift apart.
+        userTrackingPermission:
+          'GoGo dùng mã quảng cáo của thiết bị để biết bạn cài app từ lời mời hay liên kết nào, và để đo hiệu quả các chiến dịch quảng cáo của GoGo. GoGo không hiển thị quảng cáo trong app.',
+      },
+    ],
   ],
+  // Per-language system dialog strings (#366). Both languages, not only en:
+  // with an en.lproj alone, iOS would pick it for a Vietnamese device too.
+  locales: {
+    vi: './locales/vi.json',
+    en: './locales/en.json',
+  },
   extra: {
     // Readable at runtime via `expo-constants`, so a bug report can say which
     // flavour it came from without guessing from the icon.
