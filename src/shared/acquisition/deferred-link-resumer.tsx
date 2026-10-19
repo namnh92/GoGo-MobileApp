@@ -6,7 +6,7 @@ import { openDeepLinkAction } from '@/shared/navigation/open-deep-link'
 import { notificationClicks } from '@/shared/notifications/notification-clicks'
 import { useSession } from '@/shared/providers/session-provider'
 
-import { deferredLinkSettled } from './bootstrap'
+import { deferredLinkSettled, installScoped } from './bootstrap'
 import { pendingDeepLinks } from './pending-deep-links'
 import { createDeferredLinkResume } from './resume'
 
@@ -54,10 +54,12 @@ export function DeferredLinkResumer() {
       open: (action) => openDeepLinkAction(router, action, 'deferred'),
       sessionKey: () => signedIn.key,
       launchClaimed: () => notificationClicks.launchClaimed(),
+      installScoped,
       report,
     })
     void resume()
-  // `key`: a run that stood down for a changed session lets the next one try.
+  // `key`: a run that stood down for a changed session lets the next one try —
+  // and a session asking while a run is in flight is remembered by `resume`.
   }, [ready, router, key])
 
   return null

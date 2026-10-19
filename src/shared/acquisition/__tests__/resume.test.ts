@@ -233,6 +233,69 @@ describe('deferred link resume', () => {
     expect(events).toContain('deferred_link_dropped:session_changed')
   })
 
+  it('F-04: a session that becomes ready during another run’s wait gets its own run', async () => {
+    const h = harness()
+    await h.store.remember(SHARE)
+    let key: string | null = 'user:A'
+    let release!: () => void
+    const wait = new Promise<void>((r) => (release = r))
+    const resume = createDeferredLinkResume({
+      store: h.store,
+      settled: () => wait,
+      initialUrl: async () => null,
+      open: (action) => h.opened.push(action),
+      sessionKey: () => key,
+      report: (e) => h.events.push(e),
+    })
+    const first = resume()
+    // A signs out and B signs in before the report settles: B's ready session
+    // asks while A's run still holds the latch.
+    key = 'user:B'
+    const second = resume()
+    release()
+    await Promise.all([first, second])
+    expect(h.events).toContain('deferred_link_skipped:session_changed')
+    expect(h.opened).toEqual([{ kind: 'shareSlug', slug: 'abc123' }])
+    await resume()
+    expect(h.opened).toHaveLength(1)
+  })
+
+  it('F-04: a session that changes while the launch URL is read drops the link', async () => {
+    const h = harness()
+    await h.store.remember(SHARE)
+    let key: string | null = 'user:A'
+    await createDeferredLinkResume({
+      store: h.store,
+      settled: async () => {},
+      initialUrl: async () => {
+        key = null
+        return null
+      },
+      open: (action) => h.opened.push(action),
+      sessionKey: () => key,
+      report: (e) => h.events.push(e),
+    })()
+    expect(h.opened).toEqual([])
+    expect(h.events).toContain('deferred_link_dropped:session_changed')
+  })
+
+  it('F-08: a failed install reset leaves the store alone and opens nothing', async () => {
+    const h = harness()
+    await h.store.remember(SHARE)
+    await createDeferredLinkResume({
+      store: h.store,
+      settled: async () => {},
+      initialUrl: async () => null,
+      open: (action) => h.opened.push(action),
+      installScoped: () => false,
+      report: (e) => h.events.push(e),
+    })()
+    expect(h.opened).toEqual([])
+    expect(h.events).toContain('deferred_link_skipped:install_scope_failed')
+    // Not taken: the next launch's reset decides what happens to it.
+    expect(await h.store.take()).toEqual({ kind: 'shareSlug', slug: 'abc123' })
+  })
+
   it('never throws into the launch', async () => {
     const events: string[] = []
     const resume = createDeferredLinkResume({

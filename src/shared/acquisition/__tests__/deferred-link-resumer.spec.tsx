@@ -17,7 +17,10 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ status: mockState.status }),
 }))
-jest.mock('@/shared/acquisition/bootstrap', () => ({ deferredLinkSettled: async () => undefined }))
+jest.mock('@/shared/acquisition/bootstrap', () => ({
+  deferredLinkSettled: async () => undefined,
+  installScoped: () => true,
+}))
 jest.mock('@/shared/acquisition/pending-deep-links', () => ({ pendingDeepLinks: { take: () => mockTake() } }))
 jest.mock('@/shared/analytics', () => ({ track: jest.fn() }))
 

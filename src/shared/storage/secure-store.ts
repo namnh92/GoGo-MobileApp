@@ -8,10 +8,13 @@ const OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
 }
 
-export async function getSecureItem(key: string): Promise<string | null> {
+export async function getSecureItem(key: string, strict = false): Promise<string | null> {
   try {
     return await SecureStore.getItemAsync(key, OPTIONS)
-  } catch {
+  } catch (error) {
+    // `strict`: the caller is checking that an entry is gone, and "could not
+    // look" must not pass for "absent".
+    if (strict) throw error
     // A corrupted/undecryptable entry must not brick app start — treat as absent.
     return null
   }

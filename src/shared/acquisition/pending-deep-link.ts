@@ -92,8 +92,13 @@ export function digest(action: KnownAction): string {
 type StoredEntry = { action: DeepLinkAction; storedAt: number }
 
 export interface PendingDeepLinkStorage {
-  get(key: string): Promise<string | null>
+  /**
+   * `strict`: a read that fails rejects instead of answering null, so a caller
+   * checking that an entry is gone can tell "absent" from "could not look".
+   */
+  get(key: string, strict?: boolean): Promise<string | null>
   set(key: string, value: string): Promise<void>
+  /** Must reject when the entry may remain — `take()` and `clear()` rely on it. */
   remove(key: string): Promise<void>
 }
 
@@ -195,13 +200,14 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
      * For a sign-out, where another person's pending intent must not survive.
      * Retires the pending action first (see the header), and throws unless the
      * entry is really gone: a sign-out that leaves it behind must not report
-     * success.
+     * success. The check reads strictly — a read that fails is "could not
+     * look", not "gone".
      */
     async clear(): Promise<void> {
       const entry = await read()
       if (entry) await retire(entry.action as KnownAction)
       await deps.storage.remove(PENDING_DEEP_LINK_KEY)
-      if ((await deps.storage.get(PENDING_DEEP_LINK_KEY)) !== null) {
+      if ((await deps.storage.get(PENDING_DEEP_LINK_KEY, true)) !== null) {
         throw new Error('pending deep link could not be cleared')
       }
     },
