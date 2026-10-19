@@ -39,22 +39,36 @@ export function haptic(kind: HapticKind = 'select'): void {
 }
 
 /**
- * `Giảm chuyển động` in iOS/Android accessibility settings. Motion that ignores
- * this is not a style choice — it can trigger nausea in people with vestibular
- * disorders, which is why every animation in the app reads this.
+ * Whether the OS's latest answer, heard while something was subscribed, was
+ * "reduced". Only that answer is carried into a later mount — never a "not
+ * reduced". The setting can change while nothing is subscribed, and the two
+ * stale answers are not symmetric: a stale "reduced" costs one instant cut until
+ * the OS answers again, a stale "not reduced" lets a cached image fade for
+ * someone who just turned motion off (Sol #348 F-05). So a new subscription
+ * starts from `true` or from "unknown", and the caller treats unknown as reduced.
  */
-export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false)
+let lastAnswerReduced = false
+
+/**
+ * `Giảm chuyển động` in iOS/Android accessibility settings, or `null` while the
+ * OS has not answered yet for this subscription. A caller that animates
+ * something which can happen before the answer — a cached image fading in on
+ * its first frame — treats `null` as reduced (GoGo-MobileApp#338).
+ */
+export function useReducedMotionPreference(): boolean | null {
+  const [reduced, setReduced] = useState<boolean | null>(lastAnswerReduced ? true : null)
 
   useEffect(() => {
     let cancelled = false
+    const update = (value: boolean) => {
+      lastAnswerReduced = value
+      if (!cancelled) setReduced(value)
+    }
     AccessibilityInfo.isReduceMotionEnabled()
-      .then(value => {
-        if (!cancelled) setReduced(value)
-      })
+      .then(update)
       .catch(() => {})
 
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced)
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', update)
     return () => {
       cancelled = true
       subscription.remove()
@@ -62,6 +76,15 @@ export function useReducedMotion(): boolean {
   }, [])
 
   return reduced
+}
+
+/**
+ * `Giảm chuyển động` in iOS/Android accessibility settings. Motion that ignores
+ * this is not a style choice — it can trigger nausea in people with vestibular
+ * disorders, which is why every animation in the app reads this.
+ */
+export function useReducedMotion(): boolean {
+  return useReducedMotionPreference() ?? false
 }
 
 /** A duration that collapses to an instant cut when motion is reduced. */

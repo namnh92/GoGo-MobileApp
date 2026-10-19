@@ -14,7 +14,10 @@ export const styles = StyleSheet.create(theme => ({
   listBody: { flex: 1, minWidth: 0, gap: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[2] },
   name: { flex: 1 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: theme.spacing[2] },
+  // #332: the reason chips share one row at any width. They shrink and
+  // ellipsise instead of wrapping — at 375pt two chips took two lines.
+  tags: { flexDirection: 'row', gap: 6, marginTop: theme.spacing[2], minWidth: 0 },
+  tagChip: { flexShrink: 1, minWidth: 0 },
   openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.status.success },
   openLabel: { flexShrink: 1 },
