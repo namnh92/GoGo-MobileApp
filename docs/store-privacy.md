@@ -85,10 +85,12 @@ Không gửi: danh bạ, lịch, tin nhắn, sức khoẻ, thông tin thanh toá
   Đo thật trên APK đã build, không phải suy từ dependency: `docs/tenjin-android-verification-2026-09-08.md:31-34,41,44`
   ghi `AdvertisingIdClient`, `AppSet`, `InstallReferrerClient` có trong APK, `AD_ID: granted=true`, một GAID
   khác 0 đọc được và `connect` trả `{"code":200}`.
-- **iOS không thu IDFA.** Repo không có `expo-tracking-transparency` (`package.json`) và không có
-  `NSUserTrackingUsageDescription` trong `app.config.ts`, nên không có màn ATT — không có ATT thì iOS không
-  cấp IDFA; Tenjin chỉ còn IDFV + IP. Hệ quả cho khai báo: khai **không dùng để tracking** (owner chốt
-  2026-10-17, §12 D-1 — đọc cả dòng rủi ro ở đó trước khi nộp).
+- **iOS thu IDFA khi người dùng cho phép (từ #366).** App xin ATT qua `expo-tracking-transparency`
+  (`src/shared/consent/tracking.ts`, chỗ duy nhất import thư viện), chuỗi `NSUserTrackingUsageDescription` ở
+  `app.config.ts` + `locales/{vi,en}.json`. App **không tự đọc** IDFA (`getAdvertisingId` không xuất hiện trong
+  `src/` — `tracking-permission.test.ts` ghim); SDK Tenjin tự đọc khi iOS cho phép. Tenjin giữ `connect()` lúc
+  khởi động (owner Q8 (a)), nên phiên cài đầu đi với IDFA = 0, IDFA đến Tenjin **từ lần mở thứ hai** sau khi
+  đồng ý. Từ chối / hạn chế → không IDFA, Tenjin còn IDFV + IP. Khai **dùng để tracking** (§12 D-6, thay D-1).
 
 **Phía Sentry đã bật sẵn để giảm dữ liệu** (khai báo phải khớp những thứ này, không khai theo mặc định của
 SDK): `scrubIPAddresses` bật cho cả ba project và rule Advanced Data Scrubbing `[Remove][Anything] from
@@ -108,6 +110,7 @@ ai đổi ở đó thì khai báo này sai mà không có commit nào. Bằng ch
 | Vị trí khi dùng app | người dùng chọn "dùng vị trí của tôi" | `app.config.ts:271-274` — nói rõ có đường chọn khu vực thủ công |
 | Thư viện ảnh | thêm ảnh đại diện (`src/shared/media/pick-avatar.ts:74`), thêm ảnh check-in (`src/features/active-date/checkin-sheet.view.tsx:73`) | `app.config.ts:269-270` — chuỗi nói cả hai việc (#356). `src/shared/config/__tests__/media-permission.test.ts` buộc mỗi call site có từ khoá mục đích trong chuỗi, nên một call site thứ ba sẽ làm test đỏ thay vì âm thầm ship purpose string thiếu |
 | Thông báo | sau khi đăng nhập, trước khi đăng ký subscription | `src/shared/notifications/permission.ts` |
+| Theo dõi (App Tracking Transparency, **chỉ iOS**) | màn đầu tiên sau khi đăng nhập / vào phòng khách, sau sheet giải thích; một lần, chỉ khi iOS chưa có câu trả lời; không ở splash, đăng nhập, onboarding; không khoá tính năng nào (`src/shared/consent/tracking-consent-gate.tsx`) | plugin `expo-tracking-transparency` trong `app.config.ts` + `locales/vi.json`, `locales/en.json` — câu chữ owner duyệt 2026-10-19 (#366); `tracking-permission.test.ts` buộc ba chỗ bằng nhau và bằng key `consent.tracking.systemPrompt` |
 
 Không xin: vị trí nền, camera, danh bạ, lịch, micro.
 
@@ -141,9 +144,9 @@ data collected from your app about a particular end-user or device with a data b
 | User Content · Other User Content | có | App Functionality | có | không | D8, D9, D17, D23 |
 | Search History | có | App Functionality | có | không | D11 |
 | Identifiers · User ID | có | App Functionality | có | không | D13, D15, D19 |
-| Identifiers · Device ID | có | App Functionality, Analytics | có | không (§12 D-1) | D12, D14, D16, T1, T2, T4 |
+| Identifiers · Device ID | có | App Functionality, Analytics, Developer's Advertising or Marketing | có | **có** (§12 D-6) | D12, D14, D16, T1, T2, T4 |
 | Usage Data · Product Interaction | có | App Functionality, Analytics | có | không | D18, D20, D21, D22 (chức năng); T1 (dữ liệu phiên), D14 (Analytics) |
-| Usage Data · Advertising Data | có | Analytics | có | không (§12 D-1) | D14, T2 |
+| Usage Data · Advertising Data | có | Analytics, Developer's Advertising or Marketing | có | **có** (§12 D-6) | D14, T2 |
 | Diagnostics · Crash Data | có | App Functionality | có | không | D15, D16 |
 | Diagnostics · Other Diagnostic Data | có | App Functionality | có | không | T3 (context thiết bị của SDK Sentry), T4 |
 | Financial Info · Other Financial Info | có (§12 D-3) | App Functionality | có | không | D7, D17 (ngân sách tự đặt), D23 (khoảng giá tự khai) |
@@ -229,12 +232,13 @@ app (§5), nhưng URL web mà Play đòi thì chưa có (§5, §8).
 
 ## 10. Câu hỏi còn mở (owner quyết, một số cần ý kiến pháp lý)
 
-Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12. Còn lại hai câu:
+Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12. Còn lại ba câu:
 
 | # | Câu hỏi | Vì sao nó chặn | Khuyến nghị |
 | --- | --- | --- | --- |
 | Q4 | Trang chính sách quyền riêng tư **và** trang yêu cầu xoá dữ liệu: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách, và Play còn đòi URL yêu cầu xoá dữ liệu cho app có tạo tài khoản; thiếu một trong hai thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì — ý định sản phẩm, không phải sự thật trong repo? | Hiện trạng đo được: **không có cổng tuổi** ("No minimum age applies", `openapi/gogo.v1.yaml:403`) và không consumer nào ngoài `/me` + export; app chỉ hiện và sửa nó (`src/features/account/date-of-birth.view.tsx`, `src/shared/api/queries/use-me.ts:38`). Vì vậy §6/§7 khai `App Functionality` theo đúng hiện trạng; câu còn mở là có thêm mục đích nào không. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
+| Q6 | Nghị định 13/2023/NĐ-CP (bảo vệ dữ liệu cá nhân) có coi mã thiết bị (IDFA, GAID, IDFV, App Set ID) là dữ liệu cá nhân và đòi **đồng ý** trước khi gửi cho Tenjin/Adjust **trên cả Android** — nơi không có ATT? | D-6 chỉ trả lời câu hỏi của Apple. Nếu Nghị định 13 đòi đồng ý, Android hiện gửi GAID cho Tenjin từ lần mở đầu mà không hỏi, và khai báo Play đúng nhưng hành vi có thể trái luật. Chưa ai có thẩm quyền trả lời. | Hỏi người làm pháp lý **trước lần nộp đầu**, cùng lượt privacy review + DPA của Adjust (#367). Owner chịu trách nhiệm theo dõi; câu trả lời ghi thành một dòng có ngày ở §12. D-6 không trả lời câu này. |
 
 ## 11. Cách kiểm tài liệu này (AC-5 của #354)
 
@@ -246,17 +250,38 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
    lời ở §5 và §1.
 3. Listing: §8 đủ để điền tên, mô tả, từ khoá, URL, email, phân loại; ô `CẦN XÁC NHẬN`, Q4 và hai URL còn
    thiếu (chính sách quyền riêng tư, yêu cầu xoá dữ liệu) là phần đã biết, không phải phát hiện lúc nộp.
-   Hai câu còn mở là Q4 và Q5; §6 và §7 không còn ô nào chờ quyết định.
+   Ba câu còn mở là Q4, Q5 và Q6; §6 và §7 không còn ô nào chờ quyết định.
 4. Hai khẳng định **có điều kiện**, phải kiểm lại ngay trước mỗi lần nộp vì không có commit nào ghim chúng:
    mã hoá khi truyền (§1 — đọc manifest của bản release) và `scrubIPAddresses` + rule `$user.geo.**` (§3 —
    đọc lại trong console Sentry).
+5. Privacy manifest của SDK (§12 D-6): đọc lại `PrivacyInfo.xcprivacy` của từng SDK MMP trong bản build sắp nộp
+   (TenjinSDK 1.19.0 khai `NSPrivacyTracking = true`, domain `track.tenjin.com`) và privacy report của Xcode —
+   mục "Data Used to Track You" của nhãn phải phủ mọi loại report liệt kê dưới tracking.
 
 ## 12. Quyết định của owner (có ngày, kèm rủi ro đã nhận)
 
 Ghi ở đây thay vì để trong §10, vì một ô khai báo không được treo vào một câu hỏi. Nguồn kèm theo:
 `.claude/rules/execution-policy.md` §8 2026-10-17.
 
-**D-1 (2026-10-17) — Tenjin trên iOS: giữ không-IDFA, khai "không dùng để tracking".** Hiện trạng đo được:
+**D-6 (2026-10-19) — thay D-1: xin ATT trên iOS, IDFA cho các SDK MMP khi được phép, khai "dùng để tracking".**
+Owner chốt Q1 (b) của shape `dev/handoffs/sa-shape-mobile-363-adjust.fable.rev2.md` (GoGo-MobileApp#363/#366;
+`.claude/rules/execution-policy.md` §8 2026-10-19). Đi đúng đường Apple chấp nhận mà dòng rủi ro của D-1 nêu: màn
+ATT **trước**, rồi nhãn đổi. Hệ quả: §6 `Identifiers · Device ID` và `Usage Data · Advertising Data` khai
+tracking = có, mục "Data Used to Track You" của App Store liệt kê hai loại đó; §4 thêm quyền Theo dõi. Android
+không đổi (không có ATT; GAID và `AD_ID` như §3, D-2 đã khai chia sẻ). Câu chữ hộp thoại do owner duyệt
+(#366, 2026-10-19).
+
+> **Rủi ro owner nhận với D-6.** Tỉ lệ người dùng đồng ý chưa có số đo; chất lượng attribution iOS phụ thuộc
+> vào nó. Người từ chối vẫn được đo nhưng không IDFA (IDFV, IP, SKAdNetwork). Tenjin chỉ nhận IDFA từ lần mở
+> thứ hai (Q8 (a)). Câu hỏi pháp lý về Nghị định 13/2023 trên **cả Android** chưa ai trả lời — §10 Q6; D-6
+> không trả lời nó.
+>
+> **Rollback không kéo khai báo về D-1** (ADR 0012 §Rollback): gỡ màn ATT không thu lại "Cho phép" đã cấp, và
+> SDK còn trong binary vẫn đọc IDFA. D-6 đứng tới khi mọi SDK đọc IDFA bị gỡ hoặc tắt và đã kiểm trên privacy
+> report của bản nộp.
+
+**D-1 (2026-10-17) — đã bị D-6 thay ngày 2026-10-19; giữ nguyên văn làm lịch sử.** Tenjin trên iOS: giữ
+không-IDFA, khai "không dùng để tracking". Hiện trạng đo được lúc đó:
 không có `expo-tracking-transparency` trong `package.json`, không có `NSUserTrackingUsageDescription` trong
 `app.config.ts`, nên không có màn ATT và iOS không cấp IDFA; Tenjin chỉ nhận IDFV + IP (§3, T2).
 

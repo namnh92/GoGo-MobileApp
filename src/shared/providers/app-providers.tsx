@@ -18,6 +18,7 @@ import { initializePushIdentity } from '@/shared/notifications/identity-bootstra
 import { retryInitialization } from '@/shared/notifications/initialize'
 import { startNotificationClicks } from '@/shared/notifications/notification-clicks-bootstrap'
 import { useAccentBootstrap } from '@/shared/theme/use-accent-bootstrap'
+import { markSplashHidden } from '@/shared/ui/splash-state'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
 const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
@@ -33,7 +34,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
   // it lifts once the saved accent is the one on screen.
   useEffect(() => {
     if (!accentReady) return
-    void SplashScreen.hideAsync().catch(() => {})
+    // Marked either way: a failed hide leaves nothing to wait for (#366).
+    void SplashScreen.hideAsync().catch(() => {}).finally(markSplashHidden)
   }, [accentReady])
   useEffect(() => {
     let cancelled = false
