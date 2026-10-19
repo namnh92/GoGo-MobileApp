@@ -232,12 +232,13 @@ app (§5), nhưng URL web mà Play đòi thì chưa có (§5, §8).
 
 ## 10. Câu hỏi còn mở (owner quyết, một số cần ý kiến pháp lý)
 
-Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12. Còn lại hai câu:
+Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12. Còn lại ba câu:
 
 | # | Câu hỏi | Vì sao nó chặn | Khuyến nghị |
 | --- | --- | --- | --- |
 | Q4 | Trang chính sách quyền riêng tư **và** trang yêu cầu xoá dữ liệu: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách, và Play còn đòi URL yêu cầu xoá dữ liệu cho app có tạo tài khoản; thiếu một trong hai thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì — ý định sản phẩm, không phải sự thật trong repo? | Hiện trạng đo được: **không có cổng tuổi** ("No minimum age applies", `openapi/gogo.v1.yaml:403`) và không consumer nào ngoài `/me` + export; app chỉ hiện và sửa nó (`src/features/account/date-of-birth.view.tsx`, `src/shared/api/queries/use-me.ts:38`). Vì vậy §6/§7 khai `App Functionality` theo đúng hiện trạng; câu còn mở là có thêm mục đích nào không. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
+| Q6 | Nghị định 13/2023/NĐ-CP (bảo vệ dữ liệu cá nhân) có coi mã thiết bị (IDFA, GAID, IDFV, App Set ID) là dữ liệu cá nhân và đòi **đồng ý** trước khi gửi cho Tenjin/Adjust **trên cả Android** — nơi không có ATT? | D-6 chỉ trả lời câu hỏi của Apple. Nếu Nghị định 13 đòi đồng ý, Android hiện gửi GAID cho Tenjin từ lần mở đầu mà không hỏi, và khai báo Play đúng nhưng hành vi có thể trái luật. Chưa ai có thẩm quyền trả lời. | Hỏi người làm pháp lý **trước lần nộp đầu**, cùng lượt privacy review + DPA của Adjust (#367). Owner chịu trách nhiệm theo dõi; câu trả lời ghi thành một dòng có ngày ở §12. D-6 không trả lời câu này. |
 
 ## 11. Cách kiểm tài liệu này (AC-5 của #354)
 
@@ -249,7 +250,7 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
    lời ở §5 và §1.
 3. Listing: §8 đủ để điền tên, mô tả, từ khoá, URL, email, phân loại; ô `CẦN XÁC NHẬN`, Q4 và hai URL còn
    thiếu (chính sách quyền riêng tư, yêu cầu xoá dữ liệu) là phần đã biết, không phải phát hiện lúc nộp.
-   Hai câu còn mở là Q4 và Q5; §6 và §7 không còn ô nào chờ quyết định.
+   Ba câu còn mở là Q4, Q5 và Q6; §6 và §7 không còn ô nào chờ quyết định.
 4. Hai khẳng định **có điều kiện**, phải kiểm lại ngay trước mỗi lần nộp vì không có commit nào ghim chúng:
    mã hoá khi truyền (§1 — đọc manifest của bản release) và `scrubIPAddresses` + rule `$user.geo.**` (§3 —
    đọc lại trong console Sentry).
@@ -272,8 +273,12 @@ không đổi (không có ATT; GAID và `AD_ID` như §3, D-2 đã khai chia s�
 
 > **Rủi ro owner nhận với D-6.** Tỉ lệ người dùng đồng ý chưa có số đo; chất lượng attribution iOS phụ thuộc
 > vào nó. Người từ chối vẫn được đo nhưng không IDFA (IDFV, IP, SKAdNetwork). Tenjin chỉ nhận IDFA từ lần mở
-> thứ hai (Q8 (a)). Câu hỏi pháp lý chưa ai trả lời: Nghị định 13/2023 có đòi đồng ý cho mã thiết bị trên
-> **cả Android** hay không — hỏi cùng privacy review/DPA của Adjust (#367).
+> thứ hai (Q8 (a)). Câu hỏi pháp lý về Nghị định 13/2023 trên **cả Android** chưa ai trả lời — §10 Q6; D-6
+> không trả lời nó.
+>
+> **Rollback không kéo khai báo về D-1** (ADR 0012 §Rollback): gỡ màn ATT không thu lại "Cho phép" đã cấp, và
+> SDK còn trong binary vẫn đọc IDFA. D-6 đứng tới khi mọi SDK đọc IDFA bị gỡ hoặc tắt và đã kiểm trên privacy
+> report của bản nộp.
 
 **D-1 (2026-10-17) — đã bị D-6 thay ngày 2026-10-19; giữ nguyên văn làm lịch sử.** Tenjin trên iOS: giữ
 không-IDFA, khai "không dùng để tracking". Hiện trạng đo được lúc đó:

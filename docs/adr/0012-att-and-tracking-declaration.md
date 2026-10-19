@@ -40,7 +40,19 @@ Apple-accepted path: ask first, then declare tracking.
   devices too.
 - **Deferred links:** the resume (#364) also waits for this launch's consent
   question to be over, so an MMP holding its report until the answer is not
-  missed; a 120 s bound stops a sheet that never shows from holding it.
+  missed. "Over" is a terminal state only (no ATT, iOS already answered, an
+  answer, or "Để sau") — no clock: a timeout would let the deferred link open
+  and then the sheet appear on top of it. The gate reaches a terminal state as
+  soon as someone is on a main screen.
+- **The moment:** the splash lifted, the app active, a session, a screen past
+  sign-in and onboarding. If the moment ends before an answer (session ends,
+  app backgrounded), the sheet is taken down and asked again at the next one;
+  the system dialog, once up, is left to finish.
+- **iOS only, explicitly:** the library's `isAvailable()` is true on Android
+  (the native module exists and answers `granted`), so availability is
+  `Platform.OS === 'ios'` and the module.
+- **Diagnostics:** `consent_tracking:<status>` reason codes go to the device
+  log in release builds too; device acceptance reads them.
 - **Tenjin:** the RN wrapper has no ATT API and `connect()` stays at startup
   (Q8 (a)), so the install session carries IDFA zero and Tenjin receives the
   IDFA from the next launch after consent.
@@ -59,7 +71,17 @@ Apple-accepted path: ask first, then declare tracking.
 
 ## Rollback
 
-Remove the plugin entry, `locales`, `src/shared/consent/*` and the gate from
-the root layout, drop the dependency, rebuild the binary, and restore D-1 in
-`docs/store-privacy.md`. A person who already allowed tracking keeps that
-setting in iOS; without the plist string the app simply never asks again.
+Removing the prompt does not take back consent already given: iOS keeps the
+"Allow" of everyone who answered it, and any MMP SDK still in the binary keeps
+reading the IDFA for them. So the declaration does **not** go back with the
+code.
+
+1. Code: remove the plugin entry, `locales`, `src/shared/consent/*`, the gate
+   from the root layout and the resumer's wait on `trackingConsent.settled()`;
+   drop the dependency; rebuild.
+2. Declaration: keep `docs/store-privacy.md` §12 D-6 (tracking = có) for as
+   long as any SDK that reads the IDFA ships (Tenjin today, Adjust after #367).
+   Restoring D-1 needs those SDKs removed or their IDFA reading disabled, and
+   that verified in the Xcode privacy report of the build being submitted.
+3. Record: mark this ADR withdrawn with the date and the owner decision, and add
+   a dated line to `docs/store-privacy.md` §12.

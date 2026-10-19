@@ -34,11 +34,14 @@ export function TrackingSheet({ visible, requesting, onContinue, onLater }: {
       onRequestClose={onLater}
     >
       <View style={styles.modalRoot}>
+        {/* A tap outside is "Để sau" for sighted users; screen readers get
+            the button itself, not a second unlabelled copy of it. */}
         <Pressable
           style={styles.backdrop}
           onPress={onLater}
-          accessibilityRole="button"
-          accessibilityLabel={t('consent.tracking.later')}
+          disabled={requesting}
+          accessible={false}
+          importantForAccessibility="no"
         />
         <View
           style={[styles.sheet, { paddingBottom: insets.bottom + spacing[4] }]}
