@@ -28,6 +28,7 @@ export function createNotificationClicks(deps: { report?: (event: string) => voi
   const report = deps.report ?? (() => {})
   let opener: NotificationOpener | null = null
   let pending: NotificationTarget | null = null
+  let launchTap = false
   const seen: string[] = []
 
   function open(target: NotificationTarget, queued: boolean): void {
@@ -64,7 +65,16 @@ export function createNotificationClicks(deps: { report?: (event: string) => voi
       if (!next || !pending) return
       const queued = pending
       pending = null
+      launchTap = true
       open(queued, true)
+    },
+
+    /**
+     * A tap queued before the app could open anything is opening, or is
+     * waiting to — this launch belongs to it (#364: a deferred link yields).
+     */
+    launchClaimed(): boolean {
+      return launchTap || pending !== null
     },
   }
 }
