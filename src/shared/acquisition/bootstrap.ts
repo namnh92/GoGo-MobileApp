@@ -4,7 +4,7 @@ import Tenjin from 'react-native-tenjin'
 
 import { createDeferredLinkCollector } from './deferred-link'
 import { createTenjinInitializer } from './initialize'
-import { pendingDeepLinks } from './pending-deep-links'
+import { ensureInstallScope, pendingDeepLinks } from './pending-deep-links'
 
 export { pendingDeepLinks }
 
@@ -39,6 +39,9 @@ export function deferredLinkSettled(): Promise<void> {
  *  `shared/notifications/bootstrap.ts` (review finding F4). */
 export function initializeAcquisitionSdk() {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return
+  // Before anything collects, and inside `settled` so the resume cannot read
+  // the store first — with or without an SDK configured.
+  settled = ensureInstallScope().catch(() => {})
   const key: unknown = Constants.expoConfig?.extra?.[
     Platform.OS === 'ios' ? 'tenjinIosSdkKey' : 'tenjinAndroidSdkKey'
   ]
@@ -51,5 +54,5 @@ export function initializeAcquisitionSdk() {
   // After connect, because attribution is only known once the SDK has talked
   // to Tenjin. Deliberately not awaited: a launch must not wait on a provider
   // round trip, and the store is what carries the answer to whoever needs it.
-  settled = collectDeferredLink().catch(() => {})
+  settled = settled.then(() => collectDeferredLink()).catch(() => {})
 }

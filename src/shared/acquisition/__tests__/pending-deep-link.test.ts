@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  CONSUMED_DEEP_LINK_KEY,
+  CONSUMED_DEEP_LINK_LIMIT,
+  digest,
   PENDING_DEEP_LINK_KEY,
   PENDING_DEEP_LINK_TTL_MS,
   createPendingDeepLinkStore,
@@ -108,6 +111,42 @@ describe('deferred deep link survives the install and resumes once', () => {
     await store.remember('https://go-dev.gogo.id.vn/l/Af82XcAf82XcAf82XcAf82')
     await store.take()
     for (const e of events) expect(e).not.toContain('Af82Xc')
+  })
+
+  it('F-07: keeps a history — A, then B, then A again is still refused', async () => {
+    const storage = memoryStorage()
+    const events: string[] = []
+    const store = createPendingDeepLinkStore({ storage, report: (e) => events.push(e) })
+    await store.remember(`gogo-dev://place/${PLACE_A}`)
+    await store.take()
+    await store.remember(`gogo-dev://place/${PLACE_B}`)
+    await store.take()
+    expect(await store.remember(`gogo-dev://place/${PLACE_A}`)).toBe(false)
+    expect(events).toContain('deferred_link_ignored:already_consumed')
+    expect(storage.dump()[PENDING_DEEP_LINK_KEY]).toBeUndefined()
+  })
+
+  it('F-07: the history is bounded', async () => {
+    const storage = memoryStorage()
+    const store = createPendingDeepLinkStore({ storage })
+    for (let i = 0; i < CONSUMED_DEEP_LINK_LIMIT + 3; i++) {
+      await store.remember(`https://go-dev.gogo.id.vn/l/slug${i}`)
+      await store.take()
+    }
+    expect(JSON.parse(storage.dump()[CONSUMED_DEEP_LINK_KEY]!)).toHaveLength(CONSUMED_DEEP_LINK_LIMIT)
+  })
+
+  it('F-07: the digest does not depend on field order', () => {
+    const a = { kind: 'place', placeId: PLACE_A } as const
+    const b = { placeId: PLACE_A, kind: 'place' } as const
+    expect(digest(a)).toBe(digest(b))
+  })
+
+  it('F-05: clear() throws when the entry survives the delete', async () => {
+    const storage = memoryStorage()
+    const store = createPendingDeepLinkStore({ storage: { ...storage, remove: async () => {} } })
+    await store.remember(`gogo-dev://plan/${PLAN}`)
+    await expect(store.clear()).rejects.toThrow()
   })
 
   it('clear() drops another person’s pending intent at sign-out', async () => {

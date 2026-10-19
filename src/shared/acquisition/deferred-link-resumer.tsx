@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { Linking } from 'react-native'
 
 import { openDeepLinkAction } from '@/shared/navigation/open-deep-link'
+import { notificationClicks } from '@/shared/notifications/notification-clicks'
 import { useSession } from '@/shared/providers/session-provider'
 
 import { deferredLinkSettled } from './bootstrap'
@@ -17,6 +18,12 @@ const report = (event: string) => {
 let resume: ReturnType<typeof createDeferredLinkResume> | undefined
 
 /**
+ * Who is signed in, as of the last commit. Module scope because the resume it
+ * is read by outlives the render that started it and is shared by remounts.
+ */
+const signedIn: { key: string | null } = { key: null }
+
+/**
  * GoGo-MobileApp#364 — opens a deferred link once the app can: the splash has
  * redirected (same readiness rule as `NotificationClickRouter`) and someone is
  * signed in or joined as a guest. While nobody is, the link waits in the store,
@@ -25,23 +32,33 @@ let resume: ReturnType<typeof createDeferredLinkResume> | undefined
  */
 export function DeferredLinkResumer() {
   const router = useRouter()
-  const { status } = useSession()
+  const { status, session } = useSession()
   const segments = useSegments()
 
-  const ready = segments.length > 0 && (status === 'user' || status === 'guest')
+  const active = status === 'user' || status === 'guest'
+  const ready = segments.length > 0 && active
+  const key = active ? `${status}:${session?.userId ?? session?.roomId ?? ''}` : null
+
+  // Declared first so it runs first: a resume started below reads this key.
+  useEffect(() => {
+    signedIn.key = key
+  }, [key])
 
   useEffect(() => {
     if (!ready) return
-    // Module scope: once per process, whatever remounts the root layout.
+    // Module scope: at most one open per process, whatever remounts the layout.
     resume ??= createDeferredLinkResume({
       store: pendingDeepLinks,
       settled: deferredLinkSettled,
       initialUrl: () => Linking.getInitialURL(),
       open: (action) => openDeepLinkAction(router, action, 'deferred'),
+      sessionKey: () => signedIn.key,
+      launchClaimed: () => notificationClicks.launchClaimed(),
       report,
     })
     void resume()
-  }, [ready, router])
+  // `key`: a run that stood down for a changed session lets the next one try.
+  }, [ready, router, key])
 
   return null
 }

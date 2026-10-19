@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
 import { deleteSecureItem, getSecureItem, setSecureItem } from '@/shared/storage/secure-store'
 
+import { createInstallScope } from './install-scope'
 import { createPendingDeepLinkStore } from './pending-deep-link'
 
 /**
@@ -15,5 +18,12 @@ export const pendingDeepLinks = createPendingDeepLinkStore({
     set: setSecureItem,
     remove: deleteSecureItem,
   },
+  report: (event) => console.warn(event),
+})
+
+/** Run before anything collects; see `install-scope.ts`. */
+export const ensureInstallScope = createInstallScope({
+  secure: { remove: deleteSecureItem },
+  app: { get: (key) => AsyncStorage.getItem(key), set: (key, value) => AsyncStorage.setItem(key, value) },
   report: (event) => console.warn(event),
 })

@@ -112,23 +112,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // A guest is never bound to the provider, so it has nothing to confirm
       // (#279) — see `createLogoutConfirmation`.
       await unsubscribeCurrentDeviceAndConfirm(getSession()?.kind === 'guest' ? 'guest' : 'user')
+      // #364: before the session ends, and not in `purge`, which sign-in also
+      // runs — the invite someone installed from must survive their own
+      // sign-in, not another person's. Throws if the entry is not gone.
+      await pendingDeepLinks.clear()
       await sessionsApi.logout(allDevices)
       useRoomStore.getState().resetDraft()
       useRoomStore.setState({ preferenceSeed: null })
       await purge()
-      // #364: not in `purge`, which sign-in also runs — the invite someone
-      // installed from must survive their own sign-in, not another person's.
-      await pendingDeepLinks.clear()
     },
     [purge],
   )
 
   const deleteAccount = useCallback(async () => {
+    await pendingDeepLinks.clear()
     await sessionsApi.deleteAccount()
     useRoomStore.getState().resetDraft()
     useRoomStore.setState({ preferenceSeed: null })
     await purge()
-    await pendingDeepLinks.clear()
   }, [purge])
 
   const value = useMemo<SessionContextValue>(() => {

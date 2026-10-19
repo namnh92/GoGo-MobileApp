@@ -69,3 +69,15 @@ it('keeps it through sign-in, so the invite opens afterwards', async () => {
   await withSession(session => session.signIn({ email: 'a@example.com', password: 'x' } as never))
   expect(mockClear).not.toHaveBeenCalled()
 })
+
+it('clears before the session is revoked, and a failed clear stops the sign-out', async () => {
+  const { logout } = jest.requireMock('@/shared/api/endpoints/sessions') as { logout: jest.Mock }
+  logout.mockClear()
+  mockClear.mockImplementationOnce(async () => {
+    throw new Error('keychain locked')
+  })
+  await withSession(async session => {
+    await expect(session.signOut()).rejects.toThrow('keychain locked')
+  })
+  expect(logout).not.toHaveBeenCalled()
+})
