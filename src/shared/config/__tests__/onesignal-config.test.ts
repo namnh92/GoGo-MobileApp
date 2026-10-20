@@ -16,6 +16,9 @@ function configure(environment: string) {
   vi.stubEnv('ONESIGNAL_IDENTITY_VERIFICATION_KEY', 'signing-secret-must-not-ship')
   // stag/prod must state a crash-reporting decision (GoGo-MobileApp#336).
   vi.stubEnv('EXPO_PUBLIC_SENTRY_DSN', environment === 'dev' ? '' : 'off')
+  // …and an MMP decision for Adjust (GoGo-MobileApp#367), the same way.
+  vi.stubEnv('ADJUST_IOS_APP_TOKEN', environment === 'dev' ? '' : 'off')
+  vi.stubEnv('ADJUST_ANDROID_APP_TOKEN', environment === 'dev' ? '' : 'off')
 }
 
 describe('provider build contract', () => {

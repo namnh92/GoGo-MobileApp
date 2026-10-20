@@ -147,7 +147,9 @@ if (existsSync(podfileLock)) {
  */
 if (existsSync(podfileLock)) {
   const lock = readFileSync(podfileLock, "utf8");
-  for (const pod of ["Unistyles", "NitroModules"])
+  // Adjust (GoGo-MobileApp#367): the RN wrapper autolinks, the SDK is a pod —
+  // a stale Pods/ without it builds and then fails at the first initSdk.
+  for (const pod of ["Unistyles", "NitroModules", "Adjust"])
     if (!new RegExp(`^  - ${pod} \\(`, "m").test(lock)) {
       problems.push(
         `ios/Podfile.lock does not contain the ${pod} pod. ` +

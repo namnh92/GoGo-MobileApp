@@ -8,13 +8,14 @@ Luật của tài liệu: **mỗi dòng dữ liệu phải dẫn được tới 
 hình, hoặc tới tài liệu nhà cung cấp. Dòng nào không dẫn được thì ghi `CẦN XÁC NHẬN`, không suy đoán — một
 khai báo sai là lý do bị từ chối bản nộp hoặc bị gỡ khỏi cửa hàng, không phải một lỗi chữ.
 
-## 1. Năm đích dữ liệu
+## 1. Sáu đích dữ liệu
 
 | Đích | Vai trò | Quan hệ |
 | --- | --- | --- |
 | GoGo BE (`https://api-*.gogo.id.vn/v1`) | máy chủ của chính sản phẩm | của GoGo |
 | OneSignal | gửi push | nhà cung cấp xử lý theo uỷ quyền |
 | Tenjin | đo nguồn cài đặt (attribution) | **bên thứ ba nhận dữ liệu chia sẻ** (owner chốt 2026-10-17, §12 D-2) |
+| Adjust | đo nguồn cài đặt (attribution), MMP thứ hai cạnh Tenjin (GoGo-MobileApp#363/#367) | **bên thứ ba nhận dữ liệu chia sẻ** (§12 D-5, cùng lập trường D-2) |
 | Sentry | crash/error + session release-health | nhà cung cấp xử lý theo uỷ quyền |
 | Google Maps Platform | vẽ bản đồ trong app (SDK Maps, **cả iOS và Android**) | nhà cung cấp xử lý theo uỷ quyền |
 
@@ -59,6 +60,7 @@ Mục đích "Analytics" xuất hiện ở §6/§7 đến từ Tenjin (D14) và 
 | D21 | Cài đặt thông báo | `src/shared/api/endpoints/me.ts:83` | GoGo BE | tôn trọng lựa chọn nhận thông báo | có | tuỳ chọn |
 | D22 | Thay đổi lịch trình: khoá điểm, hoàn thành điểm, tạo lại | `src/shared/api/endpoints/plans.ts:19,24,35,47` | GoGo BE | chức năng cốt lõi | có | bắt buộc theo luồng |
 | D23 | Đề xuất địa điểm: link Google Maps đã dán, ghi chú tự do, category, mood keys, khoảng giá tự khai | `src/features/place-import/import.view.tsx:176` (resolve link), `:145-156` (category, vibes, estimatedPrice, note), `:205` (submit) | GoGo BE | góp địa điểm, kiểm duyệt | có | tuỳ chọn |
+| D24 | Phiên cài đặt / mở app + callback attribution và deferred deep link của Adjust | `src/shared/acquisition/bootstrap.ts:116-144` (`runAdjust`), `src/shared/acquisition/adjust/initialize.ts:54-73` (`disableDeferredDeeplinkOpening` → `setAttConsentWaitingInterval(60)` → callback → `initSdk`), `adjust/deferred-link.ts` (chỉ ghi link GoGo vào `PendingDeepLinkStore`) | Adjust | đo nguồn cài đặt, mở deferred deep link | gắn định danh thiết bị (T5) | tuỳ chọn — dev không token thì không chạy; stag/prod token hoặc `off` |
 
 Mã mời và slug của link chia sẻ không mang PII theo `security.md`, nên không là một dòng dữ liệu người dùng.
 Hành vi chuyển tiếp, không phải thu thập, nhưng phải biết trước khi nộp: `src/shared/navigation/directions.ts:7`
@@ -76,6 +78,7 @@ Không gửi: danh bạ, lịch, tin nhắn, sức khoẻ, thông tin thanh toá
 | T2 | Tenjin | "Vendor ID (if available)", "Advertising ID", "IP address", "Device Type, Device Model, Device Locale, Device Country, OS Platform", "OS Version", "Bundle ID, SDK Version, App Version", "Limit Ad Tracking setting", "Apple Search attribution (if enabled)". | https://www.tenjin.com/privacy/ |
 | T3 | Sentry | Context thiết bị mặc định của SDK native (`contexts.device/os/app`) vẫn đi: `beforeSend` chỉ dựng lại `user`, `request` và breadcrumb (`sentry.ts:21-31`), không bỏ context. `sendDefaultPii: false` (`sentry.ts:823`); không tracing (`sentry.ts:826`), không screenshot / view hierarchy (`:827-828`); replay **không bao giờ được cấu hình** (không có `mobileReplayIntegration` trong repo). | code + ADR 0010 |
 | T4 | Google Maps SDK (`react-native-maps` 1.20.1) | SDK của Google chạy trên **cả hai** nền tảng (`src/shared/ui/map-canvas.view.tsx:95` đặt `provider={maps.PROVIDER_GOOGLE}`, nên iOS cũng không dùng Apple MapKit) — Google nhận API key, thông tin thiết bị/OS/app, IP của người gọi, vùng bản đồ được yêu cầu và toạ độ các marker, tức là **các địa điểm trong kế hoạch của người dùng**. Hai thứ app đã tắt: `showsUserLocation={false}` (`:96`, SDK không đọc GPS) và `toolbarEnabled={false}` (`:97`). Key bơm vào ở `app.config.ts:186` (iOS), `:190` (Android); thiếu key thì build dừng (`:102`). | code + hướng dẫn khai báo của Google cho Maps SDK |
+| T5 | Adjust (`react-native-adjust` 5.8.0) | Theo bảng Data Safety của chính Adjust: thu mặc định **App activity** (phiên/lần mở) và **Device or other IDs** — IDFV và IDFA (chỉ khi người dùng cho phép ATT, §12 D-6) trên iOS; GAID, App Set ID trên Android; thông tin thiết bị/OS/phiên bản SDK, app. IP đi kèm mọi request HTTP. Privacy manifest của pod iOS khai `NSPrivacyTracking = true`, Device ID *linked + tracking* (Analytics, Third-Party Advertising), Product Interaction *not linked*. App **không** gửi event, user id hay PII nào cho Adjust (phase 1, `adjust-boundary.test.ts`). | https://help.adjust.com/en/article/google-play-data-safety ; manifest đọc trong shape `sa-shape-mobile-363-adjust.fable.md` A7 — **đọc lại câu chữ trên trang của Adjust trước khi nộp** |
 
 **Lệch giữa hai nền tảng, có chủ ý và phải khai khác nhau:**
 
@@ -144,9 +147,9 @@ data collected from your app about a particular end-user or device with a data b
 | User Content · Other User Content | có | App Functionality | có | không | D8, D9, D17, D23 |
 | Search History | có | App Functionality | có | không | D11 |
 | Identifiers · User ID | có | App Functionality | có | không | D13, D15, D19 |
-| Identifiers · Device ID | có | App Functionality, Analytics, Developer's Advertising or Marketing | có | **có** (§12 D-6) | D12, D14, D16, T1, T2, T4 |
-| Usage Data · Product Interaction | có | App Functionality, Analytics | có | không | D18, D20, D21, D22 (chức năng); T1 (dữ liệu phiên), D14 (Analytics) |
-| Usage Data · Advertising Data | có | Analytics, Developer's Advertising or Marketing | có | **có** (§12 D-6) | D14, T2 |
+| Identifiers · Device ID | có | App Functionality, Analytics, Developer's Advertising or Marketing, Third-Party Advertising | có | **có** (§12 D-6) | D12, D14, D16, D24, T1, T2, T4, T5 |
+| Usage Data · Product Interaction | có | App Functionality, Analytics | có | không | D18, D20, D21, D22 (chức năng); T1 (dữ liệu phiên), D14, D24, T5 (Analytics) |
+| Usage Data · Advertising Data | có | Analytics, Developer's Advertising or Marketing | có | **có** (§12 D-6) | D14, D24, T2, T5 |
 | Diagnostics · Crash Data | có | App Functionality | có | không | D15, D16 |
 | Diagnostics · Other Diagnostic Data | có | App Functionality | có | không | T3 (context thiết bị của SDK Sentry), T4 |
 | Financial Info · Other Financial Info | có (§12 D-3) | App Functionality | có | không | D7, D17 (ngân sách tự đặt), D23 (khoảng giá tự khai) |
@@ -180,12 +183,12 @@ mục đích chia sẻ thành hai câu khác nhau.
 | Personal info · Other info | có | không | không | người dùng chọn | App functionality | D4 |
 | Financial info · Other financial info | có (§12 D-3) | không | không | người dùng chọn | App functionality | D7, D17, D23 |
 | Photos and videos · Photos | có | không | không | người dùng chọn | App functionality | D5, D6 |
-| App activity · App interactions | có | **có** — Tenjin (§12 D-2); OneSignal và GoGo BE không tính là chia sẻ | không | bắt buộc | thu: App functionality, Analytics · **chia sẻ: Analytics, Advertising/marketing** | D18, D20, D21, D22; T1, D14 |
+| App activity · App interactions | có | **có** — Tenjin (§12 D-2), Adjust (§12 D-5); OneSignal và GoGo BE không tính là chia sẻ | không | bắt buộc | thu: App functionality, Analytics · **chia sẻ: Analytics, Advertising/marketing** | D18, D20, D21, D22; T1, D14, D24, T5 |
 | App activity · In-app search history | có | không | không | người dùng chọn | App functionality | D11 |
 | App activity · Other user-generated content | có | không | không | người dùng chọn | App functionality | D8, D9, D17, D23 |
 | App info and performance · Crash logs | có | không | không | bắt buộc | App functionality, Fraud prevention/security | D15 |
 | App info and performance · Diagnostics | có | không | không | bắt buộc | App functionality | D16, T3, T4 |
-| Device or other IDs | có | **có** — Tenjin (§12 D-2) | không | bắt buộc | thu: App functionality, Advertising/marketing · **chia sẻ: Analytics, Advertising/marketing** | D12, D14, D16, T1, T2, T4 |
+| Device or other IDs | có | **có** — Tenjin (§12 D-2), Adjust (§12 D-5) | không | bắt buộc | thu: App functionality, Advertising/marketing · **chia sẻ: Analytics, Advertising/marketing** | D12, D14, D16, D24, T1, T2, T4, T5 |
 
 Mật khẩu (D2) không có loại tương ứng ở Play, như ở Apple — xem ghi chú cuối §6.
 
@@ -255,13 +258,27 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
    mã hoá khi truyền (§1 — đọc manifest của bản release) và `scrubIPAddresses` + rule `$user.geo.**` (§3 —
    đọc lại trong console Sentry).
 5. Privacy manifest của SDK (§12 D-6): đọc lại `PrivacyInfo.xcprivacy` của từng SDK MMP trong bản build sắp nộp
-   (TenjinSDK 1.19.0 khai `NSPrivacyTracking = true`, domain `track.tenjin.com`) và privacy report của Xcode —
+   (TenjinSDK 1.19.0 khai `NSPrivacyTracking = true`, domain `track.tenjin.com`; Adjust 5.8.0 khai tracking = true
+   và tám domain `consent.*.adjust.*` — đổi theo version pod) và privacy report của Xcode —
    mục "Data Used to Track You" của nhãn phải phủ mọi loại report liệt kê dưới tracking.
 
 ## 12. Quyết định của owner (có ngày, kèm rủi ro đã nhận)
 
 Ghi ở đây thay vì để trong §10, vì một ô khai báo không được treo vào một câu hỏi. Nguồn kèm theo:
 `.claude/rules/execution-policy.md` §8 2026-10-17.
+
+**D-4 (2026-10-20) — Adjust trên iOS dùng chung câu hỏi ATT của GoGo (D-6), không tự hỏi.** SDK chỉ chờ tối đa
+60 s câu trả lời trước gói đầu tiên (`setAttConsentWaitingInterval(60)`); không gọi
+`requestAppTrackingAuthorization`, không tắt ATT/IDFA. Privacy manifest của pod khai tracking = true và Device ID
+*Third-Party Advertising* — §6 đã khai theo. Đọc lại manifest mỗi lần nộp (§11 bước 5).
+
+> **Rủi ro.** Chưa có privacy review cho Adjust và chưa ghi ngày owner chấp nhận DPA/điều khoản trong dashboard
+> Adjust — **cổng trước lượt chạy máy đầu tiên có token thật** (owner Q5, 2026-10-19). Xoá tài khoản (ADR-0023)
+> không lan tới Adjust (như Tenjin): `gdprForgetMe()` theo thiết bị, chưa nối vào luồng xoá — giới hạn đã biết.
+
+**D-5 (2026-10-20) — Adjust khai là bên thứ ba nhận dữ liệu chia sẻ trên Play** — cùng lý do D-2: khai thừa không
+bị phạt. Áp cho §7 `App activity · App interactions` và `Device or other IDs`. Đổi thành "xử lý theo uỷ quyền" chỉ
+khi DPA của Adjust nói rõ.
 
 **D-6 (2026-10-19) — thay D-1: xin ATT trên iOS, IDFA cho các SDK MMP khi được phép, khai "dùng để tracking".**
 Owner chốt Q1 (b) của shape `dev/handoffs/sa-shape-mobile-363-adjust.fable.rev2.md` (GoGo-MobileApp#363/#366;

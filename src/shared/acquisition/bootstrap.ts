@@ -1,7 +1,10 @@
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
+import { Adjust, AdjustConfig } from 'react-native-adjust'
 import Tenjin from 'react-native-tenjin'
 
+import { ADJUST_WINDOW_MS, createAdjustDeferredLinkSink } from './adjust/deferred-link'
+import { adjustTokenOf, createAdjustInitializer, type AdjustSdkLike } from './adjust/initialize'
 import { createDeferredLinkCollector } from './deferred-link'
 import { createTenjinInitializer } from './initialize'
 import { ensureInstallScope, pendingDeepLinks } from './pending-deep-links'
@@ -24,6 +27,16 @@ const collectDeferredLink = createDeferredLinkCollector({
   report: (event) => console.warn(event),
 })
 
+/** The one place the Adjust module is touched (ADR 0011). */
+const adjustSdk: AdjustSdkLike = {
+  createConfig: (token, environment) =>
+    new AdjustConfig(
+      token,
+      environment === 'production' ? AdjustConfig.EnvironmentProduction : AdjustConfig.EnvironmentSandbox,
+    ),
+  initSdk: config => Adjust.initSdk(config as AdjustConfig),
+}
+
 let settled: Promise<void> = Promise.resolve()
 
 /**
@@ -35,9 +48,10 @@ let settled: Promise<void> = Promise.resolve()
 let scoped = false
 
 /**
- * Resolves once this launch's attribution report has been written down or
- * given up on (the collector is bounded). The resume waits on it, so a link
- * reported a few seconds after sign-in is not left for the next launch.
+ * Resolves once this launch's attribution reports — Tenjin's and Adjust's —
+ * have been written down or given up on (both are bounded). The resume waits
+ * on it, so a link reported a few seconds after sign-in is not left for the
+ * next launch.
  */
 export function deferredLinkSettled(): Promise<void> {
   return settled
@@ -63,13 +77,18 @@ export function initializeAcquisitionSdk() {
       console.warn('deferred_link_install_scope_failed')
     },
   )
-  settled = scope
+  const tenjin = startTenjin(scope)
+  const adjust = startAdjust(scope)
+  settled = Promise.all([tenjin, adjust]).then(() => undefined)
+}
+
+function startTenjin(scope: Promise<void>): Promise<void> {
   const key: unknown = Constants.expoConfig?.extra?.[
     Platform.OS === 'ios' ? 'tenjinIosSdkKey' : 'tenjinAndroidSdkKey'
   ]
   if (typeof key !== 'string' || key.length === 0) {
     console.warn('acquisition_sdk_unavailable: rebuild with Tenjin environment configuration')
-    return
+    return scope
   }
   initialize(key)
 
@@ -77,5 +96,49 @@ export function initializeAcquisitionSdk() {
   // to Tenjin. Deliberately not awaited: a launch must not wait on a provider
   // round trip, and the store is what carries the answer to whoever needs it.
   // Only into a store the reset has cleared.
-  settled = scope.then(() => (scoped ? collectDeferredLink() : undefined)).catch(() => {})
+  return scope.then(() => (scoped ? collectDeferredLink() : undefined)).catch(() => {})
+}
+
+/**
+ * GoGo-MobileApp#367 — Adjust starts after the install reset, so its deferred
+ * link can only land in a store that belongs to this install, and whatever
+ * happens its sink settles: answered, window over, or not running.
+ */
+let adjustStart: Promise<void> | undefined
+
+function startAdjust(scope: Promise<void>): Promise<void> {
+  // Once per process: a second bootstrap (a remounted provider) gets the
+  // first one's answer instead of a second SDK start.
+  adjustStart ??= runAdjust(scope)
+  return adjustStart
+}
+
+function runAdjust(scope: Promise<void>): Promise<void> {
+  const raw: unknown = Constants.expoConfig?.extra?.[
+    Platform.OS === 'ios' ? 'adjustIosAppToken' : 'adjustAndroidAppToken'
+  ]
+  return scope
+    .then(() => {
+      const sink = createAdjustDeferredLinkSink({
+        store: pendingDeepLinks,
+        windowMs: Platform.OS === 'ios' ? ADJUST_WINDOW_MS.ios : ADJUST_WINDOW_MS.android,
+        report: event => console.warn(event),
+      })
+      const token = adjustTokenOf(raw)
+      if (!scoped) sink.skip('acquisition_adjust_skipped:install_scope_failed')
+      else if (raw === 'off') sink.skip('acquisition_adjust_off')
+      else if (!token) sink.skip('acquisition_adjust_unavailable: rebuild with Adjust environment configuration')
+      else {
+        const initializeAdjust = createAdjustInitializer({
+          sdk: adjustSdk,
+          flavor: Constants.expoConfig?.extra?.flavor,
+          onDeferredLink: payload => sink.onDeferredLink(payload),
+          onAttribution: () => sink.onAttribution(),
+          onUnavailable: event => console.warn(event),
+        })
+        if (!initializeAdjust(token)) sink.skip('acquisition_adjust_unavailable')
+      }
+      return sink.settled()
+    })
+    .catch(() => {})
 }

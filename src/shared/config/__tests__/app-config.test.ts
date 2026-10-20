@@ -11,8 +11,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
  * (GoGo-MobileApp#336). Set on every call, so no case inherits the previous
  * case's value.
  */
-async function loadConfig(flavor: string | undefined, sentryDsn?: string) {
+async function loadConfig(
+  flavor: string | undefined,
+  sentryDsn?: string,
+  adjust: { ios?: string; android?: string; env?: string } = {},
+) {
   vi.resetModules()
+  // GoGo-MobileApp#367: like the DSN — nothing on dev, `off` on stag/prod.
+  const adjustDefault = flavor === 'stag' || flavor === 'prod' ? 'off' : ''
+  process.env.ADJUST_IOS_APP_TOKEN = adjust.ios ?? adjustDefault
+  process.env.ADJUST_ANDROID_APP_TOKEN = adjust.android ?? adjustDefault
+  if (adjust.env === undefined) delete process.env.ADJUST_CONFIG_ENV
+  else process.env.ADJUST_CONFIG_ENV = adjust.env
   const dsn = sentryDsn ?? (flavor === 'stag' || flavor === 'prod' ? 'off' : undefined)
   if (dsn === undefined) delete process.env.EXPO_PUBLIC_SENTRY_DSN
   else process.env.EXPO_PUBLIC_SENTRY_DSN = dsn
@@ -33,6 +43,46 @@ async function loadConfig(flavor: string | undefined, sentryDsn?: string) {
 afterEach(() => {
   process.env.EXPO_PUBLIC_ENV = 'dev'
   delete process.env.EXPO_PUBLIC_SENTRY_DSN
+  delete process.env.ADJUST_IOS_APP_TOKEN
+  delete process.env.ADJUST_ANDROID_APP_TOKEN
+  delete process.env.ADJUST_CONFIG_ENV
+})
+
+describe('Adjust app tokens (GoGo-MobileApp#367, AC-A1)', () => {
+  const TOKEN = 'abcdEFGH1234'
+
+  it('dev resolves with both tokens empty', async () => {
+    const config = await loadConfig('dev')
+    expect(config.extra).toMatchObject({ adjustIosAppToken: '', adjustAndroidAppToken: '' })
+  })
+
+  it.each(['stag', 'prod'])('%s refuses an empty token', async flavor => {
+    await expect(loadConfig(flavor, undefined, { ios: '' })).rejects.toThrow(/ADJUST_IOS_APP_TOKEN is required/)
+    await expect(loadConfig(flavor, undefined, { android: '' })).rejects.toThrow(/ADJUST_ANDROID_APP_TOKEN is required/)
+  })
+
+  it.each(['stag', 'prod'])('%s accepts off, or a token bound to its environment', async flavor => {
+    await expect(loadConfig(flavor)).resolves.toBeDefined()
+    const env = flavor === 'stag' ? 'staging' : flavor
+    const config = await loadConfig(flavor, undefined, { ios: TOKEN, android: 'off', env })
+    expect(config.extra).toMatchObject({ adjustIosAppToken: TOKEN, adjustAndroidAppToken: 'off' })
+  })
+
+  it('a real token needs ADJUST_CONFIG_ENV to match — a DEV token cannot ride into prod', async () => {
+    await expect(loadConfig('prod', undefined, { ios: TOKEN, android: TOKEN })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
+    await expect(loadConfig('prod', undefined, { ios: TOKEN, android: TOKEN, env: 'dev' })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
+    await expect(loadConfig('dev', undefined, { ios: TOKEN, android: TOKEN, env: 'dev' })).resolves.toBeDefined()
+  })
+
+  it.each(['OFF', 'abc', 'a'.repeat(33), 'abc def12'])('refuses %s as a token', async value => {
+    await expect(loadConfig('dev', undefined, { ios: value, env: 'dev' })).rejects.toThrow(/ADJUST_IOS_APP_TOKEN/)
+  })
+
+  it('extra carries the two tokens and no other Adjust value', async () => {
+    const config = await loadConfig('dev', undefined, { ios: TOKEN, android: TOKEN, env: 'dev' })
+    const keys = Object.keys(config.extra ?? {}).filter(key => /adjust/i.test(key))
+    expect(keys.sort()).toEqual(['adjustAndroidAppToken', 'adjustIosAppToken'])
+  })
 })
 
 describe('app identity', () => {
