@@ -157,3 +157,37 @@ describe('deferred deep link survives the install and resumes once', () => {
     expect(await store.take()).toBeNull()
   })
 })
+
+describe('two writers (GoGo-MobileApp#367, PR #369 Sol F-01 / Astra F-02)', () => {
+  it('overlapping remember() calls keep the first writer — the second never overwrites', async () => {
+    // A storage whose reads all wait at a barrier, so both writers read before
+    // either writes — the interleaving that broke first-writer-wins.
+    const cells = new Map<string, string>()
+    let release!: () => void
+    const barrier = new Promise<void>(resolve => (release = resolve))
+    let reads = 0
+    const storage = {
+      get: async (k: string) => {
+        reads += 1
+        if (reads <= 2) await barrier
+        return cells.get(k) ?? null
+      },
+      set: async (k: string, v: string) => void cells.set(k, v),
+      remove: async (k: string) => void cells.delete(k),
+    }
+    const store = createPendingDeepLinkStore({ storage })
+    const first = store.remember(`gogo-dev://place/${PLACE_A}`, 'tenjin')
+    const second = store.remember(`gogo-dev://place/${PLACE_B}`, 'adjust')
+    release()
+    expect(await first).toBe(true)
+    expect(await second).toBe(false)
+    expect(await store.take()).toEqual({ kind: 'place', placeId: PLACE_A })
+  })
+
+  it('hasPending() says whether a link waits', async () => {
+    const store = createPendingDeepLinkStore({ storage: memoryStorage() })
+    expect(await store.hasPending()).toBe(false)
+    await store.remember(`gogo-dev://plan/${PLAN}`)
+    expect(await store.hasPending()).toBe(true)
+  })
+})

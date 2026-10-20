@@ -28,8 +28,9 @@ vi.mock('react-native-adjust', () => {
 })
 
 const scope = { outcome: () => Promise.resolve() }
+const pending = { value: false }
 vi.mock('../pending-deep-links', () => ({
-  pendingDeepLinks: {},
+  pendingDeepLinks: { hasPending: async () => pending.value },
   ensureInstallScope: () => scope.outcome(),
 }))
 
@@ -42,6 +43,7 @@ afterEach(() => {
   adjust.configs.length = 0
   delete extra.adjustAndroidAppToken
   delete extra.flavor
+  pending.value = false
   vi.restoreAllMocks()
   vi.resetModules()
 })
@@ -123,6 +125,24 @@ describe('acquisition bootstrap', () => {
     initializeAcquisitionSdk()
     await vi.advanceTimersByTimeAsync(0)
     expect(adjust.initSdk).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
+  })
+
+  it('#367 (Astra F-03): when Tenjin has already won, the Adjust window does not hold the resume', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    scope.outcome = () => Promise.resolve()
+    extra.adjustAndroidAppToken = 'abcdEFGH1234'
+    collect.mockImplementation(async () => {
+      pending.value = true
+    })
+    const { deferredLinkSettled, initializeAcquisitionSdk } = await import('../bootstrap')
+    initializeAcquisitionSdk()
+    let settled = false
+    void deferredLinkSettled().then(() => { settled = true })
+    await vi.advanceTimersByTimeAsync(10)
+    expect(settled).toBe(true)
+    collect.mockImplementation(async () => {})
     vi.useRealTimers()
   })
 })

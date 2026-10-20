@@ -10,6 +10,7 @@ function configure(environment: string) {
   vi.stubEnv('ONESIGNAL_APP_ID', '00000000-0000-4000-8000-000000000001')
   vi.stubEnv('ONESIGNAL_APNS_MODE', 'production')
   vi.stubEnv('TENJIN_CONFIG_ENV', environment === 'stag' ? 'staging' : environment)
+  vi.stubEnv('ADJUST_CONFIG_ENV', environment === 'stag' ? 'staging' : environment)
   vi.stubEnv('TENJIN_IOS_SDK_KEY', 'test-ios')
   vi.stubEnv('TENJIN_ANDROID_SDK_KEY', 'test-android')
   vi.stubEnv('ONESIGNAL_REST_API_KEY', 'server-secret-must-not-ship')

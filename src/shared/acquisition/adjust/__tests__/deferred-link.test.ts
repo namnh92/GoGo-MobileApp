@@ -4,6 +4,7 @@ import { createDeferredLinkCollector } from '../../deferred-link'
 import { createPendingDeepLinkStore } from '../../pending-deep-link'
 import { createDeferredLinkResume } from '../../resume'
 import { ADJUST_WINDOW_MS, createAdjustDeferredLinkSink } from '../deferred-link'
+import { createOwnLinkCheck } from '../own-link'
 
 /**
  * GoGo-MobileApp#367 — Adjust as the second writer (shape D2, U-2…U-5, U-10):
@@ -12,6 +13,7 @@ import { ADJUST_WINDOW_MS, createAdjustDeferredLinkSink } from '../deferred-link
  */
 
 const SHARE = 'https://go-dev.gogo.id.vn/l/abc123'
+const isOwnLink = createOwnLinkCheck({ scheme: 'gogo-dev', webBaseUrl: 'https://go-dev.gogo.id.vn' })
 
 function storage() {
   const cells = new Map<string, string>()
@@ -31,7 +33,7 @@ afterEach(() => vi.useRealTimers())
 describe('Adjust deferred-link sink', () => {
   it.each([[SHARE], [{ deeplink: SHARE }]])('stores a GoGo link from either callback shape (%#)', async payload => {
     const store = createPendingDeepLinkStore({ storage: storage() })
-    const sink = createAdjustDeferredLinkSink({ store, windowMs: 1_000 })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000 })
     sink.onDeferredLink(payload)
     await sink.settled()
     expect(await store.take()).toEqual({ kind: 'shareSlug', slug: 'abc123' })
@@ -40,12 +42,12 @@ describe('Adjust deferred-link sink', () => {
   it('drops what is not a GoGo link, and an unreadable payload', async () => {
     const events: string[] = []
     const store = createPendingDeepLinkStore({ storage: storage(), report: e => events.push(e) })
-    const sink = createAdjustDeferredLinkSink({ store, windowMs: 1_000, report: e => events.push(e) })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000, report: e => events.push(e) })
     sink.onDeferredLink({ deeplink: 'https://app.adjust.com/abc123?adj_t=x' })
     await sink.settled()
     expect(await store.take()).toBeNull()
 
-    const other = createAdjustDeferredLinkSink({ store, windowMs: 1_000, report: e => events.push(e) })
+    const other = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000, report: e => events.push(e) })
     other.onDeferredLink({ nothing: true })
     await other.settled()
     expect(events).toContain('deferred_link_discarded:unparseable:adjust')
@@ -59,7 +61,7 @@ describe('Adjust deferred-link sink', () => {
     vi.useFakeTimers()
     const events: string[] = []
     const store = createPendingDeepLinkStore({ storage: storage() })
-    const sink = createAdjustDeferredLinkSink({ store, windowMs: 10_000, report: e => events.push(e) })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 10_000, report: e => events.push(e) })
     let settled = false
     void sink.settled().then(() => { settled = true })
     await vi.advanceTimersByTimeAsync(9_999)
@@ -72,31 +74,61 @@ describe('Adjust deferred-link sink', () => {
     expect(await store.take()).toBeNull()
   })
 
-  it('an attribution with no link settles after the grace; a link inside the grace still lands', async () => {
+  it('an attribution callback is not a "no link" answer — the window still decides (Astra F-04)', async () => {
     vi.useFakeTimers()
     const store = createPendingDeepLinkStore({ storage: storage() })
-    const quiet = createAdjustDeferredLinkSink({ store, windowMs: 70_000, graceMs: 2_000 })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 70_000 })
     let settled = false
-    void quiet.settled().then(() => { settled = true })
-    quiet.onAttribution()
-    await vi.advanceTimersByTimeAsync(1_999)
+    void sink.settled().then(() => { settled = true })
+    sink.onAttribution()
+    await vi.advanceTimersByTimeAsync(30_000)
     expect(settled).toBe(false)
-    await vi.advanceTimersByTimeAsync(1)
-    expect(settled).toBe(true)
-
-    const late = createAdjustDeferredLinkSink({ store, windowMs: 70_000, graceMs: 2_000 })
-    late.onAttribution()
-    await vi.advanceTimersByTimeAsync(1_000)
-    late.onDeferredLink(SHARE)
+    // A deferred link long after the attribution still lands inside the window.
+    sink.onDeferredLink({ deeplink: SHARE })
     await vi.advanceTimersByTimeAsync(0)
-    await late.settled()
+    await sink.settled()
     expect(await store.take()).toEqual({ kind: 'shareSlug', slug: 'abc123' })
+  })
+
+  it.each([
+    'https://x.go.link/l/abc123',
+    'https://app.adjust.com/l/abc123?adj_t=x',
+    'https://evil.example/r/CODE12345',
+    'https://go-dev.gogo.id.vn.evil.example/l/abc123',
+    'gogo://l/abc123',
+  ])('refuses a link that is not this build\'s own: %s (Sol F-02)', async url => {
+    const events: string[] = []
+    const store = createPendingDeepLinkStore({ storage: storage() })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000, report: e => events.push(e) })
+    sink.onDeferredLink({ deeplink: url })
+    await sink.settled()
+    expect(events).toContain('deferred_link_discarded:foreign:adjust')
+    expect(await store.take()).toBeNull()
+  })
+
+  it('accepts this build\'s scheme and web host', async () => {
+    for (const url of ['gogo-dev://l/abc123', 'HTTPS://GO-DEV.gogo.id.vn/l/abc123']) {
+      const store = createPendingDeepLinkStore({ storage: storage() })
+      const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000 })
+      sink.onDeferredLink(url)
+      await sink.settled()
+      expect(await store.take(), url).toEqual({ kind: 'shareSlug', slug: 'abc123' })
+    }
+  })
+
+  it('reason codes name Adjust as the source (Sol F-03)', async () => {
+    const events: string[] = []
+    const store = createPendingDeepLinkStore({ storage: storage(), report: e => events.push(e) })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000, report: e => events.push(e) })
+    sink.onDeferredLink(SHARE)
+    await sink.settled()
+    expect(events).toContain('deferred_link_stored:shareSlug:adjust')
   })
 
   it('a second report in the same launch is late', async () => {
     const events: string[] = []
     const store = createPendingDeepLinkStore({ storage: storage() })
-    const sink = createAdjustDeferredLinkSink({ store, windowMs: 1_000, report: e => events.push(e) })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000, report: e => events.push(e) })
     sink.onDeferredLink(SHARE)
     sink.onDeferredLink('https://go-dev.gogo.id.vn/l/def456')
     await sink.settled()
@@ -111,7 +143,7 @@ describe('Adjust deferred-link sink', () => {
       sdk: { getAttributionInfo: ok => ok({ deferred_deeplink_url: SHARE }) },
       store,
     })()
-    const sink = createAdjustDeferredLinkSink({ store, windowMs: 1_000 })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000 })
     sink.onDeferredLink({ deeplink: 'https://go-dev.gogo.id.vn/l/def456' })
     const opened: unknown[] = []
     await createDeferredLinkResume({
@@ -124,7 +156,7 @@ describe('Adjust deferred-link sink', () => {
   })
 
   it('skip() settles at once', async () => {
-    const sink = createAdjustDeferredLinkSink({ store: { remember: async () => true }, windowMs: 70_000 })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store: { remember: async () => true }, windowMs: 70_000 })
     sink.skip('acquisition_adjust_off')
     await expect(sink.settled()).resolves.toBeUndefined()
   })
@@ -132,7 +164,7 @@ describe('Adjust deferred-link sink', () => {
   it('reports reason codes only, never the link', async () => {
     const events: string[] = []
     const store = createPendingDeepLinkStore({ storage: storage(), report: e => events.push(e) })
-    const sink = createAdjustDeferredLinkSink({ store, windowMs: 1_000, report: e => events.push(e) })
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 1_000, report: e => events.push(e) })
     sink.onDeferredLink(SHARE)
     await sink.settled()
     sink.onDeferredLink(SHARE)

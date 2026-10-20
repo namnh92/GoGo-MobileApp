@@ -14,15 +14,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 async function loadConfig(
   flavor: string | undefined,
   sentryDsn?: string,
-  adjust: { ios?: string; android?: string; env?: string } = {},
+  adjust: { ios?: string; android?: string; env?: string | null } = {},
 ) {
   vi.resetModules()
   // GoGo-MobileApp#367: like the DSN — nothing on dev, `off` on stag/prod.
   const adjustDefault = flavor === 'stag' || flavor === 'prod' ? 'off' : ''
   process.env.ADJUST_IOS_APP_TOKEN = adjust.ios ?? adjustDefault
   process.env.ADJUST_ANDROID_APP_TOKEN = adjust.android ?? adjustDefault
-  if (adjust.env === undefined) delete process.env.ADJUST_CONFIG_ENV
-  else process.env.ADJUST_CONFIG_ENV = adjust.env
+  // The marker is unconditional (PR #369 Sol F-04); `null` leaves it unset.
+  const marker = adjust.env === undefined ? (flavor === 'stag' ? 'staging' : (flavor ?? 'dev')) : adjust.env
+  if (marker === null) delete process.env.ADJUST_CONFIG_ENV
+  else process.env.ADJUST_CONFIG_ENV = marker
   const dsn = sentryDsn ?? (flavor === 'stag' || flavor === 'prod' ? 'off' : undefined)
   if (dsn === undefined) delete process.env.EXPO_PUBLIC_SENTRY_DSN
   else process.env.EXPO_PUBLIC_SENTRY_DSN = dsn
@@ -68,9 +70,11 @@ describe('Adjust app tokens (GoGo-MobileApp#367, AC-A1)', () => {
     expect(config.extra).toMatchObject({ adjustIosAppToken: TOKEN, adjustAndroidAppToken: 'off' })
   })
 
-  it('a real token needs ADJUST_CONFIG_ENV to match — a DEV token cannot ride into prod', async () => {
-    await expect(loadConfig('prod', undefined, { ios: TOKEN, android: TOKEN })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
+  it('ADJUST_CONFIG_ENV must match, whatever the tokens — a DEV file cannot ride into prod', async () => {
     await expect(loadConfig('prod', undefined, { ios: TOKEN, android: TOKEN, env: 'dev' })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
+    await expect(loadConfig('prod', undefined, { env: null })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
+    await expect(loadConfig('stag', undefined, { env: 'prod' })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
+    await expect(loadConfig('dev', undefined, { env: null })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
     await expect(loadConfig('dev', undefined, { ios: TOKEN, android: TOKEN, env: 'dev' })).resolves.toBeDefined()
   })
 

@@ -166,11 +166,10 @@ for (const [name, token] of [
     )
   }
 }
-if (
-  [adjustIosAppToken, adjustAndroidAppToken].some(token => ADJUST_TOKEN.test(token)) &&
-  process.env.ADJUST_CONFIG_ENV !== configEnvironment
-) {
-  throw new Error('ADJUST_CONFIG_ENV must match the build environment when an Adjust token is set')
+// Unconditional, like Tenjin's marker (PR #369 Sol F-04): a generated env file
+// from another environment is refused even when its tokens are empty or `off`.
+if (process.env.ADJUST_CONFIG_ENV !== configEnvironment) {
+  throw new Error('ADJUST_CONFIG_ENV must match the build environment')
 }
 
 /**

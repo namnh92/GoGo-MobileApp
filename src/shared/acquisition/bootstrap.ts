@@ -1,10 +1,11 @@
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
-import { Adjust, AdjustConfig } from 'react-native-adjust'
+import type * as AdjustModule from 'react-native-adjust'
 import Tenjin from 'react-native-tenjin'
 
-import { ADJUST_WINDOW_MS, createAdjustDeferredLinkSink } from './adjust/deferred-link'
+import { ADJUST_WINDOW_MS, createAdjustDeferredLinkSink, type AdjustDeferredLinkSink } from './adjust/deferred-link'
 import { adjustTokenOf, createAdjustInitializer, type AdjustSdkLike } from './adjust/initialize'
+import { createOwnLinkCheck } from './adjust/own-link'
 import { createDeferredLinkCollector } from './deferred-link'
 import { createTenjinInitializer } from './initialize'
 import { ensureInstallScope, pendingDeepLinks } from './pending-deep-links'
@@ -27,15 +28,27 @@ const collectDeferredLink = createDeferredLinkCollector({
   report: (event) => console.warn(event),
 })
 
-/** The one place the Adjust module is touched (ADR 0011). */
-const adjustSdk: AdjustSdkLike = {
-  createConfig: (token, environment) =>
-    new AdjustConfig(
-      token,
-      environment === 'production' ? AdjustConfig.EnvironmentProduction : AdjustConfig.EnvironmentSandbox,
-    ),
-  initSdk: config => Adjust.initSdk(config as AdjustConfig),
+/**
+ * The one place the Adjust module is touched (ADR 0011) — loaded only when this
+ * launch will start it. The wrapper builds a NativeEventEmitter while it is
+ * imported, so a build whose native side is missing (stale pods, a failed
+ * New Architecture interop) would throw from a top-level import before any
+ * guard ran, even with Adjust `off` (PR #369 Astra F-01).
+ */
+async function loadAdjustSdk(): Promise<AdjustSdkLike> {
+  const { Adjust, AdjustConfig }: typeof AdjustModule = await import('react-native-adjust')
+  return {
+    createConfig: (token, environment) =>
+      new AdjustConfig(
+        token,
+        environment === 'production' ? AdjustConfig.EnvironmentProduction : AdjustConfig.EnvironmentSandbox,
+      ),
+    initSdk: config => Adjust.initSdk(config as AdjustModule.AdjustConfig),
+  }
 }
+
+/** Set while Adjust's launch window is open; closed when Tenjin has already won. */
+let adjustSink: AdjustDeferredLinkSink | undefined
 
 let settled: Promise<void> = Promise.resolve()
 
@@ -95,8 +108,18 @@ function startTenjin(scope: Promise<void>): Promise<void> {
   // After connect, because attribution is only known once the SDK has talked
   // to Tenjin. Deliberately not awaited: a launch must not wait on a provider
   // round trip, and the store is what carries the answer to whoever needs it.
-  // Only into a store the reset has cleared.
-  return scope.then(() => (scoped ? collectDeferredLink() : undefined)).catch(() => {})
+  // Only into a store the reset has cleared. When Tenjin's report wins, the
+  // Adjust window has nothing left to decide (PR #369 Astra F-03).
+  return scope
+    .then(() => (scoped ? collectDeferredLink() : undefined))
+    .then(() => closeAdjustIfWon())
+    .catch(() => {})
+}
+
+async function closeAdjustIfWon(): Promise<void> {
+  if (adjustSink && (await pendingDeepLinks.hasPending())) {
+    adjustSink.skip('acquisition_adjust_closed:link_already_pending')
+  }
 }
 
 /**
@@ -118,19 +141,35 @@ function runAdjust(scope: Promise<void>): Promise<void> {
     Platform.OS === 'ios' ? 'adjustIosAppToken' : 'adjustAndroidAppToken'
   ]
   return scope
-    .then(() => {
+    .then(async () => {
       const sink = createAdjustDeferredLinkSink({
         store: pendingDeepLinks,
         windowMs: Platform.OS === 'ios' ? ADJUST_WINDOW_MS.ios : ADJUST_WINDOW_MS.android,
+        isOwnLink: createOwnLinkCheck({
+          scheme: Constants.expoConfig?.scheme,
+          webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL,
+        }),
         report: event => console.warn(event),
       })
+      adjustSink = sink
+      // A link already waiting (Tenjin was quicker) leaves Adjust nothing to decide.
+      void closeAdjustIfWon()
       const token = adjustTokenOf(raw)
+      let sdk: AdjustSdkLike | undefined
+      if (scoped && token) {
+        try {
+          sdk = await loadAdjustSdk()
+        } catch {
+          sdk = undefined
+        }
+      }
       if (!scoped) sink.skip('acquisition_adjust_skipped:install_scope_failed')
       else if (raw === 'off') sink.skip('acquisition_adjust_off')
       else if (!token) sink.skip('acquisition_adjust_unavailable: rebuild with Adjust environment configuration')
+      else if (!sdk) sink.skip('acquisition_adjust_unavailable')
       else {
         const initializeAdjust = createAdjustInitializer({
-          sdk: adjustSdk,
+          sdk,
           flavor: Constants.expoConfig?.extra?.flavor,
           onDeferredLink: payload => sink.onDeferredLink(payload),
           onAttribution: () => sink.onAttribution(),

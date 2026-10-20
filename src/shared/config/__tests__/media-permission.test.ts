@@ -43,6 +43,7 @@ async function photosPermission(): Promise<string> {
   process.env.ONESIGNAL_CONFIG_ENV = 'dev'
   process.env.ONESIGNAL_APNS_MODE = 'production'
   process.env.TENJIN_CONFIG_ENV = 'dev'
+  process.env.ADJUST_CONFIG_ENV = 'dev'
   process.env.TENJIN_IOS_SDK_KEY = 'test-ios'
   process.env.TENJIN_ANDROID_SDK_KEY = 'test-android'
   const { default: config } = (await import('../../../../app.config')) as { default: ExpoConfig }
