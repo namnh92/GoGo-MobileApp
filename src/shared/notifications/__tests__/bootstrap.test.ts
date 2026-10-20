@@ -5,6 +5,7 @@ vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { extra 
 vi.mock('react-native-onesignal', () => ({ OneSignal: {} }))
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }))
 vi.mock('react-native-tenjin', () => ({ default: {} }))
+vi.mock('react-native-adjust', () => ({ Adjust: { initSdk: () => {} }, AdjustConfig: class {} }))
 
 afterEach(() => {
   for (const k of Object.keys(extra)) delete extra[k]

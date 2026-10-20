@@ -142,6 +142,37 @@ if (![tenjinIosSdkKey, tenjinAndroidSdkKey].every(key => key && /^[A-Za-z0-9_-]+
 }
 
 /**
+ * GoGo-MobileApp#367 — Adjust, the second MMP beside Tenjin (owner 2026-10-19,
+ * shape D4). Same rule as the Sentry DSN below, not Tenjin's: dev may build
+ * without tokens (Adjust off, warned at runtime); stag and prod carry a token
+ * or the literal `off` per platform, because a store build silently without
+ * its MMP is found after upload. A real token is bound to its environment by
+ * ADJUST_CONFIG_ENV, so a DEV token cannot ride into a production build. The
+ * SDK's sandbox/production environment is not here: the app derives it from
+ * the flavour (`acquisition/adjust/initialize.ts`).
+ */
+const ADJUST_TOKEN = /^[A-Za-z0-9]{8,32}$/
+const adjustIosAppToken = process.env.ADJUST_IOS_APP_TOKEN?.trim() ?? ''
+const adjustAndroidAppToken = process.env.ADJUST_ANDROID_APP_TOKEN?.trim() ?? ''
+for (const [name, token] of [
+  ['ADJUST_IOS_APP_TOKEN', adjustIosAppToken],
+  ['ADJUST_ANDROID_APP_TOKEN', adjustAndroidAppToken],
+] as const) {
+  if (!(token === 'off' || ADJUST_TOKEN.test(token) || (flavor === 'dev' && token === ''))) {
+    throw new Error(
+      flavor === 'dev'
+        ? `${name} must be empty, "off" or an Adjust app token (8-32 letters and digits)`
+        : `${name} is required for ${flavor}: an Adjust app token or "off"`,
+    )
+  }
+}
+// Unconditional, like Tenjin's marker (PR #369 Sol F-04): a generated env file
+// from another environment is refused even when its tokens are empty or `off`.
+if (process.env.ADJUST_CONFIG_ENV !== configEnvironment) {
+  throw new Error('ADJUST_CONFIG_ENV must match the build environment')
+}
+
+/**
  * Crash reporting must be a decision on every build that can reach a store
  * (GoGo-MobileApp#336, GoGo-Infra ADR-0011 D-3). stag and prod carry a DSN or
  * the literal `off`; empty throws, because a store build silently without
@@ -307,6 +338,9 @@ const config: ExpoConfig = {
     oneSignalAppId,
     tenjinIosSdkKey,
     tenjinAndroidSdkKey,
+    // Empty, `off` or a token — the bootstrap treats the first two as "no Adjust".
+    adjustIosAppToken,
+    adjustAndroidAppToken,
   },
 }
 

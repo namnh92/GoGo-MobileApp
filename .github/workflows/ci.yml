@@ -89,7 +89,11 @@ jobs:
             # stays empty, which is the case a local build takes.
             sentry_dsn=""
             if [ "$flavor" != dev ]; then sentry_dsn=off; fi
-            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" TENJIN_CONFIG_ENV="$provider_env" EXPO_PUBLIC_SENTRY_DSN="$sentry_dsn" npx expo config --type prebuild --json \
+            # Same for the Adjust MMP (GoGo-MobileApp#367): `off` is the decision
+            # on stag/prod; dev stays empty.
+            adjust_token=""
+            if [ "$flavor" != dev ]; then adjust_token=off; fi
+            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" TENJIN_CONFIG_ENV="$provider_env" ADJUST_CONFIG_ENV="$provider_env" EXPO_PUBLIC_SENTRY_DSN="$sentry_dsn" ADJUST_IOS_APP_TOKEN="$adjust_token" ADJUST_ANDROID_APP_TOKEN="$adjust_token" npx expo config --type prebuild --json \
               | sed -n '/^{/,$p' > "/tmp/config.$flavor.json"
             echo "  $flavor: config resolves"
           done
@@ -152,6 +156,7 @@ jobs:
           GOOGLE_MAPS_IOS_API_KEY: ci-ios-map-fixture
           GOOGLE_MAPS_ANDROID_API_KEY: ci-android-map-fixture
           TENJIN_CONFIG_ENV: dev
+          ADJUST_CONFIG_ENV: dev
           TENJIN_IOS_SDK_KEY: ci-ios
           TENJIN_ANDROID_SDK_KEY: ci-android
           EXPO_PUBLIC_ENV: dev
