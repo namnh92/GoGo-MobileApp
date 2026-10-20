@@ -5,9 +5,9 @@ import { useSegments } from 'expo-router'
 // a screen the same way.
 import { getRouteInfoFromState } from 'expo-router/build/global-state/routeInfo'
 import { store } from 'expo-router/build/global-state/router-store'
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, type ReactNode } from 'react'
 
-import { setScreenReader, setSentryScreen } from './sentry'
+import { setScreenReader, setSentryScreen, UNKNOWN_SCREEN } from './sentry'
 
 /**
  * The route template of the screen on top, as expo-router names it:
@@ -79,14 +79,62 @@ function navigatorScreen(): string | null {
 setScreenReader(navigatorScreen)
 
 /**
- * GoGo-MobileApp#341 — the native path of the `screen` tag. Renders nothing;
+ * The screen a newly mounted screen should write, read the way a capture reads
+ * it: a state that exists but cannot be named is a failure and sends
+ * `unknown`, never the previous screen; no state yet is `null` (no write — the
+ * seeded `/` stands).
+ */
+function mountScreen(): string | null {
+  try {
+    return navigatorScreen()
+  } catch {
+    return UNKNOWN_SCREEN
+  }
+}
+
+/**
+ * Renders nothing. Placed by {@link screenTagLayout} before a screen's own
+ * subtree, so React runs this layout effect before any of that screen's layout
+ * effects, `componentDidMount`s and native view mounts — the scope names the
+ * new screen before anything in it can crash natively (SA-341-02).
+ */
+function ScreenMountTag() {
+  useLayoutEffect(() => {
+    const screen = mountScreen()
+    if (screen !== null) setSentryScreen(screen)
+  }, [])
+  return null
+}
+
+/**
+ * GoGo-MobileApp#341 SA-341-02 — the mount-time write of the `screen` tag, a
+ * React Navigation `screenLayout`: every navigator in `src/app/**\/_layout.tsx`
+ * passes it (pinned by `sentry-usage.spec.ts`). The container's state has
+ * already moved when the pushed screen mounts, so the write names it in the
+ * same commit — not one commit later, as {@link SentryScreenTag} does. Not
+ * covered: a native call made while the new screen *renders*, which precedes
+ * every layout effect (ADR 0010).
+ */
+export function screenTagLayout({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <ScreenMountTag />
+      {children}
+    </>
+  )
+}
+
+/**
+ * GoGo-MobileApp#341 — the settled write of the `screen` tag. Renders nothing;
  * mounted once in the root layout, before the navigator. Writes the settled
  * screen to the scope from an effect, after the router has published the new
- * segments: one commit after the new screen mounted. The SDK copies the scope
- * to native, and a native crash — which cannot run JS — carries whatever the
- * native scope last held; until the first effect that is the launch screen
- * `/`, seeded by `initSentry`. JS events do not wait for this write: they
- * read `navigatorScreen` at capture (ADR 0010).
+ * segments: one commit after the new screen mounted. It covers what no mount
+ * sees — a pop to a mounted screen, a tab re-focus, a nested state pushed up
+ * after mount — and corrects a transient `unknown` from the mount write. The
+ * SDK copies the scope to native, and a native crash — which cannot run JS —
+ * carries whatever the native scope last held; until the first write that is
+ * the launch screen `/`, seeded by `initSentry`. JS events do not wait for
+ * either write: they read `navigatorScreen` at capture (ADR 0010).
  */
 export function SentryScreenTag() {
   const template = screenTemplate(useSegments())

@@ -74,6 +74,31 @@ describe('Sentry is used only through the #336 boundary', () => {
     expect(layout.indexOf('<SentryScreenTag />')).toBeLessThan(layout.indexOf('<Stack'))
   })
 
+  // SA-341-02: the mount-time write reaches only screens of a navigator that
+  // passes `screenTagLayout`; a navigator added without it is the one way the
+  // native tag silently goes back to naming the previous screen.
+  it('every navigator in a layout passes the mount-time screen tag', () => {
+    const layouts: string[] = []
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = path.join(dir, name)
+        if (statSync(full).isDirectory()) walk(full)
+        else if (/^_layout\.tsx?$/.test(name)) layouts.push(full)
+      }
+    }
+    walk(path.join(ROOT, 'src/app'))
+    const navigators = layouts.flatMap(file => {
+      const text = readFileSync(file, 'utf8')
+      return [...text.matchAll(/<(Stack|Tabs|Drawer)\b(?!\.)([^>]*)/g)].map(match => ({
+        file: path.relative(ROOT, file),
+        tag: match[1],
+        mounted: /screenLayout=\{screenTagLayout\}/.test(match[2]),
+      }))
+    })
+    expect(navigators.map(n => `${n.file} ${n.tag}`).sort()).toEqual(['src/app/(tabs)/_layout.tsx Tabs', 'src/app/_layout.tsx Stack'])
+    expect(navigators.filter(n => !n.mounted)).toEqual([])
+  })
+
   // GoGo-MobileApp#340 replaced phase 1's "no plugin, no Metro wrapper"
   // (ADR 0010, ADR-0011 D-5 phase 2). What still has to hold: neither carries a
   // credential, and neither changes what the app sends.

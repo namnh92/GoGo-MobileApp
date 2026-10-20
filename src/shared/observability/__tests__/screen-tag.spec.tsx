@@ -22,7 +22,7 @@ import {
   resetSentryForTests,
   setSentryScreen,
 } from '../sentry'
-import { SentryScreenTag, screenTemplate } from '../screen-tag.view'
+import { SentryScreenTag, screenTagLayout, screenTemplate } from '../screen-tag.view'
 import { SCREEN_TEMPLATES } from '../screen-templates'
 
 /**
@@ -385,6 +385,100 @@ describe('a JS event carries the screen the navigator holds at capture', () => {
     )
     await act(async () => router.push(`/room/${CODE}/preference`))
     expect(sdk.captureException).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * SA-341-02 (relay r341-20261019T1350Z, R-6): a native crash in the layout
+ * phase of a pushed screen carried the previous screen — the settled write
+ * lands one commit after the mount. `screenTagLayout` writes the container's
+ * screen in the screen's own commit, before the screen's layout effects, so
+ * the native scope already names it when anything in it runs. A native crash
+ * cannot be raised under jest; what the native SDK would carry is the scope's
+ * last `screen` at that moment, recorded here from the screen's own
+ * `useLayoutEffect` — the phase the device probe crashed in.
+ */
+describe('the mount write names the new screen before its layout effects run', () => {
+  /** Scope `screen` values seen from each recording screen's first layout effect, in order. */
+  let seen: unknown[] = []
+  function recording(label: string) {
+    return function Screen() {
+      useLayoutEffect(() => {
+        seen.push(screens().at(-1))
+      }, [])
+      return <Text>{label}</Text>
+    }
+  }
+  function mountApp() {
+    return {
+      ...app(),
+      _layout: () => (
+        <>
+          <SentryScreenTag />
+          <Stack screenLayout={screenTagLayout} />
+        </>
+      ),
+      '(tabs)/_layout': () => <Stack screenLayout={screenTagLayout} />,
+      'r/[inviteCode]': recording('join'),
+      '(tabs)/plans': recording('plans'),
+    }
+  }
+  beforeEach(() => {
+    seen = []
+  })
+
+  it('a pushed screen: its layout effect already sees its own template', async () => {
+    enable()
+    await renderRouter(mountApp(), { initialUrl: '/places/search' })
+    await act(async () => router.push(`/r/${CODE}`))
+    expect(seen).toEqual(['/r/[inviteCode]'])
+    expect(forwarded()).not.toContain(CODE)
+  })
+
+  it('a tab mounting with its navigator, reached by a push: its layout effect sees the tab', async () => {
+    enable()
+    await renderRouter(mountApp(), { initialUrl: '/places/search' })
+    await act(async () => router.push('/(tabs)/plans'))
+    expect(seen).toEqual(['/(tabs)/plans'])
+  })
+
+  it('a cold link: the first screen\'s layout effect sees it, not the seeded `/`', async () => {
+    enable()
+    await renderRouter(mountApp(), { initialUrl: `/r/${CODE}` })
+    expect(seen).toEqual(['/r/[inviteCode]'])
+  })
+
+  it('the settled write still follows, idempotent', async () => {
+    enable()
+    await renderRouter(mountApp(), { initialUrl: '/places/search' })
+    await act(async () => router.push(`/r/${CODE}`))
+    expect(screens().at(-1)).toBe('/r/[inviteCode]')
+    expect(screens()).not.toContain(UNKNOWN)
+  })
+
+  // Same contract as the capture read (Astra F-05): a state that exists but
+  // cannot be named writes `unknown` — the scope must not keep naming the
+  // previous screen while the new one mounts.
+  it('naming fails at mount: the scope says `unknown`, never the previous screen', async () => {
+    enable()
+    await renderRouter(mountApp(), { initialUrl: '/places/search' })
+    const real = RouteInfo.getRouteInfoFromState
+    const naming = jest.spyOn(RouteInfo, 'getRouteInfoFromState').mockImplementation((...args) => {
+      if (new Error().stack?.includes('mountScreen')) throw new Error('incompatible navigation state')
+      return real(...args)
+    })
+    try {
+      await act(async () => router.push(`/r/${CODE}`))
+    } finally {
+      naming.mockRestore()
+    }
+    expect(seen).toEqual([UNKNOWN])
+  })
+
+  it('writes nothing while Sentry is off', async () => {
+    await renderRouter(mountApp(), { initialUrl: '/places/search' })
+    await act(async () => router.push(`/r/${CODE}`))
+    expect(sdk.isolationScope.forwarded).toEqual([])
   })
 })
 

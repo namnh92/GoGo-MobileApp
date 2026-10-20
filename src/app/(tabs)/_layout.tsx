@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 
+import { screenTagLayout } from '@/shared/observability/screen-tag.view'
 import { GlassBar, TAB_BAR_HEIGHT } from '@/shared/ui/glass-bar.view'
 import { IconBookmark, IconCalendar, IconHome, IconUser } from '@/shared/ui/icons'
 
@@ -25,6 +26,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      screenLayout={screenTagLayout}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.accent.primary,

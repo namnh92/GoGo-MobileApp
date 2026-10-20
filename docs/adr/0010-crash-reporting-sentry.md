@@ -131,11 +131,20 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
       là đường JS đã đo ở trên); **mong đợi `screen` = template của màn mới vừa mount.** Lỗi SDK tự bắt thường xảy ra sau
       khi điều hướng xong (handler, promise, timer) nên tag đã đúng; ô này là trường hợp còn lại.
     - *Crash native trong commit mount* (Astra F-04 nửa còn lại): điều hướng *nóng* từ màn đang ổn định sang màn mới; crash
-      native gây ngay trong commit mount của chính màn mới (render / `useLayoutEffect` / `componentDidMount`), trước effect
-      ghi scope của màn đó; **mong đợi `screen` = template của màn mới vừa mount.** Theo phép đo hiện có (scope đổi một
-      commit sau mount, cả hai loại effect) cơ chế hôm nay dự kiến cho màn trước ở ô này; FAIL thì hướng sửa là dời ghi
-      scope về lúc dispatch điều hướng (state container đã đổi trước khi màn mới render — cùng nguồn `navigatorScreen()`
-      đọc), không phải chấp nhận cửa sổ.
+      native gây ngay trong commit mount của chính màn mới (`useLayoutEffect` / `componentDidMount` / mount view native);
+      **mong đợi `screen` = template của màn mới vừa mount.** Lượt relay `r341-20261019T1350Z` (BLOCKED do lệch, chỉ là tín
+      hiệu) cho màn trước trên cả hai máy, đúng dự báo → **SA-341-02** (`dev/handoffs/sa-ruling-mobile-341-relay.fable.md`).
+      Ghi "lúc dispatch" theo nghĩa đen không dùng được: sự kiện `__unsafe_action__` bắn **trước** `setState`, và hoãn sang
+      microtask thì thua microtask React đang chờ (`setX(); router.push()`) — gán sai mà không dấu hiệu. **Cơ chế (owner
+      chốt 2026-10-20):** ghi scope **lúc mount** qua `screenLayout` của React Navigation — `screenTagLayout`
+      (`screen-tag.view.tsx`) đặt `ScreenMountTag` trước cây con của mỗi màn, trên **mọi navigator** (`app/_layout.tsx`
+      Stack, `app/(tabs)/_layout.tsx` Tabs; `sentry-usage.spec.ts` ghim). Layout effect chạy theo thứ tự cây, nên lần ghi
+      này (đọc `navigatorScreen()`, state container đã đổi lúc dispatch; đọc lỗi → `unknown`; chưa có state → không ghi)
+      xếp vào hàng đợi native trước mọi layout effect, `componentDidMount` và mount view native của màn mới. Lần ghi
+      settled của `SentryScreenTag` giữ nguyên cho những gì không phải mount (pop về màn đã mount, đổi tab, state lồng đẩy
+      lên sau mount) và sửa `unknown` tạm thời. **Phần dư, owner chấp nhận 2026-10-20 (Q-R6), không hứa:** lời gọi native
+      *trong lúc render* màn mới đứng trước mọi layout effect nên vẫn mang màn trước — render thuần theo hợp đồng React,
+      app gọi native từ effect và handler; `throw` JS trong render là đường event-local (R-7). Ô này đo lại trong run mới.
 
     **Ba ô còn mở, cùng một danh sách với ADR-0011 D-12 (GoGo-Infra), đều đo trong lượt relay và đều giữ merge PR #349 +
     GoGo-Infra PR #230:** (1) cửa sổ khởi động iOS (F-03, mục *Khởi động* ở trên — không chấp nhận, không vá native);
