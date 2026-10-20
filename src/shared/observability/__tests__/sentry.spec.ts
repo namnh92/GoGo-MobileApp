@@ -14,6 +14,7 @@ import {
   redactText,
   resetSentryForTests,
   sentryEnvironment,
+  setScreenReader,
   setSentryUser,
   wrapRoot,
 } from '../sentry'
@@ -42,11 +43,11 @@ beforeEach(() => {
   jest.clearAllMocks()
 })
 
-describe('oracle v1', () => {
-  it('is the vendored v1 and every row is accounted for', () => {
-    expect(ORACLE.version).toBe(1)
+describe('oracle v2', () => {
+  it('is the vendored v2 and every row is accounted for', () => {
+    expect(ORACLE.version).toBe(2)
     expect(ORACLE.literal).toBe('[redacted]')
-    expect(ORACLE.cases).toHaveLength(116)
+    expect(ORACLE.cases).toHaveLength(136)
     // The only rows this client does not run are the ones tagged for the CMS
     // alone; a new platform tag must be read before it can be skipped.
     const skipped = ORACLE.cases.filter(c => !MOBILE_CASES.includes(c)).map(c => c.id)
@@ -253,6 +254,42 @@ describe('init', () => {
     setSentryUser('5f1c2a3e-1234-4abc-8def-0123456789ab')
     setSentryUser(null)
     expect(sdk.setUser.mock.calls).toEqual([[{ id: '5f1c2a3e-1234-4abc-8def-0123456789ab' }], [null]])
+  })
+
+  // ADR 0010 "Hai đường gán tag" / Astra F-05 (PR #230 round 3): the reader
+  // that knows expo-router (`screen-tag.view.tsx`) is not loaded here, so this
+  // pins the boundary's side of the contract alone. `null` is an absence — no
+  // navigator state yet — and the scope's seeded `/` stands (the tag is left
+  // off the event); a throw is a failure — state exists but cannot be read or
+  // named — and the event says `unknown` instead of inheriting whatever the
+  // scope holds. Whatever a reader returns goes through `admitScreen`.
+  describe('the screen read at capture', () => {
+    const error = new Error('x')
+    beforeEach(() => initSentry({ dsn: 'https://k@o0.ingest.us.sentry.io/1', environment: 'dev' }))
+    afterEach(() => setScreenReader(() => null))
+
+    it('a reader with no navigator state leaves the tag to the scope', () => {
+      setScreenReader(() => null)
+      captureError(error, { kind: 'boundary' })
+      expect(sdk.captureException).toHaveBeenLastCalledWith(error, { tags: { kind: 'boundary' } })
+    })
+
+    it('a reader that throws tags the event `unknown`, and the report still goes out', () => {
+      setScreenReader(() => {
+        throw new Error('incompatible navigation state')
+      })
+      expect(() => captureError(error, { kind: 'boundary' })).not.toThrow()
+      expect(sdk.captureException).toHaveBeenLastCalledWith(error, { tags: { kind: 'boundary', screen: 'unknown' } })
+    })
+
+    it('a reader that returns a value is admitted like the scope write', () => {
+      setScreenReader(() => '/places/search')
+      captureError(error, { kind: 'boundary' })
+      expect(sdk.captureException).toHaveBeenLastCalledWith(error, { tags: { kind: 'boundary', screen: '/places/search' } })
+      setScreenReader(() => '/places/alice')
+      captureError(error, { kind: 'boundary' })
+      expect(sdk.captureException).toHaveBeenLastCalledWith(error, { tags: { kind: 'boundary', screen: 'unknown' } })
+    })
   })
 
   it('wraps the root only when enabled', () => {

@@ -4,6 +4,8 @@ import type { ComponentType } from 'react'
 
 import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
 
+import { SCREEN_TEMPLATES } from './screen-templates'
+
 /**
  * GoGo-MobileApp#336 — the only file that touches the Sentry SDK (GoGo-Infra
  * ADR-0011, `docs/adr/0010-crash-reporting-sentry.md`). `sentry-usage.spec.ts`
@@ -30,7 +32,7 @@ import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
  *
  * Pattern limits — text an operator needs: every remaining string goes
  * through {@link redactText}, whose rule order is fixed by the oracle
- * (`__fixtures__/redaction-cases.v1.json`, vendored verbatim from GoGo-Infra).
+ * (`__fixtures__/redaction-cases.v2.json`, vendored verbatim from GoGo-Infra).
  *
  * Every scanner here is linear in its input (oracle C-16 feeds 100 kB
  * adversarial strings), and no pattern uses lookbehind: the redactor runs on
@@ -305,6 +307,14 @@ function numberEnd(text: string, start: number): number {
 /** Segments whose *next* segment is a credential (`room`/`rooms`: see {@link isRoomCode}). */
 const CREDENTIAL_KEYWORDS: ReadonlySet<string> = new Set(['r', 'l', 'invite', 'share-links', 'room', 'rooms'])
 const ROOM_SEGMENT = /^[A-Za-z0-9_-]{6,64}$/
+/**
+ * A route-template placeholder — expo-router `[inviteCode]`, React Router
+ * `:id` — names a parameter, it is not one (ADR-0011 D-9, oracle v2 C-24).
+ * No invite code, slug or room code can match: they are `[A-Za-z0-9_-]` only.
+ * Letters only, so no later stage rewrites the name (C-24.9e). Judged on the
+ * raw segment: an encoded `%5B…%5D` is not a template (C-24.9d).
+ */
+const PLACEHOLDER_SEGMENT = /^(?:\[[A-Za-z]+\]|:[A-Za-z]+)$/
 
 /** Length of the path separator at `i`: `/` → 1, `%2F` (any case) → 3, else 0. */
 function separatorAt(text: string, i: number): number {
@@ -340,10 +350,11 @@ function isRoomCode(segment: string): boolean {
 /**
  * One pass over the path segments. A segment equal to a keyword — compared on
  * its percent-decoded form, so `inv%69te` is `invite` — makes the next segment
- * a candidate. `r | l | invite | share-links` candidates are always
- * credentials; a `room | rooms` candidate only when it looks like a code and
- * is not a uuid (`/v1/rooms/<uuid>` is an id, C-21), judged on the raw segment
- * and its decoded form. Either way the raw span is what gets redacted (C-2c).
+ * a candidate. `r | l | invite | share-links` candidates are credentials
+ * unless they are a route-template placeholder (C-24); a `room | rooms`
+ * candidate only when it looks like a code and is not a uuid
+ * (`/v1/rooms/<uuid>` is an id, C-21), judged on the raw segment and its
+ * decoded form. Either way the raw span is what gets redacted (C-2c).
  */
 function redactSegments(text: string): string {
   let out = ''
@@ -364,7 +375,7 @@ function redactSegments(text: string): string {
         const start = keywordEnd + nextSep
         const end = segmentEnd(text, start)
         const raw = text.slice(start, end)
-        const credential = end > start &&
+        const credential = end > start && !PLACEHOLDER_SEGMENT.test(raw) &&
           (keyword === 'room' || keyword === 'rooms' ? isRoomCode(raw) || isRoomCode(percentDecode(raw)) : true)
         if (credential) {
           out += `${text.slice(last, start)}${REDACTED}`
@@ -853,13 +864,31 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
   guardScope(Sentry.getGlobalScope())
   guardScope(Sentry.getIsolationScope())
   enabled = true
+  // Sol F-05 / Astra A-F-03 (PR #349): nothing has rendered yet, so until the
+  // first navigation effect an event would carry no screen. Seed the launch
+  // screen now; the SDK copies it to native with the rest of the scope. An
+  // iOS native crash captured after the native SDK started and before this
+  // write reached the native scope carries no screen at all (measured: the
+  // live native scope starts empty — #341 relay R-4; SA-341-01, ADR 0010).
+  setSentryScreen(LAUNCH_SCREEN)
 }
 
 export type ErrorKind = 'boundary'
 
+/**
+ * Reports an error the app caught itself (the root error boundary). The event
+ * carries the screen the navigator holds **at this moment** (event-local,
+ * ADR 0010 "Tag màn hình"): a throw while a new screen renders or mounts is
+ * reported in that screen's commit, one commit before the root layout learns
+ * the new segments and `setSentryScreen` moves the scope — and the boundary
+ * has unmounted the navigator by then, so the scope would name the previous
+ * screen for good. Read synchronously here, in `componentDidCatch`, before any
+ * passive cleanup can forget the navigator's state; never in `beforeSend`,
+ * which runs a microtask later.
+ */
 export function captureError(error: unknown, context: { kind: ErrorKind }): void {
   if (!enabled) return
-  Sentry.captureException(error, { tags: { kind: context.kind } })
+  Sentry.captureException(error, { tags: { kind: context.kind, ...screenTag() } })
 }
 
 /** A pseudonymous user id, or `null` for guests and signed-out (D-8). */
@@ -867,6 +896,92 @@ export function setSentryUser(id: string | null): void {
   appUserId = id || null
   if (!enabled) return
   Sentry.setUser(appUserId ? { id: appUserId } : null)
+}
+
+/** The launch screen (`src/app/index.tsx`, the one route with no segments), seeded by `initSentry`. */
+export const LAUNCH_SCREEN = '/'
+
+/**
+ * Sent in place of anything that is not a declared template — the admitted
+ * sentinel (ADR-0011 D-12; D-7 record addition 4 on GoGo-Infra#208), never
+ * the real path.
+ */
+export const UNKNOWN_SCREEN = 'unknown'
+
+/**
+ * Admission (ADR-0011 D-12): a value is a screen only when it is one of the
+ * templates the app declares — `screen-templates.ts`, generated from `src/app/`
+ * and pinned to it by test — and the redactor leaves it alone. Membership, not
+ * shape: a regex accepts `/places/alice`, and the redactor keeps a raw uuid
+ * (C-21, C-24.12); neither says where the value came from.
+ */
+export function isScreenTemplate(value: string): boolean {
+  return SCREEN_TEMPLATES.has(value) && redactText(value) === value
+}
+
+/**
+ * The admission gate (ADR-0011 D-12), the one place a screen value is decided
+ * before it leaves the device — for the scope write and for the read at
+ * capture alike, whatever the caller passed. A value that is not a template is
+ * sent as {@link UNKNOWN_SCREEN}: the native SDKs cannot remove a tag (an
+ * `undefined` arrives as the string `"undefined"`), and keeping the previous
+ * screen would name the wrong one.
+ */
+function admitScreen(value: string): string {
+  return isScreenTemplate(value) ? value : UNKNOWN_SCREEN
+}
+
+/**
+ * The screen the navigator holds right now, as a route template; `null` only
+ * when there is no navigator state to read yet (before the first commit — the
+ * seeded launch screen is then the right value); **throws** when a state
+ * exists but cannot be read or named. Registered by `screen-tag.view.tsx`, the
+ * module that knows expo-router; this file stays free of it so `bootstrap.ts`
+ * can run before the router loads. What the reader returns is admitted here,
+ * never trusted.
+ */
+export type ScreenReader = () => string | null
+
+let readScreen: ScreenReader = () => null
+
+export function setScreenReader(read: ScreenReader): void {
+  readScreen = read
+}
+
+/**
+ * The `screen` tag of a JS event, read at capture. Absence and failure are
+ * different answers (Astra F-05, PR #230): with no navigator state yet the tag
+ * is left to the scope, whose seeded `/` is correct; a reader that throws —
+ * the state exists but could not be read or named, as after an incompatible
+ * expo-router change — sends the admitted {@link UNKNOWN_SCREEN}, because the
+ * scope may still hold the previous screen and inheriting it would misattribute
+ * the event with nothing marking the value as stale. The report always goes
+ * out: this runs inside `componentDidCatch`, where a throw would be fatal.
+ */
+function screenTag(): { screen: string } | Record<string, never> {
+  let value: string | null
+  try {
+    value = readScreen()
+  } catch {
+    value = UNKNOWN_SCREEN
+  }
+  return value === null ? {} : { screen: admitScreen(value) }
+}
+
+/**
+ * The screen the app has settled on, as the expo-router route template
+ * (`/room/[roomId]/preference`) — never a pathname, which carries the room or
+ * invite code (GoGo-MobileApp#341). Written to the isolation scope, the one
+ * `Sentry.setTag` writes: `guardScope` redacts it as well, then the SDK
+ * copies it to the native scope, so a native crash carries it — the native
+ * path's only source (ADR 0010: a native crash cannot run JS). Errors the SDK
+ * catches on its own (unhandled errors, rejections) take it too; errors the
+ * app reports itself do not depend on it — `captureError` reads the screen at
+ * capture.
+ */
+export function setSentryScreen(template: string): void {
+  if (!enabled) return
+  Sentry.getIsolationScope().setTag('screen', admitScreen(template))
 }
 
 /** `Sentry.wrap` when enabled — its touch boundary records breadcrumbs — else the component itself. */
