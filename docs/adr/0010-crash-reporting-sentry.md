@@ -69,15 +69,25 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   Redactor stage 2 giữ segment thô đúng dạng placeholder (`[name]`, `:name`, `name` chỉ gồm chữ) sau `r | l | invite |
   share-links` — mã thật chỉ gồm `[A-Za-z0-9_-]` (ADR-0011 D-9, C-24). Mọi template của app được test đi qua redactor
   không đổi và được gửi nguyên văn.
-  **Khởi động:** `initSentry` gieo `/` ngay khi bật SDK, trước khi render gì (Sol F-05, Astra A-F-03) — lỗi trong
-  `AppProviders` hay cây khởi động mang `/`, không trống; iOS giữ native scope qua các lần chạy (đo ở relay #336: crash
-  lần chạy 2 mang tag đặt ở lần 1) nên không gieo thì crash sớm mang màn của lần chạy trước. Cửa sổ còn lại: crash native
-  giữa lúc SDK native khởi động và lúc tag `/` tới native scope, trên iOS có thể mang màn lần chạy trước — **owner quyết
-  2026-10-16 (Astra F-03 trên PR #230/#349, ghi ở `execution-policy.md` §8): không chấp nhận, không vá native.** Cửa sổ
-  này **đo bằng lượt relay trên máy thật**: crash native iOS gây trong khoảng từ lúc SDK native khởi động tới lúc tag `/`
-  tới native scope; **merge GoGo-Infra PR #230 và GoGo-MobileApp PR #349 chờ phép đo đó.** Android chưa có lần đo nào
-  thấy cửa sổ này. Báo cáo crash của lần chạy trước được ghi cùng scope lúc crash, gieo `/` không viết đè: relay §3.1
-  kiểm — lần chạy 3 giao crash của lần 2 với tag `/room/[roomId]/preference` (màn lúc crash của lần 2), không phải `/`.
+  **Khởi động:** `initSentry` gieo `/` ngay khi bật SDK, trước khi render gì (Sol F-05, Astra A-F-03) — lỗi JS trong
+  `AppProviders` hay cây khởi động, và crash native sau khi tag `/` tới native scope mà trước effect điều hướng đầu tiên,
+  mang `/`, không trống. **Native scope sống của một process mới bắt đầu trống** — không mang màn của lần chạy trước. Đo
+  ở relay #341 (run ghép 2026-10-20, iPhone `r341-20261020T0316Z`, ô R-4, event `6d118ba5…`): crash native gây ngay sau
+  `Sentry.init`, trước khi tag `/` tới native, mang marker của probe mà **không có tag `screen`**, dù lần chạy trước kết
+  thúc ở `/room/[roomId]/preference`. Câu cũ "iOS giữ native scope qua các lần chạy (relay #336: crash lần 2 mang tag đặt
+  ở lần 1)" vì vậy không đúng với crash. Nguồn **có thể** của quan sát #336 (giả thuyết từ quan sát phụ của relay #341,
+  chưa đo): báo cáo WatchdogTermination — sentry-cocoa lưu scope xuống đĩa và dựng event watchdog ở lần mở sau; event đó
+  thuộc lần chạy bị tắt, nên tag của nó đúng theo cấu tạo, không phải tag cũ trên crash của lần chạy mới.
+  **Giới hạn đã ghi (SA-341-01, owner chấp nhận 2026-10-20, Q-R4):** crash native iOS trong khoảng từ lúc SDK native
+  khởi động tới lúc tag `/` tới native scope (một bước hàng đợi native, không có code app) **không có tag `screen`** —
+  không gán, chứ không gán sai. Phía JS không rút ngắn được khoảng này (`NATIVE.setTag` không làm gì trước
+  `enableNative`; `initialScope` không đồng bộ sang native), và owner không cho vá native. Tìm trong Sentry bằng
+  `!has:screen`; dòng Discord đơn giản là không có `screen`. Giới hạn này nằm cạnh, không thay, quyết định owner
+  2026-10-16 (Astra F-03 trên PR #230/#349, `execution-policy.md` §8): quyết định đó từ chối tag **cũ** (màn lần chạy
+  trước) và vẫn đứng — relay không thấy tag cũ; nếu thấy thì là FAIL. Android không có ô đo cho cửa sổ này (không lần đo
+  nào thấy nó). Báo cáo crash của lần chạy trước được ghi cùng scope lúc crash, gieo `/` không viết đè: relay R-2/R-3
+  kiểm trên cả hai máy — crash của lần 2 (iPhone giao ở lần 3) mang `/room/[roomId]/preference` (màn lúc crash), không
+  phải `/`.
   **`?screen=` trong link (Sol F-01/F-04, đo trong test):** expo-router nối nguyên giá trị query `?screen=` vào segment
   của màn lá (`/places/search?screen=import` → `places,search,import`) và giữ `index` với thư mục có index
   (`/plans/<id>?screen=active` → `plans,[planId],index,active`), nên link lạnh hay link nóng từ hệ điều hành (qua
@@ -130,6 +140,8 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
       `useLayoutEffect` / `componentDidMount`); SDK bắt qua unhandled rejection, không `throw` cho error boundary bắt (đó
       là đường JS đã đo ở trên); **mong đợi `screen` = template của màn mới vừa mount.** Lỗi SDK tự bắt thường xảy ra sau
       khi điều hướng xong (handler, promise, timer) nên tag đã đúng; ô này là trường hợp còn lại.
+      Đo (run ghép 2026-10-20, ô R-5): PASS trên cả hai máy — `/r/[inviteCode]`, `probewriter=mount` (iPhone `ebbb742e…`,
+      Samsung `9c10cd0b…`).
     - *Crash native trong commit mount* (Astra F-04 nửa còn lại): điều hướng *nóng* từ màn đang ổn định sang màn mới; crash
       native gây ngay trong commit mount của chính màn mới (`useLayoutEffect` / `componentDidMount`);
       **mong đợi `screen` = template của màn mới vừa mount.** Lượt relay `r341-20261019T1350Z` (BLOCKED do lệch, chỉ là tín
@@ -146,12 +158,16 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
       layout effect nên vẫn mang màn trước:** (a) lời gọi native *trong lúc render* màn mới (Q-R6) — render thuần theo
       hợp đồng React, app gọi native từ effect và handler; `throw` JS trong render là đường event-local (R-7); (b) crash
       *bên trong view native* lúc React mount nó (pha mutation, Sol F-06 vòng 3 PR #349) — phủ được chỉ bằng ghi phía
-      native, owner đã không cho vá native. Ô R-6 (crash trong `useLayoutEffect`) đo lại trong run mới.
+      native, owner đã không cho vá native. Đo (run ghép 2026-10-20, ô R-6, crash trong `useLayoutEffect`): PASS trên cả
+      hai máy — `/r/[inviteCode]`, `probewriter=mount`, tức lần ghi đến từ `ScreenMountTag` (iPhone `dac50c24…`, Samsung
+      `ee52e083…`).
 
-    **Ba ô còn mở, cùng một danh sách với ADR-0011 D-12 (GoGo-Infra), đều chờ đo trong một lượt relay sạch kế tiếp
-    (lượt `r341-20261019T1350Z` BLOCKED do lệch, chỉ là tín hiệu) và đều giữ merge PR #349 + GoGo-Infra PR #230:** (1)
-    cửa sổ khởi động iOS (F-03, mục *Khởi động* ở trên — không chấp nhận, không vá native); (2) rejection SDK bắt trong
-    commit mount; (3) crash native trong commit mount. Giới hạn đã ghi trên đường native/SDK chỉ là hai phần dư (a), (b) ở ô (3).
+    **Ba ô AC, cùng một danh sách với ADR-0011 D-12 (GoGo-Infra), đã đo trên run ghép 2026-10-20 — iPhone
+    `r341-20261020T0316Z` (script rev 3.1) + Samsung `r341-20261020T0453Z` (rev 3.3), owner chấp nhận; REPORT
+    `dev/test-evidence/mobile-341-relay-2026-10-19/tooling/runs/r341-20261020T0453Z/REPORT.md` (workspace GoGo):** (1)
+    cửa sổ khởi động iOS — không có tag `screen`, giới hạn SA-341-01 ở mục *Khởi động*; (2) rejection SDK bắt trong commit
+    mount — PASS cả hai máy; (3) crash native trong commit mount — PASS cả hai máy, `probewriter=mount`. Giới hạn đã ghi
+    trên đường native/SDK: cửa sổ khởi động (1) và hai phần dư (a), (b) ở ô (3).
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 
