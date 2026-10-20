@@ -1,3 +1,5 @@
 {
-  "NSUserTrackingUsageDescription": "GoGo dùng mã quảng cáo của thiết bị để biết bạn cài app từ lời mời hay liên kết nào, và để đo hiệu quả các chiến dịch quảng cáo của GoGo. GoGo không hiển thị quảng cáo trong app."
+  "ios": {
+    "NSUserTrackingUsageDescription": "GoGo dùng mã quảng cáo của thiết bị để biết bạn cài app từ lời mời hay liên kết nào, và để đo hiệu quả các chiến dịch quảng cáo của GoGo. GoGo không hiển thị quảng cáo trong app."
+  }
 }
