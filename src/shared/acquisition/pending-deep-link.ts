@@ -158,7 +158,27 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
     return run
   }
 
-  async function rememberNow(url: string | null | undefined, tag: string): Promise<boolean> {
+  /**
+   * GoGo-MobileApp#367 (PR #369 Astra F-03) — told after every kept write,
+   * whenever it lands. A second writer waiting for its own report has nothing
+   * left to decide once a first has won, and the first writer's report can
+   * arrive after its collector gave up on it (Tenjin's callback after the
+   * collector's timeout still writes). A listener that throws costs nothing
+   * to the write.
+   */
+  const storedListeners = new Set<(source: string | undefined) => void>()
+  function notifyStored(source: string | undefined): void {
+    for (const listener of storedListeners) {
+      try {
+        listener(source)
+      } catch {
+        // The write is done; a listener's failure is its own.
+      }
+    }
+  }
+
+  async function rememberNow(url: string | null | undefined, source: string | undefined): Promise<boolean> {
+    const tag = source ? `:${source}` : ''
     const action = parseDeepLink(url)
     if (action.kind === 'unknown') {
       report(`deferred_link_discarded:${action.reason}${tag}`)
@@ -180,6 +200,7 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
       JSON.stringify({ action, storedAt: now() } satisfies StoredEntry),
     )
     report(`deferred_link_stored:${action.kind}${tag}`)
+    notifyStored(source)
     return true
   }
 
@@ -216,12 +237,23 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
      * suffixes the reason codes, e.g. `deferred_link_stored:shareSlug:adjust`.
      */
     remember(url: string | null | undefined, source?: string): Promise<boolean> {
-      return serial(() => rememberNow(url, source ? `:${source}` : ''))
+      return serial(() => rememberNow(url, source))
     },
 
     /** Whether a link is waiting — lets a second writer stop once a first has won. */
     hasPending(): Promise<boolean> {
       return serial(async () => (await read()) !== null)
+    },
+
+    /**
+     * Called, with the writer's `source`, after every write `remember()` kept
+     * — not after one it ignored or discarded. Returns the unsubscribe.
+     */
+    onStored(listener: (source: string | undefined) => void): () => void {
+      storedListeners.add(listener)
+      return () => {
+        storedListeners.delete(listener)
+      }
     },
 
     /**

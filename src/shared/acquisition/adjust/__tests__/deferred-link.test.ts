@@ -155,6 +155,35 @@ describe('Adjust deferred-link sink', () => {
     expect(opened).toEqual([{ kind: 'shareSlug', slug: 'abc123' }])
   })
 
+  it('Astra F-03: Tenjin\'s callback after its collector timed out still closes the Adjust window', async () => {
+    vi.useFakeTimers()
+    const events: string[] = []
+    const store = createPendingDeepLinkStore({ storage: storage() })
+    let answer!: (info: Record<string, unknown>) => void
+    const collected = createDeferredLinkCollector({
+      sdk: { getAttributionInfo: ok => { answer = ok } },
+      store,
+      timeoutMs: 10_000,
+      report: e => events.push(e),
+    })()
+    const sink = createAdjustDeferredLinkSink({ isOwnLink, store, windowMs: 70_000, report: e => events.push(e) })
+    // Wired as the bootstrap does: a kept write by anyone closes the window.
+    const unsubscribe = store.onStored(() => sink.skip('acquisition_adjust_closed:link_already_pending'))
+    void sink.settled().then(unsubscribe)
+    let settled = false
+    void sink.settled().then(() => { settled = true })
+    await vi.advanceTimersByTimeAsync(10_000)
+    await collected
+    expect(events).toContain('acquisition_attribution_timed_out')
+    expect(settled).toBe(false)
+    await vi.advanceTimersByTimeAsync(5_000)
+    answer({ deferred_deeplink_url: SHARE })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(settled).toBe(true)
+    expect(events).toContain('acquisition_adjust_closed:link_already_pending')
+    expect(await store.take()).toEqual({ kind: 'shareSlug', slug: 'abc123' })
+  })
+
   it('skip() settles at once', async () => {
     const sink = createAdjustDeferredLinkSink({ isOwnLink, store: { remember: async () => true }, windowMs: 70_000 })
     sink.skip('acquisition_adjust_off')

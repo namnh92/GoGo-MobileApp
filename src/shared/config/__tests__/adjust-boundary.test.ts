@@ -65,7 +65,10 @@ describe('Adjust boundary', () => {
       'disableAppTrackingTransparencyUsage',
       'disableIdfaReading',
     ]) {
-      expect(files.filter(f => f.text.includes(call)).map(f => f.path), call).toEqual([])
+      // Whole identifiers: `AdjustEvent` must not match the native module
+      // name `AdjustEventEmitter` the preflight reads.
+      const used = new RegExp(`\\b${call}\\b`)
+      expect(files.filter(f => used.test(f.text)).map(f => f.path), call).toEqual([])
     }
   })
 })

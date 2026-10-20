@@ -1,10 +1,11 @@
 import Constants from 'expo-constants'
-import { Platform } from 'react-native'
+import { NativeModules, Platform } from 'react-native'
 import type * as AdjustModule from 'react-native-adjust'
 import Tenjin from 'react-native-tenjin'
 
 import { ADJUST_WINDOW_MS, createAdjustDeferredLinkSink, type AdjustDeferredLinkSink } from './adjust/deferred-link'
 import { adjustTokenOf, createAdjustInitializer, type AdjustSdkLike } from './adjust/initialize'
+import { adjustNativeAvailable } from './adjust/native-preflight'
 import { createOwnLinkCheck } from './adjust/own-link'
 import { createDeferredLinkCollector } from './deferred-link'
 import { createTenjinInitializer } from './initialize'
@@ -30,12 +31,18 @@ const collectDeferredLink = createDeferredLinkCollector({
 
 /**
  * The one place the Adjust module is touched (ADR 0011) — loaded only when this
- * launch will start it. The wrapper builds a NativeEventEmitter while it is
- * imported, so a build whose native side is missing (stale pods, a failed
- * New Architecture interop) would throw from a top-level import before any
- * guard ran, even with Adjust `off` (PR #369 Astra F-01).
+ * launch will start it, and only after `native-preflight.ts` has seen the
+ * native modules the wrapper reads while it is evaluated. A wrapper whose
+ * native side is missing throws from its module factory, and Metro reports
+ * that as fatal before the `catch` below could run (PR #369 Astra F-01), so a
+ * build without them never evaluates the wrapper: Adjust is unavailable, the
+ * launch is not.
  */
-async function loadAdjustSdk(): Promise<AdjustSdkLike> {
+async function loadAdjustSdk(): Promise<AdjustSdkLike | undefined> {
+  if (!adjustNativeAvailable(Platform.OS, NativeModules)) {
+    console.warn('acquisition_adjust_unavailable:native_missing')
+    return undefined
+  }
   const { Adjust, AdjustConfig }: typeof AdjustModule = await import('react-native-adjust')
   return {
     createConfig: (token, environment) =>
@@ -141,7 +148,7 @@ function runAdjust(scope: Promise<void>): Promise<void> {
     Platform.OS === 'ios' ? 'adjustIosAppToken' : 'adjustAndroidAppToken'
   ]
   return scope
-    .then(async () => {
+    .then(() => {
       const sink = createAdjustDeferredLinkSink({
         store: pendingDeepLinks,
         windowMs: Platform.OS === 'ios' ? ADJUST_WINDOW_MS.ios : ADJUST_WINDOW_MS.android,
@@ -152,32 +159,49 @@ function runAdjust(scope: Promise<void>): Promise<void> {
         report: event => console.warn(event),
       })
       adjustSink = sink
-      // A link already waiting (Tenjin was quicker) leaves Adjust nothing to decide.
+      // Whenever another writer's link is kept — Tenjin's callback included,
+      // even one that lands after its collector gave up (PR #369 Astra F-03) —
+      // the window has nothing left to decide. Adjust's own write finds the
+      // sink already closed. Plus the check below for a link kept before this
+      // sink existed.
+      const unsubscribe = pendingDeepLinks.onStored(() => sink.skip('acquisition_adjust_closed:link_already_pending'))
+      void sink.settled().then(unsubscribe)
       void closeAdjustIfWon()
       const token = adjustTokenOf(raw)
-      let sdk: AdjustSdkLike | undefined
-      if (scoped && token) {
-        try {
-          sdk = await loadAdjustSdk()
-        } catch {
-          sdk = undefined
-        }
-      }
       if (!scoped) sink.skip('acquisition_adjust_skipped:install_scope_failed')
       else if (raw === 'off') sink.skip('acquisition_adjust_off')
       else if (!token) sink.skip('acquisition_adjust_unavailable: rebuild with Adjust environment configuration')
-      else if (!sdk) sink.skip('acquisition_adjust_unavailable')
-      else {
-        const initializeAdjust = createAdjustInitializer({
-          sdk,
-          flavor: Constants.expoConfig?.extra?.flavor,
-          onDeferredLink: payload => sink.onDeferredLink(payload),
-          onAttribution: () => sink.onAttribution(),
-          onUnavailable: event => console.warn(event),
-        })
-        if (!initializeAdjust(token)) sink.skip('acquisition_adjust_unavailable')
-      }
+      // Not awaited: the sink settles on its own events — window end, another
+      // writer, a link — and the SDK's loading must not hold the resume
+      // (PR #369 Astra F-06). A load or init that fails closes the sink too.
+      else void startAdjustSdk(token, sink)
       return sink.settled()
     })
     .catch(() => {})
+}
+
+/**
+ * Loads and starts the SDK; never rejects. Started even when the sink has
+ * already closed, because Adjust is this launch's attribution report (ADR 0011)
+ * whatever the deferred link decided — a later report is `…ignored:late`.
+ */
+async function startAdjustSdk(token: string, sink: AdjustDeferredLinkSink): Promise<void> {
+  let sdk: AdjustSdkLike | undefined
+  try {
+    sdk = await loadAdjustSdk()
+  } catch {
+    sdk = undefined
+  }
+  if (!sdk) {
+    sink.skip('acquisition_adjust_unavailable')
+    return
+  }
+  const initializeAdjust = createAdjustInitializer({
+    sdk,
+    flavor: Constants.expoConfig?.extra?.flavor,
+    onDeferredLink: payload => sink.onDeferredLink(payload),
+    onAttribution: () => sink.onAttribution(),
+    onUnavailable: event => console.warn(event),
+  })
+  if (!initializeAdjust(token)) sink.skip('acquisition_adjust_unavailable')
 }

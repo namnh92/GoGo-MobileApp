@@ -190,4 +190,21 @@ describe('two writers (GoGo-MobileApp#367, PR #369 Sol F-01 / Astra F-02)', () =
     await store.remember(`gogo-dev://plan/${PLAN}`)
     expect(await store.hasPending()).toBe(true)
   })
+
+  it('onStored() is told of every kept write, with its source, and of nothing else (Astra F-03)', async () => {
+    const store = createPendingDeepLinkStore({ storage: memoryStorage() })
+    const told: (string | undefined)[] = []
+    const unsubscribe = store.onStored(source => told.push(source))
+    store.onStored(() => {
+      throw new Error('a listener that fails')
+    })
+    expect(await store.remember('https://example.com/nothing', 'adjust')).toBe(false)
+    expect(await store.remember(`gogo-dev://place/${PLACE_A}`, 'tenjin')).toBe(true)
+    expect(await store.remember(`gogo-dev://place/${PLACE_B}`, 'adjust')).toBe(false)
+    expect(told).toEqual(['tenjin'])
+    unsubscribe()
+    await store.take()
+    expect(await store.remember(`gogo-dev://place/${PLACE_B}`)).toBe(true)
+    expect(told).toEqual(['tenjin'])
+  })
 })

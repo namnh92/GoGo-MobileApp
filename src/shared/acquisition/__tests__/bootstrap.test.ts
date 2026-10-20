@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const extra: Record<string, unknown> = { tenjinAndroidSdkKey: 'key' }
 vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { extra } } } }))
-vi.mock('react-native', () => ({ Platform: { OS: 'android' } }))
+vi.mock('react-native', () => ({ Platform: { OS: 'android' }, NativeModules: { Adjust: {} } }))
 vi.mock('react-native-tenjin', () => ({ default: {} }))
 const adjust = vi.hoisted(() => ({ initSdk: vi.fn(), configs: [] as unknown[] }))
 vi.mock('react-native-adjust', () => {
@@ -29,8 +29,16 @@ vi.mock('react-native-adjust', () => {
 
 const scope = { outcome: () => Promise.resolve() }
 const pending = { value: false }
+/** Who the bootstrap asked to be told of a kept write (Astra F-03). */
+const storedListeners = vi.hoisted(() => new Set<(source?: string) => void>())
 vi.mock('../pending-deep-links', () => ({
-  pendingDeepLinks: { hasPending: async () => pending.value },
+  pendingDeepLinks: {
+    hasPending: async () => pending.value,
+    onStored: (listener: (source?: string) => void) => {
+      storedListeners.add(listener)
+      return () => storedListeners.delete(listener)
+    },
+  },
   ensureInstallScope: () => scope.outcome(),
 }))
 
@@ -44,6 +52,7 @@ afterEach(() => {
   delete extra.adjustAndroidAppToken
   delete extra.flavor
   pending.value = false
+  storedListeners.clear()
   vi.restoreAllMocks()
   vi.resetModules()
 })
@@ -143,6 +152,29 @@ describe('acquisition bootstrap', () => {
     await vi.advanceTimersByTimeAsync(10)
     expect(settled).toBe(true)
     collect.mockImplementation(async () => {})
+    vi.useRealTimers()
+  })
+
+  it('#367 (Astra F-03): a link kept after the Tenjin collector gave up still closes the Adjust window', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    scope.outcome = () => Promise.resolve()
+    extra.adjustAndroidAppToken = 'abcdEFGH1234'
+    // The collector times out with nothing pending; Tenjin's callback answers later.
+    const { deferredLinkSettled, initializeAcquisitionSdk } = await import('../bootstrap')
+    initializeAcquisitionSdk()
+    let settled = false
+    void deferredLinkSettled().then(() => { settled = true })
+    await vi.advanceTimersByTimeAsync(4_000)
+    expect(settled).toBe(false)
+    // Tenjin's late write is kept by the store, which tells its listeners.
+    pending.value = true
+    for (const listener of storedListeners) listener('tenjin')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(settled).toBe(true)
+    expect(warn).toHaveBeenCalledWith('acquisition_adjust_closed:link_already_pending')
+    // The subscription ends with the window: nothing listens afterwards.
+    expect(storedListeners.size).toBe(0)
     vi.useRealTimers()
   })
 })
