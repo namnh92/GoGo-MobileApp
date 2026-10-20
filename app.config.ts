@@ -326,6 +326,9 @@ const config: ExpoConfig = {
   ],
   // Per-language system dialog strings (#366). Both languages, not only en:
   // with an en.lproj alone, iOS would pick it for a Vietnamese device too.
+  // The keys sit under `ios` in each file: Expo writes top-level keys to
+  // Android `values-b+xx` too, and a key with no default there fails the
+  // release build in `lintVitalRelease` (ExtraTranslation, #371).
   locales: {
     vi: './locales/vi.json',
     en: './locales/en.json',

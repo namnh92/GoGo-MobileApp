@@ -1,3 +1,5 @@
 {
-  "NSUserTrackingUsageDescription": "GoGo uses your device's advertising identifier to know which invite or link led you to install the app, and to measure how well GoGo's ad campaigns work. GoGo does not show ads in the app."
+  "ios": {
+    "NSUserTrackingUsageDescription": "GoGo uses your device's advertising identifier to know which invite or link led you to install the app, and to measure how well GoGo's ad campaigns work. GoGo does not show ads in the app."
+  }
 }

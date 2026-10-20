@@ -1,7 +1,10 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { ExpoConfig } from 'expo/config'
+import { AndroidConfig } from 'expo/config-plugins'
 import { describe, expect, it, vi } from 'vitest'
 
 import { enMessages } from '@/shared/i18n/en'
@@ -31,7 +34,20 @@ async function config(): Promise<ExpoConfig> {
 }
 
 function plist(path: string): Record<string, string> {
-  return JSON.parse(readFileSync(path, 'utf8')) as Record<string, string>
+  return (JSON.parse(readFileSync(path, 'utf8')) as { ios: Record<string, string> }).ios
+}
+
+// Expo's own resolver for the `locales` files: top-level keys go to both
+// platforms, `ios` / `android` blocks to one (`@expo/config-plugins`
+// utils/locales). Read through it so a bump that changes the rule fails here.
+const { getResolvedLocalesAsync } = createRequire(require.resolve('expo/config-plugins'))(
+  '@expo/config-plugins/build/utils/locales',
+) as {
+  getResolvedLocalesAsync: (
+    root: string,
+    locales: Record<string, string>,
+    platform: 'ios' | 'android',
+  ) => Promise<Record<string, Record<string, string>>>
 }
 
 function sourceFiles(dir: string): string[] {
@@ -55,6 +71,35 @@ describe('tracking permission string', () => {
     expect((await config()).locales).toEqual({ vi: './locales/vi.json', en: './locales/en.json' })
     expect(plist('locales/vi.json').NSUserTrackingUsageDescription).toBe(viMessages['consent.tracking.systemPrompt'])
     expect(plist('locales/en.json').NSUserTrackingUsageDescription).toBe(enMessages['consent.tracking.systemPrompt'])
+  })
+
+  it('the dialog string reaches iOS only — Android release lint rejects it (#371)', async () => {
+    const locales = (await config()).locales as Record<string, string>
+    const ios = await getResolvedLocalesAsync(process.cwd(), locales, 'ios')
+    const android = await getResolvedLocalesAsync(process.cwd(), locales, 'android')
+    expect(ios.vi.NSUserTrackingUsageDescription).toBe(viMessages['consent.tracking.systemPrompt'])
+    expect(ios.en.NSUserTrackingUsageDescription).toBe(enMessages['consent.tracking.systemPrompt'])
+    expect(android).toEqual({ vi: {}, en: {} })
+
+    // What prebuild writes on Android: no values-b+xx file may name the key,
+    // or `lintVitalRelease` fails the release build on ExtraTranslation.
+    const root = mkdtempSync(join(tmpdir(), 'gogo-371-'))
+    cpSync('locales', join(root, 'locales'), { recursive: true })
+    const res = join(root, 'android/app/src/main/res')
+    mkdirSync(res, { recursive: true })
+    await AndroidConfig.Locales.setLocalesAsync({ locales } as ExpoConfig, { projectRoot: root })
+    // setLocalesAsync does not await its own file writes: wait until one
+    // complete file per language exists (`<resources/>` when empty), so an
+    // empty directory or a half-written file can never pass this check.
+    const files = Object.keys(locales).map(lang => join(res, `values-b+${lang}`, 'strings.xml'))
+    const complete = (f: string) =>
+      existsSync(f) && /(<resources\s*\/>|<\/resources>)\s*$/.test(readFileSync(f, 'utf8'))
+    for (let i = 0; i < 100 && !files.every(complete); i++) {
+      await new Promise(resolve => setTimeout(resolve, 20))
+    }
+    expect(files.filter(f => !complete(f)), 'prebuild writes one complete strings.xml per language').toEqual([])
+    const written = files.map(f => readFileSync(f, 'utf8')).join('\n')
+    expect(written).not.toContain('NSUserTrackingUsageDescription')
   })
 
   it('every string is the owner-approved text, word for word (#366, 2026-10-19)', () => {
