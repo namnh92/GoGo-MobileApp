@@ -628,6 +628,11 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
 
   'checkin.title': 'Check in here',
   'checkin.rate': 'How was this stop?',
+  'consent.tracking.systemPrompt': "GoGo uses your device's advertising identifier to know which invite or link led you to install the app, and to measure how well GoGo's ad campaigns work. GoGo does not show ads in the app.",
+  'consent.tracking.title': 'Help GoGo see where you came from',
+  'consent.tracking.body': 'Next, your iPhone will ask whether GoGo may track you. If you allow it, GoGo learns which invite or link brought you here, which helps it get better at bringing friends in. If you decline, every feature still works, and you can change this later in Settings.',
+  'consent.tracking.continue': 'Continue',
+  'consent.tracking.later': 'Not now',
   'checkin.addPhoto': '📷 Add check-in photos',
   'checkin.photoCount': '{{n}}/3 photos',
   'checkin.notePlaceholder': 'Quick thoughts… (optional)',

@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { setOnSessionExpired } from '@/shared/api/client'
 import * as roomsApi from '@/shared/api/endpoints/rooms'
 import * as sessionsApi from '@/shared/api/endpoints/sessions'
+import { pendingDeepLinks } from '@/shared/acquisition/pending-deep-links'
 import { unsubscribeCurrentDeviceAndConfirm } from '@/shared/notifications/logout-confirmation-bootstrap'
 import { purgeCachedUserData } from '@/shared/api/query-client'
 import {
@@ -111,6 +112,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // A guest is never bound to the provider, so it has nothing to confirm
       // (#279) — see `createLogoutConfirmation`.
       await unsubscribeCurrentDeviceAndConfirm(getSession()?.kind === 'guest' ? 'guest' : 'user')
+      // #364: before the session ends, and not in `purge`, which sign-in also
+      // runs — the invite someone installed from must survive their own
+      // sign-in, not another person's. Throws if the entry is not gone.
+      await pendingDeepLinks.clear()
       await sessionsApi.logout(allDevices)
       useRoomStore.getState().resetDraft()
       useRoomStore.setState({ preferenceSeed: null })
@@ -120,6 +125,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   )
 
   const deleteAccount = useCallback(async () => {
+    await pendingDeepLinks.clear()
     await sessionsApi.deleteAccount()
     useRoomStore.getState().resetDraft()
     useRoomStore.setState({ preferenceSeed: null })
