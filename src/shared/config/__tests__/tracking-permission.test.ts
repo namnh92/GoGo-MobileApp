@@ -88,13 +88,16 @@ describe('tracking permission string', () => {
     const res = join(root, 'android/app/src/main/res')
     mkdirSync(res, { recursive: true })
     await AndroidConfig.Locales.setLocalesAsync({ locales } as ExpoConfig, { projectRoot: root })
-    // setLocalesAsync does not await its own file writes: wait until one file
-    // per language exists, so an empty directory can never pass this check.
+    // setLocalesAsync does not await its own file writes: wait until one
+    // complete file per language exists (`<resources/>` when empty), so an
+    // empty directory or a half-written file can never pass this check.
     const files = Object.keys(locales).map(lang => join(res, `values-b+${lang}`, 'strings.xml'))
-    for (let i = 0; i < 50 && !files.every(f => existsSync(f) && readFileSync(f, 'utf8').includes('</resources>')); i++) {
+    const complete = (f: string) =>
+      existsSync(f) && /(<resources\s*\/>|<\/resources>)\s*$/.test(readFileSync(f, 'utf8'))
+    for (let i = 0; i < 100 && !files.every(complete); i++) {
       await new Promise(resolve => setTimeout(resolve, 20))
     }
-    expect(files.every(existsSync), 'prebuild writes one strings.xml per language').toBe(true)
+    expect(files.filter(f => !complete(f)), 'prebuild writes one complete strings.xml per language').toEqual([])
     const written = files.map(f => readFileSync(f, 'utf8')).join('\n')
     expect(written).not.toContain('NSUserTrackingUsageDescription')
   })
