@@ -49,7 +49,9 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
 - **Tag màn hình (#341, 2026-10-16; shape `dev/handoffs/sa-shape-mobile-341-screen-tag.fable.md` rev 3; sửa sau review
   PR #349 — Sol F-02/F-04/F-05, Astra A-F-01/A-F-03/F-03/F-04, vòng 3 F-04/F-05 (2026-10-17); owner 2026-10-16 "gán tag
   theo event"):** mọi event JS và crash native mang tag `screen` = route template của expo-router
-  (`/room/[roomId]/preference`, `/(tabs)/plans`, màn khởi động = `/`) — tên file dưới `src/app/`, không bao giờ từ
+  (`/room/[roomId]/preference`, `/(tabs)/plans`, màn khởi động = `/`) — trừ một trường hợp: crash native iOS trong khoảng
+  từ lúc SDK native khởi động tới lúc tag `/` tới native scope không có tag `screen` (giới hạn SA-341-01, mục *Khởi động*
+  bên dưới) — tên file dưới `src/app/`, không bao giờ từ
   `usePathname()` (pathname mang mã phòng/mã mời thô; uuid thì
   redactor không che, C-21). Hai đường, mỗi đường một bảo đảm (mục *Hai đường gán tag* bên dưới): lỗi app tự báo (root
   error boundary → `captureError`) **đọc màn hình từ state của navigation container ngay lúc bắt** (`navigatorScreen()`

@@ -866,9 +866,10 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
   enabled = true
   // Sol F-05 / Astra A-F-03 (PR #349): nothing has rendered yet, so until the
   // first navigation effect an event would carry no screen. Seed the launch
-  // screen now; the SDK copies it to native with the rest of the scope. A
-  // native crash before this write reaches native carries no screen at all
-  // (the live native scope starts empty — #341 relay R-4; SA-341-01, ADR 0010).
+  // screen now; the SDK copies it to native with the rest of the scope. An
+  // iOS native crash captured after the native SDK started and before this
+  // write reached the native scope carries no screen at all (measured: the
+  // live native scope starts empty — #341 relay R-4; SA-341-01, ADR 0010).
   setSentryScreen(LAUNCH_SCREEN)
 }
 
