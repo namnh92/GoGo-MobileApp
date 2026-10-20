@@ -29,7 +29,7 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   `src/shared/observability/__fixtures__/` (v1 bị thay ngày 2026-10-16, #341; v2 = mọi ca v1 không đổi + C-24.1…C-24.13):
 
   ```
-  v2 sha256 5869939957e5f68280974f9d34fb8896d4df117873b84a3b19bf2e3edb7c213e  (GoGo-Infra#229)
+  v2 sha256 5869939957e5f68280974f9d34fb8896d4df117873b84a3b19bf2e3edb7c213e  (GoGo-Infra 2149fdc, #229)
   v1 sha256 decf6c4336269b086b209a4d27a9c36ca2c392b307c9d76e4b24883a4f4ef6a0  (GoGo-Infra 7c2a09a, đã thay)
   ```
 
