@@ -405,10 +405,14 @@ describe('a JS event carries the screen the navigator holds at capture', () => {
  * phase of a pushed screen carried the previous screen — the settled write
  * lands one commit after the mount. `screenTagLayout` writes the container's
  * screen in the screen's own commit, before the screen's layout effects, so
- * the native scope already names it when anything in it runs. A native crash
- * cannot be raised under jest; what the native SDK would carry is the scope's
- * last `screen` at that moment, recorded here from the screen's own
- * `useLayoutEffect` — the phase the device probe crashed in.
+ * the native scope already names it when its layout effects and
+ * `componentDidMount` run — that is the whole claim. A crash inside a native
+ * view while React mounts it (mutation phase) precedes every layout effect and
+ * still carries the previous screen: residual (b), accepted by the owner
+ * 2026-10-20 (ADR 0010). A native crash cannot be raised under jest; what the
+ * native SDK would carry is the scope's last `screen` at that moment, recorded
+ * here from the screen's own `useLayoutEffect` — the phase the device probe
+ * crashed in.
  */
 describe('the mount write names the new screen before its layout effects run', () => {
   /** Scope `screen` values seen from each recording screen's first layout effect, in order. */

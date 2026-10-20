@@ -121,9 +121,9 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
     giá trị `setSentryScreen` ghi gần nhất — màn đã ổn định, chậm một commit so với mount. Crash native không chạy được
     JS nên không có cách gán theo event. Cơ chế ghi scope **không hứa** đúng màn cho hai ô dưới đây, và cả hai **không phải
     giới hạn được chấp nhận** — owner không chấp nhận cửa sổ mount (phán quyết F-04, 2026-10-16) và cũng không cho ngoại lệ
-    native-mount (Astra F-04 nửa còn lại, vòng 3, 2026-10-17) — mà là **ô AC**, đo trong lượt relay trên máy thật (cổng
-    PR, cùng lượt với cửa sổ khởi động ở trên); mong đợi theo D-7 bổ sung 3 (tag = màn của event) và phán quyết F-04;
-    nhận màn trước là **FAIL** → finding trả về vai SA, không phải giới hạn được chấp nhận, không phải lỗi script:
+    native-mount (Astra F-04 nửa còn lại, vòng 3, 2026-10-17); chỉ hai phần dư (a), (b) ghi ở ô thứ hai là giới hạn owner
+    chấp nhận 2026-10-20 — mà là **ô AC**, đo trong lượt relay trên máy thật (cổng PR, cùng lượt với cửa sổ khởi động ở
+    trên); mong đợi theo D-7 bổ sung 3 (tag = màn của event) và phán quyết F-04; nhận màn trước là **FAIL** → finding trả về vai SA, không phải giới hạn được chấp nhận, không phải lỗi script:
     - *Rejection SDK bắt trong commit mount* — **owner quyết 2026-10-16 (trong phiên, ghi ở
       `dev/handoffs/review-state-GoGo-MobileApp-349.md`): đưa vào AC, không để là giới hạn ngoài AC.** Điều hướng *nóng*
       từ màn đang ổn định sang màn mới; promise bị reject không xử lý ngay trong commit mount của chính màn mới (render /
@@ -131,7 +131,7 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
       là đường JS đã đo ở trên); **mong đợi `screen` = template của màn mới vừa mount.** Lỗi SDK tự bắt thường xảy ra sau
       khi điều hướng xong (handler, promise, timer) nên tag đã đúng; ô này là trường hợp còn lại.
     - *Crash native trong commit mount* (Astra F-04 nửa còn lại): điều hướng *nóng* từ màn đang ổn định sang màn mới; crash
-      native gây ngay trong commit mount của chính màn mới (`useLayoutEffect` / `componentDidMount` / mount view native);
+      native gây ngay trong commit mount của chính màn mới (`useLayoutEffect` / `componentDidMount`);
       **mong đợi `screen` = template của màn mới vừa mount.** Lượt relay `r341-20261019T1350Z` (BLOCKED do lệch, chỉ là tín
       hiệu) cho màn trước trên cả hai máy, đúng dự báo → **SA-341-02** (`dev/handoffs/sa-ruling-mobile-341-relay.fable.md`).
       Ghi "lúc dispatch" theo nghĩa đen không dùng được: sự kiện `__unsafe_action__` bắn **trước** `setState`, và hoãn sang
@@ -150,8 +150,8 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
 
     **Ba ô còn mở, cùng một danh sách với ADR-0011 D-12 (GoGo-Infra), đều chờ đo trong một lượt relay sạch kế tiếp
     (lượt `r341-20261019T1350Z` BLOCKED do lệch, chỉ là tín hiệu) và đều giữ merge PR #349 + GoGo-Infra PR #230:** (1)
-    cửa sổ khởi động iOS (F-03, mục *Khởi động* ở trên — không vá native); (2) rejection SDK bắt trong commit mount;
-    (3) crash native trong commit mount. Giới hạn đã ghi trên đường native/SDK chỉ là hai phần dư (a), (b) ở ô (3).
+    cửa sổ khởi động iOS (F-03, mục *Khởi động* ở trên — không chấp nhận, không vá native); (2) rejection SDK bắt trong
+    commit mount; (3) crash native trong commit mount. Giới hạn đã ghi trên đường native/SDK chỉ là hai phần dư (a), (b) ở ô (3).
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 
