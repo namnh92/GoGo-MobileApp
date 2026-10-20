@@ -140,16 +140,18 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
       (`screen-tag.view.tsx`) đặt `ScreenMountTag` trước cây con của mỗi màn, trên **mọi navigator** (`app/_layout.tsx`
       Stack, `app/(tabs)/_layout.tsx` Tabs; `sentry-usage.spec.ts` ghim). Layout effect chạy theo thứ tự cây, nên lần ghi
       này (đọc `navigatorScreen()`, state container đã đổi lúc dispatch; đọc lỗi → `unknown`; chưa có state → không ghi)
-      xếp vào hàng đợi native trước mọi layout effect, `componentDidMount` và mount view native của màn mới. Lần ghi
+      xếp vào hàng đợi native trước mọi layout effect và `componentDidMount` của màn mới. Lần ghi
       settled của `SentryScreenTag` giữ nguyên cho những gì không phải mount (pop về màn đã mount, đổi tab, state lồng đẩy
-      lên sau mount) và sửa `unknown` tạm thời. **Phần dư, owner chấp nhận 2026-10-20 (Q-R6), không hứa:** lời gọi native
-      *trong lúc render* màn mới đứng trước mọi layout effect nên vẫn mang màn trước — render thuần theo hợp đồng React,
-      app gọi native từ effect và handler; `throw` JS trong render là đường event-local (R-7). Ô này đo lại trong run mới.
+      lên sau mount) và sửa `unknown` tạm thời. **Phần dư, owner chấp nhận 2026-10-20, không hứa — cả hai đứng trước mọi
+      layout effect nên vẫn mang màn trước:** (a) lời gọi native *trong lúc render* màn mới (Q-R6) — render thuần theo
+      hợp đồng React, app gọi native từ effect và handler; `throw` JS trong render là đường event-local (R-7); (b) crash
+      *bên trong view native* lúc React mount nó (pha mutation, Sol F-06 vòng 3 PR #349) — phủ được chỉ bằng ghi phía
+      native, owner đã không cho vá native. Ô R-6 (crash trong `useLayoutEffect`) đo lại trong run mới.
 
-    **Ba ô còn mở, cùng một danh sách với ADR-0011 D-12 (GoGo-Infra), đều đo trong lượt relay và đều giữ merge PR #349 +
-    GoGo-Infra PR #230:** (1) cửa sổ khởi động iOS (F-03, mục *Khởi động* ở trên — không chấp nhận, không vá native);
-    (2) rejection SDK bắt trong commit mount; (3) crash native trong commit mount. Ngoài ba ô này, đường native/SDK không
-    ghi "giới hạn còn lại" nào khác.
+    **Ba ô còn mở, cùng một danh sách với ADR-0011 D-12 (GoGo-Infra), đều chờ đo trong một lượt relay sạch kế tiếp
+    (lượt `r341-20261019T1350Z` BLOCKED do lệch, chỉ là tín hiệu) và đều giữ merge PR #349 + GoGo-Infra PR #230:** (1)
+    cửa sổ khởi động iOS (F-03, mục *Khởi động* ở trên — không vá native); (2) rejection SDK bắt trong commit mount;
+    (3) crash native trong commit mount. Giới hạn đã ghi trên đường native/SDK chỉ là hai phần dư (a), (b) ở ô (3).
   Tag lên Discord qua `data.tags` của workflow `6164950` sau bổ sung D-7 trên GoGo-Infra#208.
 - **Chỉ lỗi:** `sendClientReports: false` — client report là envelope thống kê, không phải lỗi.
 

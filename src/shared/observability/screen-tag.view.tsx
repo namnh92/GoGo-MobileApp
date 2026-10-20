@@ -95,8 +95,9 @@ function mountScreen(): string | null {
 /**
  * Renders nothing. Placed by {@link screenTagLayout} before a screen's own
  * subtree, so React runs this layout effect before any of that screen's layout
- * effects, `componentDidMount`s and native view mounts — the scope names the
- * new screen before anything in it can crash natively (SA-341-02).
+ * effects and `componentDidMount`s — the scope names the new screen before
+ * that code can crash natively (SA-341-02). Native views are created earlier,
+ * in the mutation phase, so a crash inside one is not covered (Sol F-06).
  */
 function ScreenMountTag() {
   useLayoutEffect(() => {
@@ -112,8 +113,9 @@ function ScreenMountTag() {
  * passes it (pinned by `sentry-usage.spec.ts`). The container's state has
  * already moved when the pushed screen mounts, so the write names it in the
  * same commit — not one commit later, as {@link SentryScreenTag} does. Not
- * covered: a native call made while the new screen *renders*, which precedes
- * every layout effect (ADR 0010).
+ * covered, both accepted by the owner 2026-10-20 (ADR 0010): a native call
+ * made while the new screen *renders*, and a crash inside a native view while
+ * React mounts it — both precede every layout effect.
  */
 export function screenTagLayout({ children }: { children: ReactNode }) {
   return (

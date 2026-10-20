@@ -76,27 +76,44 @@ describe('Sentry is used only through the #336 boundary', () => {
 
   // SA-341-02: the mount-time write reaches only screens of a navigator that
   // passes `screenTagLayout`; a navigator added without it is the one way the
-  // native tag silently goes back to naming the previous screen.
-  it('every navigator in a layout passes the mount-time screen tag', () => {
-    const layouts: string[] = []
+  // native tag silently goes back to naming the previous screen. Sol F-08: the
+  // ways around a plain grep are closed too — an aliased import, a custom
+  // navigator (`withLayoutContext`), and a per-screen or per-group `layout` /
+  // `screenLayout`, which React Navigation prefers over the navigator's.
+  it('every navigator passes the mount-time screen tag, and nothing overrides it', () => {
+    const sources: string[] = []
     const walk = (dir: string) => {
       for (const name of readdirSync(dir)) {
         const full = path.join(dir, name)
         if (statSync(full).isDirectory()) walk(full)
-        else if (/^_layout\.tsx?$/.test(name)) layouts.push(full)
+        else if (/\.tsx?$/.test(name) && !full.includes(`${path.sep}__tests__${path.sep}`)) sources.push(full)
       }
     }
-    walk(path.join(ROOT, 'src/app'))
-    const navigators = layouts.flatMap(file => {
-      const text = readFileSync(file, 'utf8')
-      return [...text.matchAll(/<(Stack|Tabs|Drawer)\b(?!\.)([^>]*)/g)].map(match => ({
-        file: path.relative(ROOT, file),
+    walk(path.join(ROOT, 'src'))
+    const rel = (file: string) => path.relative(ROOT, file)
+    const read = (file: string) => readFileSync(file, 'utf8')
+
+    expect(sources.filter(file => /withLayoutContext/.test(read(file))).map(rel)).toEqual([])
+    expect(sources.filter(file => /\b(?:Stack|Tabs|Drawer)\s+as\s+\w+/.test(read(file))).map(rel)).toEqual([])
+
+    const navigators = sources.flatMap(file =>
+      [...read(file).matchAll(/<(Stack|Tabs|Drawer)\b(?!\.)([^>]*)/g)].map(match => ({
+        file: rel(file),
         tag: match[1],
         mounted: /screenLayout=\{screenTagLayout\}/.test(match[2]),
-      }))
-    })
+      })),
+    )
     expect(navigators.map(n => `${n.file} ${n.tag}`).sort()).toEqual(['src/app/(tabs)/_layout.tsx Tabs', 'src/app/_layout.tsx Stack'])
     expect(navigators.filter(n => !n.mounted)).toEqual([])
+
+    const overrides = sources.flatMap(file => {
+      const text = read(file)
+      const wrong = [...text.matchAll(/screenLayout\s*=\s*\{(?!screenTagLayout\})/g)].map(() => 'screenLayout')
+      // A `layout` prop exists only on a Screen or Group; none is allowed, wherever it sits in the tag.
+      const perScreen = [...text.matchAll(/(?<![\w.])layout\s*=\s*\{/g)].map(() => 'Screen/Group layout')
+      return [...wrong, ...perScreen].map(kind => `${rel(file)} ${kind}`)
+    })
+    expect(overrides).toEqual([])
   })
 
   // GoGo-MobileApp#340 replaced phase 1's "no plugin, no Metro wrapper"

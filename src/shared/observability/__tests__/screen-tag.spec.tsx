@@ -1,7 +1,8 @@
 import * as Sdk from '@sentry/react-native'
 import * as Linking from 'expo-linking'
-import { router, Stack } from 'expo-router'
+import { router, Stack, Tabs } from 'expo-router'
 import { act, renderRouter } from 'expo-router/testing-library'
+import { render } from '@testing-library/react-native'
 // The naming step of the capture-time reader (`screen-tag.view.tsx`), spied on
 // below to make it fail for a state that exists (Astra F-05).
 import * as RouteInfo from 'expo-router/build/global-state/routeInfo'
@@ -124,6 +125,17 @@ describe('launch seed', () => {
     enable()
     captureError(new Error('providers failed'), { kind: 'boundary' })
     expect(sentScreen()).toBe(LAUNCH)
+  })
+
+  // SA-341-02, Sol F-09: the mount write follows the same rule — no navigator
+  // state is the one case it writes nothing, so the seed stands. Same place in
+  // the file, for the same reason as the test above.
+  it('the mount write writes nothing while no navigator state exists', async () => {
+    enable()
+    await act(async () => {
+      render(screenTagLayout({ children: <Text>first</Text> }))
+    })
+    expect(screens()).toEqual([LAUNCH])
   })
 })
 
@@ -435,9 +447,16 @@ describe('the mount write names the new screen before its layout effects run', (
     expect(forwarded()).not.toContain(CODE)
   })
 
-  it('a tab mounting with its navigator, reached by a push: its layout effect sees the tab', async () => {
+  // Sol F-07: the production tab navigator, not a Stack stand-in. The tab
+  // group is already on top, so switching to a tab bottom-tabs has not mounted
+  // yet remounts nothing in the root Stack: only the Tabs writer can name it.
+  it('a tab bottom-tabs mounts for the first time: its layout effect sees the tab', async () => {
     enable()
-    await renderRouter(mountApp(), { initialUrl: '/places/search' })
+    await renderRouter(
+      { ...mountApp(), '(tabs)/_layout': () => <Tabs screenLayout={screenTagLayout} /> },
+      { initialUrl: '/(tabs)' },
+    )
+    expect(seen).toEqual([])
     await act(async () => router.push('/(tabs)/plans'))
     expect(seen).toEqual(['/(tabs)/plans'])
   })
