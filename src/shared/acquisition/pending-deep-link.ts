@@ -144,34 +144,116 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
     await deps.storage.set(CONSUMED_DEEP_LINK_KEY, JSON.stringify(list.slice(-CONSUMED_DEEP_LINK_LIMIT)))
   }
 
+  /**
+   * GoGo-MobileApp#367 (PR #369 Sol F-01 / Astra F-02) — every operation runs
+   * one after another. With two writers (Tenjin and Adjust) a read-then-write
+   * `remember()` could otherwise see an empty slot twice, and the second write
+   * would replace the first: first writer wins only holds if no two operations
+   * interleave.
+   */
+  let queue: Promise<unknown> = Promise.resolve()
+  function serial<T>(operation: () => Promise<T>): Promise<T> {
+    const run = queue.then(operation, operation)
+    queue = run.catch(() => undefined)
+    return run
+  }
+
+  /**
+   * GoGo-MobileApp#367 (PR #369 Astra F-03) — told after every kept write,
+   * whenever it lands. A second writer waiting for its own report has nothing
+   * left to decide once a first has won, and the first writer's report can
+   * arrive after its collector gave up on it (Tenjin's callback after the
+   * collector's timeout still writes). A listener that throws costs nothing
+   * to the write.
+   */
+  const storedListeners = new Set<(source: string | undefined) => void>()
+  function notifyStored(source: string | undefined): void {
+    for (const listener of storedListeners) {
+      try {
+        listener(source)
+      } catch {
+        // The write is done; a listener's failure is its own.
+      }
+    }
+  }
+
+  async function rememberNow(url: string | null | undefined, source: string | undefined): Promise<boolean> {
+    const tag = source ? `:${source}` : ''
+    const action = parseDeepLink(url)
+    if (action.kind === 'unknown') {
+      report(`deferred_link_discarded:${action.reason}${tag}`)
+      return false
+    }
+    if ((await consumed()).includes(digest(action))) {
+      report(`deferred_link_ignored:already_consumed${tag}`)
+      return false
+    }
+    const existing = await read()
+    if (existing) {
+      // First writer wins: a real cold-start URL is the better signal and is
+      // already being handled by the normal path.
+      report(`deferred_link_ignored:already_pending${tag}`)
+      return false
+    }
+    await deps.storage.set(
+      PENDING_DEEP_LINK_KEY,
+      JSON.stringify({ action, storedAt: now() } satisfies StoredEntry),
+    )
+    report(`deferred_link_stored:${action.kind}${tag}`)
+    notifyStored(source)
+    return true
+  }
+
+  async function takeNow(): Promise<DeepLinkAction | null> {
+    const entry = await read()
+    if (!entry) {
+      await deps.storage.remove(PENDING_DEEP_LINK_KEY)
+      return null
+    }
+    await deps.storage.remove(PENDING_DEEP_LINK_KEY)
+    // Expired or not, this report has had its turn.
+    await retire(entry.action as KnownAction)
+    if (now() - entry.storedAt > PENDING_DEEP_LINK_TTL_MS) {
+      report('deferred_link_expired')
+      return null
+    }
+    report(`deferred_link_resumed:${entry.action.kind}`)
+    return entry.action
+  }
+
+  async function clearNow(): Promise<void> {
+    const entry = await read()
+    if (entry) await retire(entry.action as KnownAction)
+    await deps.storage.remove(PENDING_DEEP_LINK_KEY)
+    if ((await deps.storage.get(PENDING_DEEP_LINK_KEY, true)) !== null) {
+      throw new Error('pending deep link could not be cleared')
+    }
+  }
+
   return {
     /**
      * Record a deferred link. Returns whether it was stored, so a caller can
-     * tell "kept" from "ignored" without reading back.
+     * tell "kept" from "ignored" without reading back. `source` (#367) only
+     * suffixes the reason codes, e.g. `deferred_link_stored:shareSlug:adjust`.
      */
-    async remember(url: string | null | undefined): Promise<boolean> {
-      const action = parseDeepLink(url)
-      if (action.kind === 'unknown') {
-        report(`deferred_link_discarded:${action.reason}`)
-        return false
+    remember(url: string | null | undefined, source?: string): Promise<boolean> {
+      return serial(() => rememberNow(url, source))
+    },
+
+    /** Whether a link is waiting — lets a second writer stop once a first has won. */
+    hasPending(): Promise<boolean> {
+      return serial(async () => (await read()) !== null)
+    },
+
+    /**
+     * Called, with the writer's `source`, after every write `remember()` kept
+     * — not after one it ignored or discarded. Returns the unsubscribe.
+     */
+    onStored(listener: (source: string | undefined) => void): () => void {
+      storedListeners.add(listener)
+      return () => {
+        storedListeners.delete(listener)
       }
-      if ((await consumed()).includes(digest(action))) {
-        report('deferred_link_ignored:already_consumed')
-        return false
-      }
-      const existing = await read()
-      if (existing) {
-        // First writer wins: a real cold-start URL is the better signal and is
-        // already being handled by the normal path.
-        report('deferred_link_ignored:already_pending')
-        return false
-      }
-      await deps.storage.set(
-        PENDING_DEEP_LINK_KEY,
-        JSON.stringify({ action, storedAt: now() } satisfies StoredEntry),
-      )
-      report(`deferred_link_stored:${action.kind}`)
-      return true
     },
 
     /**
@@ -179,21 +261,8 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
      * the entry expired, or when storage held something unreadable — and clears
      * in the last two cases so it cannot fail forever.
      */
-    async take(): Promise<DeepLinkAction | null> {
-      const entry = await read()
-      if (!entry) {
-        await deps.storage.remove(PENDING_DEEP_LINK_KEY)
-        return null
-      }
-      await deps.storage.remove(PENDING_DEEP_LINK_KEY)
-      // Expired or not, this report has had its turn.
-      await retire(entry.action as KnownAction)
-      if (now() - entry.storedAt > PENDING_DEEP_LINK_TTL_MS) {
-        report('deferred_link_expired')
-        return null
-      }
-      report(`deferred_link_resumed:${entry.action.kind}`)
-      return entry.action
+    take(): Promise<DeepLinkAction | null> {
+      return serial(takeNow)
     },
 
     /**
@@ -203,13 +272,8 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
      * success. The check reads strictly — a read that fails is "could not
      * look", not "gone".
      */
-    async clear(): Promise<void> {
-      const entry = await read()
-      if (entry) await retire(entry.action as KnownAction)
-      await deps.storage.remove(PENDING_DEEP_LINK_KEY)
-      if ((await deps.storage.get(PENDING_DEEP_LINK_KEY, true)) !== null) {
-        throw new Error('pending deep link could not be cleared')
-      }
+    clear(): Promise<void> {
+      return serial(clearNow)
     },
   }
 }

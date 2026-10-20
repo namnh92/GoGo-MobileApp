@@ -10,12 +10,16 @@ function configure(environment: string) {
   vi.stubEnv('ONESIGNAL_APP_ID', '00000000-0000-4000-8000-000000000001')
   vi.stubEnv('ONESIGNAL_APNS_MODE', 'production')
   vi.stubEnv('TENJIN_CONFIG_ENV', environment === 'stag' ? 'staging' : environment)
+  vi.stubEnv('ADJUST_CONFIG_ENV', environment === 'stag' ? 'staging' : environment)
   vi.stubEnv('TENJIN_IOS_SDK_KEY', 'test-ios')
   vi.stubEnv('TENJIN_ANDROID_SDK_KEY', 'test-android')
   vi.stubEnv('ONESIGNAL_REST_API_KEY', 'server-secret-must-not-ship')
   vi.stubEnv('ONESIGNAL_IDENTITY_VERIFICATION_KEY', 'signing-secret-must-not-ship')
   // stag/prod must state a crash-reporting decision (GoGo-MobileApp#336).
   vi.stubEnv('EXPO_PUBLIC_SENTRY_DSN', environment === 'dev' ? '' : 'off')
+  // …and an MMP decision for Adjust (GoGo-MobileApp#367), the same way.
+  vi.stubEnv('ADJUST_IOS_APP_TOKEN', environment === 'dev' ? '' : 'off')
+  vi.stubEnv('ADJUST_ANDROID_APP_TOKEN', environment === 'dev' ? '' : 'off')
 }
 
 describe('provider build contract', () => {
