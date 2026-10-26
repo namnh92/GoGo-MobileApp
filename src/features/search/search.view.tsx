@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -23,6 +23,8 @@ import { ErrorState } from '@/shared/ui/async-state.view'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { SearchField } from '@/shared/ui/search-field.view'
+import { Sheet } from '@/shared/ui/sheet.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
@@ -196,13 +198,11 @@ export default function SearchScreen() {
       </View>
 
       <View style={styles.searchRow}>
-        <TextInput
+        <SearchField
           value={query}
           onChangeText={setQuery}
+          accessibilityLabel={t('search.title')}
           placeholder={t('search.placeholder')}
-          placeholderTextColor={colors.neutral[500]}
-          autoCorrect={false}
-          returnKeyType="search"
           style={styles.input}
         />
         <IconBtn
@@ -302,92 +302,82 @@ export default function SearchScreen() {
         <Icon name="plus" size={24} color="accent.onAccent" />
       </Pressable>
 
-      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={() => setSheetOpen(false)} />
-          <View style={[styles.sheet, { maxHeight: '85%' }]}>
-            <View style={styles.handle} />
-            <ScrollView
-              bounces={false}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}
-            >
-              <Text variant="title2" style={styles.sheetTitle}>{t('search.filters')}</Text>
+      <Sheet visible={sheetOpen} onClose={() => setSheetOpen(false)}>
+        <Text variant="title2" style={styles.sheetTitle}>{t('search.filters')}</Text>
 
-              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterDistance')}</Text>
-              {hasOrigin ? (
-                <TextInput
-                  value={maxKm}
-                  onChangeText={setMaxKm}
-                  placeholder={t('search.distancePlaceholder')}
-                  placeholderTextColor={colors.neutral[500]}
-                  keyboardType="numeric"
-                  style={styles.sheetInput}
-                />
-              ) : (
-                // Without an origin the server cannot rank by distance, and a
-                // disabled control with a reason beats one that silently no-ops.
-                <Text variant="bodySmall" color="text.secondary" style={styles.sheetHint}>{t('search.distanceNeedsArea')}</Text>
-              )}
+        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterDistance')}</Text>
+        {hasOrigin ? (
+          <TextInput
+            value={maxKm}
+            onChangeText={setMaxKm}
+            accessibilityLabel={t('search.filterDistance')}
+            placeholder={t('search.distancePlaceholder')}
+            placeholderTextColor={colors.neutral[500]}
+            keyboardType="numeric"
+            style={styles.sheetInput}
+          />
+        ) : (
+          // Without an origin the server cannot rank by distance, and a
+          // disabled control with a reason beats one that silently no-ops.
+          <Text variant="bodySmall" color="text.secondary" style={styles.sheetHint}>{t('search.distanceNeedsArea')}</Text>
+        )}
 
-              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterPrice')}</Text>
-              <View style={styles.priceRow}>
-                <TextInput
-                  value={priceFrom}
-                  onChangeText={setPriceFrom}
-                  placeholder={t('search.priceFrom')}
-                  placeholderTextColor={colors.neutral[500]}
-                  keyboardType="numeric"
-                  style={[styles.sheetInput, styles.priceInput]}
-                />
-                <Text color="text.secondary">–</Text>
-                <TextInput
-                  value={priceTo}
-                  onChangeText={setPriceTo}
-                  placeholder={t('search.priceTo')}
-                  placeholderTextColor={colors.neutral[500]}
-                  keyboardType="numeric"
-                  style={[styles.sheetInput, styles.priceInput]}
-                />
-              </View>
-
-              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterSuited')}</Text>
-              <View style={styles.sheetOptionRow}>
-                {SUITED_OPTIONS.map((option, index) => (
-                  <Chip
-                    key={option}
-                    label={content.suitedOptions[index] ?? option}
-                    variant={suited === option ? 'selected' : 'default'}
-                    onPress={() => setSuited(suited === option ? null : option)}
-                  />
-                ))}
-              </View>
-
-              <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterCategory')}</Text>
-              <View style={styles.sheetOptionRow}>
-                {categories.map(category => (
-                  <Chip
-                    key={category.key}
-                    label={category.label}
-                    variant={selectedCategories.includes(category.key) ? 'selected' : 'default'}
-                    onPress={() => toggleCategory(category.key)}
-                  />
-                ))}
-              </View>
-
-              <PrimaryBtn label={t('search.apply')} onPress={() => setSheetOpen(false)} style={styles.sheetApply} />
-              <Pressable
-                accessibilityRole="button"
-                onPress={clearFilters}
-                style={styles.sheetClear}
-              >
-                <Text variant="bodySmall" color="text.secondary">{t('search.clearFilters')}</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
+        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterPrice')}</Text>
+        <View style={styles.priceRow}>
+          <TextInput
+            value={priceFrom}
+            onChangeText={setPriceFrom}
+            accessibilityLabel={t('search.priceFromLabel')}
+            placeholder={t('search.priceFrom')}
+            placeholderTextColor={colors.neutral[500]}
+            keyboardType="numeric"
+            style={[styles.sheetInput, styles.priceInput]}
+          />
+          <Text color="text.secondary">–</Text>
+          <TextInput
+            value={priceTo}
+            onChangeText={setPriceTo}
+            accessibilityLabel={t('search.priceToLabel')}
+            placeholder={t('search.priceTo')}
+            placeholderTextColor={colors.neutral[500]}
+            keyboardType="numeric"
+            style={[styles.sheetInput, styles.priceInput]}
+          />
         </View>
-      </Modal>
+
+        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterSuited')}</Text>
+        <View style={styles.sheetOptionRow}>
+          {SUITED_OPTIONS.map((option, index) => (
+            <Chip
+              key={option}
+              label={content.suitedOptions[index] ?? option}
+              variant={suited === option ? 'selected' : 'default'}
+              onPress={() => setSuited(suited === option ? null : option)}
+            />
+          ))}
+        </View>
+
+        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterCategory')}</Text>
+        <View style={styles.sheetOptionRow}>
+          {categories.map(category => (
+            <Chip
+              key={category.key}
+              label={category.label}
+              variant={selectedCategories.includes(category.key) ? 'selected' : 'default'}
+              onPress={() => toggleCategory(category.key)}
+            />
+          ))}
+        </View>
+
+        <PrimaryBtn label={t('search.apply')} onPress={() => setSheetOpen(false)} style={styles.sheetApply} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={clearFilters}
+          style={styles.sheetClear}
+        >
+          <Text variant="bodySmall" color="text.secondary">{t('search.clearFilters')}</Text>
+        </Pressable>
+      </Sheet>
     </Atmosphere>
   )
 }

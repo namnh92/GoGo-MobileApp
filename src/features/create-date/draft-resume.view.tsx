@@ -5,6 +5,7 @@ import { Alert, View } from 'react-native'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { clearSavedRoomDraft, draftStepPath, restoreRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
+import { useDialog } from '@/shared/ui/dialog.view'
 import { GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 
 import { styles } from './draft-resume.style'
@@ -15,6 +16,7 @@ export function DraftResume() {
   const { t } = useTranslation()
   const router = useRouter()
   const snapshot = useSavedRoomDraft(state => state.draft)
+  const { confirm, dialog } = useDialog()
   if (!session?.userId || snapshot?.ownerId !== session.userId) return null
 
   function resume() {
@@ -27,23 +29,24 @@ export function DraftResume() {
     }
   }
 
-  function confirmDelete() {
-    Alert.alert(t('draft.delete'), undefined, [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('draft.delete'),
-        style: 'destructive',
-        onPress: () => {
-          void clearSavedRoomDraft().catch(() => Alert.alert(t('draft.saveFailed')))
-        },
-      },
-    ])
+  async function confirmDelete() {
+    const choice = await confirm({
+      title: t('draft.delete'),
+      actions: [
+        { key: 'cancel', label: t('common.cancel'), style: 'cancel' },
+        { key: 'delete', label: t('draft.delete'), style: 'destructive' },
+      ],
+    })
+    if (choice !== 'delete') return
+    // A notice, not a confirmation: stays the platform alert (#381 scope).
+    void clearSavedRoomDraft().catch(() => Alert.alert(t('draft.saveFailed')))
   }
 
   return (
     <View style={styles.actions}>
       <SecondaryBtn label={t('draft.resume')} onPress={resume} style={styles.action} />
-      <GhostBtn label={t('draft.delete')} onPress={confirmDelete} style={styles.action} />
+      <GhostBtn label={t('draft.delete')} onPress={() => void confirmDelete()} style={styles.action} />
+      {dialog}
     </View>
   )
 }

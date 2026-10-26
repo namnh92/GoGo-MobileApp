@@ -105,14 +105,15 @@ describe('invite screen × session', () => {
     mockJoinAsGuest.mockResolvedValue({ kind: 'guest', roomId: ROOM })
     // #272: an existing guest session is replaced only once the person confirms
     // (guest-replace-confirm.spec covers declining); confirm here.
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation((_title, _body, buttons) => {
-      buttons?.find(button => button.style === 'destructive')?.onPress?.()
-    })
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
     try {
       const view = await renderScreen(<GuestJoinScreen />)
 
       await fireEvent.changeText(view.getByLabelText(NAME), '  Lan  ')
       await fireEvent.press(view.getByText(JOIN))
+      // #381: the in-app Dialog, not the platform alert.
+      if (status === 'guest') await fireEvent.press(await view.findByRole('button', { name: 'Thay và tham gia' }))
+      expect(alert).not.toHaveBeenCalled()
 
       await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM}/preference`))
       expect(mockJoinAsGuest).toHaveBeenCalledWith({ inviteCode: CODE, displayName: 'Lan' })

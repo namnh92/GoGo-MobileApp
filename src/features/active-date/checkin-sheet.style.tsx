@@ -1,27 +1,10 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, fill, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, overlay, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...fill, backgroundColor: overlay.backdrop },
-  sheet: {
-    backgroundColor: glassFx.sheet,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[5],
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: neutral[100],
-    alignSelf: 'center',
-    marginBottom: spacing[4],
-  },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[4] },
   stopName: { marginTop: 2 },
   rateLabel: { marginBottom: spacing[2] },

@@ -1,5 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native'
-import { Alert, type AlertButton } from 'react-native'
+import { Alert } from 'react-native'
 
 import { renderScreen } from './harness'
 
@@ -64,12 +64,10 @@ beforeEach(() => {
 
 afterEach(() => alertSpy.mockRestore())
 
-function lastAlertButton(style: AlertButton['style']): AlertButton {
-  const buttons = (alertSpy.mock.calls.at(-1)?.[2] ?? []) as AlertButton[]
-  const button = buttons.find(entry => entry.style === style)
-  if (!button) throw new Error(`no ${style} button in the confirmation`)
-  return button
-}
+// #381: the confirmation is the in-app Dialog, pressed like a person would.
+const CONFIRM_TITLE = 'Thay phiên khách hiện tại?'
+const KEEP = 'Giữ phiên hiện tại'
+const REPLACE = 'Thay và tham gia'
 
 type Screen = 'invite link' | 'typed code'
 
@@ -105,24 +103,27 @@ describe.each(['invite link', 'typed code'] as const)('a guest already in a room
   })
 
   it('is asked to confirm, and nothing is replaced until they do', async () => {
-    await fillAndJoin(screen)
-    expect(alertSpy).toHaveBeenCalledTimes(1)
+    const view = await fillAndJoin(screen)
+    expect(alertSpy).not.toHaveBeenCalled()
+    expect(view.getByText(CONFIRM_TITLE)).toBeTruthy()
+    expect(view.getByRole('header', { name: CONFIRM_TITLE })).toBeTruthy()
     expect(mockJoinAsGuest).not.toHaveBeenCalled()
   })
 
   it('keeps the current guest session when they decline', async () => {
-    await fillAndJoin(screen)
+    const view = await fillAndJoin(screen)
     await act(async () => {
-      lastAlertButton('cancel').onPress?.()
+      await fireEvent.press(view.getByRole('button', { name: KEEP }))
     })
+    expect(view.queryByText(CONFIRM_TITLE)).toBeNull()
     expect(mockJoinAsGuest).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it('joins through the invite once they confirm', async () => {
-    await fillAndJoin(screen)
+    const view = await fillAndJoin(screen)
     await act(async () => {
-      lastAlertButton('destructive').onPress?.()
+      await fireEvent.press(view.getByRole('button', { name: REPLACE }))
     })
     expect(mockJoinAsGuest).toHaveBeenCalledWith({ inviteCode: CODE, displayName: 'Lan' })
     expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM_B}/preference`)

@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, Pressable, ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Card, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
@@ -32,7 +32,6 @@ export default function CreateTimeScreen() {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { roomType, startTime, endTime, setStartTime, setEndTime } = useRoom()
   const durationPreset = useRoomStore(state => state.durationPreset)
   const setDurationPreset = useRoomStore(state => state.setDurationPreset)
@@ -147,33 +146,27 @@ export default function CreateTimeScreen() {
       </GlassBar>
 
       {/* Time slot picker sheet */}
-      <Modal visible={pickerFor !== null} transparent animationType="slide" onRequestClose={() => setPickerFor(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={() => setPickerFor(null)} />
-          <View style={[styles.sheet, { maxHeight: '70%' }]}>
-            <View style={styles.handle} />
-            <Text variant="title1" style={styles.sheetTitle}>
-              {t('createTime.pickTime')} · {t(pickerFor === 'end' ? 'createTime.end' : 'createTime.start')}
-            </Text>
-            <ScrollView bounces={false} contentContainerStyle={[styles.slotGrid, { paddingBottom: insets.bottom + spacing[5] }]}>
-              {slotOptions.map(slot => {
-                const active = (pickerFor === 'start' ? startTime : endTime) === slot
-                return (
-                  <Pressable
-                    key={slot}
-                    onPress={() => pickSlot(slot)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    style={[styles.slotBtn, active && { backgroundColor: theme.accent.primary }]}
-                  >
-                    <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>{slot}</Text>
-                  </Pressable>
-                )
-              })}
-            </ScrollView>
-          </View>
+      <Sheet visible={pickerFor !== null} onClose={() => setPickerFor(null)} maxHeight="70%">
+        <Text variant="title1" style={styles.sheetTitle}>
+          {t('createTime.pickTime')} · {t(pickerFor === 'end' ? 'createTime.end' : 'createTime.start')}
+        </Text>
+        <View style={styles.slotGrid}>
+          {slotOptions.map(slot => {
+            const active = (pickerFor === 'start' ? startTime : endTime) === slot
+            return (
+              <Pressable
+                key={slot}
+                onPress={() => pickSlot(slot)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                style={[styles.slotBtn, active && { backgroundColor: theme.accent.primary }]}
+              >
+                <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>{slot}</Text>
+              </Pressable>
+            )
+          })}
         </View>
-      </Modal>
+      </Sheet>
     </Atmosphere>
   )
 }

@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, Share, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -18,6 +18,7 @@ import { track } from '@/shared/analytics'
 import { pickAvatar } from '@/shared/media/pick-avatar'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, LoadingState } from '@/shared/ui/async-state.view'
+import { useDialog } from '@/shared/ui/dialog.view'
 import { haptic } from '@/shared/ui/feedback'
 import { Atmosphere, AvatarCircle, BackHeader, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
@@ -69,6 +70,7 @@ export default function AccountScreen() {
   const [notice, setNotice] = useState<string | null>(null)
   const [avatarStep, setAvatarStep] = useState<AvatarStep>(null)
   const [avatarNotice, setAvatarNotice] = useState<string | null>(null)
+  const { confirm, dialog } = useDialog()
 
   const displayName = name ?? me.data?.displayName ?? ''
   const dirty = displayName.trim() !== (me.data?.displayName ?? '') && displayName.trim().length > 0
@@ -183,29 +185,25 @@ export default function AccountScreen() {
     }
   }
 
-  function onDelete() {
-    // Irreversible, so it asks in the platform's own dialog rather than
-    // relying on a button the thumb can reach by accident.
+  async function onDelete() {
+    // Irreversible, so it asks first rather than relying on a button the
+    // thumb can reach by accident (#381: the in-app Dialog, not Alert.alert).
     // ADR-0023: the dialog states both halves. Promising to delete everything
     // and then keeping reviews is the one thing this confirmation must not do.
-    Alert.alert(
-      t('account.deleteTitle'),
-      `${t('account.deleteBody')}\n\n${t('account.deleteKept')}`,
-      [
-      { text: t('account.deleteCancel'), style: 'cancel' },
-      {
-        text: t('account.deleteConfirm'),
-        style: 'destructive',
-        onPress: () => {
-          setBusy('delete')
-          deleteAccount()
-            .then(() => router.replace('/(tabs)'))
-            .catch(() => setNotice(t('account.deleteFailed')))
-            .finally(() => setBusy(null))
-        },
-      },
+    const choice = await confirm({
+      title: t('account.deleteTitle'),
+      message: `${t('account.deleteBody')}\n\n${t('account.deleteKept')}`,
+      actions: [
+        { key: 'cancel', label: t('account.deleteCancel'), style: 'cancel' },
+        { key: 'delete', label: t('account.deleteConfirm'), style: 'destructive' },
       ],
-    )
+    })
+    if (choice !== 'delete') return
+    setBusy('delete')
+    deleteAccount()
+      .then(() => router.replace('/(tabs)'))
+      .catch(() => setNotice(t('account.deleteFailed')))
+      .finally(() => setBusy(null))
   }
 
   return (
@@ -294,7 +292,7 @@ export default function AccountScreen() {
           <Text variant="bodySmall" color="text.secondary">{t('account.deleteBody')}</Text>
           <Text variant="bodySmall" color="text.secondary">{t('account.deleteKept')}</Text>
           <Pressable
-            onPress={onDelete}
+            onPress={() => void onDelete()}
             disabled={busy === 'delete'}
             accessibilityRole="button"
             accessibilityLabel={busy === 'delete' ? t('account.deleting') : t('account.deleteConfirm')}
@@ -313,6 +311,7 @@ export default function AccountScreen() {
           </Text>
         ) : null}
       </ScrollView>
+      {dialog}
     </Atmosphere>
   )
 }
