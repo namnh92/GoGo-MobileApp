@@ -58,7 +58,7 @@ export type NotificationSettings = Schemas['NotificationSettings']
 export type ResolveLinkResult = Schemas['ResolveLinkResult']
 export type SubmissionResult = Schemas['SubmissionResult']
 
-// GoGo AI (GoGo-BE#713 contract 2.0.0-alpha.2, GoGo-MobileApp#378).
+// GoGo AI (GoGo-BE#713 contract 2.0.0-alpha.3, GoGo-MobileApp#378).
 export type AssistantStatus = Schemas['AssistantStatus']
 export type AssistantContext = Schemas['AssistantContext']
 export type AssistantContextRef = Schemas['AssistantContextRef']

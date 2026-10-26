@@ -22,7 +22,7 @@ import type {
  *
  * The app ships `httpAssistantBackend`: the generated `/v1/assistant/*`
  * operations plus the SSE opener. The assistant API is declared
- * (GoGo-BE#713, contract 2.0.0-alpha.2) but not served yet, so a dev-flavour
+ * (GoGo-BE#713, contract 2.0.0-alpha.3) but not served yet, so a dev-flavour
  * debug build answers from a scripted, in-memory backend in `src/data` —
  * the "mock fixtures until the real API lands" the repo keeps there. It is
  * loaded with `require` only when `isAssistantMockOn()` says so (dev flavour,

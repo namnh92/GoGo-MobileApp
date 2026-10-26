@@ -50,7 +50,9 @@ export function isTerminalEvent(event: AssistantStreamEvent): boolean {
  * Folds one event into the assistant message. `step` changes nothing stored —
  * it is the live "what am I doing" line, which the caller keeps on its own.
  * `sources` replaces (the server sends the complete list so far); cards append
- * in order; a proposal with an id already present replaces it.
+ * in order; a proposal with an id already present replaces it. `done` with
+ * `truncated` keeps the text and sources and drops cards, proposals and
+ * follow-ups (contract: unfinished structured outputs are discarded).
  */
 export function applyAssistantEvent(
   message: AssistantMessage,
@@ -73,6 +75,13 @@ export function applyAssistantEvent(
     case 'notice':
       return { ...message, notice: event.notice }
     case 'done':
+      if (event.status === 'truncated') {
+        // The server's hard ceiling (2.0.0-alpha.3): the partial text stands,
+        // structured outputs that had not finished are discarded — never
+        // half-shown. The persisted row (refetched after the reply) keeps
+        // whatever the server completed.
+        return { ...message, status: 'truncated', cards: [], proposals: [], followUps: [], completedAt: now() }
+      }
       return { ...message, status: event.status, completedAt: now() }
     case 'error':
       // The partial text already streamed is kept (contract): only the status changes.

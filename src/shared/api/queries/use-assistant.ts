@@ -313,6 +313,11 @@ export function useAssistantReply(conversationId: string | null, message: Assist
         patchMessage(client, conversationId, streamingId, existing => applyAssistantEvent(existing, event))
         if (isTerminalEvent(event)) {
           update({ step: null, connection: null })
+          // Cut short: the stream's structured outputs were dropped; the stored
+          // row says which of them the server completed and kept.
+          if (event.type === 'done' && event.status === 'truncated') {
+            void client.invalidateQueries({ queryKey: queryKeys.assistantMessages(conversationId) })
+          }
           void client.invalidateQueries({ queryKey: queryKeys.assistantConversations() })
           void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
         }

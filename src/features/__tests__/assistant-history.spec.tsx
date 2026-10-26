@@ -20,7 +20,10 @@ jest.mock('@/shared/api/queries/use-online-status', () => ({ useOnlineStatus: ()
 
 import AssistantRoute from '@/app/assistant'
 
-import { callsTo, installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications } from './assistant-harness'
+import { setAssistantBackend } from '@/shared/api/assistant-backend'
+import { createMockAssistantBackend } from '@/data/assistant/mock-backend'
+
+import { callsTo, installBackend, renderAssistant, resetAssistantSpecState, settle, spyOn, syncTanstackNotifications } from './assistant-harness'
 
 syncTanstackNotifications()
 
@@ -124,5 +127,34 @@ it('opening a conversation shows its thread; New chat goes back to Welcome', asy
     await fireEvent.press(view.getByTestId('assistant-history-new-chat'))
   })
   expect(view.getByTestId('assistant-welcome')).toBeTruthy()
+  await settle()
+})
+
+it('a stored reply that was cut short shows the same notice and Retry when the conversation is reopened', async () => {
+  const mock = createMockAssistantBackend({ speed: 0, actor: () => 'user' })
+  // The server persisted this reply as `truncated` (2.0.0-alpha.3): partial text, no cards.
+  const backend = spyOn({
+    ...mock,
+    listMessages: async (conversationId, query) => {
+      const page = await mock.listMessages(conversationId, query)
+      return {
+        ...page,
+        items: page.items.map(item => (item.text === 'Có bốn màu trong Cài đặt.' ? { ...item, status: 'truncated' as const } : item)),
+      }
+    },
+  })
+  setAssistantBackend(backend)
+  const view = await renderAssistant(<AssistantRoute />)
+  await openHistory(view)
+  await act(async () => {
+    await fireEvent.press(view.getByRole('button', { name: /^Đổi màu chủ đề,/ }))
+  })
+  await waitFor(() => expect(view.getByText('Có bốn màu trong Cài đặt.')).toBeTruthy())
+  expect(view.getByText('Câu trả lời bị cắt ngắn')).toBeTruthy()
+  await act(async () => {
+    await fireEvent.press(view.getByRole('button', { name: 'Thử lại' }))
+  })
+  await waitFor(() => expect(callsTo(backend, 'sendMessage')).toHaveLength(1))
+  expect((callsTo(backend, 'sendMessage')[0]![1] as { text: string }).text).toBe('Đổi màu chủ đề ở đâu?')
   await settle()
 })

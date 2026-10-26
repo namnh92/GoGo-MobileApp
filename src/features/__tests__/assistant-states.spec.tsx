@@ -106,7 +106,21 @@ it('a burst limit asks to wait, and Retry stays', async () => {
   const view = await renderAssistant(<AssistantRoute />)
   await ask(view, 'gửi nhiều quá')
   await waitFor(() => expect(view.getByText('Gửi quá nhanh')).toBeTruthy())
+  // The per-minute limit is the status's `messagesPerMinuteLimit`, never a number in the app.
+  expect(view.getByText('Mỗi phút gửi được tối đa 5 tin nhắn. Đợi một chút rồi thử lại.')).toBeTruthy()
   expect(view.getByRole('button', { name: 'Thử lại' })).toBeTruthy()
+  await settle()
+})
+
+it('a burst limit reads its number from the status: another configured limit shows that one', async () => {
+  const backend = spyOn({
+    ...createMockAssistantBackend({ speed: 0, actor: () => 'user' }),
+    getStatus: async () => ({ state: 'enabled', dailyMessageLimit: 12, remainingToday: 9, resetsAt: '2026-10-27T17:00:00Z', messagesPerMinuteLimit: 2 }),
+  })
+  setAssistantBackend(backend)
+  const view = await renderAssistant(<AssistantRoute />)
+  await ask(view, 'gửi nhiều quá')
+  await waitFor(() => expect(view.getByText('Mỗi phút gửi được tối đa 2 tin nhắn. Đợi một chút rồi thử lại.')).toBeTruthy())
   await settle()
 })
 

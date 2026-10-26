@@ -54,7 +54,14 @@ interface LiveReply {
   finished: boolean
 }
 
-const DAILY_LIMIT = 50
+/**
+ * The contract's defaults (2.0.0-alpha.3): 30 accepted messages a day, 5 in any
+ * rolling minute. Mock server configuration only — the app reads both from
+ * `getStatus`, never from here. The burst limit is not counted by the mock;
+ * `nhieu qua` / `busy` answers its 429.
+ */
+const DAILY_LIMIT = 30
+const PER_MINUTE_LIMIT = 5
 
 export function createMockAssistantBackend(options: MockAssistantOptions = {}): AssistantBackend {
   const speed = options.speed ?? 1
@@ -188,7 +195,13 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
     getStatus: () =>
       later(() => {
         guard()
-        return { state, dailyMessageLimit: DAILY_LIMIT, remainingToday: remaining, resetsAt: resetsAt() }
+        return {
+          state,
+          dailyMessageLimit: DAILY_LIMIT,
+          messagesPerMinuteLimit: PER_MINUTE_LIMIT,
+          remainingToday: remaining,
+          resetsAt: resetsAt(),
+        }
       }, 120),
 
     listConversations: ({ q, cursor, limit = 20 }) =>

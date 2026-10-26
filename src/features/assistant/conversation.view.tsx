@@ -4,6 +4,7 @@ import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, View } from '
 
 import {
   useAssistantMessages,
+  useAssistantStatus,
   type AssistantMessage,
   type AssistantReplyConnection,
 } from '@/shared/api'
@@ -26,8 +27,9 @@ type Row = { key: string; outgoing: OutgoingMessage } | { key: string; message: 
  * the keyboard opens; scrolling up loads older pages. Messages the server has
  * not accepted are drafts from the store, drawn below the server's.
  *
- * A finished reply is announced politely ("GoGo AI replied: …"); a failure is
- * announced as an alert by its `StateNotice`.
+ * A finished reply is announced politely ("GoGo AI replied: …"), a reply cut
+ * short too, led by "Reply cut short"; a failure is announced as an alert by
+ * its `StateNotice`.
  */
 export function Conversation({
   conversationId,
@@ -53,6 +55,7 @@ export function Conversation({
 }) {
   const { t, i18n } = useTranslation()
   const query = useAssistantMessages(conversationId)
+  const status = useAssistantStatus()
   const messages = useMemo(() => query.data?.pages.flatMap(page => page.items) ?? [], [query.data])
 
   const rows: Row[] = useMemo(
@@ -83,8 +86,13 @@ export function Conversation({
     if (before.id !== newest.id || before.status !== 'streaming') return
     if (newest.status === 'streaming' || newest.status === 'failed') return
     const text = plainAnswer(newest.text).slice(0, 280)
-    if (!text) return
-    const line = t('assistant.message.replied', { text })
+    if (!text && newest.status !== 'truncated') return
+    const line =
+      newest.status !== 'truncated'
+        ? t('assistant.message.replied', { text })
+        : text
+          ? t('assistant.message.truncated.announce', { text })
+          : t('assistant.message.truncated.title')
     if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibilityWithOptions(line, { queue: true })
     else AccessibilityInfo.announceForAccessibility(line)
   }, [newest, t])
@@ -137,7 +145,7 @@ export function Conversation({
       renderItem={({ item, index }) => {
         if ('outgoing' in item) {
           const failed = item.outgoing.status === 'failed'
-          const copy = failed ? sendErrorCopy(item.outgoing.error, t) : null
+          const copy = failed ? sendErrorCopy(item.outgoing.error, t, status.data) : null
           return (
             <View style={styles.turn}>
               <UserMessage
