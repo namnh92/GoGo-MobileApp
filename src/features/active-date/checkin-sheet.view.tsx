@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, TextInput, View } from 'react-native'
 
 import { useUploadImage, type PlanStopRow } from '@/shared/api'
+import { Icon } from '@/shared/ui/icons'
 import { PrimaryBtn } from '@/shared/ui/primitives'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Glyph, Text } from '@/shared/ui/text'
@@ -121,7 +122,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
   return (
     <Sheet visible={visible} onClose={skip}>
       <View style={styles.headerRow}>
-        <Glyph size="md">📍</Glyph>
+        <Icon name="mapPin" size={28} color="accent.primary" />
         <View style={{ flex: 1 }}>
           <Text variant="title2">{t('checkin.title')}</Text>
           <Text variant="bodySmall" color="text.secondary" style={styles.stopName} numberOfLines={1}>
@@ -136,9 +137,19 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
           <Pressable
             key={value}
             onPress={() => setRating(value)}
+            accessibilityRole="button"
             accessibilityLabel={t('review.starAria', { count: value })}
+            accessibilityState={{ selected: value <= rating }}
+            style={styles.star}
           >
-            <Glyph size="md" style={[value > rating && styles.starDim]}>⭐</Glyph>
+            {/* Filled up to the rating, outlined past it — shape, not a fade (#382). */}
+            <Icon
+              testID={value <= rating ? `checkin-star-${value}-filled` : `checkin-star-${value}`}
+              name="star"
+              size={28}
+              filled={value <= rating}
+              color={value <= rating ? 'accent.primary' : 'text.secondary'}
+            />
           </Pressable>
         ))}
       </View>

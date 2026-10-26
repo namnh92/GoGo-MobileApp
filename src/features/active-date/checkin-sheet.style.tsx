@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, overlay, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -9,7 +9,7 @@ export const styles = StyleSheet.create(theme => ({
   stopName: { marginTop: 2 },
   rateLabel: { marginBottom: spacing[2] },
   starsRow: { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[4] },
-  starDim: { opacity: 0.25 },
+  star: { minWidth: touchTarget.min, minHeight: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[4] },
   tagBtn: {
     paddingHorizontal: 12,

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, fill, glassFx, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, fill, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -52,23 +52,6 @@ export const styles = StyleSheet.create(theme => ({
     zIndex: 20,
   },
   diffLine: { ...type.label, color: neutral[0], marginTop: 2 },
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...fill, backgroundColor: overlay.backdrop },
-  sheet: {
-    backgroundColor: glassFx.sheet,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[5],
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: neutral[100],
-    alignSelf: 'center',
-    marginBottom: spacing[4],
-  },
   sheetTitle: { ...type.title1, color: neutral[900], marginBottom: spacing[3] },
   reasonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   reasonBtn: {

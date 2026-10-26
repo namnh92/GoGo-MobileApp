@@ -22,6 +22,9 @@ function walk(dir: string): string[] {
   })
 }
 
+/** A line that is only a comment — prose may name what it replaced. */
+const COMMENT = /^\s*(\/\/|\*|\/\*|\{\/\*)/
+
 const rel = (file: string) => path.relative(SRC, file).split(path.sep).join('/')
 
 /**
@@ -86,8 +89,8 @@ describe('i18n copy is sentence case (#382)', () => {
  * CLAUDE.md (#295): glass is for the tab bar and the fixed bottom bars only;
  * cards and fields are solid `surface.card`. `glassFx` survives where its wash
  * sits on a photo or on an accent fill — places a solid card colour would be
- * wrong — and in the hand-written modal sheets that #381 replaces with the
- * `Sheet` primitive. This is a ratchet: a new use fails, and removing one means
+ * wrong — and in the ATT consent sheet. The modal sheets #381 moved onto the
+ * `Sheet` primitive read `surface.card`. This is a ratchet: a new use fails, and removing one means
  * deleting its line here.
  */
 const GLASS_FX_ALLOWED: Record<string, string[]> = {
@@ -103,11 +106,7 @@ const GLASS_FX_ALLOWED: Record<string, string[]> = {
   'features/matching/swipe.style.tsx': ['borderBright', 'solid'],
   // A fixed bottom bar.
   'features/date-plan/date-plan.style.tsx': ['bar'],
-  // Hand-written modal sheets — #381 moves these onto `Sheet`.
-  'features/active-date/checkin-sheet.style.tsx': ['sheet'],
-  'features/create-date/create-time.style.tsx': ['sheet'],
-  'features/matching/match-result.style.tsx': ['sheet'],
-  'features/search/search.style.tsx': ['sheet'],
+  // The ATT consent sheet: a native-prompt primer that stays a plain Modal.
   'shared/consent/tracking-sheet.style.tsx': ['sheet'],
 }
 
@@ -117,7 +116,12 @@ describe('glass wash stays off ordinary surfaces (#382)', () => {
     for (const file of walk(SRC)) {
       const name = rel(file)
       if (name === 'shared/ui/tokens.ts') continue
-      const uses = [...readFileSync(file, 'utf8').matchAll(/glassFx\.(\w+)/g)].map(match => match[1]!)
+      // Code only: a comment may name the wash it replaced.
+      const code = readFileSync(file, 'utf8')
+        .split('\n')
+        .filter(line => !COMMENT.test(line))
+        .join('\n')
+      const uses = [...code.matchAll(/glassFx\.(\w+)/g)].map(match => match[1]!)
       if (uses.length > 0) found[name] = [...new Set(uses)].sort()
     }
     expect(found).toEqual(GLASS_FX_ALLOWED)
@@ -148,7 +152,9 @@ describe('cards keep their contrast (#382)', () => {
       .flatMap(file =>
         readFileSync(file, 'utf8')
           .split('\n')
-          .flatMap((line, i) => (/text\.tertiary/.test(line) ? [`${rel(file)}:${i + 1} ${line.trim()}`] : [])),
+          .flatMap((line, i) =>
+            /text\.tertiary/.test(line) && !COMMENT.test(line) ? [`${rel(file)}:${i + 1} ${line.trim()}`] : [],
+          ),
       )
     expect(offenders).toEqual([])
   })

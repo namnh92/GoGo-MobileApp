@@ -39,9 +39,11 @@ jest.mock('@/shared/api', () => ({
   useMe: () => mockLoaded({ displayName: 'Mai' }),
   useMyReviews: () => mockLoaded([]),
   useNotificationSettings: () => mockLoaded({}),
+  useUploadImage: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }))
 
 import { styles as checkinStyles } from '@/features/active-date/checkin-sheet.style'
+import { CheckinSheet } from '@/features/active-date/checkin-sheet.view'
 import PlaceDetailScreen from '@/features/date-plan/place-detail.view'
 import SplashScreen from '@/features/onboarding/splash.view'
 import ProfileScreen from '@/features/tabs/profile.view'
@@ -63,6 +65,29 @@ describe('check-in bill toggle (#382 §5)', () => {
     })
     expect(flat(checkinStyles.billToggleLabelOn).color).toBe(accents.orange.onSoft)
     expect(flat(checkinStyles.billToggleMark).color).toBe(accents.orange.onSoft)
+  })
+})
+
+describe('check-in sheet (#382 §2, on #381 Sheet)', () => {
+  it('rates with star icons — filled to the rating, outlined past it — and no emoji', async () => {
+    await render(
+      <CheckinSheet
+        visible
+        stop={{ id: 'stop-1', placeId: 'place-1' } as never}
+        placeName="Quán thử"
+        pending={false}
+        error={null}
+        onSave={jest.fn()}
+        onSkip={jest.fn()}
+      />,
+    )
+    expect(screen.queryByText('⭐')).toBeNull()
+    expect(screen.queryByText('📍')).toBeNull()
+    await act(async () => {
+      await fireEvent.press(screen.getByLabelText(i18n.t('review.starAria', { count: 3 })))
+    })
+    expect(screen.getByTestId('checkin-star-3-filled')).toBeTruthy()
+    expect(screen.getByTestId('checkin-star-4')).toBeTruthy()
   })
 })
 
