@@ -37,4 +37,15 @@ export const queryKeys = {
   notifications: () => ['me', 'notifications'] as const,
   /** Under `me`, so an account switch purges it with the rest of the profile. */
   notificationSettings: () => ['me', 'notification-settings'] as const,
+
+  /**
+   * GoGo AI (#378). One root, so logout drops every conversation in one call;
+   * never persisted (`persist-policy.ts` lists no `assistant` prefix) — the
+   * history lives on the server, not on the device.
+   */
+  assistant: () => ['assistant'] as const,
+  assistantStatus: () => ['assistant', 'status'] as const,
+  assistantConversations: () => ['assistant', 'conversations'] as const,
+  assistantConversationList: (q: string) => ['assistant', 'conversations', 'list', q] as const,
+  assistantMessages: (conversationId: string) => ['assistant', 'messages', conversationId] as const,
 } as const

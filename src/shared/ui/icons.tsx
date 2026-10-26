@@ -233,6 +233,96 @@ const SHAPES = {
       <Line x1={12} y1={20} x2={12.01} y2={20} />
     </>
   ),
+  // GoGo AI set (#378): history, new chat, composer, suggestions, menus and
+  // states, in Feather geometry like the rest of the grid.
+  history: () => (
+    <>
+      <Path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <Polyline points="3 3 3 8 8 8" />
+      <Polyline points="12 7 12 12 15 14" />
+    </>
+  ),
+  newChat: () => (
+    <>
+      <Path d="M12 20h9" />
+      <Path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </>
+  ),
+  attach: () => (
+    <Path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  ),
+  mic: () => (
+    <>
+      <Path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <Path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <Line x1={12} y1={19} x2={12} y2={23} />
+      <Line x1={8} y1={23} x2={16} y2={23} />
+    </>
+  ),
+  send: () => (
+    <>
+      <Line x1={12} y1={19} x2={12} y2={5} />
+      <Polyline points="5 12 12 5 19 12" />
+    </>
+  ),
+  stop: () => <Rect x={6} y={6} width={12} height={12} rx={2} ry={2} fill="currentColor" />,
+  compass: () => (
+    <>
+      <Circle cx={12} cy={12} r={10} />
+      <Polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </>
+  ),
+  book: () => (
+    <>
+      <Path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </>
+  ),
+  support: () => (
+    <>
+      <Circle cx={12} cy={12} r={10} />
+      <Circle cx={12} cy={12} r={4} />
+      <Line x1={4.93} y1={4.93} x2={9.17} y2={9.17} />
+      <Line x1={14.83} y1={14.83} x2={19.07} y2={19.07} />
+      <Line x1={14.83} y1={9.17} x2={19.07} y2={4.93} />
+      <Line x1={4.93} y1={19.07} x2={9.17} y2={14.83} />
+    </>
+  ),
+  more: () => (
+    <>
+      <Circle cx={5} cy={12} r={1} />
+      <Circle cx={12} cy={12} r={1} />
+      <Circle cx={19} cy={12} r={1} />
+    </>
+  ),
+  trash: () => (
+    <>
+      <Polyline points="3 6 5 6 21 6" />
+      <Path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <Path d="M10 11v6M14 11v6" />
+      <Path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </>
+  ),
+  retry: () => (
+    <>
+      <Polyline points="1 4 1 10 7 10" />
+      <Path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+    </>
+  ),
+  doc: () => (
+    <>
+      <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <Polyline points="14 2 14 8 20 8" />
+      <Line x1={16} y1={13} x2={8} y2={13} />
+      <Line x1={16} y1={17} x2={8} y2={17} />
+    </>
+  ),
+  checkCircle: () => (
+    <>
+      <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <Polyline points="22 4 12 14.01 9 11.01" />
+    </>
+  ),
   /**
    * GoGo AI (#379): the chatbot symbol — a robot head drawn as a speech
    * bubble, with an antenna, two round eyes, a small smile and two ears.

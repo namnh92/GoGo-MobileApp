@@ -19,3 +19,22 @@ describe('assistant entry gate (#379)', () => {
     expect(assistantEntryEnabled('dev', 'off')).toBe(false)
   })
 })
+
+/**
+ * GoGo-MobileApp#378: the scripted assistant answers only in a dev-flavour
+ * debug build. Nothing a tester or a user installs answers from a script.
+ */
+describe('assistant mock gate (#378)', async () => {
+  const { assistantMockEnabled } = await import('@/shared/config/features')
+
+  it('is on by default in a dev debug build, and can be turned off', () => {
+    expect(assistantMockEnabled('dev', undefined, true)).toBe(true)
+    expect(assistantMockEnabled('dev', 'off', true)).toBe(false)
+  })
+
+  it('never in stag or prod, and never in a release build, whatever the variable says', () => {
+    expect(assistantMockEnabled('stag', 'on', true)).toBe(false)
+    expect(assistantMockEnabled('prod', 'on', true)).toBe(false)
+    expect(assistantMockEnabled('dev', 'on', false)).toBe(false)
+  })
+})

@@ -8,6 +8,8 @@ import { isRetryable, isUnauthorized } from './errors'
 import { shouldPersistQuery } from './persist-policy'
 import { queryKeys } from './query-keys'
 import { forgetRoomSteps } from '@/shared/navigation/room-steps'
+import { resetAssistantDrafts } from '@/shared/store/assistantDraftStore'
+import { closeAssistantStreams } from './queries/use-assistant'
 
 const MAX_RETRIES = 3
 
@@ -140,6 +142,12 @@ export async function purgeCachedUserData(queryClient: QueryClient): Promise<voi
   // Which rooms' runs and plans were already shown belongs to the account too:
   // the next one to sign in on this device has seen none of them (#198).
   forgetRoomSteps()
+  // GoGo AI (#378): no reply keeps streaming into the cache, no unsent
+  // question or draft is left for the next account, and no conversation
+  // stays in memory (none is ever written to disk).
+  closeAssistantStreams()
+  resetAssistantDrafts()
+  queryClient.removeQueries({ queryKey: queryKeys.assistant() })
   queryClient.removeQueries({ queryKey: queryKeys.rooms() })
   queryClient.removeQueries({ queryKey: ['plans'] })
   queryClient.removeQueries({ queryKey: ['me'] })

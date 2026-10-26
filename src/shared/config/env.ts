@@ -22,6 +22,10 @@ const envSchema = z.object({
   // `off` force it; unset follows the flavour (`features.ts`). Anything else
   // fails here, so a typo cannot quietly ship the gate in the wrong state.
   EXPO_PUBLIC_ASSISTANT_ENTRY: z.enum(['on', 'off']).optional(),
+  // Scripted GoGo AI backend for building the screens before the API exists
+  // (GoGo-MobileApp#378). Only ever honoured by a `dev` flavour debug build
+  // (`features.ts`); stag/prod ignore it whatever it says.
+  EXPO_PUBLIC_ASSISTANT_MOCK: z.enum(['on', 'off']).optional(),
 })
 
 const parsed = envSchema.safeParse({
@@ -30,6 +34,7 @@ const parsed = envSchema.safeParse({
   EXPO_PUBLIC_WEB_BASE_URL: process.env.EXPO_PUBLIC_WEB_BASE_URL,
   EXPO_PUBLIC_SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN,
   EXPO_PUBLIC_ASSISTANT_ENTRY: process.env.EXPO_PUBLIC_ASSISTANT_ENTRY || undefined,
+  EXPO_PUBLIC_ASSISTANT_MOCK: process.env.EXPO_PUBLIC_ASSISTANT_MOCK || undefined,
 })
 
 if (!parsed.success) {
@@ -42,4 +47,5 @@ export const env = {
   webBaseUrl: parsed.data.EXPO_PUBLIC_WEB_BASE_URL,
   sentryDsn: parsed.data.EXPO_PUBLIC_SENTRY_DSN,
   assistantEntry: parsed.data.EXPO_PUBLIC_ASSISTANT_ENTRY,
+  assistantMock: parsed.data.EXPO_PUBLIC_ASSISTANT_MOCK,
 } as const
