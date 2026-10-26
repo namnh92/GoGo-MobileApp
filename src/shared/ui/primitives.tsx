@@ -2,18 +2,18 @@ import { Image } from 'expo-image'
 import { useState, type ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import { useLocaleContent } from '@/shared/i18n'
 import { IconChevronLeft } from '@/shared/ui/icons'
 import { haptic } from '@/shared/ui/feedback'
 import { ScaledText, Text, type TextColor } from '@/shared/ui/text'
-import { border, hitSlop, shadows, spacing, surface, touchTarget } from '@/shared/ui/tokens'
+import { border, hitSlop, shadows, surface, touchTarget } from '@/shared/ui/tokens'
 
 export { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn, type ButtonProps } from '@/shared/ui/button.view'
 export { Card } from '@/shared/ui/card.view'
 export { useBottomBarInset } from '@/shared/ui/bottom-bar-inset'
+export { Toast } from '@/shared/ui/toast.view'
 
 /**
  * Static card look for the call sites that still spread it into their own
@@ -207,16 +207,6 @@ export function RemoteImage({ uri, style }: { uri: string; style?: StyleProp<Vie
   return <Image source={{ uri }} style={[{ backgroundColor: surface.subtle }, style as object]} contentFit="cover" transition={150} />
 }
 
-/** Fixed toast near the top of the screen — `role=status` equivalent. */
-export function Toast({ message }: { message: string }) {
-  const insets = useSafeAreaInsets()
-  return (
-    <View accessibilityLiveRegion="polite" style={[styles.toast, { top: insets.top + spacing[6] }]}>
-      <Text variant="label" color="text.inverse">{message}</Text>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create(theme => ({
   canvas: { flex: 1, backgroundColor: theme.surface.canvas },
 
@@ -299,16 +289,5 @@ const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-
-  toast: {
-    position: 'absolute',
-    alignSelf: 'center',
-    backgroundColor: theme.text.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: theme.radius.compact,
-    zIndex: 20,
-    ...theme.shadows.toast,
   },
 }))

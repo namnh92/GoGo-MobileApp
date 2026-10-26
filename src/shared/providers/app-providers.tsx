@@ -19,6 +19,7 @@ import { retryInitialization } from '@/shared/notifications/initialize'
 import { startNotificationClicks } from '@/shared/notifications/notification-clicks-bootstrap'
 import { useAccentBootstrap } from '@/shared/theme/use-accent-bootstrap'
 import { markSplashHidden } from '@/shared/ui/splash-state'
+import { ToastProvider } from '@/shared/ui/toast.view'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
 const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
@@ -79,7 +80,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
             },
           }}
         >
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider>
+            {/* One toast queue for the app (#381); inside the safe area it positions against. */}
+            <ToastProvider>{children}</ToastProvider>
+          </SessionProvider>
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
