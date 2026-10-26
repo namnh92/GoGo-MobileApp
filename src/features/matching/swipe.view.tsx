@@ -41,7 +41,8 @@ import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Icon } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
 import { colors, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
 import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
@@ -446,25 +447,28 @@ export default function SwipeScreen() {
                 style={[styles.overlay, { left: 20, backgroundColor: brand.mint }, likeStyle]}
                 pointerEvents="none"
               >
-                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.like')}</Text>
+                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.likeLabel')}</Text>
               </Animated.View>
               <Animated.View
                 style={[styles.overlay, { right: 20, backgroundColor: theme.status.danger }, nopeStyle]}
                 pointerEvents="none"
               >
-                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.pass')}</Text>
+                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.passLabel')}</Text>
               </Animated.View>
               <Animated.View
                 style={[styles.overlay, { alignSelf: 'center', backgroundColor: brand.lavender }, starStyle]}
                 pointerEvents="none"
               >
-                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.star')}</Text>
+                <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.starLabel')}</Text>
               </Animated.View>
 
               <View style={styles.overImage}>
                 <Text variant="display" color="text.inverse" numberOfLines={2}>{card.name}</Text>
                 {detail.data?.addressText ? (
-                  <Text variant="bodySmall" color="onDark.strong" numberOfLines={1}>📍 {detail.data.addressText}</Text>
+                  <View style={styles.addressRow}>
+                    <Icon name="mapPin" size={14} color="onDark.strong" />
+                    <Text variant="bodySmall" color="onDark.strong" numberOfLines={1} style={styles.addressText}>{detail.data.addressText}</Text>
+                  </View>
                 ) : null}
               </View>
             </View>
@@ -520,9 +524,9 @@ export default function SwipeScreen() {
               disabled={castVote.isPending}
               accessibilityState={{ disabled: castVote.isPending, busy: castVote.isPending }}
               hitSlop={hitSlop}
-              style={({ pressed }) => [styles.actionBtn, glassStyles.card, pressed && { transform: [{ scale: 0.94 }] }]}
+              style={({ pressed }) => [styles.actionBtn, glassStyles.card, pressed && styles.actionBtnPressed]}
             >
-              <Glyph size="sm">✕</Glyph>
+              <Icon name="x" size={26} color="status.dangerText" />
             </Pressable>
             <Text variant="caption" color="text.secondary">{t('swipe.passLabel')}</Text>
           </View>
@@ -536,11 +540,11 @@ export default function SwipeScreen() {
               hitSlop={hitSlop}
               style={({ pressed }) => [
                 styles.actionBtn,
-                { backgroundColor: theme.accent.primary },
-                pressed && { transform: [{ scale: 0.94 }] },
+                styles.actionBtnLike,
+                pressed && styles.actionBtnLikePressed,
               ]}
             >
-              <Glyph size="sm">❤️</Glyph>
+              <Icon name="heart" size={26} color="accent.onAccent" filled />
             </Pressable>
             <Text variant="caption" color="text.secondary">{t('swipe.likeLabel')}</Text>
           </View>
@@ -552,9 +556,9 @@ export default function SwipeScreen() {
               disabled={castVote.isPending}
               accessibilityState={{ disabled: castVote.isPending, busy: castVote.isPending }}
               hitSlop={hitSlop}
-              style={({ pressed }) => [styles.actionBtn, styles.actionBtnStar, pressed && { transform: [{ scale: 0.94 }] }]}
+              style={({ pressed }) => [styles.actionBtn, styles.actionBtnStar, pressed && styles.actionBtnStarPressed]}
             >
-              <Glyph size="sm">⭐</Glyph>
+              <Icon name="star" size={24} color="status.infoText" filled />
             </Pressable>
             <Text variant="caption" color="text.secondary">{t('swipe.starLabel')}</Text>
           </View>

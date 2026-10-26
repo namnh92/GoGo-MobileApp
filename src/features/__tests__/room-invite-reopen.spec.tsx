@@ -61,7 +61,7 @@ const USER = 'user-1'
 const CODE = 'Qm9vZ2llLWNvZGUtMTk5'
 const EXPIRES = '2099-01-01T00:00:00.000Z'
 const INVITES_KEY = ['rooms', ROOM_ID, 'invites']
-const SHARE = 'Mời người tham gia 📩'
+const SHARE = 'Mời người tham gia'
 const ACTIVE_NOTE = /Phòng đang có mã mời còn hạn đến/
 const CLOSED = 'Phòng đã ngừng nhận thêm người, nên mã mời không còn dùng để vào phòng được.'
 

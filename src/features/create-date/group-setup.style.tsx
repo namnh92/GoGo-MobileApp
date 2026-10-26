@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -49,7 +49,7 @@ export const styles = StyleSheet.create(theme => ({
     gap: 2,
   },
   segmentActive: {
-    backgroundColor: glassFx.solid,
+    backgroundColor: theme.surface.card,
     shadowColor: neutral[900],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,

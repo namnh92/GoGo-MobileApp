@@ -27,13 +27,13 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
+import { IconBookmark, IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Card, Chip, SecondaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text } from '@/shared/ui/text'
 import { colors, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
 
 import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
@@ -246,7 +246,8 @@ export default function PlaceDetailScreen() {
                 accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
                 style={[styles.saveBtn, currentlySaved && styles.saveBtnActive]}
               >
-                <Glyph size="xs">{currentlySaved ? '🔖' : '📑'}</Glyph>
+                {/* Saved is the filled glyph, not only a colour (RULE-DS, #382). */}
+                <IconBookmark filled={currentlySaved} size={20} />
               </Pressable>
             ) : null}
           </View>
@@ -400,7 +401,7 @@ export default function PlaceDetailScreen() {
           {/* Real suitability scores from the ranking pipeline, not invented bars. */}
           {suitability.length > 0 ? (
             <>
-              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.coupleRatings')}</Text>
+              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.suitability')}</Text>
               <View style={styles.suitCard}>
                 {suitability.map(([key, value]) => (
                   <View key={key} style={styles.suitRow}>
@@ -440,12 +441,16 @@ export default function PlaceDetailScreen() {
               </Text>
               {/* No report endpoint exists on `/v1` yet, so this stays visibly
                   unavailable rather than pretending to send something. */}
-              <Text variant="label" color="text.tertiary"
+              {/* Disabled the way a Button is (#382): `text.secondary` on
+                  `surface.subtle`, never the 1.6:1 placeholder colour. */}
+              <View
+                testID="place-detail-report"
                 accessibilityRole="button"
                 accessibilityState={{ disabled: true }}
+                style={styles.reportDisabled}
               >
-                {t('placeDetail.report')}
-              </Text>
+                <Text variant="label" color="text.secondary">{t('placeDetail.report')}</Text>
+              </View>
             </View>
             <Text variant="caption" color="text.secondary">{t('placeDetail.reportUnavailable')}</Text>
             {(detail.sources ?? []).map(source => (
@@ -479,7 +484,7 @@ export default function PlaceDetailScreen() {
             haptic('select')
             openGoogleMapsDirections(destination)
           }}
-          style={({ pressed }) => [styles.dirBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+          style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
         >
           <IconNavigation color={neutral[0]} />
           <Text variant="label" color="text.inverse">{t('common.directions')}</Text>

@@ -135,7 +135,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
               <Chip
                 key={option.key}
                 label={option.label}
-                {...(option.emoji ? { icon: option.emoji } : {})}
+                {...(option.emoji ? { emoji: option.emoji } : {})}
                 variant={currentMoods.includes(option.key) ? 'selected' : 'default'}
                 onPress={() => toggleMood(option.key)}
               />

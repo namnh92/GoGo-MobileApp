@@ -46,4 +46,32 @@ module.exports = defineConfig([
       ],
     },
   },
+  {
+    // #382 (extends #298): pressed is a colour change and nothing else —
+    // `accent.pressed` on a filled control, `surface.subtle` on a neutral one.
+    // A scale moves the layout under the finger; an opacity fades the label
+    // below the contrast it was measured at. Both the inline form
+    // (`pressed && { … }`) and a named `*Pressed` style are caught.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['**/__tests__/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "LogicalExpression:has(Identifier[name='pressed']) > ObjectExpression > Property[key.name=/^(transform|opacity)$/]",
+          message: 'Pressed changes colour only (theme.accent.pressed / theme.surface.subtle), never scale or opacity (#382).',
+        },
+        {
+          selector:
+            "ConditionalExpression[test.name='pressed'] > ObjectExpression > Property[key.name=/^(transform|opacity)$/]",
+          message: 'Pressed changes colour only (theme.accent.pressed / theme.surface.subtle), never scale or opacity (#382).',
+        },
+        {
+          selector: 'Property[key.name=/[Pp]ressed$/] > ObjectExpression > Property[key.name=/^(transform|opacity)$/]',
+          message: 'A pressed style changes colour only, never scale or opacity (#382).',
+        },
+      ],
+    },
+  },
 ])

@@ -2,7 +2,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -33,9 +32,9 @@ import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Card, Chip, GhostBtn, glassStyles, PrimaryBtn, SecondaryBtn, Toast } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
-import { IconNavigation } from '@/shared/ui/icons'
-import { Glyph, Text } from '@/shared/ui/text'
-import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
+import { Icon, IconNavigation } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
+import { hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
@@ -43,10 +42,8 @@ import { styles } from './date-plan.style'
 import { planStart, planWhen } from './plan-title'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
-const { neutral } = colors
 
 export default function DatePlanScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -313,7 +310,8 @@ export default function DatePlanScreen() {
           title={screenTitle()}
           right={
             <View style={styles.matchBadge}>
-              <Text variant="caption" color="status.successText">⚡ {t('datePlan.match')}</Text>
+              <Icon name="zap" size={12} color="status.successText" filled />
+              <Text variant="caption" color="status.successText">{t('datePlan.match')}</Text>
             </View>
           }
         />
@@ -328,7 +326,12 @@ export default function DatePlanScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 240 }}>
         {/* A plan built before the last constraint edit is no longer the answer. */}
-        {summary.isStale ? <Text variant="bodySmall" color="status.warningText" style={styles.staleWarning}>⚠️ {t('datePlan.stale')}</Text> : null}
+        {summary.isStale ? (
+          <View style={styles.staleWarning}>
+            <Icon name="alert" size={16} color="status.warningText" />
+            <Text variant="bodySmall" color="status.warningText" style={styles.staleText}>{t('datePlan.stale')}</Text>
+          </View>
+        ) : null}
 
         {/* Someone edited or rebuilt this plan — possibly on another device. */}
         {summary.status === 'superseded' ? (
@@ -336,7 +339,10 @@ export default function DatePlanScreen() {
             onPress={() => router.replace(`/room/${summary.roomId}`)}
             accessibilityRole="button"
           >
-            <Text variant="bodySmall" color="status.warningText" style={styles.staleWarning}>⚠️ {t('datePlan.superseded')}</Text>
+            <View style={styles.staleWarning}>
+              <Icon name="alert" size={16} color="status.warningText" />
+              <Text variant="bodySmall" color="status.warningText" style={styles.staleText}>{t('datePlan.superseded')}</Text>
+            </View>
           </Pressable>
         ) : null}
 
@@ -375,9 +381,11 @@ export default function DatePlanScreen() {
                       stop.isLocked && styles.timelineDotLocked,
                     ]}
                   >
-                    <Glyph size="xs">
-                      {stop.status === 'completed' ? '✅' : stop.isLocked ? '🔒' : '📍'}
-                    </Glyph>
+                    <Icon
+                      name={stop.status === 'completed' ? 'check' : stop.isLocked ? 'lock' : 'mapPin'}
+                      size={18}
+                      color={stop.status === 'completed' ? 'status.successText' : 'accent.primary'}
+                    />
                   </View>
                   {index < summary.stops.length - 1 && <View style={styles.timelineLine} />}
                 </View>
@@ -410,7 +418,7 @@ export default function DatePlanScreen() {
                           {/* Locked reads as locked without colour: padlock,
                               word, and the card's left edge all say it. */}
                           {stop.isLocked && !capabilities.canLockStops ? (
-                            <Chip label={t('datePlan.locked')} icon="🔒" variant="warning" />
+                            <Chip label={t('datePlan.locked')} icon="lock" variant="warning" />
                           ) : null}
                           {/* Host-only, and server-enforced. */}
                           {capabilities.canLockStops && (
@@ -420,15 +428,10 @@ export default function DatePlanScreen() {
                               accessibilityState={{ checked: stop.isLocked }}
                               accessibilityLabel={t(stop.isLocked ? 'datePlan.unlockHint' : 'datePlan.lockHint')}
                               hitSlop={hitSlop}
-                              style={[
-                                styles.lockBtn,
-                                stop.isLocked
-                                  ? { backgroundColor: theme.accent.soft }
-                                  : { backgroundColor: neutral[100] },
-                              ]}
+                              style={[styles.lockBtn, stop.isLocked ? styles.lockBtnOn : styles.lockBtnOff]}
                             >
-                              <Glyph size="xs">{stop.isLocked ? '🔒' : '🔓'}</Glyph>
-                              <Text variant="caption" color={stop.isLocked ? 'accent.primary' : 'text.secondary'}>
+                              <Icon name={stop.isLocked ? 'lock' : 'unlock'} size={14} color={stop.isLocked ? 'accent.onSoft' : 'text.secondary'} />
+                              <Text variant="caption" color={stop.isLocked ? 'accent.onSoft' : 'text.secondary'}>
                                 {t(stop.isLocked ? 'datePlan.locked' : 'datePlan.lockable')}
                               </Text>
                             </Pressable>

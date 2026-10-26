@@ -64,7 +64,7 @@ jest.mock('@/shared/api', () => ({
 import PlaceImportScreen from '@/features/place-import/import.view'
 
 const NOT_YET_OPEN = 'Google báo địa điểm này chưa khai trương. Thêm lại khi quán đã mở cửa nhé.'
-const UNKNOWN = '⚠️ Google chưa xác nhận địa điểm còn hoạt động.'
+const UNKNOWN = 'Google chưa xác nhận địa điểm còn hoạt động.'
 const GENERIC_FAILURE = 'Gửi không thành công. Thử lại nhé.'
 const SUBMIT = 'Gửi địa điểm cho GoGo'
 
@@ -78,7 +78,7 @@ beforeEach(() => {
 it('names a place that has not opened yet instead of calling its status unknown', async () => {
   mockResolve.data = candidate('FUTURE_OPENING')
   await renderScreen(<PlaceImportScreen />)
-  expect(screen.getByText(`⚠️ ${NOT_YET_OPEN}`)).toBeTruthy()
+  expect(screen.getAllByText(NOT_YET_OPEN).length).toBeGreaterThan(0)
   expect(screen.queryByText(UNKNOWN)).toBeNull()
 })
 
@@ -150,8 +150,9 @@ describe('#316 review', () => {
     await renderScreen(<PlaceImportScreen />)
     const button = screen.getByRole('button', { name: SUBMIT })
     expect(button.props.accessibilityHint).toBe(NOT_YET_OPEN)
-    // The reason is printed with the button, not only in the status line above.
-    expect(screen.getByText(NOT_YET_OPEN)).toBeTruthy()
+    // The reason is printed with the button, not only in the status line above
+    // — which no longer differs by a ⚠️ prefix (#382), so both carry the words.
+    expect(screen.getAllByText(NOT_YET_OPEN)).toHaveLength(2)
   })
 
   it('F-02: an enabled submit has no such hint', async () => {

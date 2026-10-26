@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, glassFx, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -23,13 +23,15 @@ export const styles = StyleSheet.create(theme => ({
     borderWidth: 1,
     borderColor: theme.accent.pressed,
   },
-  optionPressed: { transform: [{ scale: 0.99 }], opacity: 0.95 },
+  // Pressed is a colour change only (#382).
+  optionPressed: { backgroundColor: theme.surface.subtle },
+  optionActivePressed: { backgroundColor: theme.accent.pressed },
   optionDesc: { marginTop: 4 },
   check: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: glassFx.solid,
+    backgroundColor: theme.accent.onAccent,
     alignItems: 'center',
     justifyContent: 'center',
   },

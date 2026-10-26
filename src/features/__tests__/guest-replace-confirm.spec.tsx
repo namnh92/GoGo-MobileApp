@@ -48,7 +48,7 @@ import { viMessages as vi } from '@/shared/i18n/vi'
 import GuestJoinScreen from '@/features/gogo-room/guest-join.view'
 import JoinByCodeScreen from '@/features/gogo-room/join-by-code.view'
 
-const JOIN = 'Tham gia 🙌'
+const JOIN = 'Tham gia'
 const NOTICE = /phiên khách/
 const BACK_TO_ROOM = 'Về phòng của tôi'
 

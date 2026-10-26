@@ -52,6 +52,8 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     gap: 6,
   },
+  /** Pressed is a colour change only (#382). */
+  dirBtnPressed: { backgroundColor: theme.surface.subtle },
 
   nextCard: {
     padding: spacing[4],

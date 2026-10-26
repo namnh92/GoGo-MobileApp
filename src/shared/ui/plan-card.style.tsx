@@ -2,8 +2,19 @@ import { StyleSheet } from 'react-native-unistyles'
 
 export const styles = StyleSheet.create(theme => ({
   card: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[3] },
-  /** Past plans stay readable, just clearly behind the live ones. */
-  past: { opacity: 0.72 },
+  /**
+   * Past plans sit behind the live ones by surface, not by fading (#382): an
+   * opacity multiplied into every label and took `text.secondary` under AA.
+   * On the canvas tone with a hairline and no shadow, the meta still measures
+   * 4.55:1.
+   */
+  past: {
+    backgroundColor: theme.surface.canvas,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   icon: {
     width: 48,
     height: 48,

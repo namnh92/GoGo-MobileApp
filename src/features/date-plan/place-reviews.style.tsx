@@ -31,7 +31,8 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: neutral[0],
   },
   helpfulBtnActive: { borderColor: theme.accent.primary },
-  helpfulPressed: { opacity: 0.85 },
+  // Pressed is a colour change only (#382).
+  helpfulPressed: { backgroundColor: theme.surface.subtle },
   empty: { marginTop: spacing[3] },
   notice: { marginTop: spacing[3], gap: spacing[2], alignItems: 'flex-start' },
 }))

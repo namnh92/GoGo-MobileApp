@@ -193,7 +193,7 @@ export default function PlansScreen() {
                 <PlanCard
                   key={room.id}
                   testID={`plan-card-${room.id}`}
-                  icon={room.type === 'group' ? '👥' : '💞'}
+                  icon={room.type === 'group' ? 'users' : 'heart'}
                   title={room.title ?? t('plans.untitled')}
                   meta={facts.map(fact => fact.text).join(' · ')}
                   metaAccessibilityLabel={facts.map(fact => fact.spoken).join(', ')}

@@ -5,6 +5,9 @@ const { brand, neutral } = colors
 
 export const styles = StyleSheet.create(theme => ({
   matchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: brand.mintSoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -38,6 +41,8 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.pill,
     justifyContent: 'center',
   },
+  lockBtnOn: { backgroundColor: theme.accent.soft },
+  lockBtnOff: { backgroundColor: theme.surface.subtle },
   stopArea: { marginTop: 2 },
   stopPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[2] },
   stopTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing[2] },
@@ -93,7 +98,8 @@ export const styles = StyleSheet.create(theme => ({
   },
   startNoticeLabel: { textAlign: 'center' },
   startError: { textAlign: 'center', marginTop: spacing[2] },
-  staleWarning: { marginBottom: spacing[3] },
+  staleWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2], marginBottom: spacing[3] },
+  staleText: { flex: 1 },
   summaryOverBudget: { marginTop: 2 },
   secondaryRow: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[2] },
   regenerateLabel: { ...type.label, color: neutral[500] },
@@ -103,7 +109,9 @@ export const styles = StyleSheet.create(theme => ({
    * a locked stop carries a left edge, a padlock and the word, not just a tint.
    */
   stopCardLocked: { borderLeftWidth: 4, borderLeftColor: theme.accent.primary },
-  stopCardCompleted: { opacity: 0.75 },
+  // A finished stop steps back by surface, not by fading (#382): opacity took
+  // its text.secondary lines under AA. The "Xong" chip and the check say it.
+  stopCardCompleted: { backgroundColor: theme.surface.canvas, shadowOpacity: 0, elevation: 0 },
   stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legRail: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timelineDot: {

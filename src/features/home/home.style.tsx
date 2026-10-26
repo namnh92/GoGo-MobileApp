@@ -2,6 +2,9 @@ import { StyleSheet } from 'react-native-unistyles'
 
 import { fill, glassFx, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
+// Pressed is a colour change only (#382): `accent.pressed` on both hero
+// buttons — the filled one darkens, the outlined one gains the darker fill.
+
 export const styles = StyleSheet.create(theme => ({
   header: {
     flexDirection: 'row',
@@ -21,9 +24,10 @@ export const styles = StyleSheet.create(theme => ({
     marginBottom: spacing[4],
     height: touchTarget.min + 4,
     borderRadius: radius.compact,
-    backgroundColor: glassFx.chip,
+    // Solid, like every field (#382): a glass wash belongs to bars only.
+    backgroundColor: theme.surface.card,
     borderWidth: 1,
-    borderColor: glassFx.borderLight,
+    borderColor: theme.border.hairline,
     paddingHorizontal: spacing[4],
   },
 
@@ -44,6 +48,9 @@ export const styles = StyleSheet.create(theme => ({
   },
   heroBadge: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: glassFx.badge,
     borderWidth: 1,
     borderColor: glassFx.btnBorder,
@@ -69,6 +76,7 @@ export const styles = StyleSheet.create(theme => ({
     shadowRadius: 14,
     elevation: 4,
   },
+  heroPrimaryPressed: { backgroundColor: theme.accent.pressed, shadowOpacity: 0, elevation: 0 },
   heroSecondary: {
     height: touchTarget.min + 4,
     paddingHorizontal: spacing[5],
@@ -78,6 +86,7 @@ export const styles = StyleSheet.create(theme => ({
     borderWidth: 1.5,
     borderColor: glassFx.borderLight,
   },
+  heroSecondaryPressed: { backgroundColor: theme.accent.pressed },
 
   presetRow: { paddingHorizontal: spacing[5], gap: spacing[2] },
 
@@ -89,7 +98,15 @@ export const styles = StyleSheet.create(theme => ({
   },
 
   stateCard: { padding: spacing[6], alignItems: 'center' },
-  stateEmoji: { marginBottom: spacing[3] },
+  stateIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.surface.subtle,
+    marginBottom: spacing[3],
+  },
   stateTitle: { textAlign: 'center' },
   stateBody: { marginTop: 4, textAlign: 'center' },
   stateActions: { alignSelf: 'stretch', gap: spacing[2], marginTop: spacing[5] },

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import { useLocaleContent } from '@/shared/i18n'
-import { IconChevronLeft } from '@/shared/ui/icons'
+import { Icon, IconChevronLeft, type IconName } from '@/shared/ui/icons'
 import { haptic } from '@/shared/ui/feedback'
 import { ScaledText, Text, type TextColor } from '@/shared/ui/text'
 import { border, hitSlop, shadows, surface, touchTarget } from '@/shared/ui/tokens'
@@ -75,11 +75,16 @@ const CHIP_LABEL: Record<ChipVariant, TextColor> = {
   warning: 'status.warningText',
 }
 
-export function Chip({ label, variant = 'default', icon, onPress, accessibilityLabel, style }: {
+export function Chip({ label, variant = 'default', icon, emoji, onPress, accessibilityLabel, style }: {
   label: string
   variant?: ChipVariant
-  /** Emoji or short glyph rendered before the label. */
-  icon?: string
+  /** A glyph from `icons.tsx`, drawn in the label's colour before it (#382). */
+  icon?: IconName
+  /**
+   * A taxonomy illustration (a mood, a category) that has no icon yet. UI copy
+   * never carries emoji (#382); this is the residue for data-driven pictures.
+   */
+  emoji?: string
   onPress?: () => void
   accessibilityLabel?: string
   style?: StyleProp<ViewStyle>
@@ -89,7 +94,8 @@ export function Chip({ label, variant = 'default', icon, onPress, accessibilityL
 
   const body = (pressed: boolean) => (
     <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], style]}>
-      {icon ? <Text variant="bodySmall">{icon}</Text> : null}
+      {icon ? <Icon name={icon} size={14} color={CHIP_LABEL[variant]} /> : null}
+      {!icon && emoji ? <Text variant="bodySmall">{emoji}</Text> : null}
       {/* Shrinks with a chip its row constrains, so the label ellipsises (#332). */}
       <Text variant="label" color={CHIP_LABEL[variant]} numberOfLines={1} style={styles.chipLabel}>
         {selected ? `✓ ${label}` : label}

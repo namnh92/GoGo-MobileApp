@@ -1,24 +1,295 @@
+import type { ReactNode } from 'react'
 import { useUnistyles } from 'react-native-unistyles'
 import Svg, { Circle, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg'
 
-import { colors } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { resolveColor, type TextColor } from '@/shared/ui/text'
 
 /**
- * The accent is the theme's (#294): an icon that defaults to "the brand
- * colour" follows the "Màu chủ đề" setting like every other accent. SVG props
- * are not styles, so the icon reads the theme through the hook.
+ * The icon set (#382, UI-AI-002 §3). One grid and one weight for every glyph:
+ * a 24-unit `viewBox`, a 1.8 stroke with round caps and joins, and a colour
+ * that is a prop. Nothing here names a colour of its own — `Icon` takes a
+ * semantic role (the same keys as `<Text color>`) and resolves it from the
+ * active theme, so an accent change reaches every icon and the contrast test
+ * measures what ships.
+ *
+ * Emoji in UI copy are replaced with these (they render differently on every
+ * platform, cannot take a theme colour, and a screen reader reads them out).
+ * The assistant's icon set builds on `Icon`. `__tests__/design-drift.test.ts`
+ * keeps the grid, the weight and the "no fixed colour" rule.
  */
-function useAccent(): string {
-  return useUnistyles().theme.accent.primary
+export const ICON_STROKE = 1.8
+
+/** What a shape draws inside the shared `<Svg>`; `cut` is the detail colour inside a filled glyph. */
+type Shape = (cut: string, filled: boolean) => ReactNode
+
+const SHAPES = {
+  home: (cut, filled) => (
+    <>
+      <Path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <Polyline points="9 22 9 12 15 12 15 22" stroke={filled ? cut : undefined} />
+    </>
+  ),
+  calendar: (cut, filled) => (
+    <>
+      <Rect x={3} y={4} width={18} height={18} rx={3} />
+      <Line x1={16} y1={2} x2={16} y2={6} />
+      <Line x1={8} y1={2} x2={8} y2={6} />
+      <Line x1={3} y1={10} x2={21} y2={10} stroke={filled ? cut : undefined} />
+    </>
+  ),
+  bookmark: () => <Path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />,
+  user: () => (
+    <>
+      <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <Circle cx={12} cy={7} r={4} />
+    </>
+  ),
+  userOutline: () => (
+    <>
+      <Circle cx={12} cy={8} r={4} />
+      <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </>
+  ),
+  users: () => (
+    <>
+      <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <Circle cx={9} cy={7} r={4} />
+      <Path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  chevronLeft: () => <Polyline points="15 18 9 12 15 6" />,
+  chevronRight: () => <Polyline points="9 18 15 12 9 6" />,
+  arrowRight: () => (
+    <>
+      <Line x1={5} y1={12} x2={19} y2={12} />
+      <Polyline points="12 5 19 12 12 19" />
+    </>
+  ),
+  mapPin: (cut, filled) => (
+    <>
+      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <Circle cx={12} cy={10} r={3} stroke={filled ? cut : undefined} fill={filled ? cut : 'none'} />
+    </>
+  ),
+  map: () => (
+    <>
+      <Polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+      <Line x1={8} y1={2} x2={8} y2={18} />
+      <Line x1={16} y1={6} x2={16} y2={22} />
+    </>
+  ),
+  navigation: () => <Polygon points="3 11 22 2 13 21 11 13 3 11" />,
+  clock: () => (
+    <>
+      <Circle cx={12} cy={12} r={10} />
+      <Polyline points="12 6 12 12 16 14" />
+    </>
+  ),
+  dollar: () => (
+    <>
+      <Line x1={12} y1={1} x2={12} y2={23} />
+      <Path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </>
+  ),
+  star: () => (
+    <Polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  ),
+  heart: () => (
+    <Path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  ),
+  check: () => <Polyline points="20 6 9 17 4 12" />,
+  x: () => (
+    <>
+      <Line x1={18} y1={6} x2={6} y2={18} />
+      <Line x1={6} y1={6} x2={18} y2={18} />
+    </>
+  ),
+  plus: () => (
+    <>
+      <Line x1={12} y1={5} x2={12} y2={19} />
+      <Line x1={5} y1={12} x2={19} y2={12} />
+    </>
+  ),
+  copy: () => (
+    <>
+      <Rect x={9} y={9} width={13} height={13} rx={2} ry={2} />
+      <Path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </>
+  ),
+  share: () => (
+    <>
+      <Circle cx={18} cy={5} r={3} />
+      <Circle cx={6} cy={12} r={3} />
+      <Circle cx={18} cy={19} r={3} />
+      <Line x1={8.59} y1={13.51} x2={15.42} y2={17.49} />
+      <Line x1={15.41} y1={6.51} x2={8.59} y2={10.49} />
+    </>
+  ),
+  zap: () => <Polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+  search: () => (
+    <>
+      <Circle cx={11} cy={11} r={8} />
+      <Line x1={21} y1={21} x2={16.65} y2={16.65} />
+    </>
+  ),
+  /** A circled "i": information, not a warning (#292 room-update notice). */
+  info: () => (
+    <>
+      <Circle cx={12} cy={12} r={10} />
+      <Line x1={12} y1={16} x2={12} y2={12} />
+      <Line x1={12} y1={8} x2={12.01} y2={8} />
+    </>
+  ),
+  /** A warning: a fact the person should act on, always next to the words saying so. */
+  alert: () => (
+    <>
+      <Path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <Line x1={12} y1={9} x2={12} y2={13} />
+      <Line x1={12} y1={17} x2={12.01} y2={17} />
+    </>
+  ),
+  /** Filters — three sliders. */
+  sliders: () => (
+    <>
+      <Line x1={4} y1={21} x2={4} y2={14} />
+      <Line x1={4} y1={10} x2={4} y2={3} />
+      <Line x1={12} y1={21} x2={12} y2={12} />
+      <Line x1={12} y1={8} x2={12} y2={3} />
+      <Line x1={20} y1={21} x2={20} y2={16} />
+      <Line x1={20} y1={12} x2={20} y2={3} />
+      <Line x1={1} y1={14} x2={7} y2={14} />
+      <Line x1={9} y1={8} x2={15} y2={8} />
+      <Line x1={17} y1={16} x2={23} y2={16} />
+    </>
+  ),
+  settings: () => (
+    <>
+      <Circle cx={12} cy={12} r={3} />
+      <Path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </>
+  ),
+  bell: () => (
+    <>
+      <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <Path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </>
+  ),
+  inbox: () => (
+    <>
+      <Polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+      <Path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </>
+  ),
+  mail: () => (
+    <>
+      <Rect x={2} y={4} width={20} height={16} rx={2} />
+      <Polyline points="22 6 12 13 2 6" />
+    </>
+  ),
+  lock: () => (
+    <>
+      <Rect x={3} y={11} width={18} height={11} rx={2} ry={2} />
+      <Path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </>
+  ),
+  unlock: () => (
+    <>
+      <Rect x={3} y={11} width={18} height={11} rx={2} ry={2} />
+      <Path d="M7 11V7a5 5 0 0 1 9.9-1" />
+    </>
+  ),
+  moon: () => <Path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+  sun: () => (
+    <>
+      <Circle cx={12} cy={12} r={5} />
+      <Line x1={12} y1={1} x2={12} y2={3} />
+      <Line x1={12} y1={21} x2={12} y2={23} />
+      <Line x1={4.22} y1={4.22} x2={5.64} y2={5.64} />
+      <Line x1={18.36} y1={18.36} x2={19.78} y2={19.78} />
+      <Line x1={1} y1={12} x2={3} y2={12} />
+      <Line x1={21} y1={12} x2={23} y2={12} />
+      <Line x1={4.22} y1={19.78} x2={5.64} y2={18.36} />
+      <Line x1={18.36} y1={5.64} x2={19.78} y2={4.22} />
+    </>
+  ),
+  sparkle: () => (
+    <>
+      <Path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+      <Path d="M19 16v4M17 18h4" />
+    </>
+  ),
+  wifiOff: () => (
+    <>
+      <Line x1={1} y1={1} x2={23} y2={23} />
+      <Path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+      <Path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+      <Path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+      <Path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+      <Path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+      <Line x1={12} y1={20} x2={12.01} y2={20} />
+    </>
+  ),
+} satisfies Record<string, Shape>
+
+export type IconName = keyof typeof SHAPES
+
+const kebab = (name: string) => name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+
+/** The one place an icon becomes an `<Svg>`: every glyph shares the grid and the stroke. */
+function Glyph24({ name, size, color, cut, filled, testID }: {
+  name: IconName
+  size: number
+  color: string
+  cut: string
+  filled: boolean
+  testID?: string
+}) {
+  return (
+    <Svg
+      testID={testID ?? `icon-${kebab(name)}${filled ? '-filled' : ''}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={filled ? color : 'none'}
+      stroke={color}
+      strokeWidth={ICON_STROKE}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {(SHAPES[name] as Shape)(cut, filled)}
+    </Svg>
+  )
 }
+
+/**
+ * The icon primitive. `color` is a semantic role, never a value; `filled`
+ * draws the solid form, which carries a state (saved, selected, active) by
+ * shape as well as colour (RULE-DS). Decorative by default — the control it
+ * sits in carries the accessible name.
+ */
+export function Icon({ name, size = 20, color = 'text.primary', filled = false, testID }: {
+  name: IconName
+  size?: number
+  color?: TextColor
+  filled?: boolean
+  testID?: string
+}) {
+  const { theme } = useUnistyles()
+  return <Glyph24 name={name} size={size} color={resolveColor(theme, color)} cut={theme.surface.card} filled={filled} testID={testID} />
+}
+
+// ---------------------------------------------------------------------------
+// Named icons. They predate `Icon` and their callers pass a colour already
+// read from the theme (`theme.accent.primary`); they draw through the same
+// grid, and their defaults are theme roles. New code uses `Icon`.
+// ---------------------------------------------------------------------------
 
 /**
  * Tab icons (#296, #293 §5): the active tab is a *filled* glyph in the accent,
  * an inactive one an outline in `text.secondary`. Shape, not only colour,
  * carries the state (RULE-DS), and the outline clears 3:1 as a UI glyph on the
- * bar's wash, which the old `neutral[300]` (1.8:1) did not.
+ * bar's wash.
  */
 function useTabIconColors(active?: boolean) {
   const { theme } = useUnistyles()
@@ -31,24 +302,12 @@ function useTabIconColors(active?: boolean) {
 
 export function IconHome({ active }: { active?: boolean }) {
   const { tint, cut } = useTabIconColors(active)
-  return (
-    <Svg testID={active ? 'icon-home-filled' : 'icon-home'} width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={tint} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill={active ? tint : 'none'} />
-      <Polyline points="9 22 9 12 15 12 15 22" stroke={active ? cut : tint} />
-    </Svg>
-  )
+  return <Glyph24 name="home" size={22} color={tint} cut={cut} filled={active === true} />
 }
 
 export function IconCalendar({ active }: { active?: boolean }) {
   const { tint, cut } = useTabIconColors(active)
-  return (
-    <Svg testID={active ? 'icon-calendar-filled' : 'icon-calendar'} width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={tint} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Rect x={3} y={4} width={18} height={18} rx={3} fill={active ? tint : 'none'} />
-      <Line x1={16} y1={2} x2={16} y2={6} />
-      <Line x1={8} y1={2} x2={8} y2={6} />
-      <Line x1={3} y1={10} x2={21} y2={10} stroke={active ? cut : tint} />
-    </Svg>
-  )
+  return <Glyph24 name="calendar" size={22} color={tint} cut={cut} filled={active === true} />
 }
 
 /**
@@ -61,163 +320,97 @@ export function IconBookmark({ active, filled = false, size = 22, color }: {
   size?: number
   color?: string
 }) {
-  const { tint } = useTabIconColors(active)
-  const accent = useAccent()
+  const { theme } = useUnistyles()
+  const { tint, cut } = useTabIconColors(active)
   const solid = filled || active === true
-  const stroke = color ?? (filled ? accent : tint)
-  return (
-    <Svg testID={solid ? 'icon-bookmark-filled' : 'icon-bookmark'} width={size} height={size} viewBox="0 0 24 24" fill={solid ? stroke : 'none'} stroke={stroke} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </Svg>
-  )
+  return <Glyph24 name="bookmark" size={size} color={color ?? (filled ? theme.accent.primary : tint)} cut={cut} filled={solid} />
 }
 
 export function IconUser({ active }: { active?: boolean }) {
-  const { tint } = useTabIconColors(active)
-  return (
-    <Svg testID={active ? 'icon-user-filled' : 'icon-user'} width={22} height={22} viewBox="0 0 24 24" fill={active ? tint : 'none'} stroke={tint} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <Circle cx={12} cy={7} r={4} />
-    </Svg>
-  )
+  const { tint, cut } = useTabIconColors(active)
+  return <Glyph24 name="user" size={22} color={tint} cut={cut} filled={active === true} />
 }
 
-export function IconChevronLeft() {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={neutral[900]} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Polyline points="15 18 9 12 15 6" />
-    </Svg>
-  )
+/** Shared body of the named icons below: a theme default, a size, an optional override. */
+function useNamed(color: string | undefined, fallback: (theme: ReturnType<typeof useUnistyles>['theme']) => string) {
+  const { theme } = useUnistyles()
+  return { color: color ?? fallback(theme), cut: theme.surface.card }
 }
 
-export function IconChevronRight() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={neutral[300]} strokeWidth={2} strokeLinecap="round">
-      <Polyline points="9 18 15 12 9 6" />
-    </Svg>
-  )
+export function IconChevronLeft({ color }: { color?: string } = {}) {
+  const c = useNamed(color, theme => theme.text.primary)
+  return <Glyph24 name="chevronLeft" size={20} {...c} filled={false} />
+}
+
+/** A row's disclosure glyph — `text.secondary`, which clears 3:1 on a card and on the canvas. */
+export function IconChevronRight({ color }: { color?: string } = {}) {
+  const c = useNamed(color, theme => theme.text.secondary)
+  return <Glyph24 name="chevronRight" size={16} {...c} filled={false} />
 }
 
 export function IconMapPin({ color, size = 16 }: { color?: string; size?: number }) {
-  const accent = useAccent()
-  return (
-    <Svg testID="icon-map-pin" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? accent} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-      <Circle cx={12} cy={10} r={3} />
-    </Svg>
-  )
+  const c = useNamed(color, theme => theme.accent.primary)
+  return <Glyph24 name="mapPin" size={size} {...c} filled={false} />
 }
 
-export function IconClock({ color = neutral[500] }: { color?: string }) {
-  return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Circle cx={12} cy={12} r={10} />
-      <Polyline points="12 6 12 12 16 14" />
-    </Svg>
-  )
+export function IconClock({ color }: { color?: string }) {
+  const c = useNamed(color, theme => theme.text.secondary)
+  return <Glyph24 name="clock" size={14} {...c} filled={false} />
 }
 
-export function IconDollar({ color = neutral[500] }: { color?: string }) {
-  return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Line x1={12} y1={1} x2={12} y2={23} />
-      <Path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-    </Svg>
-  )
+export function IconDollar({ color }: { color?: string }) {
+  const c = useNamed(color, theme => theme.text.secondary)
+  return <Glyph24 name="dollar" size={14} {...c} filled={false} />
 }
 
 export function IconStar() {
-  const accent = useAccent()
-  return (
-    <Svg width={12} height={12} viewBox="0 0 24 24" fill={accent} stroke={accent} strokeWidth={2}>
-      <Polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </Svg>
-  )
+  const c = useNamed(undefined, theme => theme.accent.primary)
+  return <Glyph24 name="star" size={12} {...c} filled />
 }
 
-export function IconCheck({ color = colors.brand.mint, size = 16 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <Polyline points="20 6 9 17 4 12" />
-    </Svg>
-  )
+export function IconCheck({ color, size = 16 }: { color?: string; size?: number }) {
+  const c = useNamed(color, theme => theme.status.successText)
+  return <Glyph24 name="check" size={size} {...c} filled={false} />
 }
 
 /** Two offset sheets — the copy glyph every platform uses. */
-export function IconCopy({ color = neutral[500], size = 18 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Rect x={9} y={9} width={13} height={13} rx={2} ry={2} />
-      <Path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </Svg>
-  )
+export function IconCopy({ color, size = 18 }: { color?: string; size?: number }) {
+  const c = useNamed(color, theme => theme.text.secondary)
+  return <Glyph24 name="copy" size={size} {...c} filled={false} />
 }
 
-export function IconShare({ color = neutral[0] }: { color?: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Circle cx={18} cy={5} r={3} />
-      <Circle cx={6} cy={12} r={3} />
-      <Circle cx={18} cy={19} r={3} />
-      <Line x1={8.59} y1={13.51} x2={15.42} y2={17.49} />
-      <Line x1={15.41} y1={6.51} x2={8.59} y2={10.49} />
-    </Svg>
-  )
+export function IconShare({ color }: { color?: string }) {
+  const c = useNamed(color, theme => theme.text.inverse)
+  return <Glyph24 name="share" size={18} {...c} filled={false} />
 }
 
-export function IconArrowRight({ color = neutral[500] }: { color?: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Line x1={5} y1={12} x2={19} y2={12} />
-      <Polyline points="12 5 19 12 12 19" />
-    </Svg>
-  )
+export function IconArrowRight({ color }: { color?: string }) {
+  const c = useNamed(color, theme => theme.text.secondary)
+  return <Glyph24 name="arrowRight" size={18} {...c} filled={false} />
 }
 
 export function IconNavigation({ color }: { color?: string }) {
-  const accent = useAccent()
-  const fill = color ?? accent
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill={fill} stroke={fill} strokeWidth={1}>
-      <Polygon points="3 11 22 2 13 21 11 13 3 11" />
-    </Svg>
-  )
+  const c = useNamed(color, theme => theme.accent.primary)
+  return <Glyph24 name="navigation" size={16} {...c} filled />
 }
 
 export function IconZap() {
-  const accent = useAccent()
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill={accent} stroke={accent} strokeWidth={1}>
-      <Polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </Svg>
-  )
+  const c = useNamed(undefined, theme => theme.accent.primary)
+  return <Glyph24 name="zap" size={16} {...c} filled />
 }
 
 export function IconSearch() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={neutral[500]} strokeWidth={2} strokeLinecap="round">
-      <Circle cx={11} cy={11} r={8} />
-      <Line x1={21} y1={21} x2={16.65} y2={16.65} />
-    </Svg>
-  )
+  const c = useNamed(undefined, theme => theme.text.secondary)
+  return <Glyph24 name="search" size={16} {...c} filled={false} />
 }
 
 export function IconUserOutline() {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={neutral[300]} strokeWidth={2} strokeLinecap="round">
-      <Circle cx={12} cy={8} r={4} />
-      <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-    </Svg>
-  )
+  const c = useNamed(undefined, theme => theme.text.secondary)
+  return <Glyph24 name="userOutline" size={20} {...c} filled={false} />
 }
 
 /** A circled "i": information, not a warning (#292 room-update notice). */
 export function IconInfo({ color, size = 16 }: { color: string; size?: number }) {
-  return (
-    <Svg testID="icon-info" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Circle cx={12} cy={12} r={10} />
-      <Line x1={12} y1={16} x2={12} y2={12} />
-      <Line x1={12} y1={8} x2={12.01} y2={8} />
-    </Svg>
-  )
+  const c = useNamed(color, theme => theme.text.secondary)
+  return <Glyph24 name="info" size={size} {...c} filled={false} />
 }

@@ -20,12 +20,13 @@ import { useLocaleContent } from '@/shared/i18n'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState } from '@/shared/ui/async-state.view'
+import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, BackHeader, Chip, GhostBtn, IconBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { SearchField } from '@/shared/ui/search-field.view'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './search.style'
@@ -210,7 +211,7 @@ export default function SearchScreen() {
           active={activeFilterCount > 0}
           style={styles.filterToggle}
         >
-          <Glyph size="xs">⚙️</Glyph>
+          <Icon name="sliders" size={18} color={activeFilterCount > 0 ? 'accent.primary' : 'text.primary'} />
           {activeFilterCount > 0 && (
             <View style={styles.filterCountBadge}>
               <Text variant="label" color="text.inverse">{activeFilterCount}</Text>
@@ -256,11 +257,22 @@ export default function SearchScreen() {
               // A skeleton in the shape of the results, not a bare spinner.
               <PlaceListSkeleton count={4} />
             ) : (
+              // #382: not a dead end. Adding the place is a button, and
+              // "Clear filters" appears only when there is a filter to clear.
               <View style={styles.empty}>
-                <Glyph size="lg" style={styles.emptyEmoji}>🔍</Glyph>
+                <View style={styles.emptyIcon}>
+                  <Icon name="search" size={28} color="text.secondary" />
+                </View>
                 <Text variant="title2">{t('search.empty')}</Text>
                 <Text variant="bodySmall" color="text.secondary" style={styles.emptyHint}>{t('search.emptyHint')}</Text>
-                <GhostBtn label={t('search.clearFilters')} onPress={clearFilters} />
+                <SecondaryBtn
+                  label={t('search.addPlace')}
+                  onPress={() => router.push('/places/import')}
+                  style={styles.addNewBtn}
+                />
+                {activeFilterCount > 0 ? (
+                  <GhostBtn label={t('search.clearFilters')} onPress={clearFilters} style={styles.clearBtn} />
+                ) : null}
               </View>
             )
           }
@@ -285,9 +297,9 @@ export default function SearchScreen() {
         onPress={() => router.push('/places/import')}
         accessibilityRole="button"
         accessibilityLabel={t('search.addNew')}
-        style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing[5] }, pressed && { transform: [{ scale: 0.95 }] }]}
+        style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing[5] }, pressed && styles.fabPressed]}
       >
-        <Glyph size="sm" color="text.inverse">＋</Glyph>
+        <Icon name="plus" size={24} color="accent.onAccent" />
       </Pressable>
 
       <Sheet visible={sheetOpen} onClose={() => setSheetOpen(false)}>

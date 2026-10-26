@@ -95,7 +95,7 @@ const statusCalls = () => mockPatch.mock.calls.filter(([path]) => path === '/roo
  * back to the couple wording — so the CTA is found by what it is, not by which
  * of the two sentences it happens to be showing.
  */
-const REVIEW_CTA = /thấy sao\? 💬/
+const REVIEW_CTA = /thấy sao\?/
 
 function reviewCta() {
   return screen.getByText(REVIEW_CTA)
@@ -293,7 +293,7 @@ describe('closing the room from the summary (#269)', () => {
     )
 
     await openSummary()
-    console.log('HAS_LOADING', !!screen.queryByText('Đang đọc trạng thái kèo…'), 'HAS_ERR', !!screen.queryByText('Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.'), 'HAS_CTA', !!screen.queryByText('Các bạn thấy sao? 💬'))
+    console.log('HAS_LOADING', !!screen.queryByText('Đang đọc trạng thái kèo…'), 'HAS_ERR', !!screen.queryByText('Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.'), 'HAS_CTA', !!screen.queryByText('Các bạn thấy sao?'))
     expect(await screen.findByText('Chưa đọc được trạng thái kèo, nên chưa biết kèo đã khép lại chưa.')).toBeTruthy()
     expect(reviewDisabled()).toBe(true)
     expect(screen.getByText(RETRY)).toBeTruthy()

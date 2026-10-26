@@ -64,4 +64,8 @@ export const styles = StyleSheet.create(theme => ({
     marginTop: 0,
     marginBottom: spacing[2],
   },
+  // Pressed is a colour change only (#382): the night surface steps up a
+  // tone, the accent darkens.
+  shareBtnPressed: { backgroundColor: theme.night.raised },
+  sharePrimaryPressed: { backgroundColor: theme.accent.pressed, borderColor: theme.accent.pressed },
 }))

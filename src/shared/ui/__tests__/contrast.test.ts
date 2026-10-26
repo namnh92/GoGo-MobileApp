@@ -65,6 +65,31 @@ describe('colour contrast', () => {
   })
 })
 
+describe('design-system cleanup (#382)', () => {
+  it('a UI glyph in text.secondary clears 3:1 on every light surface — the chevron was neutral[300] at 1.8', () => {
+    for (const surfaceColor of [surface.card, surface.canvas, surface.subtle]) {
+      expect(contrast(text.secondary, surfaceColor)).toBeGreaterThanOrEqual(AA_LARGE)
+    }
+    expect(contrast(neutral[300], surface.card)).toBeLessThan(AA_LARGE)
+  })
+
+  it('a past or completed card on the canvas tone keeps its meta at AA — no fade needed', () => {
+    expect(contrast(text.secondary, surface.canvas)).toBeGreaterThanOrEqual(AA_TEXT)
+    expect(contrast(text.primary, surface.canvas)).toBeGreaterThanOrEqual(AA_TEXT)
+  })
+
+  it('a disabled label is text.secondary on surface.subtle — legible, where text.tertiary was 1.6:1', () => {
+    // WCAG exempts inactive controls; the design system still asks they read.
+    // 4.12 today: above the 3:1 UI floor, and the same pair as the disabled Button.
+    expect(contrast(text.secondary, surface.subtle)).toBeGreaterThanOrEqual(AA_LARGE)
+    expect(contrast(text.tertiary, surface.subtle)).toBeLessThan(AA_LARGE)
+  })
+
+  it.each(ACCENTS)('%s: the check-in toggle (accent.onSoft on accent.soft) reads at AA', accent => {
+    expect(contrast(accents[accent].onSoft, accents[accent].soft)).toBeGreaterThanOrEqual(AA_TEXT)
+  })
+})
+
 describe('accent themes (#293 §6)', () => {
   it('registers exactly the four spec themes', () => {
     expect(Object.keys(accents).sort()).toEqual([...ACCENTS].sort())

@@ -554,20 +554,20 @@ export default function GoGoRoomScreen() {
           <Card style={styles.constraintsCard}>
             <Text variant="caption" color="text.secondary">{t('gogoRoom.constraints')}</Text>
             <View style={styles.constraintsRow}>
-              <Chip icon="📅" label={scheduleChipLabel(summary, i18n.language, t)} />
+              <Chip icon="calendar" label={scheduleChipLabel(summary, i18n.language, t)} />
               <Chip
                 label={t('groupSetup.people', { n: participantCount })}
-                icon="👥"
+                icon="users"
                 variant="default"
               />
               {/* GoGo-MobileApp#246 — the area saved with the room, with the labels
                   stored when it was chosen. A dataset change keeps those labels
                   and says in words that the host must choose again. */}
               {summary.constraints.administrativeArea ? (
-                <Chip icon="📍" label={administrativeAreaLabel(summary.constraints.administrativeArea)} variant="default" />
+                <Chip icon="mapPin" label={administrativeAreaLabel(summary.constraints.administrativeArea)} variant="default" />
               ) : null}
               {summary.constraints.administrativeArea?.status === 'needs_reselection' ? (
-                <Chip icon="⚠️" label={t('gogoRoom.areaNeedsReselection')} variant="warning" />
+                <Chip icon="alert" label={t('gogoRoom.areaNeedsReselection')} variant="warning" />
               ) : null}
               {summary.constraints.budgetAmount ? (
                 <Chip
@@ -576,7 +576,7 @@ export default function GoGoRoomScreen() {
                     roomType,
                     t,
                   )}`}
-                  icon="💰"
+                  icon="dollar"
                   variant="default"
                 />
               ) : null}
