@@ -13,7 +13,7 @@ import { locales } from '@/shared/i18n'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
 import { Atmosphere, AvatarCircle, Card, useBottomBarInset } from '@/shared/ui/primitives'
-import { IconChevronRight } from '@/shared/ui/icons'
+import { Icon, IconChevronRight } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { SETTINGS_ROWS } from './profile-settings-rows'
@@ -148,17 +148,26 @@ export default function ProfileScreen() {
               disabled={!row.route}
               accessibilityRole="button"
               accessibilityState={{ disabled: !row.route }}
-              style={[styles.settingRow, index === SETTINGS_ROWS.length - 1 && { borderBottomWidth: 0 }]}
+              testID={`profile-setting-${t(`profile.settings.${row.key}`)}`}
+              // Pressed is a colour change (#382) — the rows had no pressed state.
+              style={({ pressed }) => [
+                styles.settingRow,
+                index === SETTINGS_ROWS.length - 1 && styles.settingRowLast,
+                pressed && !!row.route && styles.settingRowPressed,
+              ]}
             >
-              {/* Genuinely disabled (`disabled={!row.route}` above), so the lighter
-                  neutral is the signal rather than a contrast failure. */}
-              <Text color={row.route ? 'text.primary' : 'text.tertiary'}>
-                {t(`profile.settings.${row.key}`)}
-              </Text>
+              <View style={styles.settingLead}>
+                <Icon name={row.icon} size={20} color={row.route ? 'text.primary' : 'text.secondary'} />
+                {/* A row with nowhere to go reads `text.secondary`, the measured
+                    disabled colour — never the 1.6:1 placeholder (#382). */}
+                <Text color={row.route ? 'text.primary' : 'text.secondary'} style={styles.settingLabel}>
+                  {t(`profile.settings.${row.key}`)}
+                </Text>
+              </View>
               {row.route ? (
                 <IconChevronRight />
               ) : (
-                <Text variant="caption" color="text.tertiary">{t('profile.settings.comingSoon')}</Text>
+                <Text variant="caption" color="text.secondary">{t('profile.settings.comingSoon')}</Text>
               )}
             </Pressable>
           ))}

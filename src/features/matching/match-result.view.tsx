@@ -35,7 +35,7 @@ import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
-import { IconCheck, IconZap } from '@/shared/ui/icons'
+import { IconCheck, IconZap, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -205,11 +205,11 @@ export default function MatchResultScreen() {
   const winnerPhoto = winnerPlace?.photoUrl ?? null
   const winnerOpen = openStateFromHours(winnerDetail.data?.hours)
   const winnerPrice = winnerPlace ? placePriceParts(winnerPlace) : null
-  const winnerFacts: { key: string; label: string; icon?: string; variant: 'default' | 'positive' | 'warning' }[] = []
+  const winnerFacts: { key: string; label: string; icon?: IconName; variant: 'default' | 'positive' | 'warning' }[] = []
   if (winnerPrice) {
     winnerFacts.push({
       key: 'price',
-      icon: '💰',
+      icon: 'dollar',
       variant: 'default',
       label: isStandalonePrice(winnerPrice.unit)
         ? t(priceUnitKey(winnerPrice.unit))
@@ -217,7 +217,7 @@ export default function MatchResultScreen() {
     })
   }
   if (winnerPlace?.distanceM != null) {
-    winnerFacts.push({ key: 'distance', icon: '📍', variant: 'default', label: formatDistance(winnerPlace.distanceM) ?? '' })
+    winnerFacts.push({ key: 'distance', icon: 'mapPin', variant: 'default', label: formatDistance(winnerPlace.distanceM) ?? '' })
   }
   if ((winnerDetail.data?.hours ?? []).length > 0) {
     const closes = formatMinuteOfDay(winnerOpen.closesAtMinute)

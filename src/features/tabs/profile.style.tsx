@@ -49,6 +49,10 @@ export const styles = StyleSheet.create(theme => ({
     borderBottomWidth: 1,
     borderBottomColor: neutral[100],
   },
+  settingRowLast: { borderBottomWidth: 0 },
+  settingRowPressed: { backgroundColor: theme.surface.subtle },
+  settingLead: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexShrink: 1 },
+  settingLabel: { flexShrink: 1 },
 
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   segmentBtn: {

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, glassFx, spacing } from '@/shared/ui/tokens'
+import { colors, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   body: {
@@ -33,7 +33,7 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.accent.primary,
   },
   chipGlass: {
-    backgroundColor: glassFx.cardWash,
+    backgroundColor: theme.surface.card,
     borderWidth: 1,
     borderColor: colors.neutral[100],
   },

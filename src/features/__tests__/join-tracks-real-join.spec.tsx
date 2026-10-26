@@ -45,7 +45,7 @@ import JoinByCodeScreen from '@/features/gogo-room/join-by-code.view'
 
 const CODE = 'YDi_00PB1z4FSQZjpLbgdw'
 const ROOM = '311f5bd8-f853-4ced-af68-e04398d1451a'
-const JOIN = 'Tham gia 🙌'
+const JOIN = 'Tham gia'
 
 const joined = () => mockTrack.mock.calls.filter(([name]) => name === 'gogo_partner_joined')
 

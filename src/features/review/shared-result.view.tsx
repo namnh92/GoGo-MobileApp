@@ -204,7 +204,7 @@ export default function SharedResultScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={share}
-          style={({ pressed }) => [styles.shareBtn, styles.shareIsPrimary, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [styles.shareBtn, styles.shareIsPrimary, pressed && styles.sharePrimaryPressed]}
         >
           <IconShare />
           <Text variant="label" color="text.inverse">{t('sharedResult.share')}</Text>
@@ -212,7 +212,7 @@ export default function SharedResultScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={() => router.replace('/(tabs)')}
-          style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [styles.shareBtn, pressed && styles.shareBtnPressed]}
         >
           <Text variant="label" color="text.inverse">{t('sharedResult.nextDate')}</Text>
         </Pressable>

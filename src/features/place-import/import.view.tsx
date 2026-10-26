@@ -15,6 +15,7 @@ import {
   type ResolveLinkResult,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { Icon } from '@/shared/ui/icons'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
@@ -397,11 +398,14 @@ export default function PlaceImportScreen() {
               {/* Google's business status is a fact worth surfacing: submitting a
                   closed place wastes a moderator's time and the user's. */}
               {candidate.businessStatus && candidate.businessStatus !== 'OPERATIONAL' ? (
-                <Text variant="bodySmall" color="status.warningText" style={styles.warning}>
-                  {t(`placeImport.businessStatus.${candidate.businessStatus}`, {
-                    defaultValue: t('placeImport.businessStatusUnknown'),
-                  })}
-                </Text>
+                <View style={styles.warning}>
+                  <Icon name="alert" size={16} color="status.warningText" />
+                  <Text variant="bodySmall" color="status.warningText" style={styles.warningText}>
+                    {t(`placeImport.businessStatus.${candidate.businessStatus}`, {
+                      defaultValue: t('placeImport.businessStatusUnknown'),
+                    })}
+                  </Text>
+                </View>
               ) : null}
 
               {/* Optional metadata (PI-APP-004) — moderators get better context

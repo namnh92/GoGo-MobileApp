@@ -22,19 +22,22 @@ import { useLocaleContent } from '@/shared/i18n'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore, type QuickPreset } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
-import { IconSearch } from '@/shared/ui/icons'
+import { Icon, IconSearch, type IconName } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, SecondaryBtn, useBottomBarInset } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
+import { dayPart } from './greeting'
 import { styles } from './home.style'
 
 
 const PRESET_KEYS: QuickPreset[] = ['tonight', 'weekend', 'special']
+/** The preset glyphs are icons, not emoji in the copy (#382). */
+const PRESET_ICONS: Record<QuickPreset, IconName> = { tonight: 'moon', weekend: 'sun', special: 'sparkle' }
 const RAIL_SIZE = 5
 
 export default function HomeScreen() {
@@ -138,7 +141,15 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: barInset + spacing[6] }}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text variant="display">{t('home.greeting')}</Text>
+            <Text variant="display">
+              {t(
+                ({
+                  morning: 'home.greeting.morning',
+                  afternoon: 'home.greeting.afternoon',
+                  evening: 'home.greeting.evening',
+                } as const)[dayPart(new Date().getHours())],
+              )}
+            </Text>
             <Text color="text.secondary" style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
           <Pressable
@@ -178,7 +189,8 @@ export default function HomeScreen() {
           <View style={styles.heroScrim} />
           <View style={styles.heroContent}>
             <View style={styles.heroBadge}>
-              <Text variant="caption" color="text.inverse">🌙 {t('home.heroBadge')}</Text>
+              <Icon name="moon" size={12} color="text.inverse" />
+              <Text variant="caption" color="text.inverse">{t('home.heroBadge')}</Text>
             </View>
             <Text variant="title1" color="text.inverse">{t('home.heroTitle')}</Text>
             <Text variant="bodySmall" color="onDark.medium" style={styles.heroBody}>{t('home.heroBody')}</Text>
@@ -189,7 +201,7 @@ export default function HomeScreen() {
                   haptic('impact')
                   startCreate()
                 }}
-                style={({ pressed }) => [styles.heroPrimary, pressed && { transform: [{ scale: 0.98 }] }]}
+                style={({ pressed }) => [styles.heroPrimary, pressed && styles.heroPrimaryPressed]}
               >
                 <Text variant="label" color="text.inverse">{t('home.createDate')}</Text>
               </Pressable>
@@ -199,7 +211,7 @@ export default function HomeScreen() {
                   haptic('select')
                   router.push('/places/search')
                 }}
-                style={({ pressed }) => [styles.heroSecondary, pressed && { opacity: 0.8 }]}
+                style={({ pressed }) => [styles.heroSecondary, pressed && styles.heroSecondaryPressed]}
               >
                 <Text variant="label" color="text.inverse">{t('home.quickPick')}</Text>
               </Pressable>
@@ -220,7 +232,7 @@ export default function HomeScreen() {
               <Chip
                 key={preset.label}
                 label={preset.label}
-                icon={preset.emoji}
+                icon={key ? PRESET_ICONS[key] : undefined}
                 variant={quickPreset === key ? 'selected' : 'default'}
                 onPress={() => setQuickPreset(key)}
               />
@@ -267,7 +279,9 @@ export default function HomeScreen() {
 
           {visualState === 'empty' && (
             <Card padded={false} style={styles.stateCard}>
-              <Glyph size="xl" style={styles.stateEmoji}>🗺️</Glyph>
+              <View style={styles.stateIcon}>
+                <Icon name="map" size={28} color="text.secondary" />
+              </View>
               <Text variant="title2" style={styles.stateTitle}>{t('home.emptyTitle')}</Text>
               <Text variant="bodySmall" color="text.secondary" style={styles.stateBody}>{t('home.emptyBody')}</Text>
               <View style={styles.stateActions}>
@@ -279,7 +293,9 @@ export default function HomeScreen() {
 
           {(visualState === 'error' || offlineCard) && (
             <Card padded={false} style={styles.stateCard}>
-              <Glyph size="xl" style={styles.stateEmoji}>📡</Glyph>
+              <View style={styles.stateIcon}>
+                <Icon name="wifiOff" size={28} color="text.secondary" />
+              </View>
               <Text variant="title2" style={styles.stateTitle}>{offlineCard ? t('common.offlineTitle') : t('home.error')}</Text>
               <Text variant="bodySmall" color="text.secondary" style={styles.stateBody} accessibilityLiveRegion={offlineCard ? 'polite' : undefined}>
                 {offlineCard

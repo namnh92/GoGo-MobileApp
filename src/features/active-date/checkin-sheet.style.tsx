@@ -84,10 +84,12 @@ export const styles = StyleSheet.create(theme => ({
     borderColor: neutral[100],
     marginBottom: spacing[3],
   },
-  billToggleOn: { backgroundColor: brand.lavenderSoft, borderColor: brand.lavender },
+  // The theme accent, not a fixed second accent (#382): `onSoft` is the role
+  // for accent-coloured text on `soft` (contrast.test.ts).
+  billToggleOn: { backgroundColor: theme.accent.soft, borderColor: theme.accent.primary },
   billToggleLabel: { ...type.label, color: neutral[700], flexShrink: 1 },
-  billToggleLabelOn: { color: brand.lavender },
-  billToggleMark: { ...type.label, color: brand.lavender },
+  billToggleLabelOn: { color: theme.accent.onSoft },
+  billToggleMark: { ...type.label, color: theme.accent.onSoft },
   billBox: { gap: spacing[2], marginBottom: spacing[3] },
   billHint: { ...type.caption, color: neutral[500] },
   billInput: {

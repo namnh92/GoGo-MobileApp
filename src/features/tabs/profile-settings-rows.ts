@@ -5,9 +5,12 @@
  * `/settings/location` still opens that screen for any older link. What the
  * privacy row promised — export and delete — lives on the account screen.
  */
-export const SETTINGS_ROWS: readonly { key: string; route?: string }[] = [
-  { key: 'inbox', route: '/notifications' },
-  { key: 'notificationsLocation', route: '/settings/notifications' },
-  { key: 'reviews', route: '/settings/reviews' },
-  { key: 'account', route: '/settings/account' },
+import type { IconName } from '@/shared/ui/icons'
+
+/** Each row leads with an icon from `icons.tsx`; the copy carries no emoji (#382). */
+export const SETTINGS_ROWS: readonly { key: string; route?: string; icon: IconName }[] = [
+  { key: 'inbox', route: '/notifications', icon: 'inbox' },
+  { key: 'notificationsLocation', route: '/settings/notifications', icon: 'bell' },
+  { key: 'reviews', route: '/settings/reviews', icon: 'star' },
+  { key: 'account', route: '/settings/account', icon: 'settings' },
 ]

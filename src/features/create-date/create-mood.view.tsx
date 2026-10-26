@@ -44,7 +44,7 @@ function ChipGrid({ options, selected, onToggle }: {
         <Chip
           key={option.key}
           label={option.label}
-          icon={option.emoji}
+          emoji={option.emoji}
           variant={selected.includes(option.key) ? 'selected' : 'default'}
           onPress={() => onToggle(option.key)}
         />
@@ -194,7 +194,7 @@ export default function CreateMoodScreen() {
               <Chip
                 key={place.placeId}
                 label={`${place.name}  ✕`}
-                icon="📍"
+                icon="mapPin"
                 variant="info"
                 accessibilityLabel={t('createMood.removePlace', { name: place.name })}
                 onPress={() => removeSeedPlace(place.placeId)}

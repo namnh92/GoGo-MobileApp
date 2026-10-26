@@ -54,7 +54,8 @@ export const styles = StyleSheet.create(theme => ({
   },
   rejectedReason: { marginTop: spacing[2] },
   tryAgain: { alignItems: 'center', paddingVertical: spacing[3], marginTop: spacing[2] },
-  warning: { marginTop: spacing[2] },
+  warning: { marginTop: spacing[2], flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2] },
+  warningText: { flex: 1 },
   attribution: { marginTop: spacing[2] },
   candidateTitle: { marginBottom: spacing[3] },
   candidateRow: {

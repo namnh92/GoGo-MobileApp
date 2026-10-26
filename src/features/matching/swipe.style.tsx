@@ -22,7 +22,7 @@ export const styles = StyleSheet.create(theme => ({
     maxHeight: 520,
     borderRadius: radius.hero,
     overflow: 'hidden',
-    backgroundColor: glassFx.solid,
+    backgroundColor: theme.surface.card,
   },
 
   // Imagery carries the card (spec §17): two thirds of it, with a gradient
@@ -40,6 +40,8 @@ export const styles = StyleSheet.create(theme => ({
   },
 
   overImage: { position: 'absolute', left: spacing[4], right: spacing[4], bottom: spacing[4], gap: 4 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addressText: { flexShrink: 1 },
 
   /** Swipe verdict stamps — large, rotated, and worded, never colour alone. */
   overlay: {
@@ -76,6 +78,11 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
   },
   actionBtnStar: { width: 56, height: 56, borderRadius: 28, backgroundColor: brand.lavenderSoft },
+  // Pressed is a colour change only (#382) — the buttons no longer shrink.
+  actionBtnPressed: { backgroundColor: theme.surface.subtle },
+  actionBtnLike: { backgroundColor: theme.accent.primary },
+  actionBtnLikePressed: { backgroundColor: theme.accent.pressed },
+  actionBtnStarPressed: { backgroundColor: theme.surface.subtle },
 
   skeletonCard: { flex: 1, maxHeight: 520, borderRadius: radius.hero },
 }))

@@ -58,7 +58,7 @@ import ActiveDateScreen from '@/features/active-date/active-date.view'
 import { resetSseTransportForTests } from '@/shared/api/realtime/transport'
 
 const DONE_STEP = 'Xong bước này ✓'
-const FINISH = 'Kết thúc date 🎉'
+const FINISH = 'Kết thúc date'
 const SAVE = 'Lưu check-in ✓'
 const SKIP = 'Bỏ qua'
 const ALL_DONE = 'Đã đi hết các điểm'

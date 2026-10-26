@@ -71,7 +71,7 @@ export default function CreateBudgetScreen() {
         {offerUsual && usualTier ? (
           <View style={styles.prefillRow}>
             <Chip
-              icon="💸"
+              icon="dollar"
               label={t('createBudget.useUsual', { tier: t(`createBudget.tier.${usualTier.key}`) })}
               variant={selected.key === usualTier.key ? 'selected' : 'info'}
               onPress={useUsualBudget}

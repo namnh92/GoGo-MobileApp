@@ -30,8 +30,8 @@ import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
-import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Icon, IconArrowRight, IconNavigation } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { CheckinSheet, type CheckinDraft } from './checkin-sheet.view'
@@ -384,14 +384,14 @@ export default function ActiveDateScreen() {
           <PlacePhoto placeId={stop.placeId} name={placeName} uri={stopPlace?.photoUrl ?? null} style={styles.cardImage} />
           <View style={styles.cardBody}>
             <View style={styles.cardHeader}>
-              <Chip label={t('activeDate.ongoing')} icon="📍" variant="positive" />
+              <Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" />
             </View>
             <Text variant="display">{placeName}</Text>
             {address ? <Text color="text.secondary" style={styles.area}>{address}</Text> : null}
 
             <View style={styles.factRow}>
-              {stop.arriveLabel ? <Chip label={stop.arriveLabel} icon="🕘" variant="default" /> : null}
-              {stopCost ? <Chip label={stopCost} icon="💰" variant="default" /> : null}
+              {stop.arriveLabel ? <Chip label={stop.arriveLabel} icon="clock" variant="default" /> : null}
+              {stopCost ? <Chip label={stopCost} icon="dollar" variant="default" /> : null}
             </View>
 
             {/* A real map of this stop, or a stated fallback — a strip captioned
@@ -427,7 +427,7 @@ export default function ActiveDateScreen() {
                   haptic('select')
                   openGoogleMapsDirections(address ?? placeName)
                 }}
-                style={({ pressed }) => [styles.dirBtn, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
               >
                 <IconNavigation />
                 <Text variant="label">{t('common.directions')}</Text>
@@ -447,7 +447,7 @@ export default function ActiveDateScreen() {
 
         {nextStop && (
           <Card padded={false} style={styles.nextCard}>
-            <Glyph size="sm">📍</Glyph>
+            <Icon name="mapPin" size={24} color="accent.primary" />
             <View style={{ flex: 1 }}>
               <Text variant="caption" color="text.secondary" style={styles.nextCaption}>{t('activeDate.next')}</Text>
               <Text variant="title2" style={styles.nextName}>{places.byPlaceId.get(nextStop.placeId)?.name ?? ''}</Text>

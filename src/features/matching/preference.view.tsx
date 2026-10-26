@@ -165,7 +165,7 @@ export default function PreferenceScreen() {
 
         {offerSaved ? (
           <View style={styles.prefillRow}>
-            <Chip icon="⭐" label={t('preference.useSaved')} variant="info" onPress={useSavedInterests} />
+            <Chip icon="star" label={t('preference.useSaved')} variant="info" onPress={useSavedInterests} />
           </View>
         ) : null}
 

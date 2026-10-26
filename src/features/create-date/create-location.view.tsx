@@ -170,7 +170,7 @@ export default function CreateLocationScreen() {
         {offerHomeArea ? (
           <View style={styles.prefillRow}>
             <Chip
-              icon="🏠"
+              icon="home"
               label={t('createLocation.useHomeArea', { area: administrativeAreaLabel(homeArea) })}
               variant="info"
               onPress={useHomeArea}

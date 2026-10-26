@@ -51,7 +51,7 @@ import { queryKeys } from '@/shared/api/query-keys'
 import { resetSseTransportForTests } from '@/shared/api/realtime/transport'
 import ActiveDateScreen from '@/features/active-date/active-date.view'
 
-const DONE = 'Kết thúc date 🎉'
+const DONE = 'Kết thúc date'
 const SAVE_CHECKIN = 'Lưu check-in ✓'
 const BACK_TO_PLAN = 'Về kế hoạch'
 const NOT_STARTED = 'Buổi đi chơi chưa bắt đầu'

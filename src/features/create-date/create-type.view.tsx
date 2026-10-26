@@ -11,10 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { track } from '@/shared/analytics'
 import { useRoom, useRoomStore, type RoomType } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
-import { IconCheck } from '@/shared/ui/icons'
+import { Icon, IconCheck, type IconName } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { WizardActions } from './wizard-actions.view'
@@ -24,12 +24,12 @@ const nameSchema = z.object({ title: z.string().trim().max(80) })
 
 const options: {
   type: RoomType
-  emoji: string
+  icon: IconName
   titleKey: 'createType.couple' | 'createType.group'
   descKey: 'createType.coupleDesc' | 'createType.groupDesc'
 }[] = [
-  { type: 'couple', emoji: '❤️', titleKey: 'createType.couple', descKey: 'createType.coupleDesc' },
-  { type: 'group', emoji: '👥', titleKey: 'createType.group', descKey: 'createType.groupDesc' },
+  { type: 'couple', icon: 'heart', titleKey: 'createType.couple', descKey: 'createType.coupleDesc' },
+  { type: 'group', icon: 'users', titleKey: 'createType.group', descKey: 'createType.groupDesc' },
 ]
 
 export default function CreateTypeScreen() {
@@ -102,10 +102,10 @@ export default function CreateTypeScreen() {
                 style={({ pressed }) => [
                   styles.option,
                   active ? styles.optionActive : glassStyles.card,
-                  pressed && styles.optionPressed,
+                  pressed && (active ? styles.optionActivePressed : styles.optionPressed),
                 ]}
               >
-                <Glyph size="md">{option.emoji}</Glyph>
+                <Icon name={option.icon} size={28} color={active ? 'accent.onAccent' : 'accent.primary'} />
                 <View style={{ flex: 1 }}>
                   <Text variant="title2" color={active ? 'accent.onAccent' : 'text.primary'}>
                     {t(option.titleKey)}

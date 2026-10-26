@@ -61,6 +61,11 @@ const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
  * colour keys are removed from it at the type level, so the only way to set
  * them is through `variant` and `color`.
  */
+/** The colour a semantic key resolves to under a theme — for SVG props, which are not styles. */
+export function resolveColor(theme: AppTheme, key: TextColor): string {
+  return COLOR[key](theme)
+}
+
 export type TextLayoutStyle = Omit<
   TextStyle,
   'color' | 'fontFamily' | 'fontSize' | 'fontStyle' | 'fontWeight' | 'lineHeight'

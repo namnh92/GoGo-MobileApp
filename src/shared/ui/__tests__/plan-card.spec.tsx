@@ -13,7 +13,7 @@ async function renderCard(props: Partial<Parameters<typeof PlanCard>[0]> = {}) {
   await render(
     <PlanCard
       testID="plan"
-      icon="👥"
+      icon="users"
       title={LONG_TITLE}
       meta={META}
       status={{ label: 'Đang chọn', variant: 'info' }}
@@ -75,7 +75,7 @@ describe('PlanCard', () => {
    */
   it.each([320, 375, 430])('at %ipt the text column gets the whole row minus the icon', async width => {
     await renderCard({ status: { label: 'Đang chờ mọi người chọn', variant: 'info' } })
-    const icon = screen.getByText('👥').parent!
+    const icon = screen.getByTestId('plan-card-icon')
     const row = icon.parent!
     const column = screen.getByTestId('plan-card-title').parent!
     expect(row.children).toEqual([icon, column])
@@ -96,14 +96,16 @@ describe('PlanCard', () => {
     expect(screen.getByTestId('plan-card-meta').props.numberOfLines).toBeUndefined()
   })
 
-  it('upcoming: the icon sits on the accent soft circle; past: neutral circle and faded card', async () => {
+  it('upcoming: the icon sits on the accent soft circle; past: neutral circle on the canvas tone, never faded (#382)', async () => {
     await renderCard()
-    const circle = () => StyleSheet.flatten(screen.getByText('👥').parent!.props.style)
+    const circle = () => StyleSheet.flatten(screen.getByTestId('plan-card-icon').props.style)
     expect(circle()).toMatchObject({ width: 48, height: 48, borderRadius: 24, backgroundColor: accents.orange.soft })
     await renderCard({ past: true })
     expect(circle().backgroundColor).toBe(surface.subtle)
-    const card = screen.getByText('👥').parent!.parent!
-    expect(StyleSheet.flatten(card.props.style).opacity).toBe(0.72)
+    const card = screen.getByTestId('plan-card-icon').parent!
+    // #382: no opacity — it took text.secondary under AA. The surface changes instead.
+    expect(StyleSheet.flatten(card.props.style).opacity).toBeUndefined()
+    expect(StyleSheet.flatten(card.props.style).backgroundColor).toBe(surface.canvas)
   })
 
   it('is one button that opens the plan', async () => {

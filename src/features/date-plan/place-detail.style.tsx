@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, fill, glassFx, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { colors, fill, glassFx, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 const { brand, neutral } = colors
 
@@ -49,7 +49,8 @@ export const styles = StyleSheet.create(theme => ({
     marginTop: -SHEET_OVERLAP,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
-    backgroundColor: glassFx.sheet,
+    // The sheet is page content, not a bar: solid (#382).
+    backgroundColor: theme.surface.card,
   },
   body: { paddingHorizontal: spacing[5], paddingTop: spacing[7], paddingBottom: spacing[5] },
   // The body already carries the side padding the bar would otherwise add.
@@ -162,7 +163,13 @@ export const styles = StyleSheet.create(theme => ({
   },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   updated: { flex: 1 },
-  report: { ...type.label, color: neutral[500], textDecorationLine: 'underline' },
+  reportDisabled: {
+    minHeight: touchTarget.min,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[3],
+    borderRadius: radius.button,
+    backgroundColor: theme.surface.subtle,
+  },
 
   // --- sticky actions ------------------------------------------------------
   // Position, gutter, glass and hairline are `GlassBar`'s (#296).
@@ -177,7 +184,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.compact,
     borderWidth: 1,
     borderColor: neutral[100],
-    backgroundColor: glassFx.pill,
+    backgroundColor: theme.surface.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -195,4 +202,6 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     gap: 6,
   },
+  /** Pressed is a colour change only (#382). */
+  dirBtnPressed: { backgroundColor: theme.accent.pressed },
 }))
