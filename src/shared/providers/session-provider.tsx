@@ -17,6 +17,7 @@ import type { OpBody } from '@/shared/api/types'
 import { clearSavedRoomDraft, loadRoomDraft } from '@/shared/store/savedRoomDraft'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { clearRecentRooms } from '@/shared/store/recentRoomsStore'
+import { forgetAssistantIntro } from '@/shared/store/assistantIntroStore'
 import { purgeInviteCodes } from '@/shared/storage/invite-codes'
 
 export type SessionStatus = 'hydrating' | 'anonymous' | 'user' | 'guest'
@@ -126,7 +127,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     await pendingDeepLinks.clear()
+    const deleted = getSession()?.userId
     await sessionsApi.deleteAccount()
+    // The GoGo AI intro flags (#379) outlive sign-out, not the account.
+    if (deleted) forgetAssistantIntro(deleted)
     useRoomStore.getState().resetDraft()
     useRoomStore.setState({ preferenceSeed: null })
     await purge()

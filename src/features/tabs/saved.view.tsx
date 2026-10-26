@@ -1,3 +1,4 @@
+import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +11,7 @@ import { useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, Card, Chip, GhostBtn, IconBtn, useBottomBarInset } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, IconBtn } from '@/shared/ui/primitives'
 import { PlaceGridSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -32,7 +33,8 @@ export default function SavedScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { status } = useSession()
-  const barInset = useBottomBarInset()
+  // The float button (#379) collapses on scroll; the list's end clears it.
+  const fab = useAssistantFabScroll('saved')
 
   const canSave = status === 'user'
   const saved = useSavedEntries({ enabled: canSave })
@@ -153,7 +155,12 @@ export default function SavedScreen() {
           action={<GhostBtn label={t('saved.browse')} onPress={() => router.push('/places/search')} />}
         />
       ) : (
-        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: barInset + spacing[6] }]}>
+        <ScrollView
+          testID="saved-list"
+        onScroll={fab.onScroll}
+          scrollEventThrottle={fab.scrollEventThrottle}
+          contentContainerStyle={[styles.list, { paddingBottom: fab.bottomInset }]}
+        >
           {groups.map(group => (
             <View key={group.key} style={styles.group}>
               <View style={styles.groupHeader}>

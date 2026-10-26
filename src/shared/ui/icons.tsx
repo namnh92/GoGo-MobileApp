@@ -19,6 +19,9 @@ import { resolveColor, type TextColor } from '@/shared/ui/text'
  */
 export const ICON_STROKE = 1.8
 
+/** The assistant's speech-bubble head (#379), shared by the outline icon and the solid avatar. */
+const ASSISTANT_BUBBLE = 'M7 5h10a4 4 0 0 1 4 4v5a4 4 0 0 1-4 4H9.5L6 21v-3.13A4 4 0 0 1 3 14V9a4 4 0 0 1 4-4z'
+
 /** What a shape draws inside the shared `<Svg>`; `cut` is the detail colour inside a filled glyph. */
 type Shape = (cut: string, filled: boolean) => ReactNode
 
@@ -230,6 +233,24 @@ const SHAPES = {
       <Line x1={12} y1={20} x2={12.01} y2={20} />
     </>
   ),
+  /**
+   * GoGo AI (#379): the chatbot symbol — a robot head drawn as a speech
+   * bubble, with an antenna, two round eyes, a small smile and two ears.
+   * Geometry copied from the GoGo AI design system (`Icon` `assistant`). The
+   * solid avatar form is `AssistantGlyph` below.
+   */
+  assistant: () => (
+    <>
+      <Path d={ASSISTANT_BUBBLE} />
+      <Line x1={12} y1={5} x2={12} y2={3.2} />
+      <Circle cx={12} cy={2.2} r={1.1} fill="currentColor" />
+      <Circle cx={8.8} cy={10} r={1.25} fill="currentColor" />
+      <Circle cx={15.2} cy={10} r={1.25} fill="currentColor" />
+      <Path d="M9.6 14q2.4 1.8 4.8 0" />
+      <Line x1={1} y1={10.5} x2={1} y2={12.5} />
+      <Line x1={23} y1={10.5} x2={23} y2={12.5} />
+    </>
+  ),
 } satisfies Record<string, Shape>
 
 export type IconName = keyof typeof SHAPES
@@ -253,6 +274,8 @@ function Glyph24({ name, size, color, cut, filled, testID }: {
       viewBox="0 0 24 24"
       fill={filled ? color : 'none'}
       stroke={color}
+      // `currentColor` in a shape (the assistant's eyes) resolves to this.
+      color={color}
       strokeWidth={ICON_STROKE}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -277,6 +300,35 @@ export function Icon({ name, size = 20, color = 'text.primary', filled = false, 
 }) {
   const { theme } = useUnistyles()
   return <Glyph24 name={name} size={size} color={resolveColor(theme, color)} cut={theme.surface.card} filled={filled} testID={testID} />
+}
+
+/**
+ * The assistant's face, solid (#379, GoGo AI design system `AssistantAvatar`):
+ * the speech bubble filled, the eyes and smile cut out of it. No tile behind
+ * it. Default: bubble `accent.primary`, face `accent.onAccent`, so it follows
+ * "Màu chủ đề". `inverted` is for an accent ground (the float button): a
+ * white bubble with an accent face. Strokes keep the shared `ICON_STROKE`.
+ * Always decorative — "GoGo AI" is written or announced next to it.
+ */
+export function AssistantGlyph({ size, inverted = false, testID }: { size: number; inverted?: boolean; testID?: string }) {
+  const { theme } = useUnistyles()
+  const bubble = inverted ? theme.accent.onAccent : theme.accent.primary
+  const face = inverted ? theme.accent.primary : theme.accent.onAccent
+  return (
+    <Svg
+      testID={testID ?? (inverted ? 'assistant-glyph-inverted' : 'assistant-glyph')}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+    >
+      <Line x1={12} y1={5.5} x2={12} y2={3} stroke={bubble} strokeWidth={ICON_STROKE} strokeLinecap="round" />
+      <Circle cx={12} cy={2.2} r={1.4} fill={bubble} />
+      <Path d={ASSISTANT_BUBBLE} fill={bubble} stroke={bubble} strokeWidth={ICON_STROKE} strokeLinejoin="round" />
+      <Circle cx={8.8} cy={10.2} r={1.5} fill={face} />
+      <Circle cx={15.2} cy={10.2} r={1.5} fill={face} />
+      <Path d="M9.4 13.7q2.6 2 5.2 0" fill="none" stroke={face} strokeWidth={ICON_STROKE} strokeLinecap="round" />
+    </Svg>
+  )
 }
 
 // ---------------------------------------------------------------------------

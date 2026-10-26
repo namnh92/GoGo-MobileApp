@@ -2,6 +2,7 @@
 import '@/shared/observability/bootstrap'
 
 import { Stack } from 'expo-router'
+import { Platform } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 
@@ -37,7 +38,15 @@ function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: surface.canvas },
           }}
-        />
+        >
+          {/* GoGo AI (#379): a page sheet over the current screen on iOS — swipe
+              down closes it — and full screen on Android. The screen under it
+              stays mounted, so closing returns to the same scroll position. */}
+          <Stack.Screen
+            name="assistant"
+            options={{ presentation: Platform.OS === 'ios' ? 'pageSheet' : 'fullScreenModal', gestureEnabled: true }}
+          />
+        </Stack>
       </AppProviders>
     </RootErrorBoundary>
   )

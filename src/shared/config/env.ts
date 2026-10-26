@@ -18,6 +18,10 @@ const envSchema = z.object({
   // anything else must be a DSN, which `initSentry` checks. `app.config.ts`
   // refuses a stag/prod build that states neither.
   EXPO_PUBLIC_SENTRY_DSN: z.string().default(''),
+  // Feature gate for the GoGo AI entry points (GoGo-MobileApp#379). `on` /
+  // `off` force it; unset follows the flavour (`features.ts`). Anything else
+  // fails here, so a typo cannot quietly ship the gate in the wrong state.
+  EXPO_PUBLIC_ASSISTANT_ENTRY: z.enum(['on', 'off']).optional(),
 })
 
 const parsed = envSchema.safeParse({
@@ -25,6 +29,7 @@ const parsed = envSchema.safeParse({
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
   EXPO_PUBLIC_WEB_BASE_URL: process.env.EXPO_PUBLIC_WEB_BASE_URL,
   EXPO_PUBLIC_SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  EXPO_PUBLIC_ASSISTANT_ENTRY: process.env.EXPO_PUBLIC_ASSISTANT_ENTRY || undefined,
 })
 
 if (!parsed.success) {
@@ -36,4 +41,5 @@ export const env = {
   apiUrl: parsed.data.EXPO_PUBLIC_API_URL,
   webBaseUrl: parsed.data.EXPO_PUBLIC_WEB_BASE_URL,
   sentryDsn: parsed.data.EXPO_PUBLIC_SENTRY_DSN,
+  assistantEntry: parsed.data.EXPO_PUBLIC_ASSISTANT_ENTRY,
 } as const
