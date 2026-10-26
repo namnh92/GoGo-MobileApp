@@ -37,6 +37,7 @@ import { Text } from '@/shared/ui/text'
 import { colors, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
 
 import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
+import { AssistantPlaceCard } from '@/features/assistant/assistant-place-card.view'
 import { PlaceReviews } from './place-reviews.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
@@ -329,6 +330,10 @@ export default function PlaceDetailScreen() {
               })}
             </View>
           ) : null}
+
+          {/* Questions about this place (#379): the contextual way into GoGo
+              AI here — this screen has its own action bar, so no float button. */}
+          <AssistantPlaceCard placeId={id} placeName={name} />
 
           {detail.addressText || hasCoords ? (
             <View style={styles.addressCard}>

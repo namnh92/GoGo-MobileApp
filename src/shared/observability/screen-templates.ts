@@ -15,6 +15,7 @@ export const SCREEN_TEMPLATES: ReadonlySet<string> = new Set([
   '/(tabs)/profile',
   '/(tabs)/saved',
   '/+not-found',
+  '/assistant',
   '/auth/sign-in',
   '/create/budget',
   '/create/group-setup',

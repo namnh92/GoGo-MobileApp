@@ -1,3 +1,4 @@
+import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
@@ -24,7 +25,7 @@ import { useRoom, useRoomStore, type QuickPreset } from '@/shared/store/roomStor
 import { haptic } from '@/shared/ui/feedback'
 import { Icon, IconSearch, type IconName } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, SecondaryBtn, useBottomBarInset } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
@@ -47,7 +48,8 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const content = useLocaleContent()
   const { uiState, setUiState, quickPreset, setQuickPreset } = useRoom()
-  const barInset = useBottomBarInset()
+  // The float button (#379) collapses on scroll; the list's end clears it.
+  const fab = useAssistantFabScroll('home')
 
   const { status } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
@@ -138,7 +140,12 @@ export default function HomeScreen() {
 
   return (
     <Atmosphere>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: barInset + spacing[6] }}>
+      <ScrollView
+        testID="home-list"
+        onScroll={fab.onScroll}
+        scrollEventThrottle={fab.scrollEventThrottle}
+        contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: fab.bottomInset }}
+      >
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text variant="display">

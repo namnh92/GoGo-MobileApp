@@ -1,3 +1,4 @@
+import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
 import { useRouter } from 'expo-router'
@@ -14,7 +15,7 @@ import { useFocusedNow } from '@/shared/hooks/use-focused-now'
 import { budgetFact } from '@/shared/pricing/budget-unit'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { PlanCard } from '@/shared/ui/plan-card.view'
-import { Atmosphere, GhostBtn, SecondaryBtn, useBottomBarInset } from '@/shared/ui/primitives'
+import { Atmosphere, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -30,7 +31,8 @@ export default function PlansScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const barInset = useBottomBarInset()
+  // The float button (#379) collapses on scroll; the list's end clears it.
+  const fab = useAssistantFabScroll('plans')
   const { status } = useSession()
   const now = useFocusedNow()
 
@@ -151,7 +153,12 @@ export default function PlansScreen() {
         onRetry={() => void rooms.refetch()}
       />
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: barInset + spacing[6] }}>
+      <ScrollView
+        testID="plans-list"
+        onScroll={fab.onScroll}
+        scrollEventThrottle={fab.scrollEventThrottle}
+        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: fab.bottomInset }}
+      >
         {!canRead ? (
           <EmptyState
             title={t('plans.emptyTitle')}

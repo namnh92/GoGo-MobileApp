@@ -6,6 +6,7 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { isApiError, useCreateRoom, useTaxonomies } from '@/shared/api'
 import { newIdempotencyKey } from '@/shared/api/idempotency'
 import { clearSavedRoomDraft, saveRoomDraft } from '@/shared/store/savedRoomDraft'
+import { noteAssistantPlanCreated } from '@/shared/store/assistantIntroStore'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStore'
@@ -122,6 +123,8 @@ export default function CreateMoodScreen() {
       if (session?.userId) await saveRoomDraft(session.userId, 'mood')
       const room = await createRoom.mutateAsync(body)
       rememberRoom(room)
+      // A created plan makes the GoGo AI introduction due on Home (#379).
+      if (session?.userId) noteAssistantPlanCreated(session.userId)
       // Keep only a room-scoped preference handoff; the create draft is done.
       useRoomStore.getState().finishDraft(room.id)
       await clearSavedRoomDraft().catch(() => undefined)

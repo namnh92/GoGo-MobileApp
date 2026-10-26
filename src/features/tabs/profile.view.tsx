@@ -1,3 +1,4 @@
+import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,10 +13,11 @@ import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/si
 import { locales } from '@/shared/i18n'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
-import { Atmosphere, AvatarCircle, Card, useBottomBarInset } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card } from '@/shared/ui/primitives'
 import { Icon, IconChevronRight } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
+import { AssistantHelpSection } from '@/features/assistant/assistant-help-row.view'
 import { SETTINGS_ROWS } from './profile-settings-rows'
 import { styles } from './profile.style'
 
@@ -32,7 +34,8 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const room = useRoom()
   const router = useRouter()
-  const barInset = useBottomBarInset()
+  // The float button (#379) collapses on scroll; the list's end clears it.
+  const fab = useAssistantFabScroll('profile')
   const { session, status, signOut } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const [signingOut, setSigningOut] = useState(false)
@@ -91,7 +94,12 @@ export default function ProfileScreen() {
 
   return (
     <Atmosphere>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: barInset + spacing[6] }}>
+      <ScrollView
+        testID="profile-list"
+        onScroll={fab.onScroll}
+        scrollEventThrottle={fab.scrollEventThrottle}
+        contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: fab.bottomInset }}
+      >
         <View style={styles.headerRow}>
           <AvatarCircle
             label={(me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()}
@@ -172,6 +180,9 @@ export default function ProfileScreen() {
             </Pressable>
           ))}
         </Card>
+
+        {/* Help › GoGo AI (#379), behind the assistant gate. */}
+        <AssistantHelpSection />
 
         {/* Demo controls (dev only): audience × UI state are independent
             dimensions (spec v3 §22); stripped from production builds. */}

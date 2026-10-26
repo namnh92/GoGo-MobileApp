@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react-native'
+import { processColor } from 'react-native'
 
 import * as icons from '@/shared/ui/icons'
 import { accents, surface, text } from '@/shared/ui/tokens'
@@ -70,5 +71,34 @@ describe('named icons draw through the primitive (#382)', () => {
   ])('%s: the shared 1.8 round stroke', async (name, element) => {
     await render(element)
     expect(svg(`icon-${name}`)).toMatchObject({ strokeWidth: 1.8, strokeLinecap: 'round' })
+  })
+})
+
+type HostNode = { props: Record<string, unknown>; children?: (HostNode | string)[] }
+function descendants(node: HostNode): HostNode[] {
+  return (node.children ?? []).flatMap(child => (typeof child === 'string' ? [] : [child, ...descendants(child)]))
+}
+
+describe('GoGo AI glyph (#379)', () => {
+  it('the outline assistant icon draws on the shared grid and stroke', async () => {
+    await render(<icons.Icon name="assistant" color="text.secondary" />)
+    expect(svg('icon-assistant')).toMatchObject({ strokeWidth: 1.8, strokeLinecap: 'round', stroke: text.secondary })
+  })
+
+  it('the solid avatar is an accent bubble with the face cut out in onAccent', async () => {
+    await render(<icons.AssistantGlyph size={36} />)
+    const paths = descendants(screen.getByTestId('assistant-glyph') as unknown as HostNode).map(node => node.props.d)
+    expect(paths).toContain('M7 5h10a4 4 0 0 1 4 4v5a4 4 0 0 1-4 4H9.5L6 21v-3.13A4 4 0 0 1 3 14V9a4 4 0 0 1 4-4z')
+  })
+
+  it('inverted for the float button: a white bubble with an accent face', async () => {
+    await render(<icons.AssistantGlyph size={30} inverted />)
+    // react-native-svg hands the host processed colours: { type: 0, payload: ARGB }.
+    const fills = descendants(screen.getByTestId('assistant-glyph-inverted') as unknown as HostNode)
+      .map(node => (node.props.fill as { payload?: number } | null)?.payload)
+      .filter(value => value !== undefined)
+    // Bubble and antenna white, then eyes in the accent.
+    expect(fills).toEqual(expect.arrayContaining([processColor(accents.orange.onAccent), processColor(accents.orange.primary)]))
+    expect(fills.indexOf(processColor(accents.orange.onAccent) as number)).toBeLessThan(fills.indexOf(processColor(accents.orange.primary) as number))
   })
 })
