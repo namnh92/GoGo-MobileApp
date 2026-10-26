@@ -1,92 +1,295 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Platform, ScrollView, View } from 'react-native'
+import { BackHandler, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import {
+  isForbidden,
+  useAssistantMessages,
+  useAssistantReply,
+  useAssistantStatus,
+  useOutgoingAssistantMessages,
+  useSendAssistantMessage,
+  useStopAssistantReply,
+  useUploadImage,
+  type AssistantConversation,
+} from '@/shared/api'
+import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
 import { isAssistantEntryOn } from '@/shared/config/features'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 import { markAssistantOpened, takeChatSavedToast } from '@/shared/store/assistantIntroStore'
-import { Card } from '@/shared/ui/card.view'
-import { Text } from '@/shared/ui/text'
+import { NEW_CHAT, useAssistantDraftStore } from '@/shared/store/assistantDraftStore'
 import { useToast } from '@/shared/ui/toast.view'
 import { spacing } from '@/shared/ui/tokens'
 
-import { AssistantAvatar } from './assistant-avatar.view'
 import { useAssistantAccount } from './assistant-entry'
 import { AssistantHeader } from './assistant-header.view'
-import { ContextChip } from './context-chip.view'
+import { Composer, MAX_IMAGES, type ComposerImage } from './composer.view'
+import { Conversation } from './conversation.view'
+import { formatClock } from './format'
+import { History } from './history.view'
+import { OfflineBanner } from './offline-banner.view'
+import { pickAssistantImages } from './pick-images'
+import { isUserOnly } from './send-error'
+import { SignInPrompt } from './sign-in-prompt.view'
+import { StateNotice } from './state-notice.view'
+import { Welcome } from './welcome.view'
 import { styles } from './assistant.style'
 
 /**
- * The shell has no conversation: chat, history and sending arrive with #378,
- * which waits on the assistant API (GoGo-BE#713). Until then nothing is saved,
- * so closing never says "Chat saved in GoGo AI history".
- */
-const HAS_CHAT = false
-
-/**
- * GoGo AI, opened from an entry point (GoGo-MobileApp#379). An iOS page sheet
- * (full screen on Android, `app/_layout.tsx`): Close (×) or a swipe down
- * returns to the screen underneath, which never unmounted, so its scroll
- * position is where it was. A shell for now — the header, the avatar, the
- * greeting and one line saying the assistant is on its way. No fake chat, no
- * network. With the gate off the route leads home.
+ * GoGo AI (GoGo-MobileApp#378, design `ScreenWelcome` / `ScreenConversation` /
+ * `ScreenHistory` and the states). Opened from an entry point (#379) as an
+ * iOS page sheet, full screen on Android. With the gate off the route leads
+ * home; a guest or signed-out person is asked to sign in (owner decision on
+ * #377: guests cannot use it).
+ *
+ * Server state is TanStack Query (`use-assistant`); what has not reached the
+ * server — the composer text and unsent messages — is the draft store.
  */
 export default function AssistantScreen() {
   if (!isAssistantEntryOn()) return <Redirect href="/" />
-  return <AssistantShell />
+  return <AssistantRoot />
 }
 
-function AssistantShell() {
-  const { t } = useTranslation()
-  const router = useRouter()
-  const toast = useToast()
+function AssistantRoot() {
   const insets = useSafeAreaInsets()
   const account = useAssistantAccount()
-  const params = useLocalSearchParams<{ placeId?: string; placeName?: string; question?: string }>()
-  const [context, setContext] = useState(
-    params.placeId && params.placeName ? { placeId: params.placeId, name: params.placeName } : null,
-  )
-  const question = typeof params.question === 'string' && params.question ? params.question : null
 
   // Opening clears the "New" badge for this account.
   useEffect(() => {
     if (account) markAssistantOpened(account)
   }, [account])
 
-  // Close (×), swipe down and Android back all unmount this screen.
-  const closing = useRef({ account, toast, t })
-  useEffect(() => {
-    closing.current = { account, toast, t }
-  }, [account, toast, t])
-  useEffect(
-    () => () => {
-      const { account: who, toast: api, t: translate } = closing.current
-      if (takeChatSavedToast(who, HAS_CHAT)) api.show(translate('assistant.chatSaved'))
-    },
-    [],
-  )
-
   return (
     <View style={[styles.screen, { paddingTop: Platform.OS === 'ios' ? spacing[2] : insets.top }]}>
-      <AssistantHeader onClose={() => goBackOrHome(router)} />
-      <ScrollView contentContainerStyle={styles.body}>
-        <AssistantAvatar size="lg" />
-        <Text variant="display" style={styles.greeting}>{t('assistant.greeting')}</Text>
-        <Text variant="body" color="text.secondary">{t('assistant.comingSoon')}</Text>
-        {question ? (
-          <Card style={styles.question}>
-            <Text variant="caption" color="text.secondary">{t('assistant.yourQuestion')}</Text>
-            <Text variant="body">{question}</Text>
-          </Card>
-        ) : null}
-      </ScrollView>
-      {context ? (
-        <View style={[styles.context, { paddingBottom: insets.bottom + spacing[3] }]}>
-          <ContextChip label={context.name} onRemove={() => setContext(null)} />
-        </View>
-      ) : null}
+      {account ? <AssistantChat account={account} /> : <SignedOut />}
     </View>
   )
 }
+
+function SignedOut() {
+  const router = useRouter()
+  return (
+    <>
+      <AssistantHeader onClose={() => goBackOrHome(router)} />
+      <SignInPrompt onSignIn={() => router.push('/auth/sign-in')} />
+    </>
+  )
+}
+
+function AssistantChat({ account }: { account: string }) {
+  const { t, i18n } = useTranslation()
+  const router = useRouter()
+  const toast = useToast()
+  const online = useOnlineStatus()
+  const params = useLocalSearchParams<{ placeId?: string; placeName?: string; question?: string }>()
+  const [context, setContext] = useState(
+    params.placeId && params.placeName ? { placeId: params.placeId, name: params.placeName } : null,
+  )
+  const [view, setView] = useState<'chat' | 'history'>('chat')
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [images, setImages] = useState<ComposerImage[]>([])
+
+  const status = useAssistantStatus()
+  const messages = useAssistantMessages(conversationId)
+  const outgoing = useOutgoingAssistantMessages(conversationId)
+  const { send, retry } = useSendAssistantMessage(conversationId, setConversationId)
+  const items = messages.data?.pages.flatMap(page => page.items) ?? []
+  const streaming = items.find(message => message.role === 'assistant' && message.status === 'streaming') ?? null
+  const reply = useAssistantReply(conversationId, streaming)
+  const stop = useStopAssistantReply(conversationId)
+  const upload = useUploadImage()
+
+  const draftKey = conversationId ?? NEW_CHAT
+  const draft = useAssistantDraftStore(state => state.drafts[draftKey] ?? '')
+  const setDraft = useCallback((text: string) => useAssistantDraftStore.getState().setDraft(draftKey, text), [draftKey])
+
+  // "Chat saved in GoGo AI history", once per account, on the first close of a real chat (#379).
+  const closing = useRef({ hasChat: false, toast, t })
+  useEffect(() => {
+    closing.current = { hasChat: conversationId !== null, toast, t }
+  }, [conversationId, toast, t])
+  useEffect(
+    () => () => {
+      const { hasChat, toast: api, t: translate } = closing.current
+      if (takeChatSavedToast(account, hasChat)) api.show(translate('assistant.chatSaved'))
+    },
+    [account],
+  )
+
+  // Android back from History returns to the chat, not out of GoGo AI.
+  useEffect(() => {
+    if (view !== 'history') return
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setView('chat')
+      return true
+    })
+    return () => subscription.remove()
+  }, [view])
+
+  const state = status.data?.state
+  const limited = state === 'limit_reached'
+  const disabledByServer = state !== undefined && state !== 'enabled'
+  const sending = outgoing.some(item => item.status === 'sending')
+  const sendDisabled = !online || disabledByServer || sending
+  const locale = i18n.language === 'en' ? 'en' : 'vi'
+
+  const submit = useCallback(
+    (text: string) => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      const ready = images.filter((image): image is { uri: string; uploadKey: string } => image.uploadKey !== null)
+      void send({
+        text: trimmed,
+        locale,
+        ...(context ? { context: { placeId: context.placeId } } : {}),
+        images: ready,
+      })
+      setImages([])
+      if (text === draft) setDraft('')
+    },
+    [context, draft, images, locale, send, setDraft],
+  )
+
+  // A starter question tapped on the place card is sent once, with the place attached.
+  const askedFromEntry = useRef(false)
+  useEffect(() => {
+    const question = typeof params.question === 'string' ? params.question.trim() : ''
+    if (askedFromEntry.current || !question || !status.isSuccess || disabledByServer || !online) return
+    askedFromEntry.current = true
+    submit(question)
+  }, [params.question, status.isSuccess, disabledByServer, online, submit])
+
+  const attach = async () => {
+    const result = await pickAssistantImages(MAX_IMAGES - images.length)
+    if (result.status === 'denied') {
+      toast.show(t('assistant.composer.photoDenied'))
+      return
+    }
+    if (result.status !== 'picked') return
+    for (const image of result.images) {
+      setImages(current => [...current, { uri: image.uri, uploadKey: null }])
+      upload.mutate(
+        { image, purpose: 'assistant_image' },
+        {
+          onSuccess: key => setImages(current => current.map(item => (item.uri === image.uri ? { ...item, uploadKey: key } : item))),
+          onError: () => {
+            setImages(current => current.filter(item => item.uri !== image.uri))
+            toast.show(t('assistant.composer.uploadFailed'))
+          },
+        },
+      )
+    }
+  }
+
+  const close = () => goBackOrHome(router)
+  const newChat = () => {
+    setConversationId(null)
+    setContext(null)
+    setImages([])
+    setView('chat')
+  }
+  const openConversation = (conversation: AssistantConversation) => {
+    setConversationId(conversation.id)
+    setContext(null)
+    setImages([])
+    setView('chat')
+  }
+
+  // A guest session (`403 USER_ONLY` from any call) is asked to sign in.
+  if ((isForbidden(status.error) && isUserOnly(status.error)) || outgoing.some(item => isUserOnly(item.error))) {
+    return (
+      <>
+        <AssistantHeader onClose={close} />
+        <SignInPrompt onSignIn={() => router.push('/auth/sign-in')} />
+      </>
+    )
+  }
+
+  if (view === 'history') {
+    return (
+      <History activeId={conversationId} onBack={() => setView('chat')} onOpen={openConversation} onNewChat={newChat} />
+    )
+  }
+
+  const welcome = conversationId === null && outgoing.length === 0
+  const generating = streaming !== null
+  const unavailable = disabledByServer ? (
+    <StateNotice
+      kind="info"
+      icon={limited ? 'clock' : 'info'}
+      title={limited ? t('assistant.notice.limit.title') : t('assistant.notice.disabled.title')}
+      body={
+        limited && status.data
+          ? t('assistant.notice.limit.body', { time: formatClock(status.data.resetsAt) })
+          : t('assistant.notice.disabled.body')
+      }
+    />
+  ) : null
+
+  const hint = !online
+    ? t('assistant.composer.offlineHint')
+    : disabledByServer
+      ? t('assistant.composer.unavailableHint')
+      : generating
+        ? t('assistant.composer.stopHint')
+        : welcome
+          ? t('assistant.composer.disclaimer')
+          : undefined
+
+  return (
+    <>
+      <AssistantHeader
+        onClose={close}
+        subtitle={online ? t('assistant.subtitle') : t('assistant.status.offline')}
+        offline={!online}
+        onNewChat={welcome ? undefined : newChat}
+        onHistory={() => setView('history')}
+      />
+      {!online ? <OfflineBanner /> : null}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.flex}>
+          {welcome ? (
+            <>
+              <Welcome placeName={context?.name ?? null} onAsk={submit} disabled={sendDisabled} />
+              {unavailable ? <View style={styles.notice}>{unavailable}</View> : null}
+            </>
+          ) : (
+            <Conversation
+              conversationId={conversationId}
+              outgoing={outgoing}
+              onRetry={localId => void retry(localId)}
+              step={reply.step}
+              connection={reply.connection}
+              onRetryStream={reply.retry}
+              sendDisabled={sendDisabled}
+              footer={unavailable}
+              actions={{
+                onSend: submit,
+                onOpenPlace: placeId => router.push(`/places/${placeId}`),
+                onOpenPlan: planId => router.push(`/plans/${planId}`),
+                onOpenRoom: roomId => router.push(`/room/${roomId}`),
+              }}
+            />
+          )}
+        </View>
+        <Composer
+          value={draft}
+          onChangeText={setDraft}
+          onSend={() => submit(draft)}
+          onStop={() => streaming && stop.mutate(streaming.id)}
+          stopping={stop.isPending}
+          generating={generating}
+          disabled={sendDisabled}
+          hint={hint}
+          images={images}
+          onAttach={() => void attach()}
+          onRemoveImage={index => setImages(current => current.filter((_, at) => at !== index))}
+          context={context ? { label: context.name, onRemove: () => setContext(null) } : null}
+        />
+      </KeyboardAvoidingView>
+    </>
+  )
+}
+

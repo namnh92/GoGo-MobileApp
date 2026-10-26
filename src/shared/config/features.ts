@@ -22,3 +22,25 @@ export function assistantEntryEnabled(flavor: typeof env.name, override: 'on' | 
 export function isAssistantEntryOn(): boolean {
   return assistantEntryEnabled(env.name, env.assistantEntry)
 }
+
+/**
+ * The scripted GoGo AI backend (`src/data/assistant`, GoGo-MobileApp#378):
+ * the assistant API (GoGo-BE#713) is declared but not served, so a dev build
+ * would show nothing but errors. Only a `dev` flavour debug build (`__DEV__`)
+ * ever uses it — on unless `EXPO_PUBLIC_ASSISTANT_MOCK=off`. stag and prod
+ * never do, whatever the variable says, so no build a tester or user installs
+ * can answer from a script.
+ */
+export function assistantMockEnabled(
+  flavor: typeof env.name,
+  override: 'on' | 'off' | undefined,
+  debugBuild: boolean,
+): boolean {
+  if (!debugBuild || flavor !== 'dev') return false
+  return override !== 'off'
+}
+
+export function isAssistantMockOn(): boolean {
+  const debugBuild = typeof __DEV__ !== 'undefined' && __DEV__
+  return assistantMockEnabled(env.name, env.assistantMock, debugBuild)
+}

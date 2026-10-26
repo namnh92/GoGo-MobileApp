@@ -1,14 +1,15 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
 import '@/shared/i18n'
 
 /**
  * GoGo-MobileApp#379 (AI-APP-002) — the `/assistant` route opened by every
- * entry point. A shell until #378: header with Close (×), the avatar, the
- * greeting, one line saying the assistant is on its way, and the removable
- * place chip. No chat, no network.
+ * entry point: header with Close (×), the avatar, the greeting and the
+ * removable place chip. Since #378 it is the real assistant (Welcome, then the
+ * conversation), so these specs run it against the scripted backend, and the
+ * "Chat saved" toast fires on the first close once a chat exists.
  */
 
 const mockRouter = { back: jest.fn(), replace: jest.fn(), canGoBack: () => true }
@@ -34,35 +35,38 @@ jest.mock('@/shared/config/env', () => {
 jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'u1' } }),
 }))
+jest.mock('@/shared/api/queries/use-online-status', () => ({ useOnlineStatus: () => true }))
 
 import AssistantRoute from '@/app/assistant'
 import { useAssistantIntroStore, takeChatSavedToast } from '@/shared/store/assistantIntroStore'
-import { ToastProvider } from '@/shared/ui/toast.view'
+
+import { installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications } from './assistant-harness'
+
+syncTanstackNotifications()
 
 async function open() {
-  await render(
-    <ToastProvider>
-      <AssistantRoute />
-    </ToastProvider>,
-  )
-  return screen
+  const view = await renderAssistant(<AssistantRoute />)
+  // The availability check answers right away; let it land inside act.
+  await settle()
+  return view
 }
 
 beforeEach(() => {
+  resetAssistantSpecState()
+  installBackend({ seed: false })
   mockRouter.back.mockReset()
   mockParams.value = {}
   mockGate.on = true
-  useAssistantIntroStore.setState({ accounts: {} })
 })
 
-it('greets, says the assistant is on its way, and shows no chat', async () => {
+it('greets, with the composer ready — no more "coming soon"', async () => {
   const view = await open()
   expect(view.getByText('GoGo AI')).toBeTruthy()
   expect(view.getByText('Chào bạn! GoGo có thể giúp gì cho bạn hôm nay?')).toBeTruthy()
-  expect(view.getByText(/GoGo AI sắp ra mắt/)).toBeTruthy()
+  expect(view.queryByText(/sắp ra mắt/)).toBeNull()
   // Decorative: hidden from screen readers, "GoGo AI" is written beside it.
   expect(view.getByTestId('assistant-avatar-lg', { includeHiddenElements: true })).toBeTruthy()
-  expect(view.queryByPlaceholderText(/./)).toBeNull()
+  expect(view.getByPlaceholderText('Hỏi GoGo bất cứ điều gì…')).toBeTruthy()
 })
 
 it('closes with the × in its header', async () => {
@@ -76,24 +80,47 @@ it('opening clears the "New" badge for the account', async () => {
   expect(useAssistantIntroStore.getState().accounts.u1?.opened).toBe(true)
 })
 
-it('opened from a place, carries it as a removable chip, with the question', async () => {
+it('opened from a place, carries it as a removable chip, and sends the question', async () => {
   mockParams.value = { placeId: 'place-1', placeName: 'Nhà Lá Café', question: 'Có hợp ngân sách của mình không?' }
   const view = await open()
   expect(view.getByTestId('assistant-context-chip')).toBeTruthy()
-  expect(view.getByText('Có hợp ngân sách của mình không?')).toBeTruthy()
+  await waitFor(() => expect(view.getByLabelText('Bạn: Có hợp ngân sách của mình không?')).toBeTruthy())
+  await waitFor(() => expect(view.getByTestId('assistant-sources')).toBeTruthy(), { timeout: 3000 })
+  await settle()
   await act(async () => {
     await fireEvent.press(view.getByRole('button', { name: 'Bỏ Nhà Lá Café khỏi cuộc trò chuyện' }))
   })
   expect(view.queryByTestId('assistant-context-chip')).toBeNull()
 })
 
-it('closing the shell says nothing about a saved chat — there is none yet', async () => {
+it('closing before any chat says nothing about a saved chat', async () => {
   const view = await open()
   await act(async () => {
     await view.unmount()
   })
   // The flag is not spent: the first real chat still gets the toast.
   expect(useAssistantIntroStore.getState().accounts.u1?.chatSavedToastShown).toBe(false)
+})
+
+it('closing after a chat says "Chat saved in GoGo AI history", once per account (#378)', async () => {
+  mockParams.value = { question: 'Kế hoạch nhóm hoạt động thế nào?' }
+  const { ToastProvider } = jest.requireActual<typeof import('@/shared/ui/toast.view')>('@/shared/ui/toast.view')
+  const { QueryClient, QueryClientProvider } = jest.requireActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+  const client = new QueryClient()
+  // The toast lives above the screen, as in the app: closing unmounts only the screen.
+  const Host = ({ show }: { show: boolean }) => (
+    <QueryClientProvider client={client}>
+      <ToastProvider>{show ? <AssistantRoute /> : null}</ToastProvider>
+    </QueryClientProvider>
+  )
+  await render(<Host show />)
+  await waitFor(() => expect(screen.getByTestId('assistant-sources')).toBeTruthy(), { timeout: 3000 })
+  await settle()
+  await act(async () => {
+    await screen.rerender(<Host show={false} />)
+  })
+  expect(screen.getByText('Cuộc trò chuyện đã được lưu trong lịch sử GoGo AI')).toBeTruthy()
+  expect(useAssistantIntroStore.getState().accounts.u1?.chatSavedToastShown).toBe(true)
 })
 
 it('"Chat saved in GoGo AI history" is shown once per account, and only for a real chat', () => {

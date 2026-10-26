@@ -24,6 +24,8 @@ const PERMISSION_CALL = 'requestMediaLibraryPermissionsAsync'
 const CALLERS: Record<string, string> = {
   'src/features/active-date/checkin-sheet.view.tsx': 'check-in',
   'src/shared/media/pick-avatar.ts': 'đại diện',
+  // GoGo AI photo attachments (GoGo-MobileApp#378).
+  'src/features/assistant/pick-images.ts': 'GoGo AI',
 }
 
 function sourceFiles(dir: string): string[] {

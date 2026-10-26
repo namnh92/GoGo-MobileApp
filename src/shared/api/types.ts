@@ -58,6 +58,31 @@ export type NotificationSettings = Schemas['NotificationSettings']
 export type ResolveLinkResult = Schemas['ResolveLinkResult']
 export type SubmissionResult = Schemas['SubmissionResult']
 
+// GoGo AI (GoGo-BE#713 contract 2.0.0-alpha.2, GoGo-MobileApp#378).
+export type AssistantStatus = Schemas['AssistantStatus']
+export type AssistantContext = Schemas['AssistantContext']
+export type AssistantContextRef = Schemas['AssistantContextRef']
+export type AssistantConversation = Schemas['AssistantConversation']
+export type AssistantConversationPage = Schemas['AssistantConversationPage']
+export type AssistantSearchMatch = Schemas['AssistantSearchMatch']
+export type AssistantAttachment = Schemas['AssistantAttachment']
+export type AssistantMessage = Schemas['AssistantMessage']
+export type AssistantMessagePage = Schemas['AssistantMessagePage']
+export type AssistantMessageSend = Schemas['AssistantMessageSend']
+export type AssistantTurn = Schemas['AssistantTurn']
+export type AssistantSource = Schemas['AssistantSource']
+export type AssistantResultCard = Schemas['AssistantResultCard']
+export type AssistantPlaceCard = Schemas['AssistantPlaceCard']
+export type AssistantPlanCard = Schemas['AssistantPlanCard']
+export type AssistantProposal = Schemas['AssistantProposal']
+export type AssistantProposalValue = Schemas['AssistantProposalValue']
+export type AssistantProposalResult = Schemas['AssistantProposalResult']
+export type AssistantFollowUpGroup = Schemas['AssistantFollowUpGroup']
+export type AssistantNotice = Schemas['AssistantNotice']
+export type AssistantFeedback = Schemas['AssistantFeedback']
+export type AssistantFeedbackInput = Schemas['AssistantFeedbackInput']
+export type AssistantStreamEvent = Schemas['AssistantStreamEvent']
+
 // --- operation helpers ------------------------------------------------------
 // Endpoint wrappers derive their signatures from these so a contract change
 // surfaces as a typecheck failure rather than a runtime surprise.

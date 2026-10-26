@@ -341,9 +341,14 @@ export interface paths {
          *
          *     SSE rather than a WebSocket because every event here is server → client; nothing needs a bidirectional channel, and this keeps the same bearer auth as the rest of the API.
          *
-         *     Event types: `room.status_changed`, `participant.joined`, `participant.left`, `participant.selection_changed`, `matching.started`, `matching.completed`, `matching.failed`, `suggestions.generated`, `suggestions.updated`, `vote.changed`, `plan.updated`, plus two stream-level types — `heartbeat`, which keeps idle connections alive through proxies, and `resync`, which says the client's resume point is older than the replay buffer and it must refetch. `resync` exists so a gap is reported rather than silently skipped: a client that is wrong without knowing it is the failure this endpoint is meant to prevent.
+         *     Event types: `room.status_changed`, `participant.joined`, `participant.left`, `participant.selection_changed`, `matching.started`, `matching.completed`, `matching.failed`, `suggestions.generated`, `suggestions.updated`, `vote.changed`, `plan.updated`, plus one stream-level type — `resync`, which says the client's resume point cannot be honoured exactly and it must refetch. `resync` exists so a gap is reported rather than silently skipped: a client that is wrong without knowing it is the failure this endpoint is meant to prevent.
          *
-         *     Each message's `id` is a per-room sequence number. Send it back as `Last-Event-ID` (or the `lastEventId` query parameter, which browsers need because `EventSource` cannot set headers) to resume.
+         *     Keep-alive is an SSE **comment frame** (`: ping`) sent while the stream is idle so proxies do not close it. It has no `event:` name, no `id:` and no `data:`; `EventSource` and conforming parsers never surface it as an event and it never changes the resume point. There is no `heartbeat` event any more (ADR-0027) — a client must not rely on receiving one.
+         *
+         *     Each domain event's SSE `id` is an **opaque resume cursor** (ADR-0027, GoGo-BE#638). Its current form is `v2:<generation>:<seq>`, but clients must treat it as an uninterpreted string: store the `id` of the last domain event received, send it back verbatim as `Last-Event-ID` (or the `lastEventId` query parameter, which browsers need because `EventSource` cannot set headers) to resume, and never parse, compare or construct one. The event's own UUID stays in the payload as `event_id`; dedupe on `event_id`, order by arrival. Only domain events move the resume point — a `resync` frame carries no `id`, and the keep-alive comment carries nothing at all.
+         *
+         *     Resume outcomes. A fresh connection (no cursor) replays nothing and delivers only events published after it attached; the client fetches state itself. A resumable cursor replays every retained event after it, in order and once each, then continues live. A cursor the server cannot honour exactly yields one `resync` frame (schema `RoomEventResync`) **before** any later domain event, and no partial replay: the replay window was exceeded or the requested events are no longer retained (`replay_unavailable`), the room's event sequence was reset since the cursor was issued (`generation_changed`), or the cursor is malformed, ahead of the server, or a legacy bare sequence number from before ADR-0027 (`invalid_or_legacy_cursor`). On `resync` the client refetches authoritative room/plan state, queues domain events that arrive meanwhile and reconciles them by resource version, and keeps treating its snapshot as required — across reconnects — until a refetch succeeds. `checkpoint.cursor` is the resume point that is valid once that refetch has completed; send it back verbatim. Replay is exact only while history is retained (bounded buffer, 15-minute window); `resync` restores state, not evicted event history.
+         *     `resync` is not only an attach outcome. It can arrive at any point of a live connection, after domain events and more than once: when the server sees a gap in live delivery its buffer can no longer cover (`replay_unavailable`), when the room's sequence is reset while the stream is open (`generation_changed`), or when the connection's delivery queue overflows. Each time, the client handles it exactly as at attach — refetch, then resume from that frame's `checkpoint.cursor`.
          *
          *     Payloads carry facts, never composed copy, and never another member's preference selections — `participant.selection_changed` reports progress only (FR-PREF-005).
          *
@@ -552,6 +557,288 @@ export interface paths {
          *     Purpose `avatar` (ADR-0022): users only, `image/jpeg`, `image/png` or `image/webp` — never HEIC, which the client converts first. The key lands in a private, one-day-lifetime prefix and is attached with `PUT /me/avatar`, which processes it and publishes the result. Answers 503 where `GET /me` reports `capabilities.avatarUpload: unavailable`.
          */
         post: operations["createUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GoGo AI: is the assistant available to this account, and how much is left today
+         * @description GoGo-BE#713. **Planned — declared ahead of the module (contract-first); not served until the module PR lands.** Every `/assistant/*` operation carries `x-gogo-planned` until then and answers 404 on a deployed API.
+         *
+         *     Lets the app decide what the entry point does before the user types: `disabled` means the kill switch is off (feature flag `assistant.enabled`) and the app shows its own "not available" state; `limit_reached` means the per-account daily message budget is spent until `resetsAt`. The server still enforces both on every send — this is a hint for the UI, never an authorization.
+         *
+         *     Registered users only. A guest session gets `403 USER_ONLY`; the app shows the entry and asks the guest to sign in (owner decision on GoGo-MobileApp#377, 2026-10-26).
+         */
+        get: operations["getAssistantStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GoGo AI: the caller's conversations, most recent first (cursor), with search
+         * @description GoGo-BE#713. History screen. Keyset paging on `(lastMessageAt, id)` descending: a conversation moves to the top whenever a message is added, so an offset page would skip or repeat rows while it is read.
+         *
+         *     Grouping into "Today" / "Yesterday" / "Earlier" is the client's, from `lastMessageAt` (ISO-8601 UTC) in the device's time zone — the server does not know the user's local midnight and sends no group label.
+         *
+         *     `q` searches the conversation title and the text of its messages (user and assistant turns; not attachments, sources or cards). With `q` each item carries `match` saying where it matched, so the row can show the matching line. Ordering stays `lastMessageAt` descending; there is no relevance score.
+         *
+         *     Only the caller's own conversations, only those inside the 90-day retention window. Registered users only (`403 USER_ONLY` for a guest). Reading, renaming and deleting history keep working while the kill switch is off — it stops new replies (and their cost), not a user's access to or deletion of what is stored.
+         */
+        get: operations["listAssistantConversations"];
+        put?: never;
+        /**
+         * GoGo AI: start a conversation ("New chat")
+         * @description GoGo-BE#713. Creates an empty conversation; the first message is sent with `sendAssistantMessage`. `title` is optional: when absent the server derives one after the first exchange (it is user-visible text the user can rename, never a fact).
+         *
+         *     `context` is the item the assistant was opened from (the `ContextChip` "About …"): a place **or** a plan, never both. It is used only when the app sends it and only when the caller may read that resource — otherwise `404 CONTEXT_NOT_FOUND`, which does not say whether the resource exists. Without a context the assistant sees no screen data.
+         *
+         *     `Idempotency-Key` is accepted, so a retried "New chat" tap does not create two conversations.
+         */
+        post: operations["createAssistantConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/conversations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GoGo AI: one conversation (header data, not messages)
+         * @description GoGo-BE#713. Another account's conversation, a deleted one and one past retention are all `404` — the answer does not say which.
+         */
+        get: operations["getAssistantConversation"];
+        put?: never;
+        post?: never;
+        /**
+         * GoGo AI: delete a conversation and every message in it
+         * @description GoGo-BE#713. A hard delete: messages, stored attachment references, feedback and pending proposals go with it; nothing is kept for analytics. Rooms, plans, invites or votes the user already confirmed through the assistant are ordinary GoGo data and are **not** deleted. A turn still streaming is stopped first. Deleting a conversation that is already gone answers `204` too, so a retry is safe.
+         */
+        delete: operations["deleteAssistantConversation"];
+        options?: never;
+        head?: never;
+        /**
+         * GoGo AI: rename a conversation
+         * @description GoGo-BE#713. Only `title` is writable. Renaming does not move the conversation in the history order (`lastMessageAt` is unchanged).
+         */
+        patch: operations["renameAssistantConversation"];
+        trace?: never;
+    };
+    "/assistant/conversations/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GoGo AI: messages of a conversation, newest first (cursor)
+         * @description GoGo-BE#713. Newest first, because the thread is a bottom-anchored (inverted) list: page 1 is what the screen shows, later pages scroll back in time. Keyset on `(createdAt, id)`.
+         *
+         *     Each assistant message carries what it was rendered from: `sources`, `cards`, `proposals`, `followUps`, `notice`. Cards are **rehydrated from verified data when read** — history stores ids, not a copy of place or plan facts — so a card always shows today's verified facts with their `checkedAt`, and a place that is no longer usable comes back with `available: false` rather than stale prices.
+         *
+         *     A message still being generated has `status: streaming` and the text written so far; attach to its stream to follow it.
+         */
+        get: operations["listAssistantMessages"];
+        put?: never;
+        /**
+         * GoGo AI: send a message; the reply is generated and streamed separately
+         * @description GoGo-BE#713. Stores the user's message and starts the assistant's reply. Answers `202` with both messages at once — the user turn as sent, the assistant turn as `status: streaming` with empty text — and the client then attaches to `streamAssistantMessage` for that assistant message id.
+         *
+         *     Two calls rather than one `POST` that streams: the stream is a plain `GET` with bearer auth and `Last-Event-ID` resume, exactly like `GET /rooms/{id}/events`, so the same SSE client works for both and a dropped connection resumes the reply instead of sending the question again. The send itself is a short idempotent request.
+         *
+         *     `Idempotency-Key` is **required**: a retry after a flaky network returns the same two messages (`x-idempotent-replay: true`) and does not spend a second reply from the daily budget.
+         *
+         *     `context` overrides the conversation's context for this turn only (same rules as on create: place **or** plan, readable by the caller, else `404 CONTEXT_NOT_FOUND`). `attachments` are image upload keys from `POST /uploads` with `purpose: assistant_image` — images only, at most 3, each bound to the caller; anything else is `400 ATTACHMENT_INVALID` without saying which reason.
+         *
+         *     One reply at a time per conversation: sending while a reply is still streaming is `409 ASSISTANT_TURN_IN_PROGRESS` — stop it first. The per-account daily message limit and a per-minute burst limit both answer `429` with `Retry-After`.
+         */
+        post: operations["sendAssistantMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/conversations/{id}/messages/{messageId}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GoGo AI: the assistant reply as a server-sent event stream
+         * @description GoGo-BE#713. SSE, the same transport as `GET /rooms/{id}/events`: bearer auth, keep-alive `: ping` comment frames while idle, an opaque SSE `id` per frame, resume with `Last-Event-ID` (or `lastEventId` for a browser `EventSource`). A resumed stream replays the frames after that id, then continues live; attaching to a reply that has already ended replays it from the start and closes after `done`.
+         *
+         *     Each frame's SSE `event:` name selects the `data` schema (`AssistantStreamEvent`, discriminated by `type`, which always equals the event name):
+         *     - `step` — what the assistant is doing now, for `TypingIndicator`. - `delta` — the next piece of answer text; append in order. - `sources` — the documents the answer used, for `[1]`, `[2]`
+         *       citations. Titles and descriptions come from the published GoGo
+         *       guide in the CMS, never from the model.
+         *     - `card` — a place or plan result: **ids plus facts read from
+         *       verified data**. The model only chooses ids from the turn's
+         *       allowlist; it never writes a price, an opening hour or an
+         *       availability.
+         *     - `proposal` — a consequential action (create a room/plan, invite,
+         *       vote, finalize) prepared but **not performed**; every value says
+         *       whether the user stated it or the assistant assumed it. Nothing
+         *       happens until `confirmAssistantProposal`.
+         *     - `follow_ups` — at most two groups of quick answers when details are
+         *       missing.
+         *     - `notice` — a state the UI renders as `StateNotice`: `empty` (GoGo
+         *       has no documented answer; the assistant does not describe a feature
+         *       GoGo has not defined), `fallback` (the model did not answer in
+         *       time), `limit`, `disabled`.
+         *     - `done` — the last frame of a reply that ended normally, stopped or
+         *       fell back. The stream closes after it.
+         *     - `error` — the last frame of a reply that failed mid-way; carries the
+         *       standard error envelope. The partial text already streamed is kept
+         *       on the message.
+         *
+         *
+         *     **Timeout.** If the model has produced no text within 15 s the server abandons that call and ends the turn deterministically: a `notice` with `kind: fallback, reason: timeout`, the same answer every time (sources, if any, plus fixed follow-ups the app renders from i18n keys), and `done` with `status: fallback`. No retry happens on the user's behalf.
+         *
+         *     **Stop.** `stopAssistantMessage` ends generation; the stream then sends `done` with `status: stopped`, and the text streamed until then is kept as the message text.
+         *
+         *     A `403`/`404` here is answered before the stream opens. The kill switch turning off during a reply ends it with an `error` frame `ASSISTANT_DISABLED`.
+         */
+        get: operations["streamAssistantMessage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/conversations/{id}/messages/{messageId}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * GoGo AI: stop generating; keep what was written
+         * @description GoGo-BE#713. The composer's **Stop**. Ends generation and returns the assistant message as stored: `status: stopped` and the text streamed until the stop. Cards, sources and proposals already sent are kept; nothing further is added. Idempotent: stopping a reply that already ended returns it unchanged with its final status.
+         */
+        post: operations["stopAssistantMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/conversations/{id}/messages/{messageId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * GoGo AI: thumbs up / down on an assistant reply (idempotent)
+         * @description GoGo-BE#713. One rating per assistant message, replaced by a later call. `reason` is a closed code, not free text, so the moderation queue carries no user-written PII. Deleted with the conversation.
+         */
+        put: operations["setAssistantMessageFeedback"];
+        post?: never;
+        /** GoGo AI: withdraw a rating */
+        delete: operations["clearAssistantMessageFeedback"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/proposals/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GoGo AI: one proposal and its current state
+         * @description GoGo-BE#713. For a `ConfirmationCard` reopened from history: whether it is still `pending`, already `confirmed` (with the saved result), `dismissed` or `expired`. Only the conversation owner can read it.
+         */
+        get: operations["getAssistantProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/proposals/{proposalId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * GoGo AI: perform a proposed action (the only assistant call that writes GoGo data)
+         * @description GoGo-BE#713. The user tapped the `ConfirmationCard` button. This is the **only** way an assistant conversation changes rooms, plans, invites or votes; chat text alone never runs an action.
+         *
+         *     The write goes through the same use case and the same policy as the ordinary endpoint (`createRoom`, `createInvite`, `castVote`, `finalizeVotes`), with the caller as actor — not the assistant. So a member or guest cannot finalize a plan here any more than there (`403 HOST_ONLY`), room state still gates it (`409 ROOM_NOT_MATCHING`, …), and hard constraints are validated exactly as on that endpoint; the assistant never overrides one. Ids in the proposal were checked against the turn's allowlist when it was made and are checked again here against what the caller can reach now.
+         *
+         *     `values` carries the fields the user edited on the card; an edited value becomes `explicit`. Fields not listed keep the proposed value. Fields the proposal kind does not define are a 400.
+         *
+         *     The response is the **server-saved** state, read back after the write — what `TaskSummary` shows — not an echo of the request.
+         *
+         *     `Idempotency-Key` is **required**. A replay returns the original result (`x-idempotent-replay: true`). A proposal confirms once: a second key on a confirmed proposal is `409 PROPOSAL_NOT_PENDING` with the first result readable from `getAssistantProposal`. Proposals expire (`expiresAt`, default 30 minutes): `409 PROPOSAL_EXPIRED`.
+         */
+        post: operations["confirmAssistantProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/proposals/{proposalId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * GoGo AI: decline a proposal ("Not now")
+         * @description GoGo-BE#713. Marks a pending proposal `dismissed`; nothing is written anywhere else. Idempotent on an already dismissed proposal; a confirmed or expired one is returned unchanged.
+         */
+        post: operations["dismissAssistantProposal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1297,7 +1584,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Place detail with sources, freshness, hours, verified prices */
+        /**
+         * Place detail with sources, freshness, hours, verified prices
+         * @description GoGo-BE#217 (ADR-0028): carries the GoGo community rating (`gogoRating`, `gogoRatingCount`) beside the provider's (`rating`, `ratingCount`, attributed through `sources`). The two are separate facts from separate populations and are never merged into one score. The GoGo rating is computed on every read from the place's moderator-published reviews, so the response is served `Cache-Control: no-store` and a publish, rejection, edit back to moderation or emergency hide shows on the next read.
+         */
         get: operations["getPlaceDetail"];
         put?: never;
         post?: never;
@@ -1321,6 +1611,28 @@ export interface paths {
          *     BE-BFF-019 (ADR-0026, proposal): `order=helpful` ranks by `helpfulCount` descending, then the same newest-first order, so with no reactions it answers exactly what `latest` does. Counts only; no response names who reacted.
          */
         get: operations["listPlaceReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/places/{id}/provider-photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Transient Google photos for one Place Detail view (never stored)
+         * @description GoGo-BE#509 (owner decision 2026-10-02, ADR-0030). Fetched from Google when Place Detail is opened and returned once: photo names, image URLs and bytes are not stored anywhere (database, object storage, cache, jobs, snapshots), and the response is `Cache-Control: private, no-store` — clients must not persist it in a disk/offline image cache or persisted query state either. Images arrive inline as base64 so the client never calls Google directly. At most three photos, each with its author credit (`authorAttributions`) to render beside it, plus the `attribution` text (Google Maps) whenever any photo is shown. Never call this per list card.
+         *
+         *     Always 200 for a place Place Detail opens (404 otherwise). `status` says why `photos` is empty: `disabled` (kill switch off), `not_linked` (no Google Place ID), `budget_exhausted` (daily provider budget reached or not configured), `unavailable` (provider error, timeout or moved place). Treat an unknown `status` like `unavailable`. GoGo imagery stays on `PlaceDetail.photos`; Google price ranges are never returned (core rule 13: a price without its unit).
+         */
+        get: operations["getPlaceProviderPhotos"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1458,7 +1770,14 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Host-only: replace stop list; times/travel/costs recalculated server-side */
+        /**
+         * Host-only: replace stop list; times/travel/costs recalculated server-side
+         * @description Full-list replacement: reorder, add, remove, lock and mark stops optional in one versioned write. Each `placeId` may appear once (`400 DUPLICATE_STOP_PLACE`), so a retained stop is never ambiguous.
+         *
+         *     `isOptional` (GoGo-BE#228, ADR-0029): omitted keeps the value the retained place already had, a newly added place starts required, and explicit `false` clears it. Optional stops still count towards duration, distance and schedule; their cost is reported apart in `totals` and never makes the plan `overBudget`. `isOptional` and `isLocked` are independent.
+         *
+         *     Refused with `409` when the plan is not current (`PLAN_NOT_CURRENT`), `expectedVersion` is behind (`PLAN_VERSION_CONFLICT`), the plan is stale — regenerate first (`PLAN_STALE`) — the date has started (`ROOM_ACTIVE`) or the room is cancelled/expired (`ROOM_NOT_EDITABLE`). The write rechecks plan identity, version, stop flags and the room's constraint version atomically, so a lock, edit, regenerate or constraint change that lands meanwhile also yields `409`.
+         */
         patch: operations["editPlanStops"];
         trace?: never;
     };
@@ -1480,6 +1799,8 @@ export interface paths {
          *     The response reports what was understood and what was ignored, because feedback that silently changes nothing is indistinguishable from feedback that was never read.
          *
          *     When AI parsing is disabled, times out, runs out of quota, or returns output that fails validation, a deterministic parser produces the result instead. There is no failure path that surfaces a model error to the user.
+         *
+         *     Locked stops keep their stored schedule (ADR-0029); when one can no longer be reached in time the answer is `409 PLAN_TIME_CONFLICT` and nothing is written. A lock, edit or constraint change that lands while the plan is being rebuilt yields `409 PLAN_VERSION_CONFLICT` or `PLAN_STALE` instead of a plan built from older state.
          */
         post: operations["regeneratePlan"];
         delete?: never;
@@ -1501,7 +1822,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Host-only: lock/unlock a stop */
+        /**
+         * Host-only: lock/unlock a stop
+         * @description Never changes `isOptional`. A superseded plan answers `409 PLAN_NOT_CURRENT` — lock the stop on the current plan (ADR-0029).
+         */
         patch: operations["lockPlanStop"];
         trace?: never;
     };
@@ -1675,10 +1999,78 @@ export interface paths {
         /**
          * Export all actor-owned data (privacy rule)
          * @description Everything the account owns, as JSON, from an explicit allowlist: profile (display name, email, locale, avatar URL, home area, interests, usual budget — ADR-0022, date of birth — PROF-BE-013), memberships, preferences, votes, saved items, reviews, review reactions given (ADR-0026), and the push switch (`notificationSettings`, ADR-0025). Never a credential, a session, or an upload key. Audit-logged and recorded in the privacy ledger.
+         *
+         *     Kept for compatibility (GoGo-BE#256). New clients use the secure, asynchronous flow under `/me/exports`.
          */
         get: operations["exportMyData"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a secure, single-use export of this account's data (GoGo-BE#256)
+         * @description ADR-0033. Accepted for generation (202); the worker builds the same allowlisted document as `/me/export`, encrypts it (AES-256-GCM, per-artifact key wrapped by a versioned server key) and stores it privately. When it is ready an in-app notification of kind `privacy_export_ready` carries the export id and expiry — never data, a key or a URL that authorizes anything.
+         *
+         *     `Idempotency-Key` is **required**. A retry with the same key answers the same export's current status (`x-idempotent-replay: true`) and does not spend another generation. One active export per account (pending, generating or ready) across every entry point — a second request is `409 EXPORT_ALREADY_ACTIVE` with the active id in `field_errors[0].message`. At most three generations per account per rolling hour (`429` with `Retry-After`).
+         *
+         *     Only a registered account that can sign in has an export; guests and staff get 403. There is no path for an account that cannot sign in — account recovery comes first.
+         */
+        post: operations["requestSecureExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/exports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Status of one of this account's secure exports
+         * @description Never consumes (neither does `HEAD`). Another account's id is a 404 — the id addresses an export, it does not authorize anything.
+         */
+        get: operations["getSecureExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/exports/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem a ready export — consume-once
+         * @description **Consume-once.** The first admitted request moves the export from `ready` to `consumed` atomically and receives the JSON as an attachment (`Content-Disposition: attachment`, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, no ranges). Every concurrent or later attempt — including a retry with the same `Idempotency-Key` — is `410` and carries no bytes. Single-use means one admitted transfer, not guaranteed receipt: a transfer interrupted after it was admitted is not reopened; request a new export. An admitted transfer has 60 seconds.
+         *
+         *     Only the account's own active session redeems it; the session is checked against the server's records, so a sign-out elsewhere is honoured. A cookie session must send the CSRF header. A password change or account deletion revokes every outstanding export. The ciphertext is fully authenticated before any byte is sent; a failed check is `500 EXPORT_INTEGRITY_FAILED` and the export is not consumed.
+         */
+        post: operations["downloadSecureExport"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1890,6 +2282,8 @@ export interface paths {
          * Moderator/editor: approve, reject or merge a submission (PI-CMS-007)
          * @description `approved` creates the catalogue place and applies whatever a reviewer supplemented through `PUT /cms/place-submissions/{id}/review` over the provider's answer (GoGo-BE#528). Fields the reviewer typed are recorded `editorial` in `place_field_provenance` and carry their id; fields left as Google answered them are `google_derived` and carry the Place ID — so a later provider refresh can tell what it may overwrite.
          *
+         *     **Address, phone and website (GoGo-BE#280)** are GoGo-owned and come only from the review draft, each with the evidence in its `provenance`. The provider's formatted address is no longer a fallback: a place approved with no reviewer address has none. A draft saved before #280 that carries one of these values without evidence is refused `409 REVIEW_EVIDENCE_REQUIRED`, naming the fields in `field_errors`; re-save the draft with its sources and approve again.
+         *
          *     `rejected` creates no place. `merged` points the proposal at an existing one and writes nothing to it.
          *
          *     Approval is not verification and not publication: the administrative mapping is resolved from the new place's own coordinate and is never `VERIFIED`, and the publication blocker stays until somebody confirms it (ADM-017, GoGo-BE#525).
@@ -1943,11 +2337,15 @@ export interface paths {
          *
          *     The canonical `googleMapsUri` is whatever Google returns; the submitted URL is never stored or treated as canonical.
          *
-         *     **GoGo-owned columns (PI-BE-025).** `phone`, `website`, `avg_visit_minutes`, `is_lodging` and `curated_rank` are accepted and persisted, validated by the same rules the console uses: phone normalises to E.164, website to `http(s)`, `avg_visit_minutes` is 10–720. Every one of them fails the row explicitly rather than being dropped on commit. Values from the file are recorded `editorial` in `place_field_provenance`.
+         *     **GoGo-owned columns (PI-BE-025).** `phone`, `website`, `avg_visit_minutes`, `is_lodging` and `curated_rank` are accepted and persisted, validated by the same rules the console uses: phone normalises to E.164, website to `http(s)`, `avg_visit_minutes` is 10–720. Every one of them fails the row explicitly rather than being dropped on commit.
+         *
+         *     **Address, phone and website need evidence (GoGo-BE#280).** They are GoGo-owned place data, written to `address_text` / `phone` / `website`. A non-blank `address`, `phone` or `website` cell is written only together with its three evidence columns — `<field>_source_type` (`editorial`, `community` or `provider`; never Google), `<field>_source_reference` (≤ 500 characters, naming the non-Google origin: a merchant statement, the official website, a field visit or a permitted dataset — not a sheet or job id) and `<field>_collected_at` (ISO-8601 with a zone, not in the future). A missing or invalid one fails the row with `<FIELD>_EVIDENCE_REQUIRED` / `<FIELD>_EVIDENCE_INVALID` against that column, in dry-run and commit alike. A blank value cell leaves the stored value alone (clearing belongs to the console). In `update_existing` a non-blank value replaces the stored one together with its evidence; the provider's address is never written, in any mode.
+         *
+         *     **Rows stored before these rules** (pending, retried or `ready` rows whose stored phone / website / address has no evidence, or evidence today's rules refuse) are checked again before they are resolved or published. They become `validation_failed` with the same column errors as a fresh upload, are never reported `imported`, and appear in a publish result's `failed[]` with code `CONTACT_EVIDENCE_REQUIRED`. Correct the sheet and upload it again.
          *
          *     `places.suitability` is deliberately **not** an import column. `audiences` is the operator-facing vocabulary for the same product concept — who a place suits — and `suitability` is the weighted score GoGo derives from it and from editorial curation. Asking a spreadsheet to author both would be asking one person to write the same fact at two levels of abstraction and keep them consistent. The column and every other API path that writes it are unchanged.
          *
-         *     `phone` and `website` are no longer retired mapping values; `address` still is, because `address_text` is written from the provider's formatted address and a sheet's own address string has no writer.
+         *     No mapping value is retired any more: `phone` and `website` left the list in PI-BE-025 and `address` in GoGo-BE#280.
          *
          *     **Price units (PI-BE-026).** `place_prices.unit` is `per_person`, `per_item`, `per_hour` or `per_night`. A row that states a price must state a unit this table can hold: `per_group` fails with `PRICE_UNIT_UNSUPPORTED` and `unknown` — which is also the default when the column is absent — fails with `PRICE_UNIT_REQUIRED`. Both used to be accepted and then dropped the price on commit without a word. `free` is stored as `per_person` with a zero amount. A row with no price at all is unaffected.
          */
@@ -2460,8 +2858,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Staff login — argon2id + TOTP (MFA mandatory in production) */
+        /**
+         * Staff login — email + password (argon2id)
+         * @description TOTP was removed in alpha.72. Since alpha.73 (#687 shape rev 6, owner 2026-10-08, every environment) the password door needs no Cloudflare Access assertion: the console is public and Access gates only the SSO path (`cmsAccessExchange`). Protection is the per-account lockout, the per-IP limit and Argon2id. The `super_admin` never signs in here where its switch is on (`SUPER_ADMIN_SSO_ONLY`).
+         */
         post: operations["cmsLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/auth/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which sign-in doors this deployment has open
+         * @description ADR-0032. Facts for the console's sign-in screen, read at runtime so that closing or re-opening the password door is one API setting with no console deploy. `password` is false when `cmsLogin` answers `PASSWORD_LOGIN_DISABLED`; `accessSso` is true when `cmsAccessExchange` is configured — configured, not known to be reachable.
+         */
+        get: operations["cmsAuthMethods"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2530,48 +2951,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cms/auth/totp/setup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Enroll TOTP, step 1 of 2 (requires a fresh password proof)
-         * @description Returns the secret and otpauth URI, and does **not** switch MFA on. `cmsConfirmTotp` does that, once a code generated from the secret verifies. Enrolling and activating together locked an admin out of the console whenever the authenticator never actually received the secret, because production requires MFA to log in.
-         *
-         *     The secret is shown exactly once, here. The stored copy is encrypted at rest and never readable again.
-         */
-        post: operations["cmsSetupTotp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/cms/auth/totp/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Enroll TOTP, step 2 of 2 (proves the authenticator has the secret)
-         * @description A code from the pending secret activates MFA for this account. The confirming code is spent, so it cannot also be used to log in, and every other session for the admin is revoked — enrolling a second factor is a credential change, and sessions opened before it were opened with less.
-         */
-        post: operations["cmsConfirmTotp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/cms/auth/admins": {
         parameters: {
             query?: never;
@@ -2585,7 +2964,7 @@ export interface paths {
          *
          *     `super_admin` only, matching the write — who holds which role is the shape of the authorization model itself, so it is not a rank-read for lower roles.
          *
-         *     Never returns the password hash, the TOTP secret (enrolled or pending), or any session material. `email` is returned because it is how a staff account is identified; nothing beyond it is.
+         *     Never returns the password hash, any legacy TOTP column, or any session material. `email` is returned because it is how a staff account is identified; nothing beyond it is.
          */
         get: operations["cmsListAdmins"];
         put?: never;
@@ -2729,9 +3108,9 @@ export interface paths {
         put?: never;
         /**
          * Ops: subject-access export, made through support
-         * @description The same payload as `/me/export`. The audit entry is the point: a staff member reading somebody's data is an event, and it must be attributable even though the bytes are identical to the self-service export.
+         * @description **Changed in alpha.69 (GoGo-BE#256, ADR-0033): no payload is returned.** Issues a secure export for the account holder to redeem from their own signed-in session (`POST /me/exports/{id}/download`), and records its own linked privacy request (`source: cms`, `in_progress` until the export is available). Staff never receive or forward the data. The account must be able to sign in (`409 SUBJECT_CANNOT_SIGN_IN` otherwise — account recovery first).
          *
-         *     Rate limited per actor — the payload is one person's whole history, and a loop over the user list is a data export nobody authorized.
+         *     Rate limited per actor; one active export per account across every entry point (`409 EXPORT_ALREADY_ACTIVE`).
          */
         post: operations["cmsExportUser"];
         delete?: never;
@@ -2815,7 +3194,9 @@ export interface paths {
          * Ops: run the export or delete for THIS request and close it
          * @description **Explicit linkage.** Same user is not same request: one person may have an export, a delete, a duplicate and a rejected request open at once. Only the request executed here transitions to `completed`. A `POST /cms/users/{id}/delete` outside this workflow never touches the ledger; the console warns instead (`openPrivacyRequestCount`).
          *
-         *     Executing a **delete** requires `super_admin` — the same bar as the direct user delete. An export returns the payload to the caller and nowhere else; the ledger then records only delivery metadata. Correction requests are worked by hand and cannot be executed.
+         *     Executing a **delete** requires `super_admin` — the same bar as the direct user delete. Correction requests are worked by hand and cannot be executed.
+         *
+         *     **Export (changed in alpha.69, GoGo-BE#256, ADR-0033): no payload is returned.** Executing an export issues a secure export for the account holder to redeem from their own session; the request moves to `in_progress` and closes `completed` when the export becomes available. `deliveredAt` is set only when the server observes the holder's download complete. Staff never receive or forward the data.
          */
         post: operations["cmsExecutePrivacyRequest"];
         delete?: never;
@@ -2855,7 +3236,9 @@ export interface paths {
         put?: never;
         /**
          * Ops: record how an export was handed over
-         * @description Metadata only, ever — never the bytes, never a signed URL. The record outlives any artifact and must not be a way back to the data. `secure_download` is the target method (BE-CMS-G13); the runbook forbids raw exports over ordinary email.
+         * @description Metadata only, ever — never the bytes, never a signed URL. The record outlives any artifact and must not be a way back to the data. The runbook forbids raw exports over ordinary email.
+         *
+         *     `secure_download` cannot be asserted here (`400 SECURE_DELIVERY_NOT_ASSERTABLE`, GoGo-BE#256): the server records it when the holder's download completes. A request backed by a secure export accepts no manual delivery method at all (`409 DELIVERY_SERVER_OWNED`): its delivery fields are the server's.
          */
         post: operations["cmsPrivacyRequestDelivered"];
         delete?: never;
@@ -3003,24 +3386,28 @@ export interface paths {
         get: operations["cmsListPlaces"];
         put?: never;
         /**
-         * Editor: create a place by hand (GoGo-BE#452)
-         * @description The third way a place enters the catalogue, and the only one where the facts are a person's own. Bulk import resolves rows against a provider; a community submission arrives from the app for review; this is an editor typing what they know from a menu, a phone call or a visit.
+         * Editor: create a place by hand (GoGo-BE#452, GoGo-BE#440)
+         * @description The third way a place enters the catalogue, and the only one where the facts are a person's own. Bulk import resolves rows against a provider; a community submission arrives from the app for review; this is an editor entering what they know from a menu, a phone call or a visit. The link-first form (`cmsResolvePlaceLink` → here) uses the same contract; the resolve contributes an optional identity and a transient, attributed preview, nothing more.
          *
-         *     Always created `draft`. Entering the catalogue and being visible are two decisions, and `cmsTransitionPlace` already owns the second.
+         *     Always created `draft`. Entering the catalogue and being visible are two decisions, and `cmsTransitionPlace` already owns the second (including the verified administrative-mapping gate). Drafts are invisible to search and suggestions.
          *
-         *     **Provenance.** A value the editor typed is recorded `editorial`, including one they read off a preview and retyped — copying does not transfer ownership (GOGO_PRODUCT_DATA_ARCHITECTURE.md). A value *applied* from `cmsResolvePlaceLink` and left alone is recorded `google_derived` with the Google Place ID as its reference, and `googleDerivedFields` says which. Coordinates carry provenance too, under the field name `geom`.
+         *     **Provenance (GoGo-BE#440).** Every supplied non-null canonical fact names its independent evidence in `sourceReferences` and is recorded `editorial` with that reference and the acting editor. A reference is an accountable assertion, never fetched or verified by the server. A value copied from a Google preview is not GoGo-owned however it arrives (GOGO_PRODUCT_DATA_ARCHITECTURE.md, provenance rule), so a non-empty `googleDerivedFields` is refused with `400 GOOGLE_CONTENT_NOT_PERSISTABLE`.
          *
-         *     **Provider facts (PI-BE-021).** Given a `googlePlaceId`, this endpoint makes exactly one `quality` Place Details call and stores what it returns as the *provider's* facts: `ratings.provider`, `priceLevel`, the weekly `hours` at `source: provider`, and the canonical `googleMapsUri` on the place's Google source row. They are attributed to the provider, never presented as GoGo-owned, and never read as recommendation input (`docs/adr/0020-provider-facts-on-editor-created-places.md`).
+         *     **Contact evidence (1.0.0-alpha.66, GoGo-BE#280).** `addressText`, `phone` and `website` are the exception to `sourceReferences`: each non-null value carries its structured evidence in `provenance.<field>` (`sourceType` `editorial | community | provider`, `sourceReference`, `collectedAt`) and is recorded with that evidence, the acting editor and `verifiedAt` = now — never `google_derived`. A non-null value without its entry is `400 VALIDATION_FAILED` (`provenance.<field>`, `required`); an entry without a value is `value_missing`; an entry beside `null` is `not_allowed`; `null` alone writes nothing. A `sourceReferences` key for any of the three is refused `400 SOURCE_REFERENCE_INVALID` with `code: unknown` and a message naming `provenance.<field>` — there is no fallback or alias, even when both carry the same text. **Breaking versus alpha.65** (as introduced in alpha.62), which accepted `sourceReferences.<contact>` and required it for a contact value.
          *
-         *     The call is made here rather than replaying the preview because a preview's content may not be carried across requests (ADR-0006 §9.5) — the same reason the submission approve step re-verifies. The request body accepts none of these values: they come from the provider answer, so an editor cannot store their own number wearing Google's attribution.
+         *     **No provider content.** This route calls no Google provider and persists no provider fact — no rating, review count, price level, hours or canonical link. A `googlePlaceId` is stored as identity only. The PI-BE-021 enrichment that did so on this route is withdrawn (`docs/adr/0020-provider-facts-on-editor-created-places.md`, #440 amendment).
          *
-         *     A provider that is unreachable, out of quota, does not know the id, or answers about a *different* id (a place that moved) costs the enrichment, not the place: the row is created with its Google identity and no provider facts, exactly as every place created before this change. The outcome is counted as `cms_place_create_provider_enrichment_total`.
+         *     **Identity beats similarity.** Given a `googlePlaceId`, the catalogue is asked first whether that Google record already belongs to a place — it does, and the answer is `409 PLACE_ALREADY_LINKED` naming it; two places already claim it, and the answer is `409 PLACE_IDENTITY_CONFLICT` naming both. Checked again inside the creating transaction, and a concurrent create that loses the race gets the same 409, never a 500. `allowDuplicate` does not open this gate.
          *
-         *     **Identity beats similarity.** Given a `googlePlaceId`, the catalogue is asked first whether that Google record already belongs to a place — it does, and the answer is `409 PLACE_ALREADY_LINKED` naming it; two places already claim it, and the answer is `409 PLACE_IDENTITY_CONFLICT` naming both. `allowDuplicate` does not open this gate: two GoGo places may share a name and a street corner, but never one Google record.
+         *     **Duplicate check.** Within 150 m and name similarity above 0.5, archived places excluded, at most five candidates: `409 PLACE_DUPLICATE_SUSPECTED`, each candidate in `field_errors[].candidate`. Advisory — nothing is merged. `allowDuplicate: true` (audited) is how an editor says they looked and these are different places.
          *
-         *     **Duplicate check.** Before inserting, the same rule the duplicate queue uses — within 150 m and name similarity above 0.5 — runs against the catalogue. A hit answers `409 PLACE_DUPLICATE_SUSPECTED` with the candidates in `field_errors` (name and distance in metres), so the console can offer the merge screen it already has. `allowDuplicate: true` is how an editor says they looked and these are different places; two cafés of one chain on the same street are real.
+         *     **One commit.** The place, provenance, identity, administrative mapping, the `place.created` event, the audit entry and the idempotency record's completion commit together or not at all.
          *
-         *     Field limits follow `cmsUpdatePlace` exactly and are stated there.
+         *     **Retries.** `Idempotency-Key` is required. Scope is actor + route; a replay within 24 hours returns `201` with `x-idempotent-replay: true` and the place's current record; the same key with a different body is `422 IDEMPOTENCY_KEY_REUSED`; while the first request is still running it is `409 IDEMPOTENT_REQUEST_IN_FLIGHT`.
+         *
+         *     **Rate limit.** 20 requests/minute per actor, independent of `cmsResolvePlaceLink`.
+         *
+         *     Field limits follow `cmsUpdatePlace` exactly and are stated there, and so does the full **evidence rule for `addressText`, `phone` and `website`** (GoGo-BE#280).
          */
         post: operations["cmsCreatePlace"];
         delete?: never;
@@ -3934,8 +4321,10 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Super admin: change a staff account's role or display name
+         * Super admin: change a staff account's role, display name or email
          * @description BE-CMS-G9. An admin cannot change their own role — not because self-promotion is the risk, a `super_admin` is already the top of the model, but because a one-person path from any role to any other removes the only check the model has.
+         *
+         *     GoGo-BE#681 (ADR-0032). `email` is the single sign-on binding where the password door is closed, so changing it is its own audited act (`admin.email_changed`, before and after) that revokes every session of the account — except the caller's own when a `super_admin` changes its own address, which it may. Compared case-insensitively and stored lower-case. Not combinable with `role` in one request (`400 EMAIL_WITH_ROLE`).
          */
         patch: operations["cmsUpdateAdmin"];
         trace?: never;
@@ -3993,6 +4382,26 @@ export interface paths {
          *     MFA is deliberately left alone: resetting it here would turn one `super_admin` into a complete account takeover with no second factor in the way.
          */
         post: operations["cmsResetAdminPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/auth/super-admin/confirm-sso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Super admin: confirm that Access sign-in works for your current address
+         * @description GoGo-BE#687 (alpha.71). Called by the super admin from a session opened through Cloudflare Access (`cmsAccessExchange`). Records that the Access door works for the account's current address; only after this does the deploy-time sync erase the account's password hash when `superAdminSsoOnly` is on. Idempotent: a repeat call records nothing new and answers the same.
+         */
+        post: operations["cmsConfirmSuperAdminSso"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4330,6 +4739,161 @@ export interface paths {
          *     Runs where no candidate passes the hard filters are skipped rather than counted as agreement, which would flatter every candidate config.
          */
         get: operations["cmsEvaluateRankingConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/assistant/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Content: the "GoGo guide" source documents GoGo AI answers from (cursor)
+         * @description GoGo-BE#713, GoGo-CMS#249. **Planned — declared ahead of the module; not served until the module PR lands.**
+         *
+         *     The assistant answers product questions only from **published** versions of these documents, and cites them by `title` and `description` — so those strings are what the app shows in `SourceList`, never something the model wrote. Owner decision on GoGo-MobileApp#377 (2026-10-26): the source set lives in the CMS, with versions, publish / unpublish and audit.
+         *
+         *     Roles: written by `editor` and `ops_admin` (drafts) and published or unpublished by `ops_admin` only; read under the hierarchical read rule (BE-IMP-008), so `moderator` can read the set it reviews feedback against. Keyset paging on `(updatedAt, id)` descending.
+         */
+        get: operations["cmsListAssistantDocuments"];
+        put?: never;
+        /**
+         * Content: create a guide document (its first version is a draft)
+         * @description `editor` or `ops_admin`. Creates the document and version 1 as a draft; nothing reaches the assistant until it is published. `slug` is the stable identity across versions and locales (`plans.voting`) and cannot be changed later. Audited (`assistant_document.created`).
+         */
+        post: operations["cmsCreateAssistantDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/assistant/documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Content: one guide document with its draft and published versions
+         * @description The editor screen: the open draft (if any) in full, and the published version in full, so the console can preview and diff them.
+         */
+        get: operations["cmsGetAssistantDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Content: edit the draft (opens a new draft version when none is open)
+         * @description `editor` or `ops_admin`. Writes go to the draft only — a published version is immutable, so what the assistant cited yesterday can always be read back. When no draft is open the first edit opens one, copied from the published version.
+         *
+         *     `baseRevision` is the draft revision the editor loaded; a stale one is `409 REVISION_CONFLICT` rather than a silent overwrite of a colleague's edit. Audited with before/after (`assistant_document.draft_updated`).
+         */
+        patch: operations["cmsUpdateAssistantDocumentDraft"];
+        trace?: never;
+    };
+    "/cms/assistant/documents/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Content: publish a version — the assistant answers from it from now on
+         * @description `ops_admin` only: publishing changes what GoGo AI tells every user, a release decision rather than an edit, so it does not sit with the role that wrote the draft (the same split as safety rules and campaigns).
+         *
+         *     `versionId` is the open draft, or an earlier version to roll back to. The previously published version becomes `superseded`; exactly one version per document is `published` at a time. Takes effect for new replies; a reply already streaming keeps the version it started with. Audited (`assistant_document.published`) with the version id and `reason`.
+         */
+        post: operations["cmsPublishAssistantDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/assistant/documents/{id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Content: withdraw the document from the assistant
+         * @description `ops_admin` only. The published version becomes `withdrawn` and the assistant stops citing the document for new replies. Older conversations keep their source rows (title, version), so a citation already shown still resolves. `reason` is required and audited (`assistant_document.unpublished`).
+         */
+        post: operations["cmsUnpublishAssistantDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/assistant/documents/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Content: version history of one document, newest first, with who did what
+         * @description Every version ever created — the history is append-only. Each row says who created it and, if it was ever published or withdrawn, who did that, when and why. The full audit trail is also in `cmsListAudit` with `resourceType=assistant_document`.
+         */
+        get: operations["cmsListAssistantDocumentVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/assistant/documents/{id}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Content: one version in full (preview, diff, rollback) */
+        get: operations["cmsGetAssistantDocumentVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/assistant/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Moderation: thumbs-down / thumbs-up on assistant replies, minimal PII (cursor)
+         * @description GoGo-CMS#249. `moderator` (and, by the read rule, `ops_admin`). The queue shows the **assistant's** reply, the sources it cited and the reason code — enough to judge answer quality and fix the GoGo guide. It does not show who rated it, the user's own message, attachments, context place/plan, coordinates or email: none of that is needed to judge a reply, and each is personal data. `conversationRef` is an opaque per-conversation token that groups rows without naming the account.
+         *
+         *     Rows disappear with their conversation (user deletion, account deletion, privacy request, 90-day retention).
+         */
+        get: operations["cmsListAssistantFeedback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5755,8 +6319,6 @@ export interface components {
              * @description Absent on an account that has never signed in.
              */
             lastLoginAt?: string;
-            /** @description #248. Whether a second factor is enrolled — the status, never anything about the secret. It is what lets the console show which accounts are unprotected. */
-            mfaEnrolled: boolean;
             /** @description A temporary password is outstanding on this account. */
             mustChangePassword: boolean;
         };
@@ -6647,6 +7209,36 @@ export interface components {
          * @enum {string}
          */
         PrivacyRequestOutcome: "completed" | "no_account_found" | "identity_not_verified" | "rejected" | "failed";
+        /** @description GoGo-BE#256, ADR-0033. Facts only. `ready` exports expire 24 hours after `readyAt` (immutable). Terminal states: `consumed`, `expired`, `revoked` (password change or account deletion), `failed`. */
+        PrivacyExportStatus: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "generating" | "ready" | "consumed" | "expired" | "revoked" | "failed";
+            /** @enum {string} */
+            initiatedBy: "self" | "support";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            readyAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: date-time */
+            consumedAt?: string;
+            failureCode?: string;
+            revokeReason?: string;
+        };
+        /** @description The CMS view — adds delivery facts, never data, keys or object locations. */
+        PrivacyExportAdminStatus: components["schemas"]["PrivacyExportStatus"] & {
+            /** Format: date-time */
+            transferCompletedAt?: string;
+            transferOutcome?: string;
+            /**
+             * Format: date-time
+             * @description When storage confirmed the ciphertext was deleted.
+             */
+            cleanedAt?: string;
+        };
         PrivacyRequest: {
             /** Format: uuid */
             id: string;
@@ -6686,8 +7278,13 @@ export interface components {
             closedAt?: string;
             /** @enum {string} */
             deliveryMethod?: "in_app" | "secure_download" | "other";
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description For `secure_download`, the server-observed completion of the holder's download (GoGo-BE#256) — never generation or notification.
+             */
             deliveredAt?: string;
+            /** @description GoGo-BE#256 — the latest secure export issued for this request (detail view only). */
+            secureExport?: components["schemas"]["PrivacyExportAdminStatus"];
             /**
              * Format: date-time
              * @description Stamped at closure: closed_at + the retention policy. The job hard-deletes the row at this time unless a hold is in place.
@@ -6744,8 +7341,13 @@ export interface components {
              */
             updatedAt: string | null;
         };
-        /** @enum {string} */
-        NotificationKind: "invite" | "preference_reminder" | "plan_ready" | "plan_changed" | "date_reminder" | "moderation_update";
+        /** @description Declared extensible (alpha.69): a client treats a kind it does not know as an opaque notification it cannot render specially — never as a malformed item — so a new kind is not a breaking change on the inbox or the preference list. `privacy_export_ready` (GoGo-BE#256) is in-app only: its payload is `{ exportId, expiresAt }` and is never pushed. */
+        NotificationKind: string;
+        /**
+         * @description The kinds a legacy client may opt in or out of on `PUT /me/notification-preferences` — closed, exactly what the route accepts. `privacy_export_ready` is not among them: it is in-app only and has no channel to switch.
+         * @enum {string}
+         */
+        NotificationPreferenceKind: "invite" | "preference_reminder" | "plan_ready" | "plan_changed" | "date_reminder" | "moderation_update";
         Review: {
             /** Format: uuid */
             id: string;
@@ -6898,21 +7500,70 @@ export interface components {
             currency?: string;
             confidence?: number;
         };
+        /** @description GoGo-BE#509 — transient provider photos. Display once, never persist. */
+        PlaceProviderPhotos: {
+            /** @description Why `photos` may be empty. Unknown values mean "no photos". */
+            status: string;
+            /** @description Display provider. Unknown values are allowed; render `attribution` as given. */
+            provider: string;
+            /** @description Provider attribution to render whenever a photo is shown ("Google Maps"). */
+            attribution: string;
+            photos: components["schemas"]["PlaceProviderPhoto"][];
+        };
+        PlaceProviderPhoto: {
+            contentType: string;
+            /**
+             * Format: byte
+             * @description Image bytes (at most 400 KiB before encoding, 800 px wide).
+             */
+            dataBase64: string;
+            /** @description Width of Google's original, not of these bytes. */
+            widthPx: number | null;
+            heightPx: number | null;
+            /** @description Credit to render with this photo — never a generic gallery footer. */
+            authorAttributions: components["schemas"]["ProviderPhotoAuthor"][];
+            /**
+             * Format: uri
+             * @description This photo on Google Maps. `https`, Google host; else null.
+             */
+            googleMapsUri: string | null;
+        };
+        ProviderPhotoAuthor: {
+            displayName: string;
+            /**
+             * Format: uri
+             * @description Author profile link (`https`, Google host); null when absent or unsafe.
+             */
+            uri: string | null;
+            /**
+             * Format: uri
+             * @description Author avatar (`https`, Google image host); null when absent or unsafe.
+             */
+            photoUri: string | null;
+        };
         PlaceDetail: {
             /** Format: uuid */
             id?: string;
             name?: string;
             description?: string;
             status?: string;
+            /** @description GoGo-owned postal address (GoGo-BE#280). Absent when unknown — never an empty string. Render as plain text. */
             addressText?: string;
             areaKey?: string;
             lat?: number;
             lng?: number;
+            /** @description E.164 business phone. Absent when unknown, or when a legacy stored value would not pass today's rules (GoGo-BE#280). */
             phone?: string;
+            /** @description `http(s)` URL on a public host. Absent when unknown, or when a legacy stored value would not pass today's rules — so a client may render it as an external link without re-validating. Never fetched or previewed by GoGo. */
             website?: string;
+            provenance?: components["schemas"]["PlaceContactProvenance"];
             /** @description A number, not the string Postgres returns for `numeric`. The endpoint used to pass the row through unmapped, so a client calling `.toFixed` on this crashed (#169). */
             rating?: number;
             ratingCount?: number;
+            /** @description GoGo-BE#217 (ADR-0028) — the GoGo community rating, on a fixed 1–5 scale: the arithmetic mean of every moderator-published GoGo review of this place, each weighted equally, rounded once to one decimal (half away from zero, so 4.25 → 4.3). **Omitted** — never `null`, never 0 — while `gogoRatingCount` is below 5, the sample threshold; present whenever it is 5 or more. Never merged with the provider `rating`, which measures a different population; render each with its own source and count. */
+            gogoRating?: number;
+            /** @description GoGo-BE#217 (ADR-0028) — how many moderator-published GoGo reviews of this place `gogoRating` is computed from; always present, including 0. Counts reviews, not people: one author may have several. Pending, rejected, removed and hidden reviews, plan reviews, check-ins and provider reviews are never counted. Below 5 the client says in words that there are not enough GoGo reviews yet, beside this count, and renders no score. */
+            gogoRatingCount: number;
             priceLevel?: number;
             avgVisitMinutes?: number;
             suitability?: {
@@ -6951,16 +7602,62 @@ export interface components {
                 url?: string;
                 attribution?: string;
             }[];
-            /** @description GoGo-BE#360 — what the place's provider last reported about the business, a fact for core rule 8's "excluded or warned": search already excludes a closed or temporarily closed place, but a saved place, a plan stop or a share link still opens this detail, and the client must warn rather than present it as open (with more than colour). When several provider rows exist the most severe report wins (closed, temporarily_closed, moved, active, unknown). Absent when no provider has reported on the place. `places.status` (`status` above) is GoGo's own moderation decision and is separate. */
-            providerStatus?: {
-                /** @description Treat a value you do not know as `unknown`. */
-                status: string;
-                /**
-                 * Format: date-time
-                 * @description When the provider was last read for this report.
-                 */
-                fetchedAt: string;
-            };
+            providerStatus?: components["schemas"]["PlaceProviderStatus"];
+        };
+        /** @description GoGo-BE#280 — whose each contact value is, keyed by the field name. An entry appears exactly when its value does; the whole object is absent when the place has none of the three. Evidence references and actors are CMS-only and never appear here. */
+        PlaceContactProvenance: {
+            addressText?: components["schemas"]["PlaceContactFieldProvenance"];
+            phone?: components["schemas"]["PlaceContactFieldProvenance"];
+            website?: components["schemas"]["PlaceContactFieldProvenance"];
+        };
+        PlaceContactFieldProvenance: {
+            /** @description `gogo` — independently sourced and verified by GoGo; `google` — a value seeded from Google before #280, shown with the attribution of the `sources` entry named by `provider`; `unknown` — no adequate evidence was recorded (most values written before #280). Do not present `unknown` as GoGo-verified. Treat a value you do not know as `unknown`. */
+            sourceType: string;
+            /**
+             * Format: date-time
+             * @description `gogo` only — when the value was last independently verified. It moves only on verification, never on an unrelated save or a provider fetch. No freshness window is implied.
+             */
+            verifiedAt?: string;
+            /** @description `google` only — the `sources[].provider` entry, present in this same response, that attributes the value. A Google-seeded value whose place no longer has a Google source is reported `unknown` instead, never as `google` pointing at attribution that is not there. */
+            provider?: string;
+        };
+        /** @description GoGo-BE#280 — where one contact value came from. All three properties are required (missing ones are reported per property as `provenance.<field>.<property>` with code `required`); they are not marked `required` here so that the gate reports them, not the schema layer. Who submitted it and when it was verified are recorded by the server from the authenticated admin and are not accepted from clients. */
+        PlaceContactEvidence: {
+            /** @description `editorial` (a merchant statement, the official website, a field visit), `community` (a contributor's own report) or `provider` (a permitted, non-Google dataset). `google_derived` is refused with code `google_not_independent`: copying, retyping or confirming Google content does not make it GoGo's. */
+            sourceType?: string;
+            /**
+             * @description Enforced: trimmed, 1..500 characters, no control characters. Names the non-Google origin — a phone call with the owner, the official URL, a visit, a dataset release. CMS-only; never public. Checked in this order (ADR-0031 §Transport guard):
+             *
+             *     1. A Google Maps link, share link, Place ID or "Google" is refused `google_not_independent`.
+             *     2. A reference that is, as a whole, a website (`pho24.vn`, `https://chaoban.vn/lien-he#2`) is accepted as an origin — the shape only; GoGo does not fetch it.
+             *     3. A reference that **starts with** a transport keyword (`job`, `jobs`, `sheet`, `sheets`, `tab`, `row`, `rows`, `dòng`, `dong`, `cột`, `cot`, `col`, `column`, `cell`, `import`, `batch`, `file`, `upload`, `csv`, `xlsx`, `spreadsheet`, `id`, `r`; case-insensitive) followed by nothing or a non-letter is refused `transport_only`, whatever follows: `job 123`, `Sheet1!B7`, `Tab Quận 1`, `R12`.
+             *     4. A reference that is only an identifier is refused `transport_only`: a decimal number, a UUID, an A1 cell or range with an optional `label!` (`'HCM'!A2:C9`), or `label#digits` (`HCM#12`).
+             *
+             *     This is a bounded lexical guard, not a classifier. Put the origin first — `job 123; gọi chủ quán` is refused. Passing it (`Bảng Quận 1`, `123, row 4`) does not make a reference adequate evidence; that remains an editorial assertion.
+             * @example Gọi điện chủ quán ngày 2026-09-30
+             */
+            sourceReference?: string;
+            /**
+             * Format: date-time
+             * @description Enforced: ISO-8601 with a zone, not more than 5 minutes in the future. When the evidence was gathered, not when it was typed in.
+             */
+            collectedAt?: string;
+        };
+        /** @description GoGo-BE#280 — evidence for the GoGo-owned contact fields written in the same request. A non-null `addressText` / `phone` / `website` needs its entry (`provenance.<field>` code `required`); an entry for a field the request does not write is `value_missing`, and one beside a `null` clear is `not_allowed`. Re-sending a field's stored value unchanged and without evidence is not a write and needs nothing. */
+        PlaceContactProvenanceInput: {
+            addressText?: components["schemas"]["PlaceContactEvidence"];
+            phone?: components["schemas"]["PlaceContactEvidence"];
+            website?: components["schemas"]["PlaceContactEvidence"];
+        };
+        /** @description GoGo-BE#360 — what the place's provider last reported about the business, a fact for core rule 8's "excluded or warned": search already excludes a closed or temporarily closed place, but a saved place, a plan stop or a share link still opens this detail, and the client must warn rather than present it as open (with more than colour). When several provider rows exist the most severe report wins (closed, temporarily_closed, moved, active, unknown). Absent when no provider has reported on the place. The place's own `status` is GoGo's moderation decision and is separate. */
+        PlaceProviderStatus: {
+            /** @description Treat a value you do not know as `unknown`. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the provider was last read for this report.
+             */
+            fetchedAt: string;
         };
         SuggestionCandidate: {
             /** Format: uuid */
@@ -7007,17 +7704,29 @@ export interface components {
                 }[];
             };
         };
-        /** @description GoGo-BE#593 — `costMin` and `costMax` are amounts per `costScope`, which is `per_person` today: each stop's per-person price, summed. A group figure is that amount times `participantCount`; nothing here is a group total to divide. */
+        /**
+         * @description GoGo-BE#593 — `costMin` and `costMax` are amounts per `costScope`, which is `per_person` today: each stop's per-person price, summed. A group figure is that amount times `participantCount`; nothing here is a group total to divide.
+         *
+         *     GoGo-BE#228 (ADR-0029) — `costMin`/`costMax` stay the sums over **all** stops. `required*` and `optional*` split them by `PlanStop.isOptional`: `costMin = requiredCostMin + optionalCostMin`, likewise for max. Plans stored before the split report required = the totals, optional = 0.
+         */
         PlanTotals: {
             /** @description Sum of every stop's lower price bound, per `costScope`. A stop with no price in that scope adds nothing and sets `uncertain`, so `0` with `uncertain: true` means no price is known — never "free". */
             costMin?: number;
-            /** @description Sum of every stop's upper price bound, per `costScope`, under the same rule as `costMin`. `overBudget` compares it with the per-person budget. */
+            /** @description Sum of every stop's upper price bound, per `costScope`, under the same rule as `costMin`. Includes optional stops; `overBudget` does not compare this but `requiredCostMax`. */
             costMax?: number;
+            /** @description Lower bound summed over required stops, per `costScope`. */
+            requiredCostMin: number;
+            /** @description Upper bound summed over required stops, per `costScope`. This is what `overBudget` compares with the per-person budget. */
+            requiredCostMax: number;
+            /** @description Lower bound summed over optional stops, per `costScope`. */
+            optionalCostMin: number;
+            /** @description Upper bound summed over optional stops, per `costScope`. Visible extra spend, never counted towards `overBudget`; `0` with `uncertain: true` may mean an optional stop has no known price. */
+            optionalCostMax: number;
             costScope: components["schemas"]["BudgetScope"];
             currency?: string;
             durationMinutes?: number;
             travelDistanceM?: number;
-            /** @description Computed from the UPPER bound — never show "trong ngân sách" when true. */
+            /** @description Computed from the UPPER bound of the **required** stops (`requiredCostMax`) — never show "trong ngân sách" when true. False does not cover optional stops: compare `costMax` before claiming the whole plan fits (ADR-0029). */
             overBudget?: boolean;
             /** @description Some stop has unknown/low-confidence price — surface the uncertainty. */
             uncertain?: boolean;
@@ -7042,8 +7751,10 @@ export interface components {
             /** @description Upper price bound per `costScope`, under the same rule as `costMin`. */
             costMax?: number | null;
             costScope: components["schemas"]["BudgetScope"];
-            /** @description Locked stops are invariant across regenerate. */
+            /** @description Locked stops are invariant across regenerate: place, order, duration, cost, `isOptional` and stored schedule. If a locked stop can no longer be reached at its stored time, regenerate answers `409 PLAN_TIME_CONFLICT` and leaves the plan as it was. */
             isLocked?: boolean;
+            /** @description GoGo-BE#228 — set only by the host. Independent of `isLocked`. Generated and replacement stops are required (`false`). Its cost is reported in `totals.optional*` and never makes the plan over budget; its time still counts in the schedule. */
+            isOptional: boolean;
             /**
              * @description Progress of the stop itself, not of the place behind it.
              * @enum {string}
@@ -7130,6 +7841,8 @@ export interface components {
              *     Scoring: `EXACT_PROVIDER_ID`, `EXACT_NAME_CITY`, `MULTIPLE_BRANCHES`, `DISTRICT_MISMATCH`, `CITY_MISMATCH`, `TYPE_MISMATCH`, `LOW_CONFIDENCE`. Catalogue: `PLACE_ALREADY_LINKED`, `DB_FIRST`, `PLACE_IDENTITY_CONFLICT`, `NOT_FOUND`, `NO_QUERY`.
              *
              *     Identity, from the Google feature id a share link carries (GoGo-BE#505): `CID_EXACT_MATCH` — a candidate's own `googleMapsUri` names the same CID as the link, so the two are the same Google record and no name or distance score can say otherwise. `CID_OVERRODE_SCORE` accompanies it when that candidate was not the one the text score ranked first; the full `candidates` list is still returned, so the disagreement is visible rather than hidden. `LINK_IDENTITY_CONFLICT` (with `UNRESOLVED`) — the link names one place by `place_id` and a different one by `ftid`, which nobody can act on and nothing here guesses at. `CID_NOT_IN_CANDIDATES` — the link named a place by CID, the candidates published CIDs of their own, and none of them was it: the search did not return the place the link points at, so a person picks rather than GoGo auto-resolving onto an identity the link contradicts.
+             *
+             *     A `?cid=` link (GoGo-BE#470), the `googleMapsUri` form GoGo itself stores: a CID GoGo holds is answered from its own rows like a known `place_id` (`DB_FIRST`, `PLACE_ALREADY_LINKED`). `CID_NOT_RESOLVABLE` (with `UNRESOLVED`) — the link carries a CID and nothing else to search with, and GoGo holds no place with that CID; no provider endpoint looks a CID up. Not `NO_QUERY`: the link is not empty, it names a Google record GoGo cannot translate. `CID_IDENTITY_CONFLICT` (with `UNRESOLVED`) — GoGo's own rows store that CID against two different Google Place IDs, so nothing here picks one; unlike `PLACE_IDENTITY_CONFLICT`, which is one Place ID claimed by two GoGo places.
              */
             reasonCodes?: string[];
             /** Format: uuid */
@@ -7226,6 +7939,17 @@ export interface components {
                 field: string;
                 code: string;
                 message: string;
+                /** @description GoGo-BE#440 — on `PLACE_DUPLICATE_SUSPECTED` only: the near-duplicate this entry names. Similarity is advisory; it never proves two places are one. */
+                candidate?: {
+                    /** Format: uuid */
+                    placeId: string;
+                    name: string;
+                    status: string;
+                    /** @description Metres between the two positions, rounded. */
+                    distanceM: number;
+                    /** @description Trigram similarity of normalized names, 0..1, three decimals. */
+                    nameSimilarity: number;
+                };
             }[];
             request_id: string;
             retryable: boolean;
@@ -7273,7 +7997,7 @@ export interface components {
          *     Request schemas keep `mapping` as a plain string map: narrowing an existing `/v1` request property to an enum is a breaking change (ADR-0005), so the vocabulary is published here rather than enforced in the wire type. `/v1` rejects no value — one outside this list leaves its column unmapped and is reported. Strict rejection belongs in `/v2`.
          * @enum {string}
          */
-        ImportCanonicalField: "source_row_id" | "name" | "city" | "district" | "google_maps_url" | "google_maps_query" | "google_place_id" | "category" | "category_raw" | "price_min" | "price_max" | "price_unit" | "price_raw" | "audiences" | "audiences_raw" | "vibes" | "vibes_raw" | "highlight" | "note" | "phone" | "website" | "avg_visit_minutes" | "is_lodging" | "curated_rank";
+        ImportCanonicalField: "source_row_id" | "name" | "city" | "district" | "google_maps_url" | "google_maps_query" | "google_place_id" | "category" | "category_raw" | "price_min" | "price_max" | "price_unit" | "price_raw" | "audiences" | "audiences_raw" | "vibes" | "vibes_raw" | "highlight" | "note" | "phone" | "website" | "address" | "address_source_type" | "address_source_reference" | "address_collected_at" | "phone_source_type" | "phone_source_reference" | "phone_collected_at" | "website_source_type" | "website_source_reference" | "website_collected_at" | "avg_visit_minutes" | "is_lodging" | "curated_rank";
         ImportJob: components["schemas"]["ImportJobSummary"] & {
             defaultCity?: string | null;
             rowsByStatus?: {
@@ -7310,6 +8034,10 @@ export interface components {
         ImportCandidate: {
             googlePlaceId?: string;
             name?: string;
+            /**
+             * @deprecated
+             * @description No longer written (GoGo-BE#280): Google's formatted address is not persisted, candidate JSON included. Present only on rows stored before #280. Do not depend on it.
+             */
             address?: string;
             /** Format: float */
             confidence?: number;
@@ -7460,6 +8188,14 @@ export interface components {
             /** @description Why this was taken down. Required and stored in the audit record — it is the only explanation anyone reviewing the incident later has. */
             reason: string;
         };
+        CmsAuthMethods: {
+            /** @description `cmsLogin` accepts credentials in this deployment. */
+            password: boolean;
+            /** @description `cmsAccessExchange` is configured in this deployment. */
+            accessSso: boolean;
+            /** @description ADR-0034 (added in alpha.70). True when the `super_admin` account signs in through `cmsAccessExchange` only: `cmsLogin` answers it `403 SUPER_ADMIN_SSO_ONLY` before any credential is checked whenever the general door is open and neither the per-IP rate limit nor an account lockout applies (those `429`s and `PASSWORD_LOGIN_DISABLED` take precedence). `password` still describes every other role. Absent on APIs older than alpha.70 — read as false. */
+            superAdminSsoOnly?: boolean;
+        };
         AdminSession: {
             /** @description For non-browser callers. Browser clients use the cookie. */
             accessToken?: string;
@@ -7556,6 +8292,8 @@ export interface components {
             priceMax?: number | null;
             /** @enum {string|null} */
             priceUnit?: "per_person" | "per_item" | "per_hour" | "per_night" | null;
+            /** @description GoGo-BE#280 — evidence for `addressText`, `phone` and `website`, under the same rule as `cmsUpdatePlace`: a non-null value needs its entry, `null` needs none. Values and evidence are stored normalized (E.164, `https://`, `collectedAt` in UTC) and returned that way. */
+            provenance?: components["schemas"]["PlaceContactProvenanceInput"];
         };
         /** @description PI-BE-031 (GoGo-BE#528) — everything a decision needs that GoGo already holds. No provider request: this endpoint costs nothing to open, and `POST /cms/place-submissions/{id}/provider-preview` is the explicit, separately-counted way to ask Google. */
         PlaceSubmissionDetail: {
@@ -7839,7 +8577,11 @@ export interface components {
             taxonomyIds: string[];
             /** @description Alongside the ids so a chip can be labelled without a second call; writes still send ids. */
             taxonomyKeys?: string[];
-            /** @description Per-field origin, keyed by the field name this contract uses. A field absent from this map has **no recorded origin** — which the UI must say in words rather than defaulting it to GoGo. Not backfilled: places predating #425 have fields whose origin nothing recorded, and claiming one would manufacture the provenance this map exists to keep honest. */
+            /**
+             * @description Per-field origin, keyed by the field name this contract uses. A field absent from this map has **no recorded origin** — which the UI must say in words rather than defaulting it to GoGo. Not backfilled: places predating #425 have fields whose origin nothing recorded, and claiming one would manufacture the provenance this map exists to keep honest.
+             *
+             *     **Exception — `provinceCode` / `communeCode` (GoGo-BE#440 F-07).** An entry here means an editor's code assertion was adopted by the resolver, with their reference. Its absence does **not** mean the code has no origin: a code derived from geometry, or decided by a reviewer, carries its provenance in `administrative` (method, dataset version, boundary version, reviewer) and the mapping history. Read those before telling anyone a code is unsourced.
+             */
             provenance?: {
                 [key: string]: {
                     /**
@@ -7850,6 +8592,13 @@ export interface components {
                     sourceReference?: string | null;
                     /** Format: date-time */
                     verifiedAt?: string | null;
+                    /**
+                     * Format: date-time
+                     * @description GoGo-BE#280 — when the evidence named by `sourceReference` was gathered. Null on every row that is not independently sourced, including all rows written before #280.
+                     */
+                    collectedAt?: string | null;
+                    /** @description GoGo-BE#280, on `addressText` / `phone` / `website` only — the same verdict the public `PlaceDetail.provenance` gives. `gogo` requires an independent source, a non-Google reference and a collection time; a legacy `editorial` row without them is `unknown`. Treat a value you do not know as `unknown`. */
+                    ownership?: string;
                 };
             };
             /** @description A day with no row here is *unknown*, not closed — the two are different facts and the UI must not render one as the other. */
@@ -7896,6 +8645,8 @@ export interface components {
             }[];
             /** @description Cover first, then the editor's order. */
             media: components["schemas"]["CmsPlaceMedia"][];
+            /** @description GoGo-BE#360 — the same fact, rows and severity rule as `PlaceDetail.providerStatus`, so an editor sees a place its provider reports shut as shut. Absent when no provider has reported on the place. Read from the database; no provider call is made. */
+            providerStatus?: components["schemas"]["PlaceProviderStatus"];
             /** Format: date-time */
             freshnessCheckedAt?: string | null;
             /** Format: date-time */
@@ -8631,12 +9382,12 @@ export interface components {
         CmsCommunityPlacePage: components["schemas"]["CmsModerationPageMeta"] & {
             items: components["schemas"]["CmsCommunityPlace"][];
         };
-        /** @description The domain-event envelope from the api-contract rules, unchanged. Field names are snake_case here because that is the event convention, not the REST DTO convention. */
+        /** @description The domain-event envelope from the api-contract rules, unchanged. Field names are snake_case here because that is the event convention, not the REST DTO convention. This is the `data` of every domain-event frame; the frame's SSE `id` is the opaque resume cursor (ADR-0027), not `event_id`. Only domain events use this envelope: the stream-level `resync` frame carries `RoomEventResync`, and the keep-alive is a comment frame with no data. */
         RoomEvent: {
             /** Format: uuid */
             event_id: string;
             /** @enum {string} */
-            event_type: "room.status_changed" | "participant.joined" | "participant.left" | "participant.selection_changed" | "matching.started" | "matching.completed" | "matching.failed" | "suggestions.generated" | "suggestions.updated" | "vote.changed" | "plan.updated" | "resync" | "heartbeat";
+            event_type: "room.status_changed" | "participant.joined" | "participant.left" | "participant.selection_changed" | "matching.started" | "matching.completed" | "matching.failed" | "suggestions.generated" | "suggestions.updated" | "vote.changed" | "plan.updated";
             event_version: number;
             /** Format: date-time */
             occurred_at: string;
@@ -8648,6 +9399,24 @@ export interface components {
             payload_schema_version?: number;
             /** @description Facts, never composed copy. Carries the version a client should compare against — `constraintVersion` for suggestions, `version` for a plan — so a stale event is distinguishable from a fresh one. */
             payload: Record<string, never>;
+        };
+        /** @description `data` of an SSE `event: resync` frame on `/rooms/{id}/events` (ADR-0027). Stream-level, not a domain event: it has no envelope and its frame carries no resume cursor. Sent whenever the server cannot guarantee exact delivery from the client's resume point — at attach or later on a live connection, possibly more than once — and always before any domain event that follows it. The client must refetch authoritative state; see the operation description for the recovery rules. */
+        RoomEventResync: {
+            /** Format: uuid */
+            roomId: string;
+            reason: components["schemas"]["RoomEventResyncReason"];
+            checkpoint: components["schemas"]["RoomEventCheckpoint"];
+        };
+        /** @description Why the resume point could not be honoured. Declared extensible: a client treats a value it does not know exactly like a known one — refetch — never as a malformed frame. `replay_unavailable` — some event after the cursor is no longer retained (window exceeded, buffer trimmed or expired). `generation_changed` — the room's event sequence was reset after the cursor was issued, so its sequence numbers no longer identify the same events. `invalid_or_legacy_cursor` — the cursor is malformed, ahead of the server's high-water mark, or a pre-ADR-0027 bare sequence number. */
+        RoomEventResyncReason: string;
+        /** @description The room's current position, read atomically with the decision to resync: the generation and the highest sequence published in it. A client resumes from `cursor` only after its refetch has succeeded; it must not build a cursor from `generation` and `seq`, which are informational. */
+        RoomEventCheckpoint: {
+            /** @description Opaque resume cursor for this checkpoint, same format as an SSE `id`. */
+            cursor: string;
+            /** Format: uuid */
+            generation: string;
+            /** @description Highest sequence in `generation`; 0 when nothing has been published in it yet. */
+            seq: number;
         };
         CmsSearchAnalytics: {
             days: number;
@@ -8728,6 +9497,672 @@ export interface components {
                 reason: string;
             }[];
         };
+        AssistantStatus: {
+            /** @description `enabled` — sending works. `disabled` — kill switch off (`assistant.enabled`), or the environment cannot take new replies (for example its spending limit is reached). `limit_reached` — this account's daily messages are spent until `resetsAt`. Unknown values mean "cannot send now". */
+            state: string;
+            /** @description Messages this account may send per day. */
+            dailyMessageLimit: number;
+            remainingToday: number;
+            /**
+             * Format: date-time
+             * @description When `remainingToday` refills (start of the next day in Asia/Ho_Chi_Minh, as UTC).
+             */
+            resetsAt: string;
+        };
+        /** @description What the assistant was opened from. Exactly one of `placeId` / `planId`. Used only when sent, only when the caller may read it. */
+        AssistantContext: {
+            /** Format: uuid */
+            placeId: string;
+        } | {
+            /** Format: uuid */
+            planId: string;
+        };
+        /** @description The context as stored, with the verified name to render on the `ContextChip`. */
+        AssistantContextRef: {
+            /** @enum {string} */
+            kind: "place" | "plan";
+            /** Format: uuid */
+            id: string;
+            /** @description The place name or the plan's room title, read from GoGo data — not model text. */
+            label: string;
+        };
+        AssistantConversationCreate: {
+            title?: string;
+            context?: components["schemas"]["AssistantContext"];
+        };
+        /**
+         * @example {
+         *       "id": "7d3f0c2e-5b1a-4c8e-9f21-2a6b1c0d9e11",
+         *       "title": "Cafés for Saturday",
+         *       "context": {
+         *         "kind": "place",
+         *         "id": "1b2c3d4e-0000-4000-8000-000000000001",
+         *         "label": "Nhà Lá Café"
+         *       },
+         *       "createdAt": "2026-10-26T02:10:00Z",
+         *       "lastMessageAt": "2026-10-26T02:14:31Z",
+         *       "expiresAt": "2027-01-24T02:14:31Z",
+         *       "messageCount": 4,
+         *       "preview": "I found 3 cafés that match."
+         *     }
+         */
+        AssistantConversation: {
+            /** Format: uuid */
+            id: string;
+            /** @description User-set, or derived after the first exchange. `null` until then; the client shows its own "New chat" copy. */
+            title: string | null;
+            context?: components["schemas"]["AssistantContextRef"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description History order and the Today / Yesterday / Earlier grouping key (group client-side, device time zone).
+             */
+            lastMessageAt: string;
+            /**
+             * Format: date-time
+             * @description When retention deletes it: 90 days after `lastMessageAt`. Moves forward as the conversation continues.
+             */
+            expiresAt: string;
+            messageCount: number;
+            /** @description Start of the last message's text, for the history row. */
+            preview?: string;
+            match?: components["schemas"]["AssistantSearchMatch"];
+        };
+        /** @description Present only on a `q` search. */
+        AssistantSearchMatch: {
+            /** @enum {string} */
+            field: "title" | "message";
+            /**
+             * Format: uuid
+             * @description The newest matching message when `field` is `message`.
+             */
+            messageId?: string;
+            /** @description Text around the match, from that message or the title. */
+            snippet?: string;
+        };
+        AssistantConversationPage: {
+            items: components["schemas"]["AssistantConversation"][];
+            nextCursor: string | null;
+        };
+        AssistantAttachmentInput: {
+            /** @description `key` from `POST /uploads` with `purpose: assistant_image`. */
+            uploadKey: string;
+        };
+        AssistantAttachment: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            width?: number;
+            height?: number;
+            /** @description Short-lived signed URL to the processed image (owner only). Absent once the image is past retention or storage is unavailable. */
+            url?: string;
+            /** Format: date-time */
+            urlExpiresAt?: string;
+        };
+        AssistantMessageSend: {
+            /** @description Trimmed server-side; blank after trimming is a 400. */
+            text: string;
+            context?: components["schemas"]["AssistantContext"];
+            attachments?: components["schemas"]["AssistantAttachmentInput"][];
+            /**
+             * @description The app's UI language; the reply is written in it. Defaults to the account locale.
+             * @enum {string}
+             */
+            locale?: "vi" | "en";
+        };
+        /** @description `streaming` — being generated. `complete` — ended normally. `stopped` — the user pressed Stop; `text` is what was written. `fallback` — the model did not answer within 15 s; a deterministic reply was stored. `failed` — ended by an error; `text` keeps any partial answer. User messages are always `complete`. */
+        AssistantMessageStatus: string;
+        AssistantMessage: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            conversationId: string;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            status: components["schemas"]["AssistantMessageStatus"];
+            /** @description Markdown-light answer text (paragraphs, lists, `[n]` citation markers that index `sources`). For a user message, what they sent. */
+            text: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+            context?: components["schemas"]["AssistantContextRef"];
+            attachments?: components["schemas"]["AssistantAttachment"][];
+            sources?: components["schemas"]["AssistantSource"][];
+            cards?: components["schemas"]["AssistantResultCard"][];
+            proposals?: components["schemas"]["AssistantProposal"][];
+            followUps?: components["schemas"]["AssistantFollowUpGroup"][];
+            notice?: components["schemas"]["AssistantNotice"];
+            feedback?: components["schemas"]["AssistantFeedback"] | null;
+            /** @description Set when `status` is `failed`. */
+            error?: components["schemas"]["ErrorEnvelope"];
+        };
+        AssistantMessagePage: {
+            /** @description Newest first. */
+            items: components["schemas"]["AssistantMessage"][];
+            nextCursor: string | null;
+        };
+        AssistantTurn: {
+            userMessage: components["schemas"]["AssistantMessage"];
+            /** @description `status: streaming`; attach to `streamAssistantMessage` with its `id`. */
+            assistantMessage: components["schemas"]["AssistantMessage"];
+        };
+        /**
+         * @description One document an answer used. Every string comes from the published GoGo guide in the CMS (or, for `place_data`, from GoGo place data) — never from the model.
+         * @example {
+         *       "index": 1,
+         *       "kind": "guide_document",
+         *       "documentId": "0f6a1e2b-1111-4000-8000-000000000001",
+         *       "versionId": "0f6a1e2b-2222-4000-8000-000000000003",
+         *       "slug": "plans.voting",
+         *       "title": "GoGo guide · Plans",
+         *       "description": "How voting and finalizing a plan work."
+         *     }
+         */
+        AssistantSource: {
+            /** @description The `n` in the `[n]` citation markers of the message text. */
+            index: number;
+            /** @description `guide_document` — a published GoGo guide version. `place_data` — GoGo's verified place data, rendered as "From GoGo place data · Last checked …" with `checkedAt`. */
+            kind: string;
+            /** Format: uuid */
+            documentId?: string;
+            /** Format: uuid */
+            versionId?: string;
+            slug?: string;
+            title: string;
+            description?: string;
+            /**
+             * Format: date-time
+             * @description For `place_data`, the verified data's `freshnessCheckedAt`.
+             */
+            checkedAt?: string;
+        };
+        /** @description A structured result: ids the model chose **from the turn's allowlist**, and facts the server read from verified data. Discriminated by `kind`. */
+        AssistantResultCard: components["schemas"]["AssistantPlaceCard"] | components["schemas"]["AssistantPlanCard"];
+        /**
+         * @example {
+         *       "kind": "place",
+         *       "placeId": "1b2c3d4e-0000-4000-8000-000000000001",
+         *       "available": true,
+         *       "facts": {
+         *         "name": "Nhà Lá Café",
+         *         "areaKey": "hcm-q3",
+         *         "priceMin": 45000,
+         *         "priceMax": 90000,
+         *         "currency": "VND",
+         *         "openNow": true,
+         *         "checkedAt": "2026-10-20T03:00:00Z"
+         *       }
+         *     }
+         */
+        AssistantPlaceCard: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "place";
+            /** Format: uuid */
+            placeId: string;
+            /** @description False when the place is no longer usable; `facts` is then minimal. */
+            available: boolean;
+            /** @description Verified GoGo place data at the time of reading — the same fields and rules as `PlaceDetail`. Never model output; never a copy kept in conversation history. */
+            facts: {
+                name: string;
+                areaKey?: string;
+                addressText?: string;
+                priceLevel?: number;
+                /** @description Integer minor units, per person, when GoGo has a verified price. */
+                priceMin?: number;
+                priceMax?: number;
+                currency?: string;
+                /** @description Present under the same rule as `PlaceDetail.gogoRating` (5+ reviews). */
+                gogoRating?: number;
+                gogoRatingCount?: number;
+                /** @description From verified hours in place-local time; `null` when hours are unknown. */
+                openNow?: boolean | null;
+                photoUrl?: string;
+                /**
+                 * Format: date-time
+                 * @description `freshnessCheckedAt` of the facts — "Last checked …".
+                 */
+                checkedAt?: string;
+            };
+        };
+        AssistantPlanCard: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "plan";
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            roomId: string;
+            /** @description False when the caller can no longer read the plan. */
+            available: boolean;
+            /** @description Read from the plan as `getPlan` would return it to the caller. */
+            facts: {
+                roomTitle?: string;
+                roomType?: string;
+                participantCount?: number;
+                status?: string;
+                version?: number;
+                stopCount?: number;
+                totals?: components["schemas"]["PlanTotals"];
+                /** Format: date-time */
+                startAt?: string;
+            };
+        };
+        /** @description A consequential action the assistant may prepare. Each maps to an existing endpoint and its policy: `create_room` → `createRoom` (with constraints), `create_invite` → `createInvite`, `cast_vote` → `castVote`, `finalize_plan` → `finalizeVotes` (host only). Unknown values: render the card generically from `values`. */
+        AssistantProposalKind: string;
+        AssistantProposalValue: {
+            /** @description Field of the target request (`title`, `type`, `startAt`, `endAt`, `budgetMode`, `budgetAmount`, `areaKey`, `roomId`, `placeId`, `value`, …). Facts, not sentences: the card composes its own copy. */
+            field: string;
+            /** @description JSON value in the target request's type (money in integer minor units, times ISO-8601 UTC). */
+            value: unknown;
+            /**
+             * @description `explicit` — the user said it (or edited it on the card). `assumed` — the assistant filled it in; the card flags it ("End time assumed") and the user can change it before confirming.
+             * @enum {string}
+             */
+            origin: "explicit" | "assumed";
+            editable: boolean;
+        };
+        /**
+         * @example {
+         *       "id": "5e9a0b7c-3333-4000-8000-000000000001",
+         *       "kind": "create_room",
+         *       "status": "pending",
+         *       "values": [
+         *         {
+         *           "field": "type",
+         *           "value": "couple",
+         *           "origin": "explicit",
+         *           "editable": true
+         *         },
+         *         {
+         *           "field": "startAt",
+         *           "value": "2026-10-31T11:00:00Z",
+         *           "origin": "explicit",
+         *           "editable": true
+         *         },
+         *         {
+         *           "field": "endAt",
+         *           "value": "2026-10-31T14:00:00Z",
+         *           "origin": "assumed",
+         *           "editable": true
+         *         },
+         *         {
+         *           "field": "budgetMode",
+         *           "value": "total",
+         *           "origin": "assumed",
+         *           "editable": true
+         *         },
+         *         {
+         *           "field": "budgetAmount",
+         *           "value": 300000,
+         *           "origin": "explicit",
+         *           "editable": true
+         *         }
+         *       ],
+         *       "createdAt": "2026-10-26T02:14:30Z",
+         *       "expiresAt": "2026-10-26T02:44:30Z"
+         *     }
+         */
+        AssistantProposal: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            conversationId?: string;
+            /** Format: uuid */
+            messageId?: string;
+            kind: components["schemas"]["AssistantProposalKind"];
+            status: string;
+            values: components["schemas"]["AssistantProposalValue"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description Present once `status` is `confirmed`. */
+            result?: components["schemas"]["AssistantProposalResult"];
+        };
+        AssistantProposalConfirm: {
+            /** @description Edited fields only, `{ field: value }`; each becomes `explicit`. */
+            values?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * @description What the server saved, read back after the write — the `TaskSummary`.
+         * @example {
+         *       "proposalId": "5e9a0b7c-3333-4000-8000-000000000001",
+         *       "kind": "create_room",
+         *       "resource": {
+         *         "type": "room",
+         *         "id": "9a8b7c6d-4444-4000-8000-000000000001"
+         *       },
+         *       "savedValues": [
+         *         {
+         *           "field": "type",
+         *           "value": "couple"
+         *         },
+         *         {
+         *           "field": "startAt",
+         *           "value": "2026-10-31T11:00:00Z"
+         *         },
+         *         {
+         *           "field": "endAt",
+         *           "value": "2026-10-31T14:00:00Z"
+         *         },
+         *         {
+         *           "field": "budgetMode",
+         *           "value": "total"
+         *         },
+         *         {
+         *           "field": "budgetAmount",
+         *           "value": 300000
+         *         }
+         *       ],
+         *       "confirmedAt": "2026-10-26T02:15:02Z"
+         *     }
+         */
+        AssistantProposalResult: {
+            /** Format: uuid */
+            proposalId: string;
+            kind: components["schemas"]["AssistantProposalKind"];
+            resource: {
+                type: string;
+                id: string;
+                /** Format: uuid */
+                roomId?: string;
+            };
+            /** @description The stored values, which can differ from the proposal (server defaults, normalisation). `origin` is not repeated: the record is the server's now. */
+            savedValues: {
+                field: string;
+                value: unknown;
+            }[];
+            /** Format: date-time */
+            confirmedAt: string;
+        };
+        /**
+         * @description A missing detail the assistant asks for, with quick answers. At most two groups per reply; the user may type instead.
+         * @example {
+         *       "field": "date",
+         *       "label": "Which day?",
+         *       "options": [
+         *         {
+         *           "label": "This Saturday",
+         *           "text": "This Saturday"
+         *         },
+         *         {
+         *           "label": "This Sunday",
+         *           "text": "This Sunday"
+         *         }
+         *       ]
+         *     }
+         */
+        AssistantFollowUpGroup: {
+            /** @description Stable key of what is asked (`date`, `budget`, `area`, …), for analytics and i18n. */
+            field: string;
+            label: string;
+            options: {
+                label: string;
+                /** @description What is sent as the next user message when tapped. */
+                text: string;
+            }[];
+        };
+        /**
+         * @description A state the UI renders as `StateNotice`.
+         * @example {
+         *       "kind": "fallback",
+         *       "reason": "timeout",
+         *       "copyKey": "assistant.notice.fallback"
+         *     }
+         */
+        AssistantNotice: {
+            /** @description `empty` — GoGo has no documented answer. `fallback` — deterministic reply after a timeout or provider failure. `limit` — daily budget spent. `disabled` — kill switch off. Unknown values: generic notice. */
+            kind: string;
+            /** @description For `fallback`. */
+            reason?: string;
+            /** @description i18n key of the fixed copy to show (the app owns the strings), e.g. `assistant.notice.empty`. Never model text. */
+            copyKey?: string;
+        };
+        AssistantFeedbackReason: string;
+        AssistantFeedbackInput: {
+            /** @enum {string} */
+            rating: "up" | "down";
+            reason?: components["schemas"]["AssistantFeedbackReason"];
+        };
+        AssistantFeedback: {
+            /** @enum {string} */
+            rating: "up" | "down";
+            reason?: components["schemas"]["AssistantFeedbackReason"];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description One SSE frame of `streamAssistantMessage`. `type` equals the frame's SSE `event:` name. `seq` increases by one per frame of this message. */
+        AssistantStreamEvent: components["schemas"]["AssistantStreamStep"] | components["schemas"]["AssistantStreamDelta"] | components["schemas"]["AssistantStreamSources"] | components["schemas"]["AssistantStreamCard"] | components["schemas"]["AssistantStreamProposal"] | components["schemas"]["AssistantStreamFollowUps"] | components["schemas"]["AssistantStreamNotice"] | components["schemas"]["AssistantStreamDone"] | components["schemas"]["AssistantStreamError"];
+        AssistantStreamStep: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "step";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            /** @description For `TypingIndicator` (the app maps it to its own copy). Unknown values: generic "Thinking". */
+            step: string;
+        };
+        AssistantStreamDelta: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "delta";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            /** @description Append to the text so far. */
+            text: string;
+        };
+        AssistantStreamSources: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "sources";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            /** @description The complete list for this reply so far; replaces any earlier `sources` frame. */
+            sources: components["schemas"]["AssistantSource"][];
+        };
+        AssistantStreamCard: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "card";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            card: components["schemas"]["AssistantResultCard"];
+        };
+        AssistantStreamProposal: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "proposal";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            proposal: components["schemas"]["AssistantProposal"];
+        };
+        AssistantStreamFollowUps: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "follow_ups";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            groups: components["schemas"]["AssistantFollowUpGroup"][];
+        };
+        AssistantStreamNotice: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "notice";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            notice: components["schemas"]["AssistantNotice"];
+        };
+        AssistantStreamDone: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "done";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            /** @description Final status of the message; the stream closes after this frame. */
+            status: string;
+        };
+        AssistantStreamError: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "error";
+            seq: number;
+            /** Format: uuid */
+            messageId: string;
+            /** @description Standard envelope (`ASSISTANT_DISABLED`, `ASSISTANT_PROVIDER_UNAVAILABLE`, …). The message is stored as `failed` with its partial text; the stream closes after this frame. */
+            error: components["schemas"]["ErrorEnvelope"];
+        };
+        /**
+         * @description `draft` — never published. `published` — a version is live for the assistant. `unpublished` — was published, now withdrawn.
+         * @enum {string}
+         */
+        AssistantDocumentStatus: "draft" | "published" | "unpublished";
+        /** @description The CMS account that acted. Staff identity only; never a GoGo user. */
+        CmsAssistantActor: {
+            /** Format: uuid */
+            adminId: string;
+            displayName?: string;
+            role: string;
+        };
+        CmsAssistantDocumentCreate: {
+            slug: string;
+            /** @enum {string} */
+            locale: "vi" | "en";
+            /** @description Shown verbatim to users as the source title ("GoGo guide · Plans"). */
+            title: string;
+            /** @description Shown under the title in `SourceList`. */
+            description: string;
+            /** @description Markdown. The text the assistant grounds on; not rendered to users as-is. */
+            body: string;
+        };
+        CmsAssistantDocumentDraftPatch: {
+            /** @description `draft.revision` the editor loaded; 0 when no draft was open. */
+            baseRevision: number;
+            title?: string;
+            description?: string;
+            body?: string;
+        };
+        CmsAssistantDocumentVersionSummary: {
+            /** Format: uuid */
+            id: string;
+            number: number;
+            /** @description `draft` (open), `published` (live), `superseded` (was live), `withdrawn` (unpublished), `discarded` (draft never published and replaced). */
+            state: string;
+            title: string;
+            /** @description Hex SHA-256 of `body`, for a cheap "changed?" check. */
+            bodySha256: string;
+            /** @description Edit counter of a draft; frozen once published. */
+            revision?: number;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["CmsAssistantActor"];
+            /** Format: date-time */
+            publishedAt?: string | null;
+            publishedBy?: components["schemas"]["CmsAssistantActor"] | null;
+            publishReason?: string | null;
+            /** Format: date-time */
+            withdrawnAt?: string | null;
+            withdrawnBy?: components["schemas"]["CmsAssistantActor"] | null;
+            withdrawReason?: string | null;
+        };
+        CmsAssistantDocumentVersion: components["schemas"]["CmsAssistantDocumentVersionSummary"] & {
+            /** Format: uuid */
+            documentId: string;
+            description: string;
+            body: string;
+        };
+        CmsAssistantDocumentVersionPage: {
+            items: components["schemas"]["CmsAssistantDocumentVersionSummary"][];
+            nextCursor: string | null;
+        };
+        CmsAssistantDocument: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            /** @enum {string} */
+            locale: "vi" | "en";
+            status: components["schemas"]["AssistantDocumentStatus"];
+            /** @description The published version's title, else the draft's. */
+            title: string;
+            publishedVersion?: components["schemas"]["CmsAssistantDocumentVersionSummary"] | null;
+            draftVersion?: components["schemas"]["CmsAssistantDocumentVersionSummary"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CmsAssistantDocumentDetail: {
+            document: components["schemas"]["CmsAssistantDocument"];
+            draft: components["schemas"]["CmsAssistantDocumentVersion"] | null;
+            published: components["schemas"]["CmsAssistantDocumentVersion"] | null;
+        };
+        CmsAssistantDocumentPage: {
+            items: components["schemas"]["CmsAssistantDocument"][];
+            nextCursor: string | null;
+        };
+        /** @description Minimal PII by construction: no user id, email, user message, attachment, context or coordinates. */
+        CmsAssistantFeedbackItem: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            rating: "up" | "down";
+            reason?: components["schemas"]["AssistantFeedbackReason"];
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Opaque token, stable per conversation, unrelated to any id the app sees. */
+            conversationRef: string;
+            /** @description The assistant's rated reply. */
+            reply: {
+                status: components["schemas"]["AssistantMessageStatus"];
+                text: string;
+                sources: components["schemas"]["AssistantSource"][];
+                /** @description Which card kinds the reply carried (no ids). */
+                cardKinds?: string[];
+                proposalKinds?: components["schemas"]["AssistantProposalKind"][];
+                notice?: components["schemas"]["AssistantNotice"];
+                /** @description Identifier of the model that wrote the reply, for quality review. */
+                model?: string;
+            };
+        };
+        CmsAssistantFeedbackPage: {
+            items: components["schemas"]["CmsAssistantFeedbackItem"][];
+            nextCursor: string | null;
+        };
     };
     responses: {
         /** @description The client's ETag still matches. No body, by definition — this is the whole saving the tag exists for. */
@@ -8800,6 +10235,34 @@ export interface components {
                 "application/json": components["schemas"]["ErrorEnvelope"];
             };
         };
+        /** @description `USER_ONLY` — a guest session (or a staff token). GoGo AI is for registered accounts; the app asks a guest to sign in. */
+        AssistantUserOnly: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
+        /** @description `ASSISTANT_DISABLED` (`retryable: false`) — GoGo AI is off in this environment: the kill switch (audited feature flag `assistant.enabled`) is off, or the environment cannot take new replies (for example its spending limit is reached, or no limit is configured — an unconfigured limit refuses, it never means unlimited). One code for all of them on purpose: the app shows the same "not available" state and must not retry in a loop. `GET /assistant/status` says when it is back. */
+        AssistantDisabled: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
+        /** @description `RATE_LIMITED` (`retryable: true`) for the per-minute burst limit, or `ASSISTANT_DAILY_LIMIT` (`retryable: false`) when the account's daily message budget is spent. Both carry `Retry-After`; for the daily limit it points at the reset. */
+        AssistantRateLimited: {
+            headers: {
+                "Retry-After": components["headers"]["RetryAfter"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
     };
     parameters: {
         /** @description ADM-003 / ADR-0019 §8. The ETag a client already holds. The tag is derived from the active datasetVersion plus the resolved request, so it carries no clock and no process-local state: two instances serving the same version answer with the same tag, and a restart does not invalidate anyone's cache. */
@@ -8827,6 +10290,8 @@ export interface components {
         ETag: string;
         /** @description Always `public, max-age=0, must-revalidate` — immutable per version, but the active version can change. */
         CacheControl: string;
+        /** @description Seconds until the request can succeed. */
+        RetryAfter: number;
     };
     pathItems: never;
 }
@@ -9469,11 +10934,11 @@ export interface operations {
     streamRoomEvents: {
         parameters: {
             query?: {
-                /** @description Same as the header, for browser EventSource which cannot set one. */
+                /** @description Same as the header, for browser EventSource which cannot set one. Same opaque-cursor semantics; the header wins when both are sent. */
                 lastEventId?: string;
             };
             header?: {
-                /** @description The last sequence number received, to resume after a reconnect. */
+                /** @description The opaque cursor (SSE `id`) of the last domain event received, sent back verbatim to resume after a reconnect. Any value is accepted; one the server cannot honour exactly — including a legacy bare sequence number — answers with a `resync` frame rather than an error or a silently fresh stream. */
                 "Last-Event-ID"?: string;
             };
             path: {
@@ -9483,13 +10948,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description An event stream */
+            /** @description An event stream. Each frame's `data` is one of the schemas below, selected by the frame's SSE `event:` name: a domain event type (`room.status_changed` … `plan.updated`) carries `RoomEvent` and an opaque `id`; `resync` carries `RoomEventResync` and no `id`. The keep-alive `: ping` comment frame carries no data and is not listed. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": components["schemas"]["RoomEvent"];
+                    "text/event-stream": components["schemas"]["RoomEvent"] | components["schemas"]["RoomEventResync"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -9896,8 +11361,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @enum {string} */
-                    purpose: "checkin_photo" | "bill_photo" | "place_photo" | "avatar";
+                    /**
+                     * @description `assistant_image` (GoGo-BE#713, planned with the assistant module): an image attached to a GoGo AI message — users only, `image/jpeg`, `image/png` or `image/webp`, private, deleted with its conversation. Refused until the assistant module ships.
+                     * @enum {string}
+                     */
+                    purpose: "checkin_photo" | "bill_photo" | "place_photo" | "avatar" | "assistant_image";
                     /**
                      * @description HEIC is refused for purpose `avatar`.
                      * @enum {string}
@@ -9934,6 +11402,523 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    getAssistantStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current availability for the caller */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+        };
+    };
+    listAssistantConversations: {
+        parameters: {
+            query?: {
+                /** @description Case- and diacritic-insensitive substring of the title or a message; 2–100 characters. */
+                q?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of conversations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+        };
+    };
+    createAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Client-generated key for retryable mutations. Repeating a request with the same key returns the original result instead of re-applying it. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AssistantConversationCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            /** @description `CONTEXT_NOT_FOUND` — no such place/plan, or the caller may not read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `IDEMPOTENCY_KEY_REUSED` — same key, different request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["AssistantRateLimited"];
+            503: components["responses"]["AssistantDisabled"];
+        };
+    };
+    getAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The conversation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversation"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted (or already absent) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+        };
+    };
+    renameAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Trimmed server-side; blank after trimming is a 400. */
+                    title: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Renamed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAssistantMessages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of messages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantMessagePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sendAssistantMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantMessageSend"];
+            };
+        };
+        responses: {
+            /** @description Accepted; attach to the assistant message's stream. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantTurn"];
+                };
+            };
+            /** @description Validation failure, `IDEMPOTENCY_KEY_REQUIRED`, `INVALID_IDEMPOTENCY_KEY` or `ATTACHMENT_INVALID`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            /** @description No such conversation for this caller (`NOT_FOUND`), or `CONTEXT_NOT_FOUND` for a place/plan the caller may not read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `ASSISTANT_TURN_IN_PROGRESS` — a reply in this conversation is still streaming; or `IDEMPOTENT_REQUEST_IN_FLIGHT`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `IDEMPOTENCY_KEY_REUSED` — same key, different request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["AssistantRateLimited"];
+            503: components["responses"]["AssistantDisabled"];
+        };
+    };
+    streamAssistantMessage: {
+        parameters: {
+            query?: {
+                /** @description Same as the header, for browser EventSource; the header wins when both are sent. */
+                lastEventId?: string;
+            };
+            header?: {
+                /** @description Opaque SSE `id` of the last frame received, sent back verbatim to resume. */
+                "Last-Event-ID"?: string;
+            };
+            path: {
+                id: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An event stream. Each frame's `data` is one `AssistantStreamEvent` variant, chosen by the SSE `event:` name. The keep-alive `: ping` comment frame carries no data and is not listed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["AssistantStreamEvent"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+            /** @description Too many open assistant streams for this session */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            503: components["responses"]["AssistantDisabled"];
+        };
+    };
+    stopAssistantMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The assistant message after stopping */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantMessage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAssistantMessageFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantFeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantFeedback"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    clearAssistantMessageFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared (or there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAssistantProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The proposal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantProposal"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    confirmAssistantProposal: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AssistantProposalConfirm"];
+            };
+        };
+        responses: {
+            /** @description Performed; server-saved values */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantProposalResult"];
+                };
+            };
+            /** @description Validation failure of the edited values (the underlying endpoint's codes, with `field_errors` naming proposal fields), `IDEMPOTENCY_KEY_REQUIRED` or `INVALID_IDEMPOTENCY_KEY`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description `USER_ONLY` for a guest session, or the underlying policy's refusal (`HOST_ONLY`, `ROOM_SCOPE_VIOLATION`, …). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `PROPOSAL_NOT_PENDING`, `PROPOSAL_EXPIRED`, `IDEMPOTENT_REQUEST_IN_FLIGHT`, or a room-state conflict from the underlying use case (`ROOM_NOT_MATCHING`, …). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `IDEMPOTENCY_KEY_REUSED` — same key, different request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["AssistantDisabled"];
+        };
+    };
+    dismissAssistantProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The proposal after dismissal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantProposal"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AssistantUserOnly"];
+            404: components["responses"]["NotFound"];
         };
     };
     getAdministrativeVersion: {
@@ -11181,6 +13166,8 @@ export interface operations {
             /** @description Place aggregate with hours, verified prices, sources and freshness */
             200: {
                 headers: {
+                    /** @description Always `no-store` — the GoGo rating follows moderation on the next read. */
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -11210,6 +13197,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlaceReviewPreview"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getPlaceProviderPhotos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Zero to three provider photos with attribution, for this view only */
+            200: {
+                headers: {
+                    /** @description Always `private, no-store`. */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceProviderPhotos"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -11448,6 +13461,8 @@ export interface operations {
                         durationMinutes?: number;
                         /** @default false */
                         isLocked?: boolean;
+                        /** @description Omitted keeps the retained place's value; a new place starts required; `false` clears it (ADR-0029). */
+                        isOptional?: boolean;
                     }[];
                 };
             };
@@ -11525,6 +13540,7 @@ export interface operations {
                     "application/json": components["schemas"]["Plan"];
                 };
             };
+            409: components["responses"]["Conflict"];
         };
     };
     completePlanStop: {
@@ -11584,6 +13600,24 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            /** @description `ROOM_NOT_ACTIVE` — check-in happens during or after the date, not before it. Or `UPLOAD_NOT_RECEIVED` (#560) — an upload key is valid but no file has reached storage for it; nothing was written and the key is still usable: PUT the file to the upload URL, then retry. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UPLOAD_STORAGE_UNAVAILABLE` (#560) — storage did not answer whether the file arrived. Nothing was written; retryable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     submitPlaceImport: {
@@ -11794,6 +13828,192 @@ export interface operations {
                 content?: never;
             };
             429: components["responses"]["RateLimited"];
+        };
+    };
+    requestSecureExport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted; poll `GET /me/exports/{id}` or wait for the notification. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyExportStatus"];
+                };
+            };
+            /** @description `IDEMPOTENCY_KEY_REQUIRED` or `INVALID_IDEMPOTENCY_KEY`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description `USER_ONLY` — guests and staff have no export. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `EXPORT_ALREADY_ACTIVE` (active id in `field_errors[0].message`), `SUBJECT_CANNOT_SIGN_IN`, or `IDEMPOTENT_REQUEST_IN_FLIGHT`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `IDEMPOTENCY_KEY_REUSED` — same key, different request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description `EXPORT_UNAVAILABLE` — not configured in this environment (not retryable). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getSecureExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyExportStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description `USER_ONLY` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    downloadSecureExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The export document (same allowlist as `GET /me/export`). */
+            200: {
+                headers: {
+                    /** @description `attachment; filename="gogo-export-YYYY-MM-DD.json"` */
+                    "Content-Disposition"?: string;
+                    /** @description `no-store, private, max-age=0` */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description `UNAUTHORIZED`, `INVALID_TOKEN` or `SESSION_REVOKED`. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `USER_ONLY` or `CSRF_FAILED`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `EXPORT_NOT_READY` — still pending or generating. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `EXPORT_GONE` — already consumed, expired, revoked or failed. Request a new export. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description `EXPORT_INTEGRITY_FAILED` — not consumed; request a new export. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `STORAGE_UNAVAILABLE` / `EXPORT_BUSY` (retryable), `EXPORT_UNAVAILABLE` / `EXPORT_KEY_UNAVAILABLE` (not retryable). Nothing is consumed. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     listNotifications: {
@@ -12275,7 +14495,7 @@ export interface operations {
                     tabCityMapping?: {
                         [key: string]: string;
                     };
-                    /** @description Raw header → canonical field. Supported values are the ones listed by `ImportCanonicalField`; generate against that schema rather than sending free text. The property stays a plain string map because narrowing a `/v1` request to an enum is a breaking change (ADR-0005) — the constraint is enforced at runtime, not in the wire type. A header left out is auto-detected; a header mapped to `""` is ignored. No value here is rejected: three legacy spellings (`googleMapsUrl`, `priceMin`, `priceMax`) normalise, three retired values (`address`, `phone`, `website`) are accepted and skipped, and any other value leaves its column unmapped — reported in `unmappedHeaders` and counted as `place_import_unknown_mapping_total`, never auto-detected into some other field. A mapping that is not a JSON object of strings is a 400 `MAPPING_INVALID`. */
+                    /** @description Raw header → canonical field. Supported values are the ones listed by `ImportCanonicalField`; generate against that schema rather than sending free text. The property stays a plain string map because narrowing a `/v1` request to an enum is a breaking change (ADR-0005) — the constraint is enforced at runtime, not in the wire type. A header left out is auto-detected; a header mapped to `""` is ignored. No value here is rejected: three legacy spellings (`googleMapsUrl`, `priceMin`, `priceMax`) normalise, and any other value leaves its column unmapped — reported in `unmappedHeaders` and counted as `place_import_unknown_mapping_total`, never auto-detected into some other field. A mapping that is not a JSON object of strings is a 400 `MAPPING_INVALID`. */
                     mapping?: {
                         [key: string]: string;
                     };
@@ -12505,6 +14725,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description `CONTACT_EVIDENCE_REQUIRED` (GoGo-BE#280) — the row's stored address / phone / website do not pass today's evidence rules (a row parsed before #280, or with evidence the current guard refuses). Checked before any catalogue or provider lookup, so no provider request is spent. `field_errors` names each column, with the codes a fresh upload would give (`PHONE_EVIDENCE_REQUIRED` on `phone_source_type`, `ADDRESS_EVIDENCE_INVALID` on `address_source_reference`, `WEBSITE_INVALID` on `website`, …). The refusal is **persisted**: the row becomes `validation_failed` with those errors, the job counters are refreshed, and the row can never become `imported` from here — correct the sheet and upload it again. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     mergePlaceImportRow: {
@@ -12537,7 +14766,15 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description `CONTACT_EVIDENCE_REQUIRED` (GoGo-BE#280), besides `ROW_NOT_RESOLVED` — the row's stored address / phone / website do not pass today's evidence rules (a row parsed before #280, or with evidence the current guard refuses). Checked before any catalogue or provider lookup, so no provider request is spent. `field_errors` names each column, with the codes a fresh upload would give (`PHONE_EVIDENCE_REQUIRED` on `phone_source_type`, `ADDRESS_EVIDENCE_INVALID` on `address_source_reference`, `WEBSITE_INVALID` on `website`, …). The refusal is **persisted**: the row becomes `validation_failed` with those errors, the job counters are refreshed, and the row can never become `imported` from here — correct the sheet and upload it again. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     skipPlaceImportRow: {
@@ -12971,7 +15208,7 @@ export interface operations {
                 "application/json": {
                     /** @enum {string} */
                     channel: "push" | "email";
-                    kind: components["schemas"]["NotificationKind"];
+                    kind: components["schemas"]["NotificationPreferenceKind"];
                     enabled: boolean;
                 };
             };
@@ -13142,7 +15379,6 @@ export interface operations {
                     /** Format: email */
                     email: string;
                     password: string;
-                    totp?: string;
                 };
             };
         };
@@ -13156,7 +15392,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminSession"];
                 };
             };
-            /** @description Bad credentials or missing/invalid TOTP (`MFA_REQUIRED`) */
+            /** @description Bad credentials (`INVALID_CREDENTIALS`). (`ACCESS_ASSERTION_REQUIRED` existed in alpha.72 only.) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -13165,13 +15401,43 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description Production refuses accounts without MFA (`MFA_SETUP_REQUIRED`) */
+            /** @description The password door is turned off for this environment (`PASSWORD_LOGIN_DISABLED`, not retryable — ADR-0032), or the account is the `super_admin` and this environment lets it sign in through `cmsAccessExchange` only (`SUPER_ADMIN_SSO_ONLY`, not retryable — ADR-0034, added in alpha.70). Both are answered before the password is compared, so a correct and a wrong password get the same answer. Precedence: `429` (per-IP rate limit), then `PASSWORD_LOGIN_DISABLED`, then `429` (account lockout), then `SUPER_ADMIN_SSO_ONLY`, then the credential outcomes. `cmsAuthMethods` says in advance which doors are open. */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description alpha.72 only (`ACCESS_KEYS_UNAVAILABLE` while verifying an Access assertion). Not answered since alpha.73: the password door verifies no assertion. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cmsAuthMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The open doors. Not cached (`Cache-Control: no-store`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAuthMethods"];
                 };
             };
             429: components["responses"]["RateLimited"];
@@ -13207,7 +15473,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description The identity is genuine but has no active staff account (`ADMIN_ONLY`). Being on the Access allow-list does not make somebody staff. */
+            /** @description The identity is genuine but has no active staff account (`ADMIN_ONLY`). Being on the Access allow-list does not make somebody staff. Or a browser labelled the request as not same-origin (`Sec-Fetch-Site`), answered before any verification (`CROSS_SITE_REQUEST`, ADR-0032); callers that send no `Sec-Fetch-Site` are unaffected. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -13217,7 +15483,7 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
-            /** @description SSO is not configured for this environment (`ACCESS_SSO_NOT_CONFIGURED`, not retryable), or the identity provider's key set is unreachable (`ACCESS_KEYS_UNAVAILABLE`, retryable). Password + TOTP remains available in both cases. */
+            /** @description SSO is not configured for this environment (`ACCESS_SSO_NOT_CONFIGURED`, not retryable), or the identity provider's key set is unreachable (`ACCESS_KEYS_UNAVAILABLE`, retryable). Since alpha.73 the password door (`cmsLogin`) needs no Access assertion, so staff can still sign in with a password; so can the super admin unless `CMS_SUPER_ADMIN_SSO_ONLY=true` (always in staging and production), where SSO is its only door. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -13252,7 +15518,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminSession"];
                 };
             };
-            /** @description INVALID_REFRESH_TOKEN / SESSION_REVOKED / SESSION_EXPIRED */
+            /** @description INVALID_REFRESH_TOKEN / SESSION_REVOKED / SESSION_EXPIRED. `SESSION_REVOKED` also answers a session opened by password once the password door is closed; its whole family is revoked (ADR-0032), and a super admin password family once its switch is on (ADR-0034). (alpha.72's revocation of password families opened without an Access assertion is gone since alpha.73.) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -13296,74 +15562,6 @@ export interface operations {
                 };
             };
             403: components["responses"]["Forbidden"];
-        };
-    };
-    cmsSetupTotp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    password: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Secret + otpauth URI for the authenticator app */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Shown once. Not retrievable afterwards. */
-                        secret?: string;
-                        otpauthUri?: string;
-                        /** @description Always false here — enrollment is not active until confirmed. */
-                        confirmed?: boolean;
-                    };
-                };
-            };
-        };
-    };
-    cmsConfirmTotp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    code: string;
-                };
-            };
-        };
-        responses: {
-            /** @description MFA is now required for this account */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        confirmed: boolean;
-                    };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            /** @description No enrollment is pending */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
     cmsListAdmins: {
@@ -13637,17 +15835,39 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The account's own data */
-            201: {
+            /** @description Accepted for secure delivery — metadata only */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        /** Format: uuid */
+                        privacyRequestId: string;
+                        export: components["schemas"]["PrivacyExportAdminStatus"];
+                    };
                 };
             };
             404: components["responses"]["NotFound"];
+            /** @description `SUBJECT_CANNOT_SIGN_IN` or `EXPORT_ALREADY_ACTIVE`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             429: components["responses"]["RateLimited"];
+            /** @description `EXPORT_UNAVAILABLE` — secure export is not configured here. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     cmsListPrivacyRequests: {
@@ -13787,7 +16007,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Executed and closed as `completed` */
+            /** @description Delete executed and closed as `completed` */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -13795,8 +16015,18 @@ export interface operations {
                 content: {
                     "application/json": {
                         request: components["schemas"]["PrivacyRequest"];
-                        /** @description Present for an export — the same payload `/me/export` returns. */
-                        data?: Record<string, never>;
+                    };
+                };
+            };
+            /** @description Export accepted for secure delivery — metadata only */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        request: components["schemas"]["PrivacyRequest"];
+                        export: components["schemas"]["PrivacyExportAdminStatus"];
                     };
                 };
             };
@@ -13810,7 +16040,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description `ALREADY_CLOSED`, `NOT_EXECUTABLE` (correction), or `IDENTITY_NOT_MATCHED` — match the request to an account first. */
+            /** @description `ALREADY_CLOSED`, `NOT_EXECUTABLE` (correction), `IDENTITY_NOT_MATCHED` — match the request to an account first —, or for an export `SUBJECT_CANNOT_SIGN_IN` / `EXPORT_ALREADY_ACTIVE` / `ALREADY_DELIVERED` (a manual delivery is already recorded; a secure export is not issued over it). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -13820,6 +16050,15 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
+            /** @description `EXPORT_UNAVAILABLE` — an export request cannot be executed here: secure export is not configured in this environment (no wrapping key or no private bucket). Not retryable; the request is unchanged. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     cmsClosePrivacyRequest: {
@@ -13890,8 +16129,17 @@ export interface operations {
                     "application/json": components["schemas"]["PrivacyRequest"];
                 };
             };
+            /** @description `SECURE_DELIVERY_NOT_ASSERTABLE` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             404: components["responses"]["NotFound"];
-            /** @description `NOT_AN_EXPORT` */
+            /** @description `NOT_AN_EXPORT` or `DELIVERY_SERVER_OWNED` */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14186,7 +16434,10 @@ export interface operations {
     cmsCreatePlace: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Required on this route (GoGo-BE#440). Client-generated per create attempt and reused on every retry of it. */
+                "Idempotency-Key": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -14200,7 +16451,9 @@ export interface operations {
                     /** @description Enforced: -180..180. */
                     lng: number;
                     description?: string | null;
+                    /** @description GoGo-owned postal address (GoGo-BE#280). Rules and evidence: see `cmsUpdatePlace`. */
                     addressText?: string | null;
+                    provenance?: components["schemas"]["PlaceContactProvenanceInput"];
                     areaKey?: string | null;
                     /** @description ADR-0016 legacy free text, kept for rows that carry it and read by the resolver as one piece of evidence. It is **not** the administrative identity and selects no code — send `provinceCode`/`communeCode` for that. */
                     city?: string | null;
@@ -14226,35 +16479,57 @@ export interface operations {
                     /** @description The Google record this place is the GoGo copy of, from the preceding `cmsResolvePlaceLink`. Stored as a `place_sources` row — identity only, which is what puts the place inside provider dedup and makes a later refresh possible at all. ADR-0006 §9.3 permits storing the id indefinitely. */
                     googlePlaceId?: string;
                     /**
-                     * @description Which fields still hold the value the resolution filled in — the ones the editor looked at and left alone. Their provenance is recorded `google_derived` with `googlePlaceId` as the reference; everything else is `editorial`.
-                     *
-                     *     Only the client knows this. The server keeps no snapshot of the preview to diff against, deliberately (ADR-0006 §9.5 — no cross-request provider content), so an editor who retypes a name over Google's owns it and the console drops that field from the list.
-                     *
-                     *     The enum is short on purpose. `cmsResolvePlaceLink` also returns a rating and a review count, and neither may be applied: per GOGO_PRODUCT_DATA_ARCHITECTURE.md §2 canonical name/address/geo are GoGo-owned and persist, while Google rating/review/photo/hours are "No by default". The preview shows them so an editor can tell two branches of one chain apart, and nothing writes them.
-                     *
-                     *     Requires `googlePlaceId` when non-empty — provenance pointing at nothing is worse than no provenance.
+                     * @deprecated
+                     * @description Withdrawn by GoGo-BE#440. A value applied from a Google preview is not persistable as a GoGo fact, so any non-empty list is refused with `400 GOOGLE_CONTENT_NOT_PERSISTABLE`. Omit it, or send `[]`.
                      */
                     googleDerivedFields?: ("name" | "addressText" | "lat" | "lng")[];
+                    /**
+                     * @description GoGo-BE#440 — the independent evidence behind each canonical fact, keyed by API field name. Required for every supplied non-null fact: `name` and `geom` (covers `lat` + `lng`) always; `description`, `areaKey`, `city`, `district`, `provinceCode`, `communeCode` when sent non-null; `taxonomyIds` when the list is non-empty (one reference for the whole set). Omitting the object is the same as `{}`.
+                     *
+                     *     **Not `addressText`, `phone` or `website`** (alpha.66, GoGo-BE#280): their evidence is `provenance.<field>`, and a `sourceReferences` key for one of them is refused with `code: unknown`, the message naming `provenance.<field>`.
+                     *
+                     *     Every problem is `400 SOURCE_REFERENCE_INVALID` with one `field_errors` entry per key, `field = sourceReferences.<key>` and `code` one of `required` (supplied fact without a reference, or a blank one), `unused` (reference for a fact the body does not supply), `unknown` (not a key listed here), `too_long` (over 500 characters after trimming).
+                     *
+                     *     Values name non-Google evidence — a venue menu, a phone call, a field visit, the signage. A province, commune or category suggested from a Google-attached place is not evidence by itself: the console sends it only with the editor's own reference, or leaves the field out. Recorded as provenance, source type `editorial`, with the reference and the editor; never fetched by the server.
+                     *
+                     *     **Codes are assertions (F-07).** `provinceCode` / `communeCode` are submitted to the resolver; their reference becomes the field's current editorial provenance only if the resolver adopts the code as `trusted_code`. A conflicting assertion (NEEDS_REVIEW, codes left null) is kept in the audit history with its reference, not as field provenance. Codes derived from geometry carry the administrative mapping's own provenance (`administrative` method, dataset, boundary version) and no editorial row.
+                     */
+                    sourceReferences: {
+                        [key: string]: string;
+                    };
                 };
             };
         };
         responses: {
-            /** @description Created as draft; the body is the record the editor screen loads. */
+            /** @description Created as draft; the body is the record the editor screen loads. A replay carries `x-idempotent-replay: true` and the place's current record. */
             201: {
                 headers: {
+                    /** @description Present, `true`, when this answer replays an earlier create. */
+                    "x-idempotent-replay"?: "true";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["CmsPlaceDetail"];
                 };
             };
-            400: components["responses"]["BadRequest"];
+            /** @description `VALIDATION_FAILED` — a field outside its limits. `IDEMPOTENCY_KEY_REQUIRED` / `INVALID_IDEMPOTENCY_KEY` — the header is missing or malformed. `SOURCE_REFERENCE_INVALID` — a supplied fact without a reference, or a reference for a fact not supplied. `GOOGLE_CONTENT_NOT_PERSISTABLE` — a non-empty `googleDerivedFields`. `ADMINISTRATIVE_*` — see `cmsUpdatePlace`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
             /**
-             * @description `PLACE_DUPLICATE_SUSPECTED` — near-identical places already in the catalogue, listed in `field_errors`; `allowDuplicate: true` proceeds anyway.
+             * @description `PLACE_DUPLICATE_SUSPECTED` — near-identical places already in the catalogue. Each `field_errors` entry carries `candidate` (`placeId`, `name`, `status`, `distanceM`, `nameSimilarity`); `message` keeps its human form. `allowDuplicate: true` proceeds anyway.
              *
              *     `PLACE_ALREADY_LINKED` — the `googlePlaceId` already belongs to a GoGo place, whose id is the single `field_errors` message. The console opens that place rather than creating a second one.
              *
              *     `PLACE_IDENTITY_CONFLICT` — two places already claim that Google ID. Nothing may be added against it until an editor merges them; both ids are in `field_errors`.
+             *
+             *     `IDEMPOTENT_REQUEST_IN_FLIGHT` (`retryable: true`) — the first request with this key is still running, or this request lost its claim on the key while it ran and was rolled back; retry shortly. A key older than 24 hours is taken over as a new request, never answered as a reuse.
              */
             409: {
                 headers: {
@@ -14264,6 +16539,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description `IDEMPOTENCY_KEY_REUSED` — this key was already used with a different body. Generate a new key for a different create. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
         };
     };
     cmsResolvePlaceLink: {
@@ -14479,7 +16764,7 @@ export interface operations {
                     name?: string;
                     /** @description Enforced: at most 4000 characters. */
                     description?: string | null;
-                    /** @description Enforced: at most 400 characters. */
+                    /** @description GoGo-owned postal address (GoGo-BE#280). Enforced: trimmed, non-blank, at most 400 characters, plain text — control characters and angle brackets are refused; Unicode is kept as written. An address edit never moves the pin or changes the administrative codes. A non-null value needs `provenance.addressText`. */
                     addressText?: string | null;
                     /** @description Enforced: at most 64 characters. A key from `cmsListAreas` — the discovery area, not the postal address. Not validated against the catalog: rows predating it carry keys it does not list. */
                     areaKey?: string | null;
@@ -14503,10 +16788,11 @@ export interface operations {
                      *     A code is not an identity: 2,212 of the 3,321 current commune codes named a different unit before 2025-07-01, which is why every check here names the dataset version it was made against.
                      */
                     communeCode?: string | null;
-                    /** @description Normalized to E.164 on write (`0283 822 9999` → `+842838229999`). A bare subscriber number with neither a trunk `0` nor a country code is refused rather than assumed Vietnamese. */
+                    /** @description Normalized to E.164 on write (`0283 822 9999` → `+842838229999`). A bare subscriber number with neither a trunk `0` nor a country code is refused rather than assumed Vietnamese. Since GoGo-BE#280 the result must match `^\+[1-9][0-9]{7,14}$` (a country code never starts with 0), extensions and letters are refused, and a non-null value needs `provenance.phone`. A valid shape says nothing about whether the number answers. */
                     phone?: string | null;
-                    /** @description `http`/`https` only, host required. A bare host is upgraded to `https://`. Other schemes are refused — the value is rendered as an href in three clients. */
+                    /** @description `http`/`https` only, host required. A bare host is upgraded to `https://`. Other schemes are refused — the value is rendered as an href in three clients. Since GoGo-BE#280 the host must be a public DNS name — no credentials (`code: credentials`), IP literals, `localhost` or private suffixes — path, query and fragment are kept, and a non-null value needs `provenance.website`. GoGo never fetches the URL to check it. */
                     website?: string | null;
+                    provenance?: components["schemas"]["PlaceContactProvenanceInput"];
                     /** @description Enforced: -90..90. Moves the pin only together with `lng`. */
                     lat?: number;
                     /** @description Enforced: -180..180. Moves the pin only together with `lat`. */
@@ -14521,9 +16807,17 @@ export interface operations {
                     taxonomyIds?: string[];
                     /**
                      * Format: date-time
-                     * @description Optimistic concurrency: the `updatedAt` the form was loaded from. A mismatch is refused `409 PLACE_MODIFIED`, with the current value in `field_errors[0].message` so the client can show what it would have overwritten. Omitting it skips the check.
+                     * @description Optimistic concurrency: the `updatedAt` the form was loaded from. A mismatch is refused `409 PLACE_MODIFIED`, with the current value in `field_errors[0].message` so the client can show what it would have overwritten. The comparison is made under the row lock, so of two saves loaded from the same version exactly one commits. Omitting it skips the check — except for a request that writes or clears `addressText`, `phone` or `website` (GoGo-BE#280), which is refused `400 VALIDATION_FAILED` with `field: expectedUpdatedAt`, `code: required`.
                      */
                     expectedUpdatedAt?: string;
+                    /**
+                     * @description GoGo-BE#440 F-07 — independent evidence for each explicitly supplied **non-null** `provinceCode` / `communeCode` in this edit; omit references for codes that are absent, unchanged or `null`. Same rules as `cmsCreatePlace`: trimmed, 1..500 characters; problems are `400 SOURCE_REFERENCE_INVALID`, one `field_errors` entry per key (`sourceReferences.<key>`, `code` `required | unused | unknown | too_long`). Only these two keys are accepted on an edit; `sourceReferences.addressText`, `.phone` or `.website` is `unknown` — contact evidence goes in `provenance` (GoGo-BE#280).
+                     *
+                     *     A submitted code is an **assertion to the resolver**. It becomes the field's current editorial claim (this editor, this reference) only when the resolver adopts it as `trusted_code` — including a re-assertion of the same pair, which refreshes the evidence. A code the resolver rejects, a mapping it may not change (VERIFIED → stays or goes STALE, REJECTED), or a NEEDS_REVIEW that keeps the old codes leaves the stored codes' provenance as it was. Every assertion and its disposition is kept in the audit history.
+                     */
+                    sourceReferences?: {
+                        [key: string]: string;
+                    };
                 };
             };
         };
@@ -14535,7 +16829,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            400: components["responses"]["BadRequest"];
+            /** @description `VALIDATION_FAILED`; `SOURCE_REFERENCE_INVALID` (see `sourceReferences`); `ADMINISTRATIVE_*`, `PROVINCE_NOT_CURRENT`, `COMMUNE_NOT_CURRENT`, `HIERARCHY_INVALID` (see `provinceCode`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -14658,7 +16960,24 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description The key is already on this place (`PLACE_MEDIA_EXISTS`), or `UPLOAD_NOT_RECEIVED` (#560): the key is valid but no file has reached storage for it. Nothing was written and the key stays usable: PUT the file, then retry. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UPLOAD_STORAGE_UNAVAILABLE` (#560) — storage did not answer whether the file arrived. Nothing was written; retryable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     cmsListAttachableMedia: {
@@ -15717,12 +18036,23 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A banner with that name exists (`BANNER_NAME_TAKEN`) */
+            /** @description A banner with that name exists (`BANNER_NAME_TAKEN`), or no file has reached storage for the image key yet (`UPLOAD_NOT_RECEIVED`, #560). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UPLOAD_STORAGE_UNAVAILABLE` (#560) — storage did not answer whether the file arrived. Nothing was written; retryable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
             };
         };
     };
@@ -15775,6 +18105,24 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            /** @description A banner with that name exists (`BANNER_NAME_TAKEN`), or `UPLOAD_NOT_RECEIVED` (#560) — the image key is valid but no file has reached storage for it; nothing was written and the key is still usable: PUT the file to the upload URL, then retry. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UPLOAD_STORAGE_UNAVAILABLE` (#560) — storage did not answer whether the file arrived. Nothing was written; retryable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     cmsSetBannerStatus: {
@@ -15880,15 +18228,26 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A campaign with that name exists (`CAMPAIGN_NAME_TAKEN`) */
+            /** @description A campaign with that name exists (`CAMPAIGN_NAME_TAKEN`), or no file has reached storage for the image key yet (`UPLOAD_NOT_RECEIVED`, #560). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
             };
             /** @description `INVALID_DESTINATION` with `field_errors[0].field = destinationType` — `recommendation`, `plan_template` and `external_url` are not accepted for new campaigns until the app can open them (GoGo-BE#604). They stay in `CampaignDestination` so campaigns that already hold one remain readable. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UPLOAD_STORAGE_UNAVAILABLE` (#560) — storage did not answer whether the file arrived. Nothing was written; retryable. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15947,7 +18306,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
-            /** @description Not in an editable state (`CAMPAIGN_NOT_EDITABLE`), or already delivered to at least one recipient and the patch changes a field that reaches a phone (`CAMPAIGN_ALREADY_DELIVERED`). */
+            /** @description Not in an editable state (`CAMPAIGN_NOT_EDITABLE`), already delivered to at least one recipient and the patch changes a field that reaches a phone (`CAMPAIGN_ALREADY_DELIVERED`), a campaign with that name exists (`CAMPAIGN_NAME_TAKEN`), or no file has reached storage for the image key yet (`UPLOAD_NOT_RECEIVED`, #560). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15958,6 +18317,15 @@ export interface operations {
             };
             /** @description `INVALID_DESTINATION` with `field_errors[0].field = destinationType` — the patch changes the destination to `recommendation`, `plan_template` or `external_url`, which the app cannot open yet (GoGo-BE#604). A campaign that already holds one can still be edited in every other field, re-saved with the same destination, or moved to an openable one. Changing `destinationType` takes its `destinationValue` from the patch only; the previous value is not carried over. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UPLOAD_STORAGE_UNAVAILABLE` (#560) — storage did not answer whether the file arrived. Nothing was written; retryable. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16186,6 +18554,8 @@ export interface operations {
                 "application/json": {
                     role?: components["schemas"]["AdminAssignableRole"];
                     displayName?: string;
+                    /** Format: email */
+                    email?: string;
                     /** @description Recorded in the audit log. Mandatory on every staff-account mutation. */
                     reason: string;
                 };
@@ -16218,6 +18588,10 @@ export interface operations {
              *     `SUPER_ADMIN_SINGLETON` — nor can `role` be set to `super_admin`: an environment holds at most one before it is bootstrapped and exactly one after, and that account is bootstrapped rather than promoted. The request schema (`AdminAssignableRole`) refuses the value with a 400 first; this is the service's own refusal behind it.
              *
              *     Neither freezes the account's credentials. It rotates its password through `POST /cms/auth/change-password` like every other account.
+             *
+             *     `ADMIN_EMAIL_TAKEN` — another staff account already uses that address (case-insensitive).
+             *
+             *     `SUPER_ADMIN_EMAIL_FROM_SSM` (GoGo-BE#687, alpha.71) — the super admin's address cannot be changed here: it comes from SSM `cms/super-admin-email` and the deploy applies it. Staff addresses change as before.
              */
             409: {
                 headers: {
@@ -16329,7 +18703,53 @@ export interface operations {
                     };
                 };
             };
+            /** @description `SUPER_ADMIN_SSO_ONLY` (GoGo-BE#687, alpha.71) — the target is the super admin and `superAdminSsoOnly` is on: it signs in through Cloudflare Access and has no password to reset. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    cmsConfirmSuperAdminSso: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Confirmed (now or earlier) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        confirmed: true;
+                        /** Format: email */
+                        email: string;
+                        alreadyConfirmed: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description `ACCESS_SESSION_REQUIRED` — the calling session was opened by password, not through Access. `ROLE_DENIED` / `ADMIN_ONLY` — the caller is not the super admin. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             429: components["responses"]["RateLimited"];
         };
     };
@@ -16371,6 +18791,15 @@ export interface operations {
             };
             /** @description `INVALID_CREDENTIALS` — current password is incorrect. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `SUPER_ADMIN_SSO_ONLY` (GoGo-BE#687, alpha.71) — the caller is the super admin and `superAdminSsoOnly` is on: it has no password. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16864,6 +19293,312 @@ export interface operations {
                 content?: never;
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    cmsListAssistantDocuments: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["AssistantDocumentStatus"];
+                locale?: "vi" | "en";
+                /** @description Substring of slug or title. */
+                q?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of documents */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocumentPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    cmsCreateAssistantDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CmsAssistantDocumentCreate"];
+            };
+        };
+        responses: {
+            /** @description Created as a draft */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocument"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description `DOCUMENT_SLUG_TAKEN` — a document with that slug and locale exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cmsGetAssistantDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocumentDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cmsUpdateAssistantDocumentDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CmsAssistantDocumentDraftPatch"];
+            };
+        };
+        responses: {
+            /** @description The document with the updated draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocumentDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `REVISION_CONFLICT` — the draft changed since `baseRevision`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cmsPublishAssistantDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    versionId: string;
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocumentDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description No such document, or `VERSION_NOT_FOUND` — the version is not one of this document's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `VERSION_ALREADY_PUBLISHED`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cmsUnpublishAssistantDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Unpublished */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocumentDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `DOCUMENT_NOT_PUBLISHED`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cmsListAssistantDocumentVersions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocumentVersionPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cmsGetAssistantDocumentVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantDocumentVersion"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cmsListAssistantFeedback: {
+        parameters: {
+            query?: {
+                rating?: "up" | "down";
+                reason?: components["schemas"]["AssistantFeedbackReason"];
+                from?: string;
+                to?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feedback, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantFeedbackPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     cmsListFeatureFlags: {
