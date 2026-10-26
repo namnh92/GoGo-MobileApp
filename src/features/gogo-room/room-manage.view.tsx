@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Pressable, ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -17,6 +17,7 @@ import {
 } from '@/shared/api'
 import { formatMoney } from '@/shared/pricing/money'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { useDialog } from '@/shared/ui/dialog.view'
 import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -42,6 +43,7 @@ export default function RoomManageScreen() {
 
   const [budgetAmount, setBudgetAmount] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const { confirm, dialog } = useDialog()
 
   const summary = room.data
   const capabilities = roomCapabilities(summary)
@@ -109,31 +111,30 @@ export default function RoomManageScreen() {
     }
   }
 
-  function confirmRemove(memberId: string, name: string) {
-    Alert.alert(t('roomManage.removeTitle', { name }), t('roomManage.removeBody'), [
-      { text: t('account.deleteCancel'), style: 'cancel' },
-      {
-        text: t('roomManage.removeConfirm'),
-        style: 'destructive',
-        onPress: () => removeMember.mutate(memberId),
-      },
-    ])
+  async function confirmRemove(memberId: string, name: string) {
+    const choice = await confirm({
+      title: t('roomManage.removeTitle', { name }),
+      message: t('roomManage.removeBody'),
+      actions: [
+        { key: 'cancel', label: t('account.deleteCancel'), style: 'cancel' },
+        { key: 'remove', label: t('roomManage.removeConfirm'), style: 'destructive' },
+      ],
+    })
+    if (choice === 'remove') removeMember.mutate(memberId)
   }
 
-  function confirmCancel() {
+  async function confirmCancel() {
     // `cancelled` is terminal in the room state machine — there is no undo.
-    Alert.alert(t('roomManage.cancelTitle'), t('roomManage.cancelBody'), [
-      { text: t('account.deleteCancel'), style: 'cancel' },
-      {
-        text: t('roomManage.cancelRoom'),
-        style: 'destructive',
-        onPress: () =>
-          transitionRoom.mutate(
-            { status: 'cancelled' },
-            { onSuccess: () => router.replace('/(tabs)/plans') },
-          ),
-      },
-    ])
+    const choice = await confirm({
+      title: t('roomManage.cancelTitle'),
+      message: t('roomManage.cancelBody'),
+      actions: [
+        { key: 'keep', label: t('account.deleteCancel'), style: 'cancel' },
+        { key: 'cancel-room', label: t('roomManage.cancelRoom'), style: 'destructive' },
+      ],
+    })
+    if (choice !== 'cancel-room') return
+    transitionRoom.mutate({ status: 'cancelled' }, { onSuccess: () => router.replace('/(tabs)/plans') })
   }
 
   const members = summary.members ?? []
@@ -200,7 +201,7 @@ export default function RoomManageScreen() {
               {/* The host cannot remove themselves; the server rejects it too. */}
               {member.role !== 'host' ? (
                 <Pressable
-                  onPress={() => confirmRemove(member.id, member.displayName)}
+                  onPress={() => void confirmRemove(member.id, member.displayName)}
                   accessibilityRole="button"
                   accessibilityLabel={t('roomManage.removeConfirm')}
                   style={styles.rowAction}
@@ -267,7 +268,7 @@ export default function RoomManageScreen() {
         </Card>
 
         <Pressable
-          onPress={confirmCancel}
+          onPress={() => void confirmCancel()}
           disabled={transitionRoom.isPending}
           accessibilityRole="button"
           style={styles.cancelBtn}
@@ -283,6 +284,7 @@ export default function RoomManageScreen() {
           </Text>
         ) : null}
       </ScrollView>
+      {dialog}
     </Atmosphere>
   )
 }

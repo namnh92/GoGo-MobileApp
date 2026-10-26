@@ -12,13 +12,14 @@ import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives
 import { Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
-import { confirmReplaceGuest, GuestReplaceNotice } from './guest-replace-notice.view'
+import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { styles } from './join-by-code.style'
 
 const MAX_NAME = 50
 
 export default function JoinByCodeScreen() {
   const { t } = useTranslation()
+  const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { status, guestRoomId, joinAsGuest } = useSession()
@@ -70,7 +71,7 @@ export default function JoinByCodeScreen() {
           router.replace(`/room/${result.roomId}`)
         }
       } else {
-        if (holdsGuestRoom && !(await confirmReplaceGuest(t))) return
+        if (holdsGuestRoom && !(await confirmReplaceGuest())) return
         const session = await joinAsGuest({ inviteCode: trimmedCode, displayName: trimmedName })
         track('gogo_partner_joined', { role: 'guest' })
         if (session.roomId) router.replace(`/room/${session.roomId}/preference`)
@@ -152,6 +153,7 @@ export default function JoinByCodeScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {dialog}
     </Atmosphere>
   )
 }

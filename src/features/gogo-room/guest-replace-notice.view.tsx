@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router'
-import type { TFunction } from 'i18next'
+import { useCallback, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, View } from 'react-native'
+import { View } from 'react-native'
+
+import { useDialog } from '@/shared/ui/dialog.view'
 
 import { GhostBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
@@ -27,17 +29,24 @@ export function GuestReplaceNotice({ guestRoomId }: { guestRoomId: string | null
   )
 }
 
-/** Resolves true only on an explicit "replace and join"; a dismissal keeps the session. */
-export function confirmReplaceGuest(t: TFunction): Promise<boolean> {
-  return new Promise(resolve => {
-    Alert.alert(
-      t('guestReplace.confirmTitle'),
-      t('guestReplace.confirmBody'),
-      [
-        { text: t('guestReplace.cancel'), style: 'cancel', onPress: () => resolve(false) },
-        { text: t('guestReplace.confirm'), style: 'destructive', onPress: () => resolve(true) },
+/**
+ * `confirmReplaceGuest()` resolves true only on an explicit "replace and join";
+ * a dismissal keeps the session. Render `dialog` in the screen (#381: the
+ * in-app Dialog, not `Alert.alert`).
+ */
+export function useConfirmReplaceGuest(): { confirmReplaceGuest: () => Promise<boolean>; dialog: ReactElement | null } {
+  const { t } = useTranslation()
+  const { confirm, dialog } = useDialog()
+  const confirmReplaceGuest = useCallback(async () => {
+    const choice = await confirm({
+      title: t('guestReplace.confirmTitle'),
+      message: t('guestReplace.confirmBody'),
+      actions: [
+        { key: 'keep', label: t('guestReplace.cancel'), style: 'cancel' },
+        { key: 'replace', label: t('guestReplace.confirm'), style: 'destructive' },
       ],
-      { cancelable: true, onDismiss: () => resolve(false) },
-    )
-  })
+    })
+    return choice === 'replace'
+  }, [confirm, t])
+  return { confirmReplaceGuest, dialog }
 }
