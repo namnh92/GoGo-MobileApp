@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, fill, glassFx, overlay, radius, spacing, type } from '@/shared/ui/tokens'
+import { colors, glassFx, radius, spacing, type } from '@/shared/ui/tokens'
 
 const { neutral } = colors
 
@@ -12,17 +12,8 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[5],
     marginBottom: spacing[3],
   },
-  input: {
-    ...type.bodySmall,
-    flex: 1,
-    height: 48,
-    borderRadius: radius.compact,
-    backgroundColor: glassFx.chip,
-    borderWidth: 1,
-    borderColor: neutral[100],
-    paddingHorizontal: spacing[4],
-    color: neutral[900],
-  },
+  /** Layout only — the look is `SearchField`'s (#381). */
+  input: { flex: 1, height: 48 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], paddingHorizontal: spacing[5], paddingBottom: spacing[2] },
   filterToggle: {
     width: 48,
@@ -74,23 +65,6 @@ export const styles = StyleSheet.create(theme => ({
   },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   priceInput: { flex: 1 },
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...fill, backgroundColor: overlay.backdrop },
-  sheet: {
-    backgroundColor: glassFx.sheet,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[5],
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: neutral[100],
-    alignSelf: 'center',
-    marginBottom: spacing[4],
-  },
   sheetTitle: { marginBottom: spacing[2] },
   sheetSection: { marginTop: spacing[3], marginBottom: spacing[2] },
   sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },

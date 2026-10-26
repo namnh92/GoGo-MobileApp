@@ -2,13 +2,13 @@ import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ActivityIndicator, Pressable, TextInput, View } from 'react-native'
 
 import { useUploadImage, type PlanStopRow } from '@/shared/api'
 import { PrimaryBtn } from '@/shared/ui/primitives'
+import { Sheet } from '@/shared/ui/sheet.view'
 import { Glyph, Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { colors } from '@/shared/ui/tokens'
 
 import { CHECKIN_TAGS } from './checkin-tags'
 import { styles } from './checkin-sheet.style'
@@ -47,8 +47,6 @@ interface CheckinSheetProps {
 
 export function CheckinSheet({ visible, stop, placeName, pending, error, onSave, onSkip }: CheckinSheetProps) {
   const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
-
   // Prefill the happy path — the user can change everything.
   const [rating, setRating] = useState(5)
   const [tags, setTags] = useState<string[]>([CHECKIN_TAGS[0].key])
@@ -121,136 +119,124 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={skip}>
-      <View style={styles.modalRoot}>
-        <Pressable style={styles.backdrop} onPress={skip} />
-        <View style={[styles.sheet, { maxHeight: '85%' }]}>
-          <View style={styles.handle} />
-          <ScrollView
-            bounces={false}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + spacing[5] }}
-          >
-            <View style={styles.headerRow}>
-              <Glyph size="md">📍</Glyph>
-              <View style={{ flex: 1 }}>
-                <Text variant="title2">{t('checkin.title')}</Text>
-                <Text variant="bodySmall" color="text.secondary" style={styles.stopName} numberOfLines={1}>
-                  {placeName}
-                </Text>
-              </View>
-            </View>
-
-            <Text variant="label" style={styles.rateLabel}>{t('checkin.rate')}</Text>
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map(value => (
-                <Pressable
-                  key={value}
-                  onPress={() => setRating(value)}
-                  accessibilityLabel={t('review.starAria', { count: value })}
-                >
-                  <Glyph size="md" style={[value > rating && styles.starDim]}>⭐</Glyph>
-                </Pressable>
-              ))}
-            </View>
-
-            <View style={styles.tagRow}>
-              {CHECKIN_TAGS.map(tag => {
-                const active = tags.includes(tag.key)
-                return (
-                  <Pressable
-                    key={tag.key}
-                    onPress={() => toggleTag(tag.key)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    style={[styles.tagBtn, active && styles.tagBtnActive]}
-                  >
-                    <Text variant="label" color={active ? 'text.inverse' : 'text.secondary'}>
-                      {tag.emoji} {t(`checkin.tag.${tag.key}`)}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
-
-            <TextInput
-              value={note}
-              onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
-              placeholder={t('checkin.notePlaceholder')}
-              placeholderTextColor={colors.neutral[500]}
-              multiline
-              style={styles.input}
-            />
-
-            {/*
-              Photos upload the moment they are picked and travel as storage
-              keys. The verified bill (FR-PLAN-008) is still absent: `billTotal`
-              is rejected without `billPhotoKey`, and that flow needs its own
-              amount/people form rather than riding on the photo picker.
-            */}
-            <View style={styles.photoRow}>
-              {photos.map((photo, index) => (
-                <Pressable
-                  key={photo.uri}
-                  onPress={() => removePhoto(index)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('checkin.removePhoto')}
-                >
-                  <Image source={{ uri: photo.uri }} style={styles.photoThumb} contentFit="cover" />
-                  {photo.key === null && !photo.failed ? (
-                    <View style={styles.photoOverlay}>
-                      <ActivityIndicator color={colors.neutral[0]} />
-                    </View>
-                  ) : null}
-                  {photo.failed ? (
-                    <View style={styles.photoOverlay}>
-                      <Text variant="title1" color="text.inverse">!</Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              ))}
-              {photos.length < MAX_PHOTOS ? (
-                <Pressable
-                  onPress={addPhoto}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('checkin.addPhoto')}
-                  style={styles.photoAdd}
-                >
-                  <Glyph size="sm" color="text.secondary">+</Glyph>
-                </Pressable>
-              ) : null}
-              <Text variant="caption" color="text.secondary">{t('checkin.photoCount', { n: photos.length })}</Text>
-            </View>
-            {photos.some(p => p.failed) ? (
-              <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite" style={styles.unavailableNote}>
-                {t('checkin.photoFailed')}
-              </Text>
-            ) : null}
-
-            {error ? (
-              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.saveFailed}>
-                {error}
-              </Text>
-            ) : null}
-            <PrimaryBtn
-              label={pending ? t('checkin.saving') : t('checkin.save')}
-              onPress={save}
-              loading={pending}
-              style={styles.saveBtn}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: Boolean(pending) }}
-              disabled={pending}
-              onPress={skip}
-              style={[styles.skipBtn, pending && styles.skipBtnDisabled]}
-            >
-              <Text variant="bodySmall" color="text.secondary">{t('checkin.skip')}</Text>
-            </Pressable>
-          </ScrollView>
+    <Sheet visible={visible} onClose={skip}>
+      <View style={styles.headerRow}>
+        <Glyph size="md">📍</Glyph>
+        <View style={{ flex: 1 }}>
+          <Text variant="title2">{t('checkin.title')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.stopName} numberOfLines={1}>
+            {placeName}
+          </Text>
         </View>
       </View>
-    </Modal>
+
+      <Text variant="label" style={styles.rateLabel}>{t('checkin.rate')}</Text>
+      <View style={styles.starsRow}>
+        {[1, 2, 3, 4, 5].map(value => (
+          <Pressable
+            key={value}
+            onPress={() => setRating(value)}
+            accessibilityLabel={t('review.starAria', { count: value })}
+          >
+            <Glyph size="md" style={[value > rating && styles.starDim]}>⭐</Glyph>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.tagRow}>
+        {CHECKIN_TAGS.map(tag => {
+          const active = tags.includes(tag.key)
+          return (
+            <Pressable
+              key={tag.key}
+              onPress={() => toggleTag(tag.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={[styles.tagBtn, active && styles.tagBtnActive]}
+            >
+              <Text variant="label" color={active ? 'text.inverse' : 'text.secondary'}>
+                {tag.emoji} {t(`checkin.tag.${tag.key}`)}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </View>
+
+      <TextInput
+        value={note}
+        onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
+        accessibilityLabel={t('checkin.noteLabel')}
+        placeholder={t('checkin.notePlaceholder')}
+        placeholderTextColor={colors.neutral[500]}
+        multiline
+        style={styles.input}
+      />
+
+      {/*
+        Photos upload the moment they are picked and travel as storage
+        keys. The verified bill (FR-PLAN-008) is still absent: `billTotal`
+        is rejected without `billPhotoKey`, and that flow needs its own
+        amount/people form rather than riding on the photo picker.
+      */}
+      <View style={styles.photoRow}>
+        {photos.map((photo, index) => (
+          <Pressable
+            key={photo.uri}
+            onPress={() => removePhoto(index)}
+            accessibilityRole="button"
+            accessibilityLabel={t('checkin.removePhoto')}
+          >
+            <Image source={{ uri: photo.uri }} style={styles.photoThumb} contentFit="cover" />
+            {photo.key === null && !photo.failed ? (
+              <View style={styles.photoOverlay}>
+                <ActivityIndicator color={colors.neutral[0]} />
+              </View>
+            ) : null}
+            {photo.failed ? (
+              <View style={styles.photoOverlay}>
+                <Text variant="title1" color="text.inverse">!</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        ))}
+        {photos.length < MAX_PHOTOS ? (
+          <Pressable
+            onPress={addPhoto}
+            accessibilityRole="button"
+            accessibilityLabel={t('checkin.addPhoto')}
+            style={styles.photoAdd}
+          >
+            <Glyph size="sm" color="text.secondary">+</Glyph>
+          </Pressable>
+        ) : null}
+        <Text variant="caption" color="text.secondary">{t('checkin.photoCount', { n: photos.length })}</Text>
+      </View>
+      {photos.some(p => p.failed) ? (
+        <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite" style={styles.unavailableNote}>
+          {t('checkin.photoFailed')}
+        </Text>
+      ) : null}
+
+      {error ? (
+        <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.saveFailed}>
+          {error}
+        </Text>
+      ) : null}
+      <PrimaryBtn
+        label={pending ? t('checkin.saving') : t('checkin.save')}
+        onPress={save}
+        loading={pending}
+        style={styles.saveBtn}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: Boolean(pending) }}
+        disabled={pending}
+        onPress={skip}
+        style={[styles.skipBtn, pending && styles.skipBtnDisabled]}
+      >
+        <Text variant="bodySmall" color="text.secondary">{t('checkin.skip')}</Text>
+      </Pressable>
+    </Sheet>
   )
 }

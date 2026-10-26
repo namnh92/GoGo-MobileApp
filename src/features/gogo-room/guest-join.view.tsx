@@ -14,7 +14,7 @@ import { Glyph, Text } from '@/shared/ui/text'
 import { colors, spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
-import { confirmReplaceGuest, GuestReplaceNotice } from './guest-replace-notice.view'
+import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 const { neutral } = colors
@@ -32,6 +32,7 @@ const MAX_DISPLAY_NAME = 50
  */
 export default function GuestJoinScreen() {
   const { t } = useTranslation()
+  const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
   const navigation = useNavigation()
   const insets = useSafeAreaInsets()
@@ -105,7 +106,7 @@ export default function GuestJoinScreen() {
         return
       }
 
-      if (holdsGuestRoom && !(await confirmReplaceGuest(t))) return
+      if (holdsGuestRoom && !(await confirmReplaceGuest())) return
       // Issues a room-scoped guest session and persists it to the Keychain —
       // no account, and the token reaches no other room.
       const session = await joinAsGuest({ inviteCode, displayName: trimmedName })
@@ -226,6 +227,7 @@ export default function GuestJoinScreen() {
           {asUser ? null : <Text variant="bodySmall" color="text.secondary" style={styles.noAccount}>{t('guestJoin.noAccount')}</Text>}
         </View>
       </ScrollView>
+      {dialog}
     </Atmosphere>
   )
 }

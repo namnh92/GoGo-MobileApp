@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlatList, Modal, Pressable, TextInput, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { FlatList, Pressable, View } from 'react-native'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, LoadingState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { BackHeader, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { SearchField } from '@/shared/ui/search-field.view'
+import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
 import { useAdministrativeUnits, useAdministrativeVersion } from './queries'
 import { foldName, type AdministrativeSelection, type AdministrativeUnit } from './snapshot'
@@ -15,7 +16,6 @@ export function AdministrativePicker({ value, onChange }: {
   onChange: (value: AdministrativeSelection | null) => void
 }) {
   const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
   const version = useAdministrativeVersion()
   const datasetVersion = version.data?.datasetVersion
   const [level, setLevel] = useState<'province' | 'commune' | null>(null)
@@ -49,10 +49,10 @@ export function AdministrativePicker({ value, onChange }: {
       <Text variant="label">{t('administrative.commune')}</Text>
       <SecondaryBtn label={value?.communeName ?? t('administrative.wholeProvince')} disabled={!value || changed} onPress={() => open('commune')} />
       {value ? <GhostBtn label={t('administrative.clear')} onPress={() => onChange(null)} /> : null}
-      <Modal visible={level !== null} animationType="slide" onRequestClose={() => setLevel(null)}>
-        <View style={[styles.modal, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <Sheet visible={level !== null} onClose={() => setLevel(null)} size="full" scroll={false}>
+        <View style={styles.sheetBody}>
           <BackHeader title={t(level === 'commune' ? 'administrative.commune' : 'administrative.province')} onBack={() => setLevel(null)} />
-          <TextInput style={styles.input} value={search} onChangeText={setSearch} accessibilityLabel={t('administrative.search')} placeholder={t('administrative.search')} />
+          <SearchField value={search} onChangeText={setSearch} accessibilityLabel={t('administrative.search')} placeholder={t('administrative.search')} />
           <StaleNotice error={units.error} hasData={false} onRetry={() => { void version.refetch(); void units.refetch() }} />
           {level === 'commune' && value ? <GhostBtn label={t('administrative.wholeProvince')} onPress={() => { onChange({ ...value, communeCode: null, communeName: null }); setLevel(null) }} /> : null}
           {units.isPending ? (unitsWaiting ? <OfflineState /> : <LoadingState />) : !units.data ? <ErrorState error={units.error} onRetry={() => { void version.refetch(); void units.refetch() }} /> : (
@@ -61,7 +61,7 @@ export function AdministrativePicker({ value, onChange }: {
               renderItem={({ item }) => <Pressable style={styles.row} accessibilityRole="button" onPress={() => select(item)}><Text>{item.fullName}</Text></Pressable>} />
           )}
         </View>
-      </Modal>
+      </Sheet>
     </View>
   )
 }

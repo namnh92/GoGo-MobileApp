@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, fill, glassFx, overlay, radius, spacing } from '@/shared/ui/tokens'
+import { colors, radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   scroll: { flex: 1 },
@@ -23,23 +23,6 @@ export const styles = StyleSheet.create(theme => ({
   },
   timeBoxRequired: { borderWidth: 1, borderColor: theme.accent.primary },
   requiredHint: { marginTop: spacing[2] },
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...fill, backgroundColor: overlay.backdrop },
-  sheet: {
-    backgroundColor: glassFx.sheet,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[5],
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.neutral[100],
-    alignSelf: 'center',
-    marginBottom: spacing[4],
-  },
   sheetTitle: { marginBottom: spacing[3] },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   slotBtn: {
