@@ -77,7 +77,8 @@ it('rename: the menu, a sheet with the name, Save once it changed', async () => 
   await act(async () => {
     await fireEvent.press(view.getByRole('button', { name: 'Đổi tên' }))
   })
-  const input = view.getByTestId('assistant-rename-input')
+  // The sheet opens once the menu has gone (acceptance BUG3).
+  const input = await waitFor(() => view.getByTestId('assistant-rename-input'))
   expect(input.props.value).toBe('Kế hoạch nhóm bạn')
   expect(view.getByRole('button', { name: 'Lưu' })).toBeDisabled()
   await act(async () => {
@@ -102,7 +103,7 @@ it('delete asks first, naming the conversation, and removes it', async () => {
   await act(async () => {
     await fireEvent.press(view.getByRole('button', { name: 'Xoá' }))
   })
-  expect(view.getByText('Xoá cuộc trò chuyện này?')).toBeTruthy()
+  await waitFor(() => expect(view.getByText('Xoá cuộc trò chuyện này?')).toBeTruthy())
   expect(view.getByText('“Mã mời không dùng được” sẽ bị xoá khỏi lịch sử. Không thể hoàn tác.')).toBeTruthy()
   expect(callsTo(backend, 'deleteConversation')).toHaveLength(0)
   await act(async () => {
@@ -129,6 +130,44 @@ it('opening a conversation shows its thread; New chat goes back to Welcome', asy
   expect(view.getByTestId('assistant-welcome')).toBeTruthy()
   await settle()
 })
+
+it('previews are plain text: no `**` or `[n]` drawn or read aloud (acceptance minor item)', async () => {
+  const mock = createMockAssistantBackend({ speed: 0, actor: () => 'user' })
+  const backend = spyOn({
+    ...mock,
+    listConversations: async query => {
+      const page = await mock.listConversations(query)
+      return {
+        ...page,
+        items: page.items.map((item, index) =>
+          index === 0 ? { ...item, preview: 'Chọn **Tổng nhóm** để chia đều.[1]\n- Mỗi người góp như nhau [2]' } : item,
+        ),
+      }
+    },
+  })
+  setAssistantBackend(backend)
+  const view = await renderAssistant(<AssistantRoute />)
+  await settle()
+  await openHistory(view)
+  await waitFor(() => expect(view.getByText('Chọn Tổng nhóm để chia đều. Mỗi người góp như nhau')).toBeTruthy())
+  expect(view.getByText('Chọn Tổng nhóm để chia đều. Mỗi người góp như nhau')).toBeTruthy()
+  const rows = view.getAllByRole('button').filter(node => typeof node.props.accessibilityLabel === 'string')
+  for (const row of rows) {
+    expect(row.props.accessibilityLabel).not.toMatch(/\*\*|\[\d+\]/)
+  }
+  await settle()
+})
+
+it('the header keeps its title: New chat is "Mới" on screen, the full name for VoiceOver', async () => {
+  installBackend()
+  const view = await renderAssistant(<AssistantRoute />)
+  await openHistory(view)
+  const button = view.getByTestId('assistant-history-new-chat')
+  expect(button.props.accessibilityLabel).toBe('Cuộc trò chuyện mới')
+  expect(within(button).getByText('Mới')).toBeTruthy()
+  await settle()
+})
+
 
 it('a stored reply that was cut short shows the same notice and Retry when the conversation is reopened', async () => {
   const mock = createMockAssistantBackend({ speed: 0, actor: () => 'user' })

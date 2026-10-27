@@ -23,7 +23,7 @@ jest.mock('@/shared/api/queries/use-online-status', () => ({ useOnlineStatus: ()
 
 import AssistantRoute from '@/app/assistant'
 
-import { callsTo, installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications } from './assistant-harness'
+import { callsTo, installBackend, renderAssistant, resetAssistantSpecState, settle, settleIdle, syncTanstackNotifications } from './assistant-harness'
 
 syncTanstackNotifications()
 
@@ -90,7 +90,7 @@ it('opened about a place: the chip, starter questions, and the place id travels 
   expect(body).toMatchObject({ text: 'Có hợp ngân sách của mình không?', context: { placeId: '1b2c3d4e-0000-4000-8000-000000000001' } })
   expect(callsTo(backend, 'createConversation')[0]![0]).toEqual({ context: { placeId: '1b2c3d4e-0000-4000-8000-000000000001' } })
   await waitFor(() => expect(view.getByTestId('assistant-sources')).toBeTruthy())
-  await settle()
+  await settleIdle()
 })
 
 it('a question tapped on the place card is sent once, with the place attached', async () => {

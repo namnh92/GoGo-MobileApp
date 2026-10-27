@@ -70,3 +70,23 @@ export async function settle(ms = 60) {
     await new Promise(resolve => setTimeout(resolve, ms))
   })
 }
+
+/**
+ * `settle()` waits a fixed 60ms, which a loaded CI runner can outlast: the
+ * scripted reply's last frames, or the status refetch it triggers, then land
+ * after the test and React reports an update outside act (#389 CI, twice).
+ * This waits for the thing itself — no query or mutation in flight and no
+ * reply being written (the composer's Stop button gone) — then one settle more.
+ */
+export async function settleIdle(maxRounds = 100) {
+  for (let round = 0; round < maxRounds; round += 1) {
+    await settle()
+    const busy = client.isFetching() + client.isMutating()
+    const writing = screen.queryByRole('button', { name: 'Dừng' })
+    if (busy === 0 && !writing) {
+      await settle()
+      return
+    }
+  }
+  throw new Error('the assistant never went idle')
+}

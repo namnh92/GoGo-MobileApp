@@ -27,6 +27,8 @@ export const viMessages = {
   'common.permissionDenied': 'Bạn không có quyền thực hiện thao tác này.',
 
   'auth.signInTitle': 'Đăng nhập\nđể tạo phòng',
+  // Reached from GoGo AI (`next=assistant`): the person came for the assistant, not a room.
+  'auth.signInTitleAssistant': 'Đăng nhập\nđể dùng GoGo AI',
   'auth.signInBody': 'Chỉ chủ phòng cần tài khoản. Bạn bè tham gia bằng link, không cần đăng ký.',
   'auth.signUpTitle': 'Tạo tài khoản\nGoGo',
   'auth.signUpBody': 'Để lưu phòng, kế hoạch và địa điểm bạn thích.',
@@ -951,6 +953,8 @@ export const viMessages = {
   'assistant.status.offline': 'Ngoại tuyến',
   'assistant.history.open': 'Lịch sử trò chuyện',
   'assistant.newChat': 'Cuộc trò chuyện mới',
+  // History's header button on a narrow phone; its accessibility label stays the full 'assistant.newChat'.
+  'assistant.history.newChatShort': 'Mới',
   'assistant.welcome.body': 'Hỏi về địa điểm, kế hoạch và phòng, hoặc cách mọi thứ trong GoGo hoạt động.',
   'assistant.welcome.contextTitle': 'Bạn muốn biết gì về {{name}}?',
   'assistant.welcome.contextBody': 'Mình có thể dùng thông tin của địa điểm này. Bỏ nó ở dưới để hỏi chuyện khác.',

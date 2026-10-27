@@ -40,14 +40,14 @@ jest.mock('@/shared/api/queries/use-online-status', () => ({ useOnlineStatus: ()
 import AssistantRoute from '@/app/assistant'
 import { useAssistantIntroStore, takeChatSavedToast } from '@/shared/store/assistantIntroStore'
 
-import { installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications } from './assistant-harness'
+import { installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications, settleIdle } from './assistant-harness'
 
 syncTanstackNotifications()
 
 async function open() {
   const view = await renderAssistant(<AssistantRoute />)
   // The availability check answers right away; let it land inside act.
-  await settle()
+  await settleIdle()
   return view
 }
 
