@@ -27,6 +27,8 @@ export const viMessages = {
   'common.permissionDenied': 'Bạn không có quyền thực hiện thao tác này.',
 
   'auth.signInTitle': 'Đăng nhập\nđể tạo phòng',
+  // Reached from GoGo AI (`next=assistant`): the person came for the assistant, not a room.
+  'auth.signInTitleAssistant': 'Đăng nhập\nđể dùng GoGo AI',
   'auth.signInBody': 'Chỉ chủ phòng cần tài khoản. Bạn bè tham gia bằng link, không cần đăng ký.',
   'auth.signUpTitle': 'Tạo tài khoản\nGoGo',
   'auth.signUpBody': 'Để lưu phòng, kế hoạch và địa điểm bạn thích.',

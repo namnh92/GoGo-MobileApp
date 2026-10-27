@@ -187,7 +187,7 @@ export default function SignInScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <Text variant="display" style={styles.title}>{t(mode === 'signIn' ? 'auth.signInTitle' : 'auth.signUpTitle')}</Text>
+          <Text variant="display" style={styles.title}>{t(mode === 'signUp' ? 'auth.signUpTitle' : next === 'assistant' ? 'auth.signInTitleAssistant' : 'auth.signInTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
 
           <View style={styles.tabs}>

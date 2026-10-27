@@ -35,6 +35,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'common.permissionDenied': 'You do not have permission to do that.',
 
   'auth.signInTitle': 'Sign in\nto create a room',
+  // Reached from GoGo AI (`next=assistant`): the person came for the assistant, not a room.
+  'auth.signInTitleAssistant': 'Sign in\nto use GoGo AI',
   'auth.signInBody': 'Only the host needs an account. Friends join by link, no sign-up.',
   'auth.signUpTitle': 'Create your\nGoGo account',
   'auth.signUpBody': 'So your rooms, plans and saved places stick around.',
