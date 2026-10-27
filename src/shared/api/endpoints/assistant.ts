@@ -2,7 +2,7 @@ import { api } from '../client'
 import type { OpBody, OpQuery, OpResponse } from '../types'
 
 /**
- * GoGo AI (`/v1/assistant/*`, GoGo-BE#713 contract 2.0.0-alpha.2). Thin
+ * GoGo AI (`/v1/assistant/*`, GoGo-BE#713 contract 2.0.0-alpha.3). Thin
  * wrappers over the generated operations; every signature derives from the
  * vendored spec, so a contract change fails the typecheck here.
  *

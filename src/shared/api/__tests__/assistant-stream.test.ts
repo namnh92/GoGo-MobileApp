@@ -7,6 +7,7 @@ import {
   createHttpAssistantStreamOpener,
   decodeAssistantFrame,
   followAssistantReply,
+  isTerminalEvent,
   type OpenAssistantStreamOptions,
 } from '../realtime/assistant-stream'
 import { parseSseChunk, type SseConnectOptions } from '../realtime/sse-connection'
@@ -97,6 +98,31 @@ describe('folding events into the message', () => {
       error: { code: 'ASSISTANT_DISABLED', message: 'off', field_errors: [], request_id: 'r', retryable: false },
     })
     expect(failed).toMatchObject({ status: 'failed', text: 'To vote, open ', error: { code: 'ASSISTANT_DISABLED' } })
+  })
+
+  it('done{truncated} (2.0.0-alpha.3): decoded, the partial text and sources kept, unfinished cards / proposals / follow-ups dropped', () => {
+    const [done] = parseSseChunk(frame('done', { type: 'done', seq: 5, messageId: MESSAGE, status: 'truncated' }, '5')).events
+    const decoded = decodeAssistantFrame(done!)
+    expect(decoded).toEqual({ type: 'done', seq: 5, messageId: MESSAGE, status: 'truncated' })
+    const events: AssistantStreamEvent[] = [
+      { type: 'delta', seq: 1, messageId: MESSAGE, text: 'Two cafés are open late:' },
+      { type: 'sources', seq: 2, messageId: MESSAGE, sources: [{ index: 1, kind: 'place_data', title: 'B' }] },
+      { type: 'card', seq: 3, messageId: MESSAGE, card: { kind: 'place', placeId: 'p1', available: true, facts: { name: 'Nhà Lá' } } },
+      {
+        type: 'proposal',
+        seq: 4,
+        messageId: MESSAGE,
+        proposal: { id: 'x', kind: 'create_room', status: 'pending', values: [], createdAt: at(), expiresAt: at() },
+      },
+      { type: 'follow_ups', seq: 5, messageId: MESSAGE, groups: [{ field: 'next', label: 'Ask next', options: [] }] },
+      decoded!,
+    ]
+    const folded = events.reduce((current, event) => applyAssistantEvent(current, event, at), message())
+    expect(folded).toMatchObject({ status: 'truncated', text: 'Two cafés are open late:', sources: [{ title: 'B' }], completedAt: at() })
+    expect(folded.cards).toEqual([])
+    expect(folded.proposals).toEqual([])
+    expect(folded.followUps).toEqual([])
+    expect(isTerminalEvent(decoded!)).toBe(true)
   })
 
   it('a step changes nothing stored', () => {

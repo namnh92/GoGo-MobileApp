@@ -4,7 +4,7 @@ import type { AssistantStreamEvent } from '@/shared/api/types'
  * Scripted GoGo AI replies for the dev-only mock backend (GoGo-MobileApp#378).
  * Sample data, like the design system's: place names, prices and guide titles
  * are illustrative, never real listings. Each scenario is what the contract
- * (GoGo-BE#713, 2.0.0-alpha.2) would send for one kind of question, so every
+ * (GoGo-BE#713, 2.0.0-alpha.3) would send for one kind of question, so every
  * state of the screens can be reached by typing.
  *
  * Triggers (case- and accent-insensitive, Vietnamese or English):
@@ -19,6 +19,7 @@ import type { AssistantStreamEvent } from '@/shared/api/types'
  * | `trả lời chậm` / `slow`        | no text in time: `notice fallback` + `done fallback`            |
  * | `trả lời dài` / `long`         | a long, slow reply to try Stop (keeps the partial text)          |
  * | `bị lỗi` / `broken`            | the reply fails mid-way (`error` frame, partial text kept)      |
+ * | `bị cắt` / `cut short`         | the hard ceiling: partial text, unfinished card dropped, `done truncated` |
  * | `rot mang` / `drop`            | the stream drops and resumes from Last-Event-ID                 |
  * | `mất mạng` / `network`         | the send fails once (Not sent → Retry with the same key)         |
  * | `gioi han` / `limit`           | 429 ASSISTANT_DAILY_LIMIT, status turns `limit_reached`         |
@@ -39,6 +40,7 @@ export type ScenarioName =
   | 'fallback'
   | 'long'
   | 'broken'
+  | 'truncated'
   | 'drop'
   | 'network'
   | 'limit'
@@ -81,6 +83,8 @@ const TRIGGERS: [ScenarioName, RegExp][] = [
   ['disabled', /\b(tat tro ly|disabled)\b/],
   ['limit', /\b(gioi han|limit)\b/],
   ['busy', /\b(nhieu qua|busy)\b/],
+  // Before "cà phê", so a cut-short café answer is read as cut short.
+  ['truncated', /\b(bi cat|cut short)\b/],
   ['proposal', /(tao ke hoach|make a plan|create a plan)/],
   ['places', /(ca phe|cafe|coffee)/],
   ['missing', /\b(an toi|dinner)\b/],
@@ -142,6 +146,7 @@ const COPY = {
       'Với **Tổng nhóm**, cả nhóm dùng chung một con số và GoGo chia đều khi gợi ý địa điểm. ' +
       'Khi bạn đổi số người trong phòng, cách tính theo người sẽ tự cập nhật tổng, còn tổng nhóm giữ nguyên.',
     broken: 'Để bình chọn, bạn mở kế hoạch và ',
+    truncated: 'Mình tìm được vài quán cà phê mở khuya quanh Quận 3. Quán gần nhất là Nhà Lá, mở tới 23 giờ, còn quán thứ hai',
     drop: 'Mã mời dùng được trong 7 ngày. Hết hạn thì chủ phòng tạo mã mới trong phần Mời.[1]',
   },
   en: {
@@ -175,6 +180,7 @@ const COPY = {
       'With **Group total**, the whole group shares one number and GoGo splits it when it suggests places. ' +
       'If the number of people changes, per person updates the total, and a group total stays as it is.',
     broken: 'To vote, open the plan and ',
+    truncated: 'I found a few cafés open late around District 3. The closest is Nhà Lá, open until 11 pm, and the second',
     drop: 'An invite code lasts 7 days. After that the host creates a new one under Invite.[1]',
   },
 } as const
@@ -375,6 +381,17 @@ export function script(name: ScenarioName, locale: Locale, now: Date, proposalId
               },
             },
           },
+        ],
+      }
+    case 'truncated':
+      // The server's hard ceiling (length or time, 2.0.0-alpha.3): the text so
+      // far is kept, the card still being written is discarded, no follow-ups.
+      return {
+        steps: [
+          { wait: 250, event: { type: 'step', step: 'searching_places' } },
+          ...deltas(copy.truncated),
+          { wait: 200, event: { type: 'card', card: nhaLaCard() } },
+          { wait: 50, event: { type: 'done', status: 'truncated' } },
         ],
       }
     case 'drop':

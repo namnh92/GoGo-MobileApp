@@ -234,3 +234,31 @@ it('a dropped stream resumes from the last frame and the reply arrives whole', a
   // No frame was applied twice.
   expect(view.getAllByText(/Mã mời dùng được trong 7 ngày/)).toHaveLength(1)
 })
+
+it('a reply cut short (done{truncated}): the partial text stays, unfinished cards go, "cut short" is a polite status, and Retry is a new send', async () => {
+  const polite = jest.spyOn(AccessibilityInfo, 'announceForAccessibilityWithOptions')
+  const alert = jest.spyOn(AccessibilityInfo, 'announceForAccessibility')
+  const backend = installBackend({ seed: false })
+  const view = await renderAssistant(<AssistantRoute />)
+  await ask(view, 'Quán cà phê gần đây, câu này bị cắt')
+  await replyEnded(view)
+  expect(view.getByText(/Mình tìm được vài quán cà phê mở khuya/)).toBeTruthy()
+  expect(view.getByText('Câu trả lời bị cắt ngắn')).toBeTruthy()
+  // The card that had not finished is discarded, never half-shown; follow-ups too.
+  expect(view.queryByText('Nhà Lá Café')).toBeNull()
+  expect(view.queryByRole('button', { name: /^Hỏi tiếp/ })).toBeNull()
+  expect(polite).toHaveBeenCalledWith(expect.stringMatching(/^Câu trả lời bị cắt ngắn\. GoGo AI trả lời: Mình tìm được/), { queue: true })
+  expect(alert).not.toHaveBeenCalledWith(expect.stringContaining('bị cắt ngắn'))
+  await act(async () => {
+    await fireEvent.press(view.getByRole('button', { name: 'Thử lại' }))
+  })
+  await waitFor(() => expect(callsTo(backend, 'sendMessage')).toHaveLength(2))
+  const sends = callsTo(backend, 'sendMessage') as [string, { text: string }, string][]
+  // The same question, as a new send: a fresh Idempotency-Key, the same conversation.
+  expect(sends[1]![1].text).toBe('Quán cà phê gần đây, câu này bị cắt')
+  expect(sends[1]![2]).not.toBe(sends[0]![2])
+  expect(sends[1]![0]).toBe(sends[0]![0])
+  polite.mockRestore()
+  alert.mockRestore()
+  await settle()
+})

@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next'
 
-import { isApiError, isOffline } from '@/shared/api'
+import { isApiError, isOffline, type AssistantStatus } from '@/shared/api'
 
 import { formatClock } from './format'
 
@@ -19,7 +19,12 @@ export function isUserOnly(error: unknown): boolean {
   return isApiError(error) && error.status === 403 && error.code === 'USER_ONLY'
 }
 
-export function sendErrorCopy(error: unknown, t: TFunction): SendErrorCopy {
+/**
+ * `status` is the latest `GET /assistant/status`: the limits are configurable
+ * per environment, so any number shown comes from there, never from the app
+ * (2.0.0-alpha.3). Without it the copy names no number.
+ */
+export function sendErrorCopy(error: unknown, t: TFunction, status?: Pick<AssistantStatus, 'messagesPerMinuteLimit'>): SendErrorCopy {
   if (isOffline(error)) return { title: t('assistant.error.network.title'), body: t('assistant.error.network.body'), retry: true }
   if (isApiError(error)) {
     if (error.code === 'ASSISTANT_DAILY_LIMIT') {
@@ -30,7 +35,14 @@ export function sendErrorCopy(error: unknown, t: TFunction): SendErrorCopy {
         retry: false,
       }
     }
-    if (error.status === 429) return { title: t('assistant.error.busy.title'), body: t('assistant.error.busy.body'), retry: true }
+    if (error.status === 429) {
+      const perMinute = status?.messagesPerMinuteLimit
+      const body =
+        typeof perMinute === 'number' && perMinute > 0
+          ? t('assistant.error.busy.bodyLimit', { count: perMinute })
+          : t('assistant.error.busy.body')
+      return { title: t('assistant.error.busy.title'), body, retry: true }
+    }
     if (error.status === 503 || error.code === 'ASSISTANT_DISABLED') {
       return { title: t('assistant.notice.disabled.title'), body: t('assistant.notice.disabled.body'), retry: true }
     }

@@ -39,7 +39,8 @@ export interface ReplyActions {
 /**
  * One assistant turn, in the design's order: the live step, the answer
  * (lead → list), cards (results, confirmation, task summary), a state notice,
- * sources, and — under the latest reply only — follow-ups.
+ * sources, and — under the latest reply only — follow-ups. A reply cut short
+ * by the server's ceiling (`truncated`) says so, with Retry on the latest.
  */
 export function AssistantReply({
   message,
@@ -113,6 +114,22 @@ export function AssistantReply({
           actions={
             previousQuestion && latest && message.error?.code !== 'ASSISTANT_DISABLED'
               ? [{ label: t('assistant.notice.fallback.askAgain'), onPress: () => actions.onSend(previousQuestion), disabled: sendDisabled }]
+              : []
+          }
+        />
+      ) : null}
+      {message.status === 'truncated' ? (
+        // The server's hard ceiling (2.0.0-alpha.3): no automatic continuation,
+        // only this explicit Retry — the same question as a new send. Read in
+        // order and announced politely by the thread, never as an alert.
+        <StateNotice
+          kind="info"
+          testID={`assistant-truncated-${message.id}`}
+          title={t('assistant.message.truncated.title')}
+          body={t('assistant.message.truncated.body')}
+          actions={
+            previousQuestion && latest
+              ? [{ label: t('assistant.retry'), onPress: () => actions.onSend(previousQuestion), disabled: sendDisabled }]
               : []
           }
         />
