@@ -38,6 +38,7 @@ beforeEach(() => {
   mockOnline.value = true
   mockSession.value = { status: 'user', session: { kind: 'user', userId: 'u1' } }
   mockRouter.push.mockReset()
+  mockRouter.replace.mockReset()
 })
 
 type View = Awaited<ReturnType<typeof renderAssistant>>
@@ -153,7 +154,9 @@ it('a guest is asked to sign in and no assistant call is made', async () => {
   await act(async () => {
     await fireEvent.press(view.getByRole('button', { name: 'Đăng nhập' }))
   })
-  expect(mockRouter.push).toHaveBeenCalledWith('/auth/sign-in')
+  // The sheet is replaced by sign-in, which comes back here (acceptance BUG1).
+  expect(mockRouter.replace).toHaveBeenCalledWith('/auth/sign-in?next=assistant')
+  expect(mockRouter.push).not.toHaveBeenCalled()
   expect(backend.calls).toEqual([])
 })
 

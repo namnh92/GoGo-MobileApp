@@ -89,3 +89,26 @@ beforeEach(() => {
     writable: true,
   })
 })
+
+// React Native's own Modal mock never calls `onDismiss`. On iOS the native
+// modal reports its dismissal through it, and `Sheet.onClosed` — what opens
+// the next modal after one has gone (iOS acceptance BUG3, #378) — is built on
+// it. This one renders like RN's (children only while visible) and calls
+// `onDismiss` once a shown modal is hidden, as iOS does.
+jest.mock('react-native/Libraries/Modal/Modal', () => {
+  const React = require('react')
+  // React Native's own mock: a host `Modal` that keeps its props, which specs read.
+  const RNModal = jest.requireActual('react-native/jest/mocks/Modal').default
+  function Modal(props) {
+    const shown = React.useRef(props.visible !== false)
+    const onDismiss = React.useRef(props.onDismiss)
+    onDismiss.current = props.onDismiss
+    React.useEffect(() => {
+      const visible = props.visible !== false
+      if (shown.current && !visible) onDismiss.current?.()
+      shown.current = visible
+    }, [props.visible])
+    return React.createElement(RNModal, props)
+  }
+  return { __esModule: true, default: Modal }
+})

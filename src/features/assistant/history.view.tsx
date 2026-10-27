@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, SectionList, TextInput, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -18,6 +18,7 @@ import { Text } from '@/shared/ui/text'
 import { useToast } from '@/shared/ui/toast.view'
 
 import { AssistantHeader } from './assistant-header.view'
+import { plainAnswer } from './answer-text'
 import { formatClock, formatShortDate } from './format'
 import { groupConversations, type HistoryGroupKey } from './history-groups'
 import { HistoryItem } from './history-item.view'
@@ -59,6 +60,23 @@ export function History({
   const rename = useRenameAssistantConversation()
   const remove = useDeleteAssistantConversation()
   const [menuFor, setMenuFor] = useState<AssistantConversation | null>(null)
+  /**
+   * What the menu's choice opens once the menu sheet has gone (acceptance
+   * BUG3): the rename sheet or the delete dialog is another RN `Modal`, and
+   * iOS refuses one asked for while the menu is still up — nothing shows and
+   * every later tap is swallowed. So a row press only records the choice and
+   * closes the menu; the menu's `onClosed` opens the next one.
+   */
+  const afterMenu = useRef<(() => void) | null>(null)
+  const chooseFromMenu = (next: () => void) => {
+    afterMenu.current = next
+    setMenuFor(null)
+  }
+  const menuClosed = () => {
+    const next = afterMenu.current
+    afterMenu.current = null
+    next?.()
+  }
   const [renaming, setRenaming] = useState<AssistantConversation | null>(null)
   const [name, setName] = useState('')
 
@@ -108,7 +126,9 @@ export function History({
       style={({ pressed }) => [styles.newChat, pressed && styles.newChatPressed]}
     >
       <Icon name="newChat" size={16} color="accent.onAccent" />
-      <Text variant="label" color="accent.onAccent">{t('assistant.newChat')}</Text>
+      {/* "Mới" beside the pencil: the full "Cuộc trò chuyện mới" left the
+          header title "Cuộc trò c…" on an iPhone SE. VoiceOver reads the full label. */}
+      <Text variant="label" color="accent.onAccent" numberOfLines={1}>{t('assistant.history.newChatShort')}</Text>
     </Pressable>
   )
 
@@ -163,7 +183,9 @@ export function History({
         renderItem={({ item, section }) => (
           <HistoryItem
             title={titleOf(item)}
-            preview={item.match?.snippet ?? item.preview}
+            // Previews are raw answer text: `**bold**` and `[1]` would be drawn
+            // and read aloud as typed.
+            preview={previewText(item.match?.snippet ?? item.preview)}
             time={section.key === 'earlier' ? formatShortDate(item.lastMessageAt, i18n.language) : formatClock(item.lastMessageAt)}
             active={item.id === activeId}
             query={searching ? query : ''}
@@ -188,7 +210,15 @@ export function History({
       </View>
       {body}
 
-      <Sheet visible={menuFor !== null} onClose={() => setMenuFor(null)} testID="assistant-history-menu">
+      <Sheet
+        visible={menuFor !== null}
+        onClose={() => {
+          afterMenu.current = null
+          setMenuFor(null)
+        }}
+        onClosed={menuClosed}
+        testID="assistant-history-menu"
+      >
         {menuFor ? (
           <View style={styles.menu}>
             <Text variant="title2" numberOfLines={1}>{titleOf(menuFor)}</Text>
@@ -197,9 +227,10 @@ export function History({
               label={t('assistant.history.rename')}
               onPress={() => {
                 const target = menuFor
-                setMenuFor(null)
-                setName(titleOf(target))
-                setRenaming(target)
+                chooseFromMenu(() => {
+                  setName(titleOf(target))
+                  setRenaming(target)
+                })
               }}
             />
             <MenuRow
@@ -208,8 +239,7 @@ export function History({
               label={t('assistant.history.delete')}
               onPress={() => {
                 const target = menuFor
-                setMenuFor(null)
-                void askDelete(target)
+                chooseFromMenu(() => void askDelete(target))
               }}
             />
           </View>
@@ -231,6 +261,11 @@ export function History({
       {dialog}
     </View>
   )
+}
+
+function previewText(text: string | null | undefined): string | undefined {
+  if (!text) return undefined
+  return plainAnswer(text.replace(/^\s*(?:[-*•]|\d+[.)])\s+/gm, '')) || undefined
 }
 
 function MenuRow({ icon, label, onPress, danger = false }: { icon: 'newChat' | 'trash'; label: string; onPress: () => void; danger?: boolean }) {

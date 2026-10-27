@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 
@@ -18,10 +19,17 @@ export function Welcome({
   placeName,
   onAsk,
   disabled,
+  notice,
 }: {
   placeName: string | null
   onAsk: (text: string) => void
   disabled: boolean
+  /**
+   * Why sending is off (daily limit, unavailable). Part of the scrolling
+   * content, above the starting points it explains — drawn under the scroll
+   * view it squeezed the 2 × 2 grid and covered the cards (acceptance BUG4).
+   */
+  notice?: ReactNode
 }) {
   const { t } = useTranslation()
   if (placeName) {
@@ -34,6 +42,7 @@ export function Welcome({
       <ScrollView testID="assistant-welcome" contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text variant="title1" accessibilityRole="header">{t('assistant.welcome.contextTitle', { name: placeName })}</Text>
         <Text variant="body" color="text.secondary">{t('assistant.welcome.contextBody')}</Text>
+        {notice ? <View testID="assistant-welcome-notice">{notice}</View> : null}
         <FollowUps
           label={t('assistant.welcome.tryAsking')}
           items={questions.map(question => ({ label: question, text: question }))}
@@ -54,6 +63,7 @@ export function Welcome({
       <AssistantAvatar size="lg" />
       <Text variant="display" accessibilityRole="header">{t('assistant.greeting')}</Text>
       <Text variant="body" color="text.secondary">{t('assistant.welcome.body')}</Text>
+      {notice ? <View testID="assistant-welcome-notice">{notice}</View> : null}
       <View style={styles.grid}>
         <View style={styles.gridRow}>
           {cards.slice(0, 2).map(card => (

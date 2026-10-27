@@ -951,6 +951,8 @@ export const viMessages = {
   'assistant.status.offline': 'Ngoại tuyến',
   'assistant.history.open': 'Lịch sử trò chuyện',
   'assistant.newChat': 'Cuộc trò chuyện mới',
+  // History's header button on a narrow phone; its accessibility label stays the full 'assistant.newChat'.
+  'assistant.history.newChatShort': 'Mới',
   'assistant.welcome.body': 'Hỏi về địa điểm, kế hoạch và phòng, hoặc cách mọi thứ trong GoGo hoạt động.',
   'assistant.welcome.contextTitle': 'Bạn muốn biết gì về {{name}}?',
   'assistant.welcome.contextBody': 'Mình có thể dùng thông tin của địa điểm này. Bỏ nó ở dưới để hỏi chuyện khác.',

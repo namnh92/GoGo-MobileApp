@@ -954,6 +954,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'assistant.status.offline': 'Offline',
   'assistant.history.open': 'Conversation history',
   'assistant.newChat': 'New chat',
+  // History's header button on a narrow phone; its accessibility label stays the full 'assistant.newChat'.
+  'assistant.history.newChatShort': 'New chat',
   'assistant.welcome.body': 'Ask about places, plans and rooms, or how anything in GoGo works.',
   'assistant.welcome.contextTitle': 'What would you like to know about {{name}}?',
   'assistant.welcome.contextBody': 'I can use this place’s details. Remove it below to ask about anything else.',

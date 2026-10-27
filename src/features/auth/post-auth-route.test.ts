@@ -6,6 +6,7 @@ describe('postAuthRoute', () => {
   it('keeps the existing destinations', () => {
     expect(postAuthRoute('create')).toBe('/create/mood')
     expect(postAuthRoute('saved')).toBe('/(tabs)/saved')
+    expect(postAuthRoute('assistant')).toBe('/assistant')
     expect(postAuthRoute(undefined)).toBe('/(tabs)')
   })
 

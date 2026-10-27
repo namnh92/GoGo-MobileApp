@@ -61,6 +61,7 @@ interface LiveReply {
  * `nhieu qua` / `busy` answers its 429.
  */
 const DAILY_LIMIT = 30
+const VIETNAM_OFFSET_MS = 7 * 3600_000
 const PER_MINUTE_LIMIT = 5
 
 export function createMockAssistantBackend(options: MockAssistantOptions = {}): AssistantBackend {
@@ -106,11 +107,15 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
     return found
   }
 
+  // Contract 2.0.0-alpha.3: the day resets at midnight Asia/Ho_Chi_Minh
+  // (UTC+7, no daylight saving), whatever the device's own zone is.
   const resetsAt = () => {
-    const tomorrow = new Date(now())
-    tomorrow.setHours(24, 0, 0, 0)
-    return tomorrow.toISOString()
+    const vietnam = new Date(now().getTime() + VIETNAM_OFFSET_MS)
+    vietnam.setUTCHours(24, 0, 0, 0)
+    return new Date(vietnam.getTime() - VIETNAM_OFFSET_MS).toISOString()
   }
+  // …and the daily 429's `Retry-After` points at that reset, not an arbitrary hour.
+  const secondsToReset = () => String(Math.max(1, Math.ceil((Date.parse(resetsAt()) - now().getTime()) / 1000)))
 
   if (options.seed !== false) {
     for (const row of seedHistory(options.locale ?? 'vi')) {
@@ -288,7 +293,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
         if (scenario === 'limit' || state === 'limit_reached' || remaining <= 0) {
           state = 'limit_reached'
           remaining = 0
-          throw refuse(429, 'ASSISTANT_DAILY_LIMIT', 'Daily limit reached', '3600')
+          throw refuse(429, 'ASSISTANT_DAILY_LIMIT', 'Daily limit reached', secondsToReset())
         }
         if (row.messages.some(message => message.status === 'streaming')) {
           throw refuse(409, 'ASSISTANT_TURN_IN_PROGRESS', 'A reply is still streaming')

@@ -400,7 +400,7 @@ export function script(name: ScenarioName, locale: Locale, now: Date, proposalId
         steps: [
           { wait: 250, event: { type: 'step', step: 'reading_guide' } },
           ...deltas(copy.drop, 120),
-          { wait: 100, event: { type: 'sources', sources: [guideSources(locale)[1]!] } },
+          { wait: 100, event: { type: 'sources', sources: [{ ...guideSources(locale)[1]!, index: 1 }] } },
           { wait: 50, event: { type: 'done', status: 'complete' } },
         ],
       }

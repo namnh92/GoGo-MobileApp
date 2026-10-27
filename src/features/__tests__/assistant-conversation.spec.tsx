@@ -218,6 +218,8 @@ it('a reply that fails part-way keeps the partial text and says so as an alert',
   expect(view.getByText('Câu trả lời bị dừng giữa chừng')).toBeTruthy()
   expect(announce).toHaveBeenCalledWith(expect.stringContaining('Câu trả lời bị dừng giữa chừng'))
   announce.mockRestore()
+  // The status refetch a finished reply triggers lands inside act (it flaked under a loaded full run).
+  await settle()
 })
 
 it('a dropped stream resumes from the last frame and the reply arrives whole', async () => {

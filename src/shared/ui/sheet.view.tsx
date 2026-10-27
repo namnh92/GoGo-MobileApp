@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Keyboard,
@@ -38,6 +38,17 @@ export interface SheetProps {
    */
   scroll?: boolean
   testID?: string
+  /**
+   * The sheet has fully left the screen: its exit slide is over and the
+   * native modal is dismissed. **Open the next modal from here**, never in
+   * the handler that closes this one (iOS acceptance BUG3, #378). iOS presents
+   * one modal per presenter: a second RN `Modal` asked to appear while this
+   * one is still up (or sliding out) is refused by UIKit, never shows, and
+   * leaves an invisible window that swallows every touch until the app is
+   * killed. iOS reports it through `Modal.onDismiss`; elsewhere the modal is
+   * gone once it unmounts.
+   */
+  onClosed?: () => void
 }
 
 /** Space kept between a focused field and the top of the keyboard. */
@@ -60,7 +71,7 @@ const FOCUS_MARGIN = spacing[4]
  * - Screen readers: the backdrop is a button named "Đóng", and the escape
  *   gesture closes the sheet.
  */
-export function Sheet({ visible, onClose, children, size = 'content', maxHeight = '85%', scroll = true, testID }: SheetProps) {
+export function Sheet({ visible, onClose, onClosed, children, size = 'content', maxHeight = '85%', scroll = true, testID }: SheetProps) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
@@ -96,6 +107,19 @@ export function Sheet({ visible, onClose, children, size = 'content', maxHeight 
     // `progress` is a stable shared value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, exiting, reduced])
+
+  // `onClosed` (see the prop): iOS says so through `Modal.onDismiss`; Android
+  // and web have no such event, and their modal is gone once it unmounts.
+  const closedRef = useRef(onClosed)
+  useEffect(() => {
+    closedRef.current = onClosed
+  }, [onClosed])
+  const wasMounted = useRef(mounted)
+  useEffect(() => {
+    if (wasMounted.current && !mounted && Platform.OS !== 'ios') closedRef.current?.()
+    wasMounted.current = mounted
+  }, [mounted])
+  const dismissed = useCallback(() => closedRef.current?.(), [])
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.get() }))
   const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - progress.get()) * windowHeight }] }))
@@ -143,6 +167,7 @@ export function Sheet({ visible, onClose, children, size = 'content', maxHeight 
       animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
+      onDismiss={Platform.OS === 'ios' ? dismissed : undefined}
     >
       <KeyboardAvoidingView
         behavior="padding"

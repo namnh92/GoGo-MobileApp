@@ -41,6 +41,7 @@ export function Conversation({
   actions,
   sendDisabled,
   footer,
+  footerReason = null,
 }: {
   conversationId: string | null
   outgoing: OutgoingMessage[]
@@ -52,6 +53,11 @@ export function Conversation({
   sendDisabled: boolean
   /** Drawn under the newest message: the limit / unavailable notice. */
   footer?: React.ReactNode
+  /**
+   * What `footer` says. A failed send for the same reason keeps its "Not
+   * sent" line but not a second notice saying it again (acceptance BUG4).
+   */
+  footerReason?: 'limit' | 'disabled' | null
 }) {
   const { t, i18n } = useTranslation()
   const query = useAssistantMessages(conversationId)
@@ -154,9 +160,10 @@ export function Conversation({
                 state={failed ? 'failed' : 'sending'}
                 onRetry={copy?.retry && !sendDisabled ? () => onRetry(item.outgoing.localId) : undefined}
               />
-              {copy ? (
+              {copy && !(footer && copy.reason === footerReason) ? (
                 <StateNotice
                   kind="error"
+                  icon={copy.icon}
                   title={copy.title}
                   body={copy.body}
                   actions={copy.retry ? [{ label: t('assistant.retry'), onPress: () => onRetry(item.outgoing.localId), disabled: sendDisabled }] : []}

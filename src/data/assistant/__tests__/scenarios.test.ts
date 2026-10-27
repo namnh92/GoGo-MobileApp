@@ -22,3 +22,23 @@ describe('the truncated scenario', () => {
     expect(events.some(event => event.type === 'error')).toBe(false)
   })
 })
+
+describe('citations match their sources', () => {
+  const names = ['answer', 'places', 'long', 'drop', 'truncated'] as const
+  for (const name of names) {
+    for (const locale of ['vi', 'en'] as const) {
+      it(`${name} (${locale}): every [n] in the text has a source numbered n`, () => {
+        const { steps } = script(name, locale, new Date('2026-10-27T08:00:00Z'), 'p1')
+        const text = steps
+          .map(step => step.event)
+          .filter((event): event is Extract<typeof event, { type: 'delta' }> => event.type === 'delta')
+          .map(event => event.text)
+          .join('')
+        const sources = steps.flatMap(step => (step.event.type === 'sources' ? step.event.sources : []))
+        const cited = [...text.matchAll(/\[(\d{1,2})\]/g)].map(match => Number(match[1]))
+        const numbered = new Set(sources.map(source => source.index))
+        for (const n of cited) expect(numbered.has(n)).toBe(true)
+      })
+    }
+  }
+})
