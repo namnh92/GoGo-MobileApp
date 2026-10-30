@@ -106,9 +106,17 @@ module GogoDistribute
 
   # D-17: the environment of each child, composed from named sets.
   module EnvSets
-    def self.base(env = ENV)
-      BASE_KEYS.each_with_object({}) { |k, out| out[k] = env[k] if env[k] }
-               .merge('EXPO_NO_TELEMETRY' => '1')
+    # Android Studio's default SDK location, used when the shell names none:
+    # Gradle refuses to configure without one.
+    DEFAULT_ANDROID_SDK = File.join(Dir.home, 'Library', 'Android', 'sdk')
+
+    def self.base(env = ENV, default_sdk: DEFAULT_ANDROID_SDK)
+      out = BASE_KEYS.each_with_object({}) { |k, acc| acc[k] = env[k] if env[k] }
+                     .merge('EXPO_NO_TELEMETRY' => '1')
+      if out['ANDROID_HOME'].nil? && out['ANDROID_SDK_ROOT'].nil? && File.directory?(default_sdk)
+        out['ANDROID_HOME'] = default_sdk
+      end
+      out
     end
 
     def self.app_config(parsed, secrets:, build_number:, sha:, platform:)

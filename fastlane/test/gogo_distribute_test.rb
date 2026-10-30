@@ -95,8 +95,17 @@ class EnvSetsTest < Minitest::Test
 
   def test_base_carries_only_the_named_variables
     base = GD::EnvSets.base({ 'PATH' => '/bin', 'HOME' => '/h', 'ASC_KEY_CONTENT' => 'x', 'RUBYOPT' => '-rbundler/setup',
-                              'BUNDLE_GEMFILE' => '/g' })
+                              'BUNDLE_GEMFILE' => '/g' }, default_sdk: '/nonexistent')
     assert_equal({ 'PATH' => '/bin', 'HOME' => '/h', 'EXPO_NO_TELEMETRY' => '1' }, base)
+  end
+
+  def test_android_sdk_defaults_to_android_studio_location_only_when_unset
+    Dir.mktmpdir do |sdk|
+      assert_equal sdk, GD::EnvSets.base({ 'PATH' => '/bin' }, default_sdk: sdk)['ANDROID_HOME']
+      assert_equal '/own', GD::EnvSets.base({ 'ANDROID_HOME' => '/own' }, default_sdk: sdk)['ANDROID_HOME']
+      refute GD::EnvSets.base({ 'ANDROID_SDK_ROOT' => '/root' }, default_sdk: sdk).key?('ANDROID_HOME')
+    end
+    refute GD::EnvSets.base({}, default_sdk: '/nonexistent').key?('ANDROID_HOME')
   end
 
   def test_app_config_adds_maps_team_build_and_sha_and_nothing_secret
