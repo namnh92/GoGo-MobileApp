@@ -375,9 +375,13 @@ platform :android do
       }
       native_env = ctx[:base].merge(appcfg).merge(GogoDistribute::EnvSets.sentry(GOGO_SECRETS, switches)).merge(keystore_env)
       # --no-daemon: the Gradle JVM lives as long as this build; in-process
-      # Kotlin: no compile daemon inherits the keystore password (D-7).
+      # Kotlin: no compile daemon inherits the keystore password (D-7). Kotlin
+      # then compiles inside that JVM, which the template's 2 GB heap cannot
+      # hold (measured: "Not enough memory to run compilation" in
+      # react-native-nitro-modules) — hence the larger heap, a public flag.
       gogo_run(ctx, 'gradle-assemble',
-               ['./gradlew', 'assembleRelease', '--no-daemon', '-Pkotlin.compiler.execution.strategy=in-process'],
+               ['./gradlew', 'assembleRelease', '--no-daemon', '-Pkotlin.compiler.execution.strategy=in-process',
+                '-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8'],
                env: native_env, chdir: File.join(REPO_ROOT, 'android'))
 
       built = File.join(REPO_ROOT, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk')
