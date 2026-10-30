@@ -160,6 +160,15 @@ class GuardsTest < Minitest::Test
     assert_raises(GD::Refusal) { GD.ensure_channel!(:store, 'dev') }
   end
 
+  def test_firebase_app_id_shape_and_platform
+    assert_equal '1:773600986874:ios:4335ed45aac373b081eb43',
+                 GD.firebase_app_id!('1:773600986874:ios:4335ed45aac373b081eb43', 'ios')
+    # The value found in SSM on the first run: the project number alone.
+    assert_raises(GD::Refusal) { GD.firebase_app_id!('773600986874', 'ios') }
+    assert_raises(GD::Refusal) { GD.firebase_app_id!('1:773600986874:android:4c93efc0dee1cc8781eb43', 'ios') }
+    assert_raises(GD::Refusal) { GD.firebase_app_id!('', 'android') }
+  end
+
   def test_switches_are_four_booleans
     text = "SENTRY_DISABLE_AUTO_UPLOAD=true\nSENTRY_ALLOW_FAILURE=false\n" \
            "SENTRY_DISABLE_XCODE_DEBUG_UPLOAD=false\nSENTRY_DISABLE_NATIVE_DEBUG_UPLOAD=false\n"

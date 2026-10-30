@@ -364,6 +364,20 @@ module GogoDistribute
     raise Refusal, (channel == :firebase ? 'prod ships through the store lanes (GoGo-MobileApp#350/#351), never through Firebase' : "the store lanes ship prod only, not #{env}")
   end
 
+  # A Firebase App ID is `1:<project number>:<platform>:<hex>`. The project
+  # number alone (a value that looks right in the console) makes the API answer
+  # a bare "Invalid request".
+  FIREBASE_APP_ID = /\A1:\d+:(ios|android):[0-9a-f]+\z/
+
+  def self.firebase_app_id!(value, platform)
+    match = FIREBASE_APP_ID.match(value.to_s)
+    unless match && match[1] == platform
+      raise Refusal, "firebase/app-id-#{platform} is not a Firebase #{platform} App ID (expected 1:<project number>:#{platform}:<hex>, " \
+                     'Firebase → Project settings → Your apps → App ID); fix the SSM row with put.sh'
+    end
+    value
+  end
+
   # The four switch lines printed by the shared Sentry check (D-11).
   def self.parse_switches(text)
     values = EnvFile.parse(text, allowlist: SENTRY_SWITCHES)

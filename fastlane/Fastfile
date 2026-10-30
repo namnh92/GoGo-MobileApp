@@ -104,6 +104,12 @@ rescue GogoDistribute::Refusal => e
   UI.user_error!("#{name} failed: #{e.message}")
 end
 
+def gogo_firebase_app_id(platform)
+  GogoDistribute.firebase_app_id!(GOGO_SECRETS.fetch("FIREBASE_APP_ID_#{platform.upcase}"), platform)
+rescue GogoDistribute::Refusal => e
+  UI.user_error!(e.message)
+end
+
 def gogo_firebase_latest(ctx, app_id)
   release = firebase_app_distribution_get_latest_release(
     app: app_id,
@@ -226,7 +232,7 @@ platform :ios do
         next
       end
 
-      app_id = GOGO_SECRETS.fetch('FIREBASE_APP_ID_IOS')
+      app_id = gogo_firebase_app_id('ios')
       build_number = gogo_build_number(ctx, options, app_id)
       gogo_log("build number #{build_number}")
       appcfg = gogo_app_config(ctx, build_number)
@@ -348,7 +354,7 @@ platform :android do
   lane :firebase do |options|
     ctx = gogo_begin(options, platform: 'android', channel: :firebase)
     begin
-      app_id = GOGO_SECRETS.fetch('FIREBASE_APP_ID_ANDROID')
+      app_id = gogo_firebase_app_id('android')
       build_number = gogo_build_number(ctx, options, app_id)
       gogo_log("version code #{build_number}")
 
