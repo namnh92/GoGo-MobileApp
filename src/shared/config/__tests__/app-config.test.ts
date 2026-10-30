@@ -263,3 +263,50 @@ describe('crash reporting decision (GoGo-MobileApp#336, ADR-0011 D-3)', () => {
     })
   })
 })
+
+describe('build identity (GoGo-MobileApp#391)', () => {
+  const SHA = '0123456789abcdef0123456789abcdef01234567'
+
+  afterEach(() => {
+    delete process.env.IOS_BUILD_NUMBER
+    delete process.env.ANDROID_VERSION_CODE
+    delete process.env.GOGO_BUILD_SHA
+  })
+
+  it('a local build keeps build 1 on both platforms and carries no sha', async () => {
+    const config = await loadConfig('dev')
+    expect(config.ios?.buildNumber).toBe('1')
+    expect(config.android?.versionCode).toBe(1)
+    expect(config.extra).not.toHaveProperty('buildSha')
+  })
+
+  it('takes the build number, version code and sha the lane passes', async () => {
+    process.env.IOS_BUILD_NUMBER = '42'
+    process.env.ANDROID_VERSION_CODE = '43'
+    process.env.GOGO_BUILD_SHA = SHA
+    const config = await loadConfig('dev')
+    expect(config.ios?.buildNumber).toBe('42')
+    expect(config.android?.versionCode).toBe(43)
+    expect(config.extra?.buildSha).toBe(SHA)
+  })
+
+  it.each(['0', '-1', '1.5', 'abc', '2100000001'])('refuses ANDROID_VERSION_CODE=%s', async value => {
+    process.env.ANDROID_VERSION_CODE = value
+    await expect(loadConfig('dev')).rejects.toThrow(/ANDROID_VERSION_CODE must be an integer/)
+  })
+
+  it.each(['0', '1.0.1', 'abc'])('refuses IOS_BUILD_NUMBER=%s', async value => {
+    process.env.IOS_BUILD_NUMBER = value
+    await expect(loadConfig('dev')).rejects.toThrow(/IOS_BUILD_NUMBER must be a positive integer/)
+  })
+
+  it.each(['abc', SHA.slice(0, 7), SHA.toUpperCase()])('refuses GOGO_BUILD_SHA=%s', async value => {
+    process.env.GOGO_BUILD_SHA = value
+    await expect(loadConfig('dev')).rejects.toThrow(/GOGO_BUILD_SHA must be a 40-character/)
+  })
+
+  it('registers the release-signing plugin, which is inert without the lane', async () => {
+    const config = await loadConfig('dev')
+    expect(config.plugins).toContain('./plugins/with-android-release-signing.js')
+  })
+})

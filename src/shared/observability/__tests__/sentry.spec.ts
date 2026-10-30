@@ -13,6 +13,7 @@ import {
   redactDeep,
   redactText,
   resetSentryForTests,
+  sentryBuild,
   sentryEnvironment,
   setScreenReader,
   setSentryUser,
@@ -231,6 +232,28 @@ describe('init', () => {
       'replaysOnErrorSampleRate', 'enableCaptureFailedRequests', 'integrations', 'release', 'dist']) {
       expect(options).not.toHaveProperty(key)
     }
+  })
+
+  // GoGo-MobileApp#391, AC-6: a Firebase build reports the commit it was built
+  // from; a local build keeps the SDK's default release.
+  it('a distributed build sets release to its commit and dist to its build number', () => {
+    const sha = '0123456789abcdef0123456789abcdef01234567'
+    initSentry({
+      dsn: 'https://0123456789abcdef0123456789abcdef@o0.ingest.us.sentry.io/1',
+      environment: 'dev',
+      build: sentryBuild({ buildSha: sha }, 42),
+    })
+    expect(sdk.init.mock.calls[0][0]).toMatchObject({ release: sha, dist: '42' })
+  })
+
+  it.each([
+    [{}, '42'],
+    [{ buildSha: 'abc' }, '42'],
+    [{ buildSha: '0123456789abcdef0123456789abcdef01234567' }, undefined],
+    [{ buildSha: '0123456789abcdef0123456789abcdef01234567' }, '0'],
+    [undefined, '42'],
+  ])('sentryBuild(%j, %j) is no build identity', (extra, number) => {
+    expect(sentryBuild(extra, number)).toBeUndefined()
   })
 
   it('turns release-health sessions on without sending default PII (ADR-0012a D-2)', () => {

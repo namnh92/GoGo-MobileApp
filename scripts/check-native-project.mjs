@@ -241,6 +241,26 @@ if (!existsSync(path.join(root, "android"))) {
   }
 }
 
+// --- Android release signing (GoGo-MobileApp#391) ---------------------------
+//
+// The Firebase lane signs the APK with the environment keystore through
+// `plugins/with-android-release-signing.js`. Without the block the release
+// build still succeeds — debug-signed — and the APK on testers' phones carries
+// the wrong certificate (Maps keys restricted to the env SHA-1 then fail).
+
+const appGradle = path.join(root, "android", "app", "build.gradle");
+if (existsSync(appGradle)) {
+  const gradle = readFileSync(appGradle, "utf8");
+  if (!gradle.includes("release signing from the environment (GoGo-MobileApp#391)")) {
+    problems.push(
+      "android/app/build.gradle has no environment release-signing block. Regenerate with `npx expo prebuild -p android --clean`.",
+    );
+  } else if (/(storePassword|keyPassword)\s+['"]/.test(gradle.slice(gradle.indexOf("GoGo-MobileApp#391")))) {
+    // Only our block: Expo's own debug config carries the public 'android' password.
+    problems.push("android/app/build.gradle carries a literal signing password — passwords come from the environment only.");
+  } else notes.push("android release signs with the environment keystore when the lane provides it");
+}
+
 // --- Sentry uploads (GoGo-MobileApp#340, ADR-0011 D-5 phase 2) -------------
 //
 // `@sentry/react-native/expo` wires the Release build to upload the JS source
