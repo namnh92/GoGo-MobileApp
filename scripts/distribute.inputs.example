@@ -1,0 +1,21 @@
+# Inputs scripts/distribute.sh needs that are not in SSM yet (GoGo-Infra#291).
+# Copy to ~/.config/gogo-distribute/inputs.env (or point GOGO_DISTRIBUTE_INPUTS
+# at your copy), fill the values, `chmod 600` it. Never commit the copy.
+#
+# Read as data: KEY=value, one per line, no quotes, no `export`.
+# All values here are public identifiers that ship inside the app — still kept
+# out of the repository so each environment's value has one owner.
+
+# Apple Developer team id (10 characters), App Store Connect → Membership.
+APPLE_TEAM_ID=
+
+# Tenjin SDK key per app and environment (Tenjin → Apps → <app> → SDK Key).
+# The suffix is the flavour; there is no fallback across environments.
+TENJIN_IOS_SDK_KEY_DEV=
+TENJIN_ANDROID_SDK_KEY_DEV=
+TENJIN_IOS_SDK_KEY_STAG=
+TENJIN_ANDROID_SDK_KEY_STAG=
+
+# Hosts are not here: dev defaults live in scripts/distribute.sh
+# (api-dev.gogo.id.vn/v1, go-dev.gogo.id.vn); stag needs --api-url/--web-url
+# until it is provisioned.
