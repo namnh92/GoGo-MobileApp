@@ -289,6 +289,96 @@ class SignalsTest < Minitest::Test
     assert_nil GD::Signals.pending
   end
 
+  def test_nested_critical_releases_a_signal_only_at_the_outermost_exit
+    reached_end = false
+    error = assert_raises(Interrupt) do
+      GD::Signals.critical do
+        GD::Signals.critical do
+          GD::Signals.deliver('INT')
+          GD::Signals.deliver('TERM')
+        end
+        assert_equal 'INT', GD::Signals.pending
+        GD::Signals.critical { assert_equal 'INT', GD::Signals.pending }
+        reached_end = true
+      end
+    end
+    assert_instance_of Interrupt, error
+    assert reached_end
+    assert_nil GD::Signals.pending
+    assert_equal :next_section, GD::Signals.critical { :next_section }
+    assert_raises(Interrupt) { GD::Signals.deliver('INT') }
+  end
+
+  def test_pending_signal_takes_precedence_over_a_block_exception
+    failure = IOError.new('run.json persistence failed')
+    error = assert_raises(SignalException) do
+      GD::Signals.critical do
+        GD::Signals.critical do
+          GD::Signals.deliver('TERM')
+          raise failure
+        end
+      end
+    end
+    assert_equal Signal.list.fetch('TERM'), error.signo
+    assert_same failure, error.cause
+    assert_nil GD::Signals.pending
+    assert_equal :next_section, GD::Signals.critical { :next_section }
+    assert_raises(Interrupt) { GD::Signals.deliver('INT') }
+  end
+
+  def test_rescued_inner_exception_keeps_the_outer_section_critical
+    reached_end = false
+    assert_raises(Interrupt) do
+      GD::Signals.critical do
+        begin
+          GD::Signals.critical { raise IOError, 'write failed' }
+        rescue IOError
+          GD::Signals.deliver('INT')
+        end
+        reached_end = true
+      end
+    end
+    assert reached_end
+    assert_nil GD::Signals.pending
+  end
+
+  def test_throw_releases_a_pending_signal_and_restores_depth
+    assert_raises(Interrupt) do
+      catch(:done) do
+        GD::Signals.critical do
+          GD::Signals.critical do
+            GD::Signals.deliver('INT')
+            throw :done
+          end
+        end
+      end
+    end
+    assert_nil GD::Signals.pending
+    assert_equal :next_section, GD::Signals.critical { :next_section }
+    assert_raises(Interrupt) { GD::Signals.deliver('INT') }
+  end
+
+  def test_break_releases_a_pending_signal_and_restores_depth
+    assert_raises(Interrupt) do
+      GD::Signals.critical do
+        GD::Signals.deliver('INT')
+        break :done
+      end
+    end
+    assert_nil GD::Signals.pending
+    assert_equal :next_section, GD::Signals.critical { :next_section }
+    assert_raises(Interrupt) { GD::Signals.deliver('INT') }
+  end
+
+  def test_exits_without_a_pending_signal_preserve_the_original_result
+    failure = IOError.new('write failed')
+    assert_same failure, assert_raises(IOError) { GD::Signals.critical { raise failure } }
+    assert_equal :done, catch(:done) { GD::Signals.critical { throw :done, :done } }
+    assert_equal :done, GD::Signals.critical { break :done }
+    assert_equal :done, GD::Signals.critical { next :done }
+    assert_raises(Interrupt) { GD::Signals.deliver('INT') }
+  end
+
   def test_supervisor_registers_before_a_held_signal_is_raised
     Dir.mktmpdir do |dir|
       supervisor = GD::Supervisor.new(run_file: File.join(dir, 'run.json'))

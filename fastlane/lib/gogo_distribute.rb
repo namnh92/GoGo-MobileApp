@@ -183,13 +183,12 @@ module GogoDistribute
 
       def critical
         @critical += 1
-        result = yield
+        yield
+      ensure
         @critical -= 1
+        # Cancellation wins at the outermost exit, including non-local exits.
+        # An in-flight exception is preserved as the signal exception's cause.
         release_pending
-        result
-      rescue Exception # rubocop:disable Lint/RescueException
-        @critical -= 1 if @critical.positive?
-        raise
       end
 
       def pending
