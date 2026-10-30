@@ -4,7 +4,7 @@ const expoConfig = require('eslint-config-expo/flat')
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['node_modules/*', 'ios/*', 'android/*', '.expo/*', 'dist/*'],
+    ignores: ['node_modules/*', 'ios/*', 'android/*', '.expo/*', 'dist/*', 'vendor/*'],
   },
   {
     // Jest config and setup run in Node with jest globals, not in the app.

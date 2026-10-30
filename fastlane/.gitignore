@@ -1,0 +1,8 @@
+# fastlane's own output. Build products land in fastlane/build/ (D-3); nothing
+# signed or secret is ever written under this directory by the lanes.
+report.xml
+README.md
+Preview.html
+test_output/
+build/
+signing/

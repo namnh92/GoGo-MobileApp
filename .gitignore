@@ -35,3 +35,7 @@ coverage/
 .idea/
 .vscode/
 *.swp
+
+# fastlane / Bundler (GoGo-MobileApp#391): gems install into vendor/bundle
+# (.bundle/config); lane output goes to fastlane/build/.
+vendor/

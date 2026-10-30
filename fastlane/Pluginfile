@@ -1,0 +1,2 @@
+# Plugins for the Fastfile; loaded by the Gemfile (eval_gemfile).
+gem 'fastlane-plugin-firebase_app_distribution'
