@@ -278,7 +278,14 @@ def gogo_pick_identity(ctx, api_key, team_id, first_signing:)
     filter: { certificateType: Spaceship::ConnectAPI::Certificate::CertificateType::DISTRIBUTION }
   ).select(&:valid?)
   local = gogo_local_identities(ctx)
-  remote = valid.map { |c| { cert_id: c.id, sha1: gogo_cert_sha1(c.certificate_content) } }
+  remote = valid.map do |c|
+    { cert_id: c.id, sha1: gogo_cert_sha1(c.certificate_content), name: c.display_name || c.name,
+      expires: c.expiration_date, requester: c.requester_email }
+  end
+  remote.each do |c|
+    gogo_log("App Store Connect Apple Distribution: id=#{c[:cert_id]} sha1=#{c[:sha1]} name=#{c[:name]} " \
+             "expires=#{c[:expires]} requested_by=#{c[:requester]} in_this_keychain=#{local.include?(c[:sha1])}")
+  end
   matched = remote.select { |c| local.include?(c[:sha1]) }
 
   return matched.first if matched.size == 1
