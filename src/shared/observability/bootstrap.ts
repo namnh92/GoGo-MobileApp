@@ -1,7 +1,10 @@
+import Constants from 'expo-constants'
+import { Platform } from 'react-native'
+
 import { env } from '@/shared/config/env'
 import { getSession, subscribeToSession, type Session } from '@/shared/api/session'
 
-import { initSentry, sentryEnvironment, setSentryUser } from './sentry'
+import { initSentry, sentryBuild, sentryEnvironment, setSentryUser } from './sentry'
 
 /**
  * GoGo-MobileApp#336 — crash reporting starts here, as a side effect of the
@@ -19,6 +22,12 @@ function sentryUserId(session: Session | null): string | null {
   return session?.kind === 'user' ? (session.userId ?? null) : null
 }
 
-initSentry({ dsn: env.sentryDsn, environment: sentryEnvironment(env.name) })
+const config = Constants.expoConfig
+const buildNumber = Platform.OS === 'ios' ? config?.ios?.buildNumber : config?.android?.versionCode
+initSentry({
+  dsn: env.sentryDsn,
+  environment: sentryEnvironment(env.name),
+  build: sentryBuild(config?.extra, buildNumber),
+})
 setSentryUser(sentryUserId(getSession()))
 subscribeToSession(session => setSentryUser(sentryUserId(session)))

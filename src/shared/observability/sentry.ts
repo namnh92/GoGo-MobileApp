@@ -821,7 +821,22 @@ export function isDsn(value: string): boolean {
 let enabled = false
 
 /** `''` and the literal `off` disable; any other value must be a DSN — `OFF` is a typo, not a decision (C-15). */
-export function initSentry(options: { dsn: string; environment: SentryEnvironment }): void {
+/**
+ * A distributed build names its release by the commit it was built from and
+ * its dist by the build number (GoGo-MobileApp#391); a local build keeps the
+ * SDK's default `<bundle id>@<version>+<build>`. Source maps resolve by Debug
+ * ID, so neither has to match an upload.
+ */
+export type SentryBuild = { sha: string; number: string }
+
+export function sentryBuild(extra: unknown, buildNumber: unknown): SentryBuild | undefined {
+  const sha = (extra as { buildSha?: unknown } | null | undefined)?.buildSha
+  if (typeof sha !== 'string' || !/^[0-9a-f]{40}$/.test(sha)) return undefined
+  const number = String(buildNumber ?? '')
+  return /^[1-9]\d{0,9}$/.test(number) ? { sha, number } : undefined
+}
+
+export function initSentry(options: { dsn: string; environment: SentryEnvironment; build?: SentryBuild }): void {
   const dsn = options.dsn.trim()
   if (dsn === '' || dsn === 'off') {
     enabled = false
@@ -832,6 +847,7 @@ export function initSentry(options: { dsn: string; environment: SentryEnvironmen
     dsn,
     environment: options.environment,
     sendDefaultPii: false,
+    ...(options.build ? { release: options.build.sha, dist: options.build.number } : {}),
     // Release health (ADR-0012a D-2): the denominator of the crash-free SLO.
     enableAutoSessionTracking: true,
     enableAutoPerformanceTracing: false,

@@ -1,0 +1,401 @@
+# frozen_string_literal: true
+
+# Lanes (GoGo-MobileApp#391; prod store lanes #350/#351 share this file):
+#
+#   ios firebase      dev/stag → Ad Hoc → Firebase App Distribution
+#   android firebase  dev/stag → APK signed with the env keystore → Firebase
+#
+# Run them through scripts/distribute.sh, never by hand: it refuses prod, checks
+# the machine and AWS account, takes the lock, writes the app config and starts
+# this process through GoGo-Infra's exec-with.sh. Lane options (never env):
+# env, env_file, run_dir, groups, sha, branch, without_symbols, build_number,
+# first_signing, provision_only.
+
+require 'base64'
+require 'socket'
+require_relative 'lib/gogo_distribute'
+
+# D-17: fastlane/bootstrap.rb captured the secrets before fastlane loaded (its
+# startup may spawn); this picks that set up. Loaded any other way (CI's
+# `fastlane lanes`), the Fastfile captures whatever is there — nothing.
+GOGO_SECRETS = defined?(GOGO_BOOT_SECRETS) ? GOGO_BOOT_SECRETS : GogoDistribute::Secrets.capture!(ENV)
+
+skip_docs
+default_platform(:ios)
+
+REPO_ROOT = File.expand_path('..', __dir__)
+NSE_TARGET = 'OneSignalNotificationServiceExtension'
+LOGIN_KEYCHAIN = File.expand_path('~/Library/Keychains/login.keychain-db')
+
+# INT/TERM/HUP become exceptions in the main thread, so every lane's `ensure`
+# and the cleanup owner run on them (D-18) — deferred while a child is being
+# spawned and registered (bootstrap.rb installs this first; idempotent).
+GogoDistribute::Signals.install!
+
+def gogo_state
+  @gogo_state ||= {}
+end
+
+def gogo_opt(options, key, required: true)
+  value = options[key]
+  value = value.to_s unless value.nil?
+  UI.user_error!("lane option #{key}: is required (run scripts/distribute.sh)") if required && (value.nil? || value.empty?)
+  value
+end
+
+def gogo_bool(options, key)
+  %w[true 1 yes].include?(options[key].to_s)
+end
+
+def gogo_log(line)
+  UI.message("distribute: #{line}")
+end
+
+# Prepares the run: parses the app config, checks flavour and channel, sets up
+# the supervisor and the cleanup owner. Returns the context hash.
+def gogo_begin(options, platform:, channel:)
+  env = options[:env].to_s
+  run_dir = gogo_opt(options, :run_dir)
+  tmp = File.join(run_dir, 'tmp')
+  UI.user_error!("run_dir #{run_dir} has no tmp/ (start through scripts/distribute.sh)") unless File.directory?(tmp)
+
+  supervisor = GogoDistribute::Supervisor.new(run_file: File.join(run_dir, 'run.json'))
+  cleanup = GogoDistribute::Cleanup.new(supervisor: supervisor, secrets: GOGO_SECRETS)
+  at_exit { cleanup.run }
+
+  env_file = cleanup.file(gogo_opt(options, :env_file))
+  parsed = GogoDistribute::EnvFile.parse(File.read(env_file), allowlist: GogoDistribute::APP_CONFIG_KEYS)
+  GogoDistribute.ensure_flavor!(env, parsed)
+  GogoDistribute.ensure_channel!(channel, env)
+
+  ctx = {
+    env: env, platform: platform, parsed: parsed, tmp: tmp, run_dir: run_dir,
+    supervisor: supervisor, cleanup: cleanup, base: GogoDistribute::EnvSets.base,
+    sha: gogo_opt(options, :sha), branch: gogo_opt(options, :branch),
+    groups: gogo_opt(options, :groups), log_dir: File.join(run_dir, 'tmp'),
+    bundle_id: "max.gogo.#{env}", without_symbols: gogo_bool(options, :without_symbols)
+  }
+  UI.user_error!('sha: must be the 40-character commit') unless ctx[:sha].match?(/\A[0-9a-f]{40}\z/)
+  # Names only — the evidence that no secret is left in this process's ENV.
+  gogo_log("env keys after capture: #{ENV.keys.sort.join(' ')}")
+  gogo_log("tools: ruby=#{RUBY_VERSION} fastlane=#{Fastlane::VERSION} bundler=#{Bundler::VERSION}")
+  ctx
+rescue GogoDistribute::Refusal => e
+  UI.user_error!(e.message)
+end
+
+def gogo_logfile(ctx, name)
+  path = File.join(ctx[:log_dir], "#{name}.log")
+  ctx[:cleanup].file(path)
+  path
+end
+
+# Runs a child and, when it fails, prints the tail of its log (the log itself
+# is in the run directory and goes with the cleanup).
+def gogo_run(ctx, name, cmd, env:, chdir: REPO_ROOT)
+  log = gogo_logfile(ctx, name)
+  gogo_log("#{name}: #{cmd.first(4).join(' ')} …")
+  ctx[:supervisor].run(cmd, env: env, chdir: chdir, log: log)
+rescue GogoDistribute::Refusal => e
+  tail = File.exist?(log) ? File.readlines(log).last(40).join : ''
+  UI.error(tail) unless tail.empty?
+  UI.user_error!("#{name} failed: #{e.message}")
+end
+
+def gogo_firebase_app_id(platform)
+  GogoDistribute.firebase_app_id!(GOGO_SECRETS.fetch("FIREBASE_APP_ID_#{platform.upcase}"), platform)
+rescue GogoDistribute::Refusal => e
+  UI.user_error!(e.message)
+end
+
+def gogo_firebase_latest(ctx, app_id)
+  release = firebase_app_distribution_get_latest_release(
+    app: app_id,
+    service_credentials_json_data: GOGO_SECRETS.fetch('FIREBASE_SERVICE_CREDENTIALS_JSON')
+  )
+  release ? release[:buildVersion].to_i : 0
+end
+
+def gogo_build_number(ctx, options, app_id)
+  latest = gogo_firebase_latest(ctx, app_id)
+  GogoDistribute::BuildNumber.resolve(latest: latest, requested: options[:build_number])
+rescue GogoDistribute::Refusal => e
+  UI.user_error!(e.message)
+end
+
+def gogo_app_config(ctx, build_number)
+  GogoDistribute::EnvSets.app_config(
+    ctx[:parsed], secrets: GOGO_SECRETS, build_number: build_number, sha: ctx[:sha], platform: ctx[:platform]
+  )
+rescue GogoDistribute::Refusal => e
+  UI.user_error!(e.message)
+end
+
+def gogo_prebuild(ctx, appcfg)
+  gogo_run(ctx, "prebuild-#{ctx[:platform]}",
+           ['npx', 'expo', 'prebuild', '-p', ctx[:platform], '--clean'],
+           env: ctx[:base].merge(appcfg))
+end
+
+# D-11: the two-state Sentry rule, from the same script release-build.sh uses.
+# Runs after prebuild (the wiring check reads the generated project) with the
+# token and nothing else secret.
+def gogo_sentry_switches(ctx)
+  env = ctx[:base].dup
+  env['SENTRY_AUTH_TOKEN'] = GOGO_SECRETS['SENTRY_AUTH_TOKEN'] if !ctx[:without_symbols] && GOGO_SECRETS.key?('SENTRY_AUTH_TOKEN')
+  err_log = gogo_logfile(ctx, 'sentry-check')
+  out = ctx[:supervisor].capture(
+    ['bash', '-c', 'source scripts/lib/sentry-upload-env.sh && sentry_upload_env "$1" && sentry_print_switches', 'sentry', ctx[:platform]],
+    env: env, chdir: REPO_ROOT, err_log: err_log
+  )
+  # The rule's own words: the "will not be symbolicated" warning in state 2.
+  File.read(err_log).each_line { |line| UI.important(line.chomp) } if File.exist?(err_log)
+  switches = GogoDistribute.parse_switches(out)
+  gogo_log("sentry: upload=#{switches['SENTRY_DISABLE_AUTO_UPLOAD'] == 'false' ? 'on' : 'off (no token)'}")
+  switches
+rescue GogoDistribute::Refusal => e
+  UI.user_error!("sentry check refused: #{e.message}")
+end
+
+def gogo_upload(ctx, app_id, build_number, artifact)
+  latest = gogo_firebase_latest(ctx, app_id)
+  GogoDistribute::BuildNumber.still_free!(latest: latest, chosen: build_number)
+  notes = "#{ctx[:env]} #{ctx[:sha][0, 7]} build #{build_number} (#{ctx[:branch]}) host=#{Socket.gethostname.split('.').first}"
+  args = {
+    app: app_id,
+    service_credentials_json_data: GOGO_SECRETS.fetch('FIREBASE_SERVICE_CREDENTIALS_JSON'),
+    groups: ctx[:groups],
+    release_notes: notes
+  }
+  if ctx[:platform] == 'ios'
+    args[:ipa_path] = artifact
+  else
+    args[:apk_path] = artifact
+    args[:android_artifact_type] = 'APK'
+  end
+  release = firebase_app_distribution(**args)
+  console = release.is_a?(Hash) ? release[:firebaseConsoleUri] : nil
+  gogo_log("flavour=#{ctx[:env]} platform=#{ctx[:platform]} sha=#{ctx[:sha]} build=#{build_number} " \
+           "bundle=#{ctx[:bundle_id]} firebase_app=#{app_id} groups=#{ctx[:groups]} console=#{console}")
+rescue GogoDistribute::Refusal => e
+  UI.user_error!(e.message)
+end
+
+platform :ios do
+  # D-6 steps 1–4: key, certificate guard, profiles for both bundle ids.
+  private_lane :gogo_ios_provisioning do |opts|
+    ctx = opts[:ctx]
+    api_key = app_store_connect_api_key(
+      key_id: GOGO_SECRETS.fetch('ASC_KEY_ID'),
+      issuer_id: GOGO_SECRETS.fetch('ASC_ISSUER_ID'),
+      key_content: GOGO_SECRETS.fetch('ASC_KEY_CONTENT'),
+      is_key_content_base64: false,
+      in_house: false
+    )
+    team_id = GOGO_SECRETS.fetch('APPLE_TEAM_ID')
+
+    begin
+      identity = gogo_pick_identity(ctx, api_key, team_id, first_signing: opts[:first_signing])
+      gogo_log("signing identity: certificate #{identity[:cert_id]} sha1=#{identity[:sha1]}")
+
+      profiles = {}
+      [ctx[:bundle_id], "#{ctx[:bundle_id]}.#{NSE_TARGET}"].each do |app_id|
+        get_provisioning_profile(
+          adhoc: true, force: true, skip_install: false,
+          cert_id: identity[:cert_id], app_identifier: app_id, platform: 'ios', team_id: team_id,
+          output_path: ctx[:tmp], filename: "#{app_id}.mobileprovision", api_key: api_key,
+          skip_certificate_verification: false, include_all_certificates: false
+        )
+        ctx[:cleanup].file(File.join(ctx[:tmp], "#{app_id}.mobileprovision"))
+        profiles[app_id] = lane_context[SharedValues::SIGH_NAME]
+        gogo_log("profile: #{app_id} → #{profiles[app_id]} (#{lane_context[SharedValues::SIGH_UUID]})")
+      end
+      { identity: identity, profiles: profiles, team_id: team_id }
+    rescue Spaceship::UnexpectedResponse, Spaceship::AccessForbiddenError => e
+      raise unless e.message =~ /403|FORBIDDEN|forbidden|not allowed/
+
+      UI.user_error!(
+        "The App Store Connect key gogo-lane-#{ctx[:env]} cannot create certificates/profiles (HTTP 403 — role App Manager?). " \
+        'Owner: App Store Connect → Users and Access → Integrations → Team Keys → new key ' \
+        "gogo-lane-#{ctx[:env]} with role Admin → put.sh #{ctx[:env]} signing/apple-asc-key < AuthKey.p8, " \
+        "signing/apple-asc-key-id, signing/apple-asc-issuer-id → revoke the App Manager key → re-run."
+      )
+    end
+  end
+
+  desc 'dev/stag → Ad Hoc → Firebase App Distribution (via scripts/distribute.sh)'
+  lane :firebase do |options|
+    ctx = gogo_begin(options, platform: 'ios', channel: :firebase)
+    begin
+      signing = gogo_ios_provisioning(ctx: ctx, first_signing: gogo_bool(options, :first_signing))
+      if gogo_bool(options, :provision_only)
+        gogo_log('provision-only: certificate and both Ad Hoc profiles are in place; stopping before the build')
+        next
+      end
+
+      app_id = gogo_firebase_app_id('ios')
+      build_number = gogo_build_number(ctx, options, app_id)
+      gogo_log("build number #{build_number}")
+      appcfg = gogo_app_config(ctx, build_number)
+      gogo_prebuild(ctx, appcfg)
+      switches = gogo_sentry_switches(ctx)
+
+      workspace = Dir[File.join(REPO_ROOT, 'ios', '*.xcworkspace')].first or UI.user_error!('prebuild produced no ios/*.xcworkspace')
+      scheme = File.basename(workspace, '.xcworkspace')
+      project = File.join(REPO_ROOT, 'ios', "#{scheme}.xcodeproj")
+      { scheme => ctx[:bundle_id], NSE_TARGET => "#{ctx[:bundle_id]}.#{NSE_TARGET}" }.each do |target, bundle|
+        update_code_signing_settings(
+          path: project, use_automatic_signing: false, team_id: signing[:team_id], targets: [target],
+          code_sign_identity: signing[:identity][:sha1], bundle_identifier: bundle,
+          profile_name: signing[:profiles].fetch(bundle), build_configurations: ['Release']
+        )
+      end
+
+      native_env = ctx[:base].merge(appcfg).merge(GogoDistribute::EnvSets.sentry(GOGO_SECRETS, switches))
+      archive = File.join(ctx[:tmp], 'app.xcarchive')
+      ctx[:cleanup].dir(archive)
+      gogo_run(ctx, 'xcodebuild-archive',
+               ['xcodebuild', '-workspace', workspace, '-scheme', scheme, '-configuration', 'Release',
+                '-destination', 'generic/platform=iOS', '-archivePath', archive,
+                "OTHER_CODE_SIGN_FLAGS=--keychain #{LOGIN_KEYCHAIN}", 'archive'],
+               env: native_env)
+
+      export_plist = ctx[:cleanup].file(File.join(ctx[:tmp], 'export.plist'))
+      File.write(export_plist, gogo_export_plist(signing))
+      out_dir = File.join(REPO_ROOT, 'fastlane', 'build', 'ios')
+      FileUtils.rm_rf(out_dir)
+      FileUtils.mkdir_p(out_dir)
+      gogo_run(ctx, 'xcodebuild-export',
+               ['xcodebuild', '-exportArchive', '-archivePath', archive, '-exportOptionsPlist', export_plist,
+                '-exportPath', out_dir],
+               env: ctx[:base])
+      ipa = Dir[File.join(out_dir, '*.ipa')].first or UI.user_error!('export produced no .ipa')
+
+      gogo_upload(ctx, app_id, build_number, ipa)
+    ensure
+      ctx&.fetch(:cleanup)&.run
+    end
+  end
+end
+
+# Certificate guard (D-6 step 2): a read before any write; the reuse branch
+# never calls `cert`, so no ambient option can make it mint a second one.
+def gogo_pick_identity(ctx, api_key, team_id, first_signing:)
+  valid = Spaceship::ConnectAPI::Certificate.all(
+    filter: { certificateType: Spaceship::ConnectAPI::Certificate::CertificateType::DISTRIBUTION }
+  ).select(&:valid?)
+  local = gogo_local_identities(ctx)
+  remote = valid.map do |c|
+    { cert_id: c.id, sha1: gogo_cert_sha1(c.certificate_content), name: c.display_name || c.name,
+      expires: c.expiration_date, requester: c.requester_email }
+  end
+  remote.each do |c|
+    gogo_log("App Store Connect Apple Distribution: id=#{c[:cert_id]} sha1=#{c[:sha1]} name=#{c[:name]} " \
+             "expires=#{c[:expires]} requested_by=#{c[:requester]} in_this_keychain=#{local.include?(c[:sha1])}")
+  end
+  matched = remote.select { |c| local.include?(c[:sha1]) }
+
+  return matched.first if matched.size == 1
+  UI.user_error!('two Apple Distribution identities are present in this keychain — keep one (GoGo-Infra#271 D-4)') if matched.size > 1
+
+  unless remote.empty?
+    UI.user_error!(
+      'The Apple Distribution identity is not in this keychain. Import the .p12 backup from the password manager ' \
+      '(Keychain Access → File → Import, login keychain), then re-run. Never mint a second certificate (GoGo-Infra#271 D-4).'
+    )
+  end
+  unless first_signing
+    UI.user_error!('App Store Connect has no Apple Distribution certificate. First signing, with the owner present: re-run with --first-signing.')
+  end
+
+  # Verified empty + --first-signing: every option explicit, so no CERT_*
+  # variable can change the call.
+  get_certificates(
+    development: false, generate_apple_certs: true, force: false, platform: 'ios',
+    keychain_path: LOGIN_KEYCHAIN, keychain_password: nil, skip_set_partition_list: false,
+    output_path: ctx[:tmp], api_key: api_key, team_id: team_id
+  )
+  Dir[File.join(ctx[:tmp], '*.{cer,p12,certSigningRequest}')].each { |f| ctx[:cleanup].file(f) }
+  minted = gogo_pick_identity(ctx, api_key, team_id, first_signing: false)
+  UI.important("New Apple Distribution certificate #{minted[:cert_id]}. Export it now from Keychain Access " \
+               '(login → My Certificates → Apple Distribution → Export, .p12 + password) into the password manager.')
+  minted
+end
+
+def gogo_local_identities(ctx)
+  out = ctx[:supervisor].capture(['security', 'find-identity', '-v', '-p', 'codesigning', LOGIN_KEYCHAIN],
+                                 env: ctx[:base], chdir: REPO_ROOT)
+  out.scan(/\b([0-9A-F]{40})\b/).flatten.uniq
+end
+
+def gogo_cert_sha1(content)
+  require 'openssl'
+  OpenSSL::Digest::SHA1.hexdigest(Base64.decode64(content)).upcase
+end
+
+def gogo_export_plist(signing)
+  profiles = signing[:profiles].map { |id, name| "<key>#{id}</key><string>#{name}</string>" }.join
+  <<~PLIST
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0"><dict>
+      <key>method</key><string>release-testing</string>
+      <key>signingStyle</key><string>manual</string>
+      <key>teamID</key><string>#{signing[:team_id]}</string>
+      <key>signingCertificate</key><string>#{signing[:identity][:sha1]}</string>
+      <key>provisioningProfiles</key><dict>#{profiles}</dict>
+      <key>compileBitcode</key><false/>
+      <key>stripSwiftSymbols</key><true/>
+    </dict></plist>
+  PLIST
+end
+
+platform :android do
+  desc 'dev/stag → APK signed with the env keystore → Firebase App Distribution (via scripts/distribute.sh)'
+  lane :firebase do |options|
+    ctx = gogo_begin(options, platform: 'android', channel: :firebase)
+    begin
+      app_id = gogo_firebase_app_id('android')
+      build_number = gogo_build_number(ctx, options, app_id)
+      gogo_log("version code #{build_number}")
+
+      keystore = ctx[:cleanup].file(File.join(ctx[:tmp], 'keystore.p12'))
+      File.open(keystore, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |io|
+        io.write(Base64.decode64(GOGO_SECRETS.fetch('ANDROID_KEYSTORE_BASE64')))
+      end
+
+      appcfg = gogo_app_config(ctx, build_number)
+      gogo_prebuild(ctx, appcfg)
+      switches = gogo_sentry_switches(ctx)
+
+      keystore_env = {
+        'GOGO_ANDROID_KEYSTORE_FILE' => keystore,
+        'ANDROID_KEYSTORE_PASSWORD' => GOGO_SECRETS.fetch('ANDROID_KEYSTORE_PASSWORD'),
+        'ANDROID_KEY_ALIAS' => GOGO_SECRETS.fetch('ANDROID_KEY_ALIAS'),
+        'ANDROID_KEY_PASSWORD' => GOGO_SECRETS.fetch('ANDROID_KEY_PASSWORD')
+      }
+      native_env = ctx[:base].merge(appcfg).merge(GogoDistribute::EnvSets.sentry(GOGO_SECRETS, switches)).merge(keystore_env)
+      # --no-daemon: the Gradle JVM lives as long as this build; in-process
+      # Kotlin: no compile daemon inherits the keystore password (D-7). Kotlin
+      # then compiles inside that JVM, which the template's 2 GB heap cannot
+      # hold (measured: "Not enough memory to run compilation" in
+      # react-native-nitro-modules) — hence the larger heap, a public flag.
+      gogo_run(ctx, 'gradle-assemble',
+               ['./gradlew', 'assembleRelease', '--no-daemon', '-Pkotlin.compiler.execution.strategy=in-process',
+                '-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8'],
+               env: native_env, chdir: File.join(REPO_ROOT, 'android'))
+
+      built = File.join(REPO_ROOT, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk')
+      UI.user_error!('gradle produced no app-release.apk') unless File.file?(built)
+      out_dir = File.join(REPO_ROOT, 'fastlane', 'build', 'android')
+      FileUtils.rm_rf(out_dir)
+      FileUtils.mkdir_p(out_dir)
+      apk = File.join(out_dir, "gogo-#{ctx[:env]}-#{build_number}.apk")
+      FileUtils.cp(built, apk)
+
+      gogo_upload(ctx, app_id, build_number, apk)
+    ensure
+      ctx&.fetch(:cleanup)&.run
+    end
+  end
+end

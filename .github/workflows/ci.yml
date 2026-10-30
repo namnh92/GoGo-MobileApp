@@ -16,6 +16,34 @@ permissions:
   contents: read
 
 jobs:
+  # GoGo-MobileApp#391 — the Firebase distribution lanes. Builds run on the
+  # owner's workstation (they need the signing keychain and exec-with.sh), so
+  # CI checks what it can without a secret: the Fastfile and Pluginfile load,
+  # and the lane library that holds the secrets and decides what ships passes
+  # its tests.
+  fastlane:
+    name: fastlane lanes load / lane library tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Gemfile.lock is the version pin (frozen in .bundle/config). The minor
+      # line, not the exact patch: a patch newer than the runner's Ruby builds
+      # would fail the job for no reason the lanes care about.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - run: bundle exec ruby -Ifastlane/lib fastlane/test/gogo_distribute_test.rb
+
+      - run: bundle exec fastlane lanes
+        env:
+          FASTLANE_SKIP_UPDATE_CHECK: '1'
+          FASTLANE_OPT_OUT_USAGE: '1'
+          FASTLANE_HIDE_CHANGELOG: '1'
+
   checks:
     name: lint / typecheck / test
     runs-on: ubuntu-latest

@@ -117,6 +117,26 @@ if (appleTeamId && !/^[A-Z0-9]{10}$/.test(appleTeamId)) {
   throw new Error('APPLE_TEAM_ID must be a 10-character Apple team id when set')
 }
 
+/**
+ * Build identity (GoGo-MobileApp#391). The Firebase lane takes the build number
+ * from Firebase (latest + 1) and passes the commit it built; both stay unset on
+ * a local build. A malformed value throws — a store or tester rejecting a
+ * version later is worse than a prebuild that refuses now.
+ */
+const iosBuildNumber = process.env.IOS_BUILD_NUMBER?.trim() || '1'
+if (!/^[1-9]\d{0,9}$/.test(iosBuildNumber)) {
+  throw new Error('IOS_BUILD_NUMBER must be a positive integer when set')
+}
+const androidVersionCode = Number(process.env.ANDROID_VERSION_CODE?.trim() || '1')
+// Google Play's ceiling for versionCode.
+if (!Number.isInteger(androidVersionCode) || androidVersionCode < 1 || androidVersionCode > 2100000000) {
+  throw new Error('ANDROID_VERSION_CODE must be an integer from 1 to 2100000000 when set')
+}
+const buildSha = process.env.GOGO_BUILD_SHA?.trim() || undefined
+if (buildSha && !/^[0-9a-f]{40}$/.test(buildSha)) {
+  throw new Error('GOGO_BUILD_SHA must be a 40-character commit sha when set')
+}
+
 // Same required contract in every remote environment. The marker prevents a
 // DEV-generated file being reused accidentally for a staging/production build.
 const configEnvironment = flavor === 'stag' ? 'staging' : flavor
@@ -210,7 +230,7 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: identity.bundleId,
     ...(appleTeamId ? { appleTeamId } : {}),
-    buildNumber: process.env.IOS_BUILD_NUMBER || '1',
+    buildNumber: iosBuildNumber,
     supportsTablet: false,
     // Only the flavour the domain actually names can verify (see app-identity).
     ...(identity.claimsWebLinks ? { associatedDomains: [`applinks:${identity.webHost}`] } : {}),
@@ -218,6 +238,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: identity.bundleId,
+    versionCode: androidVersionCode,
     config: { googleMaps: { apiKey: googleMapsAndroidApiKey } },
     allowBackup: false,
     ...(identity.claimsWebLinks
@@ -243,6 +264,9 @@ const config: ExpoConfig = {
   },
   plugins: [
     './plugins/with-tenjin-android.js',
+    // GoGo-MobileApp#391: the Firebase lane signs the APK with the environment's
+    // keystore, read from the environment at Gradle time; a no-op otherwise.
+    './plugins/with-android-release-signing.js',
     // Registered BEFORE onesignal-expo-plugin on purpose. Expo composes mods
     // like middleware, so the last one registered runs first — and this has to
     // run *after* onesignal-expo-plugin has written the extension target's
@@ -344,6 +368,9 @@ const config: ExpoConfig = {
     // Empty, `off` or a token — the bootstrap treats the first two as "no Adjust".
     adjustIosAppToken,
     adjustAndroidAppToken,
+    // The commit a distributed build was made from, for Sentry's release
+    // (GoGo-MobileApp#391). Absent on local builds.
+    ...(buildSha ? { buildSha } : {}),
   },
 }
 
