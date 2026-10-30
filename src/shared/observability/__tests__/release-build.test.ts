@@ -36,6 +36,8 @@ beforeEach(() => {
   mkdirSync(path.join(project, 'scripts/lib'), { recursive: true })
   cpSync(path.join(ROOT, 'scripts/release-build.sh'), path.join(project, 'scripts/release-build.sh'))
   cpSync(path.join(ROOT, 'scripts/lib/sentry-native.mjs'), path.join(project, 'scripts/lib/sentry-native.mjs'))
+  // The rule itself lives in the shared library since GoGo-MobileApp#391.
+  cpSync(path.join(ROOT, 'scripts/lib/sentry-upload-env.sh'), path.join(project, 'scripts/lib/sentry-upload-env.sh'))
   cpSync(path.join(ROOT, 'scripts/lib/dotenv-sentry-keys.mjs'), path.join(project, 'scripts/lib/dotenv-sentry-keys.mjs'))
   // The dotenv check resolves Expo's own parser from the project; point the
   // sandbox at this checkout's node_modules.
@@ -222,5 +224,42 @@ describe('scripts/release-build.sh', () => {
     expect(result.stderr).toMatch(/shell tracing enabled/)
     expect(result.stderr + result.stdout).not.toContain(TOKEN)
     expect(result.recorded).toBe('')
+  })
+})
+
+// GoGo-MobileApp#391 — the Firebase lanes run the same rule through the shared
+// library and read the four switches it prints; nothing else is printed.
+describe('scripts/lib/sentry-upload-env.sh, as the lanes call it', () => {
+  function lane(env: Record<string, string>) {
+    const base = { ...process.env }
+    for (const name of KNOBS) delete base[name]
+    return spawnSync(
+      'bash',
+      ['-c', 'source scripts/lib/sentry-upload-env.sh && sentry_upload_env "$1" && sentry_print_switches', 'sentry', 'android'],
+      { cwd: project, env: { ...base, ...env }, encoding: 'utf8' },
+    )
+  }
+
+  it('with a token: upload on, every other switch pinned, the token never printed', () => {
+    const result = lane({ SENTRY_AUTH_TOKEN: TOKEN })
+    expect(result.status).toBe(0)
+    expect(result.stdout).toBe(
+      'SENTRY_DISABLE_AUTO_UPLOAD=false\nSENTRY_ALLOW_FAILURE=false\nSENTRY_DISABLE_XCODE_DEBUG_UPLOAD=false\nSENTRY_DISABLE_NATIVE_DEBUG_UPLOAD=false\n',
+    )
+    expect(result.stdout + result.stderr).not.toContain(TOKEN)
+  })
+
+  it('without a token: upload off and the one warning', () => {
+    const result = lane({})
+    expect(result.status).toBe(0)
+    expect(result.stdout).toMatch(/^SENTRY_DISABLE_AUTO_UPLOAD=true\n/)
+    expect(result.stderr).toMatch(/no SENTRY_AUTH_TOKEN/)
+  })
+
+  it('refuses SENTRY_ALLOW_FAILURE and prints no switches', () => {
+    const result = lane({ SENTRY_AUTH_TOKEN: TOKEN, SENTRY_ALLOW_FAILURE: 'true' })
+    expect(result.status).not.toBe(0)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toContain('SENTRY_ALLOW_FAILURE is not allowed')
   })
 })

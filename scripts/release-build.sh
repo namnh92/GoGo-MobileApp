@@ -49,67 +49,11 @@ done
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# Each of these turns part of the upload off while the build still succeeds — a
-# third state between "uploaded" and "said it did not". SENTRY_DISABLE_AUTO_UPLOAD
-# is the one switch, and this script sets it itself.
-for knob in SENTRY_ALLOW_FAILURE SENTRY_DISABLE_XCODE_DEBUG_UPLOAD SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD; do
-  [[ -z "${!knob:-}" ]] || die "${knob} is not allowed: an upload either happens and must succeed, or the token is absent"
-done
-# sentry-xcode.sh reads this file on its own if it exists; a token kept there
-# outlives the build and travels with the working tree.
-[[ ! -e .env.sentry-build-plugin ]] || die ".env.sentry-build-plugin exists — delete it; the token comes from exec-with.sh only"
-# The Xcode phases source these three files *after* this script has checked
-# its environment (the bundle phase inline, the dSYM phase through
-# react-native's with-environment.sh), so a SENTRY_* line in any of them would
-# re-create exactly the state refused above, or hand the build a token kept in
-# a file. They exist to set NODE_BINARY and nothing else.
-for xcode_env in ios/.xcode.env ios/.xcode.env.local ios/.xcode.env.updates; do
-  if [[ -f "$xcode_env" ]] && grep -q 'SENTRY_' "$xcode_env"; then
-    die "${xcode_env} mentions SENTRY_ — Xcode sources it after this script's checks; remove that line (the token comes from exec-with.sh, the switches from this script)"
-  fi
-done
-# `expo run` loads the project's dotenv files (@expo/env: .env, .env.local,
-# .env.<mode>, .env.<mode>.local) after these checks and before the native
-# build starts, so a SENTRY_* assignment there — a switch, or the token kept in
-# a file — reaches the upload scripts unchecked. What counts as an assignment
-# is decided by the parser @expo/env itself uses (dotenv also accepts
-# `KEY: value`), via scripts/lib/dotenv-sentry-keys.mjs, which prints names only.
-# EXPO_PUBLIC_SENTRY_DSN is app config, not a build switch, and does not match.
-# .env.example is never loaded.
-shopt -s nullglob
-dotenv_files=()
-for dotenv in .env .env.*; do
-  [[ "$dotenv" == .env.example ]] && continue
-  [[ -f "$dotenv" ]] && dotenv_files+=("$dotenv")
-done
-shopt -u nullglob
-if ((${#dotenv_files[@]})); then
-  offending=$(node scripts/lib/dotenv-sentry-keys.mjs "${dotenv_files[@]}") && rc=0 || rc=$?
-  if ((rc == 1)); then
-    die "$(cut -f1 <<<"$offending" | sort -u | paste -sd, -) sets a SENTRY_ variable ($(cut -f2 <<<"$offending" | paste -sd, -)) — Expo loads it after this script's checks; remove that line (the token comes from exec-with.sh, the switches from this script)"
-  elif ((rc != 0)); then
-    die "could not check the dotenv files with Expo's parser (exit ${rc})"
-  fi
-fi
-
-if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
-  [[ "${SENTRY_DISABLE_AUTO_UPLOAD:-}" != "true" ]] \
-    || die "SENTRY_AUTH_TOKEN is set and SENTRY_DISABLE_AUTO_UPLOAD=true — pick one"
-  # A native project generated before the plugin existed builds green and
-  # uploads nothing. Missing directories are fine: `expo run` generates them
-  # with the plugin. The check is the one CI runs (scripts/lib/sentry-native.mjs).
-  if [[ -d "$platform" ]] && ! node scripts/lib/sentry-native.mjs . "$platform"; then
-    die "${platform}/ is not wired to upload (above) — it predates the Sentry plugin; run: npx expo prebuild -p ${platform} --clean"
-  fi
-  export SENTRY_DISABLE_AUTO_UPLOAD=false
-else
-  export SENTRY_DISABLE_AUTO_UPLOAD=true
-  echo "release-build: warning: no SENTRY_AUTH_TOKEN — this release build will not be symbolicated in Sentry" >&2
-fi
-# Every switch gets its final value here. The SDK only acts on the literal
-# "true", and nothing loaded later (@expo/env never overrides a variable that
-# is already set) can change a value defined now.
-export SENTRY_ALLOW_FAILURE=false SENTRY_DISABLE_XCODE_DEBUG_UPLOAD=false SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD=false
+# The two-state rule and every refusal around it live in one place, shared with
+# the Firebase lanes (scripts/distribute.sh, GoGo-MobileApp#391).
+# shellcheck source=lib/sentry-upload-env.sh
+source scripts/lib/sentry-upload-env.sh
+sentry_upload_env "$platform" || exit 1
 
 if [[ "$platform" == ios ]]; then
   exec npx expo run:ios --configuration Release "$@"
