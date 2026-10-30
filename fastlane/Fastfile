@@ -15,11 +15,10 @@ require 'base64'
 require 'socket'
 require_relative 'lib/gogo_distribute'
 
-# D-17: the first statement this file executes. Everything exec-with.sh handed
-# the process moves into memory and leaves ENV before any lane, action or child
-# can run. A Fastfile load with nothing to capture (CI's `fastlane lanes`)
-# captures nothing.
-GOGO_SECRETS = GogoDistribute::Secrets.capture!(ENV)
+# D-17: fastlane/bootstrap.rb captured the secrets before fastlane loaded (its
+# startup may spawn); this picks that set up. Loaded any other way (CI's
+# `fastlane lanes`), the Fastfile captures whatever is there — nothing.
+GOGO_SECRETS = defined?(GOGO_BOOT_SECRETS) ? GOGO_BOOT_SECRETS : GogoDistribute::Secrets.capture!(ENV)
 
 skip_docs
 default_platform(:ios)
@@ -28,11 +27,10 @@ REPO_ROOT = File.expand_path('..', __dir__)
 NSE_TARGET = 'OneSignalNotificationServiceExtension'
 LOGIN_KEYCHAIN = File.expand_path('~/Library/Keychains/login.keychain-db')
 
-# TERM/HUP become exceptions in the main thread, so every lane's `ensure` and
-# the cleanup owner run on them exactly as on Ctrl-C (D-18).
-%w[TERM HUP].each do |sig|
-  Signal.trap(sig) { raise SignalException, sig }
-end
+# INT/TERM/HUP become exceptions in the main thread, so every lane's `ensure`
+# and the cleanup owner run on them (D-18) — deferred while a child is being
+# spawned and registered (bootstrap.rb installs this first; idempotent).
+GogoDistribute::Signals.install!
 
 def gogo_state
   @gogo_state ||= {}
@@ -145,10 +143,13 @@ end
 def gogo_sentry_switches(ctx)
   env = ctx[:base].dup
   env['SENTRY_AUTH_TOKEN'] = GOGO_SECRETS['SENTRY_AUTH_TOKEN'] if !ctx[:without_symbols] && GOGO_SECRETS.key?('SENTRY_AUTH_TOKEN')
+  err_log = gogo_logfile(ctx, 'sentry-check')
   out = ctx[:supervisor].capture(
     ['bash', '-c', 'source scripts/lib/sentry-upload-env.sh && sentry_upload_env "$1" && sentry_print_switches', 'sentry', ctx[:platform]],
-    env: env, chdir: REPO_ROOT
+    env: env, chdir: REPO_ROOT, err_log: err_log
   )
+  # The rule's own words: the "will not be symbolicated" warning in state 2.
+  File.read(err_log).each_line { |line| UI.important(line.chomp) } if File.exist?(err_log)
   switches = GogoDistribute.parse_switches(out)
   gogo_log("sentry: upload=#{switches['SENTRY_DISABLE_AUTO_UPLOAD'] == 'false' ? 'on' : 'off (no token)'}")
   switches

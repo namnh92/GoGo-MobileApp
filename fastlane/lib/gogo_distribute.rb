@@ -155,6 +155,70 @@ module GogoDistribute
     end
   end
 
+  # D-18: INT/TERM/HUP raise in the main thread so cleanup runs — except
+  # inside `critical`, where a child is being spawned and registered. A signal
+  # there is held and raised as soon as the child is on the cleanup list, so no
+  # running process group can be missing from it. (Ruby's handle_interrupt does
+  # not defer signal traps, hence the flag.)
+  module Signals
+    @critical = 0
+    @pending = nil
+    @installed = false
+
+    class << self
+      def install!(signals = %w[INT TERM HUP])
+        return if @installed
+
+        signals.each { |sig| Signal.trap(sig) { deliver(sig) } }
+        @installed = true
+      end
+
+      def deliver(sig)
+        if @critical.positive?
+          @pending ||= sig
+        else
+          raise_for(sig)
+        end
+      end
+
+      def critical
+        @critical += 1
+        result = yield
+        @critical -= 1
+        release_pending
+        result
+      rescue Exception # rubocop:disable Lint/RescueException
+        @critical -= 1 if @critical.positive?
+        raise
+      end
+
+      def pending
+        @pending
+      end
+
+      def reset!
+        @critical = 0
+        @pending = nil
+      end
+
+      private
+
+      def release_pending
+        return unless @critical.zero? && @pending
+
+        sig = @pending
+        @pending = nil
+        raise_for(sig)
+      end
+
+      def raise_for(sig)
+        raise Interrupt if sig == 'INT'
+
+        raise SignalException, sig
+      end
+    end
+  end
+
   # D-17/D-18: every child runs in its own process group, with an explicit
   # environment, and is not considered gone until the group is empty.
   class Supervisor
@@ -184,9 +248,7 @@ module GogoDistribute
       if log
         opts[[:out, :err]] = [log, 'a', 0o600]
       end
-      pid = Process.spawn(env, *cmd, **opts)
-      @children[pid] = pid
-      write_run_file
+      pid = spawn_registered { Process.spawn(env, *cmd, **opts) }
       _, status = Process.wait2(pid)
       ensure_group_gone(pid)
       @children.delete(pid)
@@ -196,22 +258,39 @@ module GogoDistribute
       raise Refusal, "#{File.basename(cmd.first)} exited #{status.exitstatus || status.termsig} (log: #{log || 'stdout'})"
     end
 
-    # Captures stdout (small outputs: security, git). stderr to the log or /dev/null.
-    def capture(cmd, env:, chdir:)
+    # Captures stdout (small outputs: security, the Sentry switches). stderr
+    # goes to `err_log` when given — a warning or a refusal reason the caller
+    # shows — and is part of the error when the child fails.
+    def capture(cmd, env:, chdir:, err_log: nil)
       reader, writer = IO.pipe
-      pid = Process.spawn(env, *cmd, unsetenv_others: true, pgroup: true, chdir: chdir, out: writer, err: File::NULL)
+      err = err_log ? [err_log, 'w', 0o600] : File::NULL
+      pid = spawn_registered do
+        Process.spawn(env, *cmd, unsetenv_others: true, pgroup: true, chdir: chdir, out: writer, err: err)
+      end
       writer.close
-      @children[pid] = pid
-      write_run_file
       out = reader.read
       reader.close
       _, status = Process.wait2(pid)
       ensure_group_gone(pid)
       @children.delete(pid)
       write_run_file
-      raise Refusal, "#{File.basename(cmd.first)} exited #{status.exitstatus}" unless status.success?
+      unless status.success?
+        detail = err_log && File.exist?(err_log) ? File.read(err_log).strip : ''
+        raise Refusal, ["#{File.basename(cmd.first)} exited #{status.exitstatus}", detail].reject(&:empty?).join(': ')
+      end
 
       out
+    end
+
+    # Spawn and register as one step: a signal that arrives in between waits
+    # until the group is on the cleanup list (F-03).
+    def spawn_registered
+      Signals.critical do
+        pid = yield
+        @children[pid] = pid
+        write_run_file
+        pid
+      end
     end
 
     def live_groups

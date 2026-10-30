@@ -197,6 +197,18 @@ class SupervisorTest < Minitest::Test
     FileUtils.rm_rf(@dir)
   end
 
+  # F-04: stderr is kept — a warning on success, the reason on failure.
+  def test_capture_keeps_stderr
+    err = File.join(@dir, 'err.log')
+    out = @supervisor.capture(['/bin/sh', '-c', 'echo out; echo warn >&2'], env: {}, chdir: @dir, err_log: err)
+    assert_equal "out\n", out
+    assert_equal "warn\n", File.read(err)
+    error = assert_raises(GD::Refusal) do
+      @supervisor.capture(['/bin/sh', '-c', 'echo refused-because >&2; exit 1'], env: {}, chdir: @dir, err_log: err)
+    end
+    assert_match(/refused-because/, error.message)
+  end
+
   def test_child_sees_exactly_the_environment_it_was_given
     out = @supervisor.capture(['/usr/bin/env'], env: { 'PATH' => '/usr/bin:/bin', 'ONLY_THIS' => '1' }, chdir: @dir)
     names = out.lines.map { |l| l.split('=', 2).first }.sort
@@ -253,6 +265,47 @@ class SupervisorTest < Minitest::Test
     true
   rescue Errno::ESRCH
     false
+  end
+end
+
+class SignalsTest < Minitest::Test
+  def setup
+    GD::Signals.install!(%w[HUP])
+    GD::Signals.reset!
+  end
+
+  # F-03: a signal between spawn and registration waits until the child is on
+  # the cleanup list, then raises.
+  def test_a_signal_inside_critical_is_held_until_the_block_ends
+    reached_end = false
+    assert_raises(SignalException) do
+      GD::Signals.critical do
+        Process.kill('HUP', Process.pid)
+        sleep 0.2 # the trap runs here; it must not raise yet
+        reached_end = true
+      end
+    end
+    assert reached_end, 'the signal interrupted the critical section'
+    assert_nil GD::Signals.pending
+  end
+
+  def test_supervisor_registers_before_a_held_signal_is_raised
+    Dir.mktmpdir do |dir|
+      supervisor = GD::Supervisor.new(run_file: File.join(dir, 'run.json'))
+      pid = nil
+      assert_raises(SignalException) do
+        supervisor.spawn_registered do
+          pid = Process.spawn({}, '/bin/sleep', '30', unsetenv_others: true, pgroup: true)
+          Process.kill('HUP', Process.pid)
+          sleep 0.2
+          pid
+        end
+      end
+      assert_includes supervisor.live_groups, pid
+      assert_includes JSON.parse(File.read(File.join(dir, 'run.json')))['pgids'], pid
+      supervisor.terminate_all
+      assert_empty supervisor.live_groups
+    end
   end
 end
 

@@ -241,6 +241,41 @@ describe('scripts/distribute.sh', () => {
     }
   })
 
+  // Sol F-02: a build process group that outlived fastlane keeps the lock and
+  // the run files; nothing is deleted under it.
+  it('keeps the lock and run files when a recorded build group is still alive after the child exits', () => {
+    const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' })
+    const pgid = child.pid as number
+    // The stub child records the group in run.json, as fastlane does, and exits.
+    const stub = path.join(infra, 'scripts/secrets/exec-with.sh')
+    writeFileSync(
+      stub,
+      sh(`for a in "$@"; do case "$a" in run_dir:*) d="\${a#run_dir:}" ;; esac; done
+printf '{"ruby_pid": 1, "ruby_start": "x", "pgids": [%s], "finished": false}' "$STUB_PGID" > "$d/run.json"
+echo secret > "$d/tmp/keystore.p12"
+exit 0`),
+    )
+    try {
+      const result = run(['dev', 'android', '--groups', 'dev-testers'], { STUB_PGID: String(pgid) })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toMatch(new RegExp(`build process groups still running \\(${pgid}\\)`))
+      expect(existsSync(path.join(lockDir('dev', 'android'), 'owner'))).toBe(true)
+      expect(existsSync(path.join(lockDir('dev', 'android'), 'tmp', 'keystore.p12'))).toBe(true)
+    } finally {
+      process.kill(-pgid, 'SIGKILL')
+    }
+  })
+
+  // Sol F-01: layer 2 runs with every secret exported and must fork nothing.
+  it('layer 2 contains no command substitution and execs the Ruby bootstrap', () => {
+    const layer2 = readFileSync(path.join(ROOT, 'scripts/lib/distribute-run.sh'), 'utf8')
+      .split('\n')
+      .filter(line => !line.trimStart().startsWith('#'))
+      .join('\n')
+    expect(layer2).not.toMatch(/\$\(|`/)
+    expect(layer2).toMatch(/exec bundle exec ruby fastlane\/bootstrap\.rb/)
+  })
+
   it('refuses shell tracing', () => {
     const result = spawnSync('bash', ['-x', path.join(project, 'scripts/distribute.sh'), 'dev', 'ios'], { encoding: 'utf8' })
     expect(result.status).not.toBe(0)

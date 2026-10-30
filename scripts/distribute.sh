@@ -265,12 +265,33 @@ mkdir -m 700 "${run_dir}/tmp"
 
 child=""
 cleaned=false
+# Process groups fastlane recorded in run.json that still have a member. Ruby
+# removes a group only after it verified the group is gone, so anything left
+# here is a build process that outlived it (Ruby killed, or a group that
+# survived SIGKILL).
+surviving_groups() {
+  local pgid live=()
+  for pgid in $(run_field "$run_dir" pgids); do
+    pgrep -g "$pgid" >/dev/null 2>&1 && live+=("$pgid")
+  done
+  # `-` default: bash 3.2 (macOS /bin/bash) treats an empty array as unset under -u.
+  echo "${live[*]-}"
+}
 cleanup() {
   $cleaned && return
   cleaned=true
   if [[ -n "$child" ]] && kill -0 "$child" 2>/dev/null; then
     kill -TERM "$child" 2>/dev/null || true
     wait "$child" 2>/dev/null || true
+  fi
+  # Fail closed: while a build process may still read the keystore or the
+  # profiles, nothing is deleted and the lock stays — the next start names the
+  # groups instead of overlapping them (D-18).
+  local live
+  live="$(surviving_groups)"
+  if [[ -n "$live" ]]; then
+    echo "distribute: build process groups still running (${live}); lock and run files kept at ${run_dir} — stop them, then re-run" >&2
+    return
   fi
   # Fastlane removes its own files; this is the second, idempotent pass.
   if [[ -d "${run_dir}/tmp" ]]; then
@@ -320,6 +341,8 @@ if [[ "$platform" == ios ]]; then
 fi
 
 export APPLE_TEAM_ID="$apple_team_id"
+# fastlane asks `locale` for the charmap unless these say UTF-8.
+export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 "${infra}/scripts/secrets/exec-with.sh" "$env_name" "${rows[@]}" -- \
   "${repo_root}/scripts/lib/distribute-run.sh" "$platform" "$without_symbols" "${lane_options[@]}" &
 child=$!
@@ -331,4 +354,7 @@ while kill -0 "$child" 2>/dev/null; do
 done
 wait "$child" 2>/dev/null && status=0 || { s=$?; ((s == 127)) || status=$s; }
 child=""
+if [[ -n "$(surviving_groups)" ]] && ((status == 0)); then
+  status=1
+fi
 exit "$status"

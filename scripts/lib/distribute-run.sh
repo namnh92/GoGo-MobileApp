@@ -21,5 +21,9 @@ shift 2
 # token at all, not "the row was not asked for".
 [[ "$without_symbols" == true ]] && unset SENTRY_AUTH_TOKEN
 
-cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-exec bundle exec fastlane "$platform" firebase "$@"
+# Parameter expansion, not $(dirname …): a command substitution forks a child
+# that would inherit every fetched secret. distribute.sh calls this script by
+# its absolute path.
+cd "${BASH_SOURCE[0]%/*}/../.."
+# fastlane/bootstrap.rb takes the secrets out of ENV before fastlane loads.
+exec bundle exec ruby fastlane/bootstrap.rb "$platform" firebase "$@"
