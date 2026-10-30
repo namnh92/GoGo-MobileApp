@@ -194,7 +194,7 @@ platform :ios do
       profiles = {}
       [ctx[:bundle_id], "#{ctx[:bundle_id]}.#{NSE_TARGET}"].each do |app_id|
         get_provisioning_profile(
-          adhoc: true, force: true, readonly: false, skip_install: false,
+          adhoc: true, force: true, skip_install: false,
           cert_id: identity[:cert_id], app_identifier: app_id, platform: 'ios', team_id: team_id,
           output_path: ctx[:tmp], filename: "#{app_id}.mobileprovision", api_key: api_key,
           skip_certificate_verification: false, include_all_certificates: false
