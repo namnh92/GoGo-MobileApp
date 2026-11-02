@@ -14,7 +14,6 @@ import {
   redactText,
   resetSentryForTests,
   sentryBuild,
-  sentryEnvironment,
   setScreenReader,
   setSentryUser,
   wrapRoot,
@@ -208,10 +207,10 @@ describe('init', () => {
   })
 
   it('with a DSN, sets the scope ADR-0011 D-1 allows and nothing more', () => {
-    initSentry({ dsn: 'https://0123456789abcdef0123456789abcdef@o0.ingest.us.sentry.io/1', environment: 'staging' })
+    initSentry({ dsn: 'https://0123456789abcdef0123456789abcdef@o0.ingest.us.sentry.io/1', environment: 'stag' })
     const options = sdk.init.mock.calls[0][0]
     expect(options).toMatchObject({
-      environment: 'staging',
+      environment: 'stag',
       sendDefaultPii: false,
       enableAutoSessionTracking: true,
       enableAutoPerformanceTracing: false,
@@ -324,11 +323,6 @@ describe('init', () => {
     expect(sdk.wrap).toHaveBeenCalledWith(Root)
   })
 
-  it('maps the flavour to the backend environment vocabulary', () => {
-    expect(sentryEnvironment('dev')).toBe('dev')
-    expect(sentryEnvironment('stag')).toBe('staging')
-    expect(sentryEnvironment('prod')).toBe('prod')
-  })
 })
 
 describe('defence in depth (C-19)', () => {

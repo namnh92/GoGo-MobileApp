@@ -110,8 +110,6 @@ jobs:
             # `expo config` prints "env: load .env" to stdout before the JSON,
             # so the object is taken from the first brace rather than the first
             # line.
-            provider_env="$flavor"
-            if [ "$flavor" = stag ]; then provider_env=staging; fi
             # stag/prod must state a crash-reporting decision (GoGo-MobileApp#336);
             # `off` is that decision for a job that never sends an event. dev
             # stays empty, which is the case a local build takes.
@@ -121,7 +119,7 @@ jobs:
             # on stag/prod; dev stays empty.
             adjust_token=""
             if [ "$flavor" != dev ]; then adjust_token=off; fi
-            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$provider_env" TENJIN_CONFIG_ENV="$provider_env" ADJUST_CONFIG_ENV="$provider_env" EXPO_PUBLIC_SENTRY_DSN="$sentry_dsn" ADJUST_IOS_APP_TOKEN="$adjust_token" ADJUST_ANDROID_APP_TOKEN="$adjust_token" npx expo config --type prebuild --json \
+            EXPO_PUBLIC_ENV="$flavor" ONESIGNAL_CONFIG_ENV="$flavor" TENJIN_CONFIG_ENV="$flavor" ADJUST_CONFIG_ENV="$flavor" EXPO_PUBLIC_SENTRY_DSN="$sentry_dsn" ADJUST_IOS_APP_TOKEN="$adjust_token" ADJUST_ANDROID_APP_TOKEN="$adjust_token" npx expo config --type prebuild --json \
               | sed -n '/^{/,$p' > "/tmp/config.$flavor.json"
             echo "  $flavor: config resolves"
           done

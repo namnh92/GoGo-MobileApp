@@ -797,12 +797,8 @@ function guardScope(scope: SyncedScope): void {
 
 // --- init and helpers ------------------------------------------------------------
 
-export type SentryEnvironment = 'dev' | 'staging' | 'prod'
-
-/** Build flavour → BE's environment vocabulary (D-3); never `__DEV__`. */
-export function sentryEnvironment(flavor: 'dev' | 'stag' | 'prod'): SentryEnvironment {
-  return flavor === 'stag' ? 'staging' : flavor
-}
+/** The build flavour, never `__DEV__` (GoGo-Infra#286, ADR-0015). */
+export type SentryEnvironment = 'dev' | 'stag' | 'prod'
 
 /**
  * `https://<key>@<host>[:port]/<project>`; `http` is accepted for the local
