@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { createConsentStore } from '../consent-store'
 import { createTrackingConsent, type TrackingLibrary } from '../tracking'
 
 vi.mock('expo-tracking-transparency', () => ({}))
@@ -41,7 +42,8 @@ describe('tracking consent on Android', () => {
       get: () => value,
     }
   }
-  const android = (store: ReturnType<typeof fakeStore>, report?: (e: string) => void, over: Partial<TrackingLibrary> = {}) =>
+  type StoreLike = Pick<ReturnType<typeof createConsentStore>, 'load' | 'set' | 'get'>
+  const android = (store: StoreLike, report?: (e: string) => void, over: Partial<TrackingLibrary> = {}) =>
     createTrackingConsent({ lib: lib(over), platform: 'android', store, report })
 
   it('never reads the library, which answers granted there', async () => {
@@ -81,6 +83,21 @@ describe('tracking consent on Android', () => {
     expect(await isSettled(consent.settled())).toBe(true)
     expect(await consent.status()).toBe(status)
     expect(events).toEqual([`consent_tracking:${status}`])
+  })
+
+  it('F-01: answered in Settings before the first sheet, on the real store: no sheet follows', async () => {
+    const disk = new Map<string, string>()
+    const store = createConsentStore({
+      storage: {
+        getItem: async key => disk.get(key) ?? null,
+        setItem: async (key, value) => void disk.set(key, value),
+        removeItem: async key => void disk.delete(key),
+      },
+    })
+    const consent = android(store)
+    expect(await consent.status()).toBe('undetermined')
+    consent.answer('denied')
+    expect(await consent.status()).toBe('denied')
   })
 
   it('later settles without recording anything', async () => {

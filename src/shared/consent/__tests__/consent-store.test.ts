@@ -111,6 +111,13 @@ describe('reading', () => {
     expect(store.get()).toBe('denied')
   })
 
+  it('F-01: an answer made after the read finished is what a later load returns', async () => {
+    const store = createConsentStore({ storage: working() })
+    expect(await store.load()).toBe('undetermined')
+    store.set('granted')
+    expect(await store.load()).toBe('granted')
+  })
+
   it('reads once per process', async () => {
     const { storage, calls } = controlled()
     const store = createConsentStore({ storage })
@@ -200,6 +207,36 @@ describe('deciding', () => {
     expect(store.get()).toBe('denied')
     expect(store.snapshot().save).toBe('unsaved')
     expect(events).toEqual(['consent_tracking:store_failed:denied'])
+  })
+
+  it('F-02: a cleanup that never answers is reported at its own bound, and late says nothing more', async () => {
+    vi.useFakeTimers()
+    const events: string[] = []
+    const { storage, calls } = controlled()
+    const store = createConsentStore({ storage, report: e => events.push(e) })
+    store.set('denied')
+    calls[0].reject()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(calls.map(c => c.op)).toEqual(['set', 'remove'])
+    expect(events).toEqual([])
+    await vi.advanceTimersByTimeAsync(CONSENT_STORE_TIMEOUT_MS)
+    expect(events).toEqual(['consent_tracking:store_failed:denied'])
+    calls[1].resolve()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(events).toEqual(['consent_tracking:store_failed:denied'])
+  })
+
+  it('F-02: a cleanup overtaken by a newer answer reports nothing for it', async () => {
+    const events: string[] = []
+    const { storage, calls } = controlled()
+    const store = createConsentStore({ storage, report: e => events.push(e) })
+    store.set('denied')
+    calls[0].reject()
+    await flush()
+    store.set('granted')
+    calls[1].resolve()
+    await flush()
+    expect(events).toEqual([])
   })
 
   it('a failed denial landing after a newer grant erases nothing', async () => {

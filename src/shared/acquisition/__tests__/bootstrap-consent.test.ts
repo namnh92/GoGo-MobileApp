@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   collect: (async () => {}) as () => Promise<void>,
   deferred: undefined as undefined | ((payload: unknown) => void),
   remember: (async () => true) as () => Promise<boolean>,
+  connectThrows: false,
 }))
 
 vi.mock('expo-constants', () => ({
@@ -30,7 +31,13 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }))
 vi.mock('react-native-tenjin', () => ({
   default: Object.fromEntries(
-    ['initialize', 'setAppStore', 'optIn', 'optOut', 'connect'].map(name => [name, () => state.calls.push(`tenjin.${name}`)]),
+    ['initialize', 'setAppStore', 'optIn', 'optOut', 'connect'].map(name => [
+      name,
+      () => {
+        state.calls.push(`tenjin.${name}`)
+        if (name === 'connect' && state.connectThrows) throw new Error('provider')
+      },
+    ]),
   ),
 }))
 vi.mock('react-native-adjust', () => {
@@ -107,6 +114,7 @@ afterEach(() => {
   state.collect = async () => {}
   state.deferred = undefined
   state.remember = async () => true
+  state.connectThrows = false
   vi.useRealTimers()
   vi.restoreAllMocks()
   vi.resetModules()
@@ -255,6 +263,30 @@ describe('the Settings switch', () => {
     expect(state.calls).not.toContain('tenjin.collect')
     expect(state.calls).not.toContain('adjust.initSdk')
     expect(warned()).toContain('acquisition_start_stale:adjust')
+  })
+
+  it('F-03: a Tenjin start that failed is retried by the next yes, not just opted in', async () => {
+    state.connectThrows = true
+    stored('granted')
+    const { setAcquisitionConsent } = await launch()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(state.calls.filter(c => c === 'tenjin.connect')).toHaveLength(1)
+    state.connectThrows = false
+    setAcquisitionConsent(false)
+    state.calls.length = 0
+    setAcquisitionConsent(true)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(state.calls.filter(c => c === 'tenjin.connect')).toHaveLength(1)
+  })
+
+  it('F-03: a Tenjin that never started is not told to opt out', async () => {
+    state.connectThrows = true
+    stored('granted')
+    const { setAcquisitionConsent } = await launch()
+    await vi.advanceTimersByTimeAsync(0)
+    state.calls.length = 0
+    setAcquisitionConsent(false)
+    expect(state.calls).not.toContain('tenjin.optOut')
   })
 
   it('a failed start can be followed by a real one', async () => {

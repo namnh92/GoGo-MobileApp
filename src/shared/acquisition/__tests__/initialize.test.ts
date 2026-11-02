@@ -72,3 +72,18 @@ describe('Android opt-in (#370)', () => {
     expect(order).toEqual(['initialize', 'setAppStore', 'connect'])
   })
 })
+
+describe('says whether it started (#370 F-03)', () => {
+  const sdk = (connect: () => void) => ({ initialize: () => {}, setAppStore: () => {}, optIn: () => {}, connect })
+
+  it('true once connected, and again for the same key', () => {
+    const initialize = createTenjinInitializer(sdk(() => {}))
+    expect(initialize('key')).toBe(true)
+    expect(initialize('key')).toBe(true)
+  })
+
+  it('false when the provider failed', () => {
+    const initialize = createTenjinInitializer(sdk(() => { throw new Error('provider') }))
+    expect(initialize('key')).toBe(false)
+  })
+})

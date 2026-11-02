@@ -92,7 +92,7 @@ export function createConsentStore(deps: {
   let generation = 0
   /** Bumped by every mutation, retries included: what makes one stale. */
   let mutation = 0
-  let loading: Promise<ConsentValue> | undefined
+  let loading: Promise<void> | undefined
   const listeners = new Set<() => void>()
 
   function update(next: Partial<ConsentSnapshot>) {
@@ -106,9 +106,17 @@ export function createConsentStore(deps: {
       report('consent_tracking:store_skipped:stale')
       return
     }
+    let finished = false
+    const finish = (event: string) => {
+      if (finished) return
+      finished = true
+      clearTimeout(timer)
+      if (issued === mutation) report(event)
+    }
+    const timer = setTimeout(() => finish('consent_tracking:store_failed:denied'), timeoutMs)
     issue(() => deps.storage.removeItem(CONSENT_STORAGE_KEY)).then(
-      () => report('consent_tracking:store_cleared:denied'),
-      () => report('consent_tracking:store_failed:denied'),
+      () => finish('consent_tracking:store_cleared:denied'),
+      () => finish('consent_tracking:store_failed:denied'),
     )
   }
 
@@ -142,14 +150,14 @@ export function createConsentStore(deps: {
   }
 
   return {
-    /** Reads the stored answer once per process; never rejects. */
+    /** Reads the stored answer once per process; resolves to the current value, never rejects. */
     load(): Promise<ConsentValue> {
-      loading ??= new Promise<ConsentValue>(resolve => {
+      loading ??= new Promise<void>(resolve => {
         const finish = (read: ConsentValue) => {
           clearTimeout(timer)
           // An answer made while this was reading is newer than anything on disk.
           if (generation === 0 && !snapshot.loaded) update({ value: read, loaded: true })
-          resolve(snapshot.value)
+          resolve()
         }
         const timer = setTimeout(() => finish('undetermined'), timeoutMs)
         issue(() => deps.storage.getItem(CONSENT_STORAGE_KEY)).then(
@@ -157,7 +165,7 @@ export function createConsentStore(deps: {
           () => finish('undetermined'),
         )
       })
-      return loading
+      return loading.then(() => snapshot.value)
     },
 
     /** The person decided. Runtime now, write issued in this same tick. */

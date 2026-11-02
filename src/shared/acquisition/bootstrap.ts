@@ -133,8 +133,7 @@ function startTenjin(scope: Promise<void>, current: StartGuard = alwaysCurrent):
     console.warn('acquisition_start_stale:tenjin')
     return scope
   }
-  android.tenjinStarted = true
-  initialize(key)
+  android.tenjinStarted = initialize(key)
 
   // After connect, because attribution is only known once the SDK has talked
   // to Tenjin. Deliberately not awaited: a launch must not wait on a provider
