@@ -138,8 +138,9 @@ if (buildSha && !/^[0-9a-f]{40}$/.test(buildSha)) {
 }
 
 // Same required contract in every remote environment. The marker prevents a
-// DEV-generated file being reused accidentally for a staging/production build.
-const configEnvironment = flavor === 'stag' ? 'staging' : flavor
+// DEV-generated file being reused accidentally for a stag/prod build. The
+// environment name is the flavour (GoGo-Infra#286, ADR-0015): no mapping.
+const configEnvironment = flavor
 const oneSignalAppId = process.env.ONESIGNAL_APP_ID?.trim()
 if (!oneSignalAppId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(oneSignalAppId)) {
   throw new Error('ONESIGNAL_APP_ID is required and must be a UUID in every environment')

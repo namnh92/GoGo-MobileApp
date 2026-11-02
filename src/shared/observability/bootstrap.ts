@@ -4,7 +4,7 @@ import { Platform } from 'react-native'
 import { env } from '@/shared/config/env'
 import { getSession, subscribeToSession, type Session } from '@/shared/api/session'
 
-import { initSentry, sentryBuild, sentryEnvironment, setSentryUser } from './sentry'
+import { initSentry, sentryBuild, setSentryUser } from './sentry'
 
 /**
  * GoGo-MobileApp#336 — crash reporting starts here, as a side effect of the
@@ -26,7 +26,7 @@ const config = Constants.expoConfig
 const buildNumber = Platform.OS === 'ios' ? config?.ios?.buildNumber : config?.android?.versionCode
 initSentry({
   dsn: env.sentryDsn,
-  environment: sentryEnvironment(env.name),
+  environment: env.name,
   build: sentryBuild(config?.extra, buildNumber),
 })
 setSentryUser(sentryUserId(getSession()))

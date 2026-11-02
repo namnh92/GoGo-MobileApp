@@ -22,7 +22,7 @@ async function loadConfig(
   process.env.ADJUST_IOS_APP_TOKEN = adjust.ios ?? adjustDefault
   process.env.ADJUST_ANDROID_APP_TOKEN = adjust.android ?? adjustDefault
   // The marker is unconditional (PR #369 Sol F-04); `null` leaves it unset.
-  const marker = adjust.env === undefined ? (flavor === 'stag' ? 'staging' : (flavor ?? 'dev')) : adjust.env
+  const marker = adjust.env === undefined ? (flavor ?? 'dev') : adjust.env
   if (marker === null) delete process.env.ADJUST_CONFIG_ENV
   else process.env.ADJUST_CONFIG_ENV = marker
   const dsn = sentryDsn ?? (flavor === 'stag' || flavor === 'prod' ? 'off' : undefined)
@@ -33,9 +33,9 @@ async function loadConfig(
   process.env.GOOGLE_MAPS_IOS_API_KEY ??= 'ios-key-under-test'
   process.env.GOOGLE_MAPS_ANDROID_API_KEY ??= 'android-key-under-test'
   process.env.ONESIGNAL_APP_ID = '00000000-0000-4000-8000-000000000001'
-  process.env.ONESIGNAL_CONFIG_ENV = flavor === 'stag' ? 'staging' : (flavor ?? 'dev')
+  process.env.ONESIGNAL_CONFIG_ENV = flavor ?? 'dev'
   process.env.ONESIGNAL_APNS_MODE = 'production'
-  process.env.TENJIN_CONFIG_ENV = flavor === 'stag' ? 'staging' : (flavor ?? 'dev')
+  process.env.TENJIN_CONFIG_ENV = flavor ?? 'dev'
   process.env.TENJIN_IOS_SDK_KEY = 'test-ios'
   process.env.TENJIN_ANDROID_SDK_KEY = 'test-android'
   const module = (await import('../../../../app.config')) as { default: ExpoConfig }
@@ -65,8 +65,7 @@ describe('Adjust app tokens (GoGo-MobileApp#367, AC-A1)', () => {
 
   it.each(['stag', 'prod'])('%s accepts off, or a token bound to its environment', async flavor => {
     await expect(loadConfig(flavor)).resolves.toBeDefined()
-    const env = flavor === 'stag' ? 'staging' : flavor
-    const config = await loadConfig(flavor, undefined, { ios: TOKEN, android: 'off', env })
+    const config = await loadConfig(flavor, undefined, { ios: TOKEN, android: 'off', env: flavor })
     expect(config.extra).toMatchObject({ adjustIosAppToken: TOKEN, adjustAndroidAppToken: 'off' })
   })
 
@@ -74,6 +73,8 @@ describe('Adjust app tokens (GoGo-MobileApp#367, AC-A1)', () => {
     await expect(loadConfig('prod', undefined, { ios: TOKEN, android: TOKEN, env: 'dev' })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
     await expect(loadConfig('prod', undefined, { env: null })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
     await expect(loadConfig('stag', undefined, { env: 'prod' })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
+    // GoGo-Infra#286: the environment name is the flavour; the old word is refused.
+    await expect(loadConfig('stag', undefined, { env: 'staging' })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
     await expect(loadConfig('dev', undefined, { env: null })).rejects.toThrow(/ADJUST_CONFIG_ENV/)
     await expect(loadConfig('dev', undefined, { ios: TOKEN, android: TOKEN, env: 'dev' })).resolves.toBeDefined()
   })
