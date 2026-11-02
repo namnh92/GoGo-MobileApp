@@ -40,7 +40,7 @@ store (#364) has a reader and accepts more than one writer.
   Android needs no plugin of its own: the module declares `AD_ID`, and
   Tenjin's plugin already adds Play install referrer, ads identifier and App
   Set.
-- **Roles (shape D1):** both SDKs start on every launch; Adjust is the MMP read
+- **Roles (shape D1):** both SDKs start on every launch (**Android: only after consent, ADR 0013**); Adjust is the MMP read
   for install attribution and the second writer of deferred links. Neither is
   business truth (spec §19): "installs (Adjust)" and "installs (Tenjin)" are two
   labelled series, never summed. **No events in phase 1** — no event token, no

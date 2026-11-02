@@ -50,8 +50,9 @@ export function DeferredLinkResumer() {
     // Module scope: at most one open per process, whatever remounts the layout.
     resume ??= createDeferredLinkResume({
       store: pendingDeepLinks,
-      // On iOS also after the tracking question (#366): an MMP may hold its
-      // report until it knows the answer.
+      // Also after the tracking question (#366, #370): on iOS an MMP may hold
+      // its report until it knows the answer, on Android nothing starts before
+      // it, and either way the sheet must not land on top of an opened link.
       settled: () => Promise.all([deferredLinkSettled(), trackingConsent.settled()]).then(() => undefined),
       initialUrl: () => Linking.getInitialURL(),
       open: (action) => openDeepLinkAction(router, action, 'deferred'),

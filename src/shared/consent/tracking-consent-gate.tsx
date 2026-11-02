@@ -6,6 +6,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { isSplashHidden, subscribeSplashHidden } from '@/shared/ui/splash-state'
 
 import { TrackingSheet } from './tracking-sheet.view'
+import type { ConsentAnswer } from './consent-store'
 import { trackingConsent, type TrackingConsent } from './tracking'
 
 /** Not the moment to ask: the person is still getting in. */
@@ -27,13 +28,14 @@ export function resetTrackingConsentLaunch(): void {
 
 /**
  * GoGo-MobileApp#366 — decides when the tracking sheet appears (shape rev 2
- * D5.3): once per launch, only where ATT exists, only while iOS has no answer,
+ * D5.3): once per launch, only where there is a question to ask (#370: Android
+ * too, where this sheet is the consent), only while it has no answer,
  * and only at a real moment — the splash lifted, the app in the foreground,
  * someone signed in or joined as a guest, on a screen past sign-in and
  * onboarding. If that moment ends first (a read still pending, or the sheet
  * up when the session ends or the app leaves the foreground), the question is
  * put back and asked at the next one. It is settled only by an answer, "Để
- * sau", or iOS having answered before. Mounted once, in the root layout.
+ * sau", or an answer given before. Mounted once, in the root layout.
  */
 export function TrackingConsentGate({ consent = trackingConsent }: { consent?: TrackingConsent }) {
   const { status } = useSession()
@@ -87,6 +89,14 @@ export function TrackingConsentGate({ consent = trackingConsent }: { consent?: T
     })
   }
 
+  /** Android: no system dialog, so the tap is the answer. */
+  const onAnswer = (answer: ConsentAnswer) => {
+    if (launch.phase !== 'visible') return
+    launch.phase = 'done'
+    refresh()
+    consent.answer(answer)
+  }
+
   const onLater = () => {
     if (launch.phase !== 'visible') return
     launch.phase = 'done'
@@ -99,5 +109,16 @@ export function TrackingConsentGate({ consent = trackingConsent }: { consent?: T
   const requesting = launch.phase === 'requesting'
   const shown = requesting || (launch.phase === 'visible' && ready)
 
-  return <TrackingSheet visible={shown} requesting={requesting} onContinue={onContinue} onLater={onLater} />
+  if (consent.asks === 'app') {
+    return (
+      <TrackingSheet
+        variant="app"
+        visible={shown}
+        onAllow={() => onAnswer('granted')}
+        onDeny={() => onAnswer('denied')}
+        onLater={onLater}
+      />
+    )
+  }
+  return <TrackingSheet variant="system" visible={shown} requesting={requesting} onContinue={onContinue} onLater={onLater} />
 }

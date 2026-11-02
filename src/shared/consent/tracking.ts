@@ -1,5 +1,7 @@
 /**
- * GoGo-MobileApp#366 (MMP-APP-003) — App Tracking Transparency.
+ * GoGo-MobileApp#366 (MMP-APP-003) — App Tracking Transparency; #370
+ * (MMP-APP-004, ADR 0013) — the same question on Android, where there is no
+ * system dialog and GoGo's sheet is the consent (`consent-store.ts`).
  *
  * The one importer of `expo-tracking-transparency` (ADR 0012). Owner decision
  * 2026-10-19: GoGo asks iOS for permission to track so the MMP SDKs can read
@@ -8,21 +10,24 @@
  *
  * Rules:
  *
- *   - **iOS only.** The library's `isAvailable()` is true on Android too (its
- *     native module is there, and it answers `granted`), so availability is
- *     iOS *and* the module. Elsewhere the question is settled from the start;
+ *   - **ATT is iOS only.** The library's `isAvailable()` is true on Android too
+ *     (its native module is there, and it answers `granted`), so ATT availability
+ *     is iOS *and* the module, and the library is never read on Android. Without
+ *     either backend the question is settled from the start;
  *   - **never throws.** A failed status read or request is `undetermined` for
  *     this launch; the next launch asks again;
  *   - **reason codes only**, in release builds too — device acceptance reads
  *     them (`consent_tracking:<status>`);
  *   - **settled means over.** The deferred-link resume waits for it (shape rev
- *     2 D2.3). It resolves only in a terminal state: no ATT here, iOS already
- *     answered, the person answered, or chose "Để sau". No clock ends it: the
+ *     2 D2.3). It resolves only in a terminal state: nothing to ask here, an
+ *     answer already given, the person answered, or chose "Để sau". No clock ends it: the
  *     gate reaches one of those as soon as someone is on a main screen, and
  *     until then nobody is where a deferred link could open anyway.
  */
 import * as TrackingTransparency from 'expo-tracking-transparency'
 import { Platform } from 'react-native'
+
+import { consentStore, type ConsentAnswer, type ConsentStore } from './consent-store'
 
 export type TrackingStatus = 'granted' | 'denied' | 'undetermined' | 'unavailable'
 
@@ -35,6 +40,8 @@ export interface TrackingLibrary {
 export type TrackingConsentDeps = {
   lib: TrackingLibrary
   platform: string
+  /** Android's record. Without it Android has nothing to ask. */
+  store?: Pick<ConsentStore, 'load' | 'set' | 'get'>
   report?: (event: string) => void
   /** A status read that does not answer within this is `undetermined`. */
   statusTimeoutMs?: number
@@ -55,15 +62,30 @@ export function createTrackingConsent(deps: TrackingConsentDeps) {
   } catch {
     available = false
   }
+  const store = deps.platform === 'android' ? deps.store : undefined
+  /** An answer was given in this process, so nothing read later is "stored". */
+  let answered = false
 
   let markSettled!: () => void
   const settledPromise = new Promise<void>(resolve => {
     markSettled = resolve
   })
-  if (!available) markSettled()
+  if (!available && !store) markSettled()
 
   return {
+    /** Who asks: the OS after GoGo's sheet, GoGo's sheet alone, or nobody. */
+    asks: (available ? 'system' : store ? 'app' : 'none') as 'system' | 'app' | 'none',
+
     async status(): Promise<TrackingStatus> {
+      if (store) {
+        const value = await store.load()
+        if (value !== 'undetermined' && !answered) {
+          answered = true
+          report(`consent_tracking:stored:${value}`)
+          markSettled()
+        }
+        return value
+      }
       if (!available) return 'unavailable'
       let timer: ReturnType<typeof setTimeout> | undefined
       try {
@@ -79,8 +101,18 @@ export function createTrackingConsent(deps: TrackingConsentDeps) {
       }
     },
 
+    /** Android's sheet answered, or its Settings switch. Elsewhere nothing to record. */
+    answer(status: ConsentAnswer): void {
+      if (!store) return
+      answered = true
+      store.set(status)
+      report(`consent_tracking:${status}`)
+      markSettled()
+    },
+
     /** Shows the iOS dialog when the OS still allows it; returns the answer. */
     async request(): Promise<TrackingStatus> {
+      if (store) return store.get()
       if (!available) return 'unavailable'
       let status: TrackingStatus
       try {
@@ -92,7 +124,7 @@ export function createTrackingConsent(deps: TrackingConsentDeps) {
       return status
     },
 
-    /** "Để sau": iOS was not asked; the sheet comes back next launch. */
+    /** "Để sau": nothing was answered; the sheet comes back next launch. */
     later(): void {
       report('consent_tracking:later')
       markSettled()
@@ -116,6 +148,7 @@ export type TrackingConsent = ReturnType<typeof createTrackingConsent>
 export const trackingConsent = createTrackingConsent({
   lib: TrackingTransparency,
   platform: Platform.OS,
+  store: consentStore,
   // Reason codes only, so release builds keep them: ATT-1/ATT-2 read them.
   report: event => console.warn(event),
 })

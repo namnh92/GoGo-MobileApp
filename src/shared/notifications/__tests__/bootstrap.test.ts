@@ -5,6 +5,8 @@ vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { extra 
 vi.mock('react-native-onesignal', () => ({ OneSignal: {} }))
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }))
 vi.mock('react-native-tenjin', () => ({ default: {} }))
+vi.mock('@/shared/consent/tracking', () => import('@/shared/acquisition/__tests__/granted-consent'))
+vi.mock('@/shared/consent/consent-store', () => import('@/shared/acquisition/__tests__/granted-consent'))
 vi.mock('react-native-adjust', () => ({ Adjust: { initSdk: () => {} }, AdjustConfig: class {} }))
 
 afterEach(() => {
@@ -38,6 +40,9 @@ describe('bootstrap callers survive missing configuration', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { initializeAcquisitionSdk } = await import('@/shared/acquisition/bootstrap')
     expect(() => initializeAcquisitionSdk()).not.toThrow()
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('acquisition_sdk_unavailable'))
+    // On Android the start follows the answer (#370), here an already given one.
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('acquisition_sdk_unavailable'))
+    })
   })
 })

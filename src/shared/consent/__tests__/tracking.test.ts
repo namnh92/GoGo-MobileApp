@@ -29,6 +29,71 @@ async function isSettled(promise: Promise<void>): Promise<boolean> {
 
 afterEach(() => vi.useRealTimers())
 
+/** #370 — Android: no system dialog, GoGo's record is the consent. */
+describe('tracking consent on Android', () => {
+  function fakeStore(stored: 'granted' | 'denied' | 'undetermined' = 'undetermined') {
+    let value = stored
+    return {
+      load: vi.fn(async () => value),
+      set: vi.fn((next: 'granted' | 'denied') => {
+        value = next
+      }),
+      get: () => value,
+    }
+  }
+  const android = (store: ReturnType<typeof fakeStore>, report?: (e: string) => void, over: Partial<TrackingLibrary> = {}) =>
+    createTrackingConsent({ lib: lib(over), platform: 'android', store, report })
+
+  it('never reads the library, which answers granted there', async () => {
+    // expo-tracking-transparency 6.0.8: isAvailable() is true on Android and every read answers granted.
+    const read = vi.fn(async () => ({ status: 'granted' }))
+    const consent = android(fakeStore(), undefined, { getTrackingPermissionsAsync: read, requestTrackingPermissionsAsync: read })
+    expect(consent.asks).toBe('app')
+    expect(await consent.status()).toBe('undetermined')
+    expect(await consent.request()).toBe('undetermined')
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('settled stays pending with no answer, so the resume waits for the sheet', async () => {
+    vi.useFakeTimers()
+    const consent = android(fakeStore())
+    expect(await isSettled(consent.settled())).toBe(false)
+    await consent.status()
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+    expect(await isSettled(consent.settled())).toBe(false)
+  })
+
+  it.each(['granted', 'denied'] as const)('a stored %s settles at the first read and says so once', async status => {
+    const events: string[] = []
+    const consent = android(fakeStore(status), e => events.push(e))
+    expect(await consent.status()).toBe(status)
+    await consent.status()
+    expect(await isSettled(consent.settled())).toBe(true)
+    expect(events).toEqual([`consent_tracking:stored:${status}`])
+  })
+
+  it.each(['granted', 'denied'] as const)('answering %s records it, settles, and is not then called stored', async status => {
+    const events: string[] = []
+    const store = fakeStore()
+    const consent = android(store, e => events.push(e))
+    consent.answer(status)
+    expect(store.set).toHaveBeenCalledWith(status)
+    expect(await isSettled(consent.settled())).toBe(true)
+    expect(await consent.status()).toBe(status)
+    expect(events).toEqual([`consent_tracking:${status}`])
+  })
+
+  it('later settles without recording anything', async () => {
+    const store = fakeStore()
+    const events: string[] = []
+    const consent = android(store, e => events.push(e))
+    consent.later()
+    expect(await isSettled(consent.settled())).toBe(true)
+    expect(store.set).not.toHaveBeenCalled()
+    expect(events).toEqual(['consent_tracking:later'])
+  })
+})
+
 describe('tracking consent', () => {
   it('maps the OS answers', async () => {
     for (const [raw, expected] of [
@@ -41,15 +106,19 @@ describe('tracking consent', () => {
     }
   })
 
-  it('Android is unavailable even though the module is there, and settled from the start', async () => {
-    // expo-tracking-transparency 6.0.8: isAvailable() is true on Android and every read answers granted.
-    const consent = createTrackingConsent({
-      lib: lib({ getTrackingPermissionsAsync: async () => ({ status: 'granted' }) }),
-      platform: 'android',
-    })
+  it('a platform with no question to ask is unavailable and settled from the start', async () => {
+    const consent = createTrackingConsent({ lib: lib(), platform: 'web' })
+    expect(consent.asks).toBe('none')
     expect(await consent.status()).toBe('unavailable')
     expect(await consent.request()).toBe('unavailable')
     expect(await isSettled(consent.settled())).toBe(true)
+  })
+
+  it('iOS asks through the system; answer() records nothing', async () => {
+    const consent = ios()
+    expect(consent.asks).toBe('system')
+    consent.answer('granted')
+    expect(await isSettled(consent.settled())).toBe(false)
   })
 
   it('iOS without the module is unavailable and settled', async () => {

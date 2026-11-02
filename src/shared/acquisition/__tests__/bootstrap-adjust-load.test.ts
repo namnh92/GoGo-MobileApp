@@ -12,6 +12,8 @@ const extra: Record<string, unknown> = { tenjinAndroidSdkKey: 'key', adjustAndro
 vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { extra, scheme: 'gogo-dev' } } } }))
 vi.mock('react-native', () => ({ Platform: { OS: 'android' }, NativeModules: { Adjust: {} } }))
 vi.mock('react-native-tenjin', () => ({ default: {} }))
+vi.mock('@/shared/consent/tracking', () => import('./granted-consent'))
+vi.mock('@/shared/consent/consent-store', () => import('./granted-consent'))
 vi.mock('react-native-adjust', () => {
   throw new Error('Invariant Violation: `new NativeEventEmitter()` requires a non-null argument.')
 })

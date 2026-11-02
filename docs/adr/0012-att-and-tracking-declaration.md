@@ -56,7 +56,7 @@ Apple-accepted path: ask first, then declare tracking.
 - **Tenjin:** the RN wrapper has no ATT API and `connect()` stays at startup
   (Q8 (a)), so the install session carries IDFA zero and Tenjin receives the
   IDFA from the next launch after consent.
-- **Android:** unchanged. No ATT exists; GAID needs only `AD_ID`, already
+- **Android:** unchanged **at the time; superseded by ADR 0013 (#370)**, GoGo now asks itself. No ATT exists; GAID needs only `AD_ID`, already
   declared (the plugin adds the same permission; the manifest merge dedupes).
 
 ## Consequences

@@ -37,9 +37,13 @@ describe('Adjust boundary', () => {
     expect(bootstrap).not.toMatch(/^import (?!type )[^\n]*'react-native-adjust'/m)
   })
 
-  it('the bootstrap uses exactly Adjust.initSdk and the two environments', () => {
+  it('the bootstrap uses exactly initSdk, the #370 switch and the two environments', () => {
     const bootstrap = read('src/shared/acquisition/bootstrap.ts')
-    expect([...new Set(bootstrap.match(/\bAdjust\.\w+/g) ?? [])].sort()).toEqual(['Adjust.initSdk'])
+    expect([...new Set(bootstrap.match(/\bAdjust\.\w+/g) ?? [])].sort()).toEqual([
+      'Adjust.disable',
+      'Adjust.enable',
+      'Adjust.initSdk',
+    ])
     expect([...new Set(bootstrap.match(/\bAdjustConfig\.\w+/g) ?? [])].sort()).toEqual([
       'AdjustConfig.EnvironmentProduction',
       'AdjustConfig.EnvironmentSandbox',

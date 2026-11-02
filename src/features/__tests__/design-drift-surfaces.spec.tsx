@@ -123,7 +123,7 @@ describe('Profile settings rows (#382 §1, §2)', () => {
     const view = await renderScreen(<ProfileScreen />)
     for (const [label, icon] of [
       ['Hộp thư', 'icon-inbox'],
-      ['Thông báo và vị trí', 'icon-bell'],
+      ['Quyền và dữ liệu', 'icon-bell'],
       ['Đánh giá của tôi', 'icon-star'],
       ['Tài khoản', 'icon-settings'],
     ]) {

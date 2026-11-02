@@ -50,7 +50,7 @@ Mục đích "Analytics" xuất hiện ở §6/§7 đến từ Tenjin (D14) và 
 | D11 | Truy vấn tìm kiếm địa điểm | `src/features/search/search.view.tsx:124-143` → `src/shared/api/endpoints/places.ts:7-8` | GoGo BE | tìm kiếm | có — request là `anonymous: true` (`places.ts:8`, token bị bỏ ở `client.ts:239`), nhưng BE vẫn thấy IP và cùng người dùng còn các đường có phiên | tuỳ chọn |
 | D12 | Id đăng ký push + nền tảng | `src/shared/api/endpoints/me.ts:97`; `openapi/gogo.v1.yaml:3170-3205` | GoGo BE | biết người dùng còn nhận được thông báo không | có | tuỳ chọn (theo quyền thông báo) |
 | D13 | `external_id` = `users.id` + token ES256 ngắn hạn | `src/shared/notifications/identity-session.ts:23,133`; token lấy ở `identity-api.ts:21` | OneSignal | định danh thiết bị để gửi push đúng người | có | tuỳ chọn |
-| D14 | Sự kiện cài đặt / mở app + tham số attribution | `src/shared/acquisition/bootstrap.ts:16-24`, `initialize.ts:32-35` (`initialize` → `setAppStore` → `connect`), `deferred-link.ts:40-46,124` (`getAttributionInfo`) | Tenjin | đo nguồn cài đặt, mở deferred deep link | gắn định danh thiết bị (xem T2 §3) | tuỳ chọn |
+| D14 | Sự kiện cài đặt / mở app + tham số attribution | `src/shared/acquisition/bootstrap.ts:19-26`, `initialize.ts:39-43` (`initialize` → `setAppStore` → `connect`), `deferred-link.ts:40-46,124` (`getAttributionInfo`) | Tenjin | đo nguồn cài đặt, mở deferred deep link | gắn định danh thiết bị (xem T2 §3) | tuỳ chọn |
 | D15 | Crash, lỗi, breadcrumb đã lọc | `src/shared/observability/sentry.ts:733` (`beforeSend`), `:699` (`beforeBreadcrumb`), `:823-845` | Sentry | sửa lỗi | `user.id` = id người dùng khi đã đăng nhập, ngược lại là installation id của SDK native (`sentry.ts:726-731,733`, ADR 0010) | tuỳ chọn theo DSN của bản build |
 | D16 | Session release-health (`sid`, `did`, status, counters, `seq`) | `src/shared/observability/sentry.ts:14-19,825` | Sentry | tỉ lệ crash-free | `did` = installation id native, **không** phải id người dùng | như D15 |
 | D17 | Nội dung phòng: tên phòng, ngày/giờ kèo, ngân sách + chế độ (tổng / theo đầu người), khu vực | `src/shared/api/endpoints/rooms.ts:18,69,135` | GoGo BE | chức năng cốt lõi của sản phẩm | có | bắt buộc để dùng app |
@@ -60,7 +60,7 @@ Mục đích "Analytics" xuất hiện ở §6/§7 đến từ Tenjin (D14) và 
 | D21 | Cài đặt thông báo | `src/shared/api/endpoints/me.ts:83` | GoGo BE | tôn trọng lựa chọn nhận thông báo | có | tuỳ chọn |
 | D22 | Thay đổi lịch trình: khoá điểm, hoàn thành điểm, tạo lại | `src/shared/api/endpoints/plans.ts:19,24,35,47` | GoGo BE | chức năng cốt lõi | có | bắt buộc theo luồng |
 | D23 | Đề xuất địa điểm: link Google Maps đã dán, ghi chú tự do, category, mood keys, khoảng giá tự khai | `src/features/place-import/import.view.tsx:176` (resolve link), `:145-156` (category, vibes, estimatedPrice, note), `:205` (submit) | GoGo BE | góp địa điểm, kiểm duyệt | có | tuỳ chọn |
-| D24 | Phiên cài đặt / mở app + callback attribution và deferred deep link của Adjust | `src/shared/acquisition/bootstrap.ts:146-207` (`runAdjust`, `startAdjustSdk`; chỉ nạp wrapper sau khi `adjust/native-preflight.ts` thấy module native), `src/shared/acquisition/adjust/initialize.ts:55-73` (`disableDeferredDeeplinkOpening` → `setAttConsentWaitingInterval(60)` → callback → `initSdk`), `adjust/deferred-link.ts` (chỉ ghi link GoGo vào `PendingDeepLinkStore`) | Adjust | đo nguồn cài đặt, mở deferred deep link | gắn định danh thiết bị (T5) | tuỳ chọn — dev không token thì không chạy; stag/prod token hoặc `off` |
+| D24 | Phiên cài đặt / mở app + callback attribution và deferred deep link của Adjust | `src/shared/acquisition/bootstrap.ts:170-249` (`runAdjust`, `startAdjustSdk`; chỉ nạp wrapper sau khi `adjust/native-preflight.ts` thấy module native), `src/shared/acquisition/adjust/initialize.ts:56-74` (`disableDeferredDeeplinkOpening` → `setAttConsentWaitingInterval(60)` → callback → `initSdk`), `adjust/deferred-link.ts` (chỉ ghi link GoGo vào `PendingDeepLinkStore`) | Adjust | đo nguồn cài đặt, mở deferred deep link | gắn định danh thiết bị (T5) | tuỳ chọn — dev không token thì không chạy; stag/prod token hoặc `off` |
 
 Mã mời và slug của link chia sẻ không mang PII theo `security.md`, nên không là một dòng dữ liệu người dùng.
 Hành vi chuyển tiếp, không phải thu thập, nhưng phải biết trước khi nộp: `src/shared/navigation/directions.ts:7`
@@ -90,6 +90,10 @@ Không gửi: danh bạ, lịch, tin nhắn, sức khoẻ, thông tin thanh toá
   khác 0 đọc được và `connect` trả `{"code":200}`. Định danh thứ tư là **Android ID**, chỉ của Adjust (T5):
   SDK đọc theo mặc định vì app không gọi `disableAndroidIdReading()` (`adjust-boundary.test.ts` ghim danh sách
   lệnh cấu hình); **chưa đo trên APK** — kiểm ở privacy review (§11 bước 6) cùng GAID và App Set ID của Adjust.
+- **Android chỉ gửi sau khi người dùng đồng ý (từ #370, §12 D-7).** Không có quyền hệ điều hành nào cho việc này,
+  nên GoGo tự hỏi: Tenjin (`initialize`, `connect`) và Adjust (`initSdk`) **không khởi động** trước khi người dùng
+  chọn "Cho phép" (`src/shared/acquisition/bootstrap.ts`, `startAndroidSdks`). Từ chối hoặc để sau: hai SDK không
+  chạy trong lần mở đó. Bốn định danh ở trên vẫn là thứ được gửi **sau** khi đồng ý.
 - **iOS thu IDFA khi người dùng cho phép (từ #366).** App xin ATT qua `expo-tracking-transparency`
   (`src/shared/consent/tracking.ts`, chỗ duy nhất import thư viện), chuỗi `NSUserTrackingUsageDescription` ở
   `app.config.ts` + `locales/{vi,en}.json`. App **không tự đọc** IDFA (`getAdvertisingId` không xuất hiện trong
@@ -116,6 +120,7 @@ ai đổi ở đó thì khai báo này sai mà không có commit nào. Bằng ch
 | Thư viện ảnh | thêm ảnh đại diện (`src/shared/media/pick-avatar.ts:74`), thêm ảnh check-in (`src/features/active-date/checkin-sheet.view.tsx:73`), đính kèm ảnh cho GoGo AI (`src/features/assistant/pick-images.ts`, #378) | `app.config.ts` `photosPermission` — chuỗi nói cả ba việc (#356, #378). `src/shared/config/__tests__/media-permission.test.ts` buộc mỗi call site có từ khoá mục đích trong chuỗi, nên một call site thứ ba sẽ làm test đỏ thay vì âm thầm ship purpose string thiếu |
 | Thông báo | sau khi đăng nhập, trước khi đăng ký subscription | `src/shared/notifications/permission.ts` |
 | Theo dõi (App Tracking Transparency, **chỉ iOS**) | màn đầu tiên sau khi đăng nhập / vào phòng khách, sau sheet giải thích; một lần, chỉ khi iOS chưa có câu trả lời; không ở splash, đăng nhập, onboarding; không khoá tính năng nào (`src/shared/consent/tracking-consent-gate.tsx`) | plugin `expo-tracking-transparency` trong `app.config.ts` + `locales/vi.json`, `locales/en.json` — câu chữ owner duyệt 2026-10-19 (#366); `tracking-permission.test.ts` buộc ba chỗ bằng nhau và bằng key `consent.tracking.systemPrompt` |
+| Theo dõi (**Android, GoGo tự hỏi — không phải quyền hệ điều hành**) | cùng thời điểm với sheet iOS; một lần mỗi lần mở cho tới khi có câu trả lời; "Cho phép" / "Không cho phép", chạm ngoài hoặc back là để sau; không khoá tính năng nào (`src/shared/consent/tracking-consent-gate.tsx`); đổi lại ở Cài đặt → Quyền và dữ liệu (`src/features/settings/tracking-consent.view.tsx`) | `consent.tracking.android.*` trong `src/shared/i18n/{vi,en}.ts` — câu chữ owner duyệt 2026-11-02 (#370, Q7), phiên bản `android-consent-v1` lưu cùng câu trả lời (§12 D-7) |
 
 Không xin: vị trí nền, camera, danh bạ, lịch, micro.
 
@@ -192,6 +197,10 @@ mục đích chia sẻ thành hai câu khác nhau.
 | App info and performance · Diagnostics | có | không | không | bắt buộc | App functionality | D16, T3, T4 |
 | Device or other IDs | có | **có** — Tenjin (§12 D-2), Adjust (§12 D-5) | không | bắt buộc | thu: App functionality, Advertising/marketing · **chia sẻ: Analytics, Advertising/marketing** | D12, D14, D16, D24, T1, T2, T4, T5 — gồm GAID, App Set ID (Tenjin, Adjust) và **Android ID** (chỉ Adjust, §3) |
 
+Hai dòng Tenjin/Adjust ở trên vẫn là "bắt buộc" dù phần MMP nay chờ người dùng đồng ý (§12 D-7): OneSignal và
+Sentry vẫn cần `Device or other IDs`, GoGo BE vẫn cần `App interactions`, mà một dòng là bắt buộc khi bất kỳ đích
+nào cần nó (owner 2026-11-02, Q3).
+
 Mật khẩu (D2) không có loại tương ứng ở Play, như ở Apple — xem ghi chú cuối §6.
 
 Không thu, khai "No": Health and fitness, Messages, Audio files, Files and docs, Calendar, Contacts, Web
@@ -243,7 +252,7 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
 | --- | --- | --- | --- |
 | Q4 | Trang chính sách quyền riêng tư **và** trang yêu cầu xoá dữ liệu: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách, và Play còn đòi URL yêu cầu xoá dữ liệu cho app có tạo tài khoản; thiếu một trong hai thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì — ý định sản phẩm, không phải sự thật trong repo? | Hiện trạng đo được: **không có cổng tuổi** ("No minimum age applies", `openapi/gogo.v1.yaml:403`) và không consumer nào ngoài `/me` + export; app chỉ hiện và sửa nó (`src/features/account/date-of-birth.view.tsx`, `src/shared/api/queries/use-me.ts:38`). Vì vậy §6/§7 khai `App Functionality` theo đúng hiện trạng; câu còn mở là có thêm mục đích nào không. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
-| Q6 | Nghị định 13/2023/NĐ-CP (bảo vệ dữ liệu cá nhân) có coi mã thiết bị (IDFA, GAID, IDFV, App Set ID, Android ID) là dữ liệu cá nhân và đòi **đồng ý** trước khi gửi cho Tenjin/Adjust **trên cả Android** — nơi không có ATT? | D-6 chỉ trả lời câu hỏi của Apple. Nếu Nghị định 13 đòi đồng ý, Android hiện gửi GAID cho Tenjin từ lần mở đầu mà không hỏi, và khai báo Play đúng nhưng hành vi có thể trái luật. Chưa ai có thẩm quyền trả lời. | Hỏi người làm pháp lý **trước lần nộp đầu**, cùng lượt privacy review + DPA của Adjust (#367). Owner chịu trách nhiệm theo dõi; câu trả lời ghi thành một dòng có ngày ở §12. D-6 không trả lời câu này. |
+| Q6 | Nghị định 13/2023/NĐ-CP (bảo vệ dữ liệu cá nhân) có coi mã thiết bị (IDFA, GAID, IDFV, App Set ID, Android ID) là dữ liệu cá nhân và đòi **đồng ý** trước khi gửi cho Tenjin/Adjust **trên cả Android** — nơi không có ATT? | D-6 chỉ trả lời câu hỏi của Apple. Nếu Nghị định 13 đòi đồng ý, Android hiện gửi GAID cho Tenjin từ lần mở đầu mà không hỏi, và khai báo Play đúng nhưng hành vi có thể trái luật. Chưa ai có thẩm quyền trả lời. | Hỏi người làm pháp lý **trước lần nộp đầu**, cùng lượt privacy review + DPA của Adjust (#367). Owner chịu trách nhiệm theo dõi; câu trả lời ghi thành một dòng có ngày ở §12. D-6 không trả lời câu này. **Về sản phẩm đã trả lời bằng D-7 (§12); ý kiến pháp lý vẫn còn thiếu**: D-7 ghi quyết định của owner, không phải kết luận pháp lý. |
 
 ## 11. Cách kiểm tài liệu này (AC-5 của #354)
 
@@ -267,11 +276,30 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
    GAID, App Set ID và **Android ID** (SDK đọc theo mặc định; app không gọi `disableAndroidIdReading()`) — bằng
    Adjust Testing Console hoặc log verbose của SDK, giá trị che. Chưa có lượt đo nào; §7 `Device or other IDs` khai
    theo mặc định của SDK cho tới khi có.
+7. Trước đồng ý trên Android (§12 D-7): trên bản sắp nộp, bắt proxy từ lúc mở tới lúc sheet hiện, và khi sheet để
+   yên, sau "Không cho phép", sau khi tắt công tắc: **không request nào** tới host Tenjin/Adjust. Cách đo đủ ở
+   GoGo-MobileApp#370 (AC-2, AC-3).
 
 ## 12. Quyết định của owner (có ngày, kèm rủi ro đã nhận)
 
 Ghi ở đây thay vì để trong §10, vì một ô khai báo không được treo vào một câu hỏi. Nguồn kèm theo:
 `.claude/rules/execution-policy.md` §8 2026-10-17.
+
+**D-7 (quyết định 2026-10-20, làm 2026-11-02, GoGo-MobileApp#370, ADR 0013) — xin đồng ý trên cả Android; thay dòng
+"Android không đổi" của D-6.** Android không có ATT nên GoGo tự hỏi, cùng thời điểm với sheet iOS; không SDK MMP nào
+khởi động trước khi người dùng chọn "Cho phép". Từ chối được lưu và đổi lại được ở Cài đặt → Quyền và dữ liệu (tắt:
+Tenjin `optOut()`, Adjust `disable()`). Câu chữ owner duyệt 2026-11-02 (Q7) nêu đủ loại dữ liệu, hai bên nhận, mục
+đích, cái mất khi từ chối và đường rút lại. iOS không đổi (Q8 (a), Q5). §6 không đổi; §7 giữ "bắt buộc" (Q3).
+
+> **Rủi ro owner nhận với D-7.** (1) Đây là quyết định sản phẩm, **không** phải kết luận pháp lý về Nghị định 13/2023
+> — §10 Q6 còn mở. (2) Bằng chứng đồng ý chỉ là **một bản ghi cục bộ**: một câu trả lời kèm phiên bản câu chữ, không
+> có lịch sử, mất khi gỡ app. (3) **Rút đồng ý có thể bị đảo ngược một lần:** app bị kill hoặc bộ nhớ hỏng đúng giữa
+> lúc rút và lúc ghi xuống đĩa thì lần mở sau đọc lại "Cho phép" và SDK chạy mà không hỏi lại; khi ghi không xong,
+> màn Cài đặt báo "Chưa lưu được" nhưng dấu đó không sống qua lần tắt app. Không dựng cơ chế khôi phục vì nó hỏng cùng
+> bộ nhớ (Astra A-F-02). (4) Người từ chối trên Android không có deferred link (Q4, đường không định danh ở #397).
+> (5) Trên Android, lượt cài chỉ được báo sau đăng nhập **và** đồng ý: số cài trên dashboard thấp hơn và trễ hơn.
+> **Rollback không quay về khởi động vô điều kiện** (ADR 0013): gỡ tính năng nghĩa là tắt acquisition Android và giữ
+> nguyên câu trả lời đã lưu.
 
 **D-4 (2026-10-20) — Adjust trên iOS dùng chung câu hỏi ATT của GoGo (D-6), không tự hỏi.** SDK chỉ chờ tối đa
 60 s câu trả lời trước gói đầu tiên (`setAttConsentWaitingInterval(60)`); không gọi
@@ -292,7 +320,7 @@ Owner chốt Q1 (b) của shape `dev/handoffs/sa-shape-mobile-363-adjust.fable.r
 `.claude/rules/execution-policy.md` §8 2026-10-19). Đi đúng đường Apple chấp nhận mà dòng rủi ro của D-1 nêu: màn
 ATT **trước**, rồi nhãn đổi. Hệ quả: §6 `Identifiers · Device ID` và `Usage Data · Advertising Data` khai
 tracking = có, mục "Data Used to Track You" của App Store liệt kê hai loại đó; §4 thêm quyền Theo dõi. Android
-không đổi (không có ATT; GAID, App Set ID và `AD_ID` như §3, D-2 đã khai chia sẻ; Android ID của Adjust theo D-5). Câu chữ hộp thoại do owner duyệt
+không đổi **(đã bị D-7 thay: Android nay tự hỏi trước khi khởi động SDK)** (không có ATT; GAID, App Set ID và `AD_ID` như §3, D-2 đã khai chia sẻ; Android ID của Adjust theo D-5). Câu chữ hộp thoại do owner duyệt
 (#366, 2026-10-19).
 
 > **Rủi ro owner nhận với D-6.** Tỉ lệ người dùng đồng ý chưa có số đo; chất lượng attribution iOS phụ thuộc
