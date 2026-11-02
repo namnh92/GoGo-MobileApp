@@ -54,9 +54,9 @@ class EnvFileTest < Minitest::Test
   end
 
   def test_app_config_allowlist_is_what_the_generators_emit
-    # mobile-env.py + tenjin-mobile-env.py (GoGo-Infra); a new key there must be
+    # mobile-env.py (GoGo-Infra); a new key there must be
     # added here on purpose, not slip through.
-    assert_equal 13, GD::APP_CONFIG_KEYS.size
+    assert_equal 14, GD::APP_CONFIG_KEYS.size
     assert_includes GD::APP_CONFIG_KEYS, 'EXPO_PUBLIC_ENV'
     refute_includes GD::APP_CONFIG_KEYS, 'SENTRY_AUTH_TOKEN'
   end
@@ -87,7 +87,7 @@ end
 class EnvSetsTest < Minitest::Test
   def secrets
     GD::Secrets.capture!({
-      'GOOGLE_MAPS_IOS_API_KEY' => 'mi', 'GOOGLE_MAPS_ANDROID_API_KEY' => 'ma', 'APPLE_TEAM_ID' => 'ABCDE12345',
+      'GOOGLE_MAPS_IOS_API_KEY' => 'mi', 'GOOGLE_MAPS_ANDROID_API_KEY' => 'ma',
       'ASC_KEY_CONTENT' => 'pem', 'ANDROID_KEYSTORE_PASSWORD' => 'pw', 'FIREBASE_SERVICE_CREDENTIALS_JSON' => '{}',
       'SENTRY_AUTH_TOKEN' => 'tok'
     })
@@ -109,7 +109,7 @@ class EnvSetsTest < Minitest::Test
   end
 
   def test_app_config_adds_maps_team_build_and_sha_and_nothing_secret
-    cfg = GD::EnvSets.app_config({ 'EXPO_PUBLIC_ENV' => 'dev' }, secrets: secrets, build_number: 7,
+    cfg = GD::EnvSets.app_config({ 'EXPO_PUBLIC_ENV' => 'dev', 'APPLE_TEAM_ID' => 'ABCDE12345' }, secrets: secrets, build_number: 7,
                                                                  sha: 'a' * 40, platform: 'android')
     assert_equal %w[ANDROID_VERSION_CODE APPLE_TEAM_ID EXPO_PUBLIC_ENV GOGO_BUILD_SHA GOOGLE_MAPS_ANDROID_API_KEY
                     GOOGLE_MAPS_IOS_API_KEY], cfg.keys.sort
@@ -248,8 +248,14 @@ class SupervisorTest < Minitest::Test
 
   def test_run_file_lists_live_groups_and_is_marked_finished
     thread = Thread.new { @supervisor.run(['/bin/sleep', '30'], env: {}, chdir: @dir, allow_failure: true) }
-    sleep 0.2 until @supervisor.live_groups.any?
-    data = JSON.parse(File.read(File.join(@dir, 'run.json')))
+    # The child is registered just before run.json is rewritten, on the other thread.
+    data = nil
+    50.times do
+      data = JSON.parse(File.read(File.join(@dir, 'run.json')))
+      break unless data['pgids'].empty?
+
+      sleep 0.1
+    end
     assert_equal Process.pid, data['ruby_pid']
     refute_empty data['pgids']
     @supervisor.terminate_all

@@ -27,13 +27,10 @@ Testers & Groups). A tester joins by being added to that group there.
 2. **Gems**: `PATH="$(~/.local/bin/mise where ruby@$(cat .ruby-version))/bin:$PATH" bundle install`
    (installs into `vendor/bundle`, lockfile frozen).
 3. **Node modules**: `pnpm install --frozen-lockfile`.
-4. **GoGo-Infra** checked out next to this repository (or `GOGO_INFRA_DIR`), and an AWS
+4. **GoGo-Infra** on an up-to-date `develop` next to this repository (or `GOGO_INFRA_DIR`), and an AWS
    session for account 665333092935, region ap-southeast-1 (`AWS_PROFILE=gogobootstrap`,
    `aws sso login`). The script refuses any other account or region.
-5. **Inputs not yet in SSM** (GoGo-Infra#291): copy `scripts/distribute.inputs.example`
-   to `~/.config/gogo-distribute/inputs.env`, fill `APPLE_TEAM_ID` and the Tenjin SDK
-   keys, `chmod 600`.
-6. **iOS**: an unlocked GUI session (codesign uses the login keychain), Xcode, and the
+5. **iOS**: an unlocked GUI session (codesign uses the login keychain), Xcode, and the
    Apple Distribution identity in the login keychain — see *Signing identity* below.
 
 ## What a run does
@@ -43,7 +40,8 @@ Testers & Groups). A tester joins by being added to that group there.
 2. Checks the AWS account and the effective region, a clean working tree, and that no
    `.env*` file sits in the repo root or `fastlane/`.
 3. Takes a per-machine lock (`~/.local/state/gogo-distribute/<env>-<platform>.lock`) and
-   writes the public app config there — never into the worktree.
+   writes the public app config there from SSM (`mobile-env.py`, including the Tenjin keys and
+   the team id) — never into the worktree. A missing row is refused by name.
 4. Runs GoGo-Infra `exec-with.sh`, which fetches the signing, Firebase, Maps and Sentry
    rows and starts fastlane. fastlane moves them into memory before anything else runs;
    each build step gets only the variables it needs.
