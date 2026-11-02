@@ -23,6 +23,8 @@ vi.mock('react-native', () => ({
   get NativeModules() { return native.modules },
 }))
 vi.mock('react-native-tenjin', () => ({ default: {} }))
+vi.mock('@/shared/consent/tracking', () => import('./granted-consent'))
+vi.mock('@/shared/consent/consent-store', () => import('./granted-consent'))
 const fatal = vi.hoisted(() => ({ reports: 0, evaluated: 0, initSdk: vi.fn() }))
 vi.mock('react-native-adjust', () => {
   fatal.evaluated += 1

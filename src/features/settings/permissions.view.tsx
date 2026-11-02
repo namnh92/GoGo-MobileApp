@@ -11,16 +11,17 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { LocationPermissionSection } from './location-permission.view'
 import { styles } from './permissions.style'
+import { TrackingConsentSection } from './tracking-consent.view'
 
 /**
- * APP-058 (#216) — notifications and location in one settings screen, reached
+ * APP-058 (#216) — notifications, location and (#370) install measurement in one settings screen, reached
  * from one Profile row. Both earlier routes (`/settings/notifications`,
  * `/settings/location`) render this screen, so any link or navigation into
  * either still lands here.
  *
  * The location half needs no account: it is this device's permission. The
  * notification switch belongs to an account, so a signed-out person is offered
- * sign-in for that half only.
+ * sign-in for that half only. Install measurement is this device's too.
  */
 export default function PermissionsSettingsScreen() {
   const { t } = useTranslation()
@@ -50,6 +51,11 @@ export default function PermissionsSettingsScreen() {
           {t('permissionsSettings.location')}
         </Text>
         <LocationPermissionSection />
+
+        <Text variant="title2" accessibilityRole="header" style={styles.sectionTitle}>
+          {t('permissionsSettings.tracking')}
+        </Text>
+        <TrackingConsentSection />
       </ScrollView>
     </Atmosphere>
   )

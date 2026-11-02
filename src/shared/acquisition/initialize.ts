@@ -2,6 +2,7 @@ interface TenjinSdk {
   initialize(key: string): void
   connect(): void
   setAppStore(type: 'googleplay' | 'amazon' | 'other'): void
+  optIn(): void
 }
 
 /**
@@ -22,21 +23,31 @@ export function createTenjinInitializer(
   sdk: TenjinSdk,
   onUnavailable: () => void = () => {},
   appStore: AppStore = 'googleplay',
+  /**
+   * #370 (Android): a start only happens after the person said yes, and whether
+   * an earlier `optOut()` outlives a launch is not established, so every start
+   * says so itself before connecting.
+   */
+  optInBeforeConnect = false,
 ) {
   let initializedKey: string | undefined
-  return (key: string) => {
+  /** Whether Tenjin is connected for this key: a failed start is retried by the next call. */
+  return (key: string): boolean => {
     if (!key.trim()) throw new Error('Tenjin SDK key is required')
-    if (initializedKey === key) return
+    if (initializedKey === key) return true
     if (initializedKey) throw new Error('Tenjin environment cannot change without restarting the app')
     try {
       sdk.initialize(key)
       // Before connect: connect is the call that carries source_app_store.
       sdk.setAppStore(appStore)
+      if (optInBeforeConnect) sdk.optIn()
       sdk.connect()
       initializedKey = key
+      return true
     } catch {
       // Acquisition failure must not stop startup or expose provider payloads.
       onUnavailable()
+      return false
     }
   }
 }

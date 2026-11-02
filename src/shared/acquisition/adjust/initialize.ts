@@ -9,7 +9,8 @@
  *   - **ATT is GoGo's question** (`shared/consent/tracking.ts`, ADR 0012). The
  *     SDK only waits up to 60 s for the answer before its first send, so the
  *     install carries the IDFA when the person allows it on that first screen;
- *     it never asks on its own;
+ *     it never asks on its own. On Android nothing starts before GoGo's own
+ *     question has a yes (#370, ADR 0013);
  *   - **once per process, never throws.** A failed init is a lost measurement,
  *     not a failed launch.
  */

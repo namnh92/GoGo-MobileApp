@@ -15,6 +15,8 @@ const mockModuleMissing = { value: false }
 const mockRequest = jest.fn()
 
 const mockPush = jest.fn()
+// Its own "Mở Cài đặt" is another section's button (#370).
+jest.mock('@/features/settings/tracking-consent.view', () => ({ TrackingConsentSection: () => null }))
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),

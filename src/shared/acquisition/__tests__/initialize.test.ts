@@ -8,6 +8,7 @@ describe('Tenjin initialization', () => {
     const sdk = {
       initialize: vi.fn(() => calls.push('initialize')),
       setAppStore: vi.fn(() => calls.push('setAppStore')),
+      optIn: vi.fn(),
       connect: vi.fn(() => calls.push('connect')),
     }
     const initialize = createTenjinInitializer(sdk)
@@ -21,7 +22,7 @@ describe('Tenjin initialization', () => {
   })
 
   it('rejects missing config before calling native code', () => {
-    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), connect: vi.fn() }
+    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), optIn: vi.fn(), connect: vi.fn() }
     expect(() => createTenjinInitializer(sdk)(' ')).toThrow(/required/)
     expect(sdk.initialize).not.toHaveBeenCalled()
   })
@@ -31,6 +32,7 @@ describe('Tenjin initialization', () => {
     const sdk = {
       initialize: vi.fn(),
       setAppStore: vi.fn(),
+      optIn: vi.fn(),
       connect: vi.fn().mockImplementationOnce(() => { throw new Error('provider payload') }),
     }
     const initialize = createTenjinInitializer(sdk, unavailable)
@@ -43,8 +45,45 @@ describe('Tenjin initialization', () => {
   it('names the store explicitly rather than leaving it unspecified', () => {
     // The DEV device run logged "Unable to load app store type from manifest"
     // and sent source_app_store=unspecified on every connect.
-    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), connect: vi.fn() }
+    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), optIn: vi.fn(), connect: vi.fn() }
     createTenjinInitializer(sdk, () => {}, 'googleplay')('dev-key')
     expect(sdk.setAppStore).toHaveBeenCalledWith('googleplay')
+  })
+})
+
+describe('Android opt-in (#370)', () => {
+  it('says so itself before every connect, since an earlier opt-out may outlive a launch', () => {
+    const order: string[] = []
+    const record = (name: string) => () => void order.push(name)
+    const initialize = createTenjinInitializer(
+      { initialize: record('initialize'), setAppStore: record('setAppStore'), optIn: record('optIn'), connect: record('connect') },
+      () => {},
+      'googleplay',
+      true,
+    )
+    initialize('key')
+    expect(order).toEqual(['initialize', 'setAppStore', 'optIn', 'connect'])
+  })
+
+  it('iOS order is untouched', () => {
+    const order: string[] = []
+    const record = (name: string) => () => void order.push(name)
+    createTenjinInitializer({ initialize: record('initialize'), setAppStore: record('setAppStore'), optIn: record('optIn'), connect: record('connect') })('key')
+    expect(order).toEqual(['initialize', 'setAppStore', 'connect'])
+  })
+})
+
+describe('says whether it started (#370 F-03)', () => {
+  const sdk = (connect: () => void) => ({ initialize: () => {}, setAppStore: () => {}, optIn: () => {}, connect })
+
+  it('true once connected, and again for the same key', () => {
+    const initialize = createTenjinInitializer(sdk(() => {}))
+    expect(initialize('key')).toBe(true)
+    expect(initialize('key')).toBe(true)
+  })
+
+  it('false when the provider failed', () => {
+    const initialize = createTenjinInitializer(sdk(() => { throw new Error('provider') }))
+    expect(initialize('key')).toBe(false)
   })
 })

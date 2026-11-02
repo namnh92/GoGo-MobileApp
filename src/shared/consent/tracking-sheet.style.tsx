@@ -14,7 +14,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     paddingTop: spacing[5],
     gap: spacing[3],
+    maxHeight: '90%',
   },
+  // The Android disclosure is long and never clipped at large text sizes.
+  bodyScroll: { flexShrink: 1 },
   handle: {
     width: 40,
     height: 4,

@@ -11,6 +11,8 @@ const extra: Record<string, unknown> = { tenjinAndroidSdkKey: 'key' }
 vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { extra } } } }))
 vi.mock('react-native', () => ({ Platform: { OS: 'android' }, NativeModules: { Adjust: {} } }))
 vi.mock('react-native-tenjin', () => ({ default: {} }))
+vi.mock('@/shared/consent/tracking', () => import('./granted-consent'))
+vi.mock('@/shared/consent/consent-store', () => import('./granted-consent'))
 const adjust = vi.hoisted(() => ({ initSdk: vi.fn(), configs: [] as unknown[] }))
 vi.mock('react-native-adjust', () => {
   class AdjustConfig {

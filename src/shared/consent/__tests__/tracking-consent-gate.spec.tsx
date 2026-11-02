@@ -23,6 +23,8 @@ import type { TrackingConsent, TrackingStatus } from '../tracking'
 function fakeConsent(initial: TrackingStatus, read?: Promise<TrackingStatus>) {
   const calls: string[] = []
   const consent: TrackingConsent = {
+    asks: 'system',
+    answer: jest.fn(),
     status: jest.fn(() => read ?? Promise.resolve(initial)),
     request: jest.fn(async () => {
       calls.push('request')
@@ -39,6 +41,14 @@ async function flush() {
   await act(async () => {
     await new Promise(resolve => setImmediate(resolve))
   })
+}
+
+/** The Modal holding this text. */
+function modalOf(node: ReturnType<typeof screen.getByText>) {
+  let current: typeof node | null = node
+  while (current && !current.props.onRequestClose) current = current.parent
+  if (!current) throw new Error('no Modal above this node')
+  return current
 }
 
 const title = () => screen.queryByText(i18n.t('consent.tracking.title'))
@@ -190,4 +200,71 @@ it.each(['granted', 'denied', 'unavailable'] as const)('already %s: no sheet, se
   await flush()
   expect(title()).toBeNull()
   expect(calls).toEqual(['settle'])
+})
+
+/** #370 — Android: the same gate and moment, and this sheet is the consent. */
+describe('Android', () => {
+  function android() {
+    const made = fakeConsent('undetermined')
+    return { ...made, consent: { ...made.consent, asks: 'app' as const } }
+  }
+  const androidTitle = () => screen.queryByText(i18n.t('consent.tracking.android.title'))
+
+  async function up(consent: TrackingConsent) {
+    markSplashHidden()
+    mockState.status = 'user'
+    mockState.segments = ['(tabs)']
+    const view = await render(<TrackingConsentGate consent={consent} />)
+    await flush()
+    return view
+  }
+
+  it('shows the whole disclosure and two answers, never the iOS words', async () => {
+    const { consent } = android()
+    await up(consent)
+    expect(androidTitle()).not.toBeNull()
+    expect(screen.getByText(i18n.t('consent.tracking.android.body'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('consent.tracking.android.allow'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('consent.tracking.android.deny'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('consent.tracking.continue'))).toBeNull()
+    expect(screen.queryByText(i18n.t('consent.tracking.later'))).toBeNull()
+  })
+
+  it.each([
+    ['allow', 'granted'],
+    ['deny', 'denied'],
+  ] as const)('%s answers %s, closes, and is asked once this launch', async (button, answer) => {
+    const { consent } = android()
+    const view = await up(consent)
+    await act(async () => {
+      fireEvent.press(screen.getByText(i18n.t(`consent.tracking.android.${button}`)))
+    })
+    expect(consent.answer).toHaveBeenCalledTimes(1)
+    expect(consent.answer).toHaveBeenCalledWith(answer)
+    expect(consent.request).not.toHaveBeenCalled()
+    expect(androidTitle()).toBeNull()
+    mockState.segments = ['plans']
+    await view.rerender(<TrackingConsentGate consent={consent} />)
+    await flush()
+    expect(consent.status).toHaveBeenCalledTimes(1)
+  })
+
+  it('back is "Để sau": nothing answered', async () => {
+    const { consent, calls } = android()
+    await up(consent)
+    await act(async () => {
+      modalOf(screen.getByText(i18n.t('consent.tracking.android.title'))).props.onRequestClose()
+    })
+    expect(calls).toEqual(['later'])
+    expect(consent.answer).not.toHaveBeenCalled()
+    expect(androidTitle()).toBeNull()
+  })
+
+  it.each(['granted', 'denied'] as const)('a stored %s shows no sheet', async status => {
+    const { consent } = android()
+    ;(consent.status as jest.Mock).mockImplementation(() => Promise.resolve(status))
+    await up(consent)
+    expect(androidTitle()).toBeNull()
+    expect(consent.settle).toHaveBeenCalled()
+  })
 })

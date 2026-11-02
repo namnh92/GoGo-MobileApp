@@ -20,6 +20,11 @@ jest.mock('@/features/settings/location-permission.view', () => {
   return { LocationPermissionSection: () => <Text>location-section</Text> }
 })
 
+jest.mock('@/features/settings/tracking-consent.view', () => {
+  const { Text } = jest.requireActual('react-native')
+  return { TrackingConsentSection: () => <Text>tracking-section</Text> }
+})
+
 import PermissionsSettingsScreen from '@/features/settings/permissions.view'
 import NotificationsRoute from '@/app/settings/notifications'
 import LocationRoute from '@/app/settings/location'
@@ -35,10 +40,11 @@ it('opens the same screen from both earlier settings routes', () => {
 
 it('shows both sections under their own headers for a signed-in account', async () => {
   const view = await renderScreen(<PermissionsSettingsScreen />)
-  expect(view.getByText('Thông báo và vị trí')).toBeTruthy()
-  expect(view.getAllByRole('header').map(header => header.props.children)).toEqual(['Thông báo', 'Vị trí'])
+  expect(view.getByText('Quyền và dữ liệu')).toBeTruthy()
+  expect(view.getAllByRole('header').map(header => header.props.children)).toEqual(['Thông báo', 'Vị trí', 'Đo lượt cài đặt'])
   expect(view.getByText('notification-section')).toBeTruthy()
   expect(view.getByText('location-section')).toBeTruthy()
+  expect(view.getByText('tracking-section')).toBeTruthy()
 })
 
 it('keeps location for a signed-out person and offers sign-in only for the account switch', async () => {
