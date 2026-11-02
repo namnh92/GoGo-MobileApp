@@ -5,7 +5,7 @@ import type { ExpoConfig } from 'expo/config'
  *
  * Three installable flavours, one identifier scheme: `max.gogo.{flavor}`. They
  * differ in identifier, display name and URL scheme so a phone can hold all
- * three at once — a tester running staging next to the store build is the
+ * three at once — a tester running stag next to the store build is the
  * normal case, two apps cannot share an identifier at all, and two apps
  * sharing a scheme make `gogo://` open whichever the OS picked last.
  *
