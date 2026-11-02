@@ -192,7 +192,7 @@ platform :ios do
       is_key_content_base64: false,
       in_house: false
     )
-    team_id = GOGO_SECRETS.fetch('APPLE_TEAM_ID')
+    team_id = ctx[:parsed].fetch('APPLE_TEAM_ID')
 
     begin
       identity = gogo_pick_identity(ctx, api_key, team_id, first_signing: opts[:first_signing])

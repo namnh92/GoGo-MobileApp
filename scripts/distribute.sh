@@ -27,10 +27,6 @@
 # and every temp file (shape: dev/handoffs/sa-shape-mobile-391-firebase-lane.fable.md
 # in the GoGo workspace, D-1, D-17, D-18).
 #
-# Inputs that are not in SSM yet (GoGo-Infra#291): APPLE_TEAM_ID and the Tenjin
-# SDK keys, read from $GOGO_DISTRIBUTE_INPUTS (default
-# ~/.config/gogo-distribute/inputs.env). Template: scripts/distribute.inputs.example.
-
 set -euo pipefail
 
 case "$-" in
@@ -160,20 +156,6 @@ for dotenv in .env .env.* fastlane/.env fastlane/.env.*; do
   die "${dotenv} exists — move it out of the repo; the lane generates its config outside the worktree"
 done
 shopt -u nullglob
-
-# ── Inputs not yet in SSM (GoGo-Infra#291) ───────────────────────────────────
-inputs="${GOGO_DISTRIBUTE_INPUTS:-${HOME}/.config/gogo-distribute/inputs.env}"
-[[ -f "$inputs" ]] || die "missing ${inputs} — copy scripts/distribute.inputs.example there and fill it"
-# Read as data, never sourced.
-read_input() {
-  local key="$1" line value=""
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" =~ ^${key}=(.*)$ ]] && value="${BASH_REMATCH[1]}"
-  done <"$inputs"
-  printf '%s' "$value"
-}
-apple_team_id="$(read_input APPLE_TEAM_ID)"
-[[ "$apple_team_id" =~ ^[A-Z0-9]{10}$ ]] || die "APPLE_TEAM_ID in ${inputs} must be the 10-character Apple team id"
 
 # ── Lock and run directory (D-18) ────────────────────────────────────────────
 # One run per env × platform on this machine (owner Q-13: one workstation
@@ -313,7 +295,13 @@ trap 'forward HUP' HUP
 env_file="${run_dir}/tmp/mobile.env"
 python3 "${infra}/scripts/secrets/mobile-env.py" "$env_name" --region "$AWS_REGION_EXPECTED" \
   --api-url "$api_url" --web-url "$web_url" --apns-mode production --out "$env_file" >/dev/null
-python3 "${infra}/scripts/secrets/tenjin-mobile-env.py" "$env_name" --bootstrap "$inputs" --out "$env_file" >/dev/null
+# GoGo-Infra#291: the Tenjin keys and the team id come from SSM through
+# mobile-env.py, which only warns when a row is absent (its fallback for other
+# callers). This lane has no fallback: name what is missing, before any secret.
+for key in TENJIN_IOS_SDK_KEY TENJIN_ANDROID_SDK_KEY TENJIN_CONFIG_ENV APPLE_TEAM_ID; do
+  grep -q "^${key}=." "$env_file" \
+    || die "${key} is not in the generated config — update GoGo-Infra to develop (#291), then put.sh ${env_name} tenjin/ios-sdk-key, tenjin/android-sdk-key, apple/team-id"
+done
 chmod 600 "$env_file"
 
 sha="$(git rev-parse HEAD)"
@@ -340,7 +328,6 @@ if [[ "$platform" == ios ]]; then
   lane_options+=("first_signing:${first_signing}" "provision_only:${provision_only}")
 fi
 
-export APPLE_TEAM_ID="$apple_team_id"
 # fastlane asks `locale` for the charmap unless these say UTF-8.
 export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 "${infra}/scripts/secrets/exec-with.sh" "$env_name" "${rows[@]}" -- \

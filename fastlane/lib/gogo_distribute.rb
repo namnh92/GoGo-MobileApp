@@ -15,23 +15,23 @@ module GogoDistribute
   FLAVORS = %w[dev stag prod].freeze
   CHANNELS = { firebase: %w[dev stag], store: %w[prod] }.freeze
 
-  # Every variable exec-with.sh can hand the lane, plus the public inputs the
-  # wrapper exports. Captured into memory and deleted from ENV before anything
+  # Every variable exec-with.sh can hand the lane. Captured into memory and deleted from ENV before anything
   # can spawn (D-17).
   SECRET_KEYS = %w[
     ASC_KEY_CONTENT ASC_KEY_ID ASC_ISSUER_ID
     ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD
     FIREBASE_SERVICE_CREDENTIALS_JSON SENTRY_AUTH_TOKEN
-    GOOGLE_MAPS_IOS_API_KEY GOOGLE_MAPS_ANDROID_API_KEY APPLE_TEAM_ID
+    GOOGLE_MAPS_IOS_API_KEY GOOGLE_MAPS_ANDROID_API_KEY
     FIREBASE_APP_ID_IOS FIREBASE_APP_ID_ANDROID
   ].freeze
 
-  # Exactly what GoGo-Infra's mobile-env.py and tenjin-mobile-env.py emit (D-8).
+  # Exactly what GoGo-Infra's mobile-env.py emits (D-8; GoGo-Infra#291 added the
+  # Tenjin keys and the team id).
   APP_CONFIG_KEYS = %w[
     EXPO_PUBLIC_ENV EXPO_PUBLIC_API_URL EXPO_PUBLIC_WEB_BASE_URL
     ONESIGNAL_APP_ID ONESIGNAL_CONFIG_ENV ONESIGNAL_APNS_MODE EXPO_PUBLIC_SENTRY_DSN
     ADJUST_IOS_APP_TOKEN ADJUST_ANDROID_APP_TOKEN ADJUST_CONFIG_ENV
-    TENJIN_IOS_SDK_KEY TENJIN_ANDROID_SDK_KEY TENJIN_CONFIG_ENV
+    TENJIN_IOS_SDK_KEY TENJIN_ANDROID_SDK_KEY TENJIN_CONFIG_ENV APPLE_TEAM_ID
   ].freeze
 
   SENTRY_SWITCHES = %w[
@@ -123,7 +123,6 @@ module GogoDistribute
       cfg = parsed.dup
       cfg['GOOGLE_MAPS_IOS_API_KEY'] = secrets.fetch('GOOGLE_MAPS_IOS_API_KEY')
       cfg['GOOGLE_MAPS_ANDROID_API_KEY'] = secrets.fetch('GOOGLE_MAPS_ANDROID_API_KEY')
-      cfg['APPLE_TEAM_ID'] = secrets.fetch('APPLE_TEAM_ID')
       cfg[platform == 'ios' ? 'IOS_BUILD_NUMBER' : 'ANDROID_VERSION_CODE'] = build_number.to_s
       cfg['GOGO_BUILD_SHA'] = sha
       cfg
@@ -374,7 +373,7 @@ module GogoDistribute
         'temp_paths' => @temp_paths,
         'finished' => finished
       }
-      tmp = "#{@run_file}.tmp"
+      tmp = "#{@run_file}.#{Thread.current.object_id}.tmp"
       File.write(tmp, JSON.generate(data), perm: 0o600)
       File.rename(tmp, @run_file)
     end

@@ -65,10 +65,13 @@ esac`),
     `#!/usr/bin/env python3
 import sys
 out = sys.argv[sys.argv.index('--out') + 1]
-open(out, 'w').write('EXPO_PUBLIC_ENV=' + sys.argv[1] + '\\n')
+import os
+text = 'EXPO_PUBLIC_ENV=' + sys.argv[1] + '\\n'
+if not os.environ.get('STUB_NO_SSM_ROWS'):
+    text += 'TENJIN_IOS_SDK_KEY=ios\\nTENJIN_ANDROID_SDK_KEY=and\\nTENJIN_CONFIG_ENV=' + sys.argv[1] + '\\nAPPLE_TEAM_ID=ABCDE12345\\n'
+open(out, 'w').write(text)
 `,
   )
-  exe(path.join(infra, 'scripts/secrets/tenjin-mobile-env.py'), '#!/usr/bin/env python3\n')
   exe(
     path.join(infra, 'scripts/secrets/exec-with.sh'),
     sh(`{
@@ -79,12 +82,9 @@ open(out, 'w').write('EXPO_PUBLIC_ENV=' + sys.argv[1] + '\\n')
   echo "command=$*"
   echo "names=$(compgen -e | sort | tr '\\n' ' ')"
   echo "aws_region=\${AWS_REGION:-} aws_default_region=\${AWS_DEFAULT_REGION:-}"
-  echo "team=\${APPLE_TEAM_ID:-}"
 } > "$RECORD"
 exit "\${STUB_EXIT:-0}"`),
   )
-  const inputs = path.join(home, 'inputs.env')
-  writeFileSync(inputs, 'APPLE_TEAM_ID=ABCDE12345\nTENJIN_IOS_SDK_KEY_DEV=ios\nTENJIN_ANDROID_SDK_KEY_DEV=and\n')
 })
 
 afterEach(() => rmSync(sandbox, { recursive: true, force: true }))
@@ -97,7 +97,6 @@ function run(args: string[], env: Record<string, string | undefined> = {}) {
     HOME: home,
     RECORD: record,
     GOGO_INFRA_DIR: infra,
-    GOGO_DISTRIBUTE_INPUTS: path.join(home, 'inputs.env'),
   }
   const result = spawnSync('bash', [path.join(project, 'scripts/distribute.sh'), ...args], {
     cwd: project,
@@ -175,7 +174,6 @@ describe('scripts/distribute.sh', () => {
       'rows=signing/android-keystore signing/android-keystore-password signing/android-key-alias signing/android-key-password firebase/app-distribution-service-account firebase/app-id-android google/maps-ios-api-key google/maps-android-api-key sentry/mobile-auth-token\n',
     )
     expect(result.recorded).toContain('aws_region=ap-southeast-1 aws_default_region=ap-southeast-1')
-    expect(result.recorded).toContain('team=ABCDE12345')
     expect(result.recorded).toMatch(/command=\S+\/scripts\/lib\/distribute-run\.sh android false env:dev env_file:\S+\/tmp\/mobile\.env run_dir:\S+ groups:dev-testers sha:[0-9a-f]{40} branch:feature\/test without_symbols:false\n/)
     expect(result.stdout).toMatch(/distribute: flavour=dev platform=android sha=[0-9a-f]{40}/)
     // The run directory and the lock are gone once the child has exited.
@@ -274,6 +272,16 @@ exit 0`),
       .join('\n')
     expect(layer2).not.toMatch(/\$\(|`/)
     expect(layer2).toMatch(/exec bundle exec ruby fastlane\/bootstrap\.rb/)
+  })
+
+  // GoGo-Infra#291: no local inputs file. mobile-env.py only warns about an absent
+  // row, so the lane names it, before exec-with.sh and with the lock released.
+  it('refuses when the generated config lacks the Tenjin keys or the team id', () => {
+    const result = run(['dev', 'ios', '--groups', 'dev-testers'], { STUB_NO_SSM_ROWS: '1' })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/TENJIN_IOS_SDK_KEY is not in the generated config/)
+    expect(result.recorded).toBe('')
+    expect(existsSync(lockDir())).toBe(false)
   })
 
   it('refuses shell tracing', () => {
