@@ -16,7 +16,8 @@ import { styles } from './tracking-consent.style'
 /**
  * GoGo-MobileApp#370 (shape D5) — where the sheet's "đổi lại được trong Cài
  * đặt" is true. Android: GoGo owns the answer, so a switch. iOS: the OS owns it,
- * so a way there. Either way this device's, not the account's.
+ * so a way there. Either way this device's, not the account's. #404: the sheet is
+ * short, so this row carries the two recipients and what goes either way.
  */
 export function TrackingConsentSection() {
   if (Platform.OS === 'android') return <AndroidSwitch />
@@ -69,6 +70,7 @@ function AndroidSwitch() {
           accessibilityLabel={t('permissionsSettings.trackingSwitch')}
         />
       </View>
+      <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.trackingDetail')}</Text>
       {on ? null : <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.trackingOffHint')}</Text>}
       {consent.save === 'unsaved' ? (
         <View accessibilityLiveRegion="polite">

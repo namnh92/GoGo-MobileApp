@@ -5,7 +5,7 @@
  */
 export const consentStore = {
   get: () => 'granted' as const,
-  generation: () => 0,
+  subscribe: () => () => {},
 }
 
 export const trackingConsent = {

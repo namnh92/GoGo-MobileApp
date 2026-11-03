@@ -1,5 +1,7 @@
 # ADR 0013: Tracking consent on Android
 
+Superseded in part by ADR 0014 (2026-11-03, #404).
+
 Accepted for GoGo-MobileApp#370 (MMP-APP-004, epic #363). Shape:
 `dev/handoffs/sa-shape-mobile-370-android-consent.fable.md` rev 4 (workspace), Astra
 round 4 clean. Owner decisions 2026-10-20 (Q6: ask on both platforms, without waiting

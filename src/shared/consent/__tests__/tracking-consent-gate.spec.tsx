@@ -219,7 +219,7 @@ describe('Android', () => {
     return view
   }
 
-  it('shows the whole disclosure and two answers, never the iOS words', async () => {
+  it('shows the shared sentences and two answers, never the iOS words', async () => {
     const { consent } = android()
     await up(consent)
     expect(androidTitle()).not.toBeNull()
@@ -228,6 +228,17 @@ describe('Android', () => {
     expect(screen.getByText(i18n.t('consent.tracking.android.deny'))).toBeTruthy()
     expect(screen.queryByText(i18n.t('consent.tracking.continue'))).toBeNull()
     expect(screen.queryByText(i18n.t('consent.tracking.later'))).toBeNull()
+  })
+
+  it.each(['vi', 'en'])('#404 AC-1: the %s sheet names no vendor and no iPhone, and says what still goes', async language => {
+    const body = i18n.t('consent.tracking.android.body', { lng: language })
+    expect(body).not.toMatch(/Tenjin|Adjust|iPhone/)
+    // The iOS sheet says the same after its own first sentence, with its own verb for "no".
+    const ios = i18n.t('consent.tracking.body', { lng: language })
+    const allowClause = body.split(/[.] /)[0]
+    expect(ios).toContain(allowClause)
+    expect(ios).toMatch(language === 'vi' ? /GoGo vẫn đo lượt cài đặt và mở app, nhưng không kèm mã quảng cáo/ : /GoGo still measures installs and app opens, but without the advertising identifier/)
+    expect(body).toMatch(language === 'vi' ? /GoGo vẫn đo lượt cài đặt và mở app, nhưng không kèm mã quảng cáo/ : /GoGo still measures installs and app opens, but without the advertising identifier/)
   })
 
   it.each([

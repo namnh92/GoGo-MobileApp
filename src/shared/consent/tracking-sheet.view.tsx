@@ -35,9 +35,9 @@ type TrackingSheetProps = {
  * in return for "Allow" (App Review 5.1.1/5.1.2): "Để sau" closes it and every
  * feature keeps working.
  *
- * #370 — on Android the same sheet carries the whole disclosure: what is sent,
- * to whom, why, and what "no" costs (owner Q7, 2026-11-02). A new wording bumps
- * `CONSENT_DISCLOSURE`.
+ * #370 — on Android this sheet is the consent: no system dialog follows. #404 —
+ * the same sentences as iOS (owner, 2026-11-03); the recipients and the full list
+ * are in Settings → Quyền và dữ liệu. A new wording bumps `CONSENT_DISCLOSURE`.
  */
 export function TrackingSheet(props: TrackingSheetProps) {
   const { visible, onLater } = props

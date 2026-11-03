@@ -102,16 +102,16 @@ describe('tracking permission string', () => {
     expect(written).not.toContain('NSUserTrackingUsageDescription')
   })
 
-  it('every string is the owner-approved text, word for word (#366, 2026-10-19)', () => {
-    // Changing any of these needs a new owner approval on #366 — not only a
-    // matching edit in every copy.
+  it('every string is the owner-approved text, word for word (#366 2026-10-19, body #404 2026-11-03)', () => {
+    // Changing any of these needs a new owner approval — not only a matching
+    // edit in every copy.
     const APPROVED = {
       vi: {
         'consent.tracking.systemPrompt':
           'GoGo dùng mã quảng cáo của thiết bị để biết bạn cài app từ lời mời hay liên kết nào, và để đo hiệu quả các chiến dịch quảng cáo của GoGo. GoGo không hiển thị quảng cáo trong app.',
         'consent.tracking.title': 'Giúp GoGo biết bạn đến từ đâu',
         'consent.tracking.body':
-          'Ở bước tiếp theo, iPhone sẽ hỏi bạn có cho GoGo theo dõi không. Nếu bạn cho phép, GoGo biết được lời mời hay liên kết nào đã đưa bạn đến, để mời thêm bạn bè dễ hơn. Từ chối thì mọi tính năng vẫn dùng bình thường, và bạn đổi lại được trong Cài đặt.',
+          'Ở bước tiếp theo, iPhone sẽ hỏi bạn có cho GoGo theo dõi không. Nếu bạn cho phép, GoGo dùng mã quảng cáo của thiết bị để biết lời mời hay liên kết nào đã đưa bạn đến, và để đo hiệu quả quảng cáo của GoGo. Từ chối thì mọi tính năng vẫn dùng bình thường; GoGo vẫn đo lượt cài đặt và mở app, nhưng không kèm mã quảng cáo. Bạn đổi lại được trong Cài đặt.',
         'consent.tracking.continue': 'Tiếp tục',
         'consent.tracking.later': 'Để sau',
       },
@@ -120,7 +120,7 @@ describe('tracking permission string', () => {
           "GoGo uses your device's advertising identifier to know which invite or link led you to install the app, and to measure how well GoGo's ad campaigns work. GoGo does not show ads in the app.",
         'consent.tracking.title': 'Help GoGo see where you came from',
         'consent.tracking.body':
-          'Next, your iPhone will ask whether GoGo may track you. If you allow it, GoGo learns which invite or link brought you here, which helps it get better at bringing friends in. If you decline, every feature still works, and you can change this later in Settings.',
+          "Next, your iPhone will ask whether GoGo may track you. If you allow it, GoGo uses your device's advertising identifier to know which invite or link brought you here, and to measure GoGo's ads. If you decline, every feature still works; GoGo still measures installs and app opens, but without the advertising identifier. You can change this in Settings.",
         'consent.tracking.continue': 'Continue',
         'consent.tracking.later': 'Not now',
       },

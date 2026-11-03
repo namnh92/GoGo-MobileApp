@@ -78,22 +78,31 @@ Không gửi: danh bạ, lịch, tin nhắn, sức khoẻ, thông tin thanh toá
 | T2 | Tenjin | "Vendor ID (if available)", "Advertising ID", "IP address", "Device Type, Device Model, Device Locale, Device Country, OS Platform", "OS Version", "Bundle ID, SDK Version, App Version", "Limit Ad Tracking setting", "Apple Search attribution (if enabled)". | https://www.tenjin.com/privacy/ |
 | T3 | Sentry | Context thiết bị mặc định của SDK native (`contexts.device/os/app`) vẫn đi: `beforeSend` chỉ dựng lại `user`, `request` và breadcrumb (`sentry.ts:21-31`), không bỏ context. `sendDefaultPii: false` (`sentry.ts:823`); không tracing (`sentry.ts:826`), không screenshot / view hierarchy (`:827-828`); replay **không bao giờ được cấu hình** (không có `mobileReplayIntegration` trong repo). | code + ADR 0010 |
 | T4 | Google Maps SDK (`react-native-maps` 1.20.1) | SDK của Google chạy trên **cả hai** nền tảng (`src/shared/ui/map-canvas.view.tsx:95` đặt `provider={maps.PROVIDER_GOOGLE}`, nên iOS cũng không dùng Apple MapKit) — Google nhận API key, thông tin thiết bị/OS/app, IP của người gọi, vùng bản đồ được yêu cầu và toạ độ các marker, tức là **các địa điểm trong kế hoạch của người dùng**. Hai thứ app đã tắt: `showsUserLocation={false}` (`:96`, SDK không đọc GPS) và `toolbarEnabled={false}` (`:97`). Key bơm vào ở `app.config.ts:186` (iOS), `:190` (Android); thiếu key thì build dừng (`:102`). | code + hướng dẫn khai báo của Google cho Maps SDK |
-| T5 | Adjust (`react-native-adjust` 5.8.0) | Theo bảng Data Safety của chính Adjust: thu mặc định **App activity** (phiên/lần mở) và **Device or other IDs** — IDFV và IDFA (chỉ khi người dùng cho phép ATT, §12 D-6) trên iOS; GAID, **Android ID** và App Set ID trên Android (SDK đọc Android ID theo mặc định — app không gọi `disableAndroidIdReading()`; kiểm lại ở privacy review); thông tin thiết bị/OS/phiên bản SDK, app. IP đi kèm mọi request HTTP. Privacy manifest của pod iOS khai `NSPrivacyTracking = true`, Device ID *linked + tracking* (Analytics, Third-Party Advertising), Product Interaction *not linked*. App **không** gửi event, user id hay PII nào cho Adjust (phase 1, `adjust-boundary.test.ts`). | https://help.adjust.com/en/article/google-play-data-safety ; manifest đọc trong shape `sa-shape-mobile-363-adjust.fable.md` A7 — **đọc lại câu chữ trên trang của Adjust trước khi nộp** |
+| T5 | Adjust (`react-native-adjust` 5.8.0) | Theo bảng Data Safety của chính Adjust: thu mặc định **App activity** (phiên/lần mở) và **Device or other IDs** — IDFV và IDFA (chỉ khi người dùng cho phép ATT, §12 D-6) trên iOS; GAID (chỉ sau khi người dùng cho phép, §12 D-8) và App Set ID trên Android; **Android ID không đọc** — app gọi `disableAndroidIdReading()` ở mọi trạng thái, `adjust-boundary.test.ts` ghim; thông tin thiết bị/OS/phiên bản SDK, app. IP đi kèm mọi request HTTP. Privacy manifest của pod iOS khai `NSPrivacyTracking = true`, Device ID *linked + tracking* (Analytics, Third-Party Advertising), Product Interaction *not linked*. App **không** gửi event, user id hay PII nào cho Adjust (phase 1, `adjust-boundary.test.ts`). | https://help.adjust.com/en/article/google-play-data-safety ; manifest đọc trong shape `sa-shape-mobile-363-adjust.fable.md` A7 — **đọc lại câu chữ trên trang của Adjust trước khi nộp** |
 
 **Lệch giữa hai nền tảng, có chủ ý và phải khai khác nhau:**
 
-- **Android thu bốn định danh, không phải một.** Build khai `com.google.android.gms.permission.AD_ID`
+- **Android thu ba định danh, không phải một.** Build khai `com.google.android.gms.permission.AD_ID`
   (`plugins/with-tenjin-android.js:23`) và thêm `play-services-ads-identifier` (`:6`),
   `play-services-appset` (`:7` — App Set ID) và `installreferrer` (`:8` — Install Referrer của Play).
   Đo thật trên APK đã build, không phải suy từ dependency: `docs/tenjin-android-verification-2026-09-08.md:31-34,41,44`
   ghi `AdvertisingIdClient`, `AppSet`, `InstallReferrerClient` có trong APK, `AD_ID: granted=true`, một GAID
-  khác 0 đọc được và `connect` trả `{"code":200}`. Định danh thứ tư là **Android ID**, chỉ của Adjust (T5):
-  SDK đọc theo mặc định vì app không gọi `disableAndroidIdReading()` (`adjust-boundary.test.ts` ghim danh sách
-  lệnh cấu hình); **chưa đo trên APK** — kiểm ở privacy review (§11 bước 6) cùng GAID và App Set ID của Adjust.
-- **Android chỉ gửi sau khi người dùng đồng ý (từ #370, §12 D-7).** Không có quyền hệ điều hành nào cho việc này,
-  nên GoGo tự hỏi: Tenjin (`initialize`, `connect`) và Adjust (`initSdk`) **không khởi động** trước khi người dùng
-  chọn "Cho phép" (`src/shared/acquisition/bootstrap.ts`, `startAndroidSdks`). Từ chối hoặc để sau: hai SDK không
-  chạy trong lần mở đó. Bốn định danh ở trên vẫn là thứ được gửi **sau** khi đồng ý.
+  khác 0 đọc được và `connect` trả `{"code":200}`. **Android ID không đọc:** app gọi `disableAndroidIdReading()`
+  ở mọi trạng thái (`adjust-boundary.test.ts` ghim danh sách lệnh cấu hình; owner 2026-11-03, #404 Q3).
+- **Android chạy SDK từ lúc mở app, mã quảng cáo chờ đồng ý (từ #404, §12 D-8, thay D-7).** Không có quyền hệ điều
+  hành nào cho việc này, nên GoGo tự hỏi. Tenjin và Adjust khởi động ở mọi lần mở
+  (`src/shared/acquisition/bootstrap.ts`, `startAndroidSdks`); câu trả lời quyết định gửi gì:
+
+  | Trạng thái | Tenjin | Adjust |
+  | --- | --- | --- |
+  | Chưa trả lời, để sau, từ chối, công tắc tắt (từ lần mở sau) | App Set ID (`developer_device_id`), IP, thông tin thiết bị, lượt cài đặt / mở app; **không** `advertising_id`, `ad_id_local` | App Set ID, `android_uuid`, IP, thông tin thiết bị, phiên; **không** `gps_adid`, **không** `android_id` |
+  | Cho phép | thêm `advertising_id`, `ad_id_local` | thêm `gps_adid`, `gps_adid_src`, `tracking_enabled` |
+  | Tắt công tắc trong lần mở mà Adjust đã được phép đọc GAID | giữ mã ngay (`optOutParams`) | không gửi gì tới hết lần mở đó (`disable`), lần mở sau chạy giữ mã |
+
+  Đo bằng log tham số của SDK trên SM-A226B, chưa giải mã gói tin (spike #404, `dev/test-evidence/mobile-404/`,
+  workspace). Tenjin vẫn đọc GAID trên máy khi giữ mã, chỉ không gửi đi. Cho phép ở giữa lần mở: Tenjin có mã từ
+  `connect` lần mở sau; Adjust cần một tiến trình mới. Install Referrer của Play: cả hai SDK đọc ở mọi trạng thái,
+  không có định danh thiết bị.
 - **iOS thu IDFA khi người dùng cho phép (từ #366).** App xin ATT qua `expo-tracking-transparency`
   (`src/shared/consent/tracking.ts`, chỗ duy nhất import thư viện), chuỗi `NSUserTrackingUsageDescription` ở
   `app.config.ts` + `locales/{vi,en}.json`. App **không tự đọc** IDFA (`getAdvertisingId` không xuất hiện trong
@@ -120,7 +129,7 @@ ai đổi ở đó thì khai báo này sai mà không có commit nào. Bằng ch
 | Thư viện ảnh | thêm ảnh đại diện (`src/shared/media/pick-avatar.ts:74`), thêm ảnh check-in (`src/features/active-date/checkin-sheet.view.tsx:73`), đính kèm ảnh cho GoGo AI (`src/features/assistant/pick-images.ts`, #378) | `app.config.ts` `photosPermission` — chuỗi nói cả ba việc (#356, #378). `src/shared/config/__tests__/media-permission.test.ts` buộc mỗi call site có từ khoá mục đích trong chuỗi, nên một call site thứ ba sẽ làm test đỏ thay vì âm thầm ship purpose string thiếu |
 | Thông báo | sau khi đăng nhập, trước khi đăng ký subscription | `src/shared/notifications/permission.ts` |
 | Theo dõi (App Tracking Transparency, **chỉ iOS**) | màn đầu tiên sau khi đăng nhập / vào phòng khách, sau sheet giải thích; một lần, chỉ khi iOS chưa có câu trả lời; không ở splash, đăng nhập, onboarding; không khoá tính năng nào (`src/shared/consent/tracking-consent-gate.tsx`) | plugin `expo-tracking-transparency` trong `app.config.ts` + `locales/vi.json`, `locales/en.json` — câu chữ owner duyệt 2026-10-19 (#366); `tracking-permission.test.ts` buộc ba chỗ bằng nhau và bằng key `consent.tracking.systemPrompt` |
-| Theo dõi (**Android, GoGo tự hỏi — không phải quyền hệ điều hành**) | cùng thời điểm với sheet iOS; một lần mỗi lần mở cho tới khi có câu trả lời; "Cho phép" / "Không cho phép", chạm ngoài hoặc back là để sau; không khoá tính năng nào (`src/shared/consent/tracking-consent-gate.tsx`); đổi lại ở Cài đặt → Quyền và dữ liệu (`src/features/settings/tracking-consent.view.tsx`) | `consent.tracking.android.*` trong `src/shared/i18n/{vi,en}.ts` — câu chữ owner duyệt 2026-11-02 (#370, Q7), phiên bản `android-consent-v1` lưu cùng câu trả lời (§12 D-7) |
+| Theo dõi (**Android, GoGo tự hỏi — không phải quyền hệ điều hành**) | cùng thời điểm với sheet iOS; một lần mỗi lần mở cho tới khi có câu trả lời; "Cho phép" / "Không cho phép", chạm ngoài hoặc back là để sau; không khoá tính năng nào (`src/shared/consent/tracking-consent-gate.tsx`); đổi lại ở Cài đặt → Quyền và dữ liệu (`src/features/settings/tracking-consent.view.tsx`) | `consent.tracking.android.*` trong `src/shared/i18n/{vi,en}.ts` — câu chữ owner duyệt 2026-11-03 (#404, Q1), phiên bản `android-consent-v2` lưu cùng câu trả lời; danh sách dữ liệu và hai bên nhận ở `permissionsSettings.trackingSwitch`, `trackingDetail` (§12 D-8) |
 
 Không xin: vị trí nền, camera, danh bạ, lịch, micro.
 
@@ -195,11 +204,11 @@ mục đích chia sẻ thành hai câu khác nhau.
 | App activity · Other user-generated content | có | không | không | người dùng chọn | App functionality | D8, D9, D17, D23 |
 | App info and performance · Crash logs | có | không | không | bắt buộc | App functionality, Fraud prevention/security | D15 |
 | App info and performance · Diagnostics | có | không | không | bắt buộc | App functionality | D16, T3, T4 |
-| Device or other IDs | có | **có** — Tenjin (§12 D-2), Adjust (§12 D-5) | không | bắt buộc | thu: App functionality, Advertising/marketing · **chia sẻ: Analytics, Advertising/marketing** | D12, D14, D16, D24, T1, T2, T4, T5 — gồm GAID, App Set ID (Tenjin, Adjust) và **Android ID** (chỉ Adjust, §3) |
+| Device or other IDs | có | **có** — Tenjin (§12 D-2), Adjust (§12 D-5) | không | bắt buộc | thu: App functionality, Advertising/marketing · **chia sẻ: Analytics, Advertising/marketing** | D12, D14, D16, D24, T1, T2, T4, T5 — gồm App Set ID (Tenjin, Adjust; luôn gửi) và GAID (Tenjin, Adjust; chỉ sau khi cho phép, §3, §12 D-8); **không** có Android ID |
 
-Hai dòng Tenjin/Adjust ở trên vẫn là "bắt buộc" dù phần MMP nay chờ người dùng đồng ý (§12 D-7): OneSignal và
-Sentry vẫn cần `Device or other IDs`, GoGo BE vẫn cần `App interactions`, mà một dòng là bắt buộc khi bất kỳ đích
-nào cần nó (owner 2026-11-02, Q3).
+Hai dòng Tenjin/Adjust ở trên vẫn là "bắt buộc" (§12 D-8): App Set ID và lượt cài đặt / mở app đi ở mọi trạng thái,
+giữ GAID không làm cả loại thành tuỳ chọn; OneSignal và Sentry vẫn cần `Device or other IDs`, GoGo BE vẫn cần
+`App interactions`, mà một dòng là bắt buộc khi bất kỳ đích nào cần nó (owner 2026-11-02, Q3).
 
 Mật khẩu (D2) không có loại tương ứng ở Play, như ở Apple — xem ghi chú cuối §6.
 
@@ -252,7 +261,7 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
 | --- | --- | --- | --- |
 | Q4 | Trang chính sách quyền riêng tư **và** trang yêu cầu xoá dữ liệu: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách, và Play còn đòi URL yêu cầu xoá dữ liệu cho app có tạo tài khoản; thiếu một trong hai thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì — ý định sản phẩm, không phải sự thật trong repo? | Hiện trạng đo được: **không có cổng tuổi** ("No minimum age applies", `openapi/gogo.v1.yaml:403`) và không consumer nào ngoài `/me` + export; app chỉ hiện và sửa nó (`src/features/account/date-of-birth.view.tsx`, `src/shared/api/queries/use-me.ts:38`). Vì vậy §6/§7 khai `App Functionality` theo đúng hiện trạng; câu còn mở là có thêm mục đích nào không. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
-| Q6 | Nghị định 13/2023/NĐ-CP (bảo vệ dữ liệu cá nhân) có coi mã thiết bị (IDFA, GAID, IDFV, App Set ID, Android ID) là dữ liệu cá nhân và đòi **đồng ý** trước khi gửi cho Tenjin/Adjust **trên cả Android** — nơi không có ATT? | D-6 chỉ trả lời câu hỏi của Apple. Nếu Nghị định 13 đòi đồng ý, Android hiện gửi GAID cho Tenjin từ lần mở đầu mà không hỏi, và khai báo Play đúng nhưng hành vi có thể trái luật. Chưa ai có thẩm quyền trả lời. | Hỏi người làm pháp lý **trước lần nộp đầu**, cùng lượt privacy review + DPA của Adjust (#367). Owner chịu trách nhiệm theo dõi; câu trả lời ghi thành một dòng có ngày ở §12. D-6 không trả lời câu này. **Về sản phẩm đã trả lời bằng D-7 (§12); ý kiến pháp lý vẫn còn thiếu**: D-7 ghi quyết định của owner, không phải kết luận pháp lý. |
+| Q6 | Luật Bảo vệ dữ liệu cá nhân và Nghị định 356 (thay Nghị định 13/2023/NĐ-CP từ 01/01/2026) có coi mã thiết bị (IDFA, GAID, IDFV, App Set ID) là dữ liệu cá nhân và đòi **đồng ý** trước khi gửi cho Tenjin/Adjust **trên cả Android** — nơi không có ATT? | D-6 chỉ trả lời câu hỏi của Apple. Từ D-8, Android gửi App Set ID, IP và dữ liệu thiết bị cho Tenjin, Adjust **trước khi hỏi và cả khi từ chối**; GAID chỉ sau khi cho phép. Nếu luật đòi đồng ý cho các dữ liệu đó, khai báo Play đúng nhưng hành vi có thể trái luật. Chưa ai có thẩm quyền trả lời. | Hỏi người làm pháp lý **trước lần nộp đầu**, cùng lượt privacy review + DPA của Adjust (#367). Owner chịu trách nhiệm theo dõi; câu trả lời ghi thành một dòng có ngày ở §12. D-6 không trả lời câu này. **Về sản phẩm đã trả lời bằng D-8 (§12); ý kiến pháp lý vẫn còn thiếu**: D-8 ghi quyết định của owner, không phải kết luận pháp lý. |
 
 ## 11. Cách kiểm tài liệu này (AC-5 của #354)
 
@@ -273,19 +282,34 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
    và tám domain `consent.*.adjust.*` — đổi theo version pod) và privacy report của Xcode —
    mục "Data Used to Track You" của nhãn phải phủ mọi loại report liệt kê dưới tracking.
 6. Định danh Android của Adjust (§3, T5): trên APK release sắp nộp, xác nhận bộ định danh Adjust thật sự gửi —
-   GAID, App Set ID và **Android ID** (SDK đọc theo mặc định; app không gọi `disableAndroidIdReading()`) — bằng
-   Adjust Testing Console hoặc log verbose của SDK, giá trị che. Chưa có lượt đo nào; §7 `Device or other IDs` khai
-   theo mặc định của SDK cho tới khi có.
-7. Trước đồng ý trên Android (§12 D-7): trên bản sắp nộp, bắt proxy từ lúc mở tới lúc sheet hiện, và khi sheet để
-   yên, sau "Không cho phép", sau khi tắt công tắc: **không request nào** tới host Tenjin/Adjust. Cách đo đủ ở
-   GoGo-MobileApp#370 (AC-2, AC-3).
+   GAID (chỉ khi đã cho phép) và App Set ID, **không có `android_id`** ở mọi trạng thái — bằng Adjust Testing
+   Console hoặc log tham số của SDK, giá trị che.
+7. Trước đồng ý trên Android (§12 D-8): trên bản sắp nộp, từ lúc mở tới lúc sheet hiện, khi sheet để yên, sau "Không
+   cho phép", và ở lần mở sau khi tắt công tắc: **không có `advertising_id`, `ad_id_local`, `gps_adid`** trong request tới
+   Tenjin/Adjust; App Set ID được phép. Cách đo đủ ở GoGo-MobileApp#404 (AC-3).
 
 ## 12. Quyết định của owner (có ngày, kèm rủi ro đã nhận)
 
 Ghi ở đây thay vì để trong §10, vì một ô khai báo không được treo vào một câu hỏi. Nguồn kèm theo:
 `.claude/rules/execution-policy.md` §8 2026-10-17.
 
-**D-7 (quyết định 2026-10-20, làm 2026-11-02, GoGo-MobileApp#370, ADR 0013) — xin đồng ý trên cả Android; thay dòng
+**D-8 (2026-11-03, GoGo-MobileApp#404, ADR 0014) — Android chạy SDK như iOS, giữ mã quảng cáo tới khi đồng ý; thay
+dòng "không SDK nào khởi động trước đồng ý" của D-7.** Tenjin và Adjust khởi động ở mọi lần mở. Chưa trả lời, để sau,
+từ chối, công tắc tắt: không gửi GAID; App Set ID, IP, thông tin thiết bị, lượt cài đặt / mở app vẫn gửi (bảng ở §3).
+Android ID không đọc ở mọi trạng thái (Q3). Tắt công tắc trong lần mở mà Adjust đã được phép đọc GAID: Tenjin giữ mã
+ngay, Adjust không gửi gì tới hết lần mở đó (Q6; `disable()` sống qua lần mở, lần sau `enable()` lại — tiến trình chết
+trước `enable()` thì Adjust im tới lần khởi động kế tiếp hoàn tất). Câu chữ đồng nhất hai nền tảng (Q1); sheet không nêu
+tên bên nhận và danh sách dữ liệu, hai thứ đó ở Cài đặt → Quyền và dữ liệu. Câu trả lời v1 được hỏi lại
+(`android-consent-v2`). §6 không đổi; ô §7 không đổi, chỉ đổi phần giải thích định danh.
+
+> **Rủi ro owner nhận với D-8.** (1) App Set ID, IP và dữ liệu thiết bị đến Tenjin và Adjust **trước khi hỏi và khi từ
+> chối**. (2) Luật Bảo vệ dữ liệu cá nhân và Nghị định 356 chưa kiểm tra (§10 Q6 còn mở). (3) Sheet không nêu tên bên
+> nhận; chính sách User Data của Play chưa đọc hết. (4) Attribution khi không có GAID chưa kết luận: spike ra `Organic`
+> nhưng cài bằng `adb`, không có Install Referrer, không đối chứng; đo trên Play internal track. #397 đóng NOT_PLANNED,
+> mở lại nếu đo thấy mất attribution. (5) Adjust khuyên hỏi đại diện trước khi tắt định danh (help.adjust.com), chưa hỏi.
+
+**D-7 (quyết định 2026-10-20, làm 2026-11-02, GoGo-MobileApp#370, ADR 0013; phần "không SDK nào khởi động trước đồng ý",
+`optOut()`, câu chữ đã bị D-8 thay) — xin đồng ý trên cả Android; thay dòng
 "Android không đổi" của D-6.** Android không có ATT nên GoGo tự hỏi, cùng thời điểm với sheet iOS; không SDK MMP nào
 khởi động trước khi người dùng chọn "Cho phép". Từ chối được lưu và đổi lại được ở Cài đặt → Quyền và dữ liệu (tắt:
 Tenjin `optOut()`, Adjust `disable()`). Câu chữ owner duyệt 2026-11-02 (Q7) nêu đủ loại dữ liệu, hai bên nhận, mục
@@ -320,7 +344,7 @@ Owner chốt Q1 (b) của shape `dev/handoffs/sa-shape-mobile-363-adjust.fable.r
 `.claude/rules/execution-policy.md` §8 2026-10-19). Đi đúng đường Apple chấp nhận mà dòng rủi ro của D-1 nêu: màn
 ATT **trước**, rồi nhãn đổi. Hệ quả: §6 `Identifiers · Device ID` và `Usage Data · Advertising Data` khai
 tracking = có, mục "Data Used to Track You" của App Store liệt kê hai loại đó; §4 thêm quyền Theo dõi. Android
-không đổi **(đã bị D-7 thay: Android nay tự hỏi trước khi khởi động SDK)** (không có ATT; GAID, App Set ID và `AD_ID` như §3, D-2 đã khai chia sẻ; Android ID của Adjust theo D-5). Câu chữ hộp thoại do owner duyệt
+không đổi **(đã bị D-7 rồi D-8 thay: Android nay tự hỏi, SDK chạy từ lúc mở app, mã quảng cáo chờ đồng ý)** (không có ATT; GAID, App Set ID và `AD_ID` như §3, D-2 đã khai chia sẻ; Android ID của Adjust theo D-5). Câu chữ hộp thoại do owner duyệt
 (#366, 2026-10-19).
 
 > **Rủi ro owner nhận với D-6.** Tỉ lệ người dùng đồng ý chưa có số đo; chất lượng attribution iOS phụ thuộc

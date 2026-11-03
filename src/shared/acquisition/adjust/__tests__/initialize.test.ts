@@ -19,6 +19,8 @@ function fakeSdk(over: { initThrows?: boolean } = {}) {
   let attribution: ((value: unknown) => void) | undefined
   const config: AdjustConfigLike & Record<string, unknown> = {
     disableDeferredDeeplinkOpening: () => calls.push('disableDeferredDeeplinkOpening'),
+        disableAndroidIdReading: () => calls.push('disableAndroidIdReading'),
+        disableGoogleAdIdReading: () => calls.push('disableGoogleAdIdReading'),
     setAttConsentWaitingInterval: (seconds: number) => calls.push(`setAttConsentWaitingInterval(${seconds})`),
     setDeferredDeeplinkCallback: callback => {
       deferred = callback
@@ -67,6 +69,21 @@ describe('Adjust initializer', () => {
       'initSdk',
     ])
     expect(ADJUST_ATT_WAIT_SECONDS).toBe(60)
+  })
+
+  it.each([
+    [true, ['disableAndroidIdReading', 'initSdk']],
+    [false, ['disableAndroidIdReading', 'disableGoogleAdIdReading', 'initSdk']],
+  ])('Android, advertising ID allowed = %s: fixed right before initSdk, the Android ID never read', (allowed, tail) => {
+    const fake = fakeSdk()
+    createAdjustInitializer({
+      sdk: fake.sdk,
+      flavor: 'dev',
+      onDeferredLink: () => {},
+      onAttribution: () => {},
+      androidAdIdAllowed: () => allowed,
+    })('abcdEFGH1234')
+    expect(fake.calls.slice(-tail.length)).toEqual(tail)
   })
 
   it('a failing SDK reports unavailable and never throws into startup', () => {

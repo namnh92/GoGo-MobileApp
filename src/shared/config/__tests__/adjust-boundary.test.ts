@@ -27,6 +27,8 @@ const CONFIG_CALLS = [
   'setAttConsentWaitingInterval',
   'setDeferredDeeplinkCallback',
   'setAttributionCallback',
+  'disableAndroidIdReading',
+  'disableGoogleAdIdReading',
 ]
 
 describe('Adjust boundary', () => {
@@ -35,6 +37,14 @@ describe('Adjust boundary', () => {
     expect(loaders).toEqual(['src/shared/acquisition/bootstrap.ts'])
     const bootstrap = read('src/shared/acquisition/bootstrap.ts')
     expect(bootstrap).not.toMatch(/^import (?!type )[^\n]*'react-native-adjust'/m)
+  })
+
+  it('the Tenjin surface is an allowlist too: never optOut, which outlives a launch (#404)', () => {
+    const used = [
+      ...(read('src/shared/acquisition/bootstrap.ts').match(/\bTenjin\.\w+\(/g) ?? []),
+      ...(read('src/shared/acquisition/initialize.ts').match(/\bsdk\.\w+\(/g) ?? []),
+    ].map(call => call.replace(/^\w+\.|\($/g, ''))
+    expect([...new Set(used)].sort()).toEqual(['connect', 'initialize', 'optIn', 'optOutParams', 'setAppStore'])
   })
 
   it('the bootstrap uses exactly initSdk, the #370 switch and the two environments', () => {

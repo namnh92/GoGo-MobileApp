@@ -1,17 +1,26 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 /**
- * GoGo-MobileApp#370 (Astra A-F-01) — a withdrawal while the lazy Adjust import
- * is pending. The import lands afterwards; the start it belonged to is retired,
- * so no SDK is initialised for someone who just said no.
+ * GoGo-MobileApp#404 (shape D2 step 4, Astra A-F-02) — an answer while the lazy
+ * Adjust import is pending. The start is never abandoned: the config takes the
+ * answer that exists right before `initSdk`, so nothing has to be taken back.
  */
 
 const state = vi.hoisted(() => {
-  let open!: () => void
-  const gate = new Promise<void>(resolve => {
-    open = resolve
-  })
-  return { calls: [] as string[], gate, open, disk: new Map<string, string>() }
+  const state = {
+    calls: [] as string[],
+    disk: new Map<string, string>(),
+    gate: Promise.resolve(),
+    open: () => {},
+    reset() {
+      state.calls.length = 0
+      state.disk.clear()
+      state.gate = new Promise<void>(resolve => {
+        state.open = resolve
+      })
+    },
+  }
+  return state
 })
 
 vi.mock('expo-constants', () => ({
@@ -27,9 +36,10 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 vi.mock('react-native-tenjin', () => ({
-  default: Object.fromEntries(['initialize', 'setAppStore', 'optIn', 'optOut', 'connect'].map(name => [name, () => {}])),
+  default: Object.fromEntries(['initialize', 'setAppStore', 'optIn', 'optOutParams', 'connect'].map(name => [name, () => {}])),
 }))
-vi.mock('react-native-adjust', async () => {
+/** Registered per test: a mock's factory runs once per registration, and each race needs its own gate. */
+const pendingImport = async () => {
   await state.gate
   class AdjustConfig {
     static EnvironmentSandbox = 'sandbox'
@@ -38,6 +48,8 @@ vi.mock('react-native-adjust', async () => {
     setAttConsentWaitingInterval() {}
     setDeferredDeeplinkCallback() {}
     setAttributionCallback() {}
+    disableAndroidIdReading() {}
+    disableGoogleAdIdReading() { state.calls.push('config.disableGoogleAdIdReading') }
   }
   return {
     Adjust: {
@@ -47,35 +59,51 @@ vi.mock('react-native-adjust', async () => {
     },
     AdjustConfig,
   }
-})
+}
+
 vi.mock('../pending-deep-links', () => ({
   pendingDeepLinks: { hasPending: async () => false, onStored: () => () => {} },
   ensureInstallScope: async () => {},
 }))
 vi.mock('../deferred-link', () => ({ createDeferredLinkCollector: () => async () => {} }))
 
-afterEach(() => vi.restoreAllMocks())
+beforeEach(() => {
+  state.reset()
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.resetModules()
+})
 
-it('withdrawal during the import: nothing is initialised when it lands, and a later grant starts once', async () => {
-  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-  state.disk.set(
-    'gogo.consent.tracking.v1',
-    JSON.stringify({ status: 'granted', at: '2026-11-02T00:00:00.000Z', disclosure: 'android-consent-v1' }),
-  )
+async function launchDuringImport() {
+  vi.doMock('react-native-adjust', pendingImport)
   const { initializeAcquisitionSdk, setAcquisitionConsent } = await import('../bootstrap')
   initializeAcquisitionSdk()
   await new Promise(resolve => setTimeout(resolve, 10))
-  setAcquisitionConsent(false)
   expect(state.calls).toEqual([])
+  return setAcquisitionConsent
+}
 
-  state.open()
-  await vi.waitFor(() => {
-    expect(warn.mock.calls.map(([event]) => event)).toContain('acquisition_start_stale:adjust')
-  })
-  expect(state.calls).toEqual([])
-
+it('a grant during the import: the config allows the ID, nothing is taken back', async () => {
+  const setAcquisitionConsent = await launchDuringImport()
   setAcquisitionConsent(true)
+  state.open()
   await vi.waitFor(() => expect(state.calls).toEqual(['adjust.initSdk', 'adjust.enable']))
   await new Promise(resolve => setTimeout(resolve, 10))
   expect(state.calls).toEqual(['adjust.initSdk', 'adjust.enable'])
+})
+
+it('a denial during the import after a stored grant: the config withholds, nothing to pause', async () => {
+  const { CONSENT_DISCLOSURE } = await import('@/shared/consent/consent-store')
+  state.disk.set(
+    'gogo.consent.tracking.v1',
+    JSON.stringify({ status: 'granted', at: '2026-11-03T00:00:00.000Z', disclosure: CONSENT_DISCLOSURE }),
+  )
+  const setAcquisitionConsent = await launchDuringImport()
+  setAcquisitionConsent(false)
+  state.open()
+  await vi.waitFor(() => expect(state.calls).toEqual(['config.disableGoogleAdIdReading', 'adjust.initSdk', 'adjust.enable']))
+  await new Promise(resolve => setTimeout(resolve, 10))
+  expect(state.calls).toEqual(['config.disableGoogleAdIdReading', 'adjust.initSdk', 'adjust.enable'])
 })

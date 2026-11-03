@@ -2,7 +2,6 @@ interface TenjinSdk {
   initialize(key: string): void
   connect(): void
   setAppStore(type: 'googleplay' | 'amazon' | 'other'): void
-  optIn(): void
 }
 
 /**
@@ -24,11 +23,11 @@ export function createTenjinInitializer(
   onUnavailable: () => void = () => {},
   appStore: AppStore = 'googleplay',
   /**
-   * #370 (Android): a start only happens after the person said yes, and whether
-   * an earlier `optOut()` outlives a launch is not established, so every start
-   * says so itself before connecting.
+   * #404 (Android): what this launch may send is decided after the store is
+   * known and before connect, the call that sends it. A throw is a failed start:
+   * no connect, rather than one that may carry an identifier it should not.
    */
-  optInBeforeConnect = false,
+  beforeConnect: () => void = () => {},
 ) {
   let initializedKey: string | undefined
   /** Whether Tenjin is connected for this key: a failed start is retried by the next call. */
@@ -40,7 +39,7 @@ export function createTenjinInitializer(
       sdk.initialize(key)
       // Before connect: connect is the call that carries source_app_store.
       sdk.setAppStore(appStore)
-      if (optInBeforeConnect) sdk.optIn()
+      beforeConnect()
       sdk.connect()
       initializedKey = key
       return true

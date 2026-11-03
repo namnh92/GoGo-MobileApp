@@ -9,8 +9,10 @@
  *   - **ATT is GoGo's question** (`shared/consent/tracking.ts`, ADR 0012). The
  *     SDK only waits up to 60 s for the answer before its first send, so the
  *     install carries the IDFA when the person allows it on that first screen;
- *     it never asks on its own. On Android nothing starts before GoGo's own
- *     question has a yes (#370, ADR 0013);
+ *     it never asks on its own;
+ *   - **Android's identifiers are set here, once.** The config is fixed at
+ *     `initSdk`: the Android ID is never read, the advertising ID only under a
+ *     yes that exists right before that call (#404, ADR 0014);
  *   - **once per process, never throws.** A failed init is a lost measurement,
  *     not a failed launch.
  */
@@ -22,6 +24,8 @@ export interface AdjustConfigLike {
   setAttConsentWaitingInterval(seconds: number): void
   setDeferredDeeplinkCallback(callback: (payload: { deeplink: string }) => void): void
   setAttributionCallback(callback: (attribution: unknown) => void): void
+  disableAndroidIdReading(): void
+  disableGoogleAdIdReading(): void
 }
 
 export interface AdjustSdkLike {
@@ -47,6 +51,8 @@ export function createAdjustInitializer(deps: {
   onDeferredLink: (payload: unknown) => void
   onAttribution: () => void
   onUnavailable?: (event: string) => void
+  /** Android only (#404): read right before `initSdk`. iOS has ATT. */
+  androidAdIdAllowed?: () => boolean
 }) {
   let started = false
   return (token: string): boolean => {
@@ -71,6 +77,10 @@ export function createAdjustInitializer(deps: {
           deps.onUnavailable?.('acquisition_adjust_callback_failed')
         }
       })
+      if (deps.androidAdIdAllowed) {
+        config.disableAndroidIdReading()
+        if (!deps.androidAdIdAllowed()) config.disableGoogleAdIdReading()
+      }
       deps.sdk.initSdk(config)
       return true
     } catch {

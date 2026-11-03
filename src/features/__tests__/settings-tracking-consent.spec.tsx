@@ -51,6 +51,7 @@ import { TrackingConsentSection } from '@/features/settings/tracking-consent.vie
 
 const SWITCH = () => i18n.t('permissionsSettings.trackingSwitch')
 const OFF_HINT = () => i18n.t('permissionsSettings.trackingOffHint')
+const DETAIL = () => i18n.t('permissionsSettings.trackingDetail')
 const UNSAVED = () => i18n.t('permissionsSettings.trackingUnsaved')
 /** Android's host Switch carries the value as `on`. */
 const switchIsOn = () => screen.getByLabelText(SWITCH()).props.on
@@ -71,19 +72,23 @@ afterAll(() => {
 })
 
 describe('Android', () => {
-  it('granted: on, the full data list as its label, no off hint', async () => {
+  it('granted: on, what goes either way and both recipients, no off hint', async () => {
     set({ value: 'granted' })
     await renderScreen(<TrackingConsentSection />)
     expect(switchIsOn()).toBe(true)
     expect(screen.getByText(SWITCH())).toBeTruthy()
+    expect(screen.getByText(DETAIL())).toBeTruthy()
+    expect(DETAIL()).toMatch(/App Set ID.*Tenjin.*Adjust/)
+    expect(SWITCH()).toMatch(/Tenjin.*Adjust/)
     expect(screen.queryByText(OFF_HINT())).toBeNull()
   })
 
-  it.each(['denied', 'undetermined'])('%s: off, and it says what off costs', async value => {
+  it.each(['denied', 'undetermined'])('%s: off, it says what off means, and what still goes', async value => {
     set({ value })
     await renderScreen(<TrackingConsentSection />)
     expect(switchIsOn()).toBe(false)
     expect(screen.getByText(OFF_HINT())).toBeTruthy()
+    expect(screen.getByText(DETAIL())).toBeTruthy()
   })
 
   it.each([
