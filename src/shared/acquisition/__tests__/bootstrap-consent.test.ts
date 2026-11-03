@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   remember: (async () => true) as () => Promise<boolean>,
   connectThrows: false,
   config: [] as string[],
+  adjustThrows: false,
+  read: undefined as undefined | (() => Promise<string | null>),
 }))
 
 vi.mock('expo-constants', () => ({
@@ -26,7 +28,7 @@ vi.mock('react-native', () => ({ Platform: { OS: 'android' }, NativeModules: { A
 vi.mock('expo-tracking-transparency', () => ({ isAvailable: () => true }))
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: async (key: string) => state.disk.get(key) ?? null,
+    getItem: async (key: string) => (state.read ? state.read() : state.disk.get(key) ?? null),
     setItem: (key: string, value: string) => {
       state.calls.push('disk.setItem')
       state.disk.set(key, value)
@@ -62,8 +64,14 @@ vi.mock('react-native-adjust', () => {
   return {
     Adjust: {
       initSdk: () => state.calls.push('adjust.initSdk'),
-      enable: () => state.calls.push('adjust.enable'),
-      disable: () => state.calls.push('adjust.disable'),
+      enable: () => {
+        state.calls.push('adjust.enable')
+        if (state.adjustThrows) throw new Error('provider')
+      },
+      disable: () => {
+        state.calls.push('adjust.disable')
+        if (state.adjustThrows) throw new Error('provider')
+      },
     },
     AdjustConfig,
   }
@@ -128,6 +136,8 @@ afterEach(() => {
   state.remember = async () => true
   state.connectThrows = false
   state.config.length = 0
+  state.adjustThrows = false
+  state.read = undefined
   vi.useRealTimers()
   vi.restoreAllMocks()
   vi.resetModules()
@@ -280,6 +290,32 @@ describe('a change of mind on a launch that started with the ID', () => {
     expect(JSON.parse(state.disk.get(KEY)!).status).toBe('denied')
   })
 
+  it('F-01: a pause that failed is not recorded: said only once done, retried at the next store change', async () => {
+    const { setAcquisitionConsent } = await started()
+    state.adjustThrows = true
+    setAcquisitionConsent(false)
+    expect(state.calls.filter(call => call === 'adjust.disable')).toHaveLength(1)
+    expect(warned()).not.toContain('acquisition_adjust_paused:consent_withdrawn')
+    state.adjustThrows = false
+    // The write completing is the next store change.
+    await vi.advanceTimersByTimeAsync(0)
+    expect(state.calls.filter(call => call === 'adjust.disable')).toHaveLength(2)
+    expect(warned()).toContain('acquisition_adjust_paused:consent_withdrawn')
+  })
+
+  it('F-01: a resume that failed is not recorded either', async () => {
+    const { setAcquisitionConsent } = await started()
+    setAcquisitionConsent(false)
+    await vi.advanceTimersByTimeAsync(0)
+    state.adjustThrows = true
+    setAcquisitionConsent(true)
+    expect(warned()).not.toContain('acquisition_adjust_resumed:consent_granted')
+    state.adjustThrows = false
+    await vi.advanceTimersByTimeAsync(0)
+    expect(state.calls.filter(call => call === 'adjust.enable')).toHaveLength(2)
+    expect(warned()).toContain('acquisition_adjust_resumed:consent_granted')
+  })
+
   it('the next launch starts withheld, ends the pause and connects', async () => {
     const { setAcquisitionConsent } = await started()
     setAcquisitionConsent(false)
@@ -344,7 +380,17 @@ describe('bounds (#370 D3a)', () => {
     expect(installScoped()).toBe(false)
   })
 
-  it('a storage read that never answers: starts withheld after its bound, Tenjin not held by the disk', async () => {
+  it('F-02: a storage read that never answers: both start withheld after its 2 s bound', async () => {
+    state.read = () => new Promise<string | null>(() => {})
+    await launch()
+    await vi.advanceTimersByTimeAsync(1_999)
+    expect(state.calls).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(state.calls).toEqual(WITHHELD)
+    expect(state.config).toEqual(BOTH_IDS)
+  })
+
+  it('a status read that never answers: the settle gives up 20 s from launch, and the resume reads nothing', async () => {
     const { consentStore } = await import('@/shared/consent/consent-store')
     vi.spyOn(consentStore, 'load').mockImplementation(() => new Promise(() => {}))
     const { deferredLinkSettled, installScoped } = await launch()

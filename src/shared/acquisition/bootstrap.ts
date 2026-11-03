@@ -335,11 +335,13 @@ function boundedSettle(chain: Promise<void>): Promise<void> {
 }
 
 /** Vendor calls never throw into a launch or a switch. */
-function vendor(call: () => void): void {
+function vendor(call: () => void): boolean {
   try {
     call()
+    return true
   } catch {
     console.warn('acquisition_vendor_call_failed')
+    return false
   }
 }
 
@@ -373,13 +375,16 @@ function reconcileAndroidSdks(): void {
   const adjust = android.adjust
   if (!adjust) return
   if (withhold && android.adjustAllowsAdId && !android.adjustDisabled) {
-    android.adjustDisabled = true
-    vendor(() => adjust.disable())
-    console.warn('acquisition_adjust_paused:consent_withdrawn')
+    // Recorded only once done: the next store change retries a failed call.
+    if (vendor(() => adjust.disable())) {
+      android.adjustDisabled = true
+      console.warn('acquisition_adjust_paused:consent_withdrawn')
+    }
   } else if (!withhold && android.adjustDisabled) {
-    android.adjustDisabled = false
-    vendor(() => adjust.enable())
-    console.warn('acquisition_adjust_resumed:consent_granted')
+    if (vendor(() => adjust.enable())) {
+      android.adjustDisabled = false
+      console.warn('acquisition_adjust_resumed:consent_granted')
+    }
   }
 }
 
