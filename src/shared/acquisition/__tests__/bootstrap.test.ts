@@ -25,6 +25,8 @@ vi.mock('react-native-adjust', () => {
     setAttConsentWaitingInterval() {}
     setDeferredDeeplinkCallback() {}
     setAttributionCallback() {}
+    disableAndroidIdReading() {}
+    disableGoogleAdIdReading() {}
   }
   return { Adjust: { initSdk: adjust.initSdk }, AdjustConfig }
 })

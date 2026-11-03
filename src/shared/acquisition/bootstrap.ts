@@ -16,6 +16,9 @@ import { ensureInstallScope, pendingDeepLinks } from './pending-deep-links'
 
 export { pendingDeepLinks }
 
+/** What Android holds back from Tenjin until a yes (#404, ADR 0014). */
+const TENJIN_WITHHELD_PARAMS = ['advertising_id', 'ad_id_local']
+
 const initialize = createTenjinInitializer(
   Tenjin,
   () => {
@@ -24,7 +27,12 @@ const initialize = createTenjinInitializer(
   // iOS ships through the App Store; Android through Google Play. Amazon is
   // not a target, so there is no third case to choose between.
   'googleplay',
-  Platform.OS === 'android',
+  () => {
+    if (Platform.OS !== 'android') return
+    // Lifts an `optOut()` a #370 build left behind: it outlives the launch.
+    Tenjin.optIn()
+    applyTenjinFlag(consentStore.get() !== 'granted')
+  },
 )
 
 const collectDeferredLink = createDeferredLinkCollector({
@@ -63,10 +71,6 @@ async function loadAdjustSdk(): Promise<AdjustRuntime | undefined> {
 /** What a start may use, plus the switch only Android's Settings row needs (#370). */
 type AdjustRuntime = AdjustSdkLike & { enable(): void; disable(): void }
 
-/** A start's authority: false once the consent it began under is no longer current. */
-type StartGuard = () => boolean
-const alwaysCurrent: StartGuard = () => true
-
 /** Set while Adjust's launch window is open; closed when Tenjin has already won. */
 let adjustSink: AdjustDeferredLinkSink | undefined
 
@@ -100,7 +104,6 @@ export function installScoped(): boolean {
 export function initializeAcquisitionSdk() {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return
   if (Platform.OS === 'android') {
-    // #370: nothing reaches a vendor before the person's answer.
     androidChain ??= runAndroid()
     settled = androidChain
     return
@@ -121,16 +124,12 @@ export function initializeAcquisitionSdk() {
   settled = Promise.all([tenjin, adjust]).then(() => undefined)
 }
 
-function startTenjin(scope: Promise<void>, current: StartGuard = alwaysCurrent): Promise<void> {
+function startTenjin(scope: Promise<void>): Promise<void> {
   const key: unknown = Constants.expoConfig?.extra?.[
     Platform.OS === 'ios' ? 'tenjinIosSdkKey' : 'tenjinAndroidSdkKey'
   ]
   if (typeof key !== 'string' || key.length === 0) {
     console.warn('acquisition_sdk_unavailable: rebuild with Tenjin environment configuration')
-    return scope
-  }
-  if (!current()) {
-    console.warn('acquisition_start_stale:tenjin')
     return scope
   }
   android.tenjinStarted = initialize(key)
@@ -141,7 +140,7 @@ function startTenjin(scope: Promise<void>, current: StartGuard = alwaysCurrent):
   // Only into a store the reset has cleared. When Tenjin's report wins, the
   // Adjust window has nothing left to decide (PR #369 Astra F-03).
   return scope
-    .then(() => (scoped && current() ? collectDeferredLink() : undefined))
+    .then(() => (scoped ? collectDeferredLink() : undefined))
     .then(() => closeAdjustIfWon())
     .catch(() => {})
 }
@@ -166,11 +165,7 @@ function startAdjust(scope: Promise<void>): Promise<void> {
   return adjustStart
 }
 
-function runAdjust(
-  scope: Promise<void>,
-  current: StartGuard = alwaysCurrent,
-  onStarted?: (sdk: AdjustRuntime) => void,
-): Promise<void> {
+function runAdjust(scope: Promise<void>, onStarted?: (sdk: AdjustRuntime) => void): Promise<void> {
   const raw: unknown = Constants.expoConfig?.extra?.[
     Platform.OS === 'ios' ? 'adjustIosAppToken' : 'adjustAndroidAppToken'
   ]
@@ -201,8 +196,7 @@ function runAdjust(
       // Not awaited: the sink settles on its own events — window end, another
       // writer, a link — and the SDK's loading must not hold the resume
       // (PR #369 Astra F-06). A load or init that fails closes the sink too.
-      else if (!current()) retireAdjustStart(sink)
-      else void startAdjustSdk(token, sink, current, onStarted)
+      else void startAdjustSdk(token, sink, onStarted)
       return sink.settled()
     })
     .catch(() => {})
@@ -216,7 +210,6 @@ function runAdjust(
 async function startAdjustSdk(
   token: string,
   sink: AdjustDeferredLinkSink,
-  current: StartGuard,
   onStarted?: (sdk: AdjustRuntime) => void,
 ): Promise<void> {
   let sdk: AdjustRuntime | undefined
@@ -229,50 +222,45 @@ async function startAdjustSdk(
     sink.skip('acquisition_adjust_unavailable')
     return
   }
-  // The import can outlast a change of mind (#370, shape D3): checked after it,
-  // and nothing awaits between here and `initSdk`.
-  if (!current()) {
-    retireAdjustStart(sink)
-    return
-  }
+  // The import can outlast a change of mind (#404): the answer is read at the
+  // config, and nothing awaits between there and `initSdk`.
   const initializeAdjust = createAdjustInitializer({
     sdk,
     flavor: Constants.expoConfig?.extra?.flavor,
     onDeferredLink: payload => sink.onDeferredLink(payload),
     onAttribution: () => sink.onAttribution(),
     onUnavailable: event => console.warn(event),
+    androidAdIdAllowed: Platform.OS === 'android' ? adjustConfigAllowsAdId : undefined,
   })
   if (!initializeAdjust(token)) sink.skip('acquisition_adjust_unavailable')
   else onStarted?.(sdk)
 }
 
-/** Said on its own: the withdrawal may already have closed this sink. */
-function retireAdjustStart(sink: AdjustDeferredLinkSink): void {
-  console.warn('acquisition_start_stale:adjust')
-  sink.skip('acquisition_adjust_skipped:start_stale')
-}
-
 /**
- * GoGo-MobileApp#370 (MMP-APP-004, ADR 0013, shape D3–D5) — Android asks first.
- * iOS keeps its order above: ATT is the consent there (owner Q5, 2026-11-02).
+ * GoGo-MobileApp#404 (MMP-APP-005, ADR 0014) — Android starts as iOS does and
+ * holds the advertising ID back until a yes.
  *
- *   - **nothing before `granted`.** Not `initialize`, not `connect`, not
- *     `initSdk`: the install reset runs at launch, everything that talks to a
- *     vendor waits for a stored answer, the sheet, or the Settings switch;
- *   - **the windows start at the answer.** Sink and collector run after it, or
- *     they would close before a late answer could start the SDKs;
- *   - **every start re-checks.** A withdrawal during the reset or the lazy import
- *     retires the start that was waiting on them (`current`);
- *   - **withdrawal is runtime first.** The write is issued and the SDKs stopped
- *     in one tick, whatever the disk does;
+ *   - **every launch starts both.** The answer decides what they send, not
+ *     whether they run, and the windows open at launch;
+ *   - **each SDK reads the answer at its own vendor call,** not once for both:
+ *     Tenjin's flag can be set again at any time, Adjust's config is fixed at
+ *     `initSdk`;
+ *   - **one path for a change of mind.** The sheet and the switch both land in
+ *     the store, the store tells `reconcileAndroidSdks`;
+ *   - **nothing a later launch cannot undo.** Tenjin is never told `optOut()`,
+ *     which silences it across launches. `Adjust.disable()` is the one stop, only
+ *     for a config that may send the ID, and every start ends it;
  *   - **bounded.** A storage call that never answers cannot hold the resume
- *     past `ACQUISITION_SETTLE_TIMEOUT_MS` from the decision.
+ *     past `ACQUISITION_SETTLE_TIMEOUT_MS` from launch.
  */
 const android: {
   tenjinStarted: boolean
+  /** The flag last applied to Tenjin. */
+  tenjinWithheld?: boolean
   adjust?: AdjustRuntime
-  applied?: { generation: number; done: Promise<void> }
-} = { tenjinStarted: false }
+  adjustAllowsAdId: boolean
+  adjustDisabled: boolean
+} = { tenjinStarted: false, adjustAllowsAdId: false, adjustDisabled: false }
 
 /** A healthy reset takes far less; Android's secure store is the slow part. */
 export const INSTALL_SCOPE_TIMEOUT_MS = 5_000
@@ -311,11 +299,24 @@ function ensureAndroidScope(): Promise<void> {
 }
 
 async function runAndroid(): Promise<void> {
-  ensureAndroidScope()
-  // A stored answer settles this at once; otherwise the gate's sheet does.
+  consentStore.subscribe(reconcileAndroidSdks)
+  await boundedSettle(startAndroidSdks())
+}
+
+async function startAndroidSdks(): Promise<void> {
+  const scope = ensureAndroidScope()
+  // Bounded by the store. A stored answer also ends the question for the resume.
   await trackingConsent.status()
-  await trackingConsent.settled()
-  await boundedSettle(applyAndroidConsent())
+  const tenjin = startTenjin(scope)
+  reconcileAndroidSdks()
+  const adjust = runAdjust(scope, sdk => {
+    android.adjust = sdk
+    // `disable()` outlives a launch: without this a past stop leaves the SDK
+    // silent while the app believes it runs.
+    vendor(() => sdk.enable())
+    reconcileAndroidSdks()
+  })
+  await Promise.all([tenjin, adjust])
 }
 
 function boundedSettle(chain: Promise<void>): Promise<void> {
@@ -334,65 +335,64 @@ function boundedSettle(chain: Promise<void>): Promise<void> {
 }
 
 /** Vendor calls never throw into a launch or a switch. */
-function vendor(call: () => void): void {
+function vendor(call: () => void): boolean {
   try {
     call()
+    return true
   } catch {
     console.warn('acquisition_vendor_call_failed')
+    return false
   }
 }
 
-/** Brings the SDKs in line with the current answer, once per change of mind. */
-function applyAndroidConsent(): Promise<void> {
-  const generation = consentStore.generation()
-  if (android.applied?.generation === generation) return android.applied.done
-  const value = consentStore.get()
-  const done = value === 'granted' ? startAndroidSdks(generation) : stopAndroidSdks(value === 'denied')
-  android.applied = { generation, done }
-  return done
+function applyTenjinFlag(withhold: boolean): void {
+  if (withhold) Tenjin.optOutParams(TENJIN_WITHHELD_PARAMS)
+  android.tenjinWithheld = withhold
+  console.warn(`acquisition_tenjin_withhold:${withhold ? 'on' : 'off'}`)
 }
 
-function startAndroidSdks(generation: number): Promise<void> {
-  const current: StartGuard = () => consentStore.get() === 'granted' && consentStore.generation() === generation
-  const scope = ensureAndroidScope()
-  let tenjin: Promise<void> = Promise.resolve()
-  if (android.tenjinStarted) vendor(() => Tenjin.optIn())
-  else tenjin = startTenjin(scope, current)
-  let adjust: Promise<void> = Promise.resolve()
-  const started = android.adjust
-  if (started) vendor(() => started.enable())
-  else {
-    adjust = runAdjust(scope, current, sdk => {
-      android.adjust = sdk
-      // `disable()` outlives a launch: without this a past "off" leaves the SDK
-      // silent while the app believes it runs.
-      vendor(() => sdk.enable())
-    })
-  }
-  return Promise.all([tenjin, adjust]).then(() => undefined)
-}
-
-function stopAndroidSdks(denied: boolean): Promise<void> {
-  const reason = denied ? 'consent_denied' : 'consent_later'
-  if (android.tenjinStarted) vendor(() => Tenjin.optOut())
-  else console.warn(`acquisition_skipped:${reason}`)
-  const started = android.adjust
-  if (started) vendor(() => started.disable())
-  else console.warn(`acquisition_adjust_skipped:${reason}`)
-  // A window still open has nothing left to decide.
-  adjustSink?.skip(`acquisition_adjust_skipped:${reason}`)
-  return Promise.resolve()
+/** Read right before `initSdk`: what this process's Adjust is fixed to. */
+function adjustConfigAllowsAdId(): boolean {
+  android.adjustAllowsAdId = consentStore.get() === 'granted'
+  console.warn(`acquisition_adjust_withhold:${android.adjustAllowsAdId ? 'off' : 'on'}`)
+  return android.adjustAllowsAdId
 }
 
 /**
- * The Settings switch (#370, shape D5). The answer's write is issued before the
- * SDKs are told: same tick, so the window is the storage latency, not theirs.
+ * The current answer, applied to what each started SDK may send. A call only
+ * when that changes something, so it runs on every store change and after each
+ * start. A config that withholds is already what "no" means; a yes reaches it at
+ * the next launch.
  */
+function reconcileAndroidSdks(): void {
+  const withhold = consentStore.get() !== 'granted'
+  if (android.tenjinStarted && android.tenjinWithheld !== withhold) {
+    vendor(() => {
+      if (!withhold) Tenjin.optIn()
+      applyTenjinFlag(withhold)
+    })
+  }
+  const adjust = android.adjust
+  if (!adjust) return
+  if (withhold && android.adjustAllowsAdId && !android.adjustDisabled) {
+    // Recorded only once done: the next store change retries a failed call.
+    if (vendor(() => adjust.disable())) {
+      android.adjustDisabled = true
+      console.warn('acquisition_adjust_paused:consent_withdrawn')
+    }
+  } else if (!withhold && android.adjustDisabled) {
+    if (vendor(() => adjust.enable())) {
+      android.adjustDisabled = false
+      console.warn('acquisition_adjust_resumed:consent_granted')
+    }
+  }
+}
+
+/** The Settings switch (#370 D5, #404): an answer, like the sheet's. */
 export function setAcquisitionConsent(granted: boolean): void {
   if (Platform.OS !== 'android') return
   console.warn(`consent_tracking:settings:${granted ? 'on' : 'off'}`)
   trackingConsent.answer(granted ? 'granted' : 'denied')
-  void applyAndroidConsent()
 }
 
 /** Whether this build has anything the switch could start. */

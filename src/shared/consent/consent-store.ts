@@ -1,13 +1,15 @@
 /**
  * GoGo-MobileApp#370 (MMP-APP-004, ADR 0013) — the Android answer to GoGo's own
  * tracking question, and the one value the gate, the Settings switch and the
- * acquisition bootstrap read.
+ * acquisition bootstrap read. What the answer does to the SDKs changed in #404
+ * (ADR 0014), which is why `CONSENT_DISCLOSURE` is v2.
  *
  * Android has no system dialog, so this is the record. Rules:
  *
  *   - **runtime first.** `set()` changes the value at once and issues the write
  *     in the same tick. Persistence never holds a decision: a withdrawal stops
- *     the SDKs whatever the disk does;
+ *     reach the SDKs whatever the disk does. Listeners hear a change only after
+ *     its write is issued, so a vendor call can never delay it;
  *   - **every call is bounded and nothing throws.** A read that fails, stalls or
  *     holds anything but a current record is `undetermined`: asked again;
  *   - **issue order, no JS queue.** AsyncStorage runs its calls on one serial
@@ -30,7 +32,7 @@ import { z } from 'zod'
 export const CONSENT_STORAGE_KEY = 'gogo.consent.tracking.v1'
 
 /** The words the person answered. New wording bumps this, and they are asked again. */
-export const CONSENT_DISCLOSURE = 'android-consent-v1'
+export const CONSENT_DISCLOSURE = 'android-consent-v2'
 
 /** A local read or write this slow is broken, not busy. */
 export const CONSENT_STORE_TIMEOUT_MS = 2_000
@@ -88,7 +90,7 @@ export function createConsentStore(deps: {
   const timeoutMs = deps.timeoutMs ?? CONSENT_STORE_TIMEOUT_MS
 
   let snapshot: ConsentSnapshot = { value: 'undetermined', loaded: false, save: 'idle' }
-  /** Bumped by every change of mind: what an SDK start was authorised under. */
+  /** Bumped by every change of mind: a read that lands after one is dropped. */
   let generation = 0
   /** Bumped by every mutation, retries included: what makes one stale. */
   let mutation = 0
@@ -122,7 +124,6 @@ export function createConsentStore(deps: {
 
   function write(answer: ConsentAnswer) {
     const issued = ++mutation
-    update({ save: 'saving' })
     let reported = false
     const fail = () => {
       if (reported || issued !== mutation) return
@@ -147,6 +148,7 @@ export function createConsentStore(deps: {
         if (answer === 'denied') clearAfterFailedDenial(issued)
       },
     )
+    update({ save: 'saving' })
   }
 
   return {
@@ -171,7 +173,8 @@ export function createConsentStore(deps: {
     /** The person decided. Runtime now, write issued in this same tick. */
     set(answer: ConsentAnswer): void {
       generation += 1
-      update({ value: answer, loaded: true })
+      // `write` tells the listeners, after it has issued the call.
+      snapshot = { ...snapshot, value: answer, loaded: true }
       write(answer)
     },
 

@@ -8,8 +8,7 @@ describe('Tenjin initialization', () => {
     const sdk = {
       initialize: vi.fn(() => calls.push('initialize')),
       setAppStore: vi.fn(() => calls.push('setAppStore')),
-      optIn: vi.fn(),
-      connect: vi.fn(() => calls.push('connect')),
+            connect: vi.fn(() => calls.push('connect')),
     }
     const initialize = createTenjinInitializer(sdk)
     initialize('dev-key')
@@ -22,7 +21,7 @@ describe('Tenjin initialization', () => {
   })
 
   it('rejects missing config before calling native code', () => {
-    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), optIn: vi.fn(), connect: vi.fn() }
+    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), connect: vi.fn() }
     expect(() => createTenjinInitializer(sdk)(' ')).toThrow(/required/)
     expect(sdk.initialize).not.toHaveBeenCalled()
   })
@@ -32,8 +31,7 @@ describe('Tenjin initialization', () => {
     const sdk = {
       initialize: vi.fn(),
       setAppStore: vi.fn(),
-      optIn: vi.fn(),
-      connect: vi.fn().mockImplementationOnce(() => { throw new Error('provider payload') }),
+            connect: vi.fn().mockImplementationOnce(() => { throw new Error('provider payload') }),
     }
     const initialize = createTenjinInitializer(sdk, unavailable)
     expect(() => initialize('dev-key')).not.toThrow()
@@ -45,30 +43,46 @@ describe('Tenjin initialization', () => {
   it('names the store explicitly rather than leaving it unspecified', () => {
     // The DEV device run logged "Unable to load app store type from manifest"
     // and sent source_app_store=unspecified on every connect.
-    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), optIn: vi.fn(), connect: vi.fn() }
+    const sdk = { initialize: vi.fn(), setAppStore: vi.fn(), connect: vi.fn() }
     createTenjinInitializer(sdk, () => {}, 'googleplay')('dev-key')
     expect(sdk.setAppStore).toHaveBeenCalledWith('googleplay')
   })
 })
 
 describe('Android opt-in (#370)', () => {
-  it('says so itself before every connect, since an earlier opt-out may outlive a launch', () => {
+  it('runs the launch decision right before connect', () => {
     const order: string[] = []
     const record = (name: string) => () => void order.push(name)
     const initialize = createTenjinInitializer(
-      { initialize: record('initialize'), setAppStore: record('setAppStore'), optIn: record('optIn'), connect: record('connect') },
+      { initialize: record('initialize'), setAppStore: record('setAppStore'), connect: record('connect') },
       () => {},
       'googleplay',
-      true,
+      record('beforeConnect'),
     )
     initialize('key')
-    expect(order).toEqual(['initialize', 'setAppStore', 'optIn', 'connect'])
+    expect(order).toEqual(['initialize', 'setAppStore', 'beforeConnect', 'connect'])
+  })
+
+  it('a decision that throws is a failed start: no connect that may carry an identifier', () => {
+    const connect = vi.fn()
+    const unavailable = vi.fn()
+    const initialize = createTenjinInitializer(
+      { initialize: () => {}, setAppStore: () => {}, connect },
+      unavailable,
+      'googleplay',
+      () => {
+        throw new Error('provider')
+      },
+    )
+    expect(initialize('key')).toBe(false)
+    expect(connect).not.toHaveBeenCalled()
+    expect(unavailable).toHaveBeenCalledOnce()
   })
 
   it('iOS order is untouched', () => {
     const order: string[] = []
     const record = (name: string) => () => void order.push(name)
-    createTenjinInitializer({ initialize: record('initialize'), setAppStore: record('setAppStore'), optIn: record('optIn'), connect: record('connect') })('key')
+    createTenjinInitializer({ initialize: record('initialize'), setAppStore: record('setAppStore'), connect: record('connect') })('key')
     expect(order).toEqual(['initialize', 'setAppStore', 'connect'])
   })
 })

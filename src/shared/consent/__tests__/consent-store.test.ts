@@ -74,6 +74,9 @@ describe('reading', () => {
     ['invalid JSON', '{not json'],
     ['a value that is not an answer', record('maybe')],
     ['another wording', record('granted', 'android-consent-v0')],
+    // #404: v1's "no" meant no SDK at all, v2's means no advertising ID.
+    ['a yes to the #370 wording', record('granted', 'android-consent-v1')],
+    ['a no to the #370 wording', record('denied', 'android-consent-v1')],
     ['missing fields', JSON.stringify({ status: 'granted' })],
   ])('%s is undetermined', async (_label, raw) => {
     const disk = new Map<string, string>(raw === null ? [] : [[CONSENT_STORAGE_KEY, raw]])
