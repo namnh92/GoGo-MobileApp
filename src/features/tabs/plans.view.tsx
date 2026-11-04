@@ -139,7 +139,7 @@ export default function PlansScreen() {
             style={[styles.tab, tab === value && styles.tabSelected]}
           >
             {/* Weight changes with the fill, so selection is never colour alone. */}
-            <Text variant={tab === value ? 'label' : 'bodySmall'} color={tab === value ? 'accent.onSoft' : 'text.primary'}>
+            <Text variant={tab === value ? 'label' : 'bodySmall'} color={tab === value ? 'accent.onAccent' : 'text.primary'}>
               {t(value === 'upcoming' ? 'plans.upcoming' : 'plans.past')}
             </Text>
           </Pressable>
