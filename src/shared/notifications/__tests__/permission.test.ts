@@ -28,6 +28,26 @@ describe('contextual notification permission', () => {
     expect(events).toEqual(['push_permission_granted'])
   })
 
+  it('granted: resumes the identity coordinator, which owns the opt-in (#398 F-05, F-13)', async () => {
+    const resume = vi.fn()
+    const p = createPushPermission({ sdk: sdk(), resume })
+    await expect(p.request()).resolves.toEqual({ kind: 'granted' })
+    expect(resume).toHaveBeenCalledTimes(1)
+  })
+
+  it('nothing changed, nothing resumed: denied, blocked, already granted, unavailable', async () => {
+    const resume = vi.fn()
+    for (const over of [
+      { requestPermission: async () => false },
+      { canRequestPermission: async () => false },
+      { hasPermission: async () => true },
+      { hasPermission: async () => { throw new Error('sdk') } },
+    ] satisfies Partial<PushPermissionSdk>[]) {
+      await createPushPermission({ sdk: sdk(over), resume }).request()
+    }
+    expect(resume).not.toHaveBeenCalled()
+  })
+
   it('reports a denial', async () => {
     const s = sdk({ requestPermission: async () => false })
     const p = createPushPermission({ sdk: s })

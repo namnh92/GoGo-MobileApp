@@ -35,6 +35,9 @@ const accepted = (over: Record<string, unknown> = {}) =>
     ...over,
   })
 
+const declined = () =>
+  accepted({ disclosure: { id: DEVICE_PROMOTIONS_DISCLOSURE, answer: 'declined', at: '2026-11-04T00:00:00.000Z' } })
+
 function memoryKv(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial))
   return {
@@ -58,6 +61,7 @@ function setup(options: {
   eligible?: () => Promise<boolean>
   confirmIdentity?: () => Promise<{ kind: string }>
   fetchToken?: () => Promise<{ kind: 'ok'; token: { externalId: string; token: string; expiresAt: string } } | { kind: 'error' }>
+  now?: () => number
 } = {}) {
   const calls: string[] = []
   let expired: ((externalId: string) => void) | null = null
@@ -134,6 +138,7 @@ function setup(options: {
       getNativeExternalId: async () => options.nativeExternalId ?? null,
       platform: 'ios',
       sleep: async () => {},
+      ...(options.now ? { now: options.now } : {}),
     },
   })
   return { session, native, calls, secure, local, promotions, credentials, api, events }
@@ -898,5 +903,130 @@ describe('Sol round 1 (GoGo-MobileApp#411)', () => {
     await second.session.settled()
     expect(first.promotions.snapshot().awaitingProviderOff).toBe(true)
     expect(second.promotions.snapshot().awaitingProviderOff).toBe(false)
+  })
+})
+
+describe('Sol round 2 (GoGo-MobileApp#411)', () => {
+  it('F-10: a refusing Keychain does not keep the SDK opted in to a declined identity', async () => {
+    const t = setup({ record: declined(), credential: OLD, nativeExternalId: 'device:old' })
+    t.secure.get.mockImplementation(async (key: string) => {
+      if (key.startsWith('push.device.retiring')) throw new Error('keychain')
+      return t.secure.data.get(key) ?? null
+    })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.calls).toEqual(['optOut', 'logout'])
+    // Nothing was retired, so nothing is forgotten: the next pass finds it.
+    expect(t.secure.data.get('push.device')).toBe(JSON.stringify(OLD))
+  })
+
+  it('F-10: a failed active-key removal still neutralises, and the credential never comes back', async () => {
+    const t = setup({ record: declined(), credential: OLD, nativeExternalId: 'device:old' })
+    t.secure.remove.mockImplementationOnce(async () => {
+      throw new Error('keychain')
+    })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.calls).toEqual(['optOut', 'logout', 'retire:old'])
+    expect(await t.credentials.retiring()).toEqual([])
+    expect(await t.credentials.read()).toBeNull()
+  })
+
+  it('F-10: retiring an identity also drops it as the active one, and only it', async () => {
+    const orphaned = setup({ credential: OLD, retiring: [OLD] })
+    await orphaned.credentials.retired('old')
+    expect(orphaned.secure.data.has('push.device')).toBe(false)
+
+    const newer = setup({ credential: NEW, retiring: [OLD] })
+    await newer.credentials.retired('old')
+    expect(await newer.credentials.read()).toEqual(NEW)
+  })
+
+  it('F-11 (F-01): a quarantined binding is not reused when the sign-in that quarantined it is overtaken', async () => {
+    let answerDelete!: (value: DeviceRetireOutcome) => void
+    const deletes: Promise<DeviceRetireOutcome>[] = [new Promise(resolve => (answerDelete = resolve))]
+    const t = setup({ record: accepted(), credential: OLD, retire: () => deletes.shift() ?? Promise.resolve({ kind: 'error' }) })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.session.boundDeviceId()).toBe('old')
+    t.calls.length = 0
+
+    const signingIn = t.session.apply(USER)
+    await vi.waitFor(() => expect(t.api.retire).toHaveBeenCalledTimes(1))
+    const signingOut = t.session.apply(null)
+    answerDelete({ kind: 'error' })
+    await Promise.all([signingIn, signingOut])
+    await t.session.settled()
+
+    expect(t.calls).toEqual(['retire:old', 'retire:old', 'logout', 'create', 'login:device:new', 'optIn', 'report:true:1'])
+    expect(t.api.submit.mock.calls.map(([credential]) => credential.deviceId)).toEqual(['old', 'new'])
+    expect(await t.credentials.retiring()).toEqual([OLD])
+  })
+
+  it('F-11 (F-01): an expiry callback for a quarantined identity is not answered', async () => {
+    const t = setup({ record: accepted(), credential: OLD, retire: async () => ({ kind: 'error' }) })
+    t.session.start()
+    await t.session.apply(null)
+    await t.session.settled()
+    const retireLater = t.api.retire.getMockImplementation()
+    t.api.retire.mockImplementationOnce(async credential => {
+      t.native.fire('device:old')
+      await new Promise(resolve => setTimeout(resolve, 0))
+      return retireLater!(credential)
+    })
+    t.calls.length = 0
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(t.calls).not.toContain('respond:device:old')
+    expect(t.events).toContain('push_identity_refresh_superseded')
+  })
+
+  it('F-12: a retirement pass stops at its budget, and the rest waits for the next trigger', async () => {
+    let clock = 0
+    const backlog = [OLD, { deviceId: 'd2', deviceSecret: 's' }, { deviceId: 'd3', deviceSecret: 's' }]
+    const t = setup({
+      retiring: backlog,
+      now: () => clock,
+      retire: async () => {
+        clock += 1_500
+        return { kind: 'done' }
+      },
+    })
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(t.api.retire).toHaveBeenCalledTimes(2)
+    expect((await t.credentials.retiring()).map(c => c.deviceId)).toEqual(['d3'])
+    expect(t.session.boundUserId()).toBe('A')
+    expect(t.events).toContain('push_device_retire_deferred')
+
+    await t.session.retryPending()
+    await t.session.settled()
+    expect(await t.credentials.retiring()).toEqual([])
+  })
+
+  it('F-13 (F-05): a disclosure answered while a user is signed in resumes that user', async () => {
+    let permitted = false
+    const t = setup({ record: accepted(), eligible: async () => permitted })
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(t.calls).toEqual(['login:A'])
+
+    permitted = true
+    await t.session.answerDisclosure('accepted')
+    await t.session.settled()
+    expect(t.calls).toEqual(['login:A', 'optIn', 'reportUser'])
+  })
+
+  it('F-13 (F-05): the switch does the same', async () => {
+    let permitted = false
+    const t = setup({ record: accepted(), eligible: async () => permitted })
+    await t.session.apply(USER)
+    await t.session.settled()
+    // Answered already: the switch restarts the flow rather than re-answering.
+    await t.promotions.load()
+    permitted = true
+    await t.session.setPromotions(true)
+    await t.session.settled()
+    expect(t.calls).toEqual(['login:A', 'optIn', 'reportUser'])
   })
 })

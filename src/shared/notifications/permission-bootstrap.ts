@@ -1,5 +1,6 @@
 import { OneSignal } from 'react-native-onesignal'
 
+import { pushIdentity } from './identity-bootstrap'
 import { createPushPermission } from './permission'
 
 /**
@@ -14,4 +15,7 @@ export const pushPermission = createPushPermission({
       OneSignal.Notifications.requestPermission(fallbackToSettings),
   },
   report: (event) => console.warn(event),
+  // Granted is not subscribed: the coordinator re-runs what waited on permission,
+  // for the user or the device identity it holds (#398 F-05).
+  resume: () => void pushIdentity.retryPending(),
 })

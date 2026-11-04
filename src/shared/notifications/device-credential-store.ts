@@ -99,7 +99,15 @@ export function createDeviceCredentialStore(storage: DeviceCredentialStorage) {
       await storage.remove(DEVICE_CREDENTIAL_KEY)
     },
 
+    /**
+     * The active entry goes first when it is the same identity: a removal that
+     * failed at quarantine time would otherwise come back as the identity in use
+     * the moment the list stops naming it (Sol r2 F-10). A failure here leaves the
+     * entry on the list; the next DELETE answers GONE and ends here again.
+     */
     async retired(deviceId: string): Promise<void> {
+      const active = parse(await storage.get(DEVICE_CREDENTIAL_KEY), credentialSchema)
+      if (active?.deviceId === deviceId) await storage.remove(DEVICE_CREDENTIAL_KEY)
       const list = await retiring()
       await writeRetiring(list.filter(entry => entry.deviceId !== deviceId), list.length)
     },

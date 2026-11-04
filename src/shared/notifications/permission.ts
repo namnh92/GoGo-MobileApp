@@ -54,6 +54,13 @@ export type PushPermissionDeps = {
   sdk: PushPermissionSdk
   /** Reason codes only — never a user id, never a token. */
   report?: (event: string) => void
+  /**
+   * Called once the OS has just permitted notifications. The identity coordinator
+   * owns the opt-in (#398 D3), and it may have checked eligibility before this
+   * prompt was answered; resuming it is how the grant turns into a subscription
+   * on whichever identity is current. Not called when nothing changed.
+   */
+  resume?: () => void
 }
 
 export function createPushPermission(deps: PushPermissionDeps) {
@@ -93,6 +100,7 @@ export function createPushPermission(deps: PushPermissionDeps) {
         }
 
         report('push_permission_granted')
+        deps.resume?.()
         return { kind: 'granted' }
       } catch {
         report('push_permission_unavailable')

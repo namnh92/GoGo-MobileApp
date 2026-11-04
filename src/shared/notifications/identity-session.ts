@@ -131,6 +131,8 @@ export type DeviceIdentityDeps = {
   getNativeExternalId: () => Promise<string | null>
   platform: DeviceSubscriptionReport['platform'] | null
   sleep?: (ms: number) => Promise<void>
+  /** A monotonic-enough clock for the retirement budget. Tests supply one. */
+  now?: () => number
 }
 
 /** Waits between reports while the provider catches up with an opt-in or opt-out. */
@@ -139,6 +141,13 @@ export const DEVICE_REPORT_BACKOFF_MS = [2_000, 5_000, 15_000]
 export const MAX_DEVICE_REPORT_CONFLICTS = 2
 /** A server that keeps saying GONE about identities it just issued. */
 export const MAX_DEVICE_RECREATES = 1
+/**
+ * One retirement pass may hold the identity queue this long (D2: the DELETE
+ * before a user bind is "best effort, ≤ 2 s"). Each DELETE is bounded on its own,
+ * but the retiring list is not, so the bound is on the pass: what is left over
+ * stays on the list for the next trigger (Sol r2 F-12).
+ */
+export const DEVICE_RETIREMENT_BUDGET_MS = 2_000
 
 const DEVICE_PREFIX = 'device:'
 
@@ -147,7 +156,13 @@ type Target = { kind: 'user'; userId: string } | { kind: 'device' }
 type Binding =
   | { kind: 'none' }
   | { kind: 'user'; userId: string; externalId: string }
-  | { kind: 'device'; externalId: string; credential: DeviceCredential }
+  /**
+   * `quarantined`: the credential is on the retiring list. The SDK may still hold
+   * the identity, so it is still something to log out of — but never something to
+   * run a flow on, answer a token refresh for, or treat as a bound no-op again
+   * (D3/R-17b, Sol r2 F-11).
+   */
+  | { kind: 'device'; externalId: string; credential: DeviceCredential; quarantined: boolean }
 
 /** What happens after a login: confirm, opt in or out, tell the API. */
 type Flow = { id: number; generation: number; state: 'running' | 'done' | 'retry' }
@@ -176,6 +191,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   const report = deps.report ?? (() => {})
   const device = deps.device
   const sleep = device?.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
+  const now = device?.now ?? Date.now
 
   let binding: Binding = { kind: 'none' }
   let desired: Target | null = null
@@ -357,11 +373,21 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   /**
    * Retires what is waiting to be retired. The first failure ends the pass: the
    * next one would fail the same way and each costs up to two seconds of a queue
-   * that a sign-in may be waiting behind.
+   * that a sign-in may be waiting behind. So does the budget, checked before every
+   * DELETE but the first, so a backlog always moves by at least one. A single
+   * storage call has no deadline of its own: racing one would let its write land
+   * under a later pass's read of the same list.
    */
   async function drainRetirements(): Promise<void> {
     if (!device) return
+    const started = now()
+    let first = true
     for (const credential of await device.credentials.retiring()) {
+      if (!first && now() - started >= DEVICE_RETIREMENT_BUDGET_MS) {
+        report('push_device_retire_deferred')
+        return
+      }
+      first = false
       const outcome = await device.retire(credential)
       if (outcome.kind !== 'done') {
         report(outcome.kind === 'malformed' ? 'push_device_credential_malformed' : 'push_device_retire_pending')
@@ -372,12 +398,20 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     }
   }
 
-  /** Whatever device identity this install still holds goes to the retiring list. */
+  /**
+   * Whatever device identity this install still holds goes to the retiring list.
+   * Once it is there the in-memory binding is marked too, after the write: a
+   * binding marked before a write that failed would stop the flow of an identity
+   * the next launch reads back as active.
+   */
   async function quarantineCurrent(): Promise<boolean> {
     if (!device) return false
     const credential = binding.kind === 'device' ? binding.credential : await device.credentials.read()
     if (!credential) return false
     await device.credentials.quarantine(credential)
+    if (binding.kind === 'device' && binding.credential.deviceId === credential.deviceId) {
+      binding = { ...binding, quarantined: true }
+    }
     return true
   }
 
@@ -448,12 +482,20 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     await drainRetirements()
     if (gen !== generation) return
 
-    if (binding.kind === 'device') {
+    if (binding.kind === 'device' && !binding.quarantined) {
       if (flow?.generation !== gen || flow.state === 'retry') {
         const started = startFlow(gen)
         track(started, runDeviceFlow(started, binding.externalId, binding.credential))
       }
       return
+    }
+    if (binding.kind === 'device') {
+      // A sign-in quarantined it and was overtaken before it logged out. The SDK
+      // still holds it; the next identity is a fresh one (D3, Sol r2 F-11).
+      await deps.native.logout()
+      binding = { kind: 'none' }
+      report('push_device_released')
+      if (gen !== generation) return
     }
     if (serviceOff) return
     await bindDevice(gen)
@@ -467,7 +509,15 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
    */
   async function neutralise(gen: number): Promise<void> {
     if (!device) return
-    const quarantined = await quarantineCurrent()
+    // Storage first, but a Keychain that refuses does not keep the SDK opted in:
+    // the credential stays where it is — active in storage, or on the list — for
+    // the next pass, and the native identity is left now (Sol r2 F-10).
+    let quarantined = false
+    try {
+      quarantined = await quarantineCurrent()
+    } catch {
+      report('push_device_quarantine_failed')
+    }
     const nativeHolder = binding.kind !== 'none' || quarantined || Boolean(await device.getNativeExternalId().catch(() => null))
     if (gen !== generation) return
     if (nativeHolder) {
@@ -476,7 +526,11 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       binding = { kind: 'none' }
       report('push_device_neutralised')
     }
-    await drainRetirements()
+    try {
+      await drainRetirements()
+    } catch {
+      report('push_device_retire_pending')
+    }
   }
 
   /** D3 steps 1-2. Disclosure (step 0) is already settled by the caller. */
@@ -533,7 +587,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     }
 
     await deps.native.loginWithToken(token.externalId, token.token)
-    binding = { kind: 'device', externalId: token.externalId, credential }
+    binding = { kind: 'device', externalId: token.externalId, credential, quarantined: false }
     consecutiveRefreshes = 0
     refreshGiveUpReported = false
     report('push_device_bound')
@@ -557,7 +611,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
 
   /** A late answer about an identity this device has already left is about nothing. */
   function holdsCredential(credential: DeviceCredential): boolean {
-    return binding.kind === 'device' && binding.credential.deviceId === credential.deviceId
+    return binding.kind === 'device' && !binding.quarantined && binding.credential.deviceId === credential.deviceId
   }
 
   /** DISABLED from a call already in flight. Fenced when asked and again when it runs. */
@@ -736,14 +790,16 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   /** May this expiry callback still be answered? Asked before and after the fetch. */
   function answerable(externalId: string): boolean {
     if (signingOut) return false
-    if (externalId.startsWith(DEVICE_PREFIX)) return binding.kind === 'device' && binding.externalId === externalId
+    if (externalId.startsWith(DEVICE_PREFIX)) {
+      return binding.kind === 'device' && !binding.quarantined && binding.externalId === externalId
+    }
     if (desired?.kind === 'device') return false
     return binding.kind !== 'user' || binding.externalId === externalId
   }
 
   async function freshToken(externalId: string): Promise<IdentityFetchOutcome | 'dropped'> {
     if (!externalId.startsWith(DEVICE_PREFIX)) return deps.fetchToken()
-    if (!device || binding.kind !== 'device') return 'dropped'
+    if (!device || binding.kind !== 'device' || binding.quarantined) return 'dropped'
     const gen = generation
     const credential = binding.credential
     const renewed = await device.renew(credential)
@@ -931,19 +987,24 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     /** Test seam only. */
     boundUserId: () => (binding.kind === 'user' ? binding.userId : null),
     /** Test seam only. */
-    boundDeviceId: () => (binding.kind === 'device' ? binding.credential.deviceId : null),
+    boundDeviceId: () => (binding.kind === 'device' && !binding.quarantined ? binding.credential.deviceId : null),
   }
 
-  /** The answer admits the identity (D6): whatever is in flight on the old one stops. */
+  /**
+   * The answer admits the identity (D6): whatever is in flight on the old one stops.
+   * With a user signed in the answer changes nothing about the identity, but the
+   * prompt that came with it may have: the user's pending work runs again (F-05,
+   * Sol r2 F-13).
+   */
   function identityDecisionChanged(): Promise<void> {
-    if (signingOut || desired?.kind !== 'device') return tail
+    if (signingOut || desired?.kind !== 'device') return retryPending()
     generation += 1
     return transition(generation)
   }
 
   /** A newer choice: the running flow stops, a new one carries the newest version. */
   function restartFlow(): Promise<void> {
-    if (signingOut || desired?.kind !== 'device') return tail
+    if (signingOut || desired?.kind !== 'device') return retryPending()
     flow = null
     return transition(generation)
   }
