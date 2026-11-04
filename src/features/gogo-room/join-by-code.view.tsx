@@ -9,6 +9,7 @@ import { isApiError, useJoinRoom } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
+import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -104,7 +105,10 @@ export default function JoinByCodeScreen() {
           {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
           <Card padded={false} style={styles.card}>
-            <Text variant="label">{t('joinByCode.codeLabel')}</Text>
+            <View style={styles.labelRow}>
+              <Icon name="unlock" size={20} color="accent.primary" />
+              <Text variant="title2">{t('joinByCode.codeLabel')}</Text>
+            </View>
             <TextInput
               value={code}
               onChangeText={value => {
@@ -139,12 +143,15 @@ export default function JoinByCodeScreen() {
           </Card>
 
           {error ? (
-            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
-              {error}
-            </Text>
+            <View style={styles.errorBox}>
+              <Icon name="alert" size={18} color="status.dangerText" />
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>
+                {error}
+              </Text>
+            </View>
           ) : null}
 
-          <View style={{ marginTop: 'auto', gap: spacing[3] }}>
+          <View style={{ marginTop: spacing[5], gap: spacing[3] }}>
             <PrimaryBtn
               label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
               onPress={submit}
