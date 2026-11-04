@@ -87,3 +87,5 @@ reports `release = <commit sha>`, `dist = <build number>`.
   process groups still running.
 - Android check: `apksigner verify --print-certs fastlane/build/android/*.apk` shows the
   environment keystore's SHA-1, not the debug one.
+- Android check: `scripts/check-tenjin-logs.py fastlane/build/android/*.apk` passes: the Tenjin
+  SDK has no debug logging left (#402, ADR 0007).

@@ -55,6 +55,24 @@ classpath and a real connect response when upgrading Expo or Tenjin. Rebuild
 the native binary to apply this change; Metro reload alone is insufficient.
 Rollback: remove the plugin registration and rebuild Android. iOS is unchanged.
 
+## Release builds strip the SDK's debug logs (GoGo-MobileApp#402, 2026-11-04)
+
+The Android SDK calls `Log.d` unconditionally, including `Tenjin::connect params:`
+with the advertising ID and the other device identifiers. It has no switch; 1.23.0,
+1.24.0 and 2.0.2 (the wrapper's 1.8.1) are the same. Release builds do not run R8.
+Owner decision: `plugins/with-tenjin-android.js` rewrites `Log.v`, `Log.d` and
+`Log.i` calls in `com.tenjin.android.*` at build time, in every flavour's release
+variant. Turning R8 on was rejected: it would change the whole app to fix one SDK.
+
+- `Log.w`, `Log.e` and `printStackTrace` stay: they are error paths. Debug builds keep
+  every line, so reading the SDK's parameters (#404 AC-3) now takes a debug build or a
+  wire capture.
+- The strip fails silently if a change stops it matching. After bumping Tenjin, Expo or
+  AGP, run `scripts/check-tenjin-logs.py <release apk>`, and `adb logcat` a consent-granted
+  launch.
+- iOS is not covered: the issue measured Android only.
+- Rollback: remove `addLogStrip` from the plugin and rebuild Android.
+
 Reference: https://github.com/tenjin/tenjin-android-sdk#play-services-ads-identifier-google-play
 
 CI config resolution uses explicit non-live fixture IDs/keys. Native app builds
