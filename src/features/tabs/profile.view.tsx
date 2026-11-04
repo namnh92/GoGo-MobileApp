@@ -14,7 +14,7 @@ import { locales } from '@/shared/i18n'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
 import { Atmosphere, AvatarCircle, Card } from '@/shared/ui/primitives'
-import { Icon, IconChevronRight } from '@/shared/ui/icons'
+import { Icon, IconChevronRight, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { AssistantHelpSection } from '@/features/assistant/assistant-help-row.view'
@@ -23,6 +23,9 @@ import { styles } from './profile.style'
 
 const audiences: DemoAudience[] = ['couple', 'group-host', 'group-guest']
 const uiStates: DemoUIState[] = ['default', 'loading', 'empty', 'error']
+
+/** Presentation only: the glyph that leads each shortcut card. */
+const SHORTCUT_ICON: Record<string, IconName> = { saved: 'bookmark', plans: 'users', reviews: 'star' }
 
 /** Who a session belongs to; a token refresh keeps it. */
 function actorKeyOf(session: Session | null): string {
@@ -100,18 +103,18 @@ export default function ProfileScreen() {
         scrollEventThrottle={fab.scrollEventThrottle}
         contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: fab.bottomInset }}
       >
-        <View style={styles.headerRow}>
+        <Card padded={false} style={styles.headerCard}>
           <AvatarCircle
             label={(me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()}
             size={64}
             imageUri={me.data?.avatarUrl}
           />
-          <View>
-            <Text variant="title1">{me.data?.displayName ?? t('profile.guestName')}</Text>
+          <View style={styles.headerText}>
+            <Text variant="title1" numberOfLines={1}>{me.data?.displayName ?? t('profile.guestName')}</Text>
             {/* Guests have no email; showing a placeholder would be a lie. */}
-            <Text variant="bodySmall" color="text.secondary" style={styles.email}>{me.data?.email ?? t('profile.guestSubtitle')}</Text>
+            <Text variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.email}>{me.data?.email ?? t('profile.guestSubtitle')}</Text>
           </View>
-        </View>
+        </Card>
 
         {/*
           The two cards that stood here were fabricated: a "couple" pairing the
@@ -135,6 +138,9 @@ export default function ProfileScreen() {
               style={{ flex: 1 }}
             >
               <Card padded={false} style={styles.shortcut}>
+                <View style={styles.shortcutIcon}>
+                  <Icon name={SHORTCUT_ICON[shortcut.key] ?? 'star'} size={20} color="accent.onSoft" />
+                </View>
                 {/* A dash, not a zero: an unknown count and an empty list are
                     different facts, and only one of them is reassuring. */}
                 <Text variant={!(shortcut.count == null) ? 'title1' : shortcut.count == null ? 'title1' : undefined} color={!(shortcut.count == null) ? 'text.primary' : shortcut.count == null ? 'text.secondary' : undefined}>
@@ -165,7 +171,9 @@ export default function ProfileScreen() {
               ]}
             >
               <View style={styles.settingLead}>
-                <Icon name={row.icon} size={20} color={row.route ? 'text.primary' : 'text.secondary'} />
+                <View style={styles.settingIconTile}>
+                  <Icon name={row.icon} size={20} color={row.route ? 'text.primary' : 'text.secondary'} />
+                </View>
                 {/* A row with nowhere to go reads `text.secondary`, the measured
                     disabled colour — never the 1.6:1 placeholder (#382). */}
                 <Text color={row.route ? 'text.primary' : 'text.secondary'} style={styles.settingLabel}>
@@ -231,10 +239,10 @@ export default function ProfileScreen() {
         {status === 'anonymous' ? (
           <Pressable
             accessibilityRole="button"
-            style={styles.logout}
+            style={styles.signIn}
             onPress={() => router.push('/auth/sign-in')}
           >
-            <Text variant="label" color="accent.primary">{t('auth.signInCta')}</Text>
+            <Text variant="label" color="accent.onAccent">{t('auth.signInCta')}</Text>
           </Pressable>
         ) : (
           <Pressable
@@ -245,7 +253,7 @@ export default function ProfileScreen() {
             accessibilityLabel={signingOut ? t('profile.loggingOut') : t('profile.logout')}
             accessibilityState={{ disabled: signingOut, busy: signingOut }}
           >
-            <Text variant="label" color="accent.primary">
+            <Text variant="label" color="accent.onSoft">
               {signingOut ? t('profile.loggingOut') : t('profile.logout')}
             </Text>
           </Pressable>
