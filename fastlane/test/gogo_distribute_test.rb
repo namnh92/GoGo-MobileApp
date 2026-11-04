@@ -650,6 +650,116 @@ class PublishOrderTest < Minitest::Test
   end
 end
 
+# F-01: the step methods of the real Fastfile, run through fastfile_harness.rb with
+# a fake sentry-cli and recording Firebase actions.
+require_relative 'fastfile_harness'
+
+class FastfileStepsTest < Minitest::Test
+  APP_ID = '1:123456789012:android:0123456789abcdef'
+
+  def setup
+    FastfileHarness.reset!
+    @dir = Dir.mktmpdir
+    @supervisor = GD::Supervisor.new(run_file: File.join(@dir, 'run.json'))
+    @cleanup = GD::Cleanup.new(supervisor: @supervisor, secrets: nil, env: {})
+    @ctx = { env: 'dev', platform: 'android', sha: 'c' * 40, branch: 'feature/x', groups: 'dev-testers',
+             bundle_id: 'max.gogo.dev', log_dir: @dir, supervisor: @supervisor, cleanup: @cleanup,
+             base: { 'PATH' => ENV.fetch('PATH') } }
+    @switches = { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }
+  end
+
+  def teardown
+    FileUtils.rm_rf(@dir)
+  end
+
+  def fake_cli(exit_code: 0)
+    cli = File.join(@dir, 'fake-cli')
+    File.write(cli, <<~SH, perm: 0o700)
+      #!/bin/sh
+      printf '%s\\n' "$@" > "#{@dir}/argv"
+      env > "#{@dir}/env"
+      echo size >> "#{@dir}/order"
+      echo 'uploaded (https://sentry.io/harness/1)'
+      exit #{exit_code}
+    SH
+    { cli: cli, props: SizeUploadTest::PROPS }
+  end
+
+  def order
+    firebase = FastfileHarness::Firebase.order
+    size = File.exist?(File.join(@dir, 'order')) ? [:size] : []
+    firebase + size
+  end
+
+  def test_publish_sends_the_build_to_firebase_first_then_to_sentry
+    gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/gogo-dev-7.apk', size_artifact: '/b/gogo-dev-7.apk')
+    assert_equal %i[firebase size], order
+    assert_equal '/b/gogo-dev-7.apk', FastfileHarness::Firebase.calls.first[:apk_path]
+    assert_equal '/b/gogo-dev-7.apk', File.readlines(File.join(@dir, 'argv'), chomp: true).last
+    assert_includes UI.lines, [:message, 'distribute: size analysis: uploaded gogo-dev-7.apk build=7 links=https://sentry.io/harness/1']
+  end
+
+  def test_ios_routes_the_ipa_to_firebase_and_the_xcarchive_to_sentry
+    @ctx[:platform] = 'ios'
+    gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/out/app.ipa', size_artifact: '/run/tmp/app.xcarchive')
+    assert_equal '/out/app.ipa', FastfileHarness::Firebase.calls.first[:ipa_path]
+    assert_equal '/run/tmp/app.xcarchive', File.readlines(File.join(@dir, 'argv'), chomp: true).last
+  end
+
+  def test_the_child_sees_the_token_in_its_environment_and_nowhere_else
+    gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    assert_includes File.read(File.join(@dir, 'env')), 'SENTRY_AUTH_TOKEN=sntrys_harness_sentinel'
+    refute_includes File.read(File.join(@dir, 'argv')), 'sntrys_'
+    refute(UI.lines.any? { |_, text| text.include?('sntrys_') })
+    refute_includes File.read(File.join(@dir, 'env')), 'FIREBASE_SERVICE_CREDENTIALS_JSON'
+  end
+
+  def test_a_failed_size_upload_escapes_after_firebase_with_the_build_already_out
+    error = assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli(exit_code: 1), firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_equal %i[firebase size], order
+    assert_match(/size analysis upload failed or was not confirmed after Firebase distributed build 7/, error.message)
+    assert(UI.lines.any? { |kind, text| kind == :error && text.include?('uploaded (https://sentry.io/harness/1)') }, 'log tail shown')
+  end
+
+  def test_a_firebase_failure_stops_before_any_size_upload
+    FastfileHarness::Firebase.fail_upload = true
+    assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_equal [], order
+    refute File.exist?(File.join(@dir, 'argv'))
+  end
+
+  def test_a_build_number_firebase_took_meanwhile_stops_before_both_uploads
+    FastfileHarness::Firebase.latest = 7
+    assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_empty FastfileHarness::Firebase.calls
+    assert_equal [], order
+  end
+
+  def test_the_no_token_state_distributes_and_starts_no_sentry_child
+    gogo_publish(@ctx, APP_ID, 7, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' }, nil, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    assert_equal [:firebase], order
+    refute(UI.lines.any? { |_, text| text.include?('size analysis: uploaded') })
+  end
+
+  def test_the_token_state_without_a_prepared_upload_fails_the_run
+    error = assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, nil, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_match(/not prepared before the build/, error.message)
+  end
+
+  def test_prepare_in_the_no_token_state_warns_once_and_returns_nil
+    assert_nil gogo_size_prepare(@ctx, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' })
+    assert_equal [[:important, 'no SENTRY_AUTH_TOKEN: this build is not measured in Size Analysis either']], UI.lines
+  end
+end
+
 # The Fastfile needs fastlane to load, so its wiring is pinned from the source.
 class FastfileWiringTest < Minitest::Test
   SOURCE = File.read(File.expand_path('../Fastfile', __dir__))
