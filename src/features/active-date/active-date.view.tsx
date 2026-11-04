@@ -26,11 +26,12 @@ import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
+import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
-import { Icon, IconArrowRight, IconNavigation } from '@/shared/ui/icons'
+import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -339,20 +340,20 @@ export default function ActiveDateScreen() {
     )
   }
 
+  const nextPlace = nextStop ? places.byPlaceId.get(nextStop.placeId) : undefined
+
   return (
     <Atmosphere>
       <View style={[styles.topBar, { paddingTop: insets.top + spacing[3] }]}>
-        <View style={styles.topRow}>
-          <View>
-            <View style={styles.liveRow}>
-              <View style={styles.liveDot} />
-              <Text variant="caption" color="accent.primary" style={styles.live}>{t('activeDate.live')}</Text>
-            </View>
-            <Text variant="title1" accessibilityLiveRegion="polite">
-              {t('activeDate.stop', { n: currentIndex + 1, total: stops.length })}
-            </Text>
+        <Card style={styles.progressCard}>
+          <View style={styles.liveRow}>
+            <View style={styles.liveDot} />
+            <Text variant="caption" color="accent.primary" style={styles.live}>{t('activeDate.live')}</Text>
           </View>
-          {/* The dots repeat the counter above, so they are decorative. */}
+          <Text variant="title1" accessibilityLiveRegion="polite">
+            {t('activeDate.stop', { n: currentIndex + 1, total: stops.length })}
+          </Text>
+          {/* The segments repeat the counter above, so they are decorative. */}
           <View
             style={styles.stepDots}
             accessibilityElementsHidden
@@ -369,7 +370,7 @@ export default function ActiveDateScreen() {
               />
             ))}
           </View>
-        </View>
+        </Card>
       </View>
       <RoomConnectionNotice
         roomId={summary.roomId}
@@ -381,13 +382,30 @@ export default function ActiveDateScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Card padded={false} style={styles.card}>
-          <PlacePhoto placeId={stop.placeId} name={placeName} uri={stopPlace?.photoUrl ?? null} style={styles.cardImage} />
-          <View style={styles.cardBody}>
-            <View style={styles.cardHeader}>
+          <View style={styles.photo}>
+            <PlacePhoto placeId={stop.placeId} name={placeName} uri={stopPlace?.photoUrl ?? null} style={styles.cardImage} />
+            <View style={styles.photoBadge}>
               <Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" />
             </View>
-            <Text variant="display">{placeName}</Text>
-            {address ? <Text color="text.secondary" style={styles.area}>{address}</Text> : null}
+          </View>
+          <View style={styles.cardBody}>
+            <View style={styles.titleRow}>
+              <View style={styles.titleText}>
+                <Text variant="title1">{placeName}</Text>
+                {address ? <Text color="text.secondary" style={styles.area}>{address}</Text> : null}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common.directions')}
+                onPress={() => {
+                  haptic('select')
+                  openGoogleMapsDirections(address ?? placeName)
+                }}
+                style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
+              >
+                <IconNavigation />
+              </Pressable>
+            </View>
 
             <View style={styles.factRow}>
               {stop.arriveLabel ? <Chip label={stop.arriveLabel} icon="clock" variant="default" /> : null}
@@ -407,60 +425,59 @@ export default function ActiveDateScreen() {
                 }
               />
             ) : null}
-
-            {/* Finishing the stop is the dominant action; directions support it. */}
-            <View style={styles.actions}>
-              <PrimaryBtn
-                label={
-                  completeStop.isPending
-                    ? t('activeDate.saving')
-                    : nextStop
-                      ? t('activeDate.doneStep')
-                      : t('activeDate.finish')
-                }
-                onPress={onDone}
-                loading={completeStop.isPending}
-              />
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  haptic('select')
-                  openGoogleMapsDirections(address ?? placeName)
-                }}
-                style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
-              >
-                <IconNavigation />
-                <Text variant="label">{t('common.directions')}</Text>
-              </Pressable>
-            </View>
-
-            {/* Completing a stop is a network write; say when it did not land,
-                and why — connectivity is only one of the reasons. A room that
-                is not active never gets here: it renders its own state above. */}
-            {completeStop.isError ? (
-              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.failure}>
-                {t(isOffline(completeStop.error) ? 'activeDate.completeFailed' : 'activeDate.completeFailedRetry')}
-              </Text>
-            ) : null}
           </View>
         </Card>
 
         {nextStop && (
-          <Card padded={false} style={styles.nextCard}>
-            <Icon name="mapPin" size={24} color="accent.primary" />
-            <View style={{ flex: 1 }}>
-              <Text variant="caption" color="text.secondary" style={styles.nextCaption}>{t('activeDate.next')}</Text>
-              <Text variant="title2" style={styles.nextName}>{places.byPlaceId.get(nextStop.placeId)?.name ?? ''}</Text>
-              <Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
-                {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
+          <>
+            <View style={styles.sectionHeader}>
+              <Text variant="caption" color="text.secondary" style={styles.sectionLabel}>{t('activeDate.next')}</Text>
             </View>
-            <IconArrowRight />
-          </Card>
+            <Card padded={false} style={styles.nextCard}>
+              <View style={styles.nextThumb}>
+                <PlacePhoto
+                  placeId={nextStop.placeId}
+                  name={nextPlace?.name ?? ''}
+                  uri={nextPlace?.photoUrl ?? null}
+                  style={styles.cardImage}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="title2" style={styles.nextName}>{nextPlace?.name ?? ''}</Text>
+                <Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
+                  {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              </View>
+              <IconArrowRight />
+            </Card>
+          </>
         )}
       </ScrollView>
+
+      {/* Finishing the stop is the dominant action; directions support it. */}
+      <GlassBar placement="docked">
+        {/* Completing a stop is a network write; say when it did not land,
+            and why — connectivity is only one of the reasons. A room that
+            is not active never gets here: it renders its own state above. */}
+        {completeStop.isError ? (
+          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.failure}>
+            {t(isOffline(completeStop.error) ? 'activeDate.completeFailed' : 'activeDate.completeFailedRetry')}
+          </Text>
+        ) : null}
+        <PrimaryBtn
+          label={
+            completeStop.isPending
+              ? t('activeDate.saving')
+              : nextStop
+                ? t('activeDate.doneStep')
+                : t('activeDate.finish')
+          }
+          onPress={onDone}
+          loading={completeStop.isPending}
+        />
+      </GlassBar>
 
       {sheet}
     </Atmosphere>
