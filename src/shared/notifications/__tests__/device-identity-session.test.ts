@@ -55,6 +55,7 @@ function setup(options: {
   credential?: DeviceCredential
   retiring?: DeviceCredential[]
   nativeExternalId?: string | null
+  getNativeExternalId?: () => Promise<string | null>
   renew?: (credential: DeviceCredential) => Promise<DeviceRenewOutcome>
   submit?: () => Promise<DeviceReportOutcome>
   retire?: (timeoutMs?: number) => Promise<DeviceRetireOutcome>
@@ -135,7 +136,7 @@ function setup(options: {
       ...api,
       optOut: () => void calls.push('optOut'),
       getSubscriptionId: async () => 'sub-1',
-      getNativeExternalId: async () => options.nativeExternalId ?? null,
+      getNativeExternalId: options.getNativeExternalId ?? (async () => options.nativeExternalId ?? null),
       platform: 'ios',
       sleep: async () => {},
       ...(options.now ? { now: options.now } : {}),
@@ -147,6 +148,135 @@ function setup(options: {
 const USER = { kind: 'user' as const, userId: 'A' }
 
 describe('Astra F-10 preparation', () => {
+  it.each(['sign-in', 'toNoSession', 'bindDevice'] as const)('round 6 D2: rejected native read preserves debt during %s', async path => {
+    const getNativeExternalId = vi.fn(async (): Promise<string | null> => { throw new Error('native read') })
+    const t = setup({
+      record: accepted({ retirementOwed: path !== 'bindDevice' }),
+      ...(path === 'bindDevice' ? { retiring: [OLD] } : {}),
+      getNativeExternalId,
+    })
+    await t.promotions.load()
+    if (path === 'bindDevice') {
+      // Debt arrives during the preceding retirement pass, after toNoSession's
+      // initial check. bindDevice must reconcile it before creating anything.
+      t.api.retire.mockImplementationOnce(async () => {
+        await t.promotions.setRetirementOwed(true)
+        return { kind: 'error' }
+      })
+    }
+    await t.session.apply(path === 'sign-in' ? USER : null)
+    await t.session.settled()
+    expect(getNativeExternalId).toHaveBeenCalledTimes(1)
+    expect(t.promotions.snapshot().retirementOwed).toBe(true)
+    expect(JSON.parse(t.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!).retirementOwed).toBe(true)
+    expect(t.api.create).not.toHaveBeenCalled()
+    expect(t.api.renew).not.toHaveBeenCalled()
+    expect(t.calls).not.toContain('optOut')
+    expect(t.native.logout).not.toHaveBeenCalled()
+    if (path === 'sign-in') {
+      expect(t.calls).toContain('login:A')
+      expect(t.session.boundUserId()).toBe('A')
+    } else {
+      expect(t.native.loginWithToken).not.toHaveBeenCalled()
+      expect(t.events).toContain('push_identity_transition_failed')
+    }
+  })
+
+  it.each(['DELETE', 'creation'])('round 6: restart before native cleanup retains the obligation when %s fails', async failure => {
+    const first = setup({ credential: OLD, nativeExternalId: 'device:old' })
+    await first.promotions.load()
+    await first.session.answerDisclosure('accepted')
+    let reached = false
+    // Already listed credentials take the native-ID read after an empty read.
+    await first.credentials.quarantine(OLD)
+    const nativeRead = vi.fn(async () => {
+      reached = true
+      await new Promise<void>(() => {})
+      return 'device:old'
+    })
+    const session = createIdentitySession({
+      native: first.native,
+      fetchToken: async () => ({ kind: 'error' }),
+      device: {
+        credentials: createDeviceCredentialStore(first.secure), promotions: first.promotions, ...first.api,
+        optOut: () => void first.calls.push('optOut'), getSubscriptionId: async () => 'sub-1',
+        getNativeExternalId: nativeRead, platform: 'ios',
+      },
+    })
+    void session.apply(null)
+    await vi.waitFor(() => expect(reached).toBe(true))
+    await first.promotions.saved()
+    expect(first.calls).not.toContain('logout')
+    const next = setup({
+      record: first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY),
+      retiring: await first.credentials.retiring(), nativeExternalId: 'device:old',
+      retire: async () => ({ kind: failure === 'DELETE' ? 'error' : 'done' }),
+    })
+    if (failure === 'creation') next.api.create.mockRejectedValueOnce(new Error('offline'))
+    await next.session.apply(null)
+    await next.session.settled()
+    expect(next.calls.slice(0, 2)).toEqual(['optOut', 'logout'])
+    expect(next.api.create).toHaveBeenCalledTimes(1)
+    expect(next.api.renew).not.toHaveBeenCalled()
+  })
+
+  it('round 6: supersession after quarantine completes opts out the held binding before admission', async () => {
+    const t = setup({ record: accepted(), credential: OLD, nativeExternalId: 'device:old' })
+    await t.session.apply(null)
+    await t.session.settled()
+    t.calls.length = 0
+    const quarantine = t.credentials.quarantine
+    let finish!: () => void
+    vi.spyOn(t.credentials, 'quarantine').mockImplementationOnce(async credential => {
+      const result = await quarantine(credential)
+      await new Promise<void>(resolve => { finish = resolve })
+      return result
+    })
+    const decline = t.session.answerDisclosure('declined')
+    await vi.waitFor(() => expect(finish).toBeDefined())
+    const accept = t.session.answerDisclosure('accepted')
+    finish()
+    await Promise.all([decline, accept])
+    await t.session.settled()
+    expect(t.calls.slice(0, 2)).toEqual(['optOut', 'logout'])
+    expect(t.calls.indexOf('create')).toBeGreaterThan(t.calls.indexOf('logout'))
+    expect(t.api.renew).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['logout pending', 'logout failed', 'clearance pending'] as const)('round 6: restart at %s keeps cleanup ahead of admission', async boundary => {
+    const first = setup({ record: accepted({ retirementOwed: true }), credential: OLD, nativeExternalId: 'device:old' })
+    await first.promotions.load()
+    let reached = false
+    if (boundary === 'clearance pending') {
+      first.local.setItem.mockImplementationOnce(async () => {
+        reached = true
+        await new Promise<void>(() => {})
+      })
+    } else {
+      first.native.logout = vi.fn(async () => {
+        reached = true
+        if (boundary === 'logout failed') throw new Error('native')
+        await new Promise<void>(() => {})
+      })
+    }
+    void first.session.apply(null)
+    await vi.waitFor(() => expect(reached).toBe(true))
+    expect(JSON.parse(first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!).retirementOwed).toBe(true)
+    expect(first.api.create).not.toHaveBeenCalled()
+    const next = setup({
+      record: first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY),
+      retiring: await first.credentials.retiring(),
+      nativeExternalId: boundary === 'clearance pending' ? null : 'device:old',
+    })
+    await next.session.apply(null)
+    await next.session.settled()
+    if (boundary === 'clearance pending') {
+      expect(first.calls.slice(0, 2)).toEqual(['optOut', 'logout'])
+      expect(next.native.logout).not.toHaveBeenCalled()
+    } else expect(next.calls.slice(0, 2)).toEqual(['optOut', 'logout'])
+    expect(next.api.create).toHaveBeenCalledTimes(1)
+  })
+
   it.each([false, true])('family 9: DISABLED preserves newly owed cleanup credentials (quarantine refuses: %s)', async refuses => {
     let answerRenew!: (value: DeviceRenewOutcome) => void
     const t = setup({ record: accepted(), credential: OLD, nativeExternalId: 'device:old', renew: () => new Promise(resolve => { answerRenew = resolve }) })
@@ -171,6 +301,7 @@ describe('Astra F-10 preparation', () => {
     t.session.start()
     await t.session.apply(null)
     await t.session.settled()
+    t.calls.length = 0
     let finish!: () => void
     if (boundary === 'read') {
       const read = t.secure.get.getMockImplementation()!
@@ -193,21 +324,30 @@ describe('Astra F-10 preparation', () => {
     expect(t.api.renew).toHaveBeenCalledTimes(1)
     expect(t.native.respondToJwtExpired).not.toHaveBeenCalled()
     expect(t.api.submit.mock.calls.map(([credential]) => credential.deviceId)).toEqual(['old', 'new'])
+    expect(t.calls.slice(0, 2)).toEqual(['optOut', 'logout'])
+    expect(t.calls.indexOf('create')).toBeGreaterThan(t.calls.indexOf('logout'))
   })
 
   it.each(['debt', 'list', 'failed removal', 'clearance'])('family 6: restart after %s preserves retirement responsibility', async boundary => {
-    const first = setup({ credential: OLD })
+    const first = setup({ credential: OLD, nativeExternalId: 'device:old', retire: async () => ({ kind: 'error' }) })
     await first.promotions.load()
     await first.session.answerDisclosure('accepted')
     if (boundary !== 'debt') {
       if (boundary === 'failed removal') first.secure.remove.mockRejectedValueOnce(new Error('keychain'))
       await first.credentials.quarantine(OLD)
     }
-    if (boundary === 'clearance') await first.promotions.setRetirementOwed(false)
+    if (boundary === 'clearance') {
+      first.api.create.mockRejectedValueOnce(new Error('offline'))
+      await first.session.apply(null)
+      await first.session.settled()
+      expect(first.calls.slice(0, 2)).toEqual(['optOut', 'logout'])
+      expect(JSON.parse(first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!).retirementOwed).toBe(false)
+    }
     const next = setup({
       record: first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY),
       ...(first.secure.data.has('push.device') ? { credential: OLD } : {}),
       retiring: await first.credentials.retiring(),
+      nativeExternalId: boundary === 'clearance' ? null : 'device:old',
       retire: async () => ({ kind: 'error' }),
     })
     await next.session.apply(null)
@@ -215,6 +355,10 @@ describe('Astra F-10 preparation', () => {
     expect(next.api.renew).not.toHaveBeenCalled()
     expect(await next.credentials.retiring()).toEqual([OLD])
     expect(next.calls).not.toContain('login:device:old')
+    const calls = [...first.calls, ...next.calls]
+    expect(calls.indexOf('optOut')).toBeGreaterThanOrEqual(0)
+    expect(calls.indexOf('logout')).toBeGreaterThan(calls.indexOf('optOut'))
+    expect(calls.indexOf('create')).toBeGreaterThan(calls.indexOf('logout'))
   })
 
   it('family 7: failed empty-read clearance blocks fresh admission until a durable retry', async () => {

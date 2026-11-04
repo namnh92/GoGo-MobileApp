@@ -419,13 +419,8 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   async function quarantineCurrent(): Promise<boolean> {
     if (!device) return false
     const credential = binding.kind === 'device' ? binding.credential : await device.credentials.read()
-    if (!credential) {
-      // Nothing stored and nothing bound: a read that worked settles the debt.
-      void device.promotions.setRetirementOwed(false)
-      return false
-    }
+    if (!credential) return false
     await device.credentials.quarantine(credential)
-    void device.promotions.setRetirementOwed(false)
     if (binding.kind === 'device' && binding.credential.deviceId === credential.deviceId) {
       binding = { ...binding, quarantined: true }
     }
@@ -444,7 +439,14 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
 
   async function toUser(gen: number, userId: string): Promise<void> {
     // Before the same-user no-op: R-17b's retries do not stop at a sign-in.
-    await retireBestEffort()
+    if (retirementOwed() && binding.kind !== 'user') {
+      try {
+        await neutralise(gen, false)
+      } catch {
+        // D2: failed cleanup stays owed, but cannot prevent account sign-in.
+        report('push_device_retire_pending')
+      }
+    } else await retireBestEffort()
     if (gen !== generation) return
 
     if (binding.kind === 'user' && binding.userId === userId) {
@@ -524,14 +526,16 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
    * the SDK is opted out and logged out, and the server is asked to retire it until
    * it answers 2xx or GONE. Nothing here can restore an identity.
    */
-  async function neutralise(gen: number): Promise<void> {
+  async function neutralise(gen: number, waitForClearance = true): Promise<void> {
     if (!device) return
     // Storage first, but a Keychain that refuses does not keep the SDK opted in:
     // the credential stays where it is — active in storage, or on the list — for
     // the next pass, and the native identity is left now (Sol r2 F-10).
     let quarantined = false
+    let transferred = false
     try {
       quarantined = await quarantineCurrent()
+      transferred = true
     } catch {
       device.promotions.setRetirementOwed(true)
       // The identity held now was to be retired: never reusable, whatever this
@@ -539,7 +543,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       if (binding.kind === 'device') binding = { ...binding, quarantined: true }
       report('push_device_quarantine_failed')
     }
-    const nativeHolder = binding.kind !== 'none' || quarantined || Boolean(await device.getNativeExternalId().catch(() => null))
+    const nativeHolder = binding.kind !== 'none' || quarantined || Boolean(await device.getNativeExternalId())
     if (gen !== generation) return
     if (nativeHolder) {
       device.optOut()
@@ -547,27 +551,22 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       binding = { kind: 'none' }
       report('push_device_neutralised')
     }
+    // The list owns server retirement, not unfinished native cleanup. Keep the
+    // debt through both native calls and supersession; D2 never waits on its save.
+    if (transferred && gen === generation) void device.promotions.setRetirementOwed(false)
     try {
       await drainRetirements()
     } catch {
       report('push_device_retire_pending')
     }
-    await device.promotions.saved()
+    if (waitForClearance) await device.promotions.saved()
   }
 
   /** D3 steps 1-2. Disclosure (step 0) is already settled by the caller. */
   async function bindDevice(gen: number): Promise<void> {
     if (!device) return
     if (retirementOwed()) {
-      // The last neutralisation could not retire what was stored. It goes to the
-      // list now, or nothing is restored and nothing is created (Sol r3 F-10).
-      try {
-        await quarantineCurrent()
-      } catch {
-        report('push_device_quarantine_failed')
-        return
-      }
-      await drainRetirements()
+      await neutralise(gen)
       if (gen !== generation) return
     }
     if (!await device.promotions.saved() || retirementOwed() || gen !== generation) return
