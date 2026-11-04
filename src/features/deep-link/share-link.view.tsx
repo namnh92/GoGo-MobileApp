@@ -7,8 +7,9 @@ import { useUnistyles } from 'react-native-unistyles'
 import { isApiError } from '@/shared/api'
 import { resolveShareLink } from '@/shared/api/endpoints/share-links'
 import { track } from '@/shared/analytics'
+import { Icon, type IconName } from '@/shared/ui/icons'
 import { Atmosphere, Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text, type TextColor } from '@/shared/ui/text'
 
 import { styles } from './share-link.style'
 
@@ -138,43 +139,53 @@ export default function ShareLinkScreen() {
     )
   }
 
-  const copy = {
-    gone: { emoji: '🔗', title: t('shareLink.goneTitle'), body: t('shareLink.goneBody') },
-    failed: { emoji: '📡', title: t('shareLink.failedTitle'), body: t('shareLink.failedBody') },
+  const copy: Record<
+    typeof kind,
+    { icon: IconName; tone: 'coreDanger' | 'coreWarning' | 'coreInfo'; iconColor: TextColor; title: string; body: string }
+  > = {
+    gone: { icon: 'alert', tone: 'coreDanger', iconColor: 'status.dangerText', title: t('shareLink.goneTitle'), body: t('shareLink.goneBody') },
+    failed: { icon: 'wifiOff', tone: 'coreWarning', iconColor: 'status.warningText', title: t('shareLink.failedTitle'), body: t('shareLink.failedBody') },
     unsupported: {
-      emoji: '🆕',
+      icon: 'info',
+      tone: 'coreInfo',
+      iconColor: 'status.infoText',
       title: t('shareLink.unsupportedTitle'),
       body: t('shareLink.unsupportedBody'),
     },
-  }[kind]
+  }
+  const shown = copy[kind]
+  const HomeBtn = kind === 'failed' ? SecondaryBtn : PrimaryBtn
 
   return (
     <Atmosphere>
       <View style={styles.centre}>
         <Card padded={false} style={styles.card}>
-          <Glyph size="xl">{copy.emoji}</Glyph>
+          <View style={styles.ring}>
+            <View style={[styles.core, styles[shown.tone]]}>
+              <Icon name={shown.icon} size={32} color={shown.iconColor} />
+            </View>
+          </View>
           <Text variant="title1" accessibilityRole="header" style={styles.title}>
-            {copy.title}
+            {shown.title}
           </Text>
           <Text color="text.secondary" accessibilityLiveRegion="polite" style={styles.body}>
-            {copy.body}
+            {shown.body}
           </Text>
+          <View style={styles.cardActions}>
+            {kind === 'failed' ? (
+              <PrimaryBtn
+                label={t('shareLink.retry')}
+                onPress={() => {
+                  setPhase({ kind: 'resolving' })
+                  void resolve().then(next => {
+                    if (next) setPhase(next)
+                  })
+                }}
+              />
+            ) : null}
+            <HomeBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} />
+          </View>
         </Card>
-
-        <View style={styles.actions}>
-          {kind === 'failed' ? (
-            <PrimaryBtn
-              label={t('shareLink.retry')}
-              onPress={() => {
-                setPhase({ kind: 'resolving' })
-                void resolve().then(next => {
-                  if (next) setPhase(next)
-                })
-              }}
-            />
-          ) : null}
-          <SecondaryBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} />
-        </View>
       </View>
     </Atmosphere>
   )
