@@ -182,7 +182,7 @@ export default function ReviewScreen() {
             />
             <View style={styles.successSubject}>
               <Text variant="title2" style={styles.successSubjectName} numberOfLines={1}>{subject?.label}</Text>
-              <View style={styles.successStars} accessibilityLabel={t('review.starAria', { count: submitted.rating })}>
+              <View style={styles.successStars} accessible accessibilityLabel={t('review.starAria', { count: submitted.rating })}>
                 {[1, 2, 3, 4, 5].map(value => (
                   <Icon key={value} name="star" size={16} color="accent.primary" filled={value <= submitted.rating} />
                 ))}

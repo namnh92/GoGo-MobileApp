@@ -118,6 +118,7 @@ export default function MyReviewsScreen() {
               <View style={styles.headerRow}>
                 <View
                   style={styles.stars}
+                  accessible
                   accessibilityLabel={t('review.starAria', { count: editing ? draftRating : review.rating })}
                 >
                   {[1, 2, 3, 4, 5].map(value => (
