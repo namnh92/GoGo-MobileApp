@@ -286,7 +286,8 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
    Console hoặc log tham số của SDK, giá trị che.
 7. Trước đồng ý trên Android (§12 D-8): trên bản sắp nộp, từ lúc mở tới lúc sheet hiện, khi sheet để yên, sau "Không
    cho phép", và ở lần mở sau khi tắt công tắc: **không có `advertising_id`, `ad_id_local`, `gps_adid`** trong request tới
-   Tenjin/Adjust; App Set ID được phép. Cách đo đủ ở GoGo-MobileApp#404 (AC-3).
+   Tenjin/Adjust; App Set ID được phép. Cách đo đủ ở GoGo-MobileApp#404 (AC-3). Từ #402 bản release không còn log
+   tham số của Tenjin: phần Tenjin đo bằng bản debug cùng commit hoặc bắt gói tin (ADR 0007).
 
 ## 12. Quyết định của owner (có ngày, kèm rủi ro đã nhận)
 
