@@ -1109,3 +1109,81 @@ describe('Sol round 3 (GoGo-MobileApp#411)', () => {
     expect(await t.credentials.retiring()).toEqual([OLD])
   })
 })
+
+describe('Sol round 4 (GoGo-MobileApp#411)', () => {
+  it('F-10 (a): a binding held when the debt is taken is never reused, even when the decline was overtaken', async () => {
+    let rejectRead!: () => void
+    const t = setup({ record: accepted(), credential: OLD })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.session.boundDeviceId()).toBe('old')
+    t.calls.length = 0
+    t.secure.get.mockImplementationOnce(
+      () => new Promise<string | null>((_, reject) => (rejectRead = () => reject(new Error('keychain')))),
+    )
+
+    const declining = t.session.answerDisclosure('declined')
+    await vi.waitFor(() => expect(rejectRead).toBeDefined())
+    const accepting = t.session.answerDisclosure('accepted')
+    rejectRead()
+    await Promise.all([declining, accepting])
+    await t.session.settled()
+
+    expect(t.api.submit.mock.calls.map(([credential]) => credential.deviceId)).toEqual(['old', 'new'])
+    expect(t.calls).toEqual(['logout', 'retire:old', 'create', 'login:device:new', 'optIn', 'report:true:3'])
+    expect(t.api.renew).toHaveBeenCalledTimes(1)
+  })
+
+  it('F-10 (b): the debt outlives a restart, also when the acceptance was saved while storage refused', async () => {
+    const first = setup({ record: declined(), credential: OLD, nativeExternalId: 'device:old' })
+    first.secure.get.mockImplementation(async (key: string) => {
+      if (key.startsWith('push.device.retiring')) throw new Error('keychain')
+      return first.secure.data.get(key) ?? null
+    })
+    await first.session.apply(null)
+    await first.session.settled()
+    expect(first.calls).toEqual(['optOut', 'logout'])
+    await first.session.answerDisclosure('accepted')
+    await first.session.settled()
+    expect(first.api.create).not.toHaveBeenCalled()
+    expect(first.api.renew).not.toHaveBeenCalled()
+
+    // A new launch: storage works again, the record says accepted.
+    const second = setup({ record: first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!, credential: OLD })
+    await second.session.apply(null)
+    await second.session.settled()
+    expect(second.api.renew).not.toHaveBeenCalled()
+    expect(second.calls).toEqual(['retire:old', 'create', 'login:device:new', 'optIn', 'report:true:2'])
+    expect(await second.credentials.retiring()).toEqual([])
+    expect(second.promotions.snapshot().retirementOwed).toBe(false)
+  })
+
+  it('F-10 (b): a debt settled by an empty read is written off on disk too, so the next launch owes nothing', async () => {
+    const t = setup({ record: accepted({ retirementOwed: true }) })
+    // Loaded by an earlier no-session pass; a sign-in alone does not read the record.
+    await t.promotions.load()
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(t.session.boundUserId()).toBe('A')
+    expect(JSON.parse(t.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!).retirementOwed).toBe(false)
+  })
+
+  it('F-10 (b): with no answer on record the debt is not written, and the next launch neutralises again', async () => {
+    const first = setup({ credential: OLD, nativeExternalId: 'device:old' })
+    first.secure.get.mockImplementation(async (key: string) => {
+      if (key.startsWith('push.device.retiring')) throw new Error('keychain')
+      return first.secure.data.get(key) ?? null
+    })
+    await first.session.apply(null)
+    await first.session.settled()
+    expect(first.calls).toEqual(['optOut', 'logout'])
+    expect(first.local.data.has(DEVICE_PROMOTIONS_STORAGE_KEY)).toBe(false)
+    expect(first.promotions.snapshot().read).toBe('absent')
+
+    const second = setup({ credential: OLD, nativeExternalId: 'device:old' })
+    await second.session.apply(null)
+    await second.session.settled()
+    expect(second.calls).toEqual(['optOut', 'logout', 'retire:old'])
+    expect(await second.credentials.read()).toBeNull()
+  })
+})

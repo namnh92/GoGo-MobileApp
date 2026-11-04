@@ -208,11 +208,12 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   let recreates = 0
   /**
    * A neutralisation could not put what this install holds on the retiring list
-   * (storage refused). The obligation survives the failure: whatever a later
-   * read returns is quarantined before any identity is restored or created, and
-   * a later acceptance never renews it (R-17, R-17b, D5; Sol r3 F-10).
+   * (storage refused). The obligation survives the failure, and the launch: it
+   * is kept in the promotions record, beside the answer. Whatever a later read
+   * returns is quarantined before any identity is restored or created, and a
+   * later acceptance never renews it (R-17, R-17b, D5; Sol r3/r4 F-10).
    */
-  let retirementOwed = false
+  const retirementOwed = () => device?.promotions.snapshot().retirementOwed ?? false
 
   let expirySubscription: { remove(): void } | null = null
   let consecutiveRefreshes = 0
@@ -420,11 +421,11 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     const credential = binding.kind === 'device' ? binding.credential : await device.credentials.read()
     if (!credential) {
       // Nothing stored and nothing bound: a read that worked settles the debt.
-      retirementOwed = false
+      device.promotions.setRetirementOwed(false)
       return false
     }
     await device.credentials.quarantine(credential)
-    retirementOwed = false
+    device.promotions.setRetirementOwed(false)
     if (binding.kind === 'device' && binding.credential.deviceId === credential.deviceId) {
       binding = { ...binding, quarantined: true }
     }
@@ -532,7 +533,10 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     try {
       quarantined = await quarantineCurrent()
     } catch {
-      retirementOwed = true
+      device.promotions.setRetirementOwed(true)
+      // The identity held now was to be retired: never reusable, whatever this
+      // transition gets to do before a newer one overtakes it (Sol r4 F-10 a).
+      if (binding.kind === 'device') binding = { ...binding, quarantined: true }
       report('push_device_quarantine_failed')
     }
     const nativeHolder = binding.kind !== 'none' || quarantined || Boolean(await device.getNativeExternalId().catch(() => null))
@@ -553,7 +557,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   /** D3 steps 1-2. Disclosure (step 0) is already settled by the caller. */
   async function bindDevice(gen: number): Promise<void> {
     if (!device) return
-    if (retirementOwed) {
+    if (retirementOwed()) {
       // The last neutralisation could not retire what was stored. It goes to the
       // list now, or nothing is restored and nothing is created (Sol r3 F-10).
       try {

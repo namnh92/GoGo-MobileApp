@@ -30,6 +30,8 @@ const recordSchema = z.object({
   version: z.number().int().min(0),
   pendingVersion: z.number().int().min(0).nullable(),
   awaitingProviderOff: z.boolean(),
+  /** Older records have no field: no debt was ever recorded for them. */
+  retirementOwed: z.boolean().default(false),
 })
 
 type StoredRecord = z.infer<typeof recordSchema>
@@ -43,6 +45,14 @@ export type DevicePromotionsSnapshot = {
   pendingVersion: number | null
   /** An OFF the provider has not been seen to honour yet (R-16). */
   awaitingProviderOff: boolean
+  /**
+   * A neutralisation could not put the device credential on the retiring list.
+   * Kept here, beside the answer, because it has to outlive the answer that
+   * follows it and the launch after that: an acceptance saved while the
+   * Keychain refused must not restore the identity that was to be retired
+   * (R-17, R-17b, D5; Sol r4 F-10).
+   */
+  retirementOwed: boolean
   save: 'idle' | 'saving' | 'saved' | 'unsaved'
   /** The server answered DISABLED this launch. Not stored: the next launch asks again. */
   serviceOff: boolean
@@ -61,6 +71,7 @@ const INITIAL: DevicePromotionsSnapshot = {
   version: 0,
   pendingVersion: null,
   awaitingProviderOff: false,
+  retirementOwed: false,
   save: 'idle',
   serviceOff: false,
 }
@@ -97,6 +108,7 @@ export function createDevicePromotionsStore(deps: {
             version: merged.version,
             pendingVersion: merged.pendingVersion,
             awaitingProviderOff: merged.awaitingProviderOff,
+            retirementOwed: merged.retirementOwed,
           }
         : null
     let finished = false
@@ -167,6 +179,7 @@ export function createDevicePromotionsStore(deps: {
               version: parsed.version,
               pendingVersion: parsed.pendingVersion,
               awaitingProviderOff: parsed.awaitingProviderOff,
+              retirementOwed: parsed.retirementOwed,
             })
           },
           () => finish({ read: 'unreadable' }),
@@ -227,6 +240,17 @@ export function createDevicePromotionsStore(deps: {
 
     setServiceOff(serviceOff: boolean): void {
       if (snapshot.serviceOff !== serviceOff) update({ serviceOff })
+    },
+
+    /**
+     * Taken when a quarantine failed, settled when one succeeded. Written to disk
+     * with the record; with no answer on record there is no record to write, and
+     * the next launch neutralises again before any answer can be given.
+     */
+    setRetirementOwed(retirementOwed: boolean): void {
+      if (snapshot.retirementOwed === retirementOwed) return
+      if (snapshot.answer) persist({ retirementOwed })
+      else update({ retirementOwed })
     },
 
     snapshot: (): DevicePromotionsSnapshot => snapshot,
