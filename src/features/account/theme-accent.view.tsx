@@ -6,7 +6,7 @@ import { UnistylesRuntime, useUnistyles } from 'react-native-unistyles'
 import { track } from '@/shared/analytics'
 import { saveAccentPreference } from '@/shared/theme/accent-preference'
 import { haptic } from '@/shared/ui/feedback'
-import { IconCheck } from '@/shared/ui/icons'
+import { Icon, IconCheck } from '@/shared/ui/icons'
 import { Card } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { deviceThemeName } from '@/shared/theme/use-accent-bootstrap'
@@ -59,7 +59,12 @@ export function ThemeAccentCard() {
 
   return (
     <Card padded={false} style={styles.card}>
-      <Text variant="title2">{t('account.themeTitle')}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.icon}>
+          <Icon name="sparkle" size={20} color="accent.onSoft" />
+        </View>
+        <Text variant="title2" accessibilityRole="header">{t('account.themeTitle')}</Text>
+      </View>
       <View accessibilityRole="radiogroup" accessibilityLabel={t('account.themeTitle')} style={styles.swatches}>
         {ACCENTS.map(accent => {
           const selected = accent === current
@@ -72,12 +77,17 @@ export function ThemeAccentCard() {
               accessibilityRole="radio"
               accessibilityLabel={t(LABEL[accent])}
               accessibilityState={{ selected, checked: selected }}
-              style={[styles.ring, selected && { borderColor: primary }]}
+              style={styles.option}
             >
+              <View style={[styles.ring, selected && { borderColor: primary }]}>
               {/* The swatch shows a theme other than the active one, so its fill is that theme's value. */}
               <View style={[styles.swatch, { backgroundColor: primary }]}>
                 {selected ? <IconCheck color={onAccent} size={20} /> : null}
               </View>
+              </View>
+              <Text variant="caption" color={selected ? 'text.primary' : 'text.secondary'} style={styles.optionLabel}>
+                {t(LABEL[accent])}
+              </Text>
             </Pressable>
           )
         })}
