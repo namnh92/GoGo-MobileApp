@@ -10,6 +10,8 @@ export const styles = StyleSheet.create(theme => ({
     gap: theme.spacing[2],
     paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border.hairline,
   },
   button: {
     width: touchTarget.min,

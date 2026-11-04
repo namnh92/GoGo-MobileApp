@@ -9,7 +9,7 @@ export const styles = StyleSheet.create(theme => ({
     maxWidth: '82%',
     alignSelf: 'flex-end',
     backgroundColor: theme.accent.primary,
-    borderRadius: theme.radius.compact,
+    borderRadius: theme.radius.card,
     borderBottomRightRadius: 6,
     paddingHorizontal: theme.spacing[4],
     paddingVertical: theme.spacing[3],

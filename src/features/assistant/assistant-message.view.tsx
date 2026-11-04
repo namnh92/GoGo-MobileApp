@@ -12,7 +12,7 @@ import { styles } from './assistant-message.style'
 
 /**
  * Design system `AssistantMessage`: the 28pt avatar, "GoGo AI · time", then
- * the reply straight on the canvas — never a bubble. Blocks come in the
+ * the reply under it. Blocks come in the
  * design's order (lead → list → cards → sources → follow-ups); the caller
  * passes them so. A new reply enters with a 240 ms fade and 8pt rise, and
  * simply appears under reduced motion.

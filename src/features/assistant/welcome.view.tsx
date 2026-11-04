@@ -12,7 +12,7 @@ import { styles } from './welcome.style'
 /**
  * Design `ScreenWelcome` (GoGo-MobileApp#378): the large avatar, the greeting
  * in `display`, one line in `text.secondary`, and the four starting points in
- * a 2 × 2 grid. Opened about a place (`ScreenEntryOpen`), it asks about that
+ * a stacked list. Opened about a place (`ScreenEntryOpen`), it asks about that
  * place instead and offers the place card's starter questions.
  */
 export function Welcome({
@@ -60,21 +60,19 @@ export function Welcome({
   ] as const
   return (
     <ScrollView testID="assistant-welcome" contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      <AssistantAvatar size="lg" />
-      <Text variant="display" accessibilityRole="header">{t('assistant.greeting')}</Text>
-      <Text variant="body" color="text.secondary">{t('assistant.welcome.body')}</Text>
+      <View style={styles.hero}>
+        <AssistantAvatar size="lg" />
+        <Text variant="display" accessibilityRole="header" style={styles.centered}>{t('assistant.greeting')}</Text>
+        <Text variant="body" color="text.secondary" style={styles.centered}>{t('assistant.welcome.body')}</Text>
+      </View>
       {notice ? <View testID="assistant-welcome-notice">{notice}</View> : null}
-      <View style={styles.grid}>
-        <View style={styles.gridRow}>
-          {cards.slice(0, 2).map(card => (
-            <SuggestionCard key={card.title} {...card} disabled={disabled} onPress={() => onAsk(card.title)} />
-          ))}
-        </View>
-        <View style={styles.gridRow}>
-          {cards.slice(2).map(card => (
-            <SuggestionCard key={card.title} {...card} disabled={disabled} onPress={() => onAsk(card.title)} />
-          ))}
-        </View>
+      <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionLabel}>
+        {t('assistant.welcome.tryAsking')}
+      </Text>
+      <View style={styles.list}>
+        {cards.map(card => (
+          <SuggestionCard key={card.title} {...card} disabled={disabled} onPress={() => onAsk(card.title)} />
+        ))}
       </View>
     </ScrollView>
   )
