@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { TextInput } from 'react-native'
+import { TextInput, View } from 'react-native'
 import { z } from 'zod'
 
 import { isApiError, useRenameRoom, type RoomSummary } from '@/shared/api'
@@ -52,13 +52,16 @@ export function RoomTitleEditor({ room }: { room: RoomSummary }) {
 
   return (
     <Card padded={false} style={styles.card}>
-      <Text variant="title2">{t('roomTitle.title')}</Text>
       <Text variant="bodySmall" color="text.secondary">{t('roomTitle.body')}</Text>
       <Controller
         control={form.control}
         name="title"
         render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
           <>
+            <View style={styles.labelRow}>
+              <Text variant="title2">{t('roomTitle.title')}</Text>
+              <Text variant="caption" color="text.secondary">{`${value.length}/80`}</Text>
+            </View>
             <TextInput
               accessibilityLabel={t('roomTitle.title')}
               style={styles.scheduleInput}

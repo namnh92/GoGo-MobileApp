@@ -2,15 +2,17 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, useJoinRoom } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
+import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { styles } from './join-by-code.style'
@@ -18,6 +20,7 @@ import { styles } from './join-by-code.style'
 const MAX_NAME = 50
 
 export default function JoinByCodeScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
@@ -102,7 +105,10 @@ export default function JoinByCodeScreen() {
           {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
           <Card padded={false} style={styles.card}>
-            <Text variant="label">{t('joinByCode.codeLabel')}</Text>
+            <View style={styles.labelRow}>
+              <Icon name="unlock" size={20} color="accent.primary" />
+              <Text variant="title2">{t('joinByCode.codeLabel')}</Text>
+            </View>
             <TextInput
               value={code}
               onChangeText={value => {
@@ -110,7 +116,7 @@ export default function JoinByCodeScreen() {
                 if (error) setError(null)
               }}
               placeholder={t('joinByCode.codePlaceholder')}
-              placeholderTextColor={colors.neutral[500]}
+              placeholderTextColor={theme.text.secondary}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!pending}
@@ -125,7 +131,7 @@ export default function JoinByCodeScreen() {
                   value={displayName}
                   onChangeText={value => setDisplayName(value.slice(0, MAX_NAME))}
                   placeholder={t('guestJoin.namePlaceholder')}
-                  placeholderTextColor={colors.neutral[500]}
+                  placeholderTextColor={theme.text.secondary}
                   autoCapitalize="words"
                   autoCorrect={false}
                   editable={!pending}
@@ -137,12 +143,15 @@ export default function JoinByCodeScreen() {
           </Card>
 
           {error ? (
-            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
-              {error}
-            </Text>
+            <View style={styles.errorBox}>
+              <Icon name="alert" size={18} color="status.dangerText" />
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>
+                {error}
+              </Text>
+            </View>
           ) : null}
 
-          <View style={{ marginTop: 'auto', gap: spacing[3] }}>
+          <View style={{ marginTop: spacing[5], gap: spacing[3] }}>
             <PrimaryBtn
               label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
               onPress={submit}

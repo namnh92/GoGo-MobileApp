@@ -92,7 +92,7 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
           name={name}
           render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
             <>
-              <Text variant="title2">{t(`roomSchedule.${name}`)}</Text>
+              <Text variant="label">{t(`roomSchedule.${name}`)}</Text>
               <TextInput
                 accessibilityLabel={t(`roomSchedule.${name}`)}
                 style={styles.scheduleInput}

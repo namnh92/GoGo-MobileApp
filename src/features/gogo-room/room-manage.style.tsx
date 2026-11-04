@@ -1,18 +1,37 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  scheduleInput: { ...type.body, color: neutral[900], borderWidth: 1, borderColor: neutral[300], borderRadius: radius.compact, padding: spacing[3], minHeight: touchTarget.min },
-  card: { padding: spacing[5], marginTop: spacing[4], gap: spacing[3] },
+  scheduleInput: { ...type.body, color: theme.text.primary, backgroundColor: theme.surface.subtle, borderRadius: radius.compact, padding: spacing[3], minHeight: touchTarget.min },
+  card: { padding: spacing[5], marginBottom: spacing[4], gap: spacing[3] },
+  flex: { flex: 1 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  warnBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    padding: spacing[3],
+    borderRadius: radius.compact,
+    backgroundColor: theme.status.warningSoft,
+  },
+  noteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    padding: spacing[3],
+    borderRadius: radius.compact,
+    backgroundColor: theme.surface.subtle,
+  },
+  noteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dangerCard: { padding: spacing[4], marginTop: spacing[2], gap: spacing[3], backgroundColor: theme.status.dangerSoft },
   tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   tier: {
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[2],
     borderRadius: radius.pill,
-    backgroundColor: neutral[100],
+    backgroundColor: theme.surface.subtle,
   },
   tierActive: { backgroundColor: theme.accent.primary },
   row: {
@@ -21,15 +40,20 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[3],
     minHeight: touchTarget.min,
     borderTopWidth: 1,
-    borderTopColor: neutral[100],
+    borderTopColor: theme.border.hairline,
     paddingTop: spacing[3],
+    paddingBottom: spacing[1],
   },
   rowMeta: { marginTop: 2 },
   rowAction: {
     minHeight: touchTarget.min,
     justifyContent: 'center',
     paddingHorizontal: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.subtle,
   },
   notice: { textAlign: 'center', marginTop: spacing[4] },
-  cancelBtn: { alignItems: 'center', paddingVertical: spacing[4], marginTop: spacing[2] },
 }))
