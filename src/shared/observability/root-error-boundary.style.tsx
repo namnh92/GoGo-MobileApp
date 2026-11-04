@@ -1,7 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { surface } from '@/shared/ui/tokens'
-
-export const styles = StyleSheet.create({
-  fallback: { flex: 1, justifyContent: 'center', backgroundColor: surface.canvas },
-})
+export const styles = StyleSheet.create(theme => ({
+  fallback: { flex: 1, justifyContent: 'center', backgroundColor: theme.surface.canvas },
+}))

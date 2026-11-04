@@ -21,8 +21,6 @@ import { describe, expect, it } from 'vitest'
  * THE LIST MUST BE EMPTY BEFORE re-design MERGES TO develop.
  */
 const ALLOWLIST: Record<string, number> = {
-  'shared/administrative/administrative-picker.style.tsx': 1,
-  'shared/observability/root-error-boundary.style.tsx': 1,
 }
 
 const SRC = path.resolve(__dirname, '../../..')
