@@ -8,7 +8,7 @@ import { renderScreen } from './harness'
  * cannot work says why.
  */
 
-const mockIdentity = { setPromotions: jest.fn(async () => undefined) }
+const mockIdentity = { setPromotions: jest.fn(async (_next: boolean) => undefined) }
 const mockPermission = {
   status: jest.fn(async () => 'granted'),
   request: jest.fn(async () => ({ kind: 'granted' })),

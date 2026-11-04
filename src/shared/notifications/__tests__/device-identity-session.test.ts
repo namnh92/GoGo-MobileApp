@@ -436,6 +436,8 @@ describe('sign-out (AC-16, R-21)', () => {
     const ending = t.session.beginSignOut('user')
     await t.session.apply(USER)
     await ending
+    // And after #160, while the server is being told: a token refresh emits too.
+    await t.session.apply(USER)
     await t.session.settled()
     expect(t.calls).toEqual(['confirm160'])
   })
