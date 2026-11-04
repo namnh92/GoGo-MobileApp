@@ -28,6 +28,6 @@ export const styles = StyleSheet.create(theme => ({
   // widening the card. The column holds title, meta and status, so its width
   // is the row minus the icon — nothing beside it competes for the space.
   body: { flex: 1, minWidth: 0, gap: 2 },
-  /** Hugs its label; a little air above so it reads as its own row. */
-  status: { alignSelf: 'flex-start', marginTop: theme.spacing[1] },
+  /** Hugs its label and leads the column, above the title. */
+  status: { alignSelf: 'flex-start', marginBottom: theme.spacing[1] },
 }))

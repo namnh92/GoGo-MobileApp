@@ -14,7 +14,10 @@ import {
   useRoom,
 } from '@/shared/api'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { GlassBar } from '@/shared/ui/glass-bar.view'
+import { Icon } from '@/shared/ui/icons'
+import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { Atmosphere, BackHeader, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -141,54 +144,73 @@ export default function PlanEditScreen() {
     <Atmosphere>
       {header}
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
+        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}
       >
-        <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t('planEdit.body', { max: MAX_STOPS })}</Text>
+        <View style={styles.intro}>
+          <Icon name="info" size={18} color="accent.primary" />
+          <Text variant="bodySmall" color="text.secondary" style={styles.introText}>{t('planEdit.body', { max: MAX_STOPS })}</Text>
+        </View>
 
-        {draft.map((stop, index) => (
-          <Card padded={false} key={`${stop.placeId}-${index}`} style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text variant="title2" numberOfLines={1}>
-                {places.byPlaceId.get(stop.placeId)?.name ?? ''}
-              </Text>
-              <Text variant="caption" color="text.secondary" style={styles.meta}>
-                {t('datePlan.minutes', { n: stop.durationMinutes })}
-                {stop.isLocked ? ` · ${t('planEdit.locked')}` : ''}
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => move(index, -1)}
-              disabled={index === 0}
-              accessibilityLabel={t('planEdit.moveUp')}
-              style={[styles.iconBtn, index === 0 && styles.iconBtnDisabled]}
-            >
-              <Text>↑</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => move(index, 1)}
-              disabled={index === draft.length - 1}
-              accessibilityLabel={t('planEdit.moveDown')}
-              style={[styles.iconBtn, index === draft.length - 1 && styles.iconBtnDisabled]}
-            >
-              <Text>↓</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => remove(index)}
-              disabled={draft.length <= MIN_STOPS}
-              accessibilityLabel={t('roomManage.removeConfirm')}
-              style={[styles.iconBtn, draft.length <= MIN_STOPS && styles.iconBtnDisabled]}
-            >
-              <Text color="status.dangerText">✕</Text>
-            </Pressable>
-          </Card>
-        ))}
+        {draft.map((stop, index) => {
+          const place = places.byPlaceId.get(stop.placeId)
+          return (
+            <Card padded={false} key={`${stop.placeId}-${index}`} style={styles.row}>
+              <View style={styles.rowMain}>
+                <PlacePhoto placeId={stop.placeId} name={place?.name ?? ''} uri={place?.photoUrl ?? null} style={styles.thumb} />
+                <View style={styles.rowText}>
+                  <Text variant="title2" numberOfLines={1}>
+                    {place?.name ?? ''}
+                  </Text>
+                  <View style={styles.meta}>
+                    <Text variant="caption" color="text.secondary">
+                      {t('datePlan.minutes', { n: stop.durationMinutes })}
+                    </Text>
+                    {stop.isLocked ? <Chip label={t('planEdit.locked')} icon="lock" /> : null}
+                  </View>
+                </View>
+              </View>
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => move(index, -1)}
+                  disabled={index === 0}
+                  accessibilityLabel={t('planEdit.moveUp')}
+                  style={[styles.iconBtn, index === 0 && styles.iconBtnDisabled]}
+                >
+                  <Text variant="label">↑</Text>
+                  <Text variant="label">{t('planEdit.moveUp')}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => move(index, 1)}
+                  disabled={index === draft.length - 1}
+                  accessibilityLabel={t('planEdit.moveDown')}
+                  style={[styles.iconBtn, index === draft.length - 1 && styles.iconBtnDisabled]}
+                >
+                  <Text variant="label">↓</Text>
+                  <Text variant="label">{t('planEdit.moveDown')}</Text>
+                </Pressable>
+                <View style={styles.actionSpacer} />
+                <Pressable
+                  onPress={() => remove(index)}
+                  disabled={draft.length <= MIN_STOPS}
+                  accessibilityLabel={t('roomManage.removeConfirm')}
+                  style={[styles.iconBtn, draft.length <= MIN_STOPS && styles.iconBtnDisabled]}
+                >
+                  <Icon name="trash" size={16} color="status.dangerText" />
+                  <Text variant="label" color="status.dangerText">{t('roomManage.removeConfirm')}</Text>
+                </Pressable>
+              </View>
+            </Card>
+          )
+        })}
 
         {error ? (
           <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
             {error}
           </Text>
         ) : null}
+      </ScrollView>
 
+      <GlassBar placement="docked">
         <PrimaryBtn
           label={editStops.isPending ? t('account.saving') : t('account.save')}
           onPress={save}
@@ -196,7 +218,7 @@ export default function PlanEditScreen() {
           loading={editStops.isPending}
           style={styles.saveBtn}
         />
-      </ScrollView>
+      </GlassBar>
     </Atmosphere>
   )
 }

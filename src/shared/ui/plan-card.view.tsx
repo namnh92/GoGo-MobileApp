@@ -15,10 +15,10 @@ import { styles } from './plan-card.style'
  * The title is never truncated — "Kèo…" tells nobody which plan it is — so it
  * wraps, and the card grows. The meta line wraps too.
  *
- * The status chip sits under the facts, inside the text column (#298). Pinned
- * to the right of the column, a long status ("Đang chờ mọi người chọn") took
- * most of a 375pt row and squeezed the title and meta to one word per line;
- * under them it never takes width from either.
+ * The status chip leads the text column, above the title (Stitch order). It
+ * stays inside the column (#298): pinned to the right, a long status ("Đang
+ * chờ mọi người chọn") took most of a 375pt row and squeezed the title and
+ * meta to one word per line; in the column it never takes width from either.
  *
  * `metaAccessibilityLabel` is the same facts as spoken sentences: "800k/người"
  * read aloud is noise, "Ngân sách 800k mỗi người" is the fact (GoGo-BE#637).
@@ -43,6 +43,7 @@ export function PlanCard({ icon, title, meta, metaAccessibilityLabel, status, pa
           <Icon name={icon} size={24} color={past ? 'text.secondary' : 'accent.onSoft'} />
         </View>
         <View style={styles.body}>
+          <Chip label={status.label} variant={status.variant} style={styles.status} />
           <Text testID="plan-card-title" variant="title2">{title}</Text>
           <Text
             testID="plan-card-meta"
@@ -52,7 +53,6 @@ export function PlanCard({ icon, title, meta, metaAccessibilityLabel, status, pa
           >
             {meta}
           </Text>
-          <Chip label={status.label} variant={status.variant} style={styles.status} />
         </View>
       </Card>
     </Pressable>

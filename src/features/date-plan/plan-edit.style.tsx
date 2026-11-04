@@ -1,28 +1,48 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { touchTarget } from '@/shared/ui/tokens'
 
-const { neutral } = colors
-
-export const styles = StyleSheet.create({
-  body: { marginBottom: spacing[3] },
-  row: {
+export const styles = StyleSheet.create(theme => ({
+  /** The one line that says what editing does, on a soft card at the top. */
+  intro: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing[3],
+    padding: theme.spacing[4],
+    marginBottom: theme.spacing[4],
+    borderRadius: theme.radius.card,
+    backgroundColor: theme.surface.subtle,
+  },
+  introText: { flex: 1 },
+  row: { marginBottom: theme.spacing[2], overflow: 'hidden' },
+  rowMain: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], padding: theme.spacing[3] },
+  thumb: { width: 64, height: 64, borderRadius: theme.radius.thumbnail },
+  rowText: { flex: 1, minWidth: 0, gap: 2 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing[2], marginTop: 2 },
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[2],
-    padding: spacing[3],
-    marginBottom: spacing[2],
+    gap: theme.spacing[2],
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    backgroundColor: theme.surface.canvas,
   },
-  meta: { marginTop: 2 },
+  actionSpacer: { flex: 1 },
   iconBtn: {
-    width: touchTarget.min,
-    height: touchTarget.min,
+    minHeight: touchTarget.min,
+    minWidth: touchTarget.min,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: neutral[100],
+    gap: theme.spacing[1],
+    paddingHorizontal: theme.spacing[3],
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
   },
   iconBtnDisabled: { opacity: 0.35 },
-  error: { marginTop: spacing[3] },
-  saveBtn: { marginTop: spacing[4] },
-})
+  error: { marginTop: theme.spacing[3] },
+  saveBar: { gap: theme.spacing[2] },
+  saveBtn: { alignSelf: 'stretch' },
+}))
