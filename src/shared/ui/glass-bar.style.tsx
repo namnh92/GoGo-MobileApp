@@ -4,7 +4,7 @@ export const styles = StyleSheet.create(theme => ({
   /** Every bar: a one-point hairline on top, children above the material. */
   bar: {
     borderTopWidth: 1,
-    borderTopColor: theme.border.hairline,
+    borderTopColor: theme.glass.bar.hairline,
     overflow: 'hidden',
   },
   /** An action bar (`floating` or `docked`): screen gutter, 16pt on top. */
