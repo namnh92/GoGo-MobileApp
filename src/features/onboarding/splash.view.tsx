@@ -10,7 +10,7 @@ import { hasCompletedOnboarding, markOnboardingComplete } from '@/shared/storage
 
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { Glyph, Text } from '@/shared/ui/text'
-import { colors, motion } from '@/shared/ui/tokens'
+import { motion } from '@/shared/ui/tokens'
 
 import { styles } from './splash.style'
 
@@ -64,32 +64,28 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.root}>
-      <View pointerEvents="none" style={[styles.deco, { top: -90, left: -70 }]} />
-      <View
-        pointerEvents="none"
-        style={[styles.deco, { bottom: -110, right: -50, width: 400, height: 400, borderRadius: 200 }]}
-      />
+      <View style={styles.card}>
+        <Animated.View
+          // The wordmark is the accessible name; the mark above it is decoration.
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.logoBox, { opacity: entrance, transform: [{ scale: settle }] }]}
+        >
+          <Svg width={36} height={36} viewBox="0 0 42 42" fill="none">
+            <Circle cx={14} cy={21} r={9} fill={theme.accent.primary} />
+            <Circle cx={28} cy={21} r={9} fill={theme.accent.primary} opacity={0.6} />
+            <Path
+              d="M21 14 C17 14, 14 17, 14 21 C14 25, 17 28, 21 28 C25 28, 28 25, 28 21 C28 17, 25 14, 21 14Z"
+              fill={theme.accent.soft}
+            />
+          </Svg>
+        </Animated.View>
 
-      <Animated.View
-        // The wordmark is the accessible name; the mark beside it is decoration.
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={[styles.logoBox, { opacity: entrance, transform: [{ scale: settle }] }]}
-      >
-        <Svg width={48} height={48} viewBox="0 0 42 42" fill="none">
-          <Circle cx={14} cy={21} r={9} fill={theme.accent.primary} />
-          <Circle cx={28} cy={21} r={9} fill={theme.accent.primary} opacity={0.6} />
-          <Path
-            d="M21 14 C17 14, 14 17, 14 21 C14 25, 17 28, 21 28 C25 28, 28 25, 28 21 C28 17, 25 14, 21 14Z"
-            fill={colors.neutral[0]}
-          />
-        </Svg>
-      </Animated.View>
-
-      <Animated.View style={{ opacity: entrance, transform: [{ translateY: rise }], alignItems: 'center' }}>
-        <Glyph size="xl" color="text.inverse" style={styles.wordmark} accessibilityRole="header">GoGo</Glyph>
-        <Text color="onDark.medium" style={styles.tagline}>{t('splash.tagline')}</Text>
-      </Animated.View>
+        <Animated.View style={[styles.textBlock, { opacity: entrance, transform: [{ translateY: rise }] }]}>
+          <Glyph size="xl" color="accent.primary" style={styles.wordmark} accessibilityRole="header">GoGo</Glyph>
+          <Text color="text.secondary" style={styles.tagline}>{t('splash.tagline')}</Text>
+        </Animated.View>
+      </View>
     </View>
   )
 }

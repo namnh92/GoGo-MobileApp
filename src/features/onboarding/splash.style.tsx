@@ -1,44 +1,39 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, shadows, spacing } from '@/shared/ui/tokens'
-
-const { neutral } = colors
-
 export const styles = StyleSheet.create(theme => ({
   root: {
     flex: 1,
-    backgroundColor: theme.accent.primary,
+    backgroundColor: theme.surface.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  /** Two soft washes give the flat coral some depth without a gradient asset. */
-  deco: {
-    position: 'absolute',
-    width: 340,
-    height: 340,
-    borderRadius: 170,
-    backgroundColor: neutral[0],
-    opacity: 0.1,
-  },
-  logoBox: {
-    width: 96,
-    height: 96,
-    borderRadius: 32,
-    backgroundColor: neutral[0],
+  /** One round card holds the mark, wordmark and tagline, as in the Stitch pair. */
+  card: {
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: theme.surface.card,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: shadows.black,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 10,
+    ...theme.shadows.toast,
+  },
+  logoBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.accent.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textBlock: {
+    alignItems: 'center',
   },
   wordmark: {
     letterSpacing: -0.5,
-    marginTop: spacing[6],
+    marginTop: theme.spacing[3],
   },
   tagline: {
-    marginTop: spacing[1],
+    marginTop: theme.spacing[1],
   },
 }))
