@@ -1,6 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
+import { scriptedTime } from './scripted-time'
 
 /**
  * #382 (UI-AI-002 §7, §8) — Home greets by the time of day instead of always
@@ -54,6 +55,8 @@ function emptyPage() {
     fetchNextPage: jest.fn(),
   }
 }
+
+scriptedTime()
 
 beforeEach(() => {
   mockPush.mockClear()

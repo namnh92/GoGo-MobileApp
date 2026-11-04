@@ -1,6 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { renderScreen } from './harness'
+import { scriptedTime } from './scripted-time'
 import { ApiError } from '@/shared/api/errors'
 import { viMessages } from '@/shared/i18n/vi'
 
@@ -100,9 +101,7 @@ beforeEach(() => {
   mockGetRoom.mockResolvedValue(room('ready'))
 })
 
-afterEach(() => {
-  jest.useRealTimers()
-})
+scriptedTime()
 
 describe('a plan notification without a plan id', () => {
   it("opens the room's current plan, not the lobby", async () => {
@@ -256,7 +255,6 @@ describe('taps while a row resolves', () => {
   })
 
   it('does not hold a slow answer past the budget: the room opens, saying the plan is still loading', async () => {
-    jest.useFakeTimers()
     mockGetCurrentPlan.mockReturnValue(new Promise(() => undefined))
     const view = await renderScreen(<NotificationsScreen />)
 

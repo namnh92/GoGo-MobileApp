@@ -8,11 +8,14 @@ import { useAssistantIntroStore } from '@/shared/store/assistantIntroStore'
 import { ToastProvider } from '@/shared/ui/toast.view'
 import { createMockAssistantBackend, type MockAssistantOptions } from '@/data/assistant/mock-backend'
 
+import { scriptedTime } from './scripted-time'
+
 /**
  * Shared setup for the GoGo AI screen specs (GoGo-MobileApp#378). The screens
  * run against the same scripted backend a dev build uses (`src/data/assistant`)
  * at speed 0, wrapped in a spy so a spec can read exactly what was sent —
- * the context, the Idempotency-Key, the edited values.
+ * the context, the Idempotency-Key, the edited values. A `timeout` in these
+ * specs is scripted time, not a wall-clock budget (`scriptedTime`).
  */
 export type SpyBackend = AssistantBackend & { calls: { name: string; args: unknown[] }[] }
 
@@ -61,22 +64,27 @@ export async function renderAssistant(element: React.ReactElement) {
   return screen
 }
 
+scriptedTime()
+
 /**
- * Lets the scripted reply run to its end inside `act`: the frames after the
- * one a spec waited for, the status refetch a finished reply triggers.
+ * Moves scripted time inside `act`: the frames after the one a spec waited
+ * for, the status refetch a finished reply triggers.
  */
 export async function settle(ms = 60) {
   await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, ms))
+    await jest.advanceTimersByTimeAsync(ms)
   })
 }
 
+/** A direct call to the scripted backend: its answer sits on a timer too. */
+export async function scripted<T>(call: Promise<T>): Promise<T> {
+  await settle()
+  return call
+}
+
 /**
- * `settle()` waits a fixed 60ms, which a loaded CI runner can outlast: the
- * scripted reply's last frames, or the status refetch it triggers, then land
- * after the test and React reports an update outside act (#389 CI, twice).
- * This waits for the thing itself — no query or mutation in flight and no
- * reply being written (the composer's Stop button gone) — then one settle more.
+ * Waits for the thing itself — no query or mutation in flight and no reply
+ * being written (the composer's Stop button gone) — then one settle more.
  */
 export async function settleIdle(maxRounds = 100) {
   for (let round = 0; round < maxRounds; round += 1) {

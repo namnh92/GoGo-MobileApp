@@ -2,6 +2,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { AccessibilityInfo, DeviceEventEmitter, StyleSheet } from 'react-native'
 
 import { loaded as mockLoaded, renderScreen as renderBare } from './harness'
+import { scriptedTime } from './scripted-time'
 
 /**
  * GoGo-MobileApp#381 — the hand-written `<Modal transparent>` sheets on the
@@ -99,6 +100,8 @@ async function withReducedMotion(reduced: boolean) {
 }
 
 const STOP = { id: 'stop-1', placeId: 'place-1' } as unknown as PlanStopRow
+
+scriptedTime()
 
 beforeEach(() => {
   jest.restoreAllMocks()
