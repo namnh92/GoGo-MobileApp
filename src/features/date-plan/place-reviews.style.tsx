@@ -1,38 +1,67 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   section: { marginTop: spacing[6] },
-  source: { marginTop: spacing[1] },
-  orderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
+  sourceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    marginTop: spacing[3],
+    padding: spacing[3],
+    borderRadius: radius.compact,
+    backgroundColor: theme.status.successSoft,
+  },
+  source: { flex: 1 },
+  // The two orders read as one segmented switch on a tonal track.
+  orderRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+    marginTop: spacing[3],
+    alignSelf: 'flex-start',
+    padding: spacing[1],
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.subtle,
+  },
   fallback: { marginTop: spacing[3] },
   list: { gap: spacing[3], marginTop: spacing[3] },
   row: {
     borderRadius: radius.card,
-    backgroundColor: neutral[50],
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+    ...theme.shadows.card,
     padding: spacing[4],
     gap: spacing[1],
   },
-  rowContent: { gap: spacing[1] },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
+  rowContent: { gap: spacing[2] },
+  rowHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  authorBlock: { flex: 1 },
   author: { flexShrink: 1 },
+  ratingPill: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.pill,
+    backgroundColor: theme.accent.soft,
+  },
+  reviewText: { marginTop: spacing[1] },
+  divider: { height: 1, marginTop: spacing[2], backgroundColor: theme.border.hairline },
   helpfulBtn: {
     alignSelf: 'flex-start',
     minHeight: touchTarget.min,
     justifyContent: 'center',
     paddingHorizontal: spacing[3],
     marginTop: spacing[2],
-    borderRadius: radius.pill,
+    borderRadius: radius.compact,
     borderWidth: 1,
-    borderColor: neutral[300],
-    backgroundColor: neutral[0],
+    borderColor: theme.border.hairline,
+    backgroundColor: theme.surface.subtle,
   },
   helpfulBtnActive: { borderColor: theme.accent.primary },
   // Pressed is a colour change only (#382).
-  helpfulPressed: { backgroundColor: theme.surface.subtle },
+  helpfulPressed: { backgroundColor: theme.accent.soft },
   empty: { marginTop: spacing[3] },
   notice: { marginTop: spacing[3], gap: spacing[2], alignItems: 'flex-start' },
 }))

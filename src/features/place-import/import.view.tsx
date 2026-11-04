@@ -15,11 +15,11 @@ import {
   type ResolveLinkResult,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { Icon } from '@/shared/ui/icons'
+import { Icon, IconMapPin } from '@/shared/ui/icons'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './import.style'
 
@@ -254,44 +254,45 @@ export default function PlaceImportScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} />
+        <BackHeader title={t('placeImport.title')} onBack={() => router.back()} />
       </View>
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text variant="display" style={styles.title}>{t('placeImport.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('placeImport.body')}</Text>
 
-        <TextInput
-          value={url}
-          onChangeText={value => {
-            setUrl(value)
-            setInvalid(false)
-          }}
-          placeholder={t('placeImport.placeholder')}
-          placeholderTextColor={colors.neutral[500]}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          accessibilityLabel={t('placeImport.title')}
-          style={[styles.input, invalid && styles.inputError]}
-        />
-        {invalid && <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.invalidUrl')}</Text>}
-
-        {resolve.isPending ? (
-          <View style={styles.verifyingRow}>
-            <ActivityIndicator color={theme.accent.primary} />
-            <Text variant="bodySmall" color="text.secondary">{t('placeImport.verifying')}</Text>
-          </View>
-        ) : (
-          <PrimaryBtn
-            label={t('placeImport.verify')}
-            onPress={onResolve}
-            disabled={url.trim() === ''}
-            style={styles.verifyBtn}
+        <View style={styles.inputCard}>
+          <TextInput
+            value={url}
+            onChangeText={value => {
+              setUrl(value)
+              setInvalid(false)
+            }}
+            placeholder={t('placeImport.placeholder')}
+            placeholderTextColor={theme.text.secondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            accessibilityLabel={t('placeImport.title')}
+            style={[styles.input, invalid && styles.inputError]}
           />
-        )}
+          {invalid && <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.invalidUrl')}</Text>}
+
+          {resolve.isPending ? (
+            <View style={styles.verifyingRow}>
+              <ActivityIndicator color={theme.accent.primary} />
+              <Text variant="bodySmall" color="text.secondary">{t('placeImport.verifying')}</Text>
+            </View>
+          ) : (
+            <PrimaryBtn
+              label={t('placeImport.verify')}
+              onPress={onResolve}
+              disabled={url.trim() === ''}
+              style={styles.verifyBtn}
+            />
+          )}
+        </View>
 
         {resolve.isError ? (
           <View style={styles.rejectedCard}>
@@ -323,8 +324,13 @@ export default function PlaceImportScreen() {
             duplicate submission. */}
         {result?.status === 'ALREADY_EXISTS' ? (
           <Card padded={false} style={styles.resultCard}>
+            <View style={styles.existsBanner}>
+              <View style={styles.existsIcon}>
+                <Icon name="check" size={20} color="accent.onAccent" />
+              </View>
+              <Text variant="title2" style={styles.existsTitle}>{candidate?.name ?? t('placeImport.existsTitle')}</Text>
+            </View>
             <View style={styles.resultBody}>
-              <Text variant="title2">{candidate?.name ?? t('placeImport.existsTitle')}</Text>
               <Text variant="bodySmall" color="text.secondary" style={styles.placeAddress}>{t('placeImport.existsBody')}</Text>
               {result.existingPlaceId ? (
                 <PrimaryBtn
@@ -381,11 +387,15 @@ export default function PlaceImportScreen() {
               <View style={styles.verifiedBadge}>
                 <Text variant="label" color="status.successText">{t('placeImport.verifiedBadge')}</Text>
               </View>
-              <Text variant="title2">{candidate.name}</Text>
-              <Text variant="bodySmall" color="text.secondary" style={styles.placeAddress}>{candidate.address}</Text>
+              <Text variant="title1">{candidate.name}</Text>
+              <View style={styles.addressRow}>
+                <IconMapPin color={theme.text.secondary} />
+                <Text variant="bodySmall" color="text.secondary" style={styles.addressText}>{candidate.address}</Text>
+              </View>
 
               {candidate.googleRating != null ? (
-                <Text variant="label" style={styles.placeReviews}>
+                <View style={styles.ratingChip}>
+                <Text variant="label">
                   {t('placeImport.reviews', {
                     rating: candidate.googleRating,
                     // `n` is the display string; `count` picks the plural form (#270).
@@ -393,6 +403,7 @@ export default function PlaceImportScreen() {
                     n: (candidate.googleRatingCount ?? 0).toLocaleString(i18n.language),
                   })}
                 </Text>
+                </View>
               ) : null}
 
               {/* Google's business status is a fact worth surfacing: submitting a
@@ -456,7 +467,7 @@ export default function PlaceImportScreen() {
                       value={priceMin}
                       onChangeText={setPriceMin}
                       placeholder={t('search.priceFrom')}
-                      placeholderTextColor={colors.neutral[500]}
+                      placeholderTextColor={theme.text.secondary}
                       keyboardType="numeric"
                       style={[styles.input, styles.priceInput]}
                     />
@@ -464,7 +475,7 @@ export default function PlaceImportScreen() {
                       value={priceMax}
                       onChangeText={setPriceMax}
                       placeholder={t('search.priceTo')}
-                      placeholderTextColor={colors.neutral[500]}
+                      placeholderTextColor={theme.text.secondary}
                       keyboardType="numeric"
                       style={[styles.input, styles.priceInput]}
                     />
@@ -474,7 +485,7 @@ export default function PlaceImportScreen() {
                     value={note}
                     onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
                     placeholder={t('placeImport.metaNote')}
-                    placeholderTextColor={colors.neutral[500]}
+                    placeholderTextColor={theme.text.secondary}
                     multiline
                     style={[styles.input, styles.noteInput]}
                   />

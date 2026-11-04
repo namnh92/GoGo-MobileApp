@@ -1,15 +1,22 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, fill, glassFx, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
-
-const { brand, neutral } = colors
+import { fill, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 /** The hero gallery's height and how far the sheet overlaps it — the view
  * snaps the page scroll to exactly this seam, so both live here. */
 export const GALLERY_HEIGHT = 280
 export const SHEET_OVERLAP = 28
 
-export const styles = StyleSheet.create(theme => ({
+export const styles = StyleSheet.create(theme => {
+  /** The white, hairline-edged card the Stitch draft stacks on the canvas. */
+  const card = {
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+    borderRadius: radius.card,
+    ...theme.shadows.card,
+  } as const
+  return {
   // --- gallery -------------------------------------------------------------
   gallery: { height: GALLERY_HEIGHT },
   galleryPage: { height: GALLERY_HEIGHT },
@@ -21,8 +28,8 @@ export const styles = StyleSheet.create(theme => ({
     flexDirection: 'row',
     gap: 6,
   },
-  galleryDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: glassFx.badge },
-  galleryDotActive: { width: 18, backgroundColor: neutral[0] },
+  galleryDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.onDark.wash },
+  galleryDotActive: { width: 18, backgroundColor: theme.onDark.strong },
   galleryCount: {
     position: 'absolute',
     right: spacing[4],
@@ -39,7 +46,8 @@ export const styles = StyleSheet.create(theme => ({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: glassFx.solid,
+    backgroundColor: theme.surface.card,
+    ...theme.shadows.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -49,8 +57,8 @@ export const styles = StyleSheet.create(theme => ({
     marginTop: -SHEET_OVERLAP,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
-    // The sheet is page content, not a bar: solid (#382).
-    backgroundColor: theme.surface.card,
+    // The sheet is page content, not a bar: solid, on the canvas the cards sit on.
+    backgroundColor: theme.surface.canvas,
   },
   body: { paddingHorizontal: spacing[5], paddingTop: spacing[7], paddingBottom: spacing[5] },
   // The body already carries the side padding the bar would otherwise add.
@@ -68,27 +76,27 @@ export const styles = StyleSheet.create(theme => ({
     flexDirection: 'row',
     alignItems: 'stretch',
     marginTop: spacing[4],
-    borderRadius: radius.card,
-    backgroundColor: neutral[50],
-    paddingVertical: spacing[3],
+    ...card,
+    paddingVertical: spacing[4],
   },
   fact: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: spacing[2] },
-  factDivider: { width: 1, backgroundColor: neutral[100], marginVertical: spacing[1] },
+  factDivider: { width: 1, backgroundColor: theme.border.hairline, marginVertical: spacing[1] },
   factValue: { textAlign: 'center' },
   factValueMuted: { textAlign: 'center' },
   factCaption: { textAlign: 'center' },
 
   openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
   openDot: { width: 8, height: 8, borderRadius: 4 },
+  openDotOn: { backgroundColor: theme.status.success },
+  openDotOff: { backgroundColor: theme.text.tertiary },
   hoursToggle: { marginLeft: 'auto' },
   hoursTable: { marginTop: spacing[2], gap: 4, paddingLeft: spacing[4] },
   hoursRow: { flexDirection: 'row', justifyContent: 'space-between' },
 
   // --- address + map -------------------------------------------------------
   addressCard: {
+    ...card,
     marginTop: spacing[4],
-    backgroundColor: neutral[50],
-    borderRadius: radius.card,
     overflow: 'hidden',
   },
   mapPreview: { height: 140 },
@@ -99,7 +107,7 @@ export const styles = StyleSheet.create(theme => ({
     width: 40,
     height: 40,
     borderRadius: radius.compact,
-    backgroundColor: brand.mintSoft,
+    backgroundColor: theme.surface.subtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -112,19 +120,20 @@ export const styles = StyleSheet.create(theme => ({
   // --- ratings -------------------------------------------------------------
   ratingCards: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[3] },
   ratingCard: {
+    ...card,
     flex: 1,
-    borderRadius: radius.card,
-    backgroundColor: neutral[50],
     padding: spacing[4],
     gap: 2,
     minHeight: 96,
     justifyContent: 'center',
   },
 
+  // GoGo's own measure reads as a different source: tinted, never merged.
+  ratingCardGogo: { backgroundColor: theme.status.infoSoft, borderColor: theme.status.infoSoft, shadowOpacity: 0, elevation: 0 },
+
   // --- suitability ---------------------------------------------------------
   suitCard: {
-    backgroundColor: neutral[50],
-    borderRadius: radius.card,
+    ...card,
     padding: spacing[4],
     marginTop: spacing[3],
   },
@@ -136,7 +145,7 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[3],
   },
   suitLabel: { flex: 1 },
-  suitTrack: { width: 84, height: 6, borderRadius: 3, backgroundColor: neutral[100], overflow: 'hidden' },
+  suitTrack: { width: 84, height: 6, borderRadius: 3, backgroundColor: theme.surface.subtle, overflow: 'hidden' },
   suitFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 3 },
   suitValue: { width: 28, textAlign: 'right' },
 
@@ -154,10 +163,8 @@ export const styles = StyleSheet.create(theme => ({
   // --- trust ---------------------------------------------------------------
   attribution: { marginTop: spacing[2] },
   trustCard: {
+    ...card,
     marginTop: spacing[6],
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: neutral[100],
     padding: spacing[4],
     gap: spacing[2],
   },
@@ -183,25 +190,24 @@ export const styles = StyleSheet.create(theme => ({
     height: touchTarget.min + 8,
     borderRadius: radius.compact,
     borderWidth: 1,
-    borderColor: neutral[100],
+    borderColor: theme.border.hairline,
     backgroundColor: theme.surface.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveBtnActive: { borderColor: theme.accent.primary, backgroundColor: theme.accent.soft },
   addBtn: { height: touchTarget.min + 8 },
+  // Directions is the quieter action; the filled CTA is "add to plan".
   dirBtn: {
     height: touchTarget.min + 8,
-    borderRadius: radius.compact,
-    // This button paints its own background rather than going through
-    // PrimaryBtn, so it reads the accent itself; white on every theme's
-    // `accent.primary` clears AA (`__tests__/contrast.test.ts`).
-    backgroundColor: theme.accent.primary,
+    borderRadius: radius.button,
+    backgroundColor: theme.accent.soft,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   /** Pressed is a colour change only (#382). */
-  dirBtnPressed: { backgroundColor: theme.accent.pressed },
-}))
+  dirBtnPressed: { backgroundColor: theme.surface.subtle },
+  }
+})

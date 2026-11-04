@@ -31,17 +31,15 @@ import { IconBookmark, IconChevronLeft, IconMapPin, IconNavigation } from '@/sha
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { colors, hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
+import { hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
 
 import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
 import { AssistantPlaceCard } from '@/features/assistant/assistant-place-card.view'
 import { PlaceReviews } from './place-reviews.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
-
-const { brand, neutral } = colors
 
 /** Suitability scores are 0..1 from the ranking pipeline. */
 const SUITABILITY_MAX = 1
@@ -253,44 +251,9 @@ export default function PlaceDetailScreen() {
             ) : null}
           </View>
 
-          {/* The facts a decision actually turns on, side by side. A fact with
-              no data is left out rather than drawn as a dash (RULE-CORE-015). */}
-          <View testID="place-detail-facts" style={styles.factStrip}>
-            <View style={styles.fact}>
-              {isStandalonePrice(price.unit) ? (
-                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t(priceUnitKey(price.unit))}</Text>
-              ) : (
-                <>
-                  <Text variant="title2" style={styles.factValue} numberOfLines={1}>{price.amount}</Text>
-                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t(priceUnitKey(price.unit)).replace(/^\//, '')}</Text>
-                </>
-              )}
-            </View>
-            <View testID="place-detail-fact-divider" style={styles.factDivider} />
-            <View style={styles.fact}>
-              {google ? (
-                <>
-                  <Text variant="title2" style={styles.factValue}>★ {google.value.toFixed(1)}</Text>
-                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('rating.google')}</Text>
-                </>
-              ) : (
-                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t('placeDetail.noRating')}</Text>
-              )}
-            </View>
-            {detail.avgVisitMinutes != null ? (
-              <>
-                <View testID="place-detail-fact-divider" style={styles.factDivider} />
-                <View style={styles.fact}>
-                  <Text variant="title2" style={styles.factValue}>{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
-                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('placeDetail.avgVisit')}</Text>
-                </View>
-              </>
-            ) : null}
-          </View>
-
           {/* Colour is never the only signal — the dot repeats what the words say. */}
           <View style={styles.openRow}>
-            <View style={[styles.openDot, { backgroundColor: open.openNow ? brand.mint : neutral[300] }]} />
+            <View style={[styles.openDot, open.openNow ? styles.openDotOn : styles.openDotOff]} />
             <Text variant={!(open.openNow) ? 'label' : open.openNow ? 'label' : undefined} color={!(open.openNow) ? 'text.secondary' : open.openNow ? 'status.successText' : undefined}>{openLabel()}</Text>
             {(detail.hours ?? []).length > 0 ? (
               <Pressable
@@ -330,6 +293,41 @@ export default function PlaceDetailScreen() {
               })}
             </View>
           ) : null}
+
+          {/* The facts a decision actually turns on, side by side. A fact with
+              no data is left out rather than drawn as a dash (RULE-CORE-015). */}
+          <View testID="place-detail-facts" style={styles.factStrip}>
+            <View style={styles.fact}>
+              {isStandalonePrice(price.unit) ? (
+                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t(priceUnitKey(price.unit))}</Text>
+              ) : (
+                <>
+                  <Text variant="title2" style={styles.factValue} numberOfLines={1}>{price.amount}</Text>
+                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t(priceUnitKey(price.unit)).replace(/^\//, '')}</Text>
+                </>
+              )}
+            </View>
+            <View testID="place-detail-fact-divider" style={styles.factDivider} />
+            <View style={styles.fact}>
+              {google ? (
+                <>
+                  <Text variant="title2" style={styles.factValue}>★ {google.value.toFixed(1)}</Text>
+                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('rating.google')}</Text>
+                </>
+              ) : (
+                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t('placeDetail.noRating')}</Text>
+              )}
+            </View>
+            {detail.avgVisitMinutes != null ? (
+              <>
+                <View testID="place-detail-fact-divider" style={styles.factDivider} />
+                <View style={styles.fact}>
+                  <Text variant="title2" style={styles.factValue}>{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
+                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('placeDetail.avgVisit')}</Text>
+                </View>
+              </>
+            ) : null}
+          </View>
 
           {/* Questions about this place (#379): the contextual way into GoGo
               AI here — this screen has its own action bar, so no float button. */}
@@ -378,9 +376,9 @@ export default function PlaceDetailScreen() {
                 <Text variant="bodySmall" color="text.secondary">{t('placeDetail.noRating')}</Text>
               )}
             </View>
-            <View style={styles.ratingCard}>
-              <Text variant="caption" color="text.secondary">{t('rating.gogo')}</Text>
-              <Text variant="bodySmall" color="text.secondary">{t('rating.gogoInsufficient')}</Text>
+            <View style={[styles.ratingCard, styles.ratingCardGogo]}>
+              <Text variant="caption" color="status.infoText">{t('rating.gogo')}</Text>
+              <Text variant="bodySmall" color="status.infoText">{t('rating.gogoInsufficient')}</Text>
             </View>
           </View>
 
@@ -482,7 +480,7 @@ export default function PlaceDetailScreen() {
         </Pressable>
 
       <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight} style={styles.actionBar}>
-        <SecondaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} style={styles.addBtn} />
+        <PrimaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} style={styles.addBtn} />
         <Pressable
           accessibilityRole="button"
           onPress={() => {
@@ -491,8 +489,8 @@ export default function PlaceDetailScreen() {
           }}
           style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
         >
-          <IconNavigation color={neutral[0]} />
-          <Text variant="label" color="text.inverse">{t('common.directions')}</Text>
+          <IconNavigation />
+          <Text variant="label" color="accent.primary">{t('common.directions')}</Text>
         </Pressable>
       </GlassBar>
     </Atmosphere>
