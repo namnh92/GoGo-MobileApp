@@ -116,6 +116,7 @@ export const viMessages = {
   'account.dobBody': 'Không bắt buộc. Chỉ bạn thấy; thành viên khác trong phòng không bao giờ thấy.',
   'account.dobUnset': 'Chưa đặt ngày sinh',
   'account.dobCurrent': 'Đã lưu: {{date}}',
+  'account.dobDate': '{{day}} {{monthName}}, {{year}}',
   'account.dobInputLabel': 'Ngày sinh (ngày/tháng/năm)',
   'account.dobFormat': 'Nhập theo dạng ngày/tháng/năm, ví dụ 17/05/1990.',
   'account.dobPlaceholder': '17/05/1990',
@@ -1179,4 +1180,8 @@ export const viContent = {
   searchFilters: ['Tất cả', 'Ăn uống', 'Cà phê', 'Hoạt động', 'Về đêm', 'Lưu trú'],
   suitedOptions: ['Cặp đôi', 'Nhóm bạn'],
   matchingMessages: ['Đang tìm phần các bạn cùng thích…', 'Đang ghép lịch trình…', 'Match rồi'],
+  // Month names for dates composed from their calendar parts (#410). Index 0 is
+  // January. The product writes these itself: CLDR's Vietnamese date pattern
+  // changed between ICU versions, and the phone's ICU is not the app's.
+  monthNames: ['tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6', 'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'],
 }
