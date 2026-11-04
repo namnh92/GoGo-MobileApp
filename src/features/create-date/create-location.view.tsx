@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
 
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
@@ -31,7 +30,6 @@ const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
  * position — its centre never stands in for where the user is.
  */
 export default function CreateLocationScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const [footerHeight, setFooterHeight] = useState(0)
@@ -122,7 +120,7 @@ export default function CreateLocationScreen() {
           accessibilityState={{ selected: usingCurrent, busy: location.state.status === 'asking' }}
         >
           <Card padded={false} style={styles.rowCard}>
-            <View style={[styles.rowIcon, { backgroundColor: theme.accent.soft }]}>
+            <View style={styles.rowIcon}>
               <IconMapPin />
             </View>
             <View style={{ flex: 1 }}>
@@ -154,9 +152,9 @@ export default function CreateLocationScreen() {
                     onPress={() => setRadiusM(option)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
-                    style={[styles.radiusBtn, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
+                    style={[styles.radiusBtn, active ? styles.radiusBtnActive : glassStyles.card]}
                   >
-                    <Text variant="label" color={active ? 'accent.onAccent' : 'text.secondary'}>
+                    <Text variant="label" color={active ? 'accent.onSoft' : 'text.secondary'}>
                       {label}
                     </Text>
                   </Pressable>

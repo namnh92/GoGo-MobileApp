@@ -11,7 +11,7 @@ import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, tierForAmount, type BudgetTier } from './budget-tiers'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-budget.style'
@@ -88,21 +88,20 @@ export default function CreateBudgetScreen() {
                 onPress={() => { setSelected(tier); patchDraft({ budgetAmount: tier.amount }) }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
+                style={[styles.option, active ? styles.optionActive : glassStyles.card]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text variant="title2" color={active ? 'accent.onAccent' : 'text.primary'}>
+                  <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>
                     {t(`createBudget.tier.${tier.key}`)}
                   </Text>
-                  <Text variant="bodySmall" color={active ? 'onDark.medium' : 'text.secondary'} style={styles.optionSub}>
+                  <Text variant="bodySmall" color="text.secondary" style={styles.optionSub}>
                     {t(`createBudget.tier.${tier.key}.sub`)}
                   </Text>
                 </View>
-                {active && (
-                  <View style={styles.checkBubble}>
-                    <IconCheck color={colors.neutral[0]} size={12} />
-                  </View>
-                )}
+                {/* Selection is a tint, a ring and a check, never colour alone. */}
+                <View style={[styles.checkBubble, active && styles.checkBubbleActive]}>
+                  {active ? <IconCheck color={theme.accent.onAccent} size={12} /> : null}
+                </View>
               </Pressable>
             )
           })}

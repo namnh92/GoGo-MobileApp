@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing, glassFx } from '@/shared/ui/tokens'
+import { radius, spacing } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing[5] },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
@@ -11,15 +11,17 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  optionActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.primary },
   optionSub: { marginTop: 2 },
   checkBubble: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: glassFx.badge,
+    backgroundColor: theme.surface.subtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  checkBubbleActive: { backgroundColor: theme.accent.primary },
   /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
   prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[4] },
-})
+}))
