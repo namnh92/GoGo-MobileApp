@@ -164,9 +164,12 @@ export default function DateFinishedScreen() {
             {index > 0 && <View style={styles.connector} />}
             <View style={styles.stopRow}>
               <View style={[styles.stopMark, stop.status === 'completed' && styles.stopMarkDone]}>
-                <Text variant="caption" color={stop.status === 'completed' ? 'status.successText' : 'text.secondary'}>
-                  {index + 1}
-                </Text>
+                {/* A check for a finished stop: colour alone must not carry the state. */}
+                {stop.status === 'completed' ? (
+                  <Icon name="check" size={14} color="status.successText" />
+                ) : (
+                  <Text variant="caption" color="text.secondary">{index + 1}</Text>
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 <Text variant="title2">{places.byPlaceId.get(stop.placeId)?.name ?? ''}</Text>
