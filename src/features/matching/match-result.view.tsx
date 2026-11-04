@@ -31,11 +31,12 @@ import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { allScopes, costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
+import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
-import { IconCheck, IconZap, type IconName } from '@/shared/ui/icons'
+import { Icon, IconZap, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -241,28 +242,64 @@ export default function MatchResultScreen() {
   return (
     <Atmosphere>
       {noticeSlot(true)}
-      <ScrollView contentContainerStyle={{ paddingTop: spacing[3], paddingBottom: spacing[8] }}>
-        <View style={styles.hero}>
-          <PlacePhoto placeId={winner.placeId} name={winner.name} uri={winnerPhoto} style={StyleSheet.absoluteFill} />
-          <View style={styles.heroScrim} />
-          <View style={styles.heroBadge}>
-            <Text variant="label" color="text.inverse">
-              ⚡ {roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')}
+      <ScrollView contentContainerStyle={{ paddingTop: spacing[3], paddingBottom: spacing[5] }}>
+        {/* The verdict first, as the draft opens: title, then who agreed. */}
+        <View style={styles.intro}>
+          <Text variant="display">
+            {roomType === 'group' ? t('matchResult.groupTitle') : t('matching.matched')}
+          </Text>
+          {roomType !== 'group' ? (
+            <Text color="text.secondary">{t('matching.matchedBody', { context: roomType })}</Text>
+          ) : null}
+        </View>
+        {roomType === 'group' && winnerTally ? (
+          <View style={styles.summary}>
+            <Text variant="label" color="accent.onSoft">
+              {t('matchResult.groupVotes', {
+                likes: (winnerTally.yes ?? 0) + (winnerTally.star ?? 0),
+                total: participantCount,
+                vetoes: winnerTally.no ?? 0,
+              })}
             </Text>
           </View>
-          <View style={styles.heroBottom}>
-            <Text variant="display" color="text.inverse">{winner.name}</Text>
-            {roomType === 'group' && winnerTally ? (
-              <Text variant="label" color="onDark.strong" style={styles.heroVotes}>
-                {t('matchResult.groupVotes', {
-                  likes: (winnerTally.yes ?? 0) + (winnerTally.star ?? 0),
-                  total: participantCount,
-                  vetoes: winnerTally.no ?? 0,
-                })}
+        ) : null}
+
+        <Card padded={false} style={styles.hero}>
+          <View style={styles.heroPhoto}>
+            <PlacePhoto placeId={winner.placeId} name={winner.name} uri={winnerPhoto} style={StyleSheet.absoluteFill} />
+            <View style={styles.heroBadge}>
+              <Text variant="label" color="accent.onAccent">
+                ⚡ {roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')}
               </Text>
+            </View>
+          </View>
+          <View style={styles.heroBody}>
+            <View style={styles.heroTitleRow}>
+              <Text variant="title1" style={styles.heroName}>{winner.name}</Text>
+              {winnerPrice ? (
+                <Text variant="title2" color="accent.primary" style={styles.heroPrice}>
+                  {isStandalonePrice(winnerPrice.unit)
+                    ? t(priceUnitKey(winnerPrice.unit))
+                    : `${winnerPrice.amount}${t(priceUnitKey(winnerPrice.unit))}`}
+                </Text>
+              ) : null}
+            </View>
+            {winnerDetail.data?.addressText ? (
+              <View style={styles.heroAddress}>
+                <Icon name="mapPin" size={14} color="text.secondary" />
+                <Text variant="bodySmall" color="text.secondary" style={styles.heroAddressText}>{winnerDetail.data.addressText}</Text>
+              </View>
+            ) : null}
+            {/* The facts behind the verdict, not just the verdict (spec §19). */}
+            {winnerFacts.some(fact => fact.key !== 'price') ? (
+              <View style={styles.factRow}>
+                {winnerFacts.filter(fact => fact.key !== 'price').map(fact => (
+                  <Chip key={fact.key} label={fact.label} icon={fact.icon} variant={fact.variant} />
+                ))}
+              </View>
             ) : null}
             {plan.data?.totals ? (
-              <Text variant="bodySmall" color="onDark.medium" style={styles.heroMeta}>
+              <Text variant="bodySmall" color="text.secondary" style={styles.heroMeta}>
                 ⏱ {Math.round((plan.data.totals.durationMinutes ?? 0) / 60)}h · 💰{' '}
                 {/* Spec §36.2: the per-person figure and the group figure together. */}
                 {allScopes(planCost(toPlanSummary(plan.data), room.data ? toRoomAudience(room.data) : null, t))
@@ -271,16 +308,7 @@ export default function MatchResultScreen() {
               </Text>
             ) : null}
           </View>
-        </View>
-
-        {/* The facts behind the verdict, not just the verdict (spec §19). */}
-        {winnerFacts.length > 0 ? (
-          <View style={styles.factRow}>
-            {winnerFacts.map(fact => (
-              <Chip key={fact.key} label={fact.label} icon={fact.icon} variant={fact.variant} />
-            ))}
-          </View>
-        ) : null}
+        </Card>
 
         {isStale ? (
           <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.staleWarning}>
@@ -290,21 +318,20 @@ export default function MatchResultScreen() {
 
         {/* Why this one — the explainable part of the score, straight from the
             pipeline rather than a written-in list. */}
-        <Card padded={false} style={styles.reasonCard}>
+        <View style={styles.section}>
           <View style={styles.reasonTitleRow}>
             <IconZap />
             <Text variant="title2">{t('matchResult.whyTitle')}</Text>
           </View>
-          {winner.reasonCodes.map(code => (
-            <View key={code} style={styles.reasonRow}>
-              <IconCheck />
-              <Text style={styles.reasonLabel}>{t(`suggestion.reason.${code}`, { defaultValue: code })}</Text>
-            </View>
-          ))}
+          <View style={styles.reasonChips}>
+            {winner.reasonCodes.map(code => (
+              <Chip key={code} icon="check" label={t(`suggestion.reason.${code}`, { defaultValue: code })} />
+            ))}
+          </View>
           {winner.reasonCodes.length === 0 ? (
-            <Text style={styles.reasonLabel}>{t('matchResult.noReasons')}</Text>
+            <Text color="text.secondary">{t('matchResult.noReasons')}</Text>
           ) : null}
-        </Card>
+        </View>
 
         {/* The rest of the ranking, with its real tally. */}
         {candidates.length > 1 ? (
@@ -326,12 +353,14 @@ export default function MatchResultScreen() {
                 >
                   <Card padded={false} style={styles.runnerRow}>
                     <View style={styles.runnerRank}>
-                      <Text variant="caption" color="text.secondary">{candidate.rank}</Text>
+                      <Text variant="caption" color="accent.onSoft">#{candidate.rank}</Text>
                     </View>
                     <Text variant="title2" style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
-                    <Text variant="label" color="text.secondary">
-                      {t('matchResult.points', { count: entry?.points ?? candidate.points })}
-                    </Text>
+                    <View style={styles.runnerPoints}>
+                      <Text variant="label" color="accent.onSoft">
+                        {t('matchResult.points', { count: entry?.points ?? candidate.points })}
+                      </Text>
+                    </View>
                   </Card>
                 </Pressable>
               )
@@ -339,7 +368,32 @@ export default function MatchResultScreen() {
           </View>
         ) : null}
 
-        <View style={{ paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] }}>
+        <View style={styles.lobbyRow}>
+          <GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />
+        </View>
+      </ScrollView>
+
+      {/* The decision stays in reach: the one filled action first, then the others. */}
+      <GlassBar placement="docked">
+        <View style={styles.bar}>
+          {finalize.isError && !staleRejected ? (
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
+              {t(isApiError(finalize.error) ? ({
+                NO_VOTES: 'matchResult.noVotes',
+                NO_SUGGESTIONS: 'matchResult.emptyBody',
+                ROOM_NOT_MATCHING: 'matchResult.roomNotMatching',
+              }[finalize.error.code] ?? 'matchResult.finalizeFailed') : 'matchResult.finalizeFailed')}
+            </Text>
+          ) : null}
+          {regenerate.isError ? (
+            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
+              {t(({
+                race: 'matchResult.regenerateRace',
+                quorum: 'gogoRoom.quorumRequired',
+                failed: 'matchResult.regenerateFailed',
+              } as const)[regenerateFailure(regenerate.error)])}
+            </Text>
+          ) : null}
           {existingPlanId ? (
             <PrimaryBtn label={t('matchResult.viewPlan')} onPress={() => viewPlan(existingPlanId)} />
           ) : isStale && capabilities.canRegenerate ? (
@@ -382,28 +436,8 @@ export default function MatchResultScreen() {
               loading={regenerate.isPending}
             />
           ) : null}
-
-          <GhostBtn label={t('swipe.goToLobby')} onPress={() => router.replace(`/room/${roomId}`)} />
-          {finalize.isError && !staleRejected ? (
-            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
-              {t(isApiError(finalize.error) ? ({
-                NO_VOTES: 'matchResult.noVotes',
-                NO_SUGGESTIONS: 'matchResult.emptyBody',
-                ROOM_NOT_MATCHING: 'matchResult.roomNotMatching',
-              }[finalize.error.code] ?? 'matchResult.finalizeFailed') : 'matchResult.finalizeFailed')}
-            </Text>
-          ) : null}
-          {regenerate.isError ? (
-            <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
-              {t(({
-                race: 'matchResult.regenerateRace',
-                quorum: 'gogoRoom.quorumRequired',
-                failed: 'matchResult.regenerateFailed',
-              } as const)[regenerateFailure(regenerate.error)])}
-            </Text>
-          ) : null}
         </View>
-      </ScrollView>
+      </GlassBar>
     </Atmosphere>
   )
 }
