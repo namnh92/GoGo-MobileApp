@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   checkTypedDateOfBirth,
@@ -47,6 +47,34 @@ describe('date of birth as a calendar date (PROF-APP-006 #217)', () => {
     }
     expect(formatDateOfBirth(null, 'vi')).toBeNull()
     expect(formatDateOfBirth('2027-02-29', 'vi')).toBeNull()
+  })
+
+  it('reads the same whatever CLDR the running ICU ships (#410)', () => {
+    // CLDR 49 (ICU 79, Node 26) dropped the comma CLDR 48 put in the Vietnamese
+    // long date, and a phone's ICU is not the app's. The label is composed from
+    // the date's parts, so Intl can be absent entirely and nothing changes.
+    const spy = vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+      throw new Error('Intl.DateTimeFormat must not decide the date of birth label')
+    })
+    try {
+      expect(formatDateOfBirth('1990-05-17', 'vi')).toBe('17 tháng 5, 1990')
+      expect(formatDateOfBirth('1990-05-17', 'en')).toBe('May 17, 1990')
+      expect(formatDateOfBirth('1985-11-03', 'vi')).toBe('3 tháng 11, 1985')
+      expect(formatDateOfBirth('2000-01-01', 'en')).toBe('January 1, 2000')
+      expect(formatDateOfBirth('2000-12-31', 'en-US')).toBe('December 31, 2000')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('reads template and month names from one locale, the product default when unknown (#412 F-01)', () => {
+    // i18next keeps a bare tag as typed, so `EN` must be resolved once and the
+    // same value handed to the template and the month-name table.
+    expect(formatDateOfBirth('1990-05-17', 'EN')).toBe('May 17, 1990')
+    expect(formatDateOfBirth('1990-05-17', 'en_GB')).toBe('May 17, 1990')
+    for (const unknown of ['fr', '', 'constructor', 'vi-VN', undefined as unknown as string]) {
+      expect(formatDateOfBirth('1990-05-17', unknown), String(unknown)).toBe('17 tháng 5, 1990')
+    }
   })
 
   it('judges the future in Asia/Ho_Chi_Minh, which turns over at 17:00 UTC', () => {
