@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
  * Ratchet for F-01 (PR #421, finding F-03/F-05): a screen or shared component
  * must not use a static light colour. Every `.tsx` under `src`, outside
  * `__tests__`, is scanned, `src/shared/ui` included. A use is:
- *   - `neutral[`, `colors.brand`, or a colour literal (`#RGB[A]`, `rgb(a)(`);
+ *   - `neutral[`, `colors.brand`, `brand.*` from a destructure, `mapColors.*`,
+ *     or a colour literal (`#RGB[A]`, `rgb(a)(`);
  *   - `glassFx.` or `surface.`, `border.`, `text.`, `status.` read from a name
  *     imported from `@/shared/ui/tokens`. `theme.surface.*` is not a use: it
  *     goes through the theme and follows the device into dark.
@@ -20,15 +21,15 @@ import { describe, expect, it } from 'vitest'
  * THE LIST MUST BE EMPTY BEFORE re-design MERGES TO develop.
  */
 const ALLOWLIST: Record<string, number> = {
-  'features/account/account.style.tsx': 3,
+  'features/account/account.style.tsx': 4,
   'features/account/account.view.tsx': 2,
   'features/account/date-of-birth.style.tsx': 3,
   'features/account/date-of-birth.view.tsx': 1,
-  'features/active-date/active-date.style.tsx': 3,
-  'features/active-date/checkin-sheet.style.tsx': 16,
+  'features/active-date/active-date.style.tsx': 5,
+  'features/active-date/checkin-sheet.style.tsx': 20,
   'features/active-date/checkin-sheet.view.tsx': 2,
   'features/active-date/date-finished.style.tsx': 3,
-  'features/auth/sign-in.style.tsx': 5,
+  'features/auth/sign-in.style.tsx': 6,
   'features/auth/sign-in.view.tsx': 3,
   'features/create-date/create-budget.style.tsx': 1,
   'features/create-date/create-budget.view.tsx': 1,
@@ -37,12 +38,13 @@ const ALLOWLIST: Record<string, number> = {
   'features/create-date/create-type.style.tsx': 2,
   'features/create-date/group-setup.style.tsx': 2,
   'features/create-date/group-setup.view.tsx': 1,
-  'features/date-plan/date-plan.style.tsx': 8,
-  'features/date-plan/place-detail.style.tsx': 11,
-  'features/date-plan/place-detail.view.tsx': 2,
+  'features/date-plan/date-plan.style.tsx': 9,
+  'features/date-plan/place-detail.style.tsx': 12,
+  'features/date-plan/place-detail.view.tsx': 3,
   'features/date-plan/place-reviews.style.tsx': 3,
   'features/date-plan/plan-edit.style.tsx': 1,
   'features/gogo-room/gogo-room.style.tsx': 1,
+  'features/gogo-room/gogo-room.view.tsx': 4,
   'features/gogo-room/guest-join.style.tsx': 4,
   'features/gogo-room/guest-join.view.tsx': 1,
   'features/gogo-room/guest-replace-notice.style.tsx': 2,
@@ -50,15 +52,15 @@ const ALLOWLIST: Record<string, number> = {
   'features/gogo-room/join-by-code.view.tsx': 2,
   'features/gogo-room/room-manage.style.tsx': 4,
   'features/home/home.style.tsx': 3,
-  'features/matching/match-result.style.tsx': 11,
+  'features/matching/match-result.style.tsx': 13,
   'features/matching/matching.style.tsx': 2,
-  'features/matching/swipe.style.tsx': 3,
-  'features/matching/swipe.view.tsx': 1,
+  'features/matching/swipe.style.tsx': 4,
+  'features/matching/swipe.view.tsx': 4,
   'features/notifications/notification-switch.view.tsx': 1,
   'features/onboarding/onboarding.style.tsx': 1,
   'features/onboarding/splash.style.tsx': 2,
   'features/onboarding/splash.view.tsx': 1,
-  'features/place-import/import.style.tsx': 5,
+  'features/place-import/import.style.tsx': 8,
   'features/place-import/import.view.tsx': 4,
   'features/review/my-reviews.style.tsx': 3,
   'features/review/my-reviews.view.tsx': 1,
@@ -73,6 +75,7 @@ const ALLOWLIST: Record<string, number> = {
   'shared/observability/root-error-boundary.style.tsx': 1,
   'shared/ui/async-state.style.tsx': 1,
   'shared/ui/button.style.tsx': 1,
+  'shared/ui/map-canvas.view.tsx': 1,
   'shared/ui/place-card.style.tsx': 1,
   'shared/ui/primitives.tsx': 5,
   'shared/ui/skeleton.style.tsx': 1,
@@ -81,7 +84,7 @@ const ALLOWLIST: Record<string, number> = {
 const SRC = path.resolve(__dirname, '../../..')
 const TOKENS_IMPORT = /import\s*\{([^}]*)\}\s*from\s*['"]@\/shared\/ui\/tokens['"]/g
 const ROLES = ['glassFx', 'surface', 'border', 'text', 'status'] as const
-const ALWAYS = [/\bneutral\[/g, /\bcolors\.brand\b/g, /(['"`])#[0-9a-fA-F]{3,8}\1/g, /\brgba?\(/g]
+const ALWAYS = [/\bneutral\[/g, /\bcolors\.brand\b/g, /(?<![.\w])brand\.\w+/g, /\bmapColors\.\w+/g, /(['"`])#[0-9a-fA-F]{3,8}\1/g, /\brgba?\(/g]
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap(entry => {
