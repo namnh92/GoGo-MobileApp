@@ -1,8 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, fill, glassFx, radius, spacing, touchTarget } from '@/shared/ui/tokens'
-
-const { brand, neutral } = colors
+import { fill, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
 
@@ -10,7 +8,7 @@ export const styles = StyleSheet.create(theme => ({
     marginHorizontal: spacing[5],
     height: 4,
     borderRadius: 2,
-    backgroundColor: neutral[100],
+    backgroundColor: theme.surface.subtle,
     overflow: 'hidden',
     marginBottom: spacing[3],
   },
@@ -33,7 +31,7 @@ export const styles = StyleSheet.create(theme => ({
     position: 'absolute',
     top: spacing[3],
     left: spacing[3],
-    backgroundColor: glassFx.solid,
+    backgroundColor: theme.surface.card,
     paddingHorizontal: spacing[3],
     paddingVertical: 5,
     borderRadius: radius.pill,
@@ -51,7 +49,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: spacing[2],
     borderRadius: radius.compact,
     borderWidth: 3,
-    borderColor: glassFx.borderBright,
+    borderColor: theme.text.inverse,
   },
   overlayLabel: { letterSpacing: 1 },
 
@@ -77,12 +75,24 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionBtnStar: { width: 56, height: 56, borderRadius: 28, backgroundColor: brand.lavenderSoft },
+  actionBtnStar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.status.infoSoft },
   // Pressed is a colour change only (#382) — the buttons no longer shrink.
   actionBtnPressed: { backgroundColor: theme.surface.subtle },
   actionBtnLike: { backgroundColor: theme.accent.primary },
   actionBtnLikePressed: { backgroundColor: theme.accent.pressed },
   actionBtnStarPressed: { backgroundColor: theme.surface.subtle },
+
+  done: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[6], gap: spacing[3] },
+  doneBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.primary,
+    marginBottom: spacing[3],
+  },
+  doneText: { textAlign: 'center' },
 
   skeletonCard: { flex: 1, maxHeight: 520, borderRadius: radius.hero },
 }))

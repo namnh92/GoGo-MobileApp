@@ -1,24 +1,34 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, night, radius, spacing } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   /** Holds the freshness notice slot above the centred content (#292). */
-  screen: { flex: 1, backgroundColor: neutral[900] },
+  screen: { flex: 1, backgroundColor: theme.surface.canvas },
   root: {
     flex: 1,
-    backgroundColor: neutral[900],
+    backgroundColor: theme.surface.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[6],
   },
-  pair: {
-    flexDirection: 'row',
+  orbit: {
+    width: 176,
+    height: 176,
+    borderRadius: 88,
     alignItems: 'center',
-    gap: spacing[4],
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
     marginBottom: spacing[7],
+  },
+  orbitCore: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.primary,
+    ...theme.shadows.cta,
   },
 
   /** What is happening, and why it is taking a moment (spec §18). */
@@ -28,7 +38,7 @@ export const styles = StyleSheet.create(theme => ({
     alignSelf: 'stretch',
     height: 4,
     borderRadius: 2,
-    backgroundColor: night.line,
+    backgroundColor: theme.surface.subtle,
     overflow: 'hidden',
     marginTop: spacing[5],
   },
@@ -42,7 +52,8 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[6],
     borderRadius: radius.compact,
     borderWidth: 1,
-    borderColor: night.line,
+    borderColor: theme.border.hairline,
+    backgroundColor: theme.surface.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
