@@ -43,7 +43,7 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
-import { colors, hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
+import { hitSlop, motion, overlay, spacing } from '@/shared/ui/tokens'
 
 import { runStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
@@ -51,8 +51,6 @@ import { suggestionRunState } from './run-state'
 import { SuggestionRunNotice } from './suggestion-run-notice.view'
 import { styles } from './swipe.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
-
-const { brand, neutral } = colors
 
 const SWIPE_THRESHOLD = 80
 const FLY_DISTANCE = 500
@@ -383,7 +381,13 @@ export default function SwipeScreen() {
     return (
       <Atmosphere>
         {header}
-        <EmptyState title={t('swipe.doneTitle')} body={t('swipe.doneBody')} />
+        <View style={styles.done}>
+          <View style={styles.doneBadge}>
+            <Icon name="checkCircle" size={44} color="accent.onAccent" />
+          </View>
+          <Text variant="display" style={styles.doneText}>{t('swipe.doneTitle')}</Text>
+          <Text color="text.secondary" style={styles.doneText}>{t('swipe.doneBody')}</Text>
+        </View>
       </Atmosphere>
     )
   }
@@ -444,7 +448,7 @@ export default function SwipeScreen() {
               ) : null}
 
               <Animated.View
-                style={[styles.overlay, { left: 20, backgroundColor: brand.mint }, likeStyle]}
+                style={[styles.overlay, { left: 20, backgroundColor: theme.status.success }, likeStyle]}
                 pointerEvents="none"
               >
                 <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.likeLabel')}</Text>
@@ -456,7 +460,7 @@ export default function SwipeScreen() {
                 <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.passLabel')}</Text>
               </Animated.View>
               <Animated.View
-                style={[styles.overlay, { alignSelf: 'center', backgroundColor: brand.lavender }, starStyle]}
+                style={[styles.overlay, { alignSelf: 'center', backgroundColor: theme.status.info }, starStyle]}
                 pointerEvents="none"
               >
                 <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.starLabel')}</Text>
@@ -492,7 +496,7 @@ export default function SwipeScreen() {
                 {hasHours ? (
                   <>
                     <View
-                      style={[styles.openDot, { backgroundColor: open.openNow ? brand.mint : neutral[300] }]}
+                      style={[styles.openDot, { backgroundColor: open.openNow ? theme.status.success : theme.text.secondary }]}
                     />
                     <Text variant={!(open.openNow) ? 'caption' : open.openNow ? 'caption' : undefined} color={!(open.openNow) ? 'text.secondary' : open.openNow ? 'status.successText' : undefined}>{openLabel}</Text>
                   </>
