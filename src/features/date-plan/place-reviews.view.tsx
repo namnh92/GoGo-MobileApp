@@ -18,7 +18,8 @@ import {
 import { useSession } from '@/shared/providers/session-provider'
 import { StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { Chip, GhostBtn } from '@/shared/ui/primitives'
+import { Icon } from '@/shared/ui/icons'
+import { AvatarCircle, Chip, GhostBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { hitSlop } from '@/shared/ui/tokens'
@@ -147,7 +148,11 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
       <Text variant="title2" accessibilityRole="header">
         {t('placeReviews.title')}
       </Text>
-      <Text variant="caption" color="text.secondary" style={styles.source}>{t('placeReviews.source')}</Text>
+      {/* The source line is a banner: GoGo's reviews are never merged with Google's. */}
+      <View style={styles.sourceBanner}>
+        <Icon name="checkCircle" size={20} color="status.successText" />
+        <Text variant="bodySmall" color="status.successText" style={styles.source}>{t('placeReviews.source')}</Text>
+      </View>
       {showOrder ? (
         <View style={styles.orderRow}>
           {ORDERS.map(option => (
@@ -204,14 +209,20 @@ function ReviewRow({
         style={styles.rowContent}
       >
         <View style={styles.rowHeader}>
-          <Text variant="label" style={styles.author} numberOfLines={1}>
-            {author}
-          </Text>
-          <Text variant="label">{t('placeReviews.rating', { rating: review.rating })}</Text>
+          <AvatarCircle label={Array.from(author)[0]?.toUpperCase()} size={40} />
+          <View style={styles.authorBlock}>
+            <Text variant="title2" style={styles.author} numberOfLines={1}>
+              {author}
+            </Text>
+            {dateLabel ? <Text variant="caption" color="text.secondary">{dateLabel}</Text> : null}
+          </View>
+          <View style={styles.ratingPill}>
+            <Text variant="label" color="accent.primary">{t('placeReviews.rating', { rating: review.rating })}</Text>
+          </View>
         </View>
-        {dateLabel ? <Text variant="caption" color="text.secondary">{dateLabel}</Text> : null}
-        {review.text ? <Text>{review.text}</Text> : null}
+        {review.text ? <Text style={styles.reviewText}>{review.text}</Text> : null}
       </View>
+      <View style={styles.divider} />
       {/* The check glyph and the label repeat what the border colour says. */}
       <Pressable
         onPress={onHelpful}
