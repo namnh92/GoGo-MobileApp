@@ -9,7 +9,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { colors, touchTarget } from '@/shared/ui/tokens'
+import { touchTarget } from '@/shared/ui/tokens'
 
 import { styles } from './tracking-consent.style'
 
@@ -66,7 +66,7 @@ function AndroidSwitch() {
             setAcquisitionConsent(next)
             haptic('select')
           }}
-          trackColor={{ true: theme.accent.primary, false: colors.neutral[100] }}
+          trackColor={{ true: theme.accent.primary, false: theme.surface.subtle }}
           accessibilityLabel={t('permissionsSettings.trackingSwitch')}
         />
       </View>
