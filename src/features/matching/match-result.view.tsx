@@ -326,7 +326,7 @@ export default function MatchResultScreen() {
                 >
                   <Card padded={false} style={styles.runnerRow}>
                     <View style={styles.runnerRank}>
-                      <Text variant="caption" color="text.secondary">{candidate.rank}</Text>
+                      <Text variant="caption" color="accent.onSoft">{candidate.rank}</Text>
                     </View>
                     <Text variant="title2" style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
                     <Text variant="label" color="text.secondary">
