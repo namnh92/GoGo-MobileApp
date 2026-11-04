@@ -164,7 +164,7 @@ describe('icons draw on one grid (#382)', () => {
     expect(source.match(/viewBox="(?!0 0 24 24")[^"]*"/g) ?? []).toEqual([])
   })
 
-  it('no icon carries a fixed colour — colour is a perfect prop resolved from the theme', () => {
+  it('no icon carries a fixed colour — colour is a prop resolved from the theme', () => {
     expect(source).not.toMatch(/\bcolors\b|\bneutral\[|\bbrand\./)
   })
 })
