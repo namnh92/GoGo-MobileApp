@@ -601,7 +601,8 @@ class SizeUploadRunTest < Minitest::Test
   def test_a_failed_upload_raises_and_says_the_build_is_already_out
     with_cli(exit_code: 1, output: 'quota') do |cli|
       error = assert_raises(GD::Refusal) { run_step(cli) }
-      assert_match(/size analysis upload failed after Firebase distributed build 7/, error.message)
+      assert_match(/size analysis upload failed or was not confirmed after Firebase distributed build 7/, error.message)
+      assert_match(/look for this build in Sentry/, error.message)
       assert_match(/with the testers/, error.message)
       assert_includes File.read(File.join(@dir, 'size.log')), 'quota'
     end

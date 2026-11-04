@@ -210,8 +210,8 @@ module GogoDistribute
       begin
         supervisor.run(argv, env: EnvSets.size_upload(secrets, switches, base: base), chdir: chdir, log: log)
       rescue Refusal => e
-        raise Refusal, "size analysis upload failed after Firebase distributed build #{build_number} — " \
-                       "the build is with the testers; Sentry has no size result: #{e.message}"
+        raise Refusal, "size analysis upload failed or was not confirmed after Firebase distributed build #{build_number} — " \
+                       "the build is with the testers; look for this build in Sentry Mobile Builds before any recovery: #{e.message}"
       end
       read_links(log)
     end

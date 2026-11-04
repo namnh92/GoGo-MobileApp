@@ -89,11 +89,12 @@ symbols **and** no Size Analysis. There is no option that skips only the size up
 | Outcome | Testers have the build | Sentry | Run exit |
 | --- | --- | --- | --- |
 | Firebase fails | no | no size upload | non-zero |
-| Size upload fails: quota, token, network | **yes** | no size result | non-zero, `size analysis upload failed after Firebase distributed build <n>` |
+| Size upload fails or is not confirmed: quota, token, network | **yes** | no result, or uncertain after a lost response | non-zero, `size analysis upload failed or was not confirmed after Firebase distributed build <n>` |
 | Both succeed | yes | build listed, link in the log | 0 |
 
 - **Recovery after a size failure:** the build is already out, so do not re-run to fix the size
-  result: a re-run makes a new build number. Read the log tail: `does not have quota for preprod
+  result: a re-run makes a new build number. First look for the build in Sentry Mobile Builds: after
+  a network error it may have arrived. Then read the log tail: `does not have quota for preprod
   features` means the period's allowance is used up; any other 401/403 is the token. The APK stays
   in `fastlane/build/android/`. The xcarchive is removed by cleanup, so iOS needs a new run.
 - **Quota:** 100 builds per billing period, organization-wide; more only through an Enterprise

@@ -45,7 +45,7 @@ Mục này không phải dữ liệu của người dùng app, không thuộc kh
 | Config public: URL API và web, DSN Sentry, OneSignal app id, khoá SDK Tenjin, app token Adjust, `GOGO_BUILD_SHA` | có | có |
 | Khoá Google Maps của nền tảng (đã giới hạn, ADR 0008) | có | có |
 | **Profile Ad Hoc của app và notification extension: UDID máy tester, là định danh thiết bị** | có | không |
-| Metadata upload: SHA, branch, repo, ghi chú release có tên máy build | có | có |
+| Metadata upload: SHA, branch, repo, nhà cung cấp VCS (`github`), cấu hình build (`Release`), ghi chú release có tên máy build | có | có |
 
 - Dữ liệu người dùng app: không dự kiến có trong file build. Hàng UDID cần đối chiếu trên xcarchive thật ở bản đo đầu.
 - Secret không nằm trong file build: keystore, khoá App Store Connect, service account Firebase, token Sentry.
