@@ -224,7 +224,7 @@ const config: ExpoConfig = {
   version: '0.1.0',
   scheme: identity.scheme,
   orientation: 'portrait',
-  userInterfaceStyle: 'light',
+  userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   backgroundColor: '#F6F3EE',
   icon: './assets/icon.png',
