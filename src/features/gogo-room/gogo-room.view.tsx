@@ -43,7 +43,7 @@ import { Atmosphere, AvatarCircle, BackHeader, Card, Chip, GhostBtn, IconBtn, Pr
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
 import { Glyph, Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInviteDisplay } from './invite-state'
 import { roomScheduleLabel, roomScheduleRange } from './room-schedule'
@@ -51,8 +51,6 @@ import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import type { MessageKey } from '@/shared/i18n/types'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
-
-const { brand } = colors
 
 /**
  * The room's date/time chip. GoGo-MobileApp#201 — `constraints.endAt` is part
@@ -70,8 +68,6 @@ function scheduleChipLabel(
   return range.end ? t('roomSchedule.range', { start: range.start, end: range.end }) : range.start
 }
 
-/** Avatar fills after the first, which is the theme accent (#297). */
-const OTHER_AVATAR_COLORS = [brand.lavender, brand.mint, brand.amber]
 const VISIBLE_AVATARS = 3
 /** The API mints invites only while a room still takes members (GoGo-BE `createInvite`). */
 const JOINABLE: readonly RoomSummary['status'][] = ['draft', 'collecting']
@@ -96,7 +92,8 @@ const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'de
 
 export default function GoGoRoomScreen() {
   const { theme } = useUnistyles()
-  const avatarColors = [theme.accent.primary, ...OTHER_AVATAR_COLORS]
+  // Avatar fills after the first, which is the theme accent (#297); the rest follow the theme.
+  const avatarColors = [theme.accent.primary, theme.status.info, theme.status.success, theme.status.warning]
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -535,7 +532,7 @@ export default function GoGoRoomScreen() {
               <AvatarCircle
                 label={initial(members[1].displayName)}
                 size={64}
-                background={brand.lavender}
+                background={theme.status.info}
                 imageUri={members[1].avatarUrl}
               />
             ) : (
