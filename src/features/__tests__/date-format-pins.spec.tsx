@@ -42,6 +42,10 @@ jest.mock('@/shared/api', () => ({
 import PlaceDetailScreen from '@/features/date-plan/place-detail.view'
 import MyReviewsScreen from '@/features/review/my-reviews.view'
 
+// The default matcher trims and collapses whitespace, which would hide a CLDR
+// change that only moves a space (#416 F-01).
+const exactly = { normalizer: (text: string) => text }
+
 afterEach(async () => {
   await i18n.changeLanguage('vi')
 })
@@ -52,7 +56,7 @@ it.each([
 ])('my reviews prints the written date exactly in %s', async (language, label) => {
   await i18n.changeLanguage(language)
   const view = await renderScreen(<MyReviewsScreen />)
-  expect(view.getByText(label)).toBeTruthy()
+  expect(view.getByText(label, exactly)).toBeTruthy()
 })
 
 it.each([
@@ -61,7 +65,7 @@ it.each([
 ])('a place review prints its written date exactly in %s', async (language, label) => {
   await i18n.changeLanguage(language)
   const view = await renderScreen(<PlaceDetailScreen />)
-  expect(within(view.getByTestId('place-reviews')).getByText(label)).toBeTruthy()
+  expect(within(view.getByTestId('place-reviews')).getByText(label, exactly)).toBeTruthy()
 })
 
 it.each([
@@ -70,5 +74,5 @@ it.each([
 ])('place detail prints its last-checked date exactly in %s', async (language, label) => {
   await i18n.changeLanguage(language)
   const view = await renderScreen(<PlaceDetailScreen />)
-  expect(view.getByText(label)).toBeTruthy()
+  expect(view.getByText(label, exactly)).toBeTruthy()
 })
