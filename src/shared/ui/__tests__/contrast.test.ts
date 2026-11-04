@@ -93,7 +93,8 @@ describe('design-system cleanup (#382)', () => {
 describe('accent themes (#293 §6)', () => {
   it('registers exactly the four spec themes', () => {
     expect(Object.keys(accents).sort()).toEqual([...ACCENTS].sort())
-    expect(Object.keys(themes).sort()).toEqual([...ACCENTS].sort())
+    // Each accent in both modes: the light key and its `Dark` twin (theme-dark.test.ts).
+    expect(Object.keys(themes).sort()).toEqual([...ACCENTS, ...ACCENTS.map(a => `${a}Dark`)].sort())
   })
 
   describe.each(ACCENTS)('%s', accent => {
