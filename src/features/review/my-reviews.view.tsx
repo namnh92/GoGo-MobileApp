@@ -3,30 +3,34 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useUnistyles } from 'react-native-unistyles'
 
 import { parseApiDate, useMyReviews, useUpdateReview, type Review } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
-import { Glyph, Text, type TextColor } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { Badge, type BadgeTone } from '@/shared/ui/badge.view'
+import { Icon } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './my-reviews.style'
 
 const MAX_TEXT = 2000
 
-/** Moderation state as a label colour; an unknown state reads as secondary. */
-const STATUS_COLOR: Record<string, TextColor> = {
-  pending: 'status.warningText',
-  published: 'status.successText',
-  rejected: 'status.dangerText',
-  removed: 'text.secondary',
+/** Moderation state as a badge tone; an unknown state reads as neutral. */
+const STATUS_TONE: Record<string, BadgeTone> = {
+  pending: 'warning',
+  published: 'success',
+  rejected: 'danger',
+  removed: 'neutral',
 }
 
 export default function MyReviewsScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { theme } = useUnistyles()
   const { status } = useSession()
 
   const canRead = status === 'user'
@@ -112,12 +116,26 @@ export default function MyReviewsScreen() {
           return (
             <Card padded={false} key={review.id} style={styles.card}>
               <View style={styles.headerRow}>
-                <Text>{'⭐'.repeat(editing ? draftRating : review.rating)}</Text>
+                <View
+                  style={styles.stars}
+                  accessibilityLabel={t('review.starAria', { count: editing ? draftRating : review.rating })}
+                >
+                  {[1, 2, 3, 4, 5].map(value => (
+                    <Icon
+                      key={value}
+                      name="star"
+                      size={18}
+                      color="accent.primary"
+                      filled={value <= (editing ? draftRating : review.rating)}
+                    />
+                  ))}
+                </View>
                 {/* Moderation state is a fact the author needs: a pending review
                     is not visible to anyone else yet. */}
-                <Text variant="label" color={STATUS_COLOR[review.status] ?? 'text.secondary'}>
-                  {t(`myReviews.status.${review.status}`, { defaultValue: review.status })}
-                </Text>
+                <Badge
+                  label={t(`myReviews.status.${review.status}`, { defaultValue: review.status })}
+                  tone={STATUS_TONE[review.status] ?? 'neutral'}
+                />
               </View>
 
               {editing ? (
@@ -128,8 +146,9 @@ export default function MyReviewsScreen() {
                         key={value}
                         onPress={() => setDraftRating(value)}
                         accessibilityLabel={t('review.starAria', { count: value })}
+                        style={styles.starTap}
                       >
-                        <Glyph size="sm" style={value > draftRating && styles.starDim}>⭐</Glyph>
+                        <Icon name="star" size={24} color="accent.primary" filled={value <= draftRating} />
                       </Pressable>
                     ))}
                   </View>
@@ -137,7 +156,7 @@ export default function MyReviewsScreen() {
                     value={draftText}
                     onChangeText={value => setDraftText(value.slice(0, MAX_TEXT))}
                     placeholder={t('review.placeholder')}
-                    placeholderTextColor={colors.neutral[500]}
+                    placeholderTextColor={theme.text.secondary}
                     multiline
                     style={styles.input}
                   />
@@ -155,11 +174,11 @@ export default function MyReviewsScreen() {
                 </>
               ) : (
                 <>
-                  {review.text ? <Text variant="bodySmall">{review.text}</Text> : null}
+                  {review.text ? <Text variant="body">{review.text}</Text> : null}
                   {created ? (
                     <Text variant="caption" color="text.secondary">{created.toLocaleDateString(i18n.language)}</Text>
                   ) : null}
-                  <GhostBtn label={t('myReviews.edit')} onPress={() => startEdit(review)} />
+                  <GhostBtn label={t('myReviews.edit')} onPress={() => startEdit(review)} style={styles.editBtn} />
                 </>
               )}
             </Card>
