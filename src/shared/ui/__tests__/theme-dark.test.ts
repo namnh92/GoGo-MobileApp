@@ -7,8 +7,8 @@ import { accents, darkAccents, darkBorder, darkStatus, darkSurface, darkText, su
 
 /**
  * Theme foundation. Dark is the same set of roles with other values, in four
- * accents, chosen by the device. The owner-approved values come from
- * `stitch-design.md` §4; the rest are held to AA here.
+ * accents, chosen by the device. The values come from the Stitch Dark screens (Home
+ * 5e4ab03b…, Splash bf51ca61…); the rest are held to AA here.
  */
 const AA_TEXT = 4.5
 const AA_LARGE = 3
@@ -29,8 +29,9 @@ describe('dark tokens', () => {
   it('uses the owner-approved values', () => {
     expect(darkSurface).toEqual({ canvas: '#181715', card: '#222222', subtle: '#2A2A2A' })
     expect(darkBorder.hairline).toBe('#333333')
-    expect(darkAccents.orange.primary).toBe('#CA381F')
-    expect(darkAccents.orange.onSoft).toBe('#FF746C')
+    expect(darkAccents.orange).toMatchObject({ primary: '#CA381F', pressed: '#A72E19', text: '#FF746C', onSoft: '#FF746C', soft: '#2A2A2A' })
+    expect([darkText.primary, darkText.secondary, darkText.tertiary]).toEqual(['#E6E6E6', '#CCCCCC', '#999999'])
+    expect(darkStatus).toMatchObject({ success: '#4FAF86', successSoft: '#16402F', successText: '#A7E8CD', warning: '#E59700', dangerSoft: '#4A1A20', dangerText: '#FF8A94', infoSoft: '#2F2A55', infoText: '#A99DF5' })
   })
 
   it('has every role the light set has', () => {
