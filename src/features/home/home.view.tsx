@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -42,7 +41,6 @@ const PRESET_ICONS: Record<QuickPreset, IconName> = { tonight: 'moon', weekend: 
 const RAIL_SIZE = 5
 
 export default function HomeScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -190,39 +188,35 @@ export default function HomeScreen() {
         </Pressable>
 
         {/* Brand surface rather than a stock photo of somewhere GoGo has no
-            relationship with. */}
+            relationship with. A solid card in both themes. */}
         <View style={styles.hero}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.accent.primary }]} />
-          <View style={styles.heroScrim} />
-          <View style={styles.heroContent}>
-            <View style={styles.heroBadge}>
-              <Icon name="moon" size={12} color="text.inverse" />
-              <Text variant="caption" color="text.inverse">{t('home.heroBadge')}</Text>
-            </View>
-            <Text variant="title1" color="text.inverse">{t('home.heroTitle')}</Text>
-            <Text variant="bodySmall" color="onDark.medium" style={styles.heroBody}>{t('home.heroBody')}</Text>
-            <View style={styles.heroActions}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  haptic('impact')
-                  startCreate()
-                }}
-                style={({ pressed }) => [styles.heroPrimary, pressed && styles.heroPrimaryPressed]}
-              >
-                <Text variant="label" color="text.inverse">{t('home.createDate')}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  haptic('select')
-                  router.push('/places/search')
-                }}
-                style={({ pressed }) => [styles.heroSecondary, pressed && styles.heroSecondaryPressed]}
-              >
-                <Text variant="label" color="text.inverse">{t('home.quickPick')}</Text>
-              </Pressable>
-            </View>
+          <View style={styles.heroBadge}>
+            <Icon name="moon" size={12} color="accent.onSoft" />
+            <Text variant="caption" color="accent.onSoft">{t('home.heroBadge')}</Text>
+          </View>
+          <Text variant="title1">{t('home.heroTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.heroBody}>{t('home.heroBody')}</Text>
+          <View style={styles.heroActions}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                haptic('impact')
+                startCreate()
+              }}
+              style={({ pressed }) => [styles.heroPrimary, pressed && styles.heroPrimaryPressed]}
+            >
+              <Text variant="label" color="accent.onAccent">{t('home.createDate')}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                haptic('select')
+                router.push('/places/search')
+              }}
+              style={({ pressed }) => [styles.heroSecondary, pressed && styles.heroSecondaryPressed]}
+            >
+              <Text variant="label">{t('home.quickPick')}</Text>
+            </Pressable>
           </View>
         </View>
 
