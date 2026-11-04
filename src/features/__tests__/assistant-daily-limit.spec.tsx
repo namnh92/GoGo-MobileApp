@@ -32,7 +32,7 @@ import { createMockAssistantBackend } from '@/data/assistant/mock-backend'
 import { setAssistantBackend } from '@/shared/api/assistant-backend'
 import { ApiError } from '@/shared/api/errors'
 
-import { installBackend, renderAssistant, resetAssistantSpecState, settle, spyOn, syncTanstackNotifications } from './assistant-harness'
+import { installBackend, renderAssistant, resetAssistantSpecState, scripted, settle, spyOn, syncTanstackNotifications } from './assistant-harness'
 
 syncTanstackNotifications()
 
@@ -60,7 +60,7 @@ it('a send refused by the daily limit shows one notice, with the reset from stat
   await settle()
   expect(view.getByText('Chưa gửi')).toBeTruthy()
   expect(view.getAllByText(LIMIT_TITLE)).toHaveLength(1)
-  const status = await backend.getStatus()
+  const status = await scripted(backend.getStatus())
   expect(view.getAllByText(/Bạn có thể gửi tiếp từ/)).toHaveLength(1)
   expect(view.getByText(`Bạn có thể gửi tiếp từ ${formatClock(status.resetsAt)}.`)).toBeTruthy()
   // The clock, never the wifi-off glyph of a network failure.
@@ -93,12 +93,15 @@ it('before the status has caught up, the refused message names the reset from re
 it('the mock refuses with a Retry-After that points at resetsAt (midnight Asia/Ho_Chi_Minh)', async () => {
   const now = new Date('2026-10-27T08:05:00Z') // 15:05 in Hồ Chí Minh City
   const backend = createMockAssistantBackend({ speed: 0, actor: () => 'user', seed: false, now: () => now })
-  const status = await backend.getStatus()
+  const status = await scripted(backend.getStatus())
   expect(status.resetsAt).toBe('2026-10-27T17:00:00.000Z')
-  const conversation = await backend.createConversation({}, 'conversation-key')
-  const refused = await backend
-    .sendMessage(conversation.id, { text: 'giới hạn', locale: 'vi' }, 'key-1')
-    .then(() => null, (error: unknown) => error)
+  const conversation = await scripted(backend.createConversation({}, 'conversation-key'))
+  const refused = await scripted(
+    backend.sendMessage(conversation.id, { text: 'giới hạn', locale: 'vi' }, 'key-1').then(
+      () => null,
+      (error: unknown) => error,
+    ),
+  )
   expect(refused).toBeInstanceOf(ApiError)
   expect((refused as ApiError).code).toBe('ASSISTANT_DAILY_LIMIT')
   // Retry-After in seconds: 15:05 → 00:00 is 8 h 55 min.

@@ -46,8 +46,12 @@ async function ask(view: Awaited<ReturnType<typeof renderAssistant>>, text: stri
   })
 }
 
-/** The reply has ended: Send is back where Stop was. */
+/**
+ * The reply has ended: Send is back where Stop was. Typing and Stop are also
+ * absent before the turn reaches the thread, so scripted time moves first.
+ */
 async function replyEnded(view: Awaited<ReturnType<typeof renderAssistant>>, timeout = 1000) {
+  await settle()
   await waitFor(
     () => {
       expect(view.queryByTestId('assistant-typing')).toBeNull()

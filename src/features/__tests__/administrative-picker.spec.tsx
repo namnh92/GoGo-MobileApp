@@ -1,6 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { renderScreen, loaded as mockLoaded, pausedOffline as mockPausedOffline } from './harness'
+import { scriptedTime } from './scripted-time'
 import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 const mockChanged = jest.fn()
 const mockVersion = { value: 'v1', offline: false }
@@ -14,6 +15,7 @@ jest.mock('@/shared/administrative/queries', () => ({
 }))
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 const selected = { datasetVersion: 'v1', provinceCode: '01', provinceName: 'Hà Nội', communeCode: '00001', communeName: 'Phường cũ' }
+scriptedTime()
 beforeEach(() => { mockChanged.mockClear(); mockVersion.value = 'v1'; mockVersion.offline = false; mockUnits.offline = false })
 it('changing province clears the old commune and stores canonical codes/version', async () => {
   const view = await renderScreen(<AdministrativePicker value={selected} onChange={mockChanged} />)
@@ -42,10 +44,8 @@ it('requires reselection after a dataset change without silently remapping', asy
  * the device, on the form or in its modal.
  */
 describe('picker × connectivity', () => {
-  beforeEach(() => { jest.useFakeTimers() })
   afterEach(async () => {
     await act(async () => { onlineManager.setOnline(true) })
-    jest.useRealTimers()
   })
 
   it('claims no saved copy on the form or in the modal while offline', async () => {

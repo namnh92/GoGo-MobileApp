@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
 
 import { renderScreen } from './harness'
@@ -52,6 +52,11 @@ function Screen() {
   const me = useMe()
   return me.data ? <DateOfBirthCard key={me.data.id} profile={me.data} /> : null
 }
+
+// TanStack's notifications inside the act that caused them (#133, #407): on the
+// default `setTimeout(0)` a loaded machine let them land after that act ended.
+beforeAll(() => notifyManager.setScheduler(callback => callback()))
+afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
 
 let queryClient: QueryClient
 const server: { profile: Me | null } = { profile: null }
@@ -193,7 +198,8 @@ describe('date of birth in account information', () => {
     await typeDate(view, '01/01/2000')
     await press(view.getByText(SAVE))
     await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: '2000-01-01' }))
-    expect(view.getByText('Đã lưu: 1 tháng 1, 2000')).toBeTruthy()
+    // The request never answers before `reject` below, so this is the pending state.
+    expect(await view.findByText('Đã lưu: 1 tháng 1, 2000')).toBeTruthy()
 
     await act(async () => {
       reject(new Error('boom'))

@@ -1,6 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { failed, loaded, renderScreen, type QueryLike } from './harness'
+import { scriptedTime } from './scripted-time'
 
 /** A press that changes state flushes only inside an awaited act here. */
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
@@ -67,6 +68,8 @@ function profile(overrides: Partial<Me> = {}): Me {
     ...overrides,
   } as Me
 }
+
+scriptedTime()
 
 beforeEach(() => {
   mockUpdate.mockReset()
