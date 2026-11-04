@@ -1,8 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, type } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   searchRow: {
@@ -14,14 +12,16 @@ export const styles = StyleSheet.create(theme => ({
   },
   /** Layout only — the look is `SearchField`'s (#381). */
   input: { flex: 1, height: 48 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], paddingHorizontal: spacing[5], paddingBottom: spacing[2] },
+  /** Chips scroll sideways as one row, each chip whole on one line. */
+  filterRow: { flexGrow: 0, flexShrink: 0 },
+  filterRowContent: { flexDirection: 'row', gap: spacing[2], paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
   filterToggle: {
     width: 48,
     height: 48,
     borderRadius: radius.compact,
     backgroundColor: theme.surface.card,
     borderWidth: 1,
-    borderColor: neutral[100],
+    borderColor: theme.border.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -59,28 +59,19 @@ export const styles = StyleSheet.create(theme => ({
     ...type.bodySmall,
     height: 46,
     borderRadius: radius.compact,
-    backgroundColor: neutral[50],
+    backgroundColor: theme.surface.canvas,
     borderWidth: 1,
-    borderColor: neutral[100],
+    borderColor: theme.border.hairline,
     paddingHorizontal: spacing[4],
-    color: neutral[900],
+    color: theme.text.primary,
   },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   priceInput: { flex: 1 },
-  sheetTitle: { marginBottom: spacing[2] },
-  sheetSection: { marginTop: spacing[3], marginBottom: spacing[2] },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
+  sheetClearBtn: { minHeight: 44, justifyContent: 'center', paddingLeft: spacing[3] },
+  sheetSection: { marginTop: spacing[5], marginBottom: spacing[2] },
   sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  sheetOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: radius.compact,
-    backgroundColor: neutral[50],
-  },
-  sheetOptionActive: { backgroundColor: theme.accent.primary },
-  sheetOptionLabel: { ...type.label, color: neutral[700] },
-  sheetOptionLabelActive: { color: neutral[0] },
   sheetApply: { marginTop: spacing[5] },
-  sheetClear: { alignItems: 'center', paddingVertical: spacing[3] },
   empty: { alignItems: 'center', paddingVertical: spacing[8], paddingHorizontal: spacing[5] },
   emptyIcon: {
     width: 56,

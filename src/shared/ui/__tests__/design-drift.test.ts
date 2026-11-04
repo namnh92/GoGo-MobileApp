@@ -94,8 +94,6 @@ describe('i18n copy is sentence case (#382)', () => {
  * deleting its line here.
  */
 const GLASS_FX_ALLOWED: Record<string, string[]> = {
-  // On an accent fill.
-  'features/home/home.style.tsx': ['badge', 'borderLight', 'btnBorder'],
   'features/create-date/create-budget.style.tsx': ['badge'],
   // Over a photo.
   'features/date-plan/place-detail.style.tsx': ['badge', 'solid'],
