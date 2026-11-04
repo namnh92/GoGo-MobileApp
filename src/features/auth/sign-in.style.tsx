@@ -1,49 +1,66 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { touchTarget } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
-
-export const styles = StyleSheet.create({
-  title: {
-    marginBottom: spacing[2],
-  },
-  body: {
-    marginBottom: spacing[5],
-  },
+export const styles = StyleSheet.create(theme => ({
   tabs: {
     flexDirection: 'row',
-    gap: spacing[2],
-    backgroundColor: neutral[100],
-    borderRadius: radius.pill,
-    padding: 4,
-    marginBottom: spacing[5],
+    gap: theme.spacing[1],
+    backgroundColor: theme.surface.subtle,
+    borderRadius: theme.radius.pill,
+    padding: theme.spacing[1],
+    marginTop: theme.spacing[3],
+    marginBottom: theme.spacing[6],
   },
   tab: {
     flex: 1,
     minHeight: touchTarget.min,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
+    borderRadius: theme.radius.pill,
   },
-  tabActive: { backgroundColor: neutral[0] },
+  tabActive: { backgroundColor: theme.surface.card, ...theme.shadows.card },
   tabDisabled: { opacity: 0.5 },
-  card: { padding: spacing[5], gap: spacing[4] },
-  field: { gap: spacing[2] },
-  input: {
-    ...type.body,
-    minHeight: touchTarget.min,
-    borderWidth: 1,
-    borderColor: neutral[100],
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing[4],
-    color: neutral[900],
-    backgroundColor: neutral[0],
+  title: {
+    marginBottom: theme.spacing[2],
   },
-  inputInvalid: { borderColor: brand.red },
+  body: {
+    marginBottom: theme.spacing[6],
+  },
+  form: { gap: theme.spacing[4] },
+  field: { gap: theme.spacing[2] },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[3],
+    minHeight: 48,
+    paddingHorizontal: theme.spacing[4],
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+    borderRadius: theme.radius.compact,
+    backgroundColor: theme.surface.subtle,
+  },
+  inputRowInvalid: { borderColor: theme.status.danger },
+  input: {
+    ...theme.type.body,
+    flex: 1,
+    minHeight: touchTarget.min,
+    color: theme.text.primary,
+  },
   formError: {
-    marginTop: spacing[4],
+    marginTop: theme.spacing[4],
     textAlign: 'center',
   },
-  footnote: { textAlign: 'center' },
-})
+  actions: { marginTop: theme.spacing[5] },
+  note: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing[3],
+    marginTop: theme.spacing[7],
+    padding: theme.spacing[4],
+    borderRadius: theme.radius.card,
+    backgroundColor: theme.surface.card,
+    ...theme.shadows.card,
+  },
+  noteText: { flex: 1 },
+}))

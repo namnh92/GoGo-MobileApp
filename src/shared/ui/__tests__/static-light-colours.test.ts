@@ -29,8 +29,6 @@ const ALLOWLIST: Record<string, number> = {
   'features/active-date/checkin-sheet.style.tsx': 20,
   'features/active-date/checkin-sheet.view.tsx': 2,
   'features/active-date/date-finished.style.tsx': 3,
-  'features/auth/sign-in.style.tsx': 6,
-  'features/auth/sign-in.view.tsx': 3,
   'features/create-date/create-budget.style.tsx': 1,
   'features/create-date/create-budget.view.tsx': 1,
   'features/create-date/create-mood.style.tsx': 1,
