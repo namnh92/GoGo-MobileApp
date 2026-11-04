@@ -5,13 +5,15 @@ import { Controller, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useUnistyles } from 'react-native-unistyles'
 
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import type { MessageKey } from '@/shared/i18n/types'
-import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Icon } from '@/shared/ui/icons'
+import { Atmosphere, BackHeader, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
@@ -48,6 +50,7 @@ export default function SignInScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { theme } = useUnistyles()
   const { signIn, signUp } = useSession()
   const { next } = useLocalSearchParams<{ next?: string }>()
 
@@ -176,7 +179,7 @@ export default function SignInScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => goBackOrHome(router)} />
+        <BackHeader title={t(mode === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')} onBack={() => goBackOrHome(router)} />
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -187,9 +190,6 @@ export default function SignInScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <Text variant="display" style={styles.title}>{t(mode === 'signUp' ? 'auth.signUpTitle' : next === 'assistant' ? 'auth.signInTitleAssistant' : 'auth.signInTitle')}</Text>
-          <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
-
           <View style={styles.tabs}>
             {(['signIn', 'signUp'] as const).map(option => {
               const active = mode === option
@@ -210,7 +210,10 @@ export default function SignInScreen() {
             })}
           </View>
 
-          <Card padded={false} style={styles.card}>
+          <Text variant="display" style={styles.title}>{t(mode === 'signUp' ? 'auth.signUpTitle' : next === 'assistant' ? 'auth.signInTitleAssistant' : 'auth.signInTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary" style={styles.body}>{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
+
+          <View style={styles.form}>
             {mode === 'signUp' ? (
               <Controller
                 control={signUpForm.control}
@@ -218,20 +221,23 @@ export default function SignInScreen() {
                 render={({ field, fieldState }) => (
                   <View style={styles.field}>
                     <Text variant="label">{t('auth.displayName')}</Text>
-                    <TextInput
-                      ref={field.ref}
-                      value={field.value}
-                      onChangeText={field.onChange}
-                      onBlur={field.onBlur}
-                      placeholder={t('auth.displayNamePlaceholder')}
-                      placeholderTextColor={colors.neutral[500]}
-                      autoCapitalize="words"
-                      autoCorrect={false}
-                      editable={!pending}
-                      maxLength={50}
-                      accessibilityLabel={t('auth.displayName')}
-                      style={[styles.input, fieldState.error && styles.inputInvalid]}
-                    />
+                    <View style={[styles.inputRow, fieldState.error && styles.inputRowInvalid]}>
+                      <Icon name="user" size={20} color="text.secondary" />
+                      <TextInput
+                        ref={field.ref}
+                        value={field.value}
+                        onChangeText={field.onChange}
+                        onBlur={field.onBlur}
+                        placeholder={t('auth.displayNamePlaceholder')}
+                        placeholderTextColor={theme.text.secondary}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                        editable={!pending}
+                        maxLength={50}
+                        accessibilityLabel={t('auth.displayName')}
+                        style={styles.input}
+                      />
+                    </View>
                     {fieldState.error ? <Text variant="caption" color="status.dangerText">{t('auth.displayNameInvalid')}</Text> : null}
                   </View>
                 )}
@@ -252,21 +258,24 @@ export default function SignInScreen() {
               render={({ field, fieldState }) => (
                 <View style={styles.field}>
                   <Text variant="label">{t('auth.email')}</Text>
-                  <TextInput
-                    ref={field.ref}
-                    value={field.value as string}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="you@example.com"
-                    placeholderTextColor={colors.neutral[500]}
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    keyboardType="email-address"
-                    autoCorrect={false}
-                    editable={!pending}
-                    accessibilityLabel={t('auth.email')}
-                    style={[styles.input, fieldState.error && styles.inputInvalid]}
-                  />
+                  <View style={[styles.inputRow, fieldState.error && styles.inputRowInvalid]}>
+                    <Icon name="mail" size={20} color="text.secondary" />
+                    <TextInput
+                      ref={field.ref}
+                      value={field.value as string}
+                      onChangeText={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder="you@example.com"
+                      placeholderTextColor={theme.text.secondary}
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      keyboardType="email-address"
+                      autoCorrect={false}
+                      editable={!pending}
+                      accessibilityLabel={t('auth.email')}
+                      style={styles.input}
+                    />
+                  </View>
                   {fieldState.error ? <Text variant="caption" color="status.dangerText">{t('auth.emailInvalid')}</Text> : null}
                 </View>
               )}
@@ -279,20 +288,23 @@ export default function SignInScreen() {
               render={({ field, fieldState }) => (
                 <View style={styles.field}>
                   <Text variant="label">{t('auth.password')}</Text>
-                  <TextInput
-                    ref={field.ref}
-                    value={field.value as string}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="••••••••••"
-                    placeholderTextColor={colors.neutral[500]}
-                    autoCapitalize="none"
-                    autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-                    secureTextEntry
-                    editable={!pending}
-                    accessibilityLabel={t('auth.password')}
-                    style={[styles.input, fieldState.error && styles.inputInvalid]}
-                  />
+                  <View style={[styles.inputRow, fieldState.error && styles.inputRowInvalid]}>
+                    <Icon name="lock" size={20} color="text.secondary" />
+                    <TextInput
+                      ref={field.ref}
+                      value={field.value as string}
+                      onChangeText={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder="••••••••••"
+                      placeholderTextColor={theme.text.secondary}
+                      autoCapitalize="none"
+                      autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+                      secureTextEntry
+                      editable={!pending}
+                      accessibilityLabel={t('auth.password')}
+                      style={styles.input}
+                    />
+                  </View>
                   {mode === 'signUp' ? <Text variant="caption" color="text.secondary">{t('auth.passwordHint')}</Text> : null}
                   {fieldState.error ? (
                     <Text variant="caption" color="status.dangerText">
@@ -302,7 +314,7 @@ export default function SignInScreen() {
                 </View>
               )}
             />
-          </Card>
+          </View>
 
           {formError ? (
             <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.formError}>
@@ -310,13 +322,16 @@ export default function SignInScreen() {
             </Text>
           ) : null}
 
-          <View style={{ marginTop: 'auto', gap: spacing[3] }}>
+          <View style={styles.actions}>
             <PrimaryBtn
               label={t(mode === 'signIn' ? 'auth.signInCta' : 'auth.signUpCta')}
               onPress={mode === 'signIn' ? onSignIn : onSignUp}
               loading={pending}
             />
-            <Text variant="caption" color="text.secondary" style={styles.footnote}>{t('auth.guestFootnote')}</Text>
+          </View>
+          <View style={styles.note}>
+            <Icon name="info" size={20} color="status.infoText" />
+            <Text variant="bodySmall" color="text.secondary" style={styles.noteText}>{t('auth.guestFootnote')}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
