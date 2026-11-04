@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import { Platform, UIManager, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
 import { isGoogleMapsConfigured } from '../../../modules/map-capability'
 
 import { regionForPins, type MapPin } from '@/shared/ui/map-region'
-import { mapColors } from '@/shared/ui/tokens'
 
 /**
  * The one place that knows a map SDK exists (ADR 0004). Everything else takes
@@ -64,6 +64,7 @@ function googleMapsLinked(): boolean {
 }
 
 export function MapCanvas({ pins, onSelect, style, fallback, interactive = true }: MapCanvasProps) {
+  const { theme } = useUnistyles()
   const maps = loadMaps()
   const region = regionForPins(pins)
   // What the installed binary linked cannot change while it is running, but
@@ -72,7 +73,7 @@ export function MapCanvas({ pins, onSelect, style, fallback, interactive = true 
   const [mapsLinked] = useState(googleMapsLinked)
 
   if (!maps || !region || !mapsLinked) {
-    return <View style={[{ backgroundColor: mapColors.canvas }, style]}>{fallback}</View>
+    return <View style={[{ backgroundColor: theme.map.canvas }, style]}>{fallback}</View>
   }
 
   const MapView = maps.default

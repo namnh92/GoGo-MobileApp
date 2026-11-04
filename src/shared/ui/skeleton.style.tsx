@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, surface } from '@/shared/ui/tokens'
+import { radius, spacing } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
-  block: { backgroundColor: surface.subtle },
+export const styles = StyleSheet.create(theme => ({
+  block: { backgroundColor: theme.surface.subtle },
 
   listCard: { flexDirection: 'row', gap: spacing[3] },
   listThumb: { width: 96 },
@@ -30,4 +30,4 @@ export const styles = StyleSheet.create({
 
   stack: { gap: spacing[3] },
   screen: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[3] },
-})
+}))

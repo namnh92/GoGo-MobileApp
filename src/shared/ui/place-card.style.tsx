@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { glassFx, overlay, touchTarget } from '@/shared/ui/tokens'
+import { overlay, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   /** Holds the card and, beside it, the save toggle positioned over it. */
@@ -59,6 +59,6 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: glassFx.solid,
+    backgroundColor: theme.surface.card,
   },
 }))
