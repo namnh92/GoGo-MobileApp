@@ -3,13 +3,15 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  headerRow: {
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[4],
+  headerCard: {
+    marginHorizontal: spacing[5],
+    marginBottom: spacing[4],
+    padding: spacing[4],
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[4],
   },
+  headerText: { flex: 1, minWidth: 0 },
   email: { marginTop: 2 },
 
   card: { marginHorizontal: spacing[5], padding: spacing[4], marginBottom: spacing[4] },
@@ -36,6 +38,15 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
   },
   shortcutLabel: { textAlign: 'center' },
+  shortcutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
+    marginBottom: spacing[1],
+  },
 
   settingRow: {
     flexDirection: 'row',
@@ -49,6 +60,14 @@ export const styles = StyleSheet.create(theme => ({
   },
   settingRowLast: { borderBottomWidth: 0 },
   settingRowPressed: { backgroundColor: theme.surface.subtle },
+  settingIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.compact,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.surface.subtle,
+  },
   settingLead: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexShrink: 1 },
   settingLabel: { flexShrink: 1 },
 
@@ -62,10 +81,24 @@ export const styles = StyleSheet.create(theme => ({
   segmentBtnActive: { backgroundColor: theme.accent.primary },
 
   logout: {
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: touchTarget.min,
+    paddingHorizontal: spacing[6],
     paddingVertical: spacing[3],
+    borderRadius: radius.pill,
+    backgroundColor: theme.accent.soft,
+    marginBottom: spacing[6],
+  },
+  signIn: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    marginHorizontal: spacing[5],
+    borderRadius: radius.button,
+    backgroundColor: theme.accent.primary,
     marginBottom: spacing[6],
   },
   logoutError: { textAlign: 'center', paddingHorizontal: spacing[4] },

@@ -8,6 +8,7 @@ import { parseApiDate, useMarkNotificationRead, useNotifications, type Notificat
 import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, BackHeader, Card, GhostBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -170,8 +171,8 @@ export default function NotificationsScreen() {
             >
               <Card padded={false} style={[styles.row, unread && styles.rowUnread]}>
                 {/* Unread is marked by more than colour (RULE-DS-COLOR). */}
-                <View style={styles.dotColumn}>
-                  {unread ? <View style={styles.unreadDot} /> : null}
+                <View style={styles.iconTile}>
+                  <Icon name="bell" size={20} color="accent.onSoft" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text variant={unread ? 'title2' : 'body'}>{kindLabel}</Text>
@@ -180,6 +181,9 @@ export default function NotificationsScreen() {
                   ) : null}
                 </View>
                 {busy ? <ActivityIndicator /> : null}
+                <View style={styles.dotColumn}>
+                  {unread ? <View style={styles.unreadDot} /> : null}
+                </View>
               </Card>
             </Pressable>
           )

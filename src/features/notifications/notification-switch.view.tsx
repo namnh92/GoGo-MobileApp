@@ -7,9 +7,9 @@ import { useUnistyles } from 'react-native-unistyles'
 import { useNotificationSettings, useSetNotificationSettings } from '@/shared/api'
 import type { MessageKey } from '@/shared/i18n/types'
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
+import { Icon } from '@/shared/ui/icons'
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { colors } from '@/shared/ui/tokens'
 
 import { styles } from './notification-switch.style'
 
@@ -82,6 +82,9 @@ export function NotificationSwitchSection() {
     <View>
       <Card padded={false} style={styles.card}>
         <View style={styles.row}>
+          <View style={styles.iconTile}>
+            <Icon name="bell" size={20} color="accent.onSoft" />
+          </View>
           <View style={styles.rowText}>
             <Text variant="label">{t('notificationSettings.switchLabel')}</Text>
             <Text variant="bodySmall" color="text.secondary">{t('notificationSettings.switchHint')}</Text>
@@ -91,7 +94,7 @@ export function NotificationSwitchSection() {
             value={current?.pushEnabled ?? false}
             onValueChange={next => save.mutate({ pushEnabled: next })}
             disabled={!current || save.isPending}
-            trackColor={{ true: theme.accent.primary, false: colors.neutral[100] }}
+            trackColor={{ true: theme.accent.primary, false: theme.surface.subtle }}
             accessibilityLabel={t('notificationSettings.switchLabel')}
             accessibilityHint={t('notificationSettings.switchHint')}
           />
@@ -130,11 +133,18 @@ export function NotificationSwitchSection() {
 
       <Text variant="label" color="text.secondary" style={styles.subTitle}>{t('notificationSettings.deviceTitle')}</Text>
       <Card padded={false} style={styles.deviceCard}>
-        <Text variant={!(pushState === 'granted' || pushState === 'checking') ? 'bodySmall' : pushState === 'granted' || pushState === 'checking' ? 'bodySmall' : undefined} color={!(pushState === 'granted' || pushState === 'checking') ? 'status.warningText' : pushState === 'granted' || pushState === 'checking' ? 'text.primary' : undefined}
-          accessibilityLiveRegion="polite"
-        >
-          {t(DEVICE_NOTE[pushState])}
-        </Text>
+        <View style={styles.deviceRow}>
+          <Icon
+            name={pushState === 'granted' ? 'checkCircle' : 'info'}
+            size={20}
+            color={pushState === 'granted' ? 'status.successText' : 'status.warningText'}
+          />
+          <Text style={styles.deviceText} variant={!(pushState === 'granted' || pushState === 'checking') ? 'bodySmall' : pushState === 'granted' || pushState === 'checking' ? 'bodySmall' : undefined} color={!(pushState === 'granted' || pushState === 'checking') ? 'status.warningText' : pushState === 'granted' || pushState === 'checking' ? 'text.primary' : undefined}
+            accessibilityLiveRegion="polite"
+          >
+            {t(DEVICE_NOTE[pushState])}
+          </Text>
+        </View>
         {pushState === 'askable' ? (
           <SecondaryBtn
             label={t('notificationSettings.openSettings')}

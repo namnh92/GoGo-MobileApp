@@ -1,24 +1,29 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 /** PROF-APP-006 — the date-of-birth block in account information. */
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   card: { padding: spacing[5], marginTop: spacing[4], gap: spacing[3] },
-  header: { gap: spacing[1] },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  icon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
+  },
+  header: { flex: 1, gap: spacing[1] },
   input: {
     ...type.body,
     minHeight: touchTarget.min,
-    borderWidth: 1,
-    borderColor: neutral[100],
-    borderRadius: radius.pill,
+    borderRadius: radius.compact,
     paddingHorizontal: spacing[4],
-    color: neutral[900],
-    backgroundColor: neutral[0],
+    color: theme.text.primary,
+    backgroundColor: theme.surface.subtle,
   },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   saveBtn: { flex: 1 },
   notice: { textAlign: 'center' },
-})
+}))

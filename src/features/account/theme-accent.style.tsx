@@ -10,7 +10,18 @@ const RING = SWATCH + 2 * (RING_GAP + RING_WIDTH)
 
 export const styles = StyleSheet.create(theme => ({
   card: { padding: theme.spacing[5], marginTop: theme.spacing[4], gap: theme.spacing[3] },
-  swatches: { flexDirection: 'row', gap: theme.spacing[3] },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
+  icon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
+  },
+  swatches: { flexDirection: 'row', justifyContent: 'space-between' },
+  option: { alignItems: 'center', gap: theme.spacing[1], minWidth: RING },
+  optionLabel: { textAlign: 'center' },
   ring: {
     width: RING,
     height: RING,

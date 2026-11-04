@@ -3,14 +3,15 @@ import { useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { TextInput, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { z } from 'zod'
 
 import { isApiError, isOffline, useUpdateDateOfBirth, type Me } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { haptic } from '@/shared/ui/feedback'
+import { Icon } from '@/shared/ui/icons'
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { colors } from '@/shared/ui/tokens'
 
 import { checkTypedDateOfBirth, formatDateOfBirth, isoToTyped } from './date-of-birth'
 import { styles } from './date-of-birth.style'
@@ -40,6 +41,7 @@ function serverReason(error: unknown): Reason | null {
  * account id, so a different sign-in starts from that account's value.
  */
 export function DateOfBirthCard({ profile }: { profile: Me }) {
+  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const update = useUpdateDateOfBirth()
   const saved = profile.dateOfBirth ?? null
@@ -89,11 +91,16 @@ export function DateOfBirthCard({ profile }: { profile: Me }) {
 
   return (
     <Card padded={false} style={styles.card}>
-      <View style={styles.header}>
-        <Text variant="title2" accessibilityRole="header">
-          {t('account.dobTitle')}
-        </Text>
-        <Text variant="bodySmall" color="text.secondary">{t('account.dobBody')}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.icon}>
+          <Icon name="calendar" size={20} color="accent.onSoft" />
+        </View>
+        <View style={styles.header}>
+          <Text variant="title2" accessibilityRole="header">
+            {t('account.dobTitle')}
+          </Text>
+          <Text variant="bodySmall" color="text.secondary">{t('account.dobBody')}</Text>
+        </View>
       </View>
 
       <Text variant={!(label) ? 'body' : label ? 'body' : undefined} color={!(label) ? 'text.secondary' : label ? 'text.primary' : undefined}>
@@ -114,7 +121,7 @@ export function DateOfBirthCard({ profile }: { profile: Me }) {
             }}
             onBlur={onBlur}
             placeholder={t('account.dobPlaceholder')}
-            placeholderTextColor={colors.neutral[500]}
+            placeholderTextColor={theme.text.secondary}
             keyboardType="numbers-and-punctuation"
             maxLength={10}
             autoCorrect={false}
