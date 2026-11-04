@@ -178,17 +178,17 @@ export const darkStatus = {
   successText: '#A7E8CD',
   // the rating star on Home
   warning: '#E59700',
-  // NOT FROM STITCH: warningSoft, warningText
-  warningSoft: '#3A2D17',
-  warningText: '#E8B15A',
-  // NOT FROM STITCH: danger fill
-  danger: colors.brand.red,
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  warningSoft: '#3D2E0B',
+  warningText: '#FFD074',
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  danger: '#FF6B6B',
   // error-container (Splash)
   dangerSoft: '#4A1A20',
   // error (Splash)
   dangerText: '#FF8A94',
-  // NOT FROM STITCH: info fill (Home has it only as rgba(118,103,232,0.4))
-  info: colors.brand.lavender,
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  info: '#7B8CFF',
   // lavender-bg (Home), secondary-container (Splash)
   infoSoft: '#2F2A55',
   // lavender (Home), secondary (Splash)
@@ -330,16 +330,18 @@ export const glass = {
 /**
  * The dark bar, from the Home Dark bottom nav: `bg-[#181715]/80` with a
  * `border-[#333333]/70` top edge. The wash carries contrast without the blur,
- * as the light one does; `solid` is the same colour opaque. `nativeTint` is
- * NOT FROM STITCH.
+ * as the light one does; `solid` is the same colour opaque. `blur`,
+ * `intensity`, `tint` and `nativeTint` are NOT FROM STITCH.
  */
 export const darkGlass = {
   bar: {
+    // NOT FROM STITCH: blur, intensity
     blur: 24,
     intensity: 60,
     wash: 'rgba(24,23,21,0.8)',
     solid: '#181715',
     hairline: 'rgba(51,51,51,0.7)',
+    // NOT FROM STITCH: tint, nativeTint
     tint: 'dark',
     nativeTint: 'rgba(0,0,0,0.4)',
   },
@@ -459,14 +461,13 @@ export type AccentName = keyof typeof accents
 /**
  * Dark accent palettes. Orange is from Stitch: `primary` #CA381F and `pressed`
  * (primary-hover) #A72E19 on Home, `text` and `onSoft` #FF746C on Home and
- * Splash, `soft` #2A2A2A (the "Tối nay" pill on Home). Stitch draws no green,
- * blue or purple accent, so those three keep their previous values and are all
- * NOT FROM STITCH.
+ * Splash, `soft` #2A2A2A (the "Tối nay" pill on Home). Green, blue and purple are from
+ * Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120.
  */
 export const darkAccents = {
   orange: { primary: '#CA381F', text: '#FF746C', pressed: '#A72E19', soft: '#2A2A2A', onSoft: '#FF746C', onAccent: '#FFFFFF' },
-  // NOT FROM STITCH: every value of green, blue and purple
-  green: { primary: '#247D52', text: '#4FC98C', pressed: '#1B5E3E', soft: '#1F3329', onSoft: '#4FC98C', onAccent: '#FFFFFF' },
-  blue: { primary: '#1A6CD5', text: '#6FAEFF', pressed: '#2565BF', soft: '#1D2B40', onSoft: '#6FAEFF', onAccent: '#FFFFFF' },
-  purple: { primary: '#7250F4', text: '#A892FF', pressed: '#6247CC', soft: '#2E2750', onSoft: '#A892FF', onAccent: '#FFFFFF' },
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  green: { primary: '#247D52', text: '#79D9AD', pressed: '#1A5E3D', soft: '#16402F', onSoft: '#79D9AD', onAccent: '#FFFFFF' },
+  blue: { primary: '#1E68D7', text: '#94BEF7', pressed: '#164EB0', soft: '#192B45', onSoft: '#94BEF7', onAccent: '#FFFFFF' },
+  purple: { primary: '#7161E2', text: '#C7BFFF', pressed: '#5747C8', soft: '#2F2A55', onSoft: '#C7BFFF', onAccent: '#FFFFFF' },
 } as const satisfies Record<AccentName, Record<keyof (typeof accents)['orange'], string>>
