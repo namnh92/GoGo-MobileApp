@@ -1,8 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   title: {
@@ -20,41 +18,43 @@ export const styles = StyleSheet.create(theme => ({
     width: 48,
     height: 48,
     borderRadius: 24,
+    backgroundColor: theme.surface.subtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  stepBtnPlus: { backgroundColor: theme.accent.primary },
   sectionTitle: {
     marginTop: spacing[6],
     marginBottom: spacing[3],
   },
 
   /**
-   * A two-way choice is a segmented control, not two stacked radio rows: the
-   * options are alternatives to each other, and side by side is what says so.
+   * Two alternatives, each a card that says what it means for the room's
+   * prices. The selection is a tint, a ring and a check together.
    */
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: neutral[100],
-    borderRadius: radius.compact,
-    padding: 3,
-    gap: 3,
-  },
-  segment: {
-    flex: 1,
+  modes: { gap: spacing[3] },
+  mode: {
     minHeight: touchTarget.min,
-    borderRadius: radius.compact - 3,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+    padding: spacing[4],
+    borderRadius: radius.card,
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+    ...theme.shadows.card,
+  },
+  modeActive: { backgroundColor: theme.accent.soft, borderColor: theme.accent.primary },
+  modeBody: { flex: 1 },
+  modeHelp: { marginTop: spacing[1] },
+  radio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.surface.subtle,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing[2],
-    gap: 2,
   },
-  segmentActive: {
-    backgroundColor: theme.surface.card,
-    shadowColor: neutral[900],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  helper: { marginTop: spacing[3] },
+  radioActive: { backgroundColor: theme.accent.primary },
 }))

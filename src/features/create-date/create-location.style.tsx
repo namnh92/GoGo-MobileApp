@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   content: { paddingHorizontal: spacing[5], paddingBottom: spacing[6] },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
   rowCard: {
@@ -15,6 +15,7 @@ export const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: theme.accent.soft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -27,9 +28,10 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  radiusBtnActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.primary },
   locationFallback: {
     marginTop: spacing[2],
   },
   /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
   prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[3] },
-})
+}))
