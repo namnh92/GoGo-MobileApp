@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -17,8 +16,9 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
+import { Icon } from '@/shared/ui/icons'
 import { Glyph, Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -29,7 +29,6 @@ const MAX_PREFS = 3
 const TAXONOMY_KIND = 'mood'
 
 export default function PreferenceScreen() {
-  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -178,10 +177,11 @@ export default function PreferenceScreen() {
                 onPress={() => toggle(option.key)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
+                style={[styles.option, active ? styles.optionActive : styles.optionIdle]}
               >
+                {active ? <Icon name="check" size={16} color="accent.onSoft" /> : null}
                 {option.emoji ? <Glyph size="sm">{option.emoji}</Glyph> : null}
-                <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>
+                <Text variant="label" color={active ? 'accent.onSoft' : 'text.primary'}>
                   {option.label}
                 </Text>
               </Pressable>

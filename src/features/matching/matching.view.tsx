@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useUnistyles } from 'react-native-unistyles'
 
 import {
   isApiError,
@@ -18,7 +17,7 @@ import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useLocaleContent } from '@/shared/i18n'
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { OfflineState } from '@/shared/ui/async-state.view'
-import { AvatarCircle } from '@/shared/ui/primitives'
+import { Icon } from '@/shared/ui/icons'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { Glyph, Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -32,7 +31,6 @@ import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 const MESSAGE_INTERVAL_MS = 1400
 
 export default function MatchingScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -113,10 +111,11 @@ export default function MatchingScreen() {
         />
       </View>
       <View style={styles.root}>
-        <View style={styles.pair}>
-          <AvatarCircle label="G" size={64} background={theme.accent.primary} />
-          <Text variant="display" color="onDark.soft">×</Text>
-          <AvatarCircle emoji="😊" size={64} />
+        {/* No avatars: a room has N members, so the mark is the run itself. */}
+        <View style={styles.orbit} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View style={styles.orbitCore}>
+            <Icon name="compass" size={44} color="accent.onAccent" />
+          </View>
         </View>
 
         {waitingForNetwork && !failed ? (
@@ -125,8 +124,8 @@ export default function MatchingScreen() {
           </View>
         ) : failed ? (
           <View style={{ alignItems: 'center', gap: spacing[3] }}>
-            <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.failedTitle')}</Text>
-            <Text color="onDark.soft" style={styles.matchedBody}>
+            <Text variant="display" color="text.primary" style={styles.matched}>{t('matching.failedTitle')}</Text>
+            <Text color="text.secondary" style={styles.matchedBody}>
               {notReady ? t('matching.notReadyBody') : t('common.errorBody')}
             </Text>
             {/* A 409 means the room is not ready, which retrying cannot fix;
@@ -140,7 +139,7 @@ export default function MatchingScreen() {
                 accessibilityState={{ disabled: startMatching.isPending, busy: startMatching.isPending }}
                 style={styles.retryBtn}
               >
-                <Text variant="label" color="text.inverse">
+                <Text variant="label" color="text.primary">
                   {startMatching.isPending ? t('matching.retrying') : t('common.retry')}
                 </Text>
               </Pressable>
@@ -152,17 +151,17 @@ export default function MatchingScreen() {
         ) : hasRun && !isStale ? (
           <View style={{ alignItems: 'center' }}>
             <Glyph size="mega" style={{ marginBottom: spacing[2] }}>🎉</Glyph>
-            <Text variant="display" color="text.inverse" style={styles.matched}>{t('matching.matched')}</Text>
-            <Text color="onDark.soft" style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
+            <Text variant="display" color="text.primary" style={styles.matched}>{t('matching.matched')}</Text>
+            <Text color="text.secondary" style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
           </View>
         ) : (
           <View style={{ alignItems: 'center', gap: spacing[2], alignSelf: 'stretch' }}>
-            <Text color="onDark.strong" style={styles.message} accessibilityLiveRegion="polite">
+            <Text color="text.primary" style={styles.message} accessibilityLiveRegion="polite">
               {content.matchingMessages[messageIndex]}
             </Text>
             {/* Why it is taking a moment — a member cannot start the run, so say
                 so instead of spinning forever. */}
-            <Text variant="bodySmall" color="onDark.soft" style={styles.reason}>
+            <Text variant="bodySmall" color="text.secondary" style={styles.reason}>
               {capabilities.isHost ? t('matching.reason') : t('matching.waitingForHost')}
             </Text>
             <View
