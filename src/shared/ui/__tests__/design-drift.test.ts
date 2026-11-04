@@ -108,6 +108,7 @@ const GLASS_FX_ALLOWED: Record<string, string[]> = {
   'features/date-plan/date-plan.style.tsx': ['bar'],
   // The ATT consent sheet: a native-prompt primer that stays a plain Modal.
   'shared/consent/tracking-sheet.style.tsx': ['sheet'],
+  'shared/notifications/device-promotions-sheet.style.tsx': ['sheet'],
 }
 
 describe('glass wash stays off ordinary surfaces (#382)', () => {

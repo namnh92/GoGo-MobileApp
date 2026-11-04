@@ -49,7 +49,8 @@ Mục đích "Analytics" xuất hiện ở §6/§7 đến từ Tenjin (D14) và 
 | D10 | Toạ độ chính xác | lấy: `src/shared/location/fresh-position.ts`, `use-current-location.ts`; gửi và **lưu trên phòng**: `src/shared/store/roomStore.ts:252-253` → `endpoints/rooms.ts:18,69` (`openapi/gogo.v1.yaml:10517-10518`); gửi không lưu: `src/features/search/search.view.tsx:133-134`, `src/shared/administrative/queries.ts:44` | GoGo BE | gợi ý địa điểm gần, suy ra khu vực hành chính, gốc của lịch trình | có — không phải vì token (hai đường tìm kiếm/khu vực gửi `anonymous: true`: `endpoints/places.ts:8`, `administrative/queries.ts:45`), mà vì toạ độ gốc nằm trên phòng của người dùng và BE vẫn thấy IP | tuỳ chọn — có đường chọn khu vực thủ công, chuỗi quyền nói đúng điều đó (`app.config.ts:271-274`) |
 | D11 | Truy vấn tìm kiếm địa điểm | `src/features/search/search.view.tsx:124-143` → `src/shared/api/endpoints/places.ts:7-8` | GoGo BE | tìm kiếm | có — request là `anonymous: true` (`places.ts:8`, token bị bỏ ở `client.ts:239`), nhưng BE vẫn thấy IP và cùng người dùng còn các đường có phiên | tuỳ chọn |
 | D12 | Id đăng ký push + nền tảng | `src/shared/api/endpoints/me.ts:97`; `openapi/gogo.v1.yaml:3170-3205` | GoGo BE | biết người dùng còn nhận được thông báo không | có | tuỳ chọn (theo quyền thông báo) |
-| D13 | `external_id` = `users.id` + token ES256 ngắn hạn | `src/shared/notifications/identity-session.ts:23,133`; token lấy ở `identity-api.ts:21` | OneSignal | định danh thiết bị để gửi push đúng người | có | tuỳ chọn |
+| D13 | `external_id` = `users.id` + token ES256 ngắn hạn | `src/shared/notifications/identity-session.ts` (`bindUser`); token lấy ở `identity-api.ts:21` | OneSignal | định danh thiết bị để gửi push đúng người | có | tuỳ chọn |
+| D13a | `external_id` = `device:<id>` + token ES256 ngắn hạn, chỉ khi không có session user và đã trả lời "Tiếp tục" trên sheet ưu đãi (GoGo-MobileApp#398). Không gắn tài khoản | `src/shared/notifications/identity-session.ts` (`bindDevice`); token lấy ở `device-identity-api.ts` | OneSignal | gửi ưu đãi chung cho máy chưa đăng nhập | không | tuỳ chọn (sheet, công tắc) |
 | D14 | Sự kiện cài đặt / mở app + tham số attribution | `src/shared/acquisition/bootstrap.ts:19-26`, `initialize.ts:39-43` (`initialize` → `setAppStore` → `connect`), `deferred-link.ts:40-46,124` (`getAttributionInfo`) | Tenjin | đo nguồn cài đặt, mở deferred deep link | gắn định danh thiết bị (xem T2 §3) | tuỳ chọn |
 | D15 | Crash, lỗi, breadcrumb đã lọc | `src/shared/observability/sentry.ts:733` (`beforeSend`), `:699` (`beforeBreadcrumb`), `:823-845` | Sentry | sửa lỗi | `user.id` = id người dùng khi đã đăng nhập, ngược lại là installation id của SDK native (`sentry.ts:726-731,733`, ADR 0010) | tuỳ chọn theo DSN của bản build |
 | D16 | Session release-health (`sid`, `did`, status, counters, `seq`) | `src/shared/observability/sentry.ts:14-19,825` | Sentry | tỉ lệ crash-free | `did` = installation id native, **không** phải id người dùng | như D15 |
@@ -58,6 +59,7 @@ Mục đích "Analytics" xuất hiện ở §6/§7 đến từ Tenjin (D14) và 
 | D19 | Thành viên phòng và lời mời đã tạo | `src/shared/api/endpoints/rooms.ts:139,149,164,171,176` | GoGo BE | quản lý phòng, mời người đi cùng | có | bắt buộc theo luồng |
 | D20 | Mục đã lưu (địa điểm, kế hoạch) | `src/shared/api/endpoints/me.ts:14,18` | GoGo BE | danh sách đã lưu | có | tuỳ chọn |
 | D21 | Cài đặt thông báo | `src/shared/api/endpoints/me.ts:83` | GoGo BE | tôn trọng lựa chọn nhận thông báo | có | tuỳ chọn |
+| D21a | Mã thiết bị ngẫu nhiên do BE cấp, nền tảng, id đăng ký push, trạng thái công tắc ưu đãi + số phiên bản lựa chọn (GoGo-MobileApp#398) | `src/shared/notifications/device-identity-api.ts`; `openapi/gogo.v1.yaml` (`/notifications/identity/device`, `/notifications/device-subscriptions`) | GoGo BE | gửi ưu đãi chung, tôn trọng lựa chọn nhận | không — không có liên kết tài khoản (GoGo-BE ADR-0038) | tuỳ chọn (sheet, công tắc) |
 | D22 | Thay đổi lịch trình: khoá điểm, hoàn thành điểm, tạo lại | `src/shared/api/endpoints/plans.ts:19,24,35,47` | GoGo BE | chức năng cốt lõi | có | bắt buộc theo luồng |
 | D23 | Đề xuất địa điểm: link Google Maps đã dán, ghi chú tự do, category, mood keys, khoảng giá tự khai | `src/features/place-import/import.view.tsx:176` (resolve link), `:145-156` (category, vibes, estimatedPrice, note), `:205` (submit) | GoGo BE | góp địa điểm, kiểm duyệt | có | tuỳ chọn |
 | D24 | Phiên cài đặt / mở app + callback attribution và deferred deep link của Adjust | `src/shared/acquisition/bootstrap.ts:170-249` (`runAdjust`, `startAdjustSdk`; chỉ nạp wrapper sau khi `adjust/native-preflight.ts` thấy module native), `src/shared/acquisition/adjust/initialize.ts:56-74` (`disableDeferredDeeplinkOpening` → `setAttConsentWaitingInterval(60)` → callback → `initSdk`), `adjust/deferred-link.ts` (chỉ ghi link GoGo vào `PendingDeepLinkStore`) | Adjust | đo nguồn cài đặt, mở deferred deep link | gắn định danh thiết bị (T5) | tuỳ chọn — dev không token thì không chạy; stag/prod token hoặc `off` |
@@ -255,13 +257,14 @@ app (§5), nhưng URL web mà Play đòi thì chưa có (§5, §8).
 
 ## 10. Câu hỏi còn mở (owner quyết, một số cần ý kiến pháp lý)
 
-Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12. Còn lại ba câu:
+Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12. Còn lại bốn câu:
 
 | # | Câu hỏi | Vì sao nó chặn | Khuyến nghị |
 | --- | --- | --- | --- |
 | Q4 | Trang chính sách quyền riêng tư **và** trang yêu cầu xoá dữ liệu: ai viết nội dung, đặt ở đâu? | Cả hai cửa hàng **bắt buộc** URL chính sách, và Play còn đòi URL yêu cầu xoá dữ liệu cho app có tạo tài khoản; thiếu một trong hai thì không nộp được. GoGo-FE hiện không có trang nào; đã mở namnh92/GoGo-FE#3. | Trang tĩnh trên gogo.id.vn (GoGo-FE), nội dung dựng từ tài liệu này + ADR-0023; phần pháp lý cần người có thẩm quyền ký. |
 | Q5 | Ngày sinh (D4) dùng để làm gì — ý định sản phẩm, không phải sự thật trong repo? | Hiện trạng đo được: **không có cổng tuổi** ("No minimum age applies", `openapi/gogo.v1.yaml:403`) và không consumer nào ngoài `/me` + export; app chỉ hiện và sửa nó (`src/features/account/date-of-birth.view.tsx`, `src/shared/api/queries/use-me.ts:38`). Vì vậy §6/§7 khai `App Functionality` theo đúng hiện trạng; câu còn mở là có thêm mục đích nào không. | Nếu chỉ để lọc nội dung theo tuổi / gợi ý thì khai App functionality; nếu dùng để cá nhân hoá thì phải khai thêm Personalization. |
 | Q6 | Luật Bảo vệ dữ liệu cá nhân và Nghị định 356 (thay Nghị định 13/2023/NĐ-CP từ 01/01/2026) có coi mã thiết bị (IDFA, GAID, IDFV, App Set ID) là dữ liệu cá nhân và đòi **đồng ý** trước khi gửi cho Tenjin/Adjust **trên cả Android** — nơi không có ATT? | D-6 chỉ trả lời câu hỏi của Apple. Từ D-8, Android gửi App Set ID, IP và dữ liệu thiết bị cho Tenjin, Adjust **trước khi hỏi và cả khi từ chối**; GAID chỉ sau khi cho phép. Nếu luật đòi đồng ý cho các dữ liệu đó, khai báo Play đúng nhưng hành vi có thể trái luật. Chưa ai có thẩm quyền trả lời. | Hỏi người làm pháp lý **trước lần nộp đầu**, cùng lượt privacy review + DPA của Adjust (#367). Owner chịu trách nhiệm theo dõi; câu trả lời ghi thành một dòng có ngày ở §12. D-6 không trả lời câu này. **Về sản phẩm đã trả lời bằng D-8 (§12); ý kiến pháp lý vẫn còn thiếu**: D-8 ghi quyết định của owner, không phải kết luận pháp lý. |
+| Q7 | Máy không có tài khoản (GoGo-MobileApp#398): "sheet `device-promotions-v1` + hộp thoại hệ điều hành + bản ghi cục bộ" có đủ làm bản ghi đồng ý theo Luật Bảo vệ dữ liệu cá nhân và Nghị định 356 (thay Nghị định 13/2023/NĐ-CP) không? | Chưa kiểm tra. Bật cờ `push.device_identity.enabled` ở prod cần lệnh riêng của owner (Q8 của shape); DEV và stag được làm | Hỏi ý kiến pháp lý trước khi bật ở prod |
 
 ## 11. Cách kiểm tài liệu này (AC-5 của #354)
 
@@ -293,6 +296,23 @@ Ba câu Q1–Q3 đã được chốt ngày 2026-10-17 và chuyển xuống §12.
 
 Ghi ở đây thay vì để trong §10, vì một ô khai báo không được treo vào một câu hỏi. Nguồn kèm theo:
 `.claude/rules/execution-policy.md` §8 2026-10-17.
+
+**D-9 (2026-11-03, GoGo-MobileApp#398, GoGo-BE ADR-0038) — máy không có session user nhận ưu đãi chung qua định danh
+`device:<id>`.** Sheet `device-promotions-v1` hỏi một lần cho mỗi phiên bản câu chữ, cả khi quyền thông báo đã cấp; chưa trả
+lời hoặc "Không nhận ưu đãi" thì không có định danh. Công tắc nằm ở Cài đặt → Quyền và dữ liệu, mặc định bật sau "Tiếp tục"
+(owner Q5).
+
+- Dữ liệu: push token tới OneSignal; GoGo BE nhận D21a. Không gắn tài khoản. Đăng nhập thì thu hồi định danh và chuyển
+  subscription sang `userId`; đăng xuất cấp định danh mới.
+- Xoá: khoảng 90 ngày không hoạt động + 1 giờ tới bước dọn provider + 30 ngày; dọn provider lỗi thì giữ tới khi xử lý xong
+  (ADR-0038). Không ghi "sau 90 ngày".
+- **Cửa sổ lan truyền, nói thẳng.** Tắt công tắc có hiệu lực ở OneSignal khi SDK đẩy `optOut()` lên (offline: khi có mạng lại)
+  và ở BE khi báo cáo tới nơi; giữa hai mốc đó một chiến dịch `public` vẫn có thể tới máy. App hiện "Đang tắt…" tới khi BE đọc
+  được từ OneSignal là đã tắt. Mất lịch sử (cài lại, xoá dữ liệu app) với định danh cũ còn sống: app đưa định danh vào diện chờ
+  thu hồi, `optOut()` + `logout()`, thử xoá phía server tới khi 2xx hoặc GONE (R-17); offline thì subscription cũ có thể còn
+  tới lần có mạng sau. Bản ghi cục bộ mất khi gỡ app (`allowBackup: false`).
+- Rủi ro mở: Q7 ở §10. M-3 đo được OneSignal có thể báo `enabled=true` cho máy đã cài lại, nên đối tượng thiết bị có thể đếm dư
+  tới khi hết hạn.
 
 **D-8 (2026-11-03, GoGo-MobileApp#404, ADR 0014) — Android chạy SDK như iOS, giữ mã quảng cáo tới khi đồng ý; thay
 dòng "không SDK nào khởi động trước đồng ý" của D-7.** Tenjin và Adjust khởi động ở mọi lần mở. Chưa trả lời, để sau,

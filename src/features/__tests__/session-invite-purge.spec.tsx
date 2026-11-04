@@ -9,8 +9,8 @@ import { act, render, screen, waitFor } from '@testing-library/react-native'
 
 const mockExpiry: { callback: (() => void) | null } = { callback: null }
 
-jest.mock('@/shared/notifications/logout-confirmation-bootstrap', () => ({
-  unsubscribeCurrentDeviceAndConfirm: jest.fn(async () => undefined),
+jest.mock('@/shared/notifications/identity-bootstrap', () => ({
+  pushIdentity: { beginSignOut: jest.fn(async () => undefined), cancelSignOut: jest.fn(async () => undefined) },
 }))
 jest.mock('@/shared/api/endpoints/sessions', () => ({
   login: jest.fn(async () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-2' })),

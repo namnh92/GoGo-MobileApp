@@ -5,7 +5,7 @@ import { setOnSessionExpired } from '@/shared/api/client'
 import * as roomsApi from '@/shared/api/endpoints/rooms'
 import * as sessionsApi from '@/shared/api/endpoints/sessions'
 import { pendingDeepLinks } from '@/shared/acquisition/pending-deep-links'
-import { unsubscribeCurrentDeviceAndConfirm } from '@/shared/notifications/logout-confirmation-bootstrap'
+import { pushIdentity } from '@/shared/notifications/identity-bootstrap'
 import { purgeCachedUserData } from '@/shared/api/query-client'
 import {
   getSession,
@@ -112,12 +112,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // throwing leaves the user signed in and the caller reporting failure.
       // A guest is never bound to the provider, so it has nothing to confirm
       // (#279) — see `createLogoutConfirmation`.
-      await unsubscribeCurrentDeviceAndConfirm(getSession()?.kind === 'guest' ? 'guest' : 'user')
-      // #364: before the session ends, and not in `purge`, which sign-in also
-      // runs — the invite someone installed from must survive their own
-      // sign-in, not another person's. Throws if the entry is not gone.
-      await pendingDeepLinks.clear()
-      await sessionsApi.logout(allDevices)
+      //
+      // #398: the coordinator owns step 1 (R-21). If anything up to the server's
+      // answer fails the person stays signed in, so the device has to be theirs
+      // again: `cancelSignOut` binds it back.
+      try {
+        await pushIdentity.beginSignOut(getSession()?.kind === 'guest' ? 'guest' : 'user')
+        // #364: before the session ends, and not in `purge`, which sign-in also
+        // runs — the invite someone installed from must survive their own
+        // sign-in, not another person's. Throws if the entry is not gone.
+        await pendingDeepLinks.clear()
+        await sessionsApi.logout(allDevices)
+      } catch (error) {
+        void pushIdentity.cancelSignOut()
+        throw error
+      }
       useRoomStore.getState().resetDraft()
       useRoomStore.setState({ preferenceSeed: null })
       await purge()

@@ -20,9 +20,28 @@ type Phase = 'idle' | 'checking' | 'visible' | 'requesting' | 'done'
  */
 const launch: { phase: Phase; generation: number } = { phase: 'idle', generation: 0 }
 
+const phaseListeners = new Set<() => void>()
+
+function setPhase(phase: Phase): void {
+  launch.phase = phase
+  for (const listener of phaseListeners) listener()
+}
+
+/** #398: only one sheet at a time, and iOS drops a second modal without a word. */
+export function isTrackingQuestionOpen(): boolean {
+  return launch.phase === 'checking' || launch.phase === 'visible' || launch.phase === 'requesting'
+}
+
+export function subscribeTrackingQuestion(listener: () => void): () => void {
+  phaseListeners.add(listener)
+  return () => {
+    phaseListeners.delete(listener)
+  }
+}
+
 /** For tests only: a new launch. */
 export function resetTrackingConsentLaunch(): void {
-  launch.phase = 'idle'
+  setPhase('idle')
   launch.generation += 1
 }
 
@@ -58,21 +77,21 @@ export function TrackingConsentGate({ consent = trackingConsent }: { consent?: T
       // is taken down and asked again later. The system dialog, once up, is
       // left to finish.
       if (launch.phase === 'checking' || launch.phase === 'visible') {
-        launch.phase = 'idle'
+        setPhase('idle')
         launch.generation += 1
       }
       return
     }
     if (launch.phase !== 'idle') return
-    launch.phase = 'checking'
+    setPhase('checking')
     const generation = ++launch.generation
     void consent.status().then(current => {
       if (generation !== launch.generation || launch.phase !== 'checking') return
       if (current === 'undetermined') {
-        launch.phase = 'visible'
+        setPhase('visible')
         refresh()
       } else {
-        launch.phase = 'done'
+        setPhase('done')
         consent.settle()
       }
     })
@@ -80,10 +99,10 @@ export function TrackingConsentGate({ consent = trackingConsent }: { consent?: T
 
   const onContinue = () => {
     if (launch.phase !== 'visible') return
-    launch.phase = 'requesting'
+    setPhase('requesting')
     refresh()
     void consent.request().finally(() => {
-      launch.phase = 'done'
+      setPhase('done')
       refresh()
       consent.settle()
     })
@@ -92,14 +111,14 @@ export function TrackingConsentGate({ consent = trackingConsent }: { consent?: T
   /** Android: no system dialog, so the tap is the answer. */
   const onAnswer = (answer: ConsentAnswer) => {
     if (launch.phase !== 'visible') return
-    launch.phase = 'done'
+    setPhase('done')
     refresh()
     consent.answer(answer)
   }
 
   const onLater = () => {
     if (launch.phase !== 'visible') return
-    launch.phase = 'done'
+    setPhase('done')
     refresh()
     consent.later()
   }

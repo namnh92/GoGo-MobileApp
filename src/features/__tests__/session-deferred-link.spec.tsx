@@ -13,8 +13,8 @@ const mockClear = jest.fn(async () => undefined)
 jest.mock('@/shared/acquisition/pending-deep-links', () => ({
   pendingDeepLinks: { clear: () => mockClear() },
 }))
-jest.mock('@/shared/notifications/logout-confirmation-bootstrap', () => ({
-  unsubscribeCurrentDeviceAndConfirm: jest.fn(async () => undefined),
+jest.mock('@/shared/notifications/identity-bootstrap', () => ({
+  pushIdentity: { beginSignOut: jest.fn(async () => undefined), cancelSignOut: jest.fn(async () => undefined) },
 }))
 jest.mock('@/shared/api/endpoints/sessions', () => ({
   logout: jest.fn(async () => undefined),

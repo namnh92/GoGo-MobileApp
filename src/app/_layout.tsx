@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar'
 
 import { DeferredLinkResumer } from '@/shared/acquisition/deferred-link-resumer'
 import { TrackingConsentGate } from '@/shared/consent/tracking-consent-gate'
+import { DevicePromotionsGate } from '@/shared/notifications/device-promotions-gate'
 import '@/shared/i18n'
 import { NotificationClickRouter } from '@/shared/notifications/notification-click-router'
 import { RootErrorBoundary } from '@/shared/observability/root-error-boundary.view'
@@ -31,6 +32,7 @@ function RootLayout() {
         <NotificationClickRouter />
         <DeferredLinkResumer />
         <TrackingConsentGate />
+        <DevicePromotionsGate />
         <SentryScreenTag />
         <Stack
           screenLayout={screenTagLayout}
