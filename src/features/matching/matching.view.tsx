@@ -113,8 +113,19 @@ export default function MatchingScreen() {
       <View style={styles.root}>
         {/* No avatars: a room has N members, so the mark is the run itself. */}
         <View style={styles.orbit} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <View style={styles.orbitCore}>
-            <Icon name="compass" size={44} color="accent.onAccent" />
+          <View style={styles.orbitMid}>
+            <View style={styles.orbitCore}>
+              <Icon name="compass" size={44} color="accent.onAccent" />
+            </View>
+          </View>
+          <View style={[styles.satellite, styles.satelliteTop]}>
+            <Icon name="mapPin" size={18} color="accent.onSoft" />
+          </View>
+          <View style={[styles.satellite, styles.satelliteLeft]}>
+            <Icon name="heart" size={16} color="accent.onSoft" />
+          </View>
+          <View style={[styles.satellite, styles.satelliteRight]}>
+            <Icon name="star" size={16} color="status.warningText" />
           </View>
         </View>
 
@@ -156,29 +167,34 @@ export default function MatchingScreen() {
           </View>
         ) : (
           <View style={{ alignItems: 'center', gap: spacing[2], alignSelf: 'stretch' }}>
-            <Text color="text.primary" style={styles.message} accessibilityLiveRegion="polite">
+            <Text variant="title1" style={styles.message} accessibilityLiveRegion="polite">
               {content.matchingMessages[messageIndex]}
             </Text>
             {/* Why it is taking a moment — a member cannot start the run, so say
                 so instead of spinning forever. */}
-            <Text variant="bodySmall" color="text.secondary" style={styles.reason}>
+            <Text color="text.secondary" style={styles.reason}>
               {capabilities.isHost ? t('matching.reason') : t('matching.waitingForHost')}
             </Text>
-            <View
-              style={styles.progressTrack}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            >
+            <View style={styles.statusCard}>
+              <View style={styles.statusIcon}>
+                <Icon name="users" size={22} color="accent.onSoft" />
+              </View>
               <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.round(
-                      ((messageIndex + 1) / Math.max(content.matchingMessages.length, 1)) * 100,
-                    )}%`,
-                  },
-                ]}
-              />
+                style={styles.progressTrack}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.round(
+                        ((messageIndex + 1) / Math.max(content.matchingMessages.length, 1)) * 100,
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
             </View>
           </View>
         )}
