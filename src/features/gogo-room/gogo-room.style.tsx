@@ -1,9 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, touchTarget } from '@/shared/ui/tokens'
-
-/** Dashed seat outlines: the line colour, which has no semantic role of its own yet. */
-const seatLine = colors.neutral[300]
+import { touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   avatarRow: { flexDirection: 'row' },
@@ -19,7 +16,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: 28,
     backgroundColor: theme.surface.subtle,
     borderStyle: 'dashed',
-    borderColor: seatLine,
+    borderColor: theme.text.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -39,7 +36,7 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.surface.subtle,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: seatLine,
+    borderColor: theme.text.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -67,7 +64,7 @@ export const styles = StyleSheet.create(theme => ({
    * aloud — 22 characters is normal. One line that shrinks to fit keeps the
    * copy button inside the card at 375pt; the text stays selectable.
    */
-  code: { flex: 1, letterSpacing: 0.5 },
+  code: { flex: 1, letterSpacing: 0.5, color: theme.accent.primary },
   copyBtn: { flexShrink: 0 },
   copyBtnDone: { backgroundColor: theme.status.successSoft, borderColor: theme.status.success },
   noApp: {

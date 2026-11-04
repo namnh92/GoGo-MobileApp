@@ -1,7 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   badge: {
@@ -29,18 +27,18 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[3],
     paddingVertical: spacing[2],
     borderBottomWidth: 1,
-    borderBottomColor: neutral[100],
+    borderBottomColor: theme.border.hairline,
   },
   noAccount: { textAlign: 'center' },
   nameInput: {
     ...type.body,
     minHeight: touchTarget.min,
     borderWidth: 1,
-    borderColor: neutral[100],
+    borderColor: theme.text.tertiary,
     borderRadius: radius.pill,
     paddingHorizontal: spacing[4],
-    color: neutral[900],
-    backgroundColor: neutral[0],
+    color: theme.text.primary,
+    backgroundColor: theme.surface.subtle,
   },
   error: {
     textAlign: 'center',
