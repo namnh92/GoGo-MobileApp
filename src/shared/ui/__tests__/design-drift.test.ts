@@ -94,8 +94,6 @@ describe('i18n copy is sentence case (#382)', () => {
  * deleting its line here.
  */
 const GLASS_FX_ALLOWED: Record<string, string[]> = {
-  // On an accent fill.
-  'features/home/home.style.tsx': ['badge', 'borderLight', 'btnBorder'],
   'features/create-date/create-budget.style.tsx': ['badge'],
   // Over a photo.
   'features/date-plan/place-detail.style.tsx': ['badge', 'solid'],
@@ -166,7 +164,7 @@ describe('icons draw on one grid (#382)', () => {
     expect(source.match(/viewBox="(?!0 0 24 24")[^"]*"/g) ?? []).toEqual([])
   })
 
-  it('no icon carries a fixed colour — colour is a prop resolved from the theme', () => {
+  it('no icon carries a fixed colour — colour is a perfect prop resolved from the theme', () => {
     expect(source).not.toMatch(/\bcolors\b|\bneutral\[|\bbrand\./)
   })
 })

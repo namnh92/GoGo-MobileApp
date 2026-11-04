@@ -1,8 +1,9 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Pressable, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useUnistyles } from 'react-native-unistyles'
 
 import {
   useAddRoomSeedPlaces,
@@ -27,7 +28,7 @@ import { SearchField } from '@/shared/ui/search-field.view'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './search.style'
 
@@ -42,6 +43,7 @@ function parseNum(value: string): number | null {
 }
 
 export default function SearchScreen() {
+  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -220,7 +222,12 @@ export default function SearchScreen() {
         </IconBtn>
       </View>
 
-      <View style={styles.filterRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterRow}
+        contentContainerStyle={styles.filterRowContent}
+      >
         <Chip
           label={content.searchFilters[0]}
           variant={selectedCategories.length === 0 ? 'selected' : 'default'}
@@ -234,7 +241,7 @@ export default function SearchScreen() {
             onPress={() => toggleCategory(category.key)}
           />
         ))}
-      </View>
+      </ScrollView>
 
       {search.isError ? (
         <ErrorState error={search.error} onRetry={() => void search.refetch()} />
@@ -303,7 +310,12 @@ export default function SearchScreen() {
       </Pressable>
 
       <Sheet visible={sheetOpen} onClose={() => setSheetOpen(false)}>
-        <Text variant="title2" style={styles.sheetTitle}>{t('search.filters')}</Text>
+        <View style={styles.sheetHeader}>
+          <Text variant="title2">{t('search.filters')}</Text>
+          <Pressable accessibilityRole="button" onPress={clearFilters} style={styles.sheetClearBtn}>
+            <Text variant="bodySmall" color="accent.primary">{t('search.clearFilters')}</Text>
+          </Pressable>
+        </View>
 
         <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterDistance')}</Text>
         {hasOrigin ? (
@@ -312,7 +324,7 @@ export default function SearchScreen() {
             onChangeText={setMaxKm}
             accessibilityLabel={t('search.filterDistance')}
             placeholder={t('search.distancePlaceholder')}
-            placeholderTextColor={colors.neutral[500]}
+            placeholderTextColor={theme.text.secondary}
             keyboardType="numeric"
             style={styles.sheetInput}
           />
@@ -329,7 +341,7 @@ export default function SearchScreen() {
             onChangeText={setPriceFrom}
             accessibilityLabel={t('search.priceFromLabel')}
             placeholder={t('search.priceFrom')}
-            placeholderTextColor={colors.neutral[500]}
+            placeholderTextColor={theme.text.secondary}
             keyboardType="numeric"
             style={[styles.sheetInput, styles.priceInput]}
           />
@@ -339,7 +351,7 @@ export default function SearchScreen() {
             onChangeText={setPriceTo}
             accessibilityLabel={t('search.priceToLabel')}
             placeholder={t('search.priceTo')}
-            placeholderTextColor={colors.neutral[500]}
+            placeholderTextColor={theme.text.secondary}
             keyboardType="numeric"
             style={[styles.sheetInput, styles.priceInput]}
           />
@@ -370,13 +382,6 @@ export default function SearchScreen() {
         </View>
 
         <PrimaryBtn label={t('search.apply')} onPress={() => setSheetOpen(false)} style={styles.sheetApply} />
-        <Pressable
-          accessibilityRole="button"
-          onPress={clearFilters}
-          style={styles.sheetClear}
-        >
-          <Text variant="bodySmall" color="text.secondary">{t('search.clearFilters')}</Text>
-        </Pressable>
       </Sheet>
     </Atmosphere>
   )
