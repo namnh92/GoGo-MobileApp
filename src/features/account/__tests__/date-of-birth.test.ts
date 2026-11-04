@@ -67,6 +67,16 @@ describe('date of birth as a calendar date (PROF-APP-006 #217)', () => {
     }
   })
 
+  it('reads template and month names from one locale, the product default when unknown (#412 F-01)', () => {
+    // i18next keeps a bare tag as typed, so `EN` must be resolved once and the
+    // same value handed to the template and the month-name table.
+    expect(formatDateOfBirth('1990-05-17', 'EN')).toBe('May 17, 1990')
+    expect(formatDateOfBirth('1990-05-17', 'en_GB')).toBe('May 17, 1990')
+    for (const unknown of ['fr', '', 'constructor', 'vi-VN', undefined as unknown as string]) {
+      expect(formatDateOfBirth('1990-05-17', unknown), String(unknown)).toBe('17 tháng 5, 1990')
+    }
+  })
+
   it('judges the future in Asia/Ho_Chi_Minh, which turns over at 17:00 UTC', () => {
     expect(todayInVietnam(new Date('2026-09-14T16:59:59.999Z'))).toBe('2026-09-14')
     expect(todayInVietnam(new Date('2026-09-14T17:00:00.000Z'))).toBe('2026-09-15')

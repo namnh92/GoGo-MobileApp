@@ -28,11 +28,21 @@ void i18n.use(initReactI18next).init({
 })
 
 // Locale-dependent option datasets (arrays/objects) live outside i18next messages.
-// Resolved like i18next resolves a message key: `en-US` reads the `en` set,
-// anything unknown reads the product default.
+/**
+ * The one supported locale a language tag stands for: `en-US` and `EN` are
+ * `en`, anything else (`fr`, `''`, `constructor`, undefined) is the product
+ * default. Code that formats outside React passes this same value to `t`
+ * (`lng`) and to `localeContent`, so a template and its content never come
+ * from two locales — i18next itself keeps a bare tag as typed (#412 F-01).
+ */
+export function resolveLocale(locale: string | undefined): Locale {
+  const language = locale?.toLowerCase().split(/[-_]/)[0] ?? ''
+  return locales.includes(language as Locale) ? (language as Locale) : 'vi'
+}
+
+// Locale-dependent option datasets (arrays/objects) live outside i18next messages.
 export function localeContent(locale: string | undefined): LocaleContent {
-  const language = locale?.toLowerCase().split(/[-_]/)[0] as Locale | undefined
-  return (language && contents[language]) ?? viContent
+  return contents[resolveLocale(locale)]
 }
 
 export function useLocaleContent(): LocaleContent {

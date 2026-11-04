@@ -4,7 +4,7 @@
  * in the app, and is never handed to `new Date(iso)`: that parses as UTC
  * midnight, and a formatter west of UTC then shows the day before.
  */
-import i18n, { localeContent } from '@/shared/i18n'
+import i18n, { localeContent, resolveLocale } from '@/shared/i18n'
 
 export type CalendarDate = { year: number; month: number; day: number }
 
@@ -88,10 +88,11 @@ export function checkTypedDateOfBirth(text: string, now: Date = new Date()): Dat
 export function formatDateOfBirth(value: string | null | undefined, locale: string): string | null {
   const date = parseIsoDate(value)
   if (!date) return null
+  const language = resolveLocale(locale)
   return i18n.t('account.dobDate', {
-    lng: locale,
+    lng: language,
     day: date.day,
-    monthName: localeContent(locale).monthNames[date.month - 1],
+    monthName: localeContent(language).monthNames[date.month - 1],
     year: date.year,
   })
 }
