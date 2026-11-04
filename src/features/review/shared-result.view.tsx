@@ -108,6 +108,7 @@ export default function SharedResultScreen() {
           paddingBottom: insets.bottom + spacing[6],
         }}
       >
+        <View style={styles.summaryCard}>
         <Text variant="title1" color="text.inverse" style={styles.title}>
           {roomType === 'group'
             ? `${t('matchResult.groupTitle')} · ${participantCount} 👥`
@@ -144,7 +145,7 @@ export default function SharedResultScreen() {
 
         {scoreParts.length > 0 ? (
           <View style={styles.darkCard}>
-            <Text variant="caption" color="text.secondary" style={styles.caption}>{t('sharedResult.common', { context: roomType })}</Text>
+            <Text variant="caption" color="onDark.soft" style={styles.caption}>{t('sharedResult.common', { context: roomType })}</Text>
             {scoreParts.map(([key, value]) => (
               <View key={key} style={styles.interestRow}>
                 <View style={{ flex: 1 }}>
@@ -166,7 +167,7 @@ export default function SharedResultScreen() {
         {/* Facts from the plan, not invented compatibility percentages. */}
         {summary ? (
           <View style={styles.darkCard}>
-            <Text variant="caption" color="text.secondary" style={styles.caption}>{t('sharedResult.stats')}</Text>
+            <Text variant="caption" color="onDark.soft" style={styles.caption}>{t('sharedResult.stats')}</Text>
             <View style={styles.statsGrid}>
               <View style={styles.statCard}>
                 <Text variant="caption" color="onDark.soft" style={styles.statLabel}>{t('sharedResult.stops')}</Text>
@@ -199,6 +200,8 @@ export default function SharedResultScreen() {
           </View>
         ) : null}
 
+        </View>
+
         {/* Sharing is what this screen is for, so it is the dominant action;
             one CTA into the native sheet, no social-network icon row. */}
         <Pressable
@@ -207,14 +210,14 @@ export default function SharedResultScreen() {
           style={({ pressed }) => [styles.shareBtn, styles.shareIsPrimary, pressed && styles.sharePrimaryPressed]}
         >
           <IconShare />
-          <Text variant="label" color="text.inverse">{t('sharedResult.share')}</Text>
+          <Text variant="label" color="accent.onAccent">{t('sharedResult.share')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => router.replace('/(tabs)')}
           style={({ pressed }) => [styles.shareBtn, pressed && styles.shareBtnPressed]}
         >
-          <Text variant="label" color="text.inverse">{t('sharedResult.nextDate')}</Text>
+          <Text variant="label" color="text.primary">{t('sharedResult.nextDate')}</Text>
         </Pressable>
       </ScrollView>
     </View>

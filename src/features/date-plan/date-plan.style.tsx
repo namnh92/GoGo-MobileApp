@@ -1,108 +1,114 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, radius, spacing, glassFx, touchTarget, type } from '@/shared/ui/tokens'
 
-const { brand, neutral } = colors
+import { fill, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   matchBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: brand.mintSoft,
+    backgroundColor: theme.status.successSoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radius.pill,
+    borderRadius: theme.radius.pill,
   },
-  timelineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
+  /** Total, time and the over-budget note lead the screen as one card. */
+  summaryCard: { marginBottom: theme.spacing[5], gap: theme.spacing[3] },
+  summaryTotalRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing[4] },
+  summaryTotalValue: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
+  summaryDivider: { height: 1, backgroundColor: theme.border.hairline },
+  summaryTimeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing[4] },
+  summaryAmountRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'flex-end', gap: theme.spacing[1] },
+  summarySecondary: { flexShrink: 1, textAlign: 'right' },
+  summaryOverBudget: { marginTop: 2 },
+
   legRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[3],
-    marginBottom: spacing[2],
+    gap: theme.spacing[3],
+    marginBottom: theme.spacing[2],
+    paddingLeft: theme.spacing[4],
   },
-  legLineCol: { width: 40, alignItems: 'center' },
-  legLine: { width: 2, height: 22, backgroundColor: neutral[100] },
-  timelineLine: { flex: 1, width: 2, backgroundColor: neutral[100], marginVertical: 4, minHeight: 16 },
-  stopCard: { overflow: 'hidden', marginBottom: spacing[3] },
-  stopImage: { width: '100%', height: 140 },
-  stopHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  legLine: { width: 2, height: 22, backgroundColor: theme.accent.soft },
+  legRail: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+
+  stopCard: { overflow: 'hidden', marginBottom: theme.spacing[3] },
+  /** The photo carries the order, the lock and the status; the name sits under it so it never depends on the picture for contrast. */
+  stopHero: { height: 160, justifyContent: 'flex-start' },
+  stopImage: { ...fill },
+  stopHeroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing[2],
+    padding: theme.spacing[3],
+  },
+  stopOrderBadge: {
+    backgroundColor: theme.night.surface,
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+  },
+  stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stopInfo: { padding: theme.spacing[4], gap: 2 },
   lockBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 30,
-    paddingHorizontal: 10,
-    borderRadius: radius.pill,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.pill,
     justifyContent: 'center',
   },
-  lockBtnOn: { backgroundColor: theme.accent.soft },
-  lockBtnOff: { backgroundColor: theme.surface.subtle },
+  lockBtnOn: { backgroundColor: theme.accent.primary },
+  lockBtnOff: { backgroundColor: theme.surface.card },
   stopArea: { marginTop: 2 },
-  stopPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[2] },
-  stopTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing[2] },
-  stopActions: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
+  stopPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: theme.spacing[2] },
+  stopActions: { flexDirection: 'row', gap: theme.spacing[2], marginTop: theme.spacing[3] },
   detailBtn: {
     flex: 1,
     height: touchTarget.min,
-    borderRadius: 12,
+    borderRadius: theme.radius.button,
     borderWidth: 1,
-    borderColor: neutral[100],
+    borderColor: theme.border.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   directionBtn: {
     flex: 1,
     height: touchTarget.min,
-    borderRadius: 12,
-    backgroundColor: neutral[50],
+    borderRadius: theme.radius.button,
+    backgroundColor: theme.surface.subtle,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
-  summaryBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: glassFx.bar,
-    borderTopWidth: 1,
-    borderTopColor: neutral[100],
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[3],
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing[4],
-    marginBottom: spacing[3],
-  },
-  summaryColMain: { flex: 1, minWidth: 0 },
-  summaryCol: { flexShrink: 0 },
-  summaryAmountRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: spacing[1] },
-  summarySecondary: { flexShrink: 1 },
-  summaryOptional: { ...type.caption, color: neutral[500] },
+
   goBtn: { alignSelf: 'stretch' },
   /** #251 — where the start CTA would be when this caller cannot start the date. */
   startNotice: {
     minHeight: touchTarget.min,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing[2],
+    gap: theme.spacing[2],
   },
   startNoticeLabel: { textAlign: 'center' },
-  startError: { textAlign: 'center', marginTop: spacing[2] },
-  staleWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2], marginBottom: spacing[3] },
+  startError: { textAlign: 'center', marginTop: theme.spacing[2] },
+  secondaryRow: { flexDirection: 'row', gap: theme.spacing[2], marginBottom: theme.spacing[2] },
+
+  /** Stale and superseded notices: a soft warning card, the words and the icon both say it. */
+  warningCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing[3],
+    marginBottom: theme.spacing[3],
+    padding: theme.spacing[4],
+    borderRadius: theme.radius.card,
+    backgroundColor: theme.status.warningSoft,
+  },
   staleText: { flex: 1 },
-  summaryOverBudget: { marginTop: 2 },
-  secondaryRow: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[2] },
-  regenerateLabel: { ...type.label, color: neutral[500] },
 
   /**
    * Locked / required / completed must be told apart without colour (spec §20):
@@ -110,16 +116,6 @@ export const styles = StyleSheet.create(theme => ({
    */
   stopCardLocked: { borderLeftWidth: 4, borderLeftColor: theme.accent.primary },
   // A finished stop steps back by surface, not by fading (#382): opacity took
-  // its text.secondary lines under AA. The "Xong" chip and the check say it.
+  // its text.secondary lines under AA. The "Xong" chip says it.
   stopCardCompleted: { backgroundColor: theme.surface.canvas, shadowOpacity: 0, elevation: 0 },
-  stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legRail: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  timelineDot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timelineDotLocked: { borderWidth: 2, borderColor: theme.accent.primary },
 }))
