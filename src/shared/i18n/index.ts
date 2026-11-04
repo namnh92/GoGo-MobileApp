@@ -28,9 +28,16 @@ void i18n.use(initReactI18next).init({
 })
 
 // Locale-dependent option datasets (arrays/objects) live outside i18next messages.
+// Resolved like i18next resolves a message key: `en-US` reads the `en` set,
+// anything unknown reads the product default.
+export function localeContent(locale: string | undefined): LocaleContent {
+  const language = locale?.toLowerCase().split(/[-_]/)[0] as Locale | undefined
+  return (language && contents[language]) ?? viContent
+}
+
 export function useLocaleContent(): LocaleContent {
   const { i18n: instance } = useTranslation()
-  return contents[instance.resolvedLanguage as Locale] ?? viContent
+  return localeContent(instance.resolvedLanguage)
 }
 
 export default i18n
