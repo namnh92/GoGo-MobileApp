@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 
 import { fold } from './highlight'
+import { Badge } from '@/shared/ui/badge.view'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
@@ -40,17 +41,23 @@ export function HistoryItem({
         onLongPress={onMenu}
         style={({ pressed }) => [styles.main, pressed && styles.mainPressed]}
       >
+        <View style={styles.tile}>
+          <Icon name="sparkle" size={20} color="accent.onSoft" />
+        </View>
         <View style={styles.text}>
-          <Text variant="label" numberOfLines={1}>
-            <Highlighted text={title} query={query} />
-          </Text>
+          <View style={styles.titleRow}>
+            <Text variant="title2" numberOfLines={1} style={styles.title}>
+              <Highlighted text={title} query={query} />
+            </Text>
+            <Text variant="caption" color="text.secondary">{time}</Text>
+          </View>
           {preview ? (
             <Text variant="bodySmall" color="text.secondary" numberOfLines={1}>
               <Highlighted text={preview} query={query} />
             </Text>
           ) : null}
+          {active ? <Badge label={t('assistant.history.current')} style={styles.current} /> : null}
         </View>
-        <Text variant="caption" color="text.secondary">{time}</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -83,7 +90,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, index) =>
         part.hit ? (
-          <Text key={index} variant="label" color="accent.onSoft" style={styles.hit}>{part.text}</Text>
+          <Text key={index} variant="title2" color="accent.onSoft" style={styles.hit}>{part.text}</Text>
         ) : (
           part.text
         ),
