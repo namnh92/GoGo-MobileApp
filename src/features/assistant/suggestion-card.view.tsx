@@ -1,14 +1,14 @@
 import { Pressable, View } from 'react-native'
 
-import { Icon, type IconName } from '@/shared/ui/icons'
+import { Icon, IconArrowRight, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './suggestion-card.style'
 
 /**
  * Design system `SuggestionCard`: a starting point on Welcome — an accent-soft
- * icon tile, a title of up to three words and one line. Tapping sends the
- * title as the first message.
+ * icon tile, a title of up to three words, one line and an arrow. Tapping
+ * sends the title as the first message.
  */
 export function SuggestionCard({
   icon,
@@ -30,13 +30,16 @@ export function SuggestionCard({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed, disabled && styles.cardDisabled]}
     >
       <View style={styles.tile}>
-        <Icon name={icon} size={20} color="accent.onSoft" />
+        <Icon name={icon} size={22} color="accent.onSoft" />
       </View>
-      <Text variant="title2" numberOfLines={2}>{title}</Text>
-      <Text variant="bodySmall" color="text.secondary" numberOfLines={2}>{description}</Text>
+      <View style={styles.text}>
+        <Text variant="title2" numberOfLines={2}>{title}</Text>
+        <Text variant="bodySmall" color="text.secondary" numberOfLines={2}>{description}</Text>
+      </View>
+      <IconArrowRight color={disabled ? 'text.secondary' : 'text.primary'} />
     </Pressable>
   )
 }

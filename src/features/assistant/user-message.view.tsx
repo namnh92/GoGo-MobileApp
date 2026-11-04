@@ -8,7 +8,7 @@ import { styles } from './user-message.style'
 
 /**
  * Design system `UserMessage`: the person's turn, a right-aligned accent
- * bubble — never confused with the assistant's unboxed replies. A message the
+ * bubble — told apart from the assistant's replies by side and colour. A message the
  * server never accepted turns `surface.subtle` with "Not sent. Tap to retry":
  * shape, colour and words all change, so colour is not the only signal.
  */

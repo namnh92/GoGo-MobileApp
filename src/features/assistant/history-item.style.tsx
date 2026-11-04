@@ -6,8 +6,9 @@ export const styles = StyleSheet.create(theme => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: theme.radius.compact,
+    borderRadius: theme.radius.card,
     backgroundColor: theme.surface.card,
+    ...theme.shadows.card,
   },
   rowActive: { borderWidth: 2, borderColor: theme.accent.primary },
   main: {
@@ -22,7 +23,18 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: theme.radius.compact,
   },
   mainPressed: { backgroundColor: theme.surface.subtle },
+  tile: {
+    width: 44,
+    height: 44,
+    borderRadius: theme.radius.compact,
+    backgroundColor: theme.accent.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   text: { flex: 1, minWidth: 0, gap: 2 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
+  title: { flex: 1, minWidth: 0 },
+  current: { alignSelf: 'flex-start', marginTop: theme.spacing[1] },
   menu: {
     width: touchTarget.min,
     height: touchTarget.min,

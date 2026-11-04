@@ -4,7 +4,7 @@ import { View } from 'react-native'
 import type { AssistantPlaceCard, AssistantPlanCard, AssistantResultCard } from '@/shared/api'
 import { formatRange } from '@/shared/pricing/money'
 import { Badge } from '@/shared/ui/badge.view'
-import { PrimaryBtn } from '@/shared/ui/button.view'
+import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
@@ -15,8 +15,9 @@ import { styles } from './result-card.style'
  * Design system `ResultCard` (GoGo-MobileApp#378): a place or a plan the
  * assistant found. Every fact on it is what the server read from verified
  * GoGo data (contract `AssistantPlaceCard.facts`), never model text; a place
- * that is no longer usable says so and offers nothing to do. One primary
- * action, the likely next step.
+ * that is no longer usable says so and offers nothing to do. One
+ * secondary action, the likely next step: a thread can hold several cards,
+ * and the screen keeps one filled primary button.
  */
 export function ResultCard({
   card,
@@ -54,22 +55,31 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
           <Icon name="mapPin" size={20} color="accent.onSoft" />
         </View>
         <View style={styles.titles}>
-          <Text variant="title2" numberOfLines={1}>{facts.name}</Text>
-          {facts.addressText ? <Text variant="bodySmall" color="text.secondary" numberOfLines={1}>{facts.addressText}</Text> : null}
+          <Text variant="title2" numberOfLines={2}>{facts.name}</Text>
+          {facts.addressText ? <Text variant="bodySmall" color="text.secondary" numberOfLines={2}>{facts.addressText}</Text> : null}
         </View>
       </View>
       {card.available ? (
         <>
-          {price ? <Meta icon="dollar" text={t('assistant.card.perPerson', { price })} /> : null}
-          {facts.gogoRating != null && facts.gogoRatingCount ? (
-            <Meta icon="star" text={t('assistant.card.rating', { rating: facts.gogoRating.toFixed(1), count: facts.gogoRatingCount })} />
+          {price ? (
+            <Text variant="title2" color="accent.primary">{t('assistant.card.perPerson', { price })}</Text>
           ) : null}
-          {facts.openNow != null ? (
+          {(facts.gogoRating != null && facts.gogoRatingCount) || facts.openNow != null ? (
             <View style={styles.badges}>
-              <Badge tone={facts.openNow ? 'success' : 'neutral'} label={facts.openNow ? t('assistant.card.openNow') : t('assistant.card.closedNow')} />
+              {facts.gogoRating != null && facts.gogoRatingCount ? (
+                <View style={styles.rating}>
+                  <Icon name="star" size={14} color="status.infoText" />
+                  <Text variant="label" color="status.infoText" numberOfLines={1}>
+                    {t('assistant.card.rating', { rating: facts.gogoRating.toFixed(1), count: facts.gogoRatingCount })}
+                  </Text>
+                </View>
+              ) : null}
+              {facts.openNow != null ? (
+                <Badge tone={facts.openNow ? 'success' : 'neutral'} label={facts.openNow ? t('assistant.card.openNow') : t('assistant.card.closedNow')} />
+              ) : null}
             </View>
           ) : null}
-          <PrimaryBtn label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} />
+          <SecondaryBtn label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} />
         </>
       ) : (
         <View style={styles.badges}>
@@ -102,7 +112,7 @@ function PlanResult({ card, onOpen }: { card: AssistantPlanCard; onOpen: (planId
         <>
           {facts.startAt ? <Meta icon="clock" text={formatWhen(facts.startAt, null, i18n.language)} /> : null}
           {facts.stopCount != null ? <Meta icon="mapPin" text={t('assistant.card.stops', { count: facts.stopCount })} /> : null}
-          <PrimaryBtn label={t('assistant.card.openPlan')} onPress={() => onOpen(card.planId, card.roomId)} />
+          <SecondaryBtn label={t('assistant.card.openPlan')} onPress={() => onOpen(card.planId, card.roomId)} />
         </>
       ) : (
         <View style={styles.badges}>

@@ -158,13 +158,13 @@ it('previews are plain text: no `**` or `[n]` drawn or read aloud (acceptance mi
   await settle()
 })
 
-it('the header keeps its title: New chat is "Mới" on screen, the full name for VoiceOver', async () => {
+it('the header keeps its title: New chat is a card under it, named in full on screen and for VoiceOver', async () => {
   installBackend()
   const view = await renderAssistant(<AssistantRoute />)
   await openHistory(view)
   const button = view.getByTestId('assistant-history-new-chat')
   expect(button.props.accessibilityLabel).toBe('Cuộc trò chuyện mới')
-  expect(within(button).getByText('Mới')).toBeTruthy()
+  expect(within(button).getByText('Cuộc trò chuyện mới')).toBeTruthy()
   await settle()
 })
 

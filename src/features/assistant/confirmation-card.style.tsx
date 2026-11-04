@@ -1,19 +1,31 @@
 import { StyleSheet } from 'react-native-unistyles'
 
+/**
+ * The proposal card: a tinted head band (kicker + title) over a body of the
+ * facts and the two buttons, an accent edge on top. Solid, clipped to the card.
+ */
 export const styles = StyleSheet.create(theme => ({
   card: {
-    gap: theme.spacing[4],
-    padding: theme.spacing[4],
+    overflow: 'hidden',
     borderRadius: theme.radius.card,
+    borderTopWidth: 4,
+    borderTopColor: theme.accent.primary,
     backgroundColor: theme.surface.card,
     ...theme.shadows.card,
   },
-  head: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[3],
+    padding: theme.spacing[4],
+    backgroundColor: theme.status.infoSoft,
+  },
+  body: { gap: theme.spacing[4], padding: theme.spacing[4] },
   tile: {
     width: 36,
     height: 36,
-    borderRadius: theme.radius.compact,
-    backgroundColor: theme.accent.soft,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.surface.card,
     alignItems: 'center',
     justifyContent: 'center',
   },

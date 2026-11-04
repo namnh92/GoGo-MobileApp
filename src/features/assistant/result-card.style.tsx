@@ -21,5 +21,14 @@ export const styles = StyleSheet.create(theme => ({
   titles: { flex: 1, minWidth: 0 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
   metaText: { flexShrink: 1 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
+  rating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[1],
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[1],
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.status.infoSoft,
+  },
+  badges: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
 }))

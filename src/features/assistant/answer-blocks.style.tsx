@@ -1,7 +1,15 @@
 import { StyleSheet } from 'react-native-unistyles'
 
+/** The reply's text sits in one solid card, tail corner top-left towards the avatar. */
 export const styles = StyleSheet.create(theme => ({
-  blocks: { gap: theme.spacing[3] },
+  blocks: {
+    gap: theme.spacing[3],
+    padding: theme.spacing[4],
+    borderRadius: theme.radius.card,
+    borderTopLeftRadius: 6,
+    backgroundColor: theme.surface.card,
+    ...theme.shadows.card,
+  },
   list: { gap: theme.spacing[2] },
   item: { flexDirection: 'row', gap: theme.spacing[2], alignItems: 'flex-start' },
   number: {

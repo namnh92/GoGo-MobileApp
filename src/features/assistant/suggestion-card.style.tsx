@@ -1,24 +1,28 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-/** Solid card, `radius-card`, `shadow-card`, `space-4` inside, 132pt tall at least. */
+import { touchTarget } from '@/shared/ui/tokens'
+
+/** Solid full-width row card: `radius-card`, `shadow-card`, tile · text · arrow. */
 export const styles = StyleSheet.create(theme => ({
   card: {
-    flex: 1,
-    minHeight: 132,
-    gap: theme.spacing[2],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[4],
+    minHeight: touchTarget.min + theme.spacing[6],
     padding: theme.spacing[4],
     borderRadius: theme.radius.card,
     backgroundColor: theme.surface.card,
     ...theme.shadows.card,
   },
   cardPressed: { backgroundColor: theme.surface.subtle },
+  cardDisabled: { backgroundColor: theme.surface.subtle, shadowOpacity: 0, elevation: 0 },
   tile: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: theme.radius.compact,
     backgroundColor: theme.accent.soft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing[1],
   },
+  text: { flex: 1, minWidth: 0, gap: 2 },
 }))
