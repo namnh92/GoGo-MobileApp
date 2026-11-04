@@ -1,4 +1,4 @@
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
@@ -9,8 +9,8 @@ import { ScrollView, View } from 'react-native'
 import { toPlanSummary, usePlan, usePlanStopPlaces, useRoom, useFinishDate, toRoomAudience } from '@/shared/api'
 import { costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { ErrorState, LoadingState, StaleNotice } from '@/shared/ui/async-state.view'
-import { Atmosphere, Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { IconCheck } from '@/shared/ui/icons'
+import { Atmosphere, Card, Chip, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Icon, IconCheck } from '@/shared/ui/icons'
 
 import { styles } from './date-finished.style'
 
@@ -126,19 +126,51 @@ export default function DateFinishedScreen() {
         <View style={{ alignSelf: 'stretch' }}>
           <StaleNotice error={plan.isError ? plan.error : null} onRetry={() => void plan.refetch()} />
         </View>
-      <Glyph size="mega" style={styles.burst}>✨</Glyph>
-      <Text variant="display">{t('dateFinished.title')}</Text>
+      <View style={styles.badge}>
+        <Icon name="checkCircle" size={48} color="accent.primary" />
+      </View>
+      <Chip label={t('dateFinished.stopsDone', { done: completed.length, total: summary.stops.length })} icon="check" variant="positive" />
+      <Text variant="display" style={styles.title}>{t('dateFinished.title')}</Text>
       <Text color="text.secondary" style={styles.body}>{t('dateFinished.body', { context: roomType })}</Text>
 
+      <Card style={styles.statsCard}>
+        <Text variant="title2">{t('sharedResult.stats')}</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statTile}>
+            <View style={styles.statLabelRow}>
+              <Icon name="clock" size={14} color="text.secondary" />
+            </View>
+            <Text variant="title1">{Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m</Text>
+          </View>
+          <View style={styles.statTile}>
+            <View style={styles.statLabelRow}>
+              <Icon name="dollar" size={14} color="text.secondary" />
+            </View>
+            {/* Scoped, and `~` while a stop's price is uncertain. */}
+            <Text variant="title2">
+              {costLineText(cost.primary)}
+              {cost.secondary ? ` · ${costLineText(cost.secondary)}` : ''}
+            </Text>
+          </View>
+        </View>
+      </Card>
+
+      <View style={styles.sectionHeader}>
+        <Text variant="title2">{t('dateFinished.checkinTitle')}</Text>
+      </View>
       <Card padded={false} style={styles.card}>
         {summary.stops.map((stop, index) => (
           <Fragment key={stop.id}>
             {index > 0 && <View style={styles.connector} />}
             <View style={styles.stopRow}>
-              <Glyph size="xs">{stop.status === 'completed' ? '✅' : '⚪️'}</Glyph>
+              <View style={[styles.stopMark, stop.status === 'completed' && styles.stopMarkDone]}>
+                <Text variant="caption" color={stop.status === 'completed' ? 'status.successText' : 'text.secondary'}>
+                  {index + 1}
+                </Text>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text variant="title2">{places.byPlaceId.get(stop.placeId)?.name ?? ''}</Text>
-                <Text variant="caption" style={styles.stopRating}>
+                <Text variant="caption" color="text.secondary" style={styles.stopRating}>
                   {stop.arriveLabel ?? t('datePlan.stopOrder', { n: index + 1 })}
                 </Text>
               </View>
@@ -146,17 +178,6 @@ export default function DateFinishedScreen() {
             </View>
           </Fragment>
         ))}
-        <View style={styles.footer}>
-          <Text variant="bodySmall" color="text.secondary">
-            {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m ·{' '}
-            {/* Scoped, and `~` while a stop's price is uncertain. */}
-            {costLineText(cost.primary)}
-            {cost.secondary ? ` · ${costLineText(cost.secondary)}` : ''}
-          </Text>
-          <Text variant="bodySmall" color="text.secondary">
-            {t('dateFinished.stopsDone', { done: completed.length, total: summary.stops.length })}
-          </Text>
-        </View>
       </Card>
 
       {/* Leaving is what strands a room `active`, so the way out stays shut

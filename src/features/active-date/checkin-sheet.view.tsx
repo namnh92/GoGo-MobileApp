@@ -3,13 +3,13 @@ import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, TextInput, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 
 import { useUploadImage, type PlanStopRow } from '@/shared/api'
 import { Icon } from '@/shared/ui/icons'
 import { PrimaryBtn } from '@/shared/ui/primitives'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Glyph, Text } from '@/shared/ui/text'
-import { colors } from '@/shared/ui/tokens'
 
 import { CHECKIN_TAGS } from './checkin-tags'
 import { styles } from './checkin-sheet.style'
@@ -48,6 +48,7 @@ interface CheckinSheetProps {
 
 export function CheckinSheet({ visible, stop, placeName, pending, error, onSave, onSkip }: CheckinSheetProps) {
   const { t } = useTranslation()
+  const { theme } = useUnistyles()
   // Prefill the happy path — the user can change everything.
   const [rating, setRating] = useState(5)
   const [tags, setTags] = useState<string[]>([CHECKIN_TAGS[0].key])
@@ -124,64 +125,59 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
       <View style={styles.headerRow}>
         <Icon name="mapPin" size={28} color="accent.primary" />
         <View style={{ flex: 1 }}>
-          <Text variant="title2">{t('checkin.title')}</Text>
+          <Text variant="title1">{t('checkin.title')}</Text>
           <Text variant="bodySmall" color="text.secondary" style={styles.stopName} numberOfLines={1}>
             {placeName}
           </Text>
         </View>
       </View>
 
-      <Text variant="label" style={styles.rateLabel}>{t('checkin.rate')}</Text>
-      <View style={styles.starsRow}>
-        {[1, 2, 3, 4, 5].map(value => (
-          <Pressable
-            key={value}
-            onPress={() => setRating(value)}
-            accessibilityRole="button"
-            accessibilityLabel={t('review.starAria', { count: value })}
-            accessibilityState={{ selected: value <= rating }}
-            style={styles.star}
-          >
-            {/* Filled up to the rating, outlined past it — shape, not a fade (#382). */}
-            <Icon
-              testID={value <= rating ? `checkin-star-${value}-filled` : `checkin-star-${value}`}
-              name="star"
-              size={28}
-              filled={value <= rating}
-              color={value <= rating ? 'accent.primary' : 'text.secondary'}
-            />
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={styles.tagRow}>
-        {CHECKIN_TAGS.map(tag => {
-          const active = tags.includes(tag.key)
-          return (
+      <View style={styles.rateCard}>
+        <Text variant="title2">{t('checkin.rate')}</Text>
+        <View style={styles.starsRow}>
+          {[1, 2, 3, 4, 5].map(value => (
             <Pressable
-              key={tag.key}
-              onPress={() => toggleTag(tag.key)}
+              key={value}
+              onPress={() => setRating(value)}
               accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              style={[styles.tagBtn, active && styles.tagBtnActive]}
+              accessibilityLabel={t('review.starAria', { count: value })}
+              accessibilityState={{ selected: value <= rating }}
+              style={styles.star}
             >
-              <Text variant="label" color={active ? 'text.inverse' : 'text.secondary'}>
-                {tag.emoji} {t(`checkin.tag.${tag.key}`)}
-              </Text>
+              {/* Filled up to the rating, outlined past it — shape, not a fade (#382). */}
+              <Icon
+                testID={value <= rating ? `checkin-star-${value}-filled` : `checkin-star-${value}`}
+                name="star"
+                size={36}
+                filled={value <= rating}
+                color={value <= rating ? 'accent.primary' : 'text.secondary'}
+              />
             </Pressable>
-          )
-        })}
+          ))}
+        </View>
       </View>
 
-      <TextInput
-        value={note}
-        onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
-        accessibilityLabel={t('checkin.noteLabel')}
-        placeholder={t('checkin.notePlaceholder')}
-        placeholderTextColor={colors.neutral[500]}
-        multiline
-        style={styles.input}
-      />
+      <View style={styles.section}>
+        <View style={styles.tagRow}>
+          {CHECKIN_TAGS.map(tag => {
+            const active = tags.includes(tag.key)
+            return (
+              <Pressable
+                key={tag.key}
+                onPress={() => toggleTag(tag.key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                style={[styles.tagBtn, active && styles.tagBtnActive]}
+              >
+                {/* The check is the second signal: selection is never colour alone. */}
+                <Text variant="label" color={active ? 'accent.onSoft' : 'text.secondary'}>
+                  {active ? '✓ ' : ''}{tag.emoji} {t(`checkin.tag.${tag.key}`)}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      </View>
 
       {/*
         Photos upload the moment they are picked and travel as storage
@@ -189,44 +185,62 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
         is rejected without `billPhotoKey`, and that flow needs its own
         amount/people form rather than riding on the photo picker.
       */}
-      <View style={styles.photoRow}>
-        {photos.map((photo, index) => (
-          <Pressable
-            key={photo.uri}
-            onPress={() => removePhoto(index)}
-            accessibilityRole="button"
-            accessibilityLabel={t('checkin.removePhoto')}
-          >
-            <Image source={{ uri: photo.uri }} style={styles.photoThumb} contentFit="cover" />
-            {photo.key === null && !photo.failed ? (
-              <View style={styles.photoOverlay}>
-                <ActivityIndicator color={colors.neutral[0]} />
-              </View>
-            ) : null}
-            {photo.failed ? (
-              <View style={styles.photoOverlay}>
-                <Text variant="title1" color="text.inverse">!</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        ))}
-        {photos.length < MAX_PHOTOS ? (
-          <Pressable
-            onPress={addPhoto}
-            accessibilityRole="button"
-            accessibilityLabel={t('checkin.addPhoto')}
-            style={styles.photoAdd}
-          >
-            <Glyph size="sm" color="text.secondary">+</Glyph>
-          </Pressable>
+      <View style={styles.section}>
+        <View style={styles.sectionHead}>
+          <Text variant="title2">{t('checkin.addPhoto')}</Text>
+          <Text variant="caption" color="text.secondary">{t('checkin.photoCount', { n: photos.length })}</Text>
+        </View>
+        <View style={styles.photoRow}>
+          {photos.map((photo, index) => (
+            <Pressable
+              key={photo.uri}
+              onPress={() => removePhoto(index)}
+              accessibilityRole="button"
+              accessibilityLabel={t('checkin.removePhoto')}
+            >
+              <Image source={{ uri: photo.uri }} style={styles.photoThumb} contentFit="cover" />
+              {photo.key === null && !photo.failed ? (
+                <View style={styles.photoOverlay}>
+                  <ActivityIndicator color={theme.text.inverse} />
+                </View>
+              ) : null}
+              {photo.failed ? (
+                <View style={styles.photoOverlay}>
+                  <Text variant="title1" color="text.inverse">!</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          ))}
+          {photos.length < MAX_PHOTOS ? (
+            <Pressable
+              onPress={addPhoto}
+              accessibilityRole="button"
+              accessibilityLabel={t('checkin.addPhoto')}
+              style={styles.photoAdd}
+            >
+              <Glyph size="sm" color="text.secondary">+</Glyph>
+            </Pressable>
+          ) : null}
+        </View>
+        {photos.some(p => p.failed) ? (
+          <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite" style={styles.unavailableNote}>
+            {t('checkin.photoFailed')}
+          </Text>
         ) : null}
-        <Text variant="caption" color="text.secondary">{t('checkin.photoCount', { n: photos.length })}</Text>
       </View>
-      {photos.some(p => p.failed) ? (
-        <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite" style={styles.unavailableNote}>
-          {t('checkin.photoFailed')}
-        </Text>
-      ) : null}
+
+      <View style={styles.section}>
+        <Text variant="title2">{t('checkin.noteLabel')}</Text>
+        <TextInput
+          value={note}
+          onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
+          accessibilityLabel={t('checkin.noteLabel')}
+          placeholder={t('checkin.notePlaceholder')}
+          placeholderTextColor={theme.text.secondary}
+          multiline
+          style={styles.input}
+        />
+      </View>
 
       {error ? (
         <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.saveFailed}>
