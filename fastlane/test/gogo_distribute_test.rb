@@ -428,3 +428,142 @@ class CleanupTest < Minitest::Test
     FileUtils.rm_rf(dir)
   end
 end
+
+# GoGo-MobileApp#413: the Size Analysis upload (shape D3, D5, D6, D7, D10).
+class SentryPropertiesTest < Minitest::Test
+  # What @sentry/react-native 8.30.0 writes (plugin/build/withSentry.js:99-102).
+  GENERATED = <<~PROPS
+    defaults.url=https://sentry.io/
+    defaults.org=gogo-vn
+    defaults.project=gogo-mobile
+    # Using SENTRY_AUTH_TOKEN environment variable
+  PROPS
+
+  def test_reads_the_three_coordinates
+    assert_equal({ 'defaults.url' => 'https://sentry.io/', 'defaults.org' => 'gogo-vn', 'defaults.project' => 'gogo-mobile' },
+                 GD::SentryProperties.parse(GENERATED))
+  end
+
+  def test_refuses_a_token_kept_in_the_file_without_repeating_it
+    error = assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}auth.token=sntrys_secret\n") }
+    assert_match(/auth\.token/, error.message)
+    refute_match(/sntrys_secret/, error.message)
+  end
+
+  def test_refuses_an_unexpected_key_without_repeating_the_value
+    error = assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}defaults.other=hush\n") }
+    assert_match(/defaults\.other/, error.message)
+    refute_match(/hush/, error.message)
+  end
+
+  def test_refuses_a_missing_coordinate
+    error = assert_raises(GD::Refusal) { GD::SentryProperties.parse("defaults.url=https://sentry.io/\ndefaults.org=gogo-vn\n") }
+    assert_match(/defaults\.project/, error.message)
+  end
+
+  def test_refuses_a_duplicate_coordinate
+    assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}defaults.org=other\n") }
+  end
+
+  def test_refuses_a_line_that_is_not_key_value
+    assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}nonsense\n") }
+  end
+end
+
+class SizeUploadTest < Minitest::Test
+  PROPS = { 'defaults.url' => 'https://sentry.io/', 'defaults.org' => 'gogo-vn', 'defaults.project' => 'gogo-mobile' }.freeze
+
+  def command(artifact: '/run/tmp/app.xcarchive')
+    GD::SizeUpload.command(cli: '/x/sentry-cli', artifact: artifact, props: PROPS, sha: 'a' * 40,
+                           branch: 'feature/x', notes: 'dev aaaaaaa build 7 (feature/x) host=mac')
+  end
+
+  def flag(argv, name)
+    argv[argv.index(name) + 1]
+  end
+
+  def test_url_comes_before_the_subcommand_because_the_cli_rejects_it_after
+    assert_equal ['/x/sentry-cli', '--url', 'https://sentry.io/', 'build', 'upload'], command.first(5)
+  end
+
+  def test_names_the_project_and_the_build_explicitly
+    argv = command
+    assert_equal 'gogo-vn', flag(argv, '--org')
+    assert_equal 'gogo-mobile', flag(argv, '--project')
+    assert_equal 'a' * 40, flag(argv, '--head-sha')
+    assert_equal 'feature/x', flag(argv, '--head-ref')
+    assert_equal 'namnh92/GoGo-MobileApp', flag(argv, '--head-repo-name')
+    assert_equal 'github', flag(argv, '--vcs-provider')
+    assert_equal 'Release', flag(argv, '--build-configuration')
+    assert_equal 'dev aaaaaaa build 7 (feature/x) host=mac', flag(argv, '--release-notes')
+  end
+
+  def test_the_artifact_is_the_last_argument
+    assert_equal '/run/tmp/app.xcarchive', command.last
+    assert_equal '/b/gogo-dev-7.apk', command(artifact: '/b/gogo-dev-7.apk').last
+  end
+
+  def test_the_token_is_never_on_the_argument_list
+    refute_includes command, '--auth-token'
+    refute(command.any? { |a| a.include?('sntrys_') })
+  end
+
+  def test_build_distribution_stays_unrequested
+    refute_includes command, '--install-group'
+  end
+
+  def test_skips_only_in_the_no_token_state
+    assert GD::SizeUpload.skip?('SENTRY_DISABLE_AUTO_UPLOAD' => 'true')
+    refute GD::SizeUpload.skip?('SENTRY_DISABLE_AUTO_UPLOAD' => 'false')
+  end
+
+  def test_a_missing_switch_does_not_read_as_skip
+    refute GD::SizeUpload.skip?({})
+  end
+
+  def test_finds_the_build_link_in_the_cli_output
+    out = "Successfully uploaded 1 file to Sentry\n  - /a/gogo-dev-7.apk (https://sentry.io/organizations/gogo-vn/preprod/1)\n"
+    assert_equal ['https://sentry.io/organizations/gogo-vn/preprod/1'], GD::SizeUpload.links(out)
+  end
+end
+
+class SizeUploadEnvTest < Minitest::Test
+  def secrets
+    GD::Secrets.new('SENTRY_AUTH_TOKEN' => 'sntrys_x', 'ANDROID_KEYSTORE_PASSWORD' => 'k', 'FIREBASE_SERVICE_CREDENTIALS_JSON' => '{}')
+  end
+
+  def test_the_child_gets_the_base_and_the_token_and_no_other_secret
+    env = GD::EnvSets.size_upload(secrets, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }, base: { 'PATH' => '/bin' })
+    assert_equal({ 'PATH' => '/bin', 'SENTRY_AUTH_TOKEN' => 'sntrys_x' }, env)
+  end
+
+  def test_no_token_in_the_no_token_state
+    env = GD::EnvSets.size_upload(secrets, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' }, base: { 'PATH' => '/bin' })
+    assert_equal({ 'PATH' => '/bin' }, env)
+  end
+
+  def test_refuses_when_the_upload_state_has_no_token
+    assert_raises(GD::Refusal) do
+      GD::EnvSets.size_upload(GD::Secrets.new({}), { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }, base: {})
+    end
+  end
+end
+
+# A failed upload must stay a failed run: `allow_failure:` on this step would be
+# the third state the two-state rule forbids.
+class SizeUploadFailureTest < Minitest::Test
+  def test_a_non_zero_cli_exit_raises
+    Dir.mktmpdir do |dir|
+      cli = File.join(dir, 'fake-cli')
+      File.write(cli, "#!/bin/sh\necho rejected >&2\nexit 1\n", perm: 0o700)
+      supervisor = GD::Supervisor.new(run_file: File.join(dir, 'run.json'))
+      argv = GD::SizeUpload.command(cli: cli, artifact: '/a.apk',
+                                    props: SizeUploadTest::PROPS, sha: 'a' * 40, branch: 'b', notes: 'n')
+      error = assert_raises(GD::Refusal) do
+        supervisor.run(argv, env: { 'PATH' => ENV.fetch('PATH') }, chdir: dir, log: File.join(dir, 'size.log'))
+      end
+      assert_match(/fake-cli exited 1/, error.message)
+      assert_match(/rejected/, File.read(File.join(dir, 'size.log')))
+    end
+  end
+end

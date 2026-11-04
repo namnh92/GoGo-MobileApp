@@ -48,6 +48,7 @@ Testers & Groups). A tester joins by being added to that group there.
 5. Build number: Firebase's latest for that app + 1 (`--build-number N` must be higher).
    Re-checked just before upload.
 6. Upload to the groups, release notes `<flavour> <sha7> build <n> (<branch>) host=<machine>`.
+7. Upload the build to Sentry Size Analysis (see *Sentry*); the xcarchive on iOS, the APK on Android.
 
 One workstation uploads to a given Firebase app at a time (owner decision 2026-10-29,
 Q-13). The lock covers this machine; a second machine is a decision, not a fix.
@@ -78,6 +79,33 @@ Same two states as `scripts/release-build.sh` (shared in `scripts/lib/sentry-upl
 with the token row the build uploads source maps and dSYMs and a failed upload fails the
 build; `--without-symbols` ships unsymbolicated, with one warning. A distributed build
 reports `release = <commit sha>`, `dist = <build number>`.
+
+### Size Analysis (#413)
+
+With the token, the lane runs `sentry-cli build upload` after the Firebase upload, into
+`gogo-vn/gogo-mobile`, using the sentry-cli the pinned SDK ships. `--without-symbols` means no
+symbols **and** no Size Analysis. There is no option that skips only the size upload.
+
+| Outcome | Testers have the build | Sentry | Run exit |
+| --- | --- | --- | --- |
+| Firebase fails | no | no size upload | non-zero |
+| Size upload fails: quota, token, network | **yes** | no size result | non-zero, `size analysis upload failed after Firebase distributed build <n>` |
+| Both succeed | yes | build listed, link in the log | 0 |
+
+- **Recovery after a size failure:** the build is already out, so do not re-run to fix the size
+  result: a re-run makes a new build number. Read the log tail: `does not have quota for preprod
+  features` means the period's allowance is used up; any other 401/403 is the token. The APK stays
+  in `fastlane/build/android/`. The xcarchive is removed by cleanup, so iOS needs a new run.
+- **Quota:** 100 builds per billing period, organization-wide; more only through an Enterprise
+  plan. Each lane run spends one. Sentry → Settings → Subscription → *Size Analysis Builds*.
+- **Build Distribution stays off:** an upload to Sentry can also be made installable, and that
+  is a project setting with no pin in code. Sentry → `gogo-mobile` → Settings → Mobile Builds →
+  Build Distribution: *Enabled* and *Pull Request Comments* off since 2026-11-04. Check it after any
+  change to Sentry settings. What the upload carries: `docs/store-privacy.md` §1.1.
+- **Machine:** xcarchive upload needs an Apple Silicon Mac.
+- **Comparing sizes:** compare APK with APK, AAB with AAB. The lane uploads APKs, and Sentry shows
+  no deobfuscated DEX breakdown for an APK once R8 is on (#343 decides).
+- A hung upload has no timeout; Ctrl-C stops it and runs cleanup.
 
 ## After a run
 

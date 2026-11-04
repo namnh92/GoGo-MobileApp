@@ -2,8 +2,8 @@
 
 # Lanes (GoGo-MobileApp#391; prod store lanes #350/#351 share this file):
 #
-#   ios firebase      dev/stag → Ad Hoc → Firebase App Distribution
-#   android firebase  dev/stag → APK signed with the env keystore → Firebase
+#   ios firebase      dev/stag → Ad Hoc → Firebase App Distribution → Sentry Size Analysis
+#   android firebase  dev/stag → APK signed with the env keystore → Firebase → Sentry Size Analysis
 #
 # Run them through scripts/distribute.sh, never by hand: it refuses prod, checks
 # the machine and AWS account, takes the lock, writes the app config and starts
@@ -92,14 +92,14 @@ end
 
 # Runs a child and, when it fails, prints the tail of its log (the log itself
 # is in the run directory and goes with the cleanup).
-def gogo_run(ctx, name, cmd, env:, chdir: REPO_ROOT)
+def gogo_run(ctx, name, cmd, env:, chdir: REPO_ROOT, failure: nil)
   log = gogo_logfile(ctx, name)
   gogo_log("#{name}: #{cmd.first(4).join(' ')} …")
   ctx[:supervisor].run(cmd, env: env, chdir: chdir, log: log)
 rescue GogoDistribute::Refusal => e
   tail = File.exist?(log) ? File.readlines(log).last(40).join : ''
   UI.error(tail) unless tail.empty?
-  UI.user_error!("#{name} failed: #{e.message}")
+  UI.user_error!("#{failure || "#{name} failed"}: #{e.message}")
 end
 
 def gogo_firebase_app_id(platform)
@@ -157,10 +157,53 @@ rescue GogoDistribute::Refusal => e
   UI.user_error!("sentry check refused: #{e.message}")
 end
 
+def gogo_release_notes(ctx, build_number)
+  "#{ctx[:env]} #{ctx[:sha][0, 7]} build #{build_number} (#{ctx[:branch]}) host=#{Socket.gethostname.split('.').first}"
+end
+
+# #413 D1, D3: checked before the native build, so a broken setup refuses while
+# nothing has reached the testers. Nil in the no-token state. The binary is the one
+# the pinned SDK ships; it is a transitive dependency, absent from node_modules/.bin.
+def gogo_size_prepare(ctx, switches)
+  if GogoDistribute::SizeUpload.skip?(switches)
+    UI.important('no SENTRY_AUTH_TOKEN: this build is not measured in Size Analysis either')
+    return nil
+  end
+
+  cli = ctx[:supervisor].capture(
+    ['node', '-p', "require.resolve('@sentry/cli/bin/sentry-cli', { paths: [require.resolve('@sentry/react-native/package.json')] })"],
+    env: ctx[:base], chdir: REPO_ROOT
+  ).strip
+  raise GogoDistribute::Refusal, "sentry-cli is not executable at #{cli} (it comes with the pinned @sentry/react-native)" unless File.executable?(cli)
+
+  properties = File.join(REPO_ROOT, ctx[:platform], 'sentry.properties')
+  raise GogoDistribute::Refusal, "#{ctx[:platform]}/sentry.properties is missing after prebuild" unless File.file?(properties)
+
+  { cli: cli, props: GogoDistribute::SentryProperties.parse(File.read(properties)) }
+rescue GogoDistribute::Refusal => e
+  UI.user_error!("size analysis check refused: #{e.message}")
+end
+
+# #413 D4, D5: after Firebase, so quota or an outage cannot hold a build back from
+# the testers. A failure still fails the run: there is no third state.
+def gogo_size_upload(ctx, size, switches, artifact, build_number)
+  return if size.nil?
+
+  name = 'size-upload'
+  gogo_run(ctx, name,
+           GogoDistribute::SizeUpload.command(cli: size[:cli], artifact: artifact, props: size[:props], sha: ctx[:sha],
+                                              branch: ctx[:branch], notes: gogo_release_notes(ctx, build_number)),
+           env: GogoDistribute::EnvSets.size_upload(GOGO_SECRETS, switches, base: ctx[:base]),
+           failure: "size analysis upload failed after Firebase distributed build #{build_number} — " \
+                    'the build is with the testers; Sentry has no size result')
+  links = GogoDistribute::SizeUpload.links(File.read(File.join(ctx[:log_dir], "#{name}.log")))
+  gogo_log("size analysis: uploaded #{File.basename(artifact)} build=#{build_number} links=#{links.join(' ')}")
+end
+
 def gogo_upload(ctx, app_id, build_number, artifact)
   latest = gogo_firebase_latest(ctx, app_id)
   GogoDistribute::BuildNumber.still_free!(latest: latest, chosen: build_number)
-  notes = "#{ctx[:env]} #{ctx[:sha][0, 7]} build #{build_number} (#{ctx[:branch]}) host=#{Socket.gethostname.split('.').first}"
+  notes = gogo_release_notes(ctx, build_number)
   args = {
     app: app_id,
     service_credentials_json_data: GOGO_SECRETS.fetch('FIREBASE_SERVICE_CREDENTIALS_JSON'),
@@ -239,6 +282,7 @@ platform :ios do
       appcfg = gogo_app_config(ctx, build_number)
       gogo_prebuild(ctx, appcfg)
       switches = gogo_sentry_switches(ctx)
+      size = gogo_size_prepare(ctx, switches)
 
       workspace = Dir[File.join(REPO_ROOT, 'ios', '*.xcworkspace')].first or UI.user_error!('prebuild produced no ios/*.xcworkspace')
       scheme = File.basename(workspace, '.xcworkspace')
@@ -272,6 +316,7 @@ platform :ios do
       ipa = Dir[File.join(out_dir, '*.ipa')].first or UI.user_error!('export produced no .ipa')
 
       gogo_upload(ctx, app_id, build_number, ipa)
+      gogo_size_upload(ctx, size, switches, archive, build_number)
     ensure
       ctx&.fetch(:cleanup)&.run
     end
@@ -367,6 +412,7 @@ platform :android do
       appcfg = gogo_app_config(ctx, build_number)
       gogo_prebuild(ctx, appcfg)
       switches = gogo_sentry_switches(ctx)
+      size = gogo_size_prepare(ctx, switches)
 
       keystore_env = {
         'GOGO_ANDROID_KEYSTORE_FILE' => keystore,
@@ -394,6 +440,7 @@ platform :android do
       FileUtils.cp(built, apk)
 
       gogo_upload(ctx, app_id, build_number, apk)
+      gogo_size_upload(ctx, size, switches, apk, build_number)
     ensure
       ctx&.fetch(:cleanup)&.run
     end

@@ -229,6 +229,17 @@ thực hiện ADR-0011; chỗ nào hai bên khác nhau thì ADR-0011 thắng.
   - Không đổi `sentry.ts`, redaction, oracle, allowlist (`debug_meta` đã có trong allowlist của ADR-0011 D-9) — đúng ở
     #340; #341 sau đó thêm `setSentryScreen`, `setScreenReader` + `captureError` đọc màn lúc bắt, luật placeholder và
     oracle v2 (mục *Tag màn hình*).
+- **Size Analysis (#413, 2026-11-04; GoGo-Infra ADR-0011 D-5 pha 3).** Shape:
+  `dev/handoffs/sa-shape-mobile-413-size-analysis.fable.md` (workspace). Lane Firebase gọi `sentry-cli build upload`, bản do
+  SDK ghim mang theo (3.8.0), không dùng Gradle plugin hay plugin fastlane.
+  - Định dạng: iOS xcarchive, Android APK. AAB không vào lane; chọn ở #343. Mốc so sánh phải cùng định dạng.
+  - Thứ tự: Firebase trước, size sau, để hết quota hay Sentry lỗi không giữ bản lại với tester.
+  - Hai trạng thái: có token → upload hỏng, kể cả hết quota, là run hỏng (exit ≠ 0) dù tester đã có bản; không token
+    (`--without-symbols`) → không symbol, không size. Không có công tắc chỉ bỏ bước size.
+  - Token chỉ ở env của tiến trình con, cùng base env, không secret khác, không bao giờ trên argv. Org, project, url đọc từ
+    `sentry.properties` do plugin sinh; có `auth.token` trong file là từ chối. Kiểm tra trước native build.
+  - Build Distribution tắt trong console (2026-11-04), không có IaC ghim. Dữ liệu gửi đi: `store-privacy.md` §1.1.
+  - Bằng chứng nghiệm thu: issue #413.
 - Thêm native module → mọi dev client đang cài trên máy test phải build lại.
 - **Dev client Android:** expo-dev-launcher bắt exception native trước Sentry, nên crash native chỉ đo được trên bản
   release. iOS tự gửi báo cáo `WatchdogTermination` khi app bị kết thúc từ ngoài (kể cả `devicectl`); các báo cáo này

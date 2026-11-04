@@ -33,6 +33,25 @@ Mục đích "Analytics" xuất hiện ở §6/§7 đến từ Tenjin (D14) và 
 `track()`. Token phiên nằm trong Keychain/Keystore, không gửi cho ai
 (`src/shared/storage/secure-store.ts:3,8`).
 
+### 1.1 Chuyển lúc build, không phải lúc chạy (#413)
+
+Mục này không phải dữ liệu của người dùng app, không thuộc khai báo Apple hay Play, khác D15, D16, T3. Mỗi lần lane Firebase (dev, stag) chạy với token, máy build gửi nguyên file build lên Sentry Size Analysis, project `gogo-vn/gogo-mobile`. Bản prod không đi đường này.
+
+| Gửi đi | iOS (xcarchive) | Android (APK) |
+| --- | --- | --- |
+| Binary đã ký, bundle Hermes, tài nguyên | có | có |
+| dSYM | có | không |
+| Bundle id `max.gogo.<env>`, version, build number | có | có |
+| Config public: URL API và web, DSN Sentry, OneSignal app id, khoá SDK Tenjin, app token Adjust, `GOGO_BUILD_SHA` | có | có |
+| Khoá Google Maps của nền tảng (đã giới hạn, ADR 0008) | có | có |
+| **Profile Ad Hoc của app và notification extension: UDID máy tester, là định danh thiết bị** | có | không |
+| Metadata upload: SHA, branch, repo, ghi chú release có tên máy build | có | có |
+
+- Dữ liệu người dùng app: không dự kiến có trong file build. Hàng UDID cần đối chiếu trên xcarchive thật ở bản đo đầu.
+- Secret không nằm trong file build: keystore, khoá App Store Connect, service account Firebase, token Sentry.
+- Giữ bao lâu: kết quả size 90 ngày theo mã nguồn Sentry. **Thời hạn giữ và quyền truy cập file build gốc: chưa biết**, tài liệu Sentry không nêu. Redaction của SDK không xử lý file này.
+- Build Distribution tắt từ 2026-11-04 (`Settings → Mobile Builds`). Đây là thiết lập console, không có IaC ghim, ai có quyền project bật lại được mà không có cảnh báo, cùng giới hạn đã nêu ở §3.
+
 ## 2. Dữ liệu app tự gửi
 
 | # | Dữ liệu | Code gửi | Đích | Mục đích | Gắn danh tính | Bắt buộc |
