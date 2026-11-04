@@ -12,7 +12,6 @@ export const pushPermission = createPushPermission({
     canRequestPermission: () => OneSignal.Notifications.canRequestPermission(),
     requestPermission: (fallbackToSettings: boolean) =>
       OneSignal.Notifications.requestPermission(fallbackToSettings),
-    optIn: () => OneSignal.User.pushSubscription.optIn(),
   },
   report: (event) => console.warn(event),
 })

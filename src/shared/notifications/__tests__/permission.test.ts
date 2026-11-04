@@ -7,33 +7,31 @@ import { createPushPermission, type PushPermissionSdk } from '../permission'
  * about not wasting it — and about the gap between "granted" and "messageable"
  * that cost a real debugging session on DEV.
  */
-function sdk(over: Partial<PushPermissionSdk> = {}): PushPermissionSdk & { optIn: ReturnType<typeof vi.fn> } {
+function sdk(over: Partial<PushPermissionSdk> = {}): PushPermissionSdk {
   return {
     hasPermission: async () => false,
     canRequestPermission: async () => true,
     requestPermission: async () => true,
-    optIn: vi.fn(),
     ...over,
-  } as PushPermissionSdk & { optIn: ReturnType<typeof vi.fn> }
+  }
 }
 
 describe('contextual notification permission', () => {
-  it('grants, and opts the subscription in', async () => {
-    // Granted is not subscribed. This is the step whose absence is invisible:
-    // on DEV an adb-granted permission left messageable_players at 0.
+  it('grants, and leaves the opt-in to the identity coordinator (#398 F-05)', async () => {
+    // Granted is not subscribed, and an opt-in from here would land on whichever
+    // identity the SDK holds when the prompt closes.
     const s = sdk()
     const events: string[] = []
     const p = createPushPermission({ sdk: s, report: (e) => events.push(e) })
     await expect(p.request()).resolves.toEqual({ kind: 'granted' })
-    expect(s.optIn).toHaveBeenCalledTimes(1)
+    expect('optIn' in s).toBe(false)
     expect(events).toEqual(['push_permission_granted'])
   })
 
-  it('reports a denial without opting in', async () => {
+  it('reports a denial', async () => {
     const s = sdk({ requestPermission: async () => false })
     const p = createPushPermission({ sdk: s })
     await expect(p.request()).resolves.toEqual({ kind: 'denied' })
-    expect(s.optIn).not.toHaveBeenCalled()
   })
 
   it('tells a spent prompt apart from a fresh denial', async () => {
@@ -44,10 +42,9 @@ describe('contextual notification permission', () => {
     const s = sdk({ canRequestPermission: async () => false })
     const p = createPushPermission({ sdk: s })
     await expect(p.request()).resolves.toEqual({ kind: 'blocked' })
-    expect(s.optIn).not.toHaveBeenCalled()
   })
 
-  it('does not re-prompt a granted device, but still opts it in', async () => {
+  it('does not re-prompt a granted device', async () => {
     const s = sdk({ hasPermission: async () => true })
     const requestSpy = vi.fn()
     const p = createPushPermission({ sdk: { ...s, requestPermission: requestSpy as never } })

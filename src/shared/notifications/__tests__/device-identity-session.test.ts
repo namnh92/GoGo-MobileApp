@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createDeviceCredentialStore, type DeviceCredential } from '../device-credential-store'
+import { createDeviceCredentialStore, secureDeviceCredentialStorage, type DeviceCredential } from '../device-credential-store'
 import type { DeviceReportOutcome, DeviceRenewOutcome, DeviceRetireOutcome } from '../device-identity-api'
 import {
   createDevicePromotionsStore,
@@ -8,6 +8,13 @@ import {
   DEVICE_PROMOTIONS_STORAGE_KEY,
 } from '../device-promotions-store'
 import { createIdentitySession, type OneSignalIdentity } from '../identity-session'
+
+vi.mock('expo-secure-store', () => ({
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'test',
+  getItemAsync: async () => {
+    throw new Error('keychain')
+  },
+}))
 
 /**
  * GoGo-MobileApp#398 — a device with no user session (shape D3, D5, D6, R-16,
@@ -737,5 +744,159 @@ describe('logs (D7)', () => {
     await t.session.apply(USER)
     await t.session.settled()
     for (const event of t.events) expect(event).toMatch(/^[a-z_0-9]+$/)
+  })
+})
+
+describe('Sol round 1 (GoGo-MobileApp#411)', () => {
+  it('F-02: the real storage does not read a refusal as nothing there', async () => {
+    await expect(secureDeviceCredentialStorage.get('push.device.retiring')).rejects.toThrow('keychain')
+  })
+
+  it('F-01: a credential also on the retiring list is never read back as the identity', async () => {
+    const t = setup({ credential: OLD, retiring: [OLD] })
+    expect(await t.credentials.read()).toBeNull()
+    expect(t.secure.data.has('push.device')).toBe(false)
+  })
+
+  it('F-01: accepting after a removal that failed does not log in to the quarantined identity', async () => {
+    const t = setup({ record: accepted(), credential: OLD, retiring: [OLD], retire: async () => ({ kind: 'error' }) })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.api.renew).not.toHaveBeenCalled()
+    expect(t.calls).not.toContain('login:device:old')
+  })
+
+  it('F-02: a retiring list it could not read is not overwritten', async () => {
+    const t = setup({ retiring: [OLD] })
+    t.secure.get.mockImplementation(async (key: string) => {
+      if (key === 'push.device.retiring') throw new Error('keychain')
+      return t.secure.data.get(key) ?? null
+    })
+    await expect(t.credentials.quarantine(NEW)).rejects.toThrow('keychain')
+    expect(JSON.parse(t.secure.data.get('push.device.retiring')!)).toEqual([OLD])
+  })
+
+  it('F-03: nothing is evicted before the server answered', async () => {
+    const t = setup()
+    const many = Array.from({ length: 40 }, (_, i) => ({ deviceId: `d${i}`, deviceSecret: 's' }))
+    for (const credential of many) await t.credentials.quarantine(credential)
+    expect((await t.credentials.retiring()).map(c => c.deviceId)).toEqual(many.map(c => c.deviceId))
+    for (const value of t.secure.data.values()) expect(value.length).toBeLessThan(2048)
+
+    for (const credential of many) await t.credentials.retired(credential.deviceId)
+    expect(await t.credentials.retiring()).toEqual([])
+    expect(t.secure.data.size).toBe(0)
+  })
+
+  it('F-04: a DISABLED renewal that outlives the identity touches nothing of the next one', async () => {
+    let answerRenew!: (value: DeviceRenewOutcome) => void
+    const results: Promise<DeviceRenewOutcome>[] = [
+      Promise.resolve({ kind: 'ok', token: { externalId: 'device:old', token: 'jwt', expiresAt: '' } }),
+      new Promise(resolve => (answerRenew = resolve)),
+    ]
+    const t = setup({ record: accepted(), credential: OLD, renew: () => results.shift()! })
+    t.session.start()
+    await t.session.apply(null)
+    await t.session.settled()
+    t.native.fire('device:old')
+    await t.session.apply(USER)
+    await t.session.settled()
+    t.calls.length = 0
+
+    answerRenew({ kind: 'disabled' })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await t.session.settled()
+    expect(t.calls).toEqual([])
+    expect(t.session.boundUserId()).toBe('A')
+    expect(t.promotions.snapshot().serviceOff).toBe(false)
+  })
+
+  it('F-04: the same for a DISABLED report', async () => {
+    let answerReport!: (value: DeviceReportOutcome) => void
+    const t = setup({
+      record: accepted(),
+      submit: () => new Promise(resolve => (answerReport = resolve)),
+    })
+    await t.session.apply(null)
+    await vi.waitFor(() => expect(t.api.submit).toHaveBeenCalled())
+    await t.session.apply(USER)
+    await vi.waitFor(() => expect(t.session.boundUserId()).toBe('A'))
+    t.calls.length = 0
+
+    answerReport({ kind: 'disabled' })
+    await t.session.settled()
+    expect(t.calls).toEqual([])
+    expect(t.session.boundUserId()).toBe('A')
+  })
+
+  it('F-07: a decline while the identity is being fetched stops the login', async () => {
+    let answerCreate!: () => void
+    const t = setup({ record: accepted() })
+    t.api.create.mockImplementationOnce(async () => {
+      await new Promise<void>(resolve => (answerCreate = resolve))
+      return { kind: 'ok', credential: NEW, token: { externalId: 'device:new', token: 'jwt', expiresAt: '' } }
+    })
+    const binding = t.session.apply(null)
+    await vi.waitFor(() => expect(t.api.create).toHaveBeenCalled())
+    const declined = t.session.answerDisclosure('declined')
+    answerCreate()
+    await Promise.all([binding, declined])
+    await t.session.settled()
+
+    expect(t.calls).not.toContain('login:device:new')
+    expect(t.calls).toContain('retire:new')
+    expect(await t.credentials.read()).toBeNull()
+  })
+
+  it('F-08: a login reopens a settled OFF: it stays open until the provider shows it again', async () => {
+    const answers: DeviceReportOutcome[] = [
+      { kind: 'ok', result: { appliedVersion: 2, storedVersion: 2, providerEnabled: true } },
+      { kind: 'ok', result: { appliedVersion: 2, storedVersion: 2, providerEnabled: true } },
+      { kind: 'ok', result: { appliedVersion: 2, storedVersion: 2, providerEnabled: true } },
+      { kind: 'ok', result: { appliedVersion: 2, storedVersion: 2, providerEnabled: true } },
+    ]
+    const t = setup({ record: accepted({ enabled: false, version: 2 }), submit: async () => answers.shift()! })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.promotions.snapshot().awaitingProviderOff).toBe(true)
+  })
+
+  it('F-09: retirement carries on while the same user stays signed in', async () => {
+    const results: DeviceRetireOutcome[] = [{ kind: 'error' }, { kind: 'done' }]
+    const t = setup({ record: accepted(), credential: OLD, retire: async () => results.shift()! })
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(await t.credentials.retiring()).toEqual([OLD])
+
+    await t.session.retryPending()
+    await t.session.settled()
+    expect(await t.credentials.retiring()).toEqual([])
+  })
+
+  it('F-09: a restart while signed in drains what an earlier launch left', async () => {
+    const t = setup({ retiring: [OLD] })
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(t.calls).toContain('retire:old')
+    expect(await t.credentials.retiring()).toEqual([])
+  })
+
+  it('missing evidence r1: an open OFF survives a real restart, rebuilt from what was stored', async () => {
+    const record = accepted({ enabled: false, version: 8, pendingVersion: 8, awaitingProviderOff: true })
+    const stillOn: DeviceReportOutcome = { kind: 'ok', result: { appliedVersion: 8, storedVersion: 8, providerEnabled: true } }
+    const first = setup({ record, submit: async () => stillOn })
+    await first.session.apply(null)
+    await first.session.settled()
+    const stored = first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!
+
+    const second = setup({
+      record: stored,
+      credential: NEW,
+      submit: async () => ({ kind: 'ok', result: { appliedVersion: 8, storedVersion: 8, providerEnabled: false } }),
+    })
+    await second.session.apply(null)
+    await second.session.settled()
+    expect(first.promotions.snapshot().awaitingProviderOff).toBe(true)
+    expect(second.promotions.snapshot().awaitingProviderOff).toBe(false)
   })
 })

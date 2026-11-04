@@ -381,7 +381,21 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     return true
   }
 
+  /** Retirement is never what a sign-in waits for, and never stops because of one. */
+  async function retireBestEffort(): Promise<void> {
+    try {
+      await quarantineCurrent()
+      await drainRetirements()
+    } catch {
+      report('push_device_retire_pending')
+    }
+  }
+
   async function toUser(gen: number, userId: string): Promise<void> {
+    // Before the same-user no-op: R-17b's retries do not stop at a sign-in.
+    await retireBestEffort()
+    if (gen !== generation) return
+
     if (binding.kind === 'user' && binding.userId === userId) {
       if (flow?.generation !== gen || flow.state === 'retry') {
         const started = startFlow(gen)
@@ -394,15 +408,9 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     consecutiveRefreshes = 0
     refreshGiveUpReported = false
 
-    // Best effort and bounded (D2): a failure stays on the retiring list, and the
-    // user's `register()` takeover retires the identity on the server anyway.
-    try {
-      if (await quarantineCurrent()) await drainRetirements()
-    } catch {
-      report('push_device_retire_pending')
-    }
-    if (gen !== generation) return
-
+    // The DELETE above is best effort and bounded (D2): a failure stays on the
+    // retiring list, and the user's `register()` takeover retires the identity on
+    // the server anyway.
     if (binding.kind !== 'none') {
       // Account switch: the previous user's subscription must be released
       // before the next one claims it, or one device answers to two people.
@@ -486,7 +494,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
         credential = null
         report('push_device_gone')
       } else if (renewed.kind === 'disabled') {
-        await serviceDisabled()
+        if (gen === generation) await serviceDisabled()
         return
       } else {
         report(
@@ -504,7 +512,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       if (gen !== generation) return
       const created = await device.create()
       if (created.kind === 'disabled') {
-        await serviceDisabled()
+        if (gen === generation) await serviceDisabled()
         return
       }
       if (created.kind !== 'ok') {
@@ -518,7 +526,8 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       token = created.token
     }
 
-    if (gen !== generation || !token) {
+    // The answer is re-read too: it is what admits this login (D6).
+    if (gen !== generation || !token || device.promotions.snapshot().answer !== 'accepted') {
       report('push_identity_superseded')
       return
     }
@@ -546,10 +555,24 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     report('push_device_service_off')
   }
 
-  /** The server says this identity no longer exists. A bound device is never a no-op then. */
-  function deviceGone(gen: number): void {
+  /** A late answer about an identity this device has already left is about nothing. */
+  function holdsCredential(credential: DeviceCredential): boolean {
+    return binding.kind === 'device' && binding.credential.deviceId === credential.deviceId
+  }
+
+  /** DISABLED from a call already in flight. Fenced when asked and again when it runs. */
+  function deviceDisabled(gen: number, credential: DeviceCredential): void {
+    if (gen !== generation || !holdsCredential(credential)) return
     void enqueue(async () => {
-      if (gen !== generation || !device) return
+      if (gen === generation && holdsCredential(credential)) await serviceDisabled()
+    })
+  }
+
+  /** The server says this identity no longer exists. A bound device is never a no-op then. */
+  function deviceGone(gen: number, credential: DeviceCredential): void {
+    if (gen !== generation || !holdsCredential(credential)) return
+    void enqueue(async () => {
+      if (gen !== generation || !holdsCredential(credential) || !device) return
       await device.credentials.clear()
       binding = { kind: 'none' }
       report('push_device_gone')
@@ -593,7 +616,9 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       deps.optIn?.()
     } else {
       // Before the report: a login restores delivery, and M-3 (d) measured that an
-      // opt-out right after it overrides that.
+      // opt-out right after it overrides that. So an OFF settled before this login
+      // is open again until the provider shows it (R-16).
+      device.promotions.expectProviderOff()
       device.optOut()
     }
 
@@ -666,10 +691,10 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
           finish('retry')
           return
         case 'gone':
-          deviceGone(current.generation)
+          deviceGone(current.generation, credential)
           return
         case 'disabled':
-          void enqueue(serviceDisabled)
+          deviceDisabled(current.generation, credential)
           return
         case 'malformed':
           // A client bug, never GONE: discarding would hide it behind a new identity.
@@ -720,14 +745,15 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     if (!externalId.startsWith(DEVICE_PREFIX)) return deps.fetchToken()
     if (!device || binding.kind !== 'device') return 'dropped'
     const gen = generation
-    const renewed = await device.renew(binding.credential)
+    const credential = binding.credential
+    const renewed = await device.renew(credential)
     if (renewed.kind === 'ok') return { kind: 'ok', token: renewed.token }
     if (renewed.kind === 'gone') {
-      deviceGone(gen)
+      deviceGone(gen, credential)
       return 'dropped'
     }
     if (renewed.kind === 'disabled') {
-      void enqueue(serviceDisabled)
+      deviceDisabled(gen, credential)
       return 'dropped'
     }
     if (renewed.kind === 'malformed') report('push_device_credential_malformed')
@@ -795,14 +821,17 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     answerDisclosure(answer: DisclosureAnswer): Promise<void> {
       if (!device) return tail
       device.promotions.answer(answer)
-      return restartFlow()
+      return identityDecisionChanged()
     },
 
     /** The switch. The SDK and the server follow; an offline change replays (D5). */
     setPromotions(enabled: boolean): Promise<void> {
       if (!device) return tail
-      if (enabled && device.promotions.snapshot().answer !== 'accepted') device.promotions.answer('accepted')
-      else device.promotions.setEnabled(enabled)
+      if (enabled && device.promotions.snapshot().answer !== 'accepted') {
+        device.promotions.answer('accepted')
+        return identityDecisionChanged()
+      }
+      device.promotions.setEnabled(enabled)
       return restartFlow()
     },
 
@@ -903,6 +932,13 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     boundUserId: () => (binding.kind === 'user' ? binding.userId : null),
     /** Test seam only. */
     boundDeviceId: () => (binding.kind === 'device' ? binding.credential.deviceId : null),
+  }
+
+  /** The answer admits the identity (D6): whatever is in flight on the old one stops. */
+  function identityDecisionChanged(): Promise<void> {
+    if (signingOut || desired?.kind !== 'device') return tail
+    generation += 1
+    return transition(generation)
   }
 
   /** A newer choice: the running flow stops, a new one carries the newest version. */

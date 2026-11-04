@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   createIdentityConfirmation,
+  createLoginSettlement,
   isServerIssued,
   LOCAL_ID_PREFIX,
 } from '../identity-confirmation'
@@ -109,5 +110,38 @@ describe('confirming that a login took', () => {
       ...opts,
     })
     await expect(confirm(A, () => true)).resolves.toEqual({ kind: 'unavailable' })
+  })
+})
+
+describe('waiting for the SDK to finish a login (F-06, shape §8.1)', () => {
+  it('keeps waiting past the previous identity, and past a local id', async () => {
+    const reads: [string | null, string | null][] = [
+      ['device:old', 'server-old'],
+      ['A', 'local-1'],
+      ['A', 'server-a'],
+    ]
+    const reader = {
+      getExternalId: vi.fn(async () => reads[0]![0]),
+      getOnesignalId: vi.fn(async () => reads.shift()![1]),
+    }
+    const settled = createLoginSettlement({ reader, pollIntervalMs: 0, timeoutMs: 1_000 })
+    await settled('A')
+    expect(reads).toHaveLength(0)
+  })
+
+  it('gives up at the deadline, and does not throw', async () => {
+    const reader = { getExternalId: async () => 'device:old', getOnesignalId: async () => 'server-old' }
+    const settled = createLoginSettlement({ reader, pollIntervalMs: 0, timeoutMs: 5 })
+    await expect(settled('A')).resolves.toBeUndefined()
+  })
+
+  it('a throwing SDK ends the wait', async () => {
+    const reader = {
+      getExternalId: async () => {
+        throw new Error('bridge')
+      },
+      getOnesignalId: async () => null,
+    }
+    await expect(createLoginSettlement({ reader, pollIntervalMs: 0, timeoutMs: 5 })('A')).resolves.toBeUndefined()
   })
 })

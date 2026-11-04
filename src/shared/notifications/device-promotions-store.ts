@@ -209,6 +209,11 @@ export function createDevicePromotionsStore(deps: {
       persist({ pendingVersion, awaitingProviderOff })
     },
 
+    /** A login restored delivery: this OFF is not settled until the provider shows it again. */
+    expectProviderOff(): void {
+      if (!snapshot.enabled && !snapshot.awaitingProviderOff) persist({ awaitingProviderOff: true })
+    },
+
     /** 409 PUSH_PREFERENCE_STALE: the server holds a newer version; go past it. */
     adoptStoredVersion(storedVersion: number): void {
       const version = storedVersion + 1

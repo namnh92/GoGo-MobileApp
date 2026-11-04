@@ -3,7 +3,6 @@ import { OneSignal } from 'react-native-onesignal'
 
 import { registerPushSubscription } from '@/shared/api/endpoints/me'
 import { subscribeToSession, getSession, hydrateSession } from '@/shared/api/session'
-import { deleteSecureItem, getSecureItem, setSecureItem } from '@/shared/storage/secure-store'
 
 import {
   loginWithToken,
@@ -12,7 +11,7 @@ import {
   onJwtExpired,
   respondToJwtExpired,
 } from '../../../modules/onesignal-identity'
-import { createDeviceCredentialStore } from './device-credential-store'
+import { createDeviceCredentialStore, secureDeviceCredentialStorage } from './device-credential-store'
 import {
   createDeviceIdentity,
   renewDeviceToken,
@@ -21,7 +20,7 @@ import {
 } from './device-identity-api'
 import { devicePromotionsStore } from './device-promotions-store'
 import { fetchIdentityToken } from './identity-api'
-import { createIdentityConfirmation } from './identity-confirmation'
+import { createIdentityConfirmation, createLoginSettlement } from './identity-confirmation'
 import { createIdentitySession } from './identity-session'
 import { unsubscribeCurrentDeviceAndConfirm } from './logout-confirmation-bootstrap'
 
@@ -39,9 +38,6 @@ const readIdentity = {
   getOnesignalId: () => OneSignal.User.getOnesignalId(),
 }
 
-// No `report`: `confirmIdentity` below already says what the SDK did.
-const waitForSdk = createIdentityConfirmation({ reader: readIdentity })
-
 const pushPlatform = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null
 
 export const pushIdentity = createIdentitySession({
@@ -56,9 +52,7 @@ export const pushIdentity = createIdentitySession({
 
   // Bounded by the same 15 s. Whether or not this login is still wanted, the next
   // transition waits for the SDK to finish it (M-3, shape §8.1).
-  settleNative: async externalId => {
-    await waitForSdk(externalId, () => true)
-  },
+  settleNative: createLoginSettlement({ reader: readIdentity }),
 
   confirmSignOut: unsubscribeCurrentDeviceAndConfirm,
 
@@ -109,10 +103,7 @@ export const pushIdentity = createIdentitySession({
 
   /** NTF-APP-011 (#398): a device with no user session. Every decision is in the session. */
   device: {
-    credentials: createDeviceCredentialStore(
-      { get: getSecureItem, set: setSecureItem, remove: key => deleteSecureItem(key) },
-      report,
-    ),
+    credentials: createDeviceCredentialStore(secureDeviceCredentialStorage),
     promotions: devicePromotionsStore,
     create: createDeviceIdentity,
     renew: renewDeviceToken,
