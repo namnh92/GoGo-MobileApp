@@ -5,6 +5,7 @@
 # decide what ships, tested without fastlane, AWS or a build.
 
 require 'minitest/autorun'
+require 'minitest/mock'
 require 'tmpdir'
 require 'gogo_distribute'
 
@@ -426,5 +427,369 @@ class CleanupTest < Minitest::Test
     assert_equal({ 'PATH' => '/bin' }, env)
   ensure
     FileUtils.rm_rf(dir)
+  end
+end
+
+# GoGo-MobileApp#413: the Size Analysis upload (shape D3, D5, D6, D7, D10).
+class SentryPropertiesTest < Minitest::Test
+  # What @sentry/react-native 8.30.0 writes (plugin/build/withSentry.js:99-102).
+  GENERATED = <<~PROPS
+    defaults.url=https://sentry.io/
+    defaults.org=gogo-vn
+    defaults.project=gogo-mobile
+    # Using SENTRY_AUTH_TOKEN environment variable
+  PROPS
+
+  def test_reads_the_three_coordinates
+    assert_equal({ 'defaults.url' => 'https://sentry.io/', 'defaults.org' => 'gogo-vn', 'defaults.project' => 'gogo-mobile' },
+                 GD::SentryProperties.parse(GENERATED))
+  end
+
+  def test_refuses_a_token_kept_in_the_file_without_repeating_it
+    error = assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}auth.token=sntrys_secret\n") }
+    assert_match(/auth\.token/, error.message)
+    refute_match(/sntrys_secret/, error.message)
+  end
+
+  def test_refuses_an_unexpected_key_without_repeating_the_value
+    error = assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}defaults.other=hush\n") }
+    assert_match(/defaults\.other/, error.message)
+    refute_match(/hush/, error.message)
+  end
+
+  def test_refuses_a_missing_coordinate
+    error = assert_raises(GD::Refusal) { GD::SentryProperties.parse("defaults.url=https://sentry.io/\ndefaults.org=gogo-vn\n") }
+    assert_match(/defaults\.project/, error.message)
+  end
+
+  def test_refuses_a_duplicate_coordinate
+    assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}defaults.org=other\n") }
+  end
+
+  def test_refuses_a_line_that_is_not_key_value
+    assert_raises(GD::Refusal) { GD::SentryProperties.parse("#{GENERATED}nonsense\n") }
+  end
+end
+
+class SizeUploadTest < Minitest::Test
+  PROPS = { 'defaults.url' => 'https://sentry.io/', 'defaults.org' => 'gogo-vn', 'defaults.project' => 'gogo-mobile' }.freeze
+
+  def command(artifact: '/run/tmp/app.xcarchive')
+    GD::SizeUpload.command(cli: '/x/sentry-cli', artifact: artifact, props: PROPS, sha: 'a' * 40,
+                           branch: 'feature/x', notes: 'dev aaaaaaa build 7 (feature/x) host=mac')
+  end
+
+  def flag(argv, name)
+    argv[argv.index(name) + 1]
+  end
+
+  def test_url_comes_before_the_subcommand_because_the_cli_rejects_it_after
+    assert_equal ['/x/sentry-cli', '--url', 'https://sentry.io/', 'build', 'upload'], command.first(5)
+  end
+
+  def test_names_the_project_and_the_build_explicitly
+    argv = command
+    assert_equal 'gogo-vn', flag(argv, '--org')
+    assert_equal 'gogo-mobile', flag(argv, '--project')
+    assert_equal 'a' * 40, flag(argv, '--head-sha')
+    assert_equal 'feature/x', flag(argv, '--head-ref')
+    assert_equal 'namnh92/GoGo-MobileApp', flag(argv, '--head-repo-name')
+    assert_equal 'github', flag(argv, '--vcs-provider')
+    assert_equal 'Release', flag(argv, '--build-configuration')
+    assert_equal 'dev aaaaaaa build 7 (feature/x) host=mac', flag(argv, '--release-notes')
+  end
+
+  def test_the_artifact_is_the_last_argument
+    assert_equal '/run/tmp/app.xcarchive', command.last
+    assert_equal '/b/gogo-dev-7.apk', command(artifact: '/b/gogo-dev-7.apk').last
+  end
+
+  def test_the_token_is_never_on_the_argument_list
+    refute_includes command, '--auth-token'
+    refute(command.any? { |a| a.include?('sntrys_') })
+  end
+
+  def test_build_distribution_stays_unrequested
+    refute_includes command, '--install-group'
+  end
+
+  def test_skips_only_in_the_no_token_state
+    assert GD::SizeUpload.skip?('SENTRY_DISABLE_AUTO_UPLOAD' => 'true')
+    refute GD::SizeUpload.skip?('SENTRY_DISABLE_AUTO_UPLOAD' => 'false')
+  end
+
+  def test_a_missing_switch_does_not_read_as_skip
+    refute GD::SizeUpload.skip?({})
+  end
+
+  def test_finds_the_build_link_in_the_cli_output
+    out = "Successfully uploaded 1 file to Sentry\n  - /a/gogo-dev-7.apk (https://sentry.io/organizations/gogo-vn/preprod/1)\n"
+    assert_equal ['https://sentry.io/organizations/gogo-vn/preprod/1'], GD::SizeUpload.links(out)
+  end
+end
+
+class SizeUploadEnvTest < Minitest::Test
+  def secrets
+    GD::Secrets.new('SENTRY_AUTH_TOKEN' => 'sntrys_x', 'ANDROID_KEYSTORE_PASSWORD' => 'k', 'FIREBASE_SERVICE_CREDENTIALS_JSON' => '{}')
+  end
+
+  def test_the_child_gets_the_base_and_the_token_and_no_other_secret
+    env = GD::EnvSets.size_upload(secrets, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }, base: { 'PATH' => '/bin' })
+    assert_equal({ 'PATH' => '/bin', 'SENTRY_AUTH_TOKEN' => 'sntrys_x' }, env)
+  end
+
+  def test_no_token_in_the_no_token_state
+    env = GD::EnvSets.size_upload(secrets, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' }, base: { 'PATH' => '/bin' })
+    assert_equal({ 'PATH' => '/bin' }, env)
+  end
+
+  def test_refuses_when_the_upload_state_has_no_token
+    assert_raises(GD::Refusal) do
+      GD::EnvSets.size_upload(GD::Secrets.new({}), { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }, base: {})
+    end
+  end
+end
+
+# F-01: the step the lanes run, through a fake sentry-cli that records what it got.
+class SizeUploadRunTest < Minitest::Test
+  TOKEN = 'sntrys_sentinel'
+  BASE = { 'PATH' => ENV.fetch('PATH') }.freeze
+  # What sh itself adds to its environment.
+  SHELL_VARS = %w[PWD OLDPWD SHLVL _].freeze
+
+  def with_cli(exit_code: 0, output: '')
+    Dir.mktmpdir do |dir|
+      cli = File.join(dir, 'fake-cli')
+      File.write(cli, <<~SH, perm: 0o700)
+        #!/bin/sh
+        printf '%s\\n' "$@" > "#{dir}/argv"
+        env > "#{dir}/env"
+        printf '%s\\n' '#{output}'
+        exit #{exit_code}
+      SH
+      @dir = dir
+      yield cli
+    end
+  end
+
+  def run_step(cli, artifact: '/b/gogo-dev-7.apk', switches: { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }, size: :default)
+    size = { cli: cli, props: SizeUploadTest::PROPS } if size == :default
+    secrets = GD::Secrets.new('SENTRY_AUTH_TOKEN' => TOKEN, 'ANDROID_KEYSTORE_PASSWORD' => 'k', 'FIREBASE_SERVICE_CREDENTIALS_JSON' => '{}')
+    GD::SizeUpload.run(supervisor: GD::Supervisor.new(run_file: File.join(@dir, 'run.json')), size: size, switches: switches,
+                       secrets: secrets, base: BASE, artifact: artifact, build_number: 7, sha: 'a' * 40, branch: 'b',
+                       notes: 'n', log: File.join(@dir, 'size.log'), chdir: @dir)
+  end
+
+  def test_the_child_gets_the_artifact_and_the_token_only_through_its_environment
+    with_cli do |cli|
+      run_step(cli, artifact: '/run/tmp/app.xcarchive')
+      argv = File.read(File.join(@dir, 'argv'))
+      assert_equal '/run/tmp/app.xcarchive', argv.lines.last.chomp
+      refute_includes argv, TOKEN
+      keys = File.readlines(File.join(@dir, 'env'), chomp: true).map { |l| l.split('=', 2).first }
+      assert_equal %w[PATH SENTRY_AUTH_TOKEN], (keys - SHELL_VARS).sort
+      assert_includes File.read(File.join(@dir, 'env')), "SENTRY_AUTH_TOKEN=#{TOKEN}"
+    end
+  end
+
+  def test_returns_the_links_the_cli_printed
+    with_cli(output: 'uploaded (https://sentry.io/x/1)') do |cli|
+      assert_equal ['https://sentry.io/x/1'], run_step(cli)
+    end
+  end
+
+  def test_a_failed_upload_raises_and_says_the_build_is_already_out
+    with_cli(exit_code: 1, output: 'quota') do |cli|
+      error = assert_raises(GD::Refusal) { run_step(cli) }
+      assert_match(/size analysis upload failed or was not confirmed after Firebase distributed build 7/, error.message)
+      assert_match(/look for this build in Sentry/, error.message)
+      assert_match(/with the testers/, error.message)
+      assert_includes File.read(File.join(@dir, 'size.log')), 'quota'
+    end
+  end
+
+  def test_a_log_that_cannot_be_read_does_not_undo_a_successful_upload
+    with_cli do |cli|
+      File.stub(:read, ->(*) { raise Errno::EIO }) { assert_equal [], run_step(cli) }
+    end
+  end
+
+  def test_the_no_token_state_starts_no_child
+    with_cli do |cli|
+      assert_nil run_step(cli, switches: { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' }, size: nil)
+      refute File.exist?(File.join(@dir, 'argv'))
+    end
+  end
+
+  def test_a_token_state_without_a_prepared_upload_refuses
+    with_cli do |cli|
+      assert_raises(GD::Refusal) { run_step(cli, size: nil) }
+    end
+  end
+end
+
+class PublishOrderTest < Minitest::Test
+  def test_firebase_comes_first
+    calls = []
+    GD::SizeUpload.publish(distribute: -> { calls << :firebase }, measure: -> { calls << :size })
+    assert_equal %i[firebase size], calls
+  end
+
+  def test_a_firebase_failure_means_no_size_upload
+    measured = false
+    assert_raises(GD::Refusal) do
+      GD::SizeUpload.publish(distribute: -> { raise GD::Refusal, 'firebase' }, measure: -> { measured = true })
+    end
+    refute measured
+  end
+
+  def test_a_size_failure_escapes
+    assert_raises(GD::Refusal) do
+      GD::SizeUpload.publish(distribute: -> {}, measure: -> { raise GD::Refusal, 'size' })
+    end
+  end
+end
+
+# F-01: the step methods of the real Fastfile, run through fastfile_harness.rb with
+# a fake sentry-cli and recording Firebase actions.
+require_relative 'fastfile_harness'
+
+class FastfileStepsTest < Minitest::Test
+  APP_ID = '1:123456789012:android:0123456789abcdef'
+
+  def setup
+    FastfileHarness.reset!
+    @dir = Dir.mktmpdir
+    @supervisor = GD::Supervisor.new(run_file: File.join(@dir, 'run.json'))
+    @cleanup = GD::Cleanup.new(supervisor: @supervisor, secrets: nil, env: {})
+    @ctx = { env: 'dev', platform: 'android', sha: 'c' * 40, branch: 'feature/x', groups: 'dev-testers',
+             bundle_id: 'max.gogo.dev', log_dir: @dir, supervisor: @supervisor, cleanup: @cleanup,
+             base: { 'PATH' => ENV.fetch('PATH') } }
+    @switches = { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }
+  end
+
+  def teardown
+    FileUtils.rm_rf(@dir)
+  end
+
+  def fake_cli(exit_code: 0)
+    cli = File.join(@dir, 'fake-cli')
+    File.write(cli, <<~SH, perm: 0o700)
+      #!/bin/sh
+      printf '%s\\n' "$@" > "#{@dir}/argv"
+      env > "#{@dir}/env"
+      echo size >> "#{@dir}/order"
+      echo 'uploaded (https://sentry.io/harness/1)'
+      exit #{exit_code}
+    SH
+    { cli: cli, props: SizeUploadTest::PROPS }
+  end
+
+  def order
+    firebase = FastfileHarness::Firebase.order
+    size = File.exist?(File.join(@dir, 'order')) ? [:size] : []
+    firebase + size
+  end
+
+  def test_publish_sends_the_build_to_firebase_first_then_to_sentry
+    gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/gogo-dev-7.apk', size_artifact: '/b/gogo-dev-7.apk')
+    assert_equal %i[firebase size], order
+    assert_equal '/b/gogo-dev-7.apk', FastfileHarness::Firebase.calls.first[:apk_path]
+    assert_equal '/b/gogo-dev-7.apk', File.readlines(File.join(@dir, 'argv'), chomp: true).last
+    assert_includes UI.lines, [:message, 'distribute: size analysis: uploaded gogo-dev-7.apk build=7 links=https://sentry.io/harness/1']
+  end
+
+  def test_ios_routes_the_ipa_to_firebase_and_the_xcarchive_to_sentry
+    @ctx[:platform] = 'ios'
+    gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/out/app.ipa', size_artifact: '/run/tmp/app.xcarchive')
+    assert_equal '/out/app.ipa', FastfileHarness::Firebase.calls.first[:ipa_path]
+    assert_equal '/run/tmp/app.xcarchive', File.readlines(File.join(@dir, 'argv'), chomp: true).last
+  end
+
+  def test_the_child_sees_the_token_in_its_environment_and_nowhere_else
+    gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    assert_includes File.read(File.join(@dir, 'env')), 'SENTRY_AUTH_TOKEN=sntrys_harness_sentinel'
+    refute_includes File.read(File.join(@dir, 'argv')), 'sntrys_'
+    refute(UI.lines.any? { |_, text| text.include?('sntrys_') })
+    refute_includes File.read(File.join(@dir, 'env')), 'FIREBASE_SERVICE_CREDENTIALS_JSON'
+  end
+
+  def test_a_failed_size_upload_escapes_after_firebase_with_the_build_already_out
+    error = assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli(exit_code: 1), firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_equal %i[firebase size], order
+    assert_match(/size analysis upload failed or was not confirmed after Firebase distributed build 7/, error.message)
+    assert(UI.lines.any? { |kind, text| kind == :error && text.include?('uploaded (https://sentry.io/harness/1)') }, 'log tail shown')
+  end
+
+  def test_a_firebase_failure_stops_before_any_size_upload
+    FastfileHarness::Firebase.fail_upload = true
+    assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_equal [], order
+    refute File.exist?(File.join(@dir, 'argv'))
+  end
+
+  def test_a_build_number_firebase_took_meanwhile_stops_before_both_uploads
+    FastfileHarness::Firebase.latest = 7
+    assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, fake_cli, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_empty FastfileHarness::Firebase.calls
+    assert_equal [], order
+  end
+
+  def test_the_no_token_state_distributes_and_starts_no_sentry_child
+    gogo_publish(@ctx, APP_ID, 7, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' }, nil, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    assert_equal [:firebase], order
+    refute(UI.lines.any? { |_, text| text.include?('size analysis: uploaded') })
+  end
+
+  def test_the_token_state_without_a_prepared_upload_fails_the_run
+    error = assert_raises(FastfileHarness::UserError) do
+      gogo_publish(@ctx, APP_ID, 7, @switches, nil, firebase_artifact: '/b/a.apk', size_artifact: '/b/a.apk')
+    end
+    assert_match(/not prepared before the build/, error.message)
+  end
+
+  def test_prepare_in_the_no_token_state_warns_once_and_returns_nil
+    assert_nil gogo_size_prepare(@ctx, { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' })
+    assert_equal [[:important, 'no SENTRY_AUTH_TOKEN: this build is not measured in Size Analysis either']], UI.lines
+  end
+end
+
+# The Fastfile needs fastlane to load, so its wiring is pinned from the source.
+class FastfileWiringTest < Minitest::Test
+  SOURCE = File.read(File.expand_path('../Fastfile', __dir__))
+
+  def lane(platform)
+    SOURCE[/^platform :#{platform} do.*?^end$/m]
+  end
+
+  def test_ios_sends_the_ipa_to_firebase_and_the_xcarchive_to_sentry
+    assert_match(/gogo_publish\(.*firebase_artifact: ipa, size_artifact: archive\)/, lane('ios'))
+  end
+
+  def test_android_sends_the_apk_to_both
+    assert_match(/gogo_publish\(.*firebase_artifact: apk, size_artifact: apk\)/, lane('android'))
+  end
+
+  def test_no_lane_reaches_firebase_except_through_publish
+    %w[ios android].each do |platform|
+      refute_match(/gogo_upload\(/, lane(platform))
+      refute_match(/gogo_size_upload\(/, lane(platform))
+    end
+  end
+
+  def test_both_lanes_check_the_upload_setup_before_the_native_build
+    assert_operator lane('ios').index('gogo_size_prepare'), :<, lane('ios').index("'xcodebuild-archive'")
+    assert_operator lane('android').index('gogo_size_prepare'), :<, lane('android').index("'gradle-assemble'")
+  end
+
+  def test_the_step_cannot_be_told_to_tolerate_failure
+    refute_match(/allow_failure/, SOURCE)
+    refute_match(/allow_failure/, File.read(File.expand_path('../lib/gogo_distribute.rb', __dir__))[/module SizeUpload.*?^  end$/m])
   end
 end

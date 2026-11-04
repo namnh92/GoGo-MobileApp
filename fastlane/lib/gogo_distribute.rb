@@ -133,6 +133,95 @@ module GogoDistribute
       out['SENTRY_AUTH_TOKEN'] = secrets['SENTRY_AUTH_TOKEN'] if secrets.key?('SENTRY_AUTH_TOKEN')
       out
     end
+
+    # #413 D6: the size-upload child holds the token and no other secret.
+    def self.size_upload(secrets, switches, base: self.base)
+      return base.dup if SizeUpload.skip?(switches)
+
+      base.merge('SENTRY_AUTH_TOKEN' => secrets.fetch('SENTRY_AUTH_TOKEN'))
+    end
+  end
+
+  # #413 D3: the upload coordinates come from the sentry.properties the config
+  # plugin generated at prebuild, not from a second constant. Errors name the key,
+  # never the value: a line here could be a token.
+  module SentryProperties
+    KEYS = %w[defaults.url defaults.org defaults.project].freeze
+    LINE = /\A([a-z][a-z.]*)=(.*)\z/
+
+    def self.parse(text)
+      values = {}
+      text.each_line(chomp: true).with_index(1) do |line, number|
+        next if line.strip.empty? || line.lstrip.start_with?('#')
+
+        match = LINE.match(line) or raise Refusal, "sentry.properties line #{number}: not key=value"
+        key, value = match[1], match[2]
+        raise Refusal, 'sentry.properties holds auth.token; the token comes from exec-with.sh only' if key == 'auth.token'
+        raise Refusal, "sentry.properties line #{number}: #{key} is not an expected key" unless KEYS.include?(key)
+        raise Refusal, "sentry.properties line #{number}: #{key} appears twice" if values.key?(key)
+
+        values[key] = value
+      end
+      missing = KEYS - values.reject { |_, v| v.empty? }.keys
+      raise Refusal, "sentry.properties is missing #{missing.join(', ')}" unless missing.empty?
+
+      values.freeze
+    end
+  end
+
+  # #413: Size Analysis upload of the build the lane just distributed. The token
+  # travels in the child's environment only, never on this argument list.
+  module SizeUpload
+    REPOSITORY = 'namnh92/GoGo-MobileApp'
+    CONFIGURATION = 'Release'
+
+    def self.skip?(switches)
+      switches['SENTRY_DISABLE_AUTO_UPLOAD'] == 'true'
+    end
+
+    # --url is a top-level option: sentry-cli 3.8.0 rejects it after `build upload`.
+    # A workstation is not CI, so the CLI infers no git metadata; it is named here.
+    def self.command(cli:, artifact:, props:, sha:, branch:, notes:)
+      [cli, '--url', props.fetch('defaults.url'), 'build', 'upload',
+       '--org', props.fetch('defaults.org'), '--project', props.fetch('defaults.project'),
+       '--head-sha', sha, '--head-ref', branch, '--head-repo-name', REPOSITORY, '--vcs-provider', 'github',
+       '--build-configuration', CONFIGURATION, '--release-notes', notes, artifact]
+    end
+
+    def self.links(output)
+      output.scan(%r{https://[^\s()]+})
+    end
+
+    # Firebase first: quota or a Sentry outage cannot hold a build back from the
+    # testers. An exception from either step leaves here, so the run fails.
+    def self.publish(distribute:, measure:)
+      distribute.call
+      measure.call
+    end
+
+    # Nil in the no-token state, otherwise the links the CLI printed. A failure stays
+    # a failure: there is no third state. `size` comes from the lane's check before
+    # the native build, so a token state without it is a lane defect, not a skip.
+    def self.run(supervisor:, size:, switches:, secrets:, base:, artifact:, build_number:, sha:, branch:, notes:, log:, chdir:)
+      return nil if skip?(switches)
+      raise Refusal, 'size analysis was not prepared before the build' if size.nil?
+
+      argv = command(cli: size[:cli], artifact: artifact, props: size[:props], sha: sha, branch: branch, notes: notes)
+      begin
+        supervisor.run(argv, env: EnvSets.size_upload(secrets, switches, base: base), chdir: chdir, log: log)
+      rescue Refusal => e
+        raise Refusal, "size analysis upload failed or was not confirmed after Firebase distributed build #{build_number} — " \
+                       "the build is with the testers; look for this build in Sentry Mobile Builds before any recovery: #{e.message}"
+      end
+      read_links(log)
+    end
+
+    # The upload has succeeded by now; an unreadable log costs the link, not the run.
+    def self.read_links(log)
+      links(File.read(log))
+    rescue SystemCallError
+      []
+    end
   end
 
   # D-10: Firebase is the counter; the lane refuses a number that is not above it.
