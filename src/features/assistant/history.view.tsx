@@ -125,10 +125,13 @@ export function History({
       onPress={onNewChat}
       style={({ pressed }) => [styles.newChat, pressed && styles.newChatPressed]}
     >
-      <Icon name="newChat" size={16} color="accent.onAccent" />
-      {/* "Mới" beside the pencil: the full "Cuộc trò chuyện mới" left the
-          header title "Cuộc trò c…" on an iPhone SE. VoiceOver reads the full label. */}
-      <Text variant="label" color="accent.onAccent" numberOfLines={1}>{t('assistant.history.newChatShort')}</Text>
+      <View style={styles.newChatTile}>
+        <Icon name="sparkle" size={22} color="accent.onAccent" />
+      </View>
+      <Text variant="title2" numberOfLines={1} style={styles.newChatLabel}>{t('assistant.newChat')}</Text>
+      <View style={styles.newChatPlus}>
+        <Icon name="plus" size={20} color="text.primary" />
+      </View>
     </Pressable>
   )
 
@@ -175,10 +178,21 @@ export function History({
           ) : null
         }
         renderSectionHeader={({ section }) => (
-          <Text variant="caption" color="text.secondary" accessibilityRole="header" style={styles.group}>
-            {groupTitle(section.key)}
-          </Text>
+          <View style={styles.groupRow}>
+            <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.group}>
+              {groupTitle(section.key)}
+            </Text>
+            <Text variant="caption" color="text.secondary">{t('assistant.history.count', { count: section.data.length })}</Text>
+          </View>
         )}
+        ListFooterComponent={
+          <View style={styles.retention}>
+            <View style={styles.retentionIcon}>
+              <Icon name="lock" size={18} color="text.secondary" />
+            </View>
+            <Text variant="bodySmall" color="text.secondary" style={styles.retentionText}>{t('assistant.history.empty.body')}</Text>
+          </View>
+        }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item, section }) => (
           <HistoryItem
@@ -199,7 +213,8 @@ export function History({
 
   return (
     <View testID="assistant-history-screen" style={styles.screen}>
-      <AssistantHeader onBack={onBack} title={t('assistant.history.title')} avatar={false} trailing={newChat} />
+      <AssistantHeader onBack={onBack} title={t('assistant.history.title')} avatar={false} />
+      <View style={styles.newChatWrap}>{newChat}</View>
       <View style={styles.search}>
         <SearchField
           accessibilityLabel={t('assistant.history.search')}
