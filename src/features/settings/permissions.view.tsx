@@ -37,7 +37,7 @@ export default function PermissionsSettingsScreen() {
         <BackHeader onBack={() => router.back()} title={t('permissionsSettings.title')} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}>
-        <Text variant="title2" accessibilityRole="header" style={styles.sectionTitle}>
+        <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>
           {t('permissionsSettings.notifications')}
         </Text>
         {status === 'user' ? (
@@ -52,12 +52,12 @@ export default function PermissionsSettingsScreen() {
           </>
         )}
 
-        <Text variant="title2" accessibilityRole="header" style={styles.sectionTitle}>
+        <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>
           {t('permissionsSettings.location')}
         </Text>
         <LocationPermissionSection />
 
-        <Text variant="title2" accessibilityRole="header" style={styles.sectionTitle}>
+        <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>
           {t('permissionsSettings.tracking')}
         </Text>
         <TrackingConsentSection />

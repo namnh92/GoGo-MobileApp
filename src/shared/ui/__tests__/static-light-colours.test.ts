@@ -21,17 +21,10 @@ import { describe, expect, it } from 'vitest'
  * THE LIST MUST BE EMPTY BEFORE re-design MERGES TO develop.
  */
 const ALLOWLIST: Record<string, number> = {
-  'features/account/account.style.tsx': 4,
-  'features/account/account.view.tsx': 2,
-  'features/account/date-of-birth.style.tsx': 3,
-  'features/account/date-of-birth.view.tsx': 1,
-  'features/notifications/notification-switch.view.tsx': 1,
   'features/review/my-reviews.style.tsx': 3,
   'features/review/my-reviews.view.tsx': 1,
   'features/review/review.style.tsx': 1,
   'features/review/review.view.tsx': 1,
-  'features/settings/device-promotions.view.tsx': 1,
-  'features/settings/tracking-consent.view.tsx': 1,
   'shared/administrative/administrative-picker.style.tsx': 1,
   'shared/observability/root-error-boundary.style.tsx': 1,
 }

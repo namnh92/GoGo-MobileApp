@@ -15,6 +15,7 @@ import {
 import { track } from '@/shared/analytics'
 import { serviceAreaLabel } from '@/shared/location/area-label'
 import { haptic } from '@/shared/ui/feedback'
+import { Icon } from '@/shared/ui/icons'
 import { Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
@@ -102,9 +103,14 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
 
   return (
     <Card padded={false} style={styles.card}>
-      <View>
-        <Text variant="title2">{t('account.defaultsTitle')}</Text>
-        <Text variant="bodySmall" color="text.secondary">{t('account.defaultsBody')}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.icon}>
+          <Icon name="sliders" size={20} color="accent.onSoft" />
+        </View>
+        <View style={styles.titleText}>
+          <Text variant="title2">{t('account.defaultsTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('account.defaultsBody')}</Text>
+        </View>
       </View>
 
       <View style={styles.field}>

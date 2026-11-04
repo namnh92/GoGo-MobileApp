@@ -13,8 +13,11 @@ export const styles = StyleSheet.create(theme => ({
   /** ADM-205 — province, then commune; each header is a screen-reader heading. */
   group: { marginBottom: spacing[6] },
   groupHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
+  groupDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.accent.primary },
   subgroup: { marginBottom: spacing[4] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
   gridItem: { width: '48%' },
   unavailable: { width: '48%', padding: spacing[3], gap: spacing[2] },
+  unavailableRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2] },
+  unavailableText: { flex: 1 },
 }))

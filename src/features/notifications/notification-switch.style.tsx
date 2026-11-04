@@ -1,8 +1,8 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { spacing, touchTarget } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   syncState: {
     minHeight: touchTarget.min,
     marginTop: spacing[3],
@@ -23,8 +23,18 @@ export const styles = StyleSheet.create({
     gap: spacing[3],
     minHeight: touchTarget.min,
   },
+  iconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.compact,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
+  },
+  deviceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  deviceText: { flex: 1 },
   rowText: { flex: 1, gap: 2 },
   deviceCard: { padding: spacing[4], gap: spacing[3] },
   caption: { marginTop: spacing[3] },
   error: { marginTop: spacing[3] },
-})
+}))

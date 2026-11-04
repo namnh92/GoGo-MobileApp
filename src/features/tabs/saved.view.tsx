@@ -11,6 +11,7 @@ import { useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
+import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, Card, Chip, GhostBtn, IconBtn } from '@/shared/ui/primitives'
 import { PlaceGridSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
@@ -88,7 +89,10 @@ export default function SavedScreen() {
     if (!entry.place) {
       return (
         <Card padded={false} key={entry.key} style={styles.unavailable}>
-          <Text variant="bodySmall" color="text.secondary">{t('saved.placeUnavailable')}</Text>
+          <View style={styles.unavailableRow}>
+            <Icon name="alert" size={16} color="status.warningText" />
+            <Text variant="bodySmall" color="text.secondary" style={styles.unavailableText}>{t('saved.placeUnavailable')}</Text>
+          </View>
           <GhostBtn label={t('saved.remove')} onPress={() => unsave(entry)} />
         </Card>
       )
@@ -110,13 +114,13 @@ export default function SavedScreen() {
     <Atmosphere>
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <View style={styles.headerRow}>
-          <Text variant="display">{t('saved.title')}</Text>
+          <Text variant="title1">{t('saved.title')}</Text>
           <IconBtn
             onPress={() => router.push('/places/import')}
             accessibilityLabel={t('saved.addPlace')}
             style={styles.addPlaceBtn}
           >
-            <Text variant="title1" color="accent.primary">＋</Text>
+            <Icon name="plus" size={20} color="accent.primary" />
           </IconBtn>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -164,6 +168,7 @@ export default function SavedScreen() {
           {groups.map(group => (
             <View key={group.key} style={styles.group}>
               <View style={styles.groupHeader}>
+                <View style={styles.groupDot} />
                 <Text variant="title2" accessibilityRole="header">
                   {group.kind === 'province'
                     ? group.provinceName

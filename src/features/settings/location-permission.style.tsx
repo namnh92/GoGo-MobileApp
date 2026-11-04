@@ -6,9 +6,9 @@ export const styles = StyleSheet.create(theme => ({
   card: { padding: spacing[5], marginTop: spacing[3], gap: spacing[4] },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   statusIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.accent.soft,

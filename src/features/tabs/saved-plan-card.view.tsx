@@ -3,7 +3,8 @@ import { Pressable, View } from 'react-native'
 
 import type { Plan } from '@/shared/api'
 import { Card, GhostBtn } from '@/shared/ui/primitives'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Icon } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
 
 import { styles } from './saved-plan-card.style'
 
@@ -22,14 +23,22 @@ export function SavedPlanCard({ plan, onOpen, onRemove }: { plan?: Plan; onOpen:
         onPress={onOpen}
         style={styles.body}
       >
-        <Glyph size="sm">🗓️</Glyph>
+        <View style={styles.icon}>
+          <Icon name="calendar" size={20} color="accent.onSoft" />
+        </View>
         <View style={styles.text}>
           <Text variant="title2">{t('saved.plan.title')}</Text>
           <Text variant="bodySmall" color="text.secondary">
             {plan ? t('saved.plan.stops', { count: plan.stops?.length ?? 0 }) : t('saved.plan.missing')}
           </Text>
-          {plan?.isStale ? <Text variant="bodySmall" color="status.warningText">⚠️ {t('saved.plan.stale')}</Text> : null}
-          {plan?.hasUnavailableStops ? <Text variant="bodySmall" color="status.warningText">⚠️ {t('saved.plan.unavailable')}</Text> : null}
+          {plan?.isStale ? <View style={styles.warning}>
+              <Icon name="alert" size={14} color="status.warningText" />
+              <Text variant="bodySmall" color="status.warningText" style={styles.warningText}>{t('saved.plan.stale')}</Text>
+            </View> : null}
+          {plan?.hasUnavailableStops ? <View style={styles.warning}>
+              <Icon name="alert" size={14} color="status.warningText" />
+              <Text variant="bodySmall" color="status.warningText" style={styles.warningText}>{t('saved.plan.unavailable')}</Text>
+            </View> : null}
         </View>
       </Pressable>
       <GhostBtn label={t('saved.remove')} onPress={onRemove} />

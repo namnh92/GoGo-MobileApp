@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, Share, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useUnistyles } from 'react-native-unistyles'
 
 import {
   exportMyData,
@@ -20,9 +21,10 @@ import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, LoadingState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { haptic } from '@/shared/ui/feedback'
+import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, AvatarCircle, BackHeader, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './account.style'
@@ -53,6 +55,7 @@ function avatarErrorKey(error: unknown): MessageKey {
 }
 
 export default function AccountScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -219,13 +222,13 @@ export default function AccountScreen() {
               <AvatarCircle label={initial} size={80} imageUri={me.data?.avatarUrl} />
               {avatarStep ? (
                 <View style={styles.avatarOverlay} accessibilityElementsHidden>
-                  <ActivityIndicator color={colors.neutral[0]} />
+                  <ActivityIndicator color={theme.text.inverse} />
                 </View>
               ) : null}
             </View>
             <View style={styles.avatarText}>
-              <Text variant="title2">{t('account.avatarTitle')}</Text>
-              <Text variant={!(canUpload) ? 'bodySmall' : canUpload ? 'bodySmall' : undefined} color={!(canUpload) ? 'status.warningText' : canUpload ? 'text.secondary' : undefined}>
+              <Text variant="title2" style={styles.avatarCaption}>{t('account.avatarTitle')}</Text>
+              <Text style={styles.avatarCaption} variant={!(canUpload) ? 'bodySmall' : canUpload ? 'bodySmall' : undefined} color={!(canUpload) ? 'status.warningText' : canUpload ? 'text.secondary' : undefined}>
                 {canUpload ? t('account.avatarBody') : t('account.avatarUnavailable')}
               </Text>
             </View>
@@ -255,7 +258,7 @@ export default function AccountScreen() {
             value={displayName}
             onChangeText={value => setName(value.slice(0, MAX_NAME))}
             placeholder={t('auth.displayNamePlaceholder')}
-            placeholderTextColor={colors.neutral[500]}
+            placeholderTextColor={theme.text.secondary}
             autoCapitalize="words"
             accessibilityLabel={t('auth.displayName')}
             style={styles.input}
@@ -279,7 +282,12 @@ export default function AccountScreen() {
         {me.data ? <ProfileDefaultsCard profile={me.data} /> : null}
 
         <Card padded={false} style={styles.card}>
-          <Text variant="title2">{t('account.dataTitle')}</Text>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIcon}>
+              <Icon name="doc" size={20} color="accent.onSoft" />
+            </View>
+            <Text variant="title2" accessibilityRole="header">{t('account.dataTitle')}</Text>
+          </View>
           <Text variant="bodySmall" color="text.secondary">{t('account.exportBody')}</Text>
           <GhostBtn
             label={busy === 'export' ? t('account.exporting') : t('account.export')}
@@ -287,8 +295,13 @@ export default function AccountScreen() {
           />
         </Card>
 
-        <Card padded={false} style={styles.card}>
-          <Text variant="title2">{t('account.deleteTitle')}</Text>
+        <Card padded={false} style={[styles.card, styles.dangerCard]}>
+          <View style={styles.cardHeader}>
+            <View style={styles.dangerIcon}>
+              <Icon name="alert" size={20} color="status.dangerText" />
+            </View>
+            <Text variant="title2" color="status.dangerText" accessibilityRole="header">{t('account.deleteTitle')}</Text>
+          </View>
           <Text variant="bodySmall" color="text.secondary">{t('account.deleteBody')}</Text>
           <Text variant="bodySmall" color="text.secondary">{t('account.deleteKept')}</Text>
           <Pressable
@@ -299,6 +312,7 @@ export default function AccountScreen() {
             accessibilityState={{ disabled: busy === 'delete', busy: busy === 'delete' }}
             style={styles.deleteBtn}
           >
+            <Icon name="trash" size={18} color="status.dangerText" />
             <Text variant="label" color="status.dangerText">
               {busy === 'delete' ? t('account.deleting') : t('account.deleteConfirm')}
             </Text>
