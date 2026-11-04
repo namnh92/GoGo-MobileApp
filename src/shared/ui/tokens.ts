@@ -131,6 +131,48 @@ export const accents = {
   purple: { primary: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onSoft: '#6247CC', onAccent: '#FFFFFF' },
 } as const
 
+// ---------------------------------------------------------------------------
+// Dark roles (theme foundation). One dark set for the whole product: canvas,
+// surface, raised, line and the orange accent are the owner-approved values in
+// `stitch-design.md` §4; the other three accents, the status colours and the
+// text greys are derived from them and held to AA by `contrast.test.ts`.
+// Same keys as the light roles above, so a screen reads `theme.surface.card`
+// and never branches on the mode.
+// ---------------------------------------------------------------------------
+
+export const darkSurface = {
+  canvas: '#181715',
+  card: '#222222',
+  subtle: '#2A2A2A',
+} as const satisfies Record<keyof typeof surface, string>
+
+export const darkBorder = {
+  hairline: '#333333',
+} as const satisfies Record<keyof typeof border, string>
+
+export const darkText = {
+  primary: '#F6F3EE',
+  secondary: '#B8B1A8',
+  /** Placeholder-only, like the light `tertiary`. */
+  tertiary: '#6F6A64',
+  inverse: colors.neutral[0],
+} as const satisfies Record<keyof typeof text, string>
+
+export const darkStatus = {
+  success: colors.brand.mint,
+  successSoft: '#1F3329',
+  successText: '#5CC49A',
+  warning: colors.brand.amber,
+  warningSoft: '#3A2D17',
+  warningText: '#E8B15A',
+  danger: colors.brand.red,
+  dangerSoft: '#3D2024',
+  dangerText: '#F2788A',
+  info: colors.brand.lavender,
+  infoSoft: '#2A2650',
+  infoText: '#9C90F5',
+} as const satisfies Record<keyof typeof status, string>
+
 /** Dark-theme surfaces (shared result / night screens, spec §46). */
 export const night = {
   surface: '#222222',
@@ -367,3 +409,16 @@ export type NeutralColor = keyof typeof colors.neutral
 export type TypeStyle = keyof typeof type
 export type GlyphSize = keyof typeof glyph
 export type AccentName = keyof typeof accents
+
+/**
+ * Dark accent palettes. `primary` stays the light value: white on it already
+ * clears AA and the fill is the same brand colour in both modes. `soft` is a
+ * dark tint and `onSoft` a light tint of the hue, the accent as text on dark
+ * (orange `#FF746C` is the owner's value).
+ */
+export const darkAccents = {
+  orange: { primary: '#CA381F', pressed: '#A72E19', soft: '#3A2220', onSoft: '#FF746C', onAccent: '#FFFFFF' },
+  green: { primary: '#247D52', pressed: '#1B5E3E', soft: '#1F3329', onSoft: '#4FC98C', onAccent: '#FFFFFF' },
+  blue: { primary: '#1A6CD5', pressed: '#2565BF', soft: '#1D2B40', onSoft: '#6FAEFF', onAccent: '#FFFFFF' },
+  purple: { primary: '#7250F4', pressed: '#6247CC', soft: '#2E2750', onSoft: '#A892FF', onAccent: '#FFFFFF' },
+} as const satisfies Record<AccentName, Record<keyof (typeof accents)['orange'], string>>

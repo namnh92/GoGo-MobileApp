@@ -4,12 +4,13 @@ import { Pressable, View } from 'react-native'
 import { UnistylesRuntime, useUnistyles } from 'react-native-unistyles'
 
 import { track } from '@/shared/analytics'
-import { accentSchema, saveAccentPreference } from '@/shared/theme/accent-preference'
+import { saveAccentPreference } from '@/shared/theme/accent-preference'
 import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
 import { Card } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { ACCENTS, DEFAULT_ACCENT, themes, type Accent } from '@/shared/ui/theme'
+import { deviceThemeName } from '@/shared/theme/use-accent-bootstrap'
+import { ACCENTS, DEFAULT_ACCENT, accentOf, themes, type Accent } from '@/shared/ui/theme'
 import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './theme-accent.style'
@@ -22,10 +23,9 @@ const LABEL: Record<Accent, MessageKey> = {
   purple: 'theme.purple',
 }
 
-/** A runtime theme name as an accent key; anything unusable reads as the default. */
+/** A runtime theme name (either mode) as an accent key; anything unusable reads as the default. */
 function toAccent(themeName: unknown): Accent {
-  const parsed = accentSchema.safeParse(themeName)
-  return parsed.success ? parsed.data : DEFAULT_ACCENT
+  return accentOf(themeName) ?? DEFAULT_ACCENT
 }
 
 /**
@@ -48,7 +48,7 @@ export function ThemeAccentCard() {
 
   function choose(accent: Accent) {
     if (accent === current) return
-    UnistylesRuntime.setTheme(accent)
+    UnistylesRuntime.setTheme(deviceThemeName(accent))
     setChosen({ accent, over: active })
     // Storage failure must not undo what the user just saw change: the choice
     // holds for this session and the next launch falls back to orange.
@@ -63,7 +63,7 @@ export function ThemeAccentCard() {
       <View accessibilityRole="radiogroup" accessibilityLabel={t('account.themeTitle')} style={styles.swatches}>
         {ACCENTS.map(accent => {
           const selected = accent === current
-          const { primary, onAccent } = themes[accent].accent
+          const { primary, onAccent } = themes[accent].accent // light value: same hue in both modes
           return (
             <Pressable
               key={accent}
