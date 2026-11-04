@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { fill, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
 
@@ -14,19 +14,31 @@ export const styles = StyleSheet.create(theme => ({
   },
   progressFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 2 },
 
-  deck: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2] },
+  counterPill: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1] + 2,
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.subtle,
+  },
+  subheader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[2],
+  },
+  subheaderDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },
+
+  // The card is as tall as its content: a 4:3 photo over the facts, centred in
+  // the space the header and the action row leave.
+  deck: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2], justifyContent: 'center' },
   card: {
-    flex: 1,
-    maxHeight: 520,
     borderRadius: radius.hero,
     overflow: 'hidden',
     backgroundColor: theme.surface.card,
   },
 
-  // Imagery carries the card (spec §17): two thirds of it, with a gradient
-  // rather than a flat scrim so the top of the photo stays bright.
-  imageWrap: { flex: 1 },
-  imageGradient: { ...fill },
+  imageWrap: { aspectRatio: 1.3 },
   categoryBadge: {
     position: 'absolute',
     top: spacing[3],
@@ -37,7 +49,25 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.pill,
   },
 
-  overImage: { position: 'absolute', left: spacing[4], right: spacing[4], bottom: spacing[4], gap: 4 },
+  overImage: {
+    position: 'absolute',
+    left: spacing[3],
+    right: spacing[3],
+    bottom: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing[2],
+  },
+  photoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.card,
+  },
   addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   addressText: { flexShrink: 1 },
 
@@ -53,18 +83,20 @@ export const styles = StyleSheet.create(theme => ({
   },
   overlayLabel: { letterSpacing: 1 },
 
-  footer: { padding: spacing[4], gap: spacing[2] },
-  factRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
+  footer: { padding: spacing[4], gap: spacing[3] },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[3] },
+  titleCol: { flex: 1, gap: 4 },
+  priceCol: { alignItems: 'flex-end', maxWidth: '45%' },
   openDot: { width: 6, height: 6, borderRadius: 3 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 
   actions: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
     justifyContent: 'center',
-    gap: spacing[5],
-    marginTop: spacing[4],
-    marginBottom: spacing[2],
+    gap: spacing[6],
+    marginTop: spacing[5],
+    marginBottom: spacing[6],
   },
   actionCol: { alignItems: 'center', gap: 4, minWidth: 72 },
   actionBtn: {
@@ -75,22 +107,40 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionBtnStar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.status.infoSoft },
+  actionBtnStar: { width: 52, height: 52, borderRadius: 26 },
   // Pressed is a colour change only (#382) — the buttons no longer shrink.
   actionBtnPressed: { backgroundColor: theme.surface.subtle },
-  actionBtnLike: { backgroundColor: theme.accent.primary },
+  actionBtnLike: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.accent.primary },
   actionBtnLikePressed: { backgroundColor: theme.accent.pressed },
   actionBtnStarPressed: { backgroundColor: theme.surface.subtle },
 
-  done: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[6], gap: spacing[3] },
+  done: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2] },
+  doneCard: {
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[7],
+    paddingHorizontal: spacing[5],
+    borderRadius: radius.hero,
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+  },
+  doneHalo: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
+    marginBottom: spacing[2],
+  },
   doneBadge: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.accent.primary,
-    marginBottom: spacing[3],
   },
   doneText: { textAlign: 'center' },
 
