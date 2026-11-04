@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { glassFx, touchTarget } from '@/shared/ui/tokens'
+import { touchTarget } from '@/shared/ui/tokens'
 
 /**
  * The button family (#293 §2). Pressed is a colour change and nothing else —
@@ -40,7 +40,7 @@ export const styles = StyleSheet.create(theme => ({
   secondaryPressed: { backgroundColor: theme.accent.soft },
   secondaryDisabled: { backgroundColor: theme.surface.subtle, borderColor: 'transparent' },
   secondaryOnAccent: { backgroundColor: 'transparent', borderColor: theme.accent.onAccent },
-  secondaryOnAccentPressed: { backgroundColor: glassFx.badge },
+  secondaryOnAccentPressed: { backgroundColor: theme.onDark.wash },
 
   ghost: { height: touchTarget.min },
   ghostPressed: { backgroundColor: theme.surface.subtle },

@@ -1,8 +1,8 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing } from '@/shared/ui/tokens'
+import { radius, spacing } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create(theme => ({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     borderRadius: radius.compact,
-    backgroundColor: colors.brand.amberSoft,
+    backgroundColor: theme.status.warningSoft,
   },
   staleLabel: { flex: 1 },
-})
+}))

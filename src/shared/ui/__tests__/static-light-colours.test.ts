@@ -73,12 +73,6 @@ const ALLOWLIST: Record<string, number> = {
   'features/settings/tracking-consent.view.tsx': 1,
   'shared/administrative/administrative-picker.style.tsx': 1,
   'shared/observability/root-error-boundary.style.tsx': 1,
-  'shared/ui/async-state.style.tsx': 1,
-  'shared/ui/button.style.tsx': 1,
-  'shared/ui/map-canvas.view.tsx': 1,
-  'shared/ui/place-card.style.tsx': 1,
-  'shared/ui/primitives.tsx': 5,
-  'shared/ui/skeleton.style.tsx': 1,
 }
 
 const SRC = path.resolve(__dirname, '../../..')

@@ -207,6 +207,8 @@ export const onDark = {
   strong: 'rgba(255,255,255,0.9)',
   medium: 'rgba(255,255,255,0.8)',
   soft: 'rgba(255,255,255,0.6)',
+  /** A pressed wash on an accent fill. Same in both modes: the fill is saturated in both. */
+  wash: 'rgba(255,255,255,0.3)',
 } as const
 
 /** Image scrims and modal backdrops. */
@@ -262,6 +264,16 @@ export const mapColors = {
   canvas: '#DCE9DC',
   road: 'rgba(255,255,255,0.55)',
 } as const
+
+/**
+ * Map fallback surface in dark. NOT FROM STITCH: no Stitch Dark screen draws a
+ * map. A desaturated green-black that sits between `darkSurface.canvas` and
+ * `darkSurface.card`, keeping the light map's hue.
+ */
+export const darkMapColors = {
+  canvas: '#1F2A22',
+  road: 'rgba(255,255,255,0.12)',
+} as const satisfies Record<keyof typeof mapColors, string>
 
 /** White-alpha washes for glass surfaces, borders and tints. */
 export const glassFx = {

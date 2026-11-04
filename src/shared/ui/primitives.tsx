@@ -8,7 +8,7 @@ import { useLocaleContent } from '@/shared/i18n'
 import { Icon, IconChevronLeft, type IconName } from '@/shared/ui/icons'
 import { haptic } from '@/shared/ui/feedback'
 import { ScaledText, Text, type TextColor } from '@/shared/ui/text'
-import { border, hitSlop, shadows, surface, touchTarget } from '@/shared/ui/tokens'
+import { hitSlop, touchTarget } from '@/shared/ui/tokens'
 
 export { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn, type ButtonProps } from '@/shared/ui/button.view'
 export { Card } from '@/shared/ui/card.view'
@@ -16,27 +16,27 @@ export { useBottomBarInset } from '@/shared/ui/bottom-bar-inset'
 export { Toast } from '@/shared/ui/toast.view'
 
 /**
- * Static card look for the call sites that still spread it into their own
- * style arrays (7 files plus `BackHeader`, one of them a Reanimated view).
- * Solid, no accent, so it needs no theme. #298 removed the `GlassCard` alias
- * only; this goes with its last importer.
+ * Card look for the call sites that still spread it into their own style
+ * arrays (7 files plus `BackHeader`, one of them a Reanimated view). Solid, no
+ * accent; it reads the theme, so it follows the device into dark. #298 removed
+ * the `GlassCard` alias only; this goes with its last importer.
  *
  * @deprecated Use `Card`.
  */
-export const glassStyles = {
+export const glassStyles = StyleSheet.create(theme => ({
   card: {
-    backgroundColor: surface.card,
+    backgroundColor: theme.surface.card,
     borderWidth: 1,
-    borderColor: border.hairline,
-    ...shadows.card,
+    borderColor: theme.border.hairline,
+    ...theme.shadows.card,
   },
   strong: {
-    backgroundColor: surface.card,
+    backgroundColor: theme.surface.card,
     borderWidth: 1,
-    borderColor: border.hairline,
-    ...shadows.card,
+    borderColor: theme.border.hairline,
+    ...theme.shadows.card,
   },
-} as const satisfies Record<string, ViewStyle>
+}))
 
 /**
  * The screen canvas. It used to be colour blobs under a full-screen blur; #293
@@ -210,7 +210,8 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri }: 
 }
 
 export function RemoteImage({ uri, style }: { uri: string; style?: StyleProp<ViewStyle> }) {
-  return <Image source={{ uri }} style={[{ backgroundColor: surface.subtle }, style as object]} contentFit="cover" transition={150} />
+  const { theme } = useUnistyles()
+  return <Image source={{ uri }} style={[{ backgroundColor: theme.surface.subtle }, style as object]} contentFit="cover" transition={150} />
 }
 
 const styles = StyleSheet.create(theme => ({

@@ -95,11 +95,9 @@ describe('i18n copy is sentence case (#382)', () => {
  */
 const GLASS_FX_ALLOWED: Record<string, string[]> = {
   // On an accent fill.
-  'shared/ui/button.style.tsx': ['badge'],
   'features/home/home.style.tsx': ['badge', 'borderLight', 'btnBorder'],
   'features/create-date/create-budget.style.tsx': ['badge'],
   // Over a photo.
-  'shared/ui/place-card.style.tsx': ['solid'],
   'features/date-plan/place-detail.style.tsx': ['badge', 'solid'],
   'features/matching/swipe.style.tsx': ['borderBright', 'solid'],
   // A fixed bottom bar.
