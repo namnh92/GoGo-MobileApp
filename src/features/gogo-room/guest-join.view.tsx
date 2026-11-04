@@ -2,6 +2,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, TextInput, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, useJoinRoom } from '@/shared/api'
@@ -11,13 +12,11 @@ import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, AvatarCircle, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Glyph, Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
-
-const { neutral } = colors
 
 const MAX_DISPLAY_NAME = 50
 
@@ -31,6 +30,7 @@ const MAX_DISPLAY_NAME = 50
  * own account by opening an invite.
  */
 export default function GuestJoinScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
@@ -197,7 +197,7 @@ export default function GuestJoinScreen() {
                   if (error) setError(null)
                 }}
                 placeholder={t('guestJoin.namePlaceholder')}
-                placeholderTextColor={neutral[500]}
+                placeholderTextColor={theme.text.secondary}
                 maxLength={MAX_DISPLAY_NAME}
                 autoCapitalize="words"
                 autoCorrect={false}
