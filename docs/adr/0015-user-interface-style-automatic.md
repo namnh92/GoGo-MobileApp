@@ -16,8 +16,8 @@ theo cài đặt của thiết bị qua Unistyles, nên `app.config.ts` đặt
    đó vẫn khoá ở light.
 2. **Dark chưa hoàn chỉnh trên nhánh `re-design`, theo quyết định của chủ sản
    phẩm ngày 2026-11-04.** Màn hình chưa chuyển sang `StyleSheet.create(theme =>
-   ...)` vẫn dùng màu light tĩnh (xem F-01 và F-03). Chủ sản phẩm chấp nhận điều
-   này chỉ cho `re-design`. Test `static-light-colours.test.ts` giữ danh sách các
+   ...)` vẫn dùng màu light tĩnh (F-01). Chủ sản phẩm chấp nhận điều
+   này chỉ cho `re-design`. Test `static-light-colours.test.ts` gắn với F-01: nó quét mọi `.tsx` dưới `src` (kể cả `src/shared/ui`) và giữ danh sách các
    chỗ còn lại, chỉ được giảm, và danh sách phải rỗng trước khi `re-design` merge
    vào `develop`.
 3. **Splash theo sau ở issue #422.** Splash không đổi trong ADR này.

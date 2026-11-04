@@ -3,10 +3,14 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * Ratchet for F-03 (PR #421): a screen must not use a static light colour.
- * A static light colour is `neutral[`, `glassFx.` or a bare `surface.*` (not
- * `theme.surface.*`) in a `.style.tsx`, a `.view.tsx` or a route file. Such a
- * value is resolved once at import and cannot follow the device into dark.
+ * Ratchet for F-01 (PR #421, finding F-03/F-05): a screen or shared component
+ * must not use a static light colour. Every `.tsx` under `src`, outside
+ * `__tests__`, is scanned, `src/shared/ui` included. A use is:
+ *   - `neutral[`, `colors.brand`, or a colour literal (`#RGB[A]`, `rgb(a)(`);
+ *   - `glassFx.` or `surface.`, `border.`, `text.`, `status.` read from a name
+ *     imported from `@/shared/ui/tokens`. `theme.surface.*` is not a use: it
+ *     goes through the theme and follows the device into dark.
+ * Such a value is resolved once at import and cannot follow the device.
  *
  * ALLOWLIST holds today's known uses, with a count per file. A new use, or a
  * file not listed, fails. An entry whose count is higher OR lower than the real
@@ -41,7 +45,7 @@ const ALLOWLIST: Record<string, number> = {
   'features/gogo-room/gogo-room.style.tsx': 1,
   'features/gogo-room/guest-join.style.tsx': 4,
   'features/gogo-room/guest-join.view.tsx': 1,
-  'features/gogo-room/guest-replace-notice.style.tsx': 1,
+  'features/gogo-room/guest-replace-notice.style.tsx': 2,
   'features/gogo-room/join-by-code.style.tsx': 3,
   'features/gogo-room/join-by-code.view.tsx': 2,
   'features/gogo-room/room-manage.style.tsx': 4,
@@ -67,13 +71,17 @@ const ALLOWLIST: Record<string, number> = {
   'features/settings/tracking-consent.view.tsx': 1,
   'shared/administrative/administrative-picker.style.tsx': 1,
   'shared/observability/root-error-boundary.style.tsx': 1,
+  'shared/ui/async-state.style.tsx': 1,
   'shared/ui/button.style.tsx': 1,
   'shared/ui/place-card.style.tsx': 1,
+  'shared/ui/primitives.tsx': 5,
   'shared/ui/skeleton.style.tsx': 1,
 }
 
 const SRC = path.resolve(__dirname, '../../..')
-const PATTERN = /\bneutral\[|\bglassFx\.|(?<![.\w])surface\.\w+/g
+const TOKENS_IMPORT = /import\s*\{([^}]*)\}\s*from\s*['"]@\/shared\/ui\/tokens['"]/g
+const ROLES = ['glassFx', 'surface', 'border', 'text', 'status'] as const
+const ALWAYS = [/\bneutral\[/g, /\bcolors\.brand\b/g, /(['"`])#[0-9a-fA-F]{3,8}\1/g, /\brgba?\(/g]
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap(entry => {
@@ -83,26 +91,36 @@ function walk(dir: string): string[] {
   })
 }
 
-function isScreenFile(rel: string): boolean {
-  return /\.(style|view)\.tsx$/.test(rel) || rel.startsWith('app/')
-}
-
 function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+}
+
+function countUses(raw: string): number {
+  const source = stripComments(raw)
+  const imported = new Set(
+    [...source.matchAll(TOKENS_IMPORT)].flatMap(m => m[1]!.split(',').map(n => n.trim().split(/\s+as\s+/).pop()!)),
+  )
+  let count = 0
+  for (const re of ALWAYS) count += (source.match(re) ?? []).length
+  for (const role of ROLES) {
+    if (!imported.has(role)) continue
+    count += (source.match(new RegExp(`(?<![.\\w])${role}\\.\\w+`, 'g')) ?? []).length
+  }
+  return count
 }
 
 function measure(): Record<string, number> {
   const found: Record<string, number> = {}
   for (const file of walk(SRC)) {
     const rel = path.relative(SRC, file).split(path.sep).join('/')
-    if (!isScreenFile(rel) || !/\.tsx?$/.test(rel)) continue
-    const count = (stripComments(readFileSync(file, 'utf8')).match(PATTERN) ?? []).length
+    if (!rel.endsWith('.tsx')) continue
+    const count = countUses(readFileSync(file, 'utf8'))
     if (count > 0) found[rel] = count
   }
   return found
 }
 
-describe('static light colours in screens (ratchet)', () => {
+describe('static light colours (ratchet)', () => {
   const found = measure()
 
   it('no file has a use beyond its allowlist count', () => {
