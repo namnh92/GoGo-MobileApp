@@ -2,6 +2,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, TextInput, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, useJoinRoom } from '@/shared/api'
@@ -9,15 +10,14 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, AvatarCircle, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
-import { Glyph, Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { Icon } from '@/shared/ui/icons'
+import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './guest-join.style'
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
-
-const { neutral } = colors
 
 const MAX_DISPLAY_NAME = 50
 
@@ -31,6 +31,7 @@ const MAX_DISPLAY_NAME = 50
  * own account by opening an invite.
  */
 export default function GuestJoinScreen() {
+  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
@@ -164,23 +165,11 @@ export default function GuestJoinScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ alignItems: 'center', marginBottom: spacing[6] }}>
-          <View style={styles.badge}>
-            <Text variant="label" color="accent.onSoft">📩 {t('guestJoin.badge')}</Text>
-          </View>
-          <Text variant="title1" style={styles.title}>{t('guestJoin.title')}</Text>
+        <View style={styles.badge}>
+          <Icon name="heart" size={16} color="accent.onSoft" />
+          <Text variant="label" color="accent.onSoft">{t('guestJoin.badge')}</Text>
         </View>
-
-        <View style={styles.pair}>
-          <View style={{ alignItems: 'center', gap: 6 }}>
-            <AvatarCircle emoji="🎉" size={64} />
-          </View>
-          <Glyph size="sm">+</Glyph>
-          <View style={{ alignItems: 'center', gap: 6 }}>
-            <AvatarCircle emoji="😊" size={64} />
-            <Text variant="label" color="text.secondary">{t('guestJoin.you')}</Text>
-          </View>
-        </View>
+        <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title')}</Text>
 
         {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
@@ -189,7 +178,7 @@ export default function GuestJoinScreen() {
             <Text variant="bodySmall" color="text.secondary">{t('guestJoin.asAccount')}</Text>
           ) : (
             <>
-              <Text variant="label" style={styles.detailsTitle}>{t('guestJoin.nameLabel')}</Text>
+              <Text variant="title2" style={styles.detailsTitle}>{t('guestJoin.nameLabel')}</Text>
               <TextInput
                 value={displayName}
                 onChangeText={value => {
@@ -197,7 +186,7 @@ export default function GuestJoinScreen() {
                   if (error) setError(null)
                 }}
                 placeholder={t('guestJoin.namePlaceholder')}
-                placeholderTextColor={neutral[500]}
+                placeholderTextColor={theme.text.secondary}
                 maxLength={MAX_DISPLAY_NAME}
                 autoCapitalize="words"
                 autoCorrect={false}
@@ -209,23 +198,29 @@ export default function GuestJoinScreen() {
               />
             </>
           )}
-        </Card>
 
-        {error ? (
-          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
+          {error ? (
+            <View style={styles.errorBox}>
+              <Icon name="alert" size={18} color="status.dangerText" />
+              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
-        <View style={{ marginTop: 'auto', gap: spacing[3] }}>
           <PrimaryBtn
             label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
             onPress={join}
             loading={pending}
             disabled={!asUser && !trimmedName}
           />
-          {asUser ? null : <Text variant="bodySmall" color="text.secondary" style={styles.noAccount}>{t('guestJoin.noAccount')}</Text>}
-        </View>
+          {asUser ? null : (
+            <View style={styles.noAccountRow}>
+              <Icon name="lock" size={14} color="status.successText" />
+              <Text variant="bodySmall" color="text.secondary">{t('guestJoin.noAccount')}</Text>
+            </View>
+          )}
+        </Card>
       </ScrollView>
       {dialog}
     </Atmosphere>

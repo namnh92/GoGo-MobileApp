@@ -18,7 +18,8 @@ import {
 import { formatMoney } from '@/shared/pricing/money'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
-import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Icon } from '@/shared/ui/icons'
+import { Atmosphere, AvatarCircle, BackHeader, Card, DangerBtn, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -146,10 +147,14 @@ export default function RoomManageScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={styles.sectionHead}>
+          <Icon name="sliders" size={20} color="accent.primary" />
+          <Text variant="title2">{t('gogoRoom.constraints')}</Text>
+        </View>
         <RoomTitleEditor room={summary} />
         <RoomScheduleEditor room={summary} />
         <Card padded={false} style={styles.card}>
-          <Text variant="title2">{t('roomManage.budgetTitle')}</Text>
+          <Text variant="label" color="text.secondary">{t('roomManage.budgetTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary">
             {t(
               constraints?.budgetMode === 'per_person'
@@ -175,7 +180,10 @@ export default function RoomManageScreen() {
               )
             })}
           </View>
-          <Text variant="caption" color="status.warningText">{t('roomManage.staleWarning')}</Text>
+          <View style={styles.warnBox}>
+            <Icon name="alert" size={18} color="status.warningText" />
+            <Text variant="caption" color="status.warningText" style={styles.flex}>{t('roomManage.staleWarning')}</Text>
+          </View>
           <PrimaryBtn
             label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
             onPress={saveConstraints}
@@ -184,13 +192,45 @@ export default function RoomManageScreen() {
           />
         </Card>
 
+        <View style={styles.sectionHead}>
+          <Icon name="mapPin" size={20} color="accent.primary" />
+          <Text variant="title2">{t('roomManage.seedTitle')}</Text>
+        </View>
         <Card padded={false} style={styles.card}>
+          <Text variant="bodySmall" color="text.secondary">{t('createMood.seedHint')}</Text>
+          {(summary.seedPlaces ?? []).map(seed => (
+            <View key={seed.placeId} style={styles.row}>
+              <Text variant="body" style={styles.flex} numberOfLines={1}>
+                {seed.name}
+              </Text>
+              <Pressable
+                onPress={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)}
+                accessibilityRole="button"
+                accessibilityLabel={t('roomManage.removeConfirm')}
+                style={styles.rowAction}
+              >
+                <Icon name="trash" size={16} color="status.dangerText" />
+                <Text variant="label" color="status.dangerText">{t('roomManage.removeConfirm')}</Text>
+              </Pressable>
+            </View>
+          ))}
+          <GhostBtn
+            label={t('roomManage.addSeedPlaces')}
+            onPress={() => router.push(`/places/search?picker=1&roomId=${roomId}`)}
+          />
+        </Card>
+
+        <View style={styles.sectionHead}>
+          <Icon name="users" size={20} color="accent.primary" />
           <Text variant="title2">{t('roomManage.membersTitle')}</Text>
+        </View>
+        <Card padded={false} style={styles.card}>
           {members.length === 0 ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.noMembers')}</Text> : null}
           {members.map(member => (
             <View key={member.id} style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text variant="title2">{member.displayName}</Text>
+              <AvatarCircle label={member.displayName.trim().charAt(0).toUpperCase() || '?'} size={44} imageUri={member.avatarUrl} />
+              <View style={styles.flex}>
+                <Text variant="body" numberOfLines={1}>{member.displayName}</Text>
                 <Text variant="caption" color="text.secondary" style={styles.rowMeta}>
                   {[
                     t(`roomManage.role.${member.role}`),
@@ -213,19 +253,16 @@ export default function RoomManageScreen() {
           ))}
         </Card>
 
-        <Card padded={false} style={styles.card}>
+        <View style={styles.sectionHead}>
+          <Icon name="unlock" size={20} color="accent.primary" />
           <Text variant="title2">{t('roomManage.invitesTitle')}</Text>
-          {/* The endpoint returns metadata only — codes are shown once, at
-              creation, and never listed again. */}
-          <Text variant="bodySmall" color="text.secondary">{t('roomManage.invitesBody')}</Text>
-          {invites.isError ? (
-            <Text variant="caption" color="status.warningText">{t('common.errorBody')}</Text>
-          ) : null}
+        </View>
+        <Card padded={false} style={styles.card}>
           {(invites.data as { inviteId?: string; expiresAt?: string; maxUses?: number }[] | undefined)?.map(
             invite => (
               <View key={invite.inviteId} style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="title2">
+                <View style={styles.flex}>
+                  <Text variant="body">
                     {invite.maxUses != null
                       ? t('roomManage.inviteUses', { n: invite.maxUses })
                       : t('roomManage.invite')}
@@ -241,42 +278,28 @@ export default function RoomManageScreen() {
               </View>
             ),
           )}
+          {invites.isError ? (
+            <Text variant="caption" color="status.warningText">{t('common.errorBody')}</Text>
+          ) : null}
+          {/* The endpoint returns metadata only — codes are shown once, at
+              creation, and never listed again. */}
+          <View style={styles.noteBox}>
+            <Icon name="info" size={18} color="text.secondary" />
+            <Text variant="bodySmall" color="text.secondary" style={styles.flex}>{t('roomManage.invitesBody')}</Text>
+          </View>
         </Card>
 
-        <Card padded={false} style={styles.card}>
-          <Text variant="title2">{t('roomManage.seedTitle')}</Text>
-          <Text variant="bodySmall" color="text.secondary">{t('createMood.seedHint')}</Text>
-          {(summary.seedPlaces ?? []).map(seed => (
-            <View key={seed.placeId} style={styles.row}>
-              <Text variant="title2" style={{ flex: 1 }} numberOfLines={1}>
-                {seed.name}
-              </Text>
-              <Pressable
-                onPress={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)}
-                accessibilityRole="button"
-                accessibilityLabel={t('roomManage.removeConfirm')}
-                style={styles.rowAction}
-              >
-                <Text variant="label" color="status.dangerText">{t('roomManage.removeConfirm')}</Text>
-              </Pressable>
-            </View>
-          ))}
-          <GhostBtn
-            label={t('roomManage.addSeedPlaces')}
-            onPress={() => router.push(`/places/search?picker=1&roomId=${roomId}`)}
+        <Card padded={false} style={styles.dangerCard}>
+          <View style={styles.noteRow}>
+            <Icon name="alert" size={18} color="status.dangerText" />
+            <Text variant="bodySmall" color="text.secondary" style={styles.flex}>{t('roomManage.cancelBody')}</Text>
+          </View>
+          <DangerBtn
+            label={transitionRoom.isPending ? t('roomManage.cancelling') : t('roomManage.cancelRoom')}
+            onPress={() => void confirmCancel()}
+            disabled={transitionRoom.isPending}
           />
         </Card>
-
-        <Pressable
-          onPress={() => void confirmCancel()}
-          disabled={transitionRoom.isPending}
-          accessibilityRole="button"
-          style={styles.cancelBtn}
-        >
-          <Text variant="label" color="status.dangerText">
-            {transitionRoom.isPending ? t('roomManage.cancelling') : t('roomManage.cancelRoom')}
-          </Text>
-        </Pressable>
 
         {notice ? (
           <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>

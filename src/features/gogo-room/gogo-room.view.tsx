@@ -41,9 +41,9 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import { Atmosphere, AvatarCircle, BackHeader, Card, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
-import { IconCheck, IconCopy, IconUserOutline } from '@/shared/ui/icons'
+import { Icon, IconCheck, IconCopy, IconUserOutline, type IconName } from '@/shared/ui/icons'
 import { Glyph, Text } from '@/shared/ui/text'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInviteDisplay } from './invite-state'
 import { roomScheduleLabel, roomScheduleRange } from './room-schedule'
@@ -51,8 +51,6 @@ import { styles } from './gogo-room.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import type { MessageKey } from '@/shared/i18n/types'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
-
-const { brand } = colors
 
 /**
  * The room's date/time chip. GoGo-MobileApp#201 — `constraints.endAt` is part
@@ -70,14 +68,33 @@ function scheduleChipLabel(
   return range.end ? t('roomSchedule.range', { start: range.start, end: range.end }) : range.start
 }
 
-/** Avatar fills after the first, which is the theme accent (#297). */
-const OTHER_AVATAR_COLORS = [brand.lavender, brand.mint, brand.amber]
 const VISIBLE_AVATARS = 3
 /** The API mints invites only while a room still takes members (GoGo-BE `createInvite`). */
 const JOINABLE: readonly RoomSummary['status'][] = ['draft', 'collecting']
 /** How often, and how many times, the lobby looks again for a navigator that is not ready yet. */
 const NAV_RETRY_MS = 50
 const NAV_ATTEMPTS_MAX = 20
+
+type RowTone = 'accent' | 'info' | 'success' | 'warning'
+
+/** One fact of the room: a tinted icon tile and its value. */
+function InfoRow({ icon, tone, children }: { icon: IconName; tone: RowTone; children: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <View style={[styles.infoIcon, styles[`infoIcon_${tone}`]]}>
+        <Icon name={icon} size={18} color={ROW_ICON[tone]} />
+      </View>
+      <Text variant="body" style={styles.infoValue}>{children}</Text>
+    </View>
+  )
+}
+
+const ROW_ICON: Record<RowTone, 'accent.primary' | 'status.infoText' | 'status.successText' | 'status.warningText'> = {
+  accent: 'accent.primary',
+  info: 'status.infoText',
+  success: 'status.successText',
+  warning: 'status.warningText',
+}
 
 function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?'
@@ -96,7 +113,8 @@ const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'de
 
 export default function GoGoRoomScreen() {
   const { theme } = useUnistyles()
-  const avatarColors = [theme.accent.primary, ...OTHER_AVATAR_COLORS]
+  // Avatar fills after the first, which is the theme accent (#297); the rest follow the theme.
+  const avatarColors = [theme.accent.primary, theme.status.info, theme.status.success, theme.status.warning]
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -402,6 +420,8 @@ export default function GoGoRoomScreen() {
   const progress = memberProgress(summary)
   const inviteUrl = inviteCode ? `${env.webBaseUrl}/r/${inviteCode}` : null
   const joinable = JOINABLE.includes(summary.status)
+  const startVisible =
+    capabilities.isHost && (summary.matching?.canStart ?? (progress.completed >= 2 && progress.completed === progress.total))
 
   function flash(setter: (value: boolean) => void) {
     setter(true)
@@ -504,135 +524,56 @@ export default function GoGoRoomScreen() {
         </Text>
       ) : null}
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[8] }}>
-        {roomType === 'group' ? (
-          <View style={{ alignItems: 'center', marginTop: spacing[4], marginBottom: spacing[6] }}>
-            <View style={styles.avatarRow}>
-              {members.slice(0, VISIBLE_AVATARS).map((member, index) => (
-                <View key={member.id} style={styles.avatarWrap}>
-                  <AvatarCircle
-                    label={initial(member.displayName)}
-                    size={56}
-                    background={avatarColors[index % avatarColors.length]}
-                    imageUri={member.avatarUrl}
-                  />
-                </View>
-              ))}
-              {members.length > VISIBLE_AVATARS && (
-                <View style={[styles.avatarWrap, styles.morePeople]}>
-                  <Text variant="label" color="text.secondary">+{members.length - VISIBLE_AVATARS}</Text>
-                </View>
-              )}
-            </View>
-            <Text variant="bodySmall" color="text.secondary" style={styles.joined}>
-              {t('gogoRoom.joined', { joined: members.length, total: participantCount })}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.couplePair}>
-            <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={64} imageUri={members[0]?.avatarUrl} />
-            <Glyph size="sm">+</Glyph>
-            {members[1] ? (
-              <AvatarCircle
-                label={initial(members[1].displayName)}
-                size={64}
-                background={brand.lavender}
-                imageUri={members[1].avatarUrl}
-              />
-            ) : (
-              <View style={styles.emptySeat}>
-                <IconUserOutline />
-              </View>
-            )}
-          </View>
-        )}
-
-        <Text variant="display" style={styles.title}>{summary.title?.trim() || t('gogoRoom.title', { context: roomType })}</Text>
-        <Text color="text.secondary" style={styles.body}>{t('gogoRoom.body', { context: roomType })}</Text>
-
-        {/* What the room is actually constrained by — facts, composed here. */}
-        {summary.constraints ? (
-          <Card style={styles.constraintsCard}>
-            <Text variant="caption" color="text.secondary">{t('gogoRoom.constraints')}</Text>
-            <View style={styles.constraintsRow}>
-              <Chip icon="calendar" label={scheduleChipLabel(summary, i18n.language, t)} />
-              <Chip
-                label={t('groupSetup.people', { n: participantCount })}
-                icon="users"
-                variant="default"
-              />
-              {/* GoGo-MobileApp#246 — the area saved with the room, with the labels
-                  stored when it was chosen. A dataset change keeps those labels
-                  and says in words that the host must choose again. */}
-              {summary.constraints.administrativeArea ? (
-                <Chip icon="mapPin" label={administrativeAreaLabel(summary.constraints.administrativeArea)} variant="default" />
-              ) : null}
-              {summary.constraints.administrativeArea?.status === 'needs_reselection' ? (
-                <Chip icon="alert" label={t('gogoRoom.areaNeedsReselection')} variant="warning" />
-              ) : null}
-              {summary.constraints.budgetAmount ? (
-                <Chip
-                  label={`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(
-                    summary.constraints.budgetMode,
-                    roomType,
-                    t,
-                  )}`}
-                  icon="dollar"
-                  variant="default"
-                />
-              ) : null}
-            </View>
-          </Card>
-        ) : null}
-
-        {/* Per-member status, not just a count (spec §16). */}
-        {members.length > 0 ? (
-          <>
-            <Text variant="title2" style={styles.sectionTitle}>
-              {t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })}
-            </Text>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progress.total ? (progress.completed / progress.total) * 100 : 0}%` },
-                ]}
-              />
-            </View>
-            <View style={styles.memberList}>
-              {members.map((member: RoomMember, index: number) => {
-                const chip = STATUS_CHIP[member.selectionStatus]
-                return (
-                  <Card padded={false} key={member.id} style={styles.memberRow}>
+        {/* Hero: the room's name (or the invitation line) and who is already in. */}
+        <Card style={styles.hero}>
+          <Text variant="title1">{summary.title?.trim() || t('gogoRoom.title', { context: roomType })}</Text>
+          <Text variant="bodySmall" style={styles.heroBody}>{t('gogoRoom.body', { context: roomType })}</Text>
+          {roomType === 'group' ? (
+            <View style={styles.heroPeople}>
+              <View style={styles.avatarRow}>
+                {members.slice(0, VISIBLE_AVATARS).map((member, index) => (
+                  <View key={member.id} style={styles.avatarWrap}>
                     <AvatarCircle
                       label={initial(member.displayName)}
-                      size={40}
+                      size={48}
                       background={avatarColors[index % avatarColors.length]}
                       imageUri={member.avatarUrl}
                     />
-                    <View style={styles.memberNameRow}>
-                      <Text style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
-                      {member.role === 'host' ? (
-                        <View style={styles.hostBadge}>
-                          <Text variant="caption" color="accent.onSoft">{t('gogoRoom.hostBadge')}</Text>
-                        </View>
-                      ) : null}
-                      {member.isGuest ? (
-                        <View style={styles.guestBadge}>
-                          <Text variant="caption" color="status.infoText">{t('gogoRoom.guestBadge')}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <Chip label={t(chip.key)} variant={chip.variant} />
-                  </Card>
-                )
-              })}
+                  </View>
+                ))}
+                {members.length > VISIBLE_AVATARS && (
+                  <View style={[styles.avatarWrap, styles.morePeople]}>
+                    <Text variant="label" color="text.secondary">+{members.length - VISIBLE_AVATARS}</Text>
+                  </View>
+                )}
+              </View>
+              <Text variant="bodySmall" style={styles.joined}>
+                {t('gogoRoom.joined', { joined: members.length, total: participantCount })}
+              </Text>
             </View>
-          </>
-        ) : null}
+          ) : (
+            <View style={styles.couplePair}>
+              <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={48} imageUri={members[0]?.avatarUrl} />
+              <Glyph size="sm">+</Glyph>
+              {members[1] ? (
+                <AvatarCircle
+                  label={initial(members[1].displayName)}
+                  size={48}
+                  background={theme.status.info}
+                  imageUri={members[1].avatarUrl}
+                />
+              ) : (
+                <View style={styles.emptySeat}>
+                  <IconUserOutline />
+                </View>
+              )}
+            </View>
+          )}
+        </Card>
 
         {capabilities.canInvite ? (
           <Card style={styles.codeCard}>
-            <Text variant="caption" color="text.secondary" style={styles.cardHeading}>{t('gogoRoom.codeLabel')}</Text>
+            <Text variant="label" color="text.secondary" style={styles.cardHeading}>{t('gogoRoom.codeLabel')}</Text>
             {/* A room past collecting refuses new invites (409) and joins (410):
                 say so rather than show controls that cannot work (RULE-CORE-016). */}
             {!joinable ? <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</Text> : null}
@@ -672,7 +613,7 @@ export default function GoGoRoomScreen() {
               ) : (
                 <Text
                   testID="invite-code"
-                  variant="body"
+                  variant="title1"
                   selectable
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -693,6 +634,94 @@ export default function GoGoRoomScreen() {
                 {codeCopied ? <IconCheck /> : <IconCopy />}
               </IconBtn>
             </View>
+            <SecondaryBtn
+              label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
+              onPress={invite}
+              disabled={!inviteUrl || !joinable}
+            />
+            <View style={styles.noApp}>
+              <Icon name="checkCircle" size={16} color="status.successText" />
+              <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
+            </View>
+          </Card>
+        ) : null}
+
+        {/* What the room is actually constrained by — facts, composed here. */}
+        {summary.constraints ? (
+          <Card style={styles.sectionCard}>
+            <View style={styles.sectionHead}>
+              <Icon name="sliders" size={20} color="accent.primary" />
+              <Text variant="title2">{t('gogoRoom.constraints')}</Text>
+            </View>
+            <InfoRow icon="calendar" tone="info">{scheduleChipLabel(summary, i18n.language, t)}</InfoRow>
+            <InfoRow icon="users" tone="accent">{t('groupSetup.people', { n: participantCount })}</InfoRow>
+            {/* GoGo-MobileApp#246 — the area saved with the room, with the labels
+                stored when it was chosen. A dataset change keeps those labels
+                and says in words that the host must choose again. */}
+            {summary.constraints.administrativeArea ? (
+              <InfoRow icon="mapPin" tone="accent">{administrativeAreaLabel(summary.constraints.administrativeArea)}</InfoRow>
+            ) : null}
+            {summary.constraints.administrativeArea?.status === 'needs_reselection' ? (
+              <InfoRow icon="alert" tone="warning">{t('gogoRoom.areaNeedsReselection')}</InfoRow>
+            ) : null}
+            {summary.constraints.budgetAmount ? (
+              <InfoRow icon="dollar" tone="success">
+                {`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(
+                  summary.constraints.budgetMode,
+                  roomType,
+                  t,
+                )}`}
+              </InfoRow>
+            ) : null}
+          </Card>
+        ) : null}
+
+        {/* Per-member status, not just a count (spec §16). */}
+        {members.length > 0 ? (
+          <Card style={styles.sectionCard}>
+            <View style={styles.sectionHead}>
+              <Icon name="users" size={20} color="accent.primary" />
+              <Text variant="title2" style={styles.sectionTitle}>
+                {t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })}
+              </Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${progress.total ? (progress.completed / progress.total) * 100 : 0}%` },
+                ]}
+              />
+            </View>
+            <View style={styles.memberList}>
+              {members.map((member: RoomMember, index: number) => {
+                const chip = STATUS_CHIP[member.selectionStatus]
+                return (
+                  <View key={member.id} style={styles.memberRow}>
+                    <AvatarCircle
+                      label={initial(member.displayName)}
+                      size={44}
+                      background={avatarColors[index % avatarColors.length]}
+                      imageUri={member.avatarUrl}
+                    />
+                    <View style={styles.memberNameRow}>
+                      <Text variant="body" style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
+                      {member.role === 'host' ? (
+                        <View style={styles.hostBadge}>
+                          <Text variant="caption" color="accent.onSoft">{t('gogoRoom.hostBadge')}</Text>
+                        </View>
+                      ) : null}
+                      {member.isGuest ? (
+                        <View style={styles.guestBadge}>
+                          <Text variant="caption" color="status.infoText">{t('gogoRoom.guestBadge')}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Chip label={t(chip.key)} variant={chip.variant} />
+                  </View>
+                )
+              })}
+            </View>
           </Card>
         ) : null}
 
@@ -707,32 +736,16 @@ export default function GoGoRoomScreen() {
         ) : null}
 
         {/*
-          One dominant CTA per screen (spec §7). Which one it is depends on
-          where the room actually is: while people are still picking, inviting
-          them is the job; once everyone has finished, starting the match is.
-          Host-only either way, and server-enforced.
+          One dominant CTA per screen (spec §7). Choosing your own preferences
+          is the room's main job; once everyone has finished, the host's start
+          takes over as the dominant one. Host-only either way, and
+          server-enforced. Inviting lives in the code card above.
         */}
-        {capabilities.isHost && (summary.matching?.canStart ?? (progress.completed >= 2 && progress.completed === progress.total)) ? (
-          <>
-            <PrimaryBtn
-              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-              onPress={() => { void beginMatching() }}
-              loading={startMatching.isPending}
-            />
-            {capabilities.canInvite ? (
-              <SecondaryBtn
-                label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
-                onPress={invite}
-                disabled={!inviteUrl || !joinable}
-                style={{ marginTop: spacing[2] }}
-              />
-            ) : null}
-          </>
-        ) : capabilities.canInvite ? (
+        {startVisible ? (
           <PrimaryBtn
-            label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
-            onPress={invite}
-            disabled={!inviteUrl || !joinable}
+            label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+            onPress={() => { void beginMatching() }}
+            loading={startMatching.isPending}
           />
         ) : null}
 
@@ -749,19 +762,29 @@ export default function GoGoRoomScreen() {
           </Text>
         ) : null}
 
-        <GhostBtn
-          label={t('gogoRoom.myPreferences')}
-          onPress={() => router.push(`/room/${roomId}/preference`)}
-        />
+        {startVisible ? (
+          <SecondaryBtn
+            label={t('gogoRoom.myPreferences')}
+            onPress={() => router.push(`/room/${roomId}/preference`)}
+            style={styles.stackedBtn}
+          />
+        ) : (
+          <PrimaryBtn
+            label={t('gogoRoom.myPreferences')}
+            onPress={() => router.push(`/room/${roomId}/preference`)}
+          />
+        )}
 
         {capabilities.isHost ? (
           <GhostBtn label={t('roomManage.title')} onPress={() => router.push(`/room/${roomId}/manage`)} />
         ) : null}
 
-        <View style={styles.noApp}>
-          <View style={styles.noAppDot} />
-          <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
-        </View>
+        {!capabilities.canInvite ? (
+          <View style={styles.noApp}>
+            <Icon name="checkCircle" size={16} color="status.successText" />
+            <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
+          </View>
+        ) : null}
       </ScrollView>
     </Atmosphere>
   )

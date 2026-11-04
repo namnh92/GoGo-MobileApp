@@ -1,22 +1,28 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-const { neutral } = colors
-
-export const styles = StyleSheet.create({
-  body: { marginBottom: spacing[4] },
+export const styles = StyleSheet.create(theme => ({
+  body: { marginBottom: spacing[4], marginTop: spacing[4], textAlign: 'center' },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   card: { padding: spacing[5], gap: spacing[3] },
   input: {
     ...type.body,
     minHeight: touchTarget.min,
-    borderWidth: 1,
-    borderColor: neutral[100],
-    borderRadius: radius.pill,
+    borderRadius: radius.compact,
     paddingHorizontal: spacing[4],
-    color: neutral[900],
-    backgroundColor: neutral[0],
+    color: theme.text.primary,
+    backgroundColor: theme.surface.subtle,
   },
-  error: { textAlign: 'center', marginTop: spacing[4] },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[4],
+    padding: spacing[3],
+    borderRadius: radius.compact,
+    backgroundColor: theme.status.dangerSoft,
+  },
+  errorText: { flex: 1 },
   footnote: { textAlign: 'center' },
-})
+}))

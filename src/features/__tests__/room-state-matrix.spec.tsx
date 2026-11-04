@@ -127,7 +127,7 @@ describe('room hub × audience', () => {
     expect(StyleSheet.flatten(label.props.style).color).toBe(accents.orange.onSoft)
     expect(StyleSheet.flatten(label.parent!.props.style).backgroundColor).toBe(accents.orange.soft)
     const heading = view.getByText('Điều kiện phòng')
-    expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ ...type.caption, color: text.secondary })
+    expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ ...type.title2, color: text.primary })
   })
 
   it('gives a member a different screen than a host', async () => {
