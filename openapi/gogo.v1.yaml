@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: GoGo API
-  version: 2.0.0-alpha.3
+  version: 4.0.0-alpha.1
   description: |
     Public contract for GoGo clients (Mobile, Web, Mini App). This page is the
     integration guide — every rule below is enforced by the API, not advisory.
@@ -1239,11 +1239,12 @@ paths:
       operationId: getAssistantStatus
       tags: [assistant]
       summary: 'GoGo AI: is the assistant available to this account, and how much is left today'
-      x-gogo-planned: GoGo-BE#713
       description: >
-        GoGo-BE#713. **Planned — declared ahead of the module (contract-first);
-        not served until the module PR lands.** Every `/assistant/*` operation
-        carries `x-gogo-planned` until then and answers 404 on a deployed API.
+        GoGo-BE#713. Served since 2.0.0-alpha.4 (ADR-0036: Jev decides,
+        the backend executes and validates, Claude Haiku explains). Every
+        `/assistant/*` operation answers only while the module is deployed;
+        sends additionally need the kill switch on and the environment's
+        limits and spend ceiling configured.
 
 
         Lets the app decide what the entry point does before the user types:
@@ -1282,7 +1283,6 @@ paths:
       operationId: listAssistantConversations
       tags: [assistant]
       summary: "GoGo AI: the caller's conversations, most recent first (cursor), with search"
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. History screen. Keyset paging on `(lastMessageAt, id)`
         descending: a conversation moves to the top whenever a message is
@@ -1331,7 +1331,6 @@ paths:
       operationId: createAssistantConversation
       tags: [assistant]
       summary: 'GoGo AI: start a conversation ("New chat")'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. Creates an empty conversation; the first message is sent
         with `sendAssistantMessage`. `title` is optional: when absent the
@@ -1382,7 +1381,6 @@ paths:
       operationId: getAssistantConversation
       tags: [assistant]
       summary: 'GoGo AI: one conversation (header data, not messages)'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. Another account's conversation, a deleted one and one past
         retention are all `404` — the answer does not say which.
@@ -1401,7 +1399,6 @@ paths:
       operationId: renameAssistantConversation
       tags: [assistant]
       summary: 'GoGo AI: rename a conversation'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. Only `title` is writable. Renaming does not move the
         conversation in the history order (`lastMessageAt` is unchanged).
@@ -1435,7 +1432,6 @@ paths:
       operationId: deleteAssistantConversation
       tags: [assistant]
       summary: 'GoGo AI: delete a conversation and every message in it'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. A hard delete: messages, stored attachment references,
         feedback and pending proposals go with it; nothing is kept for
@@ -1455,7 +1451,6 @@ paths:
       operationId: listAssistantMessages
       tags: [assistant]
       summary: 'GoGo AI: messages of a conversation, newest first (cursor)'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. Newest first, because the thread is a bottom-anchored
         (inverted) list: page 1 is what the screen shows, later pages scroll
@@ -1493,7 +1488,6 @@ paths:
       operationId: sendAssistantMessage
       tags: [assistant]
       summary: 'GoGo AI: send a message; the reply is generated and streamed separately'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. Stores the user's message and starts the assistant's
         reply. Answers `202` with both messages at once — the user turn as
@@ -1585,7 +1579,6 @@ paths:
       operationId: streamAssistantMessage
       tags: [assistant]
       summary: 'GoGo AI: the assistant reply as a server-sent event stream'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. SSE, the same transport as `GET /rooms/{id}/events`:
         bearer auth, keep-alive `: ping` comment frames while idle, an opaque
@@ -1789,7 +1782,6 @@ paths:
       operationId: stopAssistantMessage
       tags: [assistant]
       summary: 'GoGo AI: stop generating; keep what was written'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. The composer's **Stop**. Ends generation and returns the
         assistant message as stored: `status: stopped` and the text streamed
@@ -1814,7 +1806,6 @@ paths:
       operationId: setAssistantMessageFeedback
       tags: [assistant]
       summary: 'GoGo AI: thumbs up / down on an assistant reply (idempotent)'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. One rating per assistant message, replaced by a later
         call. `reason` is a closed code, not free text, so the moderation
@@ -1841,7 +1832,6 @@ paths:
       operationId: clearAssistantMessageFeedback
       tags: [assistant]
       summary: 'GoGo AI: withdraw a rating'
-      x-gogo-planned: GoGo-BE#713
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -1856,7 +1846,6 @@ paths:
       operationId: getAssistantProposal
       tags: [assistant]
       summary: 'GoGo AI: one proposal and its current state'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. For a `ConfirmationCard` reopened from history: whether
         it is still `pending`, already `confirmed` (with the saved result),
@@ -1878,7 +1867,6 @@ paths:
       operationId: confirmAssistantProposal
       tags: [assistant]
       summary: 'GoGo AI: perform a proposed action (the only assistant call that writes GoGo data)'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. The user tapped the `ConfirmationCard` button. This is the
         **only** way an assistant conversation changes rooms, plans, invites or
@@ -1965,7 +1953,6 @@ paths:
       operationId: dismissAssistantProposal
       tags: [assistant]
       summary: 'GoGo AI: decline a proposal ("Not now")'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-BE#713. Marks a pending proposal `dismissed`; nothing is written
         anywhere else. Idempotent on an already dismissed proposal; a confirmed
@@ -4351,7 +4338,9 @@ paths:
 
 
         Idempotent on `subscriptionId`: reporting again refreshes the record, and
-        a device where a different account signs in moves to that account.
+        a device where a different account signs in moves to that account. If the
+        record changed while the provider was being asked, nothing is written and
+        the answer is 409: report again, which verifies again (#746, ADR-0037).
 
 
         Called after the client has confirmed identity binding and the OS permits
@@ -4387,6 +4376,11 @@ paths:
             subscription as enabled for the caller. One answer for "not yours"
             and "yours but disabled", so the route cannot be used to probe
             whether a subscription id exists.
+        '409':
+          description: >
+            PUSH_SUBSCRIPTION_CONFLICT — the record of this subscription changed
+            while the provider was being asked, so the answer may be stale and
+            nothing was written. Retryable: reporting again verifies again.
         '503':
           description: >
             PUSH_SUBSCRIPTION_UNVERIFIED — the provider could not be reached, so
@@ -5487,6 +5481,168 @@ paths:
             No identity signing key (`PUSH_IDENTITY_UNAVAILABLE`), or the
             provider could not be reached (`PUSH_UNSUBSCRIBE_UNCONFIRMED`,
             `retryable: true`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /notifications/identity/device:
+    post:
+      operationId: createPushDeviceIdentity
+      tags: [me]
+      security: []
+      summary: Issue a push identity to a device with no session (NTF-BE-017)
+      description: >
+        No body and no session. Returns `externalId = device:<id>`, a provider JWT
+        with the same claims a user's has (`iss`, `exp` ≤ 1 hour,
+        `identity.external_id`), and a device credential whose secret is returned
+        **once** and stored only as a hash. The JWT is for the provider SDK; GoGo's
+        API never accepts it. A device identity receives `public` campaigns and
+        nothing else, and holds nothing about an account.
+
+
+        Limited per IP like a login, and by a ceiling on new identities in any 24
+        hours across all callers. Off by default per environment
+        (`push.device_identity.enabled`, ADR-0038).
+      responses:
+        '201':
+          description: Created. Keep `deviceSecret`; it cannot be read again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushDeviceIdentity' }
+        '404':
+          description: PUSH_DEVICE_IDENTITY_DISABLED — the flag is off. Do not recreate until the next launch.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: No identity signing key in this environment (`PUSH_IDENTITY_UNAVAILABLE`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    delete:
+      operationId: retirePushDeviceIdentity
+      tags: [me]
+      security: [{ deviceCredential: [] }]
+      summary: Retire this device identity (NTF-BE-017)
+      description: >
+        Revokes the identity and every subscription row it owns in one transaction,
+        and queues provider cleanup. Works with the flag off: this is how a device
+        leaves. Retry until 2xx or `PUSH_DEVICE_IDENTITY_GONE`.
+      responses:
+        '204': { description: Retired }
+        '401':
+          description: DEVICE_CREDENTIAL_REQUIRED — no well-formed credential.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404':
+          description: PUSH_DEVICE_IDENTITY_GONE — unknown, retired or wrong secret; one answer for all three.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /notifications/identity/device/token:
+    post:
+      operationId: renewPushDeviceToken
+      tags: [me]
+      security: [{ deviceCredential: [] }]
+      summary: Renew the provider JWT of a device identity (NTF-BE-017)
+      responses:
+        '200':
+          description: A new JWT
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushIdentityToken' }
+        '401':
+          description: DEVICE_CREDENTIAL_REQUIRED — no well-formed credential.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404':
+          description: >
+            `PUSH_DEVICE_IDENTITY_GONE` (unknown, retired or wrong secret: discard and
+            create anew) or `PUSH_DEVICE_IDENTITY_DISABLED` (flag off: discard, and do
+            not recreate until the next launch).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: No identity signing key in this environment (`PUSH_IDENTITY_UNAVAILABLE`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /notifications/device-subscriptions:
+    put:
+      operationId: reportPushDeviceSubscription
+      tags: [me]
+      security: [{ deviceCredential: [] }]
+      summary: Record this device's subscription and promotions choice (NTF-BE-017)
+      description: >
+        Verified against the provider before anything is written: the subscription
+        must be attached to this device identity, and enabled when
+        `promotionsEnabled` is true. An opt-out is accepted for a disabled
+        subscription.
+
+
+        A higher `preferenceVersion` applies; the same version replays the stored
+        choice and reports the provider afresh; a lower one answers 409. Clear a
+        pending change only when `appliedVersion` equals it. An opt-out has reached
+        the provider only when a response for the current version shows
+        `providerEnabled: false`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, subscriptionId, promotionsEnabled, preferenceVersion]
+              properties:
+                platform: { type: string, enum: [ios, android, web] }
+                subscriptionId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  description: OneSignal subscription id for this device. Not a device token.
+                promotionsEnabled: { type: boolean }
+                preferenceVersion: { type: integer, minimum: 0, maximum: 2147483647 }
+      responses:
+        '200':
+          description: Recorded, or an idempotent replay
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushDeviceSubscriptionResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: DEVICE_CREDENTIAL_REQUIRED — no well-formed credential.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403':
+          description: PUSH_SUBSCRIPTION_NOT_CONFIRMED — not attached to this device, or disabled on an opt-in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404':
+          description: PUSH_DEVICE_IDENTITY_GONE or PUSH_DEVICE_IDENTITY_DISABLED, as on the token route.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: >
+            `PUSH_PREFERENCE_STALE` — a newer choice is stored, its version in
+            `field_errors[0].message`; adopt that version plus one for the next change.
+            `PUSH_SUBSCRIPTION_CONFLICT` — the record changed during verification;
+            nothing was written, report again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: PUSH_SUBSCRIPTION_UNVERIFIED — the provider could not be reached. Retryable.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -8146,7 +8302,18 @@ paths:
                 key: { type: string, pattern: '^[a-z0-9_]{2,40}$' }
                 labels:
                   type: object
-                  additionalProperties: { type: string }
+                  description: >
+                    Locale → label. Each label is one line of plain text (GoGo-BE#737).
+                    The pattern states the characters a label may contain as sent:
+                    letters, combining marks, digits, space separators and
+                    ' " ‘ ’ “ ” ( ) & + , . / - – —. The server then normalises it (NFC,
+                    every space separator to one ASCII space, runs collapsed, leading
+                    and trailing spaces removed) and requires 1–80 code points after
+                    normalisation. A label outside the rule is refused (400), never
+                    stripped or truncated.
+                  additionalProperties:
+                    type: string
+                    pattern: "^[\\p{L}\\p{M}\\p{N}\\p{Zs}'\"‘’“”()&+,./\\-–—]*$"
                 sortOrder: { type: integer }
       responses:
         '201': { description: Created }
@@ -8167,7 +8334,18 @@ paths:
               properties:
                 labels:
                   type: object
-                  additionalProperties: { type: string }
+                  description: >
+                    Locale → label. Each label is one line of plain text (GoGo-BE#737).
+                    The pattern states the characters a label may contain as sent:
+                    letters, combining marks, digits, space separators and
+                    ' " ‘ ’ “ ” ( ) & + , . / - – —. The server then normalises it (NFC,
+                    every space separator to one ASCII space, runs collapsed, leading
+                    and trailing spaces removed) and requires 1–80 code points after
+                    normalisation. A label outside the rule is refused (400), never
+                    stripped or truncated.
+                  additionalProperties:
+                    type: string
+                    pattern: "^[\\p{L}\\p{M}\\p{N}\\p{Zs}'\"‘’“”()&+,./\\-–—]*$"
                 sortOrder: { type: integer }
                 isActive: { type: boolean }
       responses:
@@ -9051,6 +9229,19 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /cms/campaigns/capabilities:
+    get:
+      operationId: cmsGetCampaignCapabilities
+      tags: [cms]
+      summary: 'Ops: which audiences this environment can actually reach (NTF-BE-017)'
+      description: Hide `public` when `publicAudience` is false.
+      responses:
+        '200':
+          description: Capabilities
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsCampaignCapabilities' }
 
   /cms/campaigns/{id}:
     get:
@@ -10065,10 +10256,8 @@ paths:
       operationId: cmsListAssistantDocuments
       tags: [cms, assistant]
       summary: 'Content: the "GoGo guide" source documents GoGo AI answers from (cursor)'
-      x-gogo-planned: GoGo-BE#713
       description: >
-        GoGo-BE#713, GoGo-CMS#249. **Planned — declared ahead of the module;
-        not served until the module PR lands.**
+        GoGo-BE#713, GoGo-CMS#249. Served since 2.0.0-alpha.4.
 
 
         The assistant answers product questions only from **published**
@@ -10113,7 +10302,6 @@ paths:
       operationId: cmsCreateAssistantDocument
       tags: [cms, assistant]
       summary: 'Content: create a guide document (its first version is a draft)'
-      x-gogo-planned: GoGo-BE#713
       description: >
         `editor` or `ops_admin`. Creates the document and version 1 as a
         draft; nothing reaches the assistant until it is published. `slug` is
@@ -10144,7 +10332,6 @@ paths:
       operationId: cmsGetAssistantDocument
       tags: [cms, assistant]
       summary: 'Content: one guide document with its draft and published versions'
-      x-gogo-planned: GoGo-BE#713
       description: >
         The editor screen: the open draft (if any) in full, and the published
         version in full, so the console can preview and diff them.
@@ -10163,7 +10350,6 @@ paths:
       operationId: cmsUpdateAssistantDocumentDraft
       tags: [cms, assistant]
       summary: 'Content: edit the draft (opens a new draft version when none is open)'
-      x-gogo-planned: GoGo-BE#713
       description: >
         `editor` or `ops_admin`. Writes go to the draft only — a published
         version is immutable, so what the assistant cited yesterday can always
@@ -10202,7 +10388,6 @@ paths:
       operationId: cmsPublishAssistantDocument
       tags: [cms, assistant]
       summary: 'Content: publish a version — the assistant answers from it from now on'
-      x-gogo-planned: GoGo-BE#713
       description: >
         `ops_admin` only: publishing changes what GoGo AI tells every user, a
         release decision rather than an edit, so it does not sit with the role
@@ -10213,8 +10398,16 @@ paths:
         The previously published version becomes `superseded`; exactly one
         version per document is `published` at a time. Takes effect for new
         replies; a reply already streaming keeps the version it started with.
-        Audited (`assistant_document.published`) with the version id and
-        `reason`.
+        Audited (`assistant_document.published`) with the version id,
+        its revision, `bodySha256` and `reason`.
+
+
+        `revision` (GoGo-BE#736) is the revision of `versionId` the publisher
+        reviewed. When sent and the version has moved on — the draft was
+        edited after review — the publish is `409 REVISION_CONFLICT` with a
+        `field_errors` entry on `revision`, so what goes live is what was
+        read. Consoles send it; it is optional only so an older client keeps
+        working.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -10227,6 +10420,10 @@ paths:
               additionalProperties: false
               properties:
                 versionId: { type: string, format: uuid }
+                revision:
+                  type: integer
+                  minimum: 1
+                  description: The revision of `versionId` that was reviewed (GoGo-BE#736).
                 reason: { type: string, maxLength: 500 }
       responses:
         '200':
@@ -10243,7 +10440,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '409':
-          description: '`VERSION_ALREADY_PUBLISHED`.'
+          description: >
+            `VERSION_ALREADY_PUBLISHED`, or `REVISION_CONFLICT` — `revision`
+            is not the version's current revision.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -10253,7 +10452,6 @@ paths:
       operationId: cmsUnpublishAssistantDocument
       tags: [cms, assistant]
       summary: 'Content: withdraw the document from the assistant'
-      x-gogo-planned: GoGo-BE#713
       description: >
         `ops_admin` only. The published version becomes `withdrawn` and the
         assistant stops citing the document for new replies. Older
@@ -10293,7 +10491,6 @@ paths:
       operationId: cmsListAssistantDocumentVersions
       tags: [cms, assistant]
       summary: 'Content: version history of one document, newest first, with who did what'
-      x-gogo-planned: GoGo-BE#713
       description: >
         Every version ever created — the history is append-only. Each row says
         who created it and, if it was ever published or withdrawn, who did
@@ -10322,7 +10519,6 @@ paths:
       operationId: cmsGetAssistantDocumentVersion
       tags: [cms, assistant]
       summary: 'Content: one version in full (preview, diff, rollback)'
-      x-gogo-planned: GoGo-BE#713
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -10336,12 +10532,43 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /cms/assistant/guide-coverage:
+    get:
+      operationId: cmsCheckAssistantGuideCoverage
+      tags: [cms, assistant]
+      summary: 'Content: which published guide sections a question retrieves'
+      description: >
+        GoGo-BE#736 / GoGo-CMS#266. Runs `question` through the same
+        retrieval an assistant turn uses — published versions only, the
+        caller's `locale` first, at most 3 sections — and says why nothing
+        was found: `no_published` (no document is live: a content gap) or
+        `no_match` (documents are live, none answers this wording: a
+        coverage or retrieval gap). `editor` / `ops_admin`; reads follow the
+        hierarchical rule. Read-only; the question is not stored or audited.
+      parameters:
+        - name: question
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 2000 }
+        - name: locale
+          in: query
+          required: false
+          schema: { type: string, enum: [vi, en], default: vi }
+      responses:
+        '200':
+          description: The retrieval result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsAssistantGuideCoverage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /cms/assistant/feedback:
     get:
       operationId: cmsListAssistantFeedback
       tags: [cms, assistant]
       summary: 'Moderation: thumbs-down / thumbs-up on assistant replies, minimal PII (cursor)'
-      x-gogo-planned: GoGo-BE#713
       description: >
         GoGo-CMS#249. **Roles: `moderator`, `ops_admin`, `super_admin` only.**
         This is an explicit exception to the hierarchical read rule
@@ -11144,6 +11371,41 @@ paths:
                         $ref: '#/components/schemas/CmsOpsLatencySemantics'
         '403': { description: Role may not read operational data }
 
+  /cms/ops/config-readiness:
+    get:
+      operationId: cmsOpsConfigReadiness
+      tags: [cms]
+      summary: 'Ops: which variables this process holds, joined with the deploy readiness snapshot'
+      description: >
+        GoGo-BE#727 (OPS-BE-002; GoGo-Infra#309 D-9). Facts only, never a value:
+        for every variable the answer is a boolean — never the value, a prefix,
+        a length or a hash. `process` lists every key of the API's env schema,
+        derived from it; `process_dynamic` the export keyring's open-ended
+        `EXPORT_WRAPPING_KEY_V<n>`, the one loader outside the schema.
+
+
+        `infra` is the readiness projection the deploy left beside its env file
+        (GoGo-Infra `ops/secrets-readiness.deploy.json`): a dated snapshot of one
+        deploy, labelled `deploy_snapshot`. Its verdicts are copied, never
+        recomputed here; `deploy_match` says whether it describes the env file
+        this process was started with, and a mismatch is a warning, never
+        readiness. It proves neither the current SSM state nor that a credential
+        works. Nothing here calls AWS.
+
+
+        `ops_admin` and above.
+      responses:
+        '200':
+          description: >
+            Always 200. A projection that is not configured, missing,
+            unreadable, malformed or of an unknown schema is `infra: null` with
+            `reason`; `process` is complete either way.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsConfigReadiness' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /cms/ops/providers:
     get:
       operationId: cmsOpsProviders
@@ -11228,6 +11490,11 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    deviceCredential:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: '`Device <deviceId>.<deviceSecret>` (NTF-BE-017). Device-scoped routes only.'
     cookieAuth:
       type: apiKey
       in: cookie
@@ -12958,6 +13225,149 @@ components:
             null and 0 are different facts, and zero on a queue with work is
             the alarm.
 
+    CmsConfigVariable:
+      type: object
+      required: [name, present, optional, conditional]
+      properties:
+        name: { type: string, example: OPENROUTER_ASSISTANT_API_KEY }
+        present:
+          type: boolean
+          description: Set and not blank in the raw process environment — presence, not validity.
+        optional:
+          type: boolean
+          description: The env schema lets it be absent (optional or defaulted).
+        conditional:
+          type: boolean
+          description: Its requirement is decided by a cross-field rule at boot, not by the field.
+    CmsConfigInfraRow:
+      type: object
+      required:
+        [
+          path,
+          env_var,
+          lifecycle,
+          presence,
+          findings,
+          verdict,
+          capabilities,
+          applicable,
+          process_present,
+        ]
+      properties:
+        path: { type: string, example: /gogo/dev/backend/openrouter/assistant-api-key }
+        env_var: { type: [string, 'null'] }
+        lifecycle:
+          type: string
+          description: required, optional, planned or parked, from the manifest.
+        presence:
+          type: string
+          enum: [present, absent, unknown]
+          description: In SSM at deploy time.
+        findings: { type: array, items: { type: string } }
+        verdict: { $ref: '#/components/schemas/CmsReadinessVerdict' }
+        capabilities: { type: array, items: { type: string } }
+        applicable:
+          type: string
+          enum: [api, host]
+          description: >
+            `api` when the API process reads the variable; `host` for the deploy
+            host's own variables in the same env file (DOMAIN, ACME_EMAIL,
+            TUNNEL_TOKEN …), which never get a process column.
+        process_present:
+          type: [boolean, 'null']
+          description: Whether this process holds it; `null` for a host row.
+    CmsReadinessVerdict:
+      type: string
+      enum: [OK, FAIL, UNKNOWN]
+    CmsConfigInfra:
+      type: object
+      required:
+        [
+          label,
+          schema_version,
+          env,
+          generated_at,
+          manifest_sha,
+          deploy_id,
+          release_sha,
+          run_id,
+          run_attempt,
+          process_deploy_id,
+          deploy_match,
+          rows,
+        ]
+      properties:
+        label: { type: string, enum: [deploy_snapshot] }
+        schema_version: { type: integer, enum: [1] }
+        env: { type: string, example: dev }
+        generated_at: { type: string, format: date-time }
+        manifest_sha: { type: [string, 'null'] }
+        deploy_id:
+          type: string
+          description: '`<release commit>-<run id>-<run attempt>`.'
+        release_sha: { type: string }
+        run_id: { type: string }
+        run_attempt: { type: string }
+        process_deploy_id:
+          type: [string, 'null']
+          description: This process's APP_DEPLOY_ID, an identifier (not a secret); null when unset.
+        deploy_match:
+          type: boolean
+          description: The snapshot describes the env file this process was started with. Show false as a warning.
+        rows: { type: array, items: { $ref: '#/components/schemas/CmsConfigInfraRow' } }
+    CmsConfigCapability:
+      type: object
+      required:
+        [
+          name,
+          status,
+          ssm_verdict,
+          ssm_ready,
+          ssm_missing,
+          ssm_present,
+          process_ready,
+          process_missing,
+          excluded_from_process,
+        ]
+      properties:
+        name: { type: string, example: public_catalogue_uploads }
+        status: { type: string, enum: [enabled, planned] }
+        ssm_verdict:
+          $ref: '#/components/schemas/CmsReadinessVerdict'
+        ssm_ready:
+          type: boolean
+          description: Copied from the snapshot (verdict OK); never recomputed here.
+        ssm_missing: { type: array, items: { type: string } }
+        ssm_present:
+          type: object
+          required: [present, total]
+          description: A count of its rows stored in SSM — shown as a count, never as readiness.
+          properties:
+            present: { type: integer }
+            total: { type: integer }
+        process_ready:
+          type: [boolean, 'null']
+          description: Every api-applicable row is present in this process; null when it has none.
+        process_missing: { type: array, items: { type: string } }
+        excluded_from_process:
+          type: array
+          items: { type: string }
+          description: Host rows, left out of process_ready.
+    CmsConfigReadiness:
+      type: object
+      required: [process, process_dynamic, infra, reason, capabilities]
+      properties:
+        process: { type: array, items: { $ref: '#/components/schemas/CmsConfigVariable' } }
+        process_dynamic: { type: array, items: { $ref: '#/components/schemas/CmsConfigVariable' } }
+        infra:
+          oneOf:
+            - $ref: '#/components/schemas/CmsConfigInfra'
+            - type: 'null'
+        reason:
+          type: [string, 'null']
+          enum: [not_configured, missing, unreadable, invalid, unknown_schema, null]
+          description: Why `infra` is null; null when it is not.
+        capabilities: { type: array, items: { $ref: '#/components/schemas/CmsConfigCapability' } }
     CmsOpsEnvelope:
       type: object
       required: [window, effectiveWindow, retentionDays, truncated, generatedAt, backend]
@@ -17545,9 +17955,10 @@ components:
 
     CampaignAudience:
       type: string
-      enum: [all, couple, group, platform]
+      enum: [all, couple, group, platform, public]
       description: >
-        Only what the backend can resolve from data it holds. `city`,
+        `public` is `all` plus devices with no account that said yes (#747); ask
+        `GET /cms/campaigns/capabilities` before offering it. Only what the backend can resolve from data it holds. `city`,
         `app_version` and `custom_segment` from the mockup are absent on
         purpose: nothing stores a user's city or their app version, and a
         campaign aimed at a segment the server has to guess at reaches the wrong
@@ -17620,6 +18031,11 @@ components:
             How many the provider accepted. Not "seen", and not a guarantee of
             delivery to a device.
         failedCount: { type: integer }
+        deviceRecipientCount:
+          type: integer
+          description: The device half of a `public` send. Absent when no device half ran.
+        deviceSentCount: { type: integer }
+        deviceFailedCount: { type: integer }
         lastError: { type: string }
         testSendRequestedAt: { type: string, format: date-time }
         testSendCompletedAt: { type: string, format: date-time }
@@ -17637,15 +18053,55 @@ components:
         nextCursor: { type: [string, 'null'] }
         totalCount: { type: integer }
 
+    CmsCampaignCapabilities:
+      type: object
+      required: [publicAudience]
+      properties:
+        publicAudience:
+          type: boolean
+          description: Whether the `public` audience reaches devices in this environment.
+
+    PushDeviceIdentity:
+      type: object
+      required: [deviceId, deviceSecret, externalId, token, expiresAt]
+      properties:
+        deviceId: { type: string, format: uuid }
+        deviceSecret: { type: string, description: Returned once. Never logged. }
+        externalId: { type: string, description: '`device:<deviceId>`.' }
+        token: { type: string, description: ES256 JWT for the provider SDK. Never logged. }
+        expiresAt: { type: string, format: date-time }
+
+    PushDeviceSubscriptionResult:
+      type: object
+      required: [appliedVersion, storedVersion, providerEnabled]
+      properties:
+        appliedVersion: { type: integer }
+        storedVersion: { type: integer }
+        providerEnabled:
+          type: boolean
+          description: What the provider read in this request showed.
+
     CmsCampaignAudienceEstimate:
       type: object
-      required: [campaignId, audienceType, estimatedRecipients, estimatedAt]
+      required:
+        [
+          campaignId,
+          audienceType,
+          estimatedRecipients,
+          estimatedAccounts,
+          estimatedDevices,
+          estimatedAt,
+        ]
       properties:
         campaignId: { type: string, format: uuid }
         audienceType: { $ref: '#/components/schemas/CampaignAudience' }
         estimatedRecipients:
           type: integer
-          description: Accounts with a registered device that match right now.
+          description: Accounts plus devices that match right now.
+        estimatedAccounts: { type: integer }
+        estimatedDevices:
+          type: integer
+          description: Zero unless the audience is `public` and device identities are on.
         estimatedAt: { type: string, format: date-time }
 
     CmsCampaignCreate:
@@ -18684,9 +19140,8 @@ components:
           description: >
             2.0.0-alpha.3 (GoGo-BE#713, owner-delegated SA decision Q2). The
             account's retained GoGo AI conversations (90-day retention, so
-            only what still exists). **Absent until the assistant module
-            lands** — the collector populates it then; a client must treat
-            absent and `[]` alike.
+            only what still exists). Populated since 2.0.0-alpha.4, when the
+            module landed; a client must still treat absent and `[]` alike.
 
 
             Included: conversation titles, each message's role, text,
@@ -18985,6 +19440,42 @@ components:
             - type: 'null'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    CmsAssistantGuideCoverage:
+      type: object
+      required: [outcome, terms, sections]
+      additionalProperties: false
+      description: GoGo-BE#736 — what an assistant turn would retrieve for a question.
+      properties:
+        outcome:
+          type: string
+          enum: [hit, no_match, no_published]
+          description: >
+            `hit` — at least one section; `no_match` — documents are live but
+            none answers this wording; `no_published` — no document is live.
+        terms:
+          type: array
+          description: The folded search terms the question was reduced to (stopwords dropped).
+          items: { type: string }
+        sections:
+          type: array
+          maxItems: 3
+          description: Best first, as a reply would cite them.
+          items:
+            type: object
+            required: [documentId, versionId, slug, title, heading, excerpt, score]
+            additionalProperties: false
+            properties:
+              documentId: { type: string, format: uuid }
+              versionId: { type: string, format: uuid }
+              slug: { type: string }
+              title: { type: string }
+              heading:
+                type: [string, 'null']
+                description: The markdown heading the section sits under; null before the first one.
+              excerpt: { type: string, maxLength: 1200 }
+              score:
+                type: number
+                description: Term-overlap score; only comparable within one response.
     CmsAssistantDocumentDetail:
       type: object
       required: [document, draft, published]
