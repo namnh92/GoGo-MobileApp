@@ -5,6 +5,7 @@
 # decide what ships, tested without fastlane, AWS or a build.
 
 require 'minitest/autorun'
+require 'minitest/mock'
 require 'tmpdir'
 require 'gogo_distribute'
 
@@ -549,21 +550,135 @@ class SizeUploadEnvTest < Minitest::Test
   end
 end
 
-# A failed upload must stay a failed run: `allow_failure:` on this step would be
-# the third state the two-state rule forbids.
-class SizeUploadFailureTest < Minitest::Test
-  def test_a_non_zero_cli_exit_raises
+# F-01: the step the lanes run, through a fake sentry-cli that records what it got.
+class SizeUploadRunTest < Minitest::Test
+  TOKEN = 'sntrys_sentinel'
+  BASE = { 'PATH' => ENV.fetch('PATH') }.freeze
+  # What sh itself adds to its environment.
+  SHELL_VARS = %w[PWD OLDPWD SHLVL _].freeze
+
+  def with_cli(exit_code: 0, output: '')
     Dir.mktmpdir do |dir|
       cli = File.join(dir, 'fake-cli')
-      File.write(cli, "#!/bin/sh\necho rejected >&2\nexit 1\n", perm: 0o700)
-      supervisor = GD::Supervisor.new(run_file: File.join(dir, 'run.json'))
-      argv = GD::SizeUpload.command(cli: cli, artifact: '/a.apk',
-                                    props: SizeUploadTest::PROPS, sha: 'a' * 40, branch: 'b', notes: 'n')
-      error = assert_raises(GD::Refusal) do
-        supervisor.run(argv, env: { 'PATH' => ENV.fetch('PATH') }, chdir: dir, log: File.join(dir, 'size.log'))
-      end
-      assert_match(/fake-cli exited 1/, error.message)
-      assert_match(/rejected/, File.read(File.join(dir, 'size.log')))
+      File.write(cli, <<~SH, perm: 0o700)
+        #!/bin/sh
+        printf '%s\\n' "$@" > "#{dir}/argv"
+        env > "#{dir}/env"
+        printf '%s\\n' '#{output}'
+        exit #{exit_code}
+      SH
+      @dir = dir
+      yield cli
     end
+  end
+
+  def run_step(cli, artifact: '/b/gogo-dev-7.apk', switches: { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'false' }, size: :default)
+    size = { cli: cli, props: SizeUploadTest::PROPS } if size == :default
+    secrets = GD::Secrets.new('SENTRY_AUTH_TOKEN' => TOKEN, 'ANDROID_KEYSTORE_PASSWORD' => 'k', 'FIREBASE_SERVICE_CREDENTIALS_JSON' => '{}')
+    GD::SizeUpload.run(supervisor: GD::Supervisor.new(run_file: File.join(@dir, 'run.json')), size: size, switches: switches,
+                       secrets: secrets, base: BASE, artifact: artifact, build_number: 7, sha: 'a' * 40, branch: 'b',
+                       notes: 'n', log: File.join(@dir, 'size.log'), chdir: @dir)
+  end
+
+  def test_the_child_gets_the_artifact_and_the_token_only_through_its_environment
+    with_cli do |cli|
+      run_step(cli, artifact: '/run/tmp/app.xcarchive')
+      argv = File.read(File.join(@dir, 'argv'))
+      assert_equal '/run/tmp/app.xcarchive', argv.lines.last.chomp
+      refute_includes argv, TOKEN
+      keys = File.readlines(File.join(@dir, 'env'), chomp: true).map { |l| l.split('=', 2).first }
+      assert_equal %w[PATH SENTRY_AUTH_TOKEN], (keys - SHELL_VARS).sort
+      assert_includes File.read(File.join(@dir, 'env')), "SENTRY_AUTH_TOKEN=#{TOKEN}"
+    end
+  end
+
+  def test_returns_the_links_the_cli_printed
+    with_cli(output: 'uploaded (https://sentry.io/x/1)') do |cli|
+      assert_equal ['https://sentry.io/x/1'], run_step(cli)
+    end
+  end
+
+  def test_a_failed_upload_raises_and_says_the_build_is_already_out
+    with_cli(exit_code: 1, output: 'quota') do |cli|
+      error = assert_raises(GD::Refusal) { run_step(cli) }
+      assert_match(/size analysis upload failed after Firebase distributed build 7/, error.message)
+      assert_match(/with the testers/, error.message)
+      assert_includes File.read(File.join(@dir, 'size.log')), 'quota'
+    end
+  end
+
+  def test_a_log_that_cannot_be_read_does_not_undo_a_successful_upload
+    with_cli do |cli|
+      File.stub(:read, ->(*) { raise Errno::EIO }) { assert_equal [], run_step(cli) }
+    end
+  end
+
+  def test_the_no_token_state_starts_no_child
+    with_cli do |cli|
+      assert_nil run_step(cli, switches: { 'SENTRY_DISABLE_AUTO_UPLOAD' => 'true' }, size: nil)
+      refute File.exist?(File.join(@dir, 'argv'))
+    end
+  end
+
+  def test_a_token_state_without_a_prepared_upload_refuses
+    with_cli do |cli|
+      assert_raises(GD::Refusal) { run_step(cli, size: nil) }
+    end
+  end
+end
+
+class PublishOrderTest < Minitest::Test
+  def test_firebase_comes_first
+    calls = []
+    GD::SizeUpload.publish(distribute: -> { calls << :firebase }, measure: -> { calls << :size })
+    assert_equal %i[firebase size], calls
+  end
+
+  def test_a_firebase_failure_means_no_size_upload
+    measured = false
+    assert_raises(GD::Refusal) do
+      GD::SizeUpload.publish(distribute: -> { raise GD::Refusal, 'firebase' }, measure: -> { measured = true })
+    end
+    refute measured
+  end
+
+  def test_a_size_failure_escapes
+    assert_raises(GD::Refusal) do
+      GD::SizeUpload.publish(distribute: -> {}, measure: -> { raise GD::Refusal, 'size' })
+    end
+  end
+end
+
+# The Fastfile needs fastlane to load, so its wiring is pinned from the source.
+class FastfileWiringTest < Minitest::Test
+  SOURCE = File.read(File.expand_path('../Fastfile', __dir__))
+
+  def lane(platform)
+    SOURCE[/^platform :#{platform} do.*?^end$/m]
+  end
+
+  def test_ios_sends_the_ipa_to_firebase_and_the_xcarchive_to_sentry
+    assert_match(/gogo_publish\(.*firebase_artifact: ipa, size_artifact: archive\)/, lane('ios'))
+  end
+
+  def test_android_sends_the_apk_to_both
+    assert_match(/gogo_publish\(.*firebase_artifact: apk, size_artifact: apk\)/, lane('android'))
+  end
+
+  def test_no_lane_reaches_firebase_except_through_publish
+    %w[ios android].each do |platform|
+      refute_match(/gogo_upload\(/, lane(platform))
+      refute_match(/gogo_size_upload\(/, lane(platform))
+    end
+  end
+
+  def test_both_lanes_check_the_upload_setup_before_the_native_build
+    assert_operator lane('ios').index('gogo_size_prepare'), :<, lane('ios').index("'xcodebuild-archive'")
+    assert_operator lane('android').index('gogo_size_prepare'), :<, lane('android').index("'gradle-assemble'")
+  end
+
+  def test_the_step_cannot_be_told_to_tolerate_failure
+    refute_match(/allow_failure/, SOURCE)
+    refute_match(/allow_failure/, File.read(File.expand_path('../lib/gogo_distribute.rb', __dir__))[/module SizeUpload.*?^  end$/m])
   end
 end

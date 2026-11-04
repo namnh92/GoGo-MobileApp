@@ -191,6 +191,37 @@ module GogoDistribute
     def self.links(output)
       output.scan(%r{https://[^\s()]+})
     end
+
+    # Firebase first: quota or a Sentry outage cannot hold a build back from the
+    # testers. An exception from either step leaves here, so the run fails.
+    def self.publish(distribute:, measure:)
+      distribute.call
+      measure.call
+    end
+
+    # Nil in the no-token state, otherwise the links the CLI printed. A failure stays
+    # a failure: there is no third state. `size` comes from the lane's check before
+    # the native build, so a token state without it is a lane defect, not a skip.
+    def self.run(supervisor:, size:, switches:, secrets:, base:, artifact:, build_number:, sha:, branch:, notes:, log:, chdir:)
+      return nil if skip?(switches)
+      raise Refusal, 'size analysis was not prepared before the build' if size.nil?
+
+      argv = command(cli: size[:cli], artifact: artifact, props: size[:props], sha: sha, branch: branch, notes: notes)
+      begin
+        supervisor.run(argv, env: EnvSets.size_upload(secrets, switches, base: base), chdir: chdir, log: log)
+      rescue Refusal => e
+        raise Refusal, "size analysis upload failed after Firebase distributed build #{build_number} — " \
+                       "the build is with the testers; Sentry has no size result: #{e.message}"
+      end
+      read_links(log)
+    end
+
+    # The upload has succeeded by now; an unreadable log costs the link, not the run.
+    def self.read_links(log)
+      links(File.read(log))
+    rescue SystemCallError
+      []
+    end
   end
 
   # D-10: Firebase is the counter; the lane refuses a number that is not above it.

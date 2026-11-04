@@ -92,14 +92,14 @@ end
 
 # Runs a child and, when it fails, prints the tail of its log (the log itself
 # is in the run directory and goes with the cleanup).
-def gogo_run(ctx, name, cmd, env:, chdir: REPO_ROOT, failure: nil)
+def gogo_run(ctx, name, cmd, env:, chdir: REPO_ROOT)
   log = gogo_logfile(ctx, name)
   gogo_log("#{name}: #{cmd.first(4).join(' ')} …")
   ctx[:supervisor].run(cmd, env: env, chdir: chdir, log: log)
 rescue GogoDistribute::Refusal => e
   tail = File.exist?(log) ? File.readlines(log).last(40).join : ''
   UI.error(tail) unless tail.empty?
-  UI.user_error!("#{failure || "#{name} failed"}: #{e.message}")
+  UI.user_error!("#{name} failed: #{e.message}")
 end
 
 def gogo_firebase_app_id(platform)
@@ -184,20 +184,26 @@ rescue GogoDistribute::Refusal => e
   UI.user_error!("size analysis check refused: #{e.message}")
 end
 
-# #413 D4, D5: after Firebase, so quota or an outage cannot hold a build back from
-# the testers. A failure still fails the run: there is no third state.
+# #413 D4, D5: the order and the failure rule live in GogoDistribute::SizeUpload.
 def gogo_size_upload(ctx, size, switches, artifact, build_number)
-  return if size.nil?
+  log = gogo_logfile(ctx, 'size-upload')
+  links = GogoDistribute::SizeUpload.run(
+    supervisor: ctx[:supervisor], size: size, switches: switches, secrets: GOGO_SECRETS, base: ctx[:base],
+    artifact: artifact, build_number: build_number, sha: ctx[:sha], branch: ctx[:branch],
+    notes: gogo_release_notes(ctx, build_number), log: log, chdir: REPO_ROOT
+  )
+  gogo_log("size analysis: uploaded #{File.basename(artifact)} build=#{build_number} links=#{links.join(' ')}") if links
+rescue GogoDistribute::Refusal => e
+  tail = File.exist?(log) ? File.readlines(log).last(40).join : ''
+  UI.error(tail) unless tail.empty?
+  UI.user_error!(e.message)
+end
 
-  name = 'size-upload'
-  gogo_run(ctx, name,
-           GogoDistribute::SizeUpload.command(cli: size[:cli], artifact: artifact, props: size[:props], sha: ctx[:sha],
-                                              branch: ctx[:branch], notes: gogo_release_notes(ctx, build_number)),
-           env: GogoDistribute::EnvSets.size_upload(GOGO_SECRETS, switches, base: ctx[:base]),
-           failure: "size analysis upload failed after Firebase distributed build #{build_number} — " \
-                    'the build is with the testers; Sentry has no size result')
-  links = GogoDistribute::SizeUpload.links(File.read(File.join(ctx[:log_dir], "#{name}.log")))
-  gogo_log("size analysis: uploaded #{File.basename(artifact)} build=#{build_number} links=#{links.join(' ')}")
+def gogo_publish(ctx, app_id, build_number, switches, size, firebase_artifact:, size_artifact:)
+  GogoDistribute::SizeUpload.publish(
+    distribute: -> { gogo_upload(ctx, app_id, build_number, firebase_artifact) },
+    measure: -> { gogo_size_upload(ctx, size, switches, size_artifact, build_number) }
+  )
 end
 
 def gogo_upload(ctx, app_id, build_number, artifact)
@@ -315,8 +321,7 @@ platform :ios do
                env: ctx[:base])
       ipa = Dir[File.join(out_dir, '*.ipa')].first or UI.user_error!('export produced no .ipa')
 
-      gogo_upload(ctx, app_id, build_number, ipa)
-      gogo_size_upload(ctx, size, switches, archive, build_number)
+      gogo_publish(ctx, app_id, build_number, switches, size, firebase_artifact: ipa, size_artifact: archive)
     ensure
       ctx&.fetch(:cleanup)&.run
     end
@@ -439,8 +444,7 @@ platform :android do
       apk = File.join(out_dir, "gogo-#{ctx[:env]}-#{build_number}.apk")
       FileUtils.cp(built, apk)
 
-      gogo_upload(ctx, app_id, build_number, apk)
-      gogo_size_upload(ctx, size, switches, apk, build_number)
+      gogo_publish(ctx, app_id, build_number, switches, size, firebase_artifact: apk, size_artifact: apk)
     ensure
       ctx&.fetch(:cleanup)&.run
     end
