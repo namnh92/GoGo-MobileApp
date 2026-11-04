@@ -1,8 +1,8 @@
 /**
  * GoGo-MobileApp#398 (shape D5, D6, R-16) — the promotions switch of a device
  * with no account, and the record of what the person answered to the disclosure.
- * Same rules as `consent-store.ts`: runtime first, the write issued in the same
- * tick, every call bounded, nothing throws.
+ * History is prepared before mutations. Writes share one tail; a UI timeout
+ * reports failure without letting a later write overtake the unfinished one.
  *
  * A read that fails or stalls is not the same as nothing stored. "Nothing stored"
  * retires the device's identity (R-17); a slow disk must not, so `load()` reports
@@ -21,11 +21,12 @@ export const DEVICE_PROMOTIONS_STORE_TIMEOUT_MS = 2_000
 export type DisclosureAnswer = 'accepted' | 'declined'
 
 const recordSchema = z.object({
+  envelopeVersion: z.literal(1).default(1),
   disclosure: z.object({
-    id: z.literal(DEVICE_PROMOTIONS_DISCLOSURE),
+    id: z.string(),
     answer: z.enum(['accepted', 'declined']),
     at: z.string(),
-  }),
+  }).nullable(),
   enabled: z.boolean(),
   version: z.number().int().min(0),
   pendingVersion: z.number().int().min(0).nullable(),
@@ -45,13 +46,7 @@ export type DevicePromotionsSnapshot = {
   pendingVersion: number | null
   /** An OFF the provider has not been seen to honour yet (R-16). */
   awaitingProviderOff: boolean
-  /**
-   * A neutralisation could not put the device credential on the retiring list.
-   * Kept here, beside the answer, because it has to outlive the answer that
-   * follows it and the launch after that: an acceptance saved while the
-   * Keychain refused must not restore the identity that was to be retired
-   * (R-17, R-17b, D5; Sol r4 F-10).
-   */
+  /** Retirement intent outlives both the answer and a failed quarantine (R-17). */
   retirementOwed: boolean
   save: 'idle' | 'saving' | 'saved' | 'unsaved'
   /** The server answered DISABLED this launch. Not stored: the next launch asks again. */
@@ -89,7 +84,11 @@ export function createDevicePromotionsStore(deps: {
   let snapshot = INITIAL
   let answeredAt: string | null = null
   let mutation = 0
-  let loading: Promise<void> | undefined
+  let debtVersion = 0
+  let prepared = false
+  let historyRead = false
+  let loading: Promise<DevicePromotionsSnapshot> | undefined
+  let tail: Promise<boolean> = Promise.resolve(true)
   const listeners = new Set<() => void>()
 
   function update(next: Partial<DevicePromotionsSnapshot>) {
@@ -97,116 +96,124 @@ export function createDevicePromotionsStore(deps: {
     for (const listener of listeners) listener()
   }
 
-  function persist(next: Partial<DevicePromotionsSnapshot>) {
+  function bounded<T>(work: Promise<T>, fallback: T): Promise<T> {
+    return new Promise(resolve => {
+      const timer = setTimeout(() => resolve(fallback), timeoutMs)
+      work.then(value => {
+        clearTimeout(timer)
+        resolve(value)
+      }, () => {
+        clearTimeout(timer)
+        resolve(fallback)
+      })
+    })
+  }
+
+  function persist(next: Partial<DevicePromotionsSnapshot>, clearDebt = false): Promise<boolean> {
     const issued = ++mutation
-    const merged = { ...snapshot, ...next, read: 'loaded' as const, save: 'saving' as const }
-    const record: StoredRecord | null =
-      merged.answer && answeredAt
-        ? {
-            disclosure: { id: DEVICE_PROMOTIONS_DISCLOSURE, answer: merged.answer, at: answeredAt },
-            enabled: merged.enabled,
-            version: merged.version,
-            pendingVersion: merged.pendingVersion,
-            awaitingProviderOff: merged.awaitingProviderOff,
-            retirementOwed: merged.retirementOwed,
-          }
-        : null
-    let finished = false
-    const finish = (state: 'saved' | 'unsaved') => {
-      if (finished) return
-      finished = true
-      clearTimeout(timer)
-      if (issued !== mutation) return
-      if (state === 'unsaved') report('push_device_store_failed')
-      update({ save: state })
-    }
-    const timer = setTimeout(() => finish('unsaved'), timeoutMs)
-    let write: Promise<void>
-    try {
-      write = record
-        ? deps.storage.setItem(DEVICE_PROMOTIONS_STORAGE_KEY, JSON.stringify(record))
-        : Promise.resolve()
-    } catch (error) {
-      write = Promise.reject(error)
-    }
-    write.then(
-      () => finish('saved'),
-      () => finish('unsaved'),
-    )
-    update(merged)
+    const clearingVersion = debtVersion
+    update({ ...next, save: 'saving', ...(prepared ? { read: (next.answer ?? snapshot.answer) ? 'loaded' : 'absent' } : {}) })
+    const write = tail.then(async () => {
+      // Merge at the persistence owner, after the preceding write has settled.
+      const clearing = clearDebt && clearingVersion === debtVersion
+      const record: StoredRecord = {
+        envelopeVersion: 1,
+        disclosure: snapshot.answer && answeredAt
+          ? { id: DEVICE_PROMOTIONS_DISCLOSURE, answer: snapshot.answer, at: answeredAt }
+          : null,
+        enabled: snapshot.enabled,
+        version: snapshot.version,
+        pendingVersion: snapshot.pendingVersion,
+        awaitingProviderOff: snapshot.awaitingProviderOff,
+        retirementOwed: clearing ? false : snapshot.retirementOwed,
+      }
+      await deps.storage.setItem(DEVICE_PROMOTIONS_STORAGE_KEY, JSON.stringify(record))
+      if (clearing && clearingVersion === debtVersion) update({ retirementOwed: false })
+      return true
+    }).catch(() => false)
+    tail = write
+    return bounded(write, false).then(saved => {
+      if (issued === mutation) {
+        if (!saved) report('push_device_store_failed')
+        update({ save: saved ? 'saved' : 'unsaved' })
+      }
+      return saved
+    })
+  }
+
+  function load(): Promise<DevicePromotionsSnapshot> {
+    if (prepared) return Promise.resolve(snapshot)
+    loading ??= (async () => {
+      if (!historyRead) {
+        const raw = await bounded(Promise.resolve().then(() => deps.storage.getItem(DEVICE_PROMOTIONS_STORAGE_KEY)), undefined)
+        if (raw === undefined) {
+          update({ read: 'unreadable', save: 'unsaved' })
+          return snapshot
+        }
+        let parsed: StoredRecord | null = null
+        try {
+          const result = recordSchema.safeParse(raw === null ? null : JSON.parse(raw))
+          parsed = result.success ? result.data : null
+        } catch { /* Invalid history is missing history, not a refused read. */ }
+        const disclosure = parsed?.disclosure?.id === DEVICE_PROMOTIONS_DISCLOSURE ? parsed.disclosure : null
+        answeredAt = disclosure?.at ?? null
+        update({
+          answer: disclosure?.answer ?? null,
+          enabled: parsed?.enabled ?? true,
+          version: parsed?.version ?? 0,
+          pendingVersion: parsed?.pendingVersion ?? null,
+          awaitingProviderOff: parsed?.awaitingProviderOff ?? false,
+          retirementOwed: Boolean(parsed?.retirementOwed || !disclosure || disclosure.answer === 'declined'),
+        })
+        historyRead = true
+      }
+      // Migration and lost-history intent are durable before the sheet is ready.
+      if (await persist({})) {
+        prepared = true
+        update({ read: snapshot.answer ? 'loaded' : 'absent' })
+      } else update({ read: 'unreadable' })
+      return snapshot
+    })().finally(() => { loading = undefined })
+    return loading
+  }
+
+  function mutate(change: () => Promise<boolean>): Promise<boolean> {
+    if (prepared) return change()
+    return load().then(() => prepared ? change() : false)
   }
 
   return {
-    /** Reads once per process. Never rejects. */
-    load(): Promise<DevicePromotionsSnapshot> {
-      loading ??= new Promise<void>(resolve => {
-        const finish = (next: Partial<DevicePromotionsSnapshot>) => {
-          clearTimeout(timer)
-          // Anything decided while this was reading is newer than the disk.
-          if (snapshot.read === 'loading') update(next)
-          resolve()
-        }
-        const timer = setTimeout(() => finish({ read: 'unreadable' }), timeoutMs)
-        let reading: Promise<string | null>
-        try {
-          reading = deps.storage.getItem(DEVICE_PROMOTIONS_STORAGE_KEY)
-        } catch (error) {
-          reading = Promise.reject(error)
-        }
-        reading.then(
-          raw => {
-            if (raw === null) {
-              finish({ read: 'absent' })
-              return
-            }
-            let parsed: StoredRecord | null = null
-            try {
-              const result = recordSchema.safeParse(JSON.parse(raw))
-              parsed = result.success ? result.data : null
-            } catch {
-              parsed = null
-            }
-            if (!parsed) {
-              // Older wording, or a record nothing can read: not an answer.
-              finish({ read: 'absent' })
-              return
-            }
-            answeredAt = parsed.disclosure.at
-            finish({
-              read: 'loaded',
-              answer: parsed.disclosure.answer,
-              enabled: parsed.enabled,
-              version: parsed.version,
-              pendingVersion: parsed.pendingVersion,
-              awaitingProviderOff: parsed.awaitingProviderOff,
-              retirementOwed: parsed.retirementOwed,
-            })
-          },
-          () => finish({ read: 'unreadable' }),
-        )
-      })
-      return loading.then(() => snapshot)
+    load,
+    async saved(): Promise<boolean> {
+      await load()
+      return prepared && await bounded(tail, false)
     },
 
     /** The person answered the sheet, or turned the switch on in Settings. */
-    answer(answer: DisclosureAnswer): void {
-      answeredAt = now().toISOString()
-      const enabled = answer === 'accepted'
-      const version = snapshot.version + 1
-      persist({
-        answer,
-        enabled,
-        version,
-        pendingVersion: version,
-        // A decline leaves no identity to report on; R-17 retires what survives.
-        awaitingProviderOff: false,
+    answer(answer: DisclosureAnswer): Promise<boolean> {
+      return mutate(() => {
+        answeredAt = now().toISOString()
+        if (answer === 'declined') debtVersion += 1
+        const enabled = answer === 'accepted'
+        const version = snapshot.version + 1
+        return persist({
+          answer,
+          enabled,
+          version,
+          pendingVersion: version,
+          // A decline leaves no identity to report on; R-17 retires what survives.
+          awaitingProviderOff: false,
+          retirementOwed: snapshot.retirementOwed || answer === 'declined',
+        })
       })
     },
 
     /** A change of the switch: a new version, unacknowledged until the server says so. */
-    setEnabled(enabled: boolean): void {
-      const version = snapshot.version + 1
-      persist({ enabled, version, pendingVersion: version, awaitingProviderOff: !enabled })
+    setEnabled(enabled: boolean): Promise<boolean> {
+      return mutate(() => {
+        const version = snapshot.version + 1
+        return persist({ enabled, version, pendingVersion: version, awaitingProviderOff: !enabled })
+      })
     },
 
     /**
@@ -214,43 +221,48 @@ export function createDevicePromotionsStore(deps: {
      * a newer choice nor its convergence (R-16); persistence alone never ends an OFF,
      * only `providerEnabled: false` for the current version does.
      */
-    acknowledge(result: { appliedVersion: number; providerEnabled: boolean }): void {
-      if (result.appliedVersion !== snapshot.version) return
-      const pendingVersion = snapshot.pendingVersion === result.appliedVersion ? null : snapshot.pendingVersion
-      const awaitingProviderOff = snapshot.awaitingProviderOff && result.providerEnabled
-      if (pendingVersion === snapshot.pendingVersion && awaitingProviderOff === snapshot.awaitingProviderOff) return
-      persist({ pendingVersion, awaitingProviderOff })
+    acknowledge(result: { appliedVersion: number; providerEnabled: boolean }): Promise<boolean> {
+      return mutate(() => {
+        if (result.appliedVersion !== snapshot.version) return Promise.resolve(true)
+        const pendingVersion = snapshot.pendingVersion === result.appliedVersion ? null : snapshot.pendingVersion
+        const awaitingProviderOff = snapshot.awaitingProviderOff && result.providerEnabled
+        if (pendingVersion === snapshot.pendingVersion && awaitingProviderOff === snapshot.awaitingProviderOff) return Promise.resolve(true)
+        return persist({ pendingVersion, awaitingProviderOff })
+      })
     },
 
     /** A login restored delivery: this OFF is not settled until the provider shows it again. */
     expectProviderOff(): void {
-      if (!snapshot.enabled && !snapshot.awaitingProviderOff) persist({ awaitingProviderOff: true })
+      void mutate(() => !snapshot.enabled && !snapshot.awaitingProviderOff ? persist({ awaitingProviderOff: true }) : Promise.resolve(true))
     },
 
     /** 409 PUSH_PREFERENCE_STALE: the server holds a newer version; go past it. */
     adoptStoredVersion(storedVersion: number): void {
-      const version = storedVersion + 1
-      persist({ version, pendingVersion: version })
+      void mutate(() => {
+        const version = storedVersion + 1
+        return persist({ version, pendingVersion: version })
+      })
     },
 
     /** Settings' retry: a fresh write of what is held now. */
     retrySave(): void {
-      if (snapshot.save === 'unsaved') persist({})
+      if (!prepared) void load()
+      else if (snapshot.save === 'unsaved') void persist({})
     },
 
     setServiceOff(serviceOff: boolean): void {
       if (snapshot.serviceOff !== serviceOff) update({ serviceOff })
     },
 
-    /**
-     * Taken when a quarantine failed, settled when one succeeded. Written to disk
-     * with the record; with no answer on record there is no record to write, and
-     * the next launch neutralises again before any answer can be given.
-     */
-    setRetirementOwed(retirementOwed: boolean): void {
-      if (snapshot.retirementOwed === retirementOwed) return
-      if (snapshot.answer) persist({ retirementOwed })
-      else update({ retirementOwed })
+    /** Clearance stays owed in memory until its write succeeds. */
+    setRetirementOwed(retirementOwed: boolean): Promise<boolean> {
+      return mutate(() => {
+        if (retirementOwed) {
+          debtVersion += 1
+          return persist({ retirementOwed: true })
+        }
+        return persist({}, true)
+      })
     },
 
     snapshot: (): DevicePromotionsSnapshot => snapshot,

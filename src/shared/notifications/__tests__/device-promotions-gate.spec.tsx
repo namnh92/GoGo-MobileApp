@@ -72,6 +72,23 @@ beforeEach(() => {
 const TITLE = 'Nhận ưu đãi từ GoGo?'
 
 describe('when it asks', () => {
+  it('family 3: a nullable envelope still shows the sheet without an initialized SDK', async () => {
+    await mount(JSON.stringify({ envelopeVersion: 1, disclosure: null, retirementOwed: true, enabled: true, version: 0, pendingVersion: null, awaitingProviderOff: false }))
+    expect(screen.getByText(TITLE)).toBeTruthy()
+  })
+
+  it('family 8: the sheet waits for durable preparation, not SDK initialization', async () => {
+    let finish!: () => void
+    const store = createDevicePromotionsStore({ storage: {
+      getItem: async () => null,
+      setItem: () => new Promise<void>(resolve => { finish = resolve }),
+    } })
+    await render(<DevicePromotionsGate store={store} actions={actions().actions} />)
+    await act(async () => {})
+    expect(screen.queryByText(TITLE)).toBeNull()
+    await act(async () => { finish() })
+    expect(screen.getByText(TITLE)).toBeTruthy()
+  })
   it('asks a device with no answer on record', async () => {
     await mount()
     expect(screen.getByText(TITLE)).toBeTruthy()

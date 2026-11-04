@@ -421,11 +421,11 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     const credential = binding.kind === 'device' ? binding.credential : await device.credentials.read()
     if (!credential) {
       // Nothing stored and nothing bound: a read that worked settles the debt.
-      device.promotions.setRetirementOwed(false)
+      void device.promotions.setRetirementOwed(false)
       return false
     }
     await device.credentials.quarantine(credential)
-    device.promotions.setRetirementOwed(false)
+    void device.promotions.setRetirementOwed(false)
     if (binding.kind === 'device' && binding.credential.deviceId === credential.deviceId) {
       binding = { ...binding, quarantined: true }
     }
@@ -492,14 +492,14 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     if (gen !== generation) return
 
     // R-17b: before any bound-device no-op.
-    if (snapshot.answer !== 'accepted') {
+    if (snapshot.answer !== 'accepted' || retirementOwed()) {
+      await device.promotions.saved()
       await neutralise(gen)
-      return
-    }
-    await drainRetirements()
+      if (gen !== generation || device.promotions.snapshot().answer !== 'accepted' || retirementOwed()) return
+    } else await drainRetirements()
     if (gen !== generation) return
 
-    if (binding.kind === 'device' && !binding.quarantined) {
+    if (binding.kind === 'device' && !binding.quarantined && !retirementOwed()) {
       if (flow?.generation !== gen || flow.state === 'retry') {
         const started = startFlow(gen)
         track(started, runDeviceFlow(started, binding.externalId, binding.credential))
@@ -552,6 +552,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     } catch {
       report('push_device_retire_pending')
     }
+    await device.promotions.saved()
   }
 
   /** D3 steps 1-2. Disclosure (step 0) is already settled by the caller. */
@@ -569,7 +570,9 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
       await drainRetirements()
       if (gen !== generation) return
     }
+    if (!await device.promotions.saved() || retirementOwed() || gen !== generation) return
     let credential = await device.credentials.read()
+    if (retirementOwed() || gen !== generation) return
     let token: IdentityToken | null = null
 
     if (credential) {
@@ -596,7 +599,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     }
 
     if (!credential) {
-      if (gen !== generation) return
+      if (gen !== generation || retirementOwed()) return
       const created = await device.create()
       if (created.kind === 'disabled') {
         if (gen === generation) await serviceDisabled()
@@ -614,7 +617,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     }
 
     // The answer is re-read too: it is what admits this login (D6).
-    if (gen !== generation || !token || device.promotions.snapshot().answer !== 'accepted') {
+    if (gen !== generation || retirementOwed() || !token || device.promotions.snapshot().answer !== 'accepted') {
       report('push_identity_superseded')
       return
     }
@@ -635,7 +638,14 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     if (!device) return
     serviceOff = true
     device.promotions.setServiceOff(true)
-    await device.credentials.clear()
+    if (retirementOwed()) {
+      try {
+        await quarantineCurrent()
+      } catch {
+        if (binding.kind === 'device') binding = { ...binding, quarantined: true }
+        report('push_device_quarantine_failed')
+      }
+    } else await device.credentials.clear()
     const holder = binding.kind === 'device' || (await device.getNativeExternalId().catch(() => null))?.startsWith(DEVICE_PREFIX)
     if (holder) await deps.native.logout()
     binding = { kind: 'none' }
@@ -672,7 +682,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   /** D3 steps 2-4, off the queue, re-checked before each side effect. */
   async function runDeviceFlow(current: Flow, externalId: string, credential: DeviceCredential): Promise<void> {
     if (!device) return
-    const stillCurrent = () => current === flow && current.generation === generation
+    const stillCurrent = () => current === flow && current.generation === generation && !retirementOwed()
     const finish = (state: 'done' | 'retry') => {
       if (stillCurrent()) current.state = state
     }
@@ -824,7 +834,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   function answerable(externalId: string): boolean {
     if (signingOut) return false
     if (externalId.startsWith(DEVICE_PREFIX)) {
-      return binding.kind === 'device' && !binding.quarantined && binding.externalId === externalId
+      return !retirementOwed() && binding.kind === 'device' && !binding.quarantined && binding.externalId === externalId
     }
     if (desired?.kind === 'device') return false
     return binding.kind !== 'user' || binding.externalId === externalId
@@ -832,7 +842,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
 
   async function freshToken(externalId: string): Promise<IdentityFetchOutcome | 'dropped'> {
     if (!externalId.startsWith(DEVICE_PREFIX)) return deps.fetchToken()
-    if (!device || binding.kind !== 'device' || binding.quarantined) return 'dropped'
+    if (!device || retirementOwed() || binding.kind !== 'device' || binding.quarantined) return 'dropped'
     const gen = generation
     const credential = binding.credential
     const renewed = await device.renew(credential)
@@ -909,16 +919,18 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     /** Sheet or Settings. Recorded now; what it implies runs as a transition. */
     answerDisclosure(answer: DisclosureAnswer): Promise<void> {
       if (!device) return tail
-      device.promotions.answer(answer)
-      return identityDecisionChanged()
+      const saving = device.promotions.answer(answer)
+      const changed = identityDecisionChanged()
+      return Promise.all([saving, changed]).then(() => undefined)
     },
 
     /** The switch. The SDK and the server follow; an offline change replays (D5). */
     setPromotions(enabled: boolean): Promise<void> {
       if (!device) return tail
       if (enabled && device.promotions.snapshot().answer !== 'accepted') {
-        device.promotions.answer('accepted')
-        return identityDecisionChanged()
+        const saving = device.promotions.answer('accepted')
+        const changed = identityDecisionChanged()
+        return Promise.all([saving, changed]).then(() => undefined)
       }
       device.promotions.setEnabled(enabled)
       return restartFlow()

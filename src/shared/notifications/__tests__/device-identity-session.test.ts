@@ -146,6 +146,154 @@ function setup(options: {
 
 const USER = { kind: 'user' as const, userId: 'A' }
 
+describe('Astra F-10 preparation', () => {
+  it.each([false, true])('family 9: DISABLED preserves newly owed cleanup credentials (quarantine refuses: %s)', async refuses => {
+    let answerRenew!: (value: DeviceRenewOutcome) => void
+    const t = setup({ record: accepted(), credential: OLD, nativeExternalId: 'device:old', renew: () => new Promise(resolve => { answerRenew = resolve }) })
+    const applying = t.session.apply(null)
+    await vi.waitFor(() => expect(answerRenew).toBeDefined())
+    await t.promotions.setRetirementOwed(true)
+    if (refuses) t.secure.get.mockRejectedValue(new Error('keychain'))
+    answerRenew({ kind: 'disabled' })
+    await applying
+    await t.session.settled()
+    expect(t.promotions.snapshot().serviceOff).toBe(true)
+    expect(t.api.create).not.toHaveBeenCalled()
+    if (refuses) {
+      expect(t.secure.data.get('push.device')).toBe(JSON.stringify(OLD))
+      expect(t.promotions.snapshot().retirementOwed).toBe(true)
+    } else expect(await t.credentials.retiring()).toEqual([OLD])
+    expect(t.api.retire).not.toHaveBeenCalled()
+  })
+
+  it.each(['read', 'list', 'remove'] as const)('family 4: decline superseded at %s cannot resume the old flow or expiry', async boundary => {
+    const t = setup({ record: accepted(), credential: OLD })
+    t.session.start()
+    await t.session.apply(null)
+    await t.session.settled()
+    let finish!: () => void
+    if (boundary === 'read') {
+      const read = t.secure.get.getMockImplementation()!
+      t.secure.get.mockImplementationOnce(key => new Promise(resolve => { finish = () => { void read(key).then(resolve) } }))
+    } else if (boundary === 'list') {
+      const write = t.secure.set.getMockImplementation()!
+      t.secure.set.mockImplementationOnce((key, value) => new Promise(resolve => { finish = () => { void write(key, value).then(resolve) } }))
+    } else {
+      const remove = t.secure.remove.getMockImplementation()!
+      t.secure.remove.mockImplementationOnce(key => new Promise(resolve => { finish = () => { void remove(key).then(resolve) } }))
+    }
+    const decline = t.session.answerDisclosure('declined')
+    t.native.fire('device:old')
+    await vi.waitFor(() => expect(finish).toBeDefined())
+    const accept = t.session.answerDisclosure('accepted')
+    t.native.fire('device:old')
+    finish()
+    await Promise.all([decline, accept])
+    await t.session.settled()
+    expect(t.api.renew).toHaveBeenCalledTimes(1)
+    expect(t.native.respondToJwtExpired).not.toHaveBeenCalled()
+    expect(t.api.submit.mock.calls.map(([credential]) => credential.deviceId)).toEqual(['old', 'new'])
+  })
+
+  it.each(['debt', 'list', 'failed removal', 'clearance'])('family 6: restart after %s preserves retirement responsibility', async boundary => {
+    const first = setup({ credential: OLD })
+    await first.promotions.load()
+    await first.session.answerDisclosure('accepted')
+    if (boundary !== 'debt') {
+      if (boundary === 'failed removal') first.secure.remove.mockRejectedValueOnce(new Error('keychain'))
+      await first.credentials.quarantine(OLD)
+    }
+    if (boundary === 'clearance') await first.promotions.setRetirementOwed(false)
+    const next = setup({
+      record: first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY),
+      ...(first.secure.data.has('push.device') ? { credential: OLD } : {}),
+      retiring: await first.credentials.retiring(),
+      retire: async () => ({ kind: 'error' }),
+    })
+    await next.session.apply(null)
+    await next.session.settled()
+    expect(next.api.renew).not.toHaveBeenCalled()
+    expect(await next.credentials.retiring()).toEqual([OLD])
+    expect(next.calls).not.toContain('login:device:old')
+  })
+
+  it('family 7: failed empty-read clearance blocks fresh admission until a durable retry', async () => {
+    const t = setup({ record: accepted({ retirementOwed: true }) })
+    await t.promotions.load()
+    t.local.setItem.mockRejectedValueOnce(new Error('disk'))
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.api.create).not.toHaveBeenCalled()
+    expect(t.promotions.snapshot().retirementOwed).toBe(true)
+    await t.session.retryPending()
+    await t.session.settled()
+    expect(t.api.create).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(t.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!).retirementOwed).toBe(false)
+  })
+
+  it('family 9: sign-in does not wait for debt clearance persistence', async () => {
+    const t = setup({ record: accepted({ retirementOwed: true }), credential: OLD, retire: async () => ({ kind: 'error' }) })
+    await t.promotions.load()
+    let finish!: () => void
+    const write = t.local.setItem.getMockImplementation()!
+    t.local.setItem.mockImplementationOnce((key, value) => new Promise(resolve => { finish = () => { void write(key, value).then(resolve) } }))
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(t.session.boundUserId()).toBe('A')
+    expect(t.promotions.snapshot().retirementOwed).toBe(true)
+    expect(await t.credentials.retiring()).toEqual([OLD])
+    finish()
+    await t.promotions.saved()
+  })
+
+  it.each(['gone', 'disabled'] as const)('family 9: owed D is quarantined without renewal even if renewal would answer %s', async outcome => {
+    const t = setup({ record: accepted({ retirementOwed: true }), credential: OLD, renew: async () => ({ kind: outcome }), retire: async () => ({ kind: 'error' }) })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.api.renew).not.toHaveBeenCalled()
+    expect(await t.credentials.retiring()).toEqual([OLD])
+  })
+
+  it.each([false, true])('family 1: acceptance before first apply never renews surviving D (prior failed launch: %s)', async priorFailure => {
+    let record: string | null = null
+    if (priorFailure) {
+      const first = setup({ credential: OLD, nativeExternalId: 'device:old' })
+      first.secure.get.mockRejectedValue(new Error('keychain'))
+      await first.session.apply(null)
+      await first.session.settled()
+      record = first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY) ?? null
+    }
+    const next = setup({ record, credential: OLD })
+    await next.promotions.load()
+    await next.session.answerDisclosure('accepted')
+    await next.session.apply(null)
+    await next.session.settled()
+    expect(next.api.renew).not.toHaveBeenCalled()
+    expect(next.calls).toContain('retire:old')
+    expect(next.session.boundDeviceId()).toBe('new')
+  })
+
+  it('family 2: unanswered debt survives Keychain refusal and acceptance before SDK readiness', async () => {
+    const first = setup({ credential: OLD, nativeExternalId: 'device:old' })
+    first.secure.get.mockRejectedValue(new Error('keychain'))
+    await first.session.apply(null)
+    await first.session.settled()
+    const stored = first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY) ?? null
+    expect(stored).not.toBeNull()
+    expect(JSON.parse(stored!).retirementOwed).toBe(true)
+    expect(JSON.parse(stored!).disclosure).toBeNull()
+    const next = setup({ record: stored, credential: OLD })
+    await next.promotions.load()
+    await next.session.answerDisclosure('accepted')
+    expect(next.api.renew).not.toHaveBeenCalled()
+    expect(next.api.create).not.toHaveBeenCalled()
+    await next.session.apply(null)
+    await next.session.settled()
+    expect(next.api.renew).not.toHaveBeenCalled()
+    expect(next.calls).toContain('retire:old')
+  })
+})
+
 describe('step 0: the disclosure gates the identity (D6)', () => {
   it('no answer, nothing surviving: no identity, no native call', async () => {
     const t = setup()
@@ -643,9 +791,10 @@ describe('promotions switch converges on the provider (AC-12, R-16)', () => {
     expect(t.promotions.snapshot()).toMatchObject({ enabled: true, version: 9, pendingVersion: null })
   })
 
-  it('the store: an older ack clears nothing', () => {
+  it('the store: an older ack clears nothing', async () => {
     const local = memoryKv()
     const store = createDevicePromotionsStore({ storage: local })
+    await store.load()
     store.answer('accepted')
     store.setEnabled(false)
     store.setEnabled(true)
@@ -1066,7 +1215,8 @@ describe('Sol round 3 (GoGo-MobileApp#411)', () => {
     await t.session.settled()
     expect(t.api.renew).not.toHaveBeenCalled()
     // Version 2: the acceptance is a newer choice than the declined record's.
-    expect(t.calls).toEqual(['optOut', 'logout', 'retire:old', 'create', 'login:device:new', 'optIn', 'report:true:2'])
+    // Invariant 8: the debt reconciles native cleanup again before any bind.
+    expect(t.calls).toEqual(['optOut', 'logout', 'optOut', 'logout', 'retire:old', 'create', 'login:device:new', 'optIn', 'report:true:2'])
     expect(await t.credentials.retiring()).toEqual([])
     expect(await t.credentials.read()).toEqual(NEW)
   })
@@ -1130,7 +1280,7 @@ describe('Sol round 4 (GoGo-MobileApp#411)', () => {
     await t.session.settled()
 
     expect(t.api.submit.mock.calls.map(([credential]) => credential.deviceId)).toEqual(['old', 'new'])
-    expect(t.calls).toEqual(['logout', 'retire:old', 'create', 'login:device:new', 'optIn', 'report:true:3'])
+    expect(t.calls).toEqual(['optOut', 'logout', 'retire:old', 'create', 'login:device:new', 'optIn', 'report:true:3'])
     expect(t.api.renew).toHaveBeenCalledTimes(1)
   })
 
@@ -1153,7 +1303,8 @@ describe('Sol round 4 (GoGo-MobileApp#411)', () => {
     await second.session.apply(null)
     await second.session.settled()
     expect(second.api.renew).not.toHaveBeenCalled()
-    expect(second.calls).toEqual(['retire:old', 'create', 'login:device:new', 'optIn', 'report:true:2'])
+    // Invariant 8: an accepted record with a debt still reconciles native cleanup first.
+    expect(second.calls).toEqual(['optOut', 'logout', 'retire:old', 'create', 'login:device:new', 'optIn', 'report:true:2'])
     expect(await second.credentials.retiring()).toEqual([])
     expect(second.promotions.snapshot().retirementOwed).toBe(false)
   })
@@ -1168,7 +1319,7 @@ describe('Sol round 4 (GoGo-MobileApp#411)', () => {
     expect(JSON.parse(t.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!).retirementOwed).toBe(false)
   })
 
-  it('F-10 (b): with no answer on record the debt is not written, and the next launch neutralises again', async () => {
+  it('F-10 (b): with no answer on record the debt is written, and the next launch neutralises again', async () => {
     const first = setup({ credential: OLD, nativeExternalId: 'device:old' })
     first.secure.get.mockImplementation(async (key: string) => {
       if (key.startsWith('push.device.retiring')) throw new Error('keychain')
@@ -1177,13 +1328,36 @@ describe('Sol round 4 (GoGo-MobileApp#411)', () => {
     await first.session.apply(null)
     await first.session.settled()
     expect(first.calls).toEqual(['optOut', 'logout'])
-    expect(first.local.data.has(DEVICE_PROMOTIONS_STORAGE_KEY)).toBe(false)
+    expect(JSON.parse(first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY)!)).toMatchObject({ disclosure: null, retirementOwed: true })
     expect(first.promotions.snapshot().read).toBe('absent')
 
-    const second = setup({ credential: OLD, nativeExternalId: 'device:old' })
+    const second = setup({ record: first.local.data.get(DEVICE_PROMOTIONS_STORAGE_KEY), credential: OLD, nativeExternalId: 'device:old' })
     await second.session.apply(null)
     await second.session.settled()
     expect(second.calls).toEqual(['optOut', 'logout', 'retire:old'])
     expect(await second.credentials.read()).toBeNull()
+  })
+})
+
+describe('Opus review of the F-10 store (GoGo-MobileApp#411)', () => {
+  it('an acceptance whose write takes time still admits a device identity', async () => {
+    const t = setup()
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.promotions.snapshot().retirementOwed).toBe(false)
+
+    let release!: () => void
+    t.local.setItem.mockImplementationOnce(async (key: string, value: string) => {
+      await new Promise<void>(resolve => { release = resolve })
+      t.local.data.set(key, value)
+    })
+    const accepting = t.session.answerDisclosure('accepted')
+    await vi.waitFor(() => expect(release).toBeDefined())
+    release()
+    await accepting
+    await t.session.settled()
+
+    expect(t.api.create).toHaveBeenCalledTimes(1)
+    expect(t.session.boundDeviceId()).toBe('new')
   })
 })
