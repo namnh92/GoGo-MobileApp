@@ -16,6 +16,31 @@ permissions:
   contents: read
 
 jobs:
+  # GoGo-MobileApp#407 probe, never merged: the AC's repeat on CI.
+  ui-repeat:
+    name: test:ui x10 (probe, do not merge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Repeat the UI suite ten times, run all ten
+        run: |
+          failed=0
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            echo "::group::run $i"
+            if pnpm test:ui --silent; then r=pass; else r=FAIL; failed=$((failed+1)); fi
+            echo "::endgroup::"
+            echo "run $i: $r"
+          done
+          echo "failed runs: $failed of 10"
+          test "$failed" = 0
+
   # GoGo-MobileApp#391 — the Firebase distribution lanes. Builds run on the
   # owner's workstation (they need the signing keychain and exec-with.sh), so
   # CI checks what it can without a secret: the Fastfile and Pluginfile load,
