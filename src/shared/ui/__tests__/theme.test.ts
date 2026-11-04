@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { ACCENTS, DEFAULT_ACCENT, themes } from '../theme'
+import { ACCENTS, DEFAULT_ACCENT, themes as allThemes } from '../theme'
 import { border, glass, radius, spacing, status, surface, text, type } from '../tokens'
+
+/** The four light themes: the dark twins are held to the same rules in theme-dark.test.ts. */
+const themes = { orange: allThemes.orange, green: allThemes.green, blue: allThemes.blue, purple: allThemes.purple }
 
 /**
  * #294. The four themes differ in the accent and nothing else: a screen styled
