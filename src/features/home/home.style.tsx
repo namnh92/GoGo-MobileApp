@@ -1,9 +1,8 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { fill, glassFx, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
-// Pressed is a colour change only (#382): `accent.pressed` on both hero
-// buttons — the filled one darkens, the outlined one gains the darker fill.
+// Pressed is a colour change only (#382).
 
 export const styles = StyleSheet.create(theme => ({
   header: {
@@ -33,27 +32,18 @@ export const styles = StyleSheet.create(theme => ({
 
   hero: {
     marginHorizontal: spacing[5],
-    height: 252,
-    borderRadius: radius.hero,
-    overflow: 'hidden',
-  },
-  heroScrim: {
-    ...fill,
-    backgroundColor: overlay.scrim,
-  },
-  heroContent: {
-    flex: 1,
     padding: spacing[5],
-    justifyContent: 'flex-end',
+    borderRadius: radius.hero,
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
   },
   heroBadge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: glassFx.badge,
-    borderWidth: 1,
-    borderColor: glassFx.btnBorder,
+    backgroundColor: theme.accent.soft,
     paddingHorizontal: spacing[3],
     paddingVertical: 5,
     borderRadius: radius.pill,
@@ -61,32 +51,26 @@ export const styles = StyleSheet.create(theme => ({
   },
   heroBody: { marginTop: 4, marginBottom: spacing[4] },
 
-  // One dominant CTA (spec §7): "Tạo kèo" is filled, "Chọn nhanh" is outlined.
+  // One dominant CTA (spec §7): "Tạo kèo" is filled, "Chọn nhanh" is a quiet fill.
   heroActions: { flexDirection: 'row', gap: spacing[3], alignItems: 'center' },
   heroPrimary: {
     flex: 1,
     height: touchTarget.min + 4,
-    borderRadius: radius.button,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.accent.primary,
-    shadowColor: theme.accent.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 4,
   },
-  heroPrimaryPressed: { backgroundColor: theme.accent.pressed, shadowOpacity: 0, elevation: 0 },
+  heroPrimaryPressed: { backgroundColor: theme.accent.pressed },
   heroSecondary: {
     height: touchTarget.min + 4,
     paddingHorizontal: spacing[5],
-    borderRadius: radius.button,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: glassFx.borderLight,
+    backgroundColor: theme.surface.subtle,
   },
-  heroSecondaryPressed: { backgroundColor: theme.accent.pressed },
+  heroSecondaryPressed: { backgroundColor: theme.accent.soft },
 
   presetRow: { paddingHorizontal: spacing[5], gap: spacing[2] },
 
