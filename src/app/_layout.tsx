@@ -3,8 +3,8 @@ import '@/shared/observability/bootstrap'
 
 import { Stack } from 'expo-router'
 import { Platform } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import * as SplashScreen from 'expo-splash-screen'
-import { StatusBar } from 'expo-status-bar'
 
 import { DeferredLinkResumer } from '@/shared/acquisition/deferred-link-resumer'
 import { TrackingConsentGate } from '@/shared/consent/tracking-consent-gate'
@@ -15,7 +15,7 @@ import { RootErrorBoundary } from '@/shared/observability/root-error-boundary.vi
 import { SentryScreenTag, screenTagLayout } from '@/shared/observability/screen-tag.view'
 import { wrapRoot } from '@/shared/observability/sentry'
 import { AppProviders } from '@/shared/providers/app-providers'
-import { surface } from '@/shared/ui/tokens'
+import { ThemedStatusBar } from '@/shared/ui/themed-status-bar.view'
 
 // Unistyles boots in the default accent; the saved one is an AsyncStorage read
 // away. Hold the native splash until `AppProviders` has applied it (ADR-0009),
@@ -24,11 +24,12 @@ import { surface } from '@/shared/ui/tokens'
 void SplashScreen.preventAutoHideAsync().catch(() => {})
 
 function RootLayout() {
+  const { theme } = useUnistyles()
   return (
     // Outside the providers on purpose: it catches their failures too.
     <RootErrorBoundary>
       <AppProviders>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <NotificationClickRouter />
         <DeferredLinkResumer />
         <TrackingConsentGate />
@@ -38,7 +39,7 @@ function RootLayout() {
           screenLayout={screenTagLayout}
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: surface.canvas },
+            contentStyle: { backgroundColor: theme.surface.canvas },
           }}
         >
           {/* GoGo AI (#379): a page sheet over the current screen on iOS — swipe

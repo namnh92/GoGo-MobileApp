@@ -3,6 +3,7 @@ import {
   border,
   darkAccents,
   darkBorder,
+  darkGlass,
   darkStatus,
   darkSurface,
   darkText,
@@ -83,7 +84,7 @@ function buildTheme(accent: Accent, mode: Mode) {
       toast: shadows.toast,
       cta: { ...shadows.cta, shadowColor: palette.primary },
     },
-    glass: { bar: glass.bar },
+    glass: { bar: dark ? darkGlass.bar : glass.bar },
   }
 }
 
