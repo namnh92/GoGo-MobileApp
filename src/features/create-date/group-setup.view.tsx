@@ -6,10 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
+import { IconCheck } from '@/shared/ui/icons'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { colors, hitSlop, spacing } from '@/shared/ui/tokens'
+import { hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { WizardActions } from './wizard-actions.view'
 import { styles } from './group-setup.style'
@@ -51,11 +52,7 @@ export default function GroupSetupScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('groupSetup.decrease')}
             hitSlop={hitSlop}
-            style={[
-              styles.stepBtn,
-              { backgroundColor: colors.neutral[100] },
-              participantCount <= MIN_PEOPLE && { opacity: 0.3 },
-            ]}
+            style={[styles.stepBtn, participantCount <= MIN_PEOPLE && { opacity: 0.3 }]}
           >
             <Text variant="title1">−</Text>
           </Pressable>
@@ -68,18 +65,17 @@ export default function GroupSetupScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('groupSetup.increase')}
             hitSlop={hitSlop}
-            style={[
-              styles.stepBtn,
-              { backgroundColor: theme.accent.primary },
-              participantCount >= MAX_PEOPLE && { opacity: 0.3 },
-            ]}
+            style={[styles.stepBtn, styles.stepBtnPlus, participantCount >= MAX_PEOPLE && { opacity: 0.3 }]}
           >
             <Text variant="title1" color="accent.onAccent">+</Text>
           </Pressable>
         </Card>
 
         <Text variant="title2" style={styles.sectionTitle}>{t('groupSetup.budgetBy')}</Text>
-        <View style={styles.segmented} accessibilityRole="radiogroup">
+        {/* Which mode is chosen changes what every price in the room means, so
+            each option spells out its own meaning instead of leaving it to the
+            label alone. */}
+        <View style={styles.modes} accessibilityRole="radiogroup">
           {BUDGET_MODES.map(option => {
             const active = budgetMode === option.mode
             return (
@@ -91,22 +87,26 @@ export default function GroupSetupScreen() {
                 }}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                style={[styles.segment, active && styles.segmentActive]}
+                style={[styles.mode, active && styles.modeActive]}
               >
-                <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.primary' : 'text.secondary'}>
-                  {t(option.labelKey)}
-                </Text>
+                <View style={styles.modeBody}>
+                  <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>
+                    {t(option.labelKey)}
+                  </Text>
+                  <Text variant="bodySmall" color="text.secondary" style={styles.modeHelp}>
+                    {t(option.mode === 'per_person' ? 'groupSetup.perPersonHelp' : 'groupSetup.groupTotalHelp', {
+                      n: participantCount,
+                    })}
+                  </Text>
+                </View>
+                {/* Selection is not colour alone. */}
+                <View style={[styles.radio, active && styles.radioActive]}>
+                  {active ? <IconCheck color={theme.accent.onAccent} size={14} /> : null}
+                </View>
               </Pressable>
             )
           })}
         </View>
-        {/* Which mode is chosen changes what every price in the room means, so
-            it is spelled out rather than left to the label alone. */}
-        <Text variant="bodySmall" color="text.secondary" style={styles.helper}>
-          {t(budgetMode === 'per_person' ? 'groupSetup.perPersonHelp' : 'groupSetup.groupTotalHelp', {
-            n: participantCount,
-          })}
-        </Text>
       </View>
       <GlassBar placement="docked" testID="create-footer">
         <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/location')} />

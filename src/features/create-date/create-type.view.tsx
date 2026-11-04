@@ -86,6 +86,7 @@ export default function CreateTypeScreen() {
               maxLength={80}
               accessibilityLabel={t('createType.roomName')}
               placeholder={t('createType.roomNameHint')}
+              placeholderTextColor={theme.text.secondary}
               style={styles.nameInput}
             />
           )}
@@ -105,19 +106,21 @@ export default function CreateTypeScreen() {
                   pressed && (active ? styles.optionActivePressed : styles.optionPressed),
                 ]}
               >
-                <Icon name={option.icon} size={28} color={active ? 'accent.onAccent' : 'accent.primary'} />
+                <View style={[styles.iconTile, active && styles.iconTileActive]}>
+                  <Icon name={option.icon} size={28} color={active ? 'accent.onAccent' : 'text.secondary'} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant="title2" color={active ? 'accent.onAccent' : 'text.primary'}>
+                  <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>
                     {t(option.titleKey)}
                   </Text>
-                  <Text variant="bodySmall" color={active ? 'onDark.medium' : 'text.secondary'} style={styles.optionDesc}>
+                  <Text variant="bodySmall" color="text.secondary" style={styles.optionDesc}>
                     {t(option.descKey)}
                   </Text>
                 </View>
                 {/* Selection is not colour alone. */}
                 {active ? (
                   <View style={styles.check}>
-                    <IconCheck color={theme.accent.primary} size={14} />
+                    <IconCheck color={theme.accent.onAccent} size={14} />
                   </View>
                 ) : null}
               </Pressable>

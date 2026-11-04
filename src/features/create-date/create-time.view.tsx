@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
@@ -29,7 +28,6 @@ type PickerTarget = 'start' | 'end' | null
  * end once a start exists, and Continue is never unlocked by an invented time.
  */
 export default function CreateTimeScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const { roomType, startTime, endTime, setStartTime, setEndTime } = useRoom()
@@ -102,11 +100,11 @@ export default function CreateTimeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={label}
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
+                style={[styles.option, active ? styles.optionActive : glassStyles.card]}
               >
-                <Text variant="title2" color={active ? 'accent.onAccent' : 'text.primary'}>{label}</Text>
+                <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>{label}</Text>
                 {/* Selection is never colour alone. */}
-                {active ? <Text variant="title2" color="accent.onAccent">✓</Text> : null}
+                {active ? <Text variant="title2" color="accent.onSoft">✓</Text> : null}
               </Pressable>
             )
           })}
@@ -159,7 +157,7 @@ export default function CreateTimeScreen() {
                 onPress={() => pickSlot(slot)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[styles.slotBtn, active && { backgroundColor: theme.accent.primary }]}
+                style={[styles.slotBtn, active && styles.slotBtnActive]}
               >
                 <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>{slot}</Text>
               </Pressable>
