@@ -20,6 +20,10 @@ export function isoToLocalSchedule(value?: string): string {
 const DATE_TIME: Intl.DateTimeFormatOptions = {
   day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
 }
+// The zone name follows the running ICU's CLDR, and that is accepted (owner
+// decision 2026-11-04, #414): vi `PST` on CLDR 48 reads `GMT-8` on 49, en `GMT`
+// in winter London reads `GMT+0`. This only renders when a clock change sits
+// inside the range, which never happens on a device in Vietnam's zone.
 const DATE_TIME_ZONE: Intl.DateTimeFormatOptions = { ...DATE_TIME, timeZoneName: 'short' }
 const TIME_ONLY: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
 

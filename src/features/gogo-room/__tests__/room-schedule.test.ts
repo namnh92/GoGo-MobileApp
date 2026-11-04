@@ -115,3 +115,48 @@ it('shows 12:00Z as 19:00 in Asia/Ho_Chi_Minh and sends 19:00 back as the same i
     else process.env.TZ = previous
   }
 })
+
+/**
+ * GoGo-MobileApp#414 — `DATE_TIME` and `TIME_ONLY` come from the running ICU's
+ * CLDR. Measured identical on CLDR 48 (Node 22) and 49 (Node 26), so they are
+ * pinned exactly. Instants are built from local parts: the pins hold in any zone.
+ */
+const localIso = (hour: number, minute = 5, day = 10) => new Date(2026, 8, day, hour, minute).toISOString()
+
+it('pins the date and time label in both languages, around the 12-hour edges', () => {
+  expect(roomScheduleLabel(localIso(19), 'vi')).toBe('19:05 10/09/2026')
+  expect(roomScheduleLabel(localIso(0), 'vi')).toBe('00:05 10/09/2026')
+  expect(roomScheduleLabel(localIso(19), 'en')).toBe('09/10/2026, 07:05 PM')
+  expect(roomScheduleLabel(localIso(0), 'en')).toBe('09/10/2026, 12:05 AM')
+  expect(roomScheduleLabel(localIso(12), 'en')).toBe('09/10/2026, 12:05 PM')
+})
+
+it('pins the time-only end of a same-day range in both languages', () => {
+  expect(roomScheduleRange(localIso(9), localIso(19), 'vi')).toEqual({ start: '09:05 10/09/2026', end: '19:05' })
+  expect(roomScheduleRange(localIso(9), localIso(19), 'en')).toEqual({ start: '09/10/2026, 09:05 AM', end: '07:05 PM' })
+})
+
+it('pins the full end of a range that crosses midnight in both languages', () => {
+  expect(roomScheduleRange(localIso(23), localIso(1, 5, 11), 'vi')?.end).toBe('01:05 11/09/2026')
+  expect(roomScheduleRange(localIso(23), localIso(1, 5, 11), 'en')?.end).toBe('09/11/2026, 01:05 AM')
+})
+
+/**
+ * GoGo-MobileApp#414 — the zone name is the one part measured to differ between
+ * CLDR 48 and 49, and the owner accepted that on 2026-11-04. So the date and time
+ * around it stay exact, and only the name may read either way.
+ */
+it('pins the date and time of a range across a clock change, allowing both zone spellings', () => {
+  inZone('America/Los_Angeles', () => {
+    const vi = roomScheduleRange('2026-11-01T08:30:00Z', '2026-11-01T09:15:00Z', 'vi')
+    expect(vi?.start).toMatch(/^01:30 (PDT|GMT-7) 01\/11\/2026$/)
+    expect(vi?.end).toMatch(/^01:15 (PST|GMT-8) 01\/11\/2026$/)
+    const en = roomScheduleRange('2026-11-01T08:30:00Z', '2026-11-01T09:15:00Z', 'en')
+    expect(en).toEqual({ start: '11/01/2026, 01:30 AM PDT', end: '11/01/2026, 01:15 AM PST' })
+  })
+  inZone('Europe/London', () => {
+    const en = roomScheduleRange('2026-10-25T00:30:00Z', '2026-10-25T01:15:00Z', 'en')
+    expect(en?.start).toBe('10/25/2026, 01:30 AM GMT+1')
+    expect(en?.end).toMatch(/^10\/25\/2026, 01:15 AM GMT(\+0)?$/)
+  })
+})
