@@ -1,36 +1,86 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, night, radius, spacing } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   /** Holds the freshness notice slot above the centred content (#292). */
-  screen: { flex: 1, backgroundColor: neutral[900] },
+  screen: { flex: 1, backgroundColor: theme.surface.canvas },
   root: {
     flex: 1,
-    backgroundColor: neutral[900],
+    backgroundColor: theme.surface.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[6],
   },
-  pair: {
-    flexDirection: 'row',
+  orbit: {
+    width: 232,
+    height: 232,
+    borderRadius: 116,
     alignItems: 'center',
-    gap: spacing[4],
-    marginBottom: spacing[7],
+    justifyContent: 'center',
+    backgroundColor: theme.surface.subtle,
+    marginBottom: spacing[6],
   },
+  orbitMid: {
+    width: 168,
+    height: 168,
+    borderRadius: 84,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
+  },
+  orbitCore: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.primary,
+    ...theme.shadows.cta,
+  },
+  satellite: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.surface.card,
+    ...theme.shadows.card,
+  },
+  satelliteTop: { top: -8, alignSelf: 'center' },
+  satelliteLeft: { left: 8, bottom: 24 },
+  satelliteRight: { right: 8, bottom: 24 },
 
   /** What is happening, and why it is taking a moment (spec §18). */
   message: { textAlign: 'center' },
   reason: { textAlign: 'center' },
-  progressTrack: {
+  statusCard: {
     alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    marginTop: spacing[5],
+    padding: spacing[4],
+    borderRadius: radius.card,
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+  },
+  statusIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent.soft,
+  },
+  progressTrack: {
+    flex: 1,
     height: 4,
     borderRadius: 2,
-    backgroundColor: night.line,
+    backgroundColor: theme.surface.subtle,
     overflow: 'hidden',
-    marginTop: spacing[5],
   },
   progressFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 2 },
 
@@ -42,7 +92,8 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[6],
     borderRadius: radius.compact,
     borderWidth: 1,
-    borderColor: night.line,
+    borderColor: theme.border.hairline,
+    backgroundColor: theme.surface.card,
     alignItems: 'center',
     justifyContent: 'center',
   },

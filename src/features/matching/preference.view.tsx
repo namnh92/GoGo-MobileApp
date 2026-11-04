@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -17,8 +16,10 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { GlassBar } from '@/shared/ui/glass-bar.view'
+import { Atmosphere, BackHeader, PrimaryBtn } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
+import { Icon } from '@/shared/ui/icons'
 import { Glyph, Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -29,7 +30,6 @@ const MAX_PREFS = 3
 const TAXONOMY_KIND = 'mood'
 
 export default function PreferenceScreen() {
-  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -159,14 +159,23 @@ export default function PreferenceScreen() {
       <View style={{ paddingTop: insets.top }}>
         <BackHeader onBack={() => router.back()} />
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5] }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[5] }}>
         <Text variant="display" style={styles.title}>{t('preference.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('preference.body')}</Text>
 
         {offerSaved ? (
-          <View style={styles.prefillRow}>
-            <Chip icon="star" label={t('preference.useSaved')} variant="info" onPress={useSavedInterests} />
-          </View>
+          <Pressable
+            onPress={useSavedInterests}
+            accessibilityRole="button"
+            accessibilityLabel={t('preference.useSaved')}
+            style={styles.prefillRow}
+          >
+            <View style={styles.prefillIcon}>
+              <Icon name="bookmark" size={20} color="accent.onSoft" />
+            </View>
+            <Text variant="title2" style={styles.prefillLabel}>{t('preference.useSaved')}</Text>
+            <Icon name="zap" size={20} color="accent.primary" />
+          </Pressable>
         ) : null}
 
         <View style={styles.grid}>
@@ -178,10 +187,11 @@ export default function PreferenceScreen() {
                 onPress={() => toggle(option.key)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[styles.option, active ? { backgroundColor: theme.accent.primary } : glassStyles.card]}
+                style={[styles.option, active ? styles.optionActive : styles.optionIdle]}
               >
+                {active ? <Icon name="check" size={16} color="accent.onSoft" /> : null}
                 {option.emoji ? <Glyph size="sm">{option.emoji}</Glyph> : null}
-                <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>
+                <Text variant="label" color={active ? 'accent.onSoft' : 'text.primary'}>
                   {option.label}
                 </Text>
               </Pressable>
@@ -195,13 +205,13 @@ export default function PreferenceScreen() {
           </Text>
         ) : null}
       </ScrollView>
-      <View style={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6], paddingTop: spacing[4] }}>
+      <GlassBar placement="docked">
         <PrimaryBtn
           label={`${t('common.continue')}${selected.length > 0 ? ` (${selected.length})` : ''}`}
           onPress={complete}
           loading={pending}
         />
-      </View>
+      </GlassBar>
     </Atmosphere>
   )
 }
