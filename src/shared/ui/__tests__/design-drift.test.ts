@@ -94,6 +94,10 @@ describe('i18n copy is sentence case (#382)', () => {
  * deleting its line here.
  */
 const GLASS_FX_ALLOWED: Record<string, string[]> = {
+  // Over a photo.
+  'features/date-plan/place-detail.style.tsx': ['badge', 'solid'],
+  // A fixed bottom bar.
+  'features/date-plan/date-plan.style.tsx': ['bar'],
 }
 
 describe('glass wash stays off ordinary surfaces (#382)', () => {
