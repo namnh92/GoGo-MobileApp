@@ -1,24 +1,30 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, type } from '@/shared/ui/tokens'
-
-const { brand, neutral } = colors
+import { radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  title: { marginTop: spacing[2] },
-  body: { marginTop: spacing[2], marginBottom: spacing[6] },
+  body: { marginTop: spacing[2], marginBottom: spacing[5] },
+  // The paste field, its button and the result sit on white cards over the canvas.
+  inputCard: {
+    padding: spacing[4],
+    borderRadius: radius.card,
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+    ...theme.shadows.card,
+  },
   input: {
     ...type.bodySmall,
     height: 52,
     borderRadius: radius.compact,
-    backgroundColor: neutral[50],
+    backgroundColor: theme.surface.canvas,
     borderWidth: 1,
-    borderColor: neutral[100],
+    borderColor: theme.border.hairline,
     paddingHorizontal: spacing[4],
-    color: neutral[900],
+    color: theme.text.primary,
     marginBottom: spacing[2],
   },
-  inputError: { borderColor: brand.red },
+  inputError: { borderColor: theme.status.danger },
   errorLabel: { marginBottom: spacing[2] },
   verifyBtn: { marginTop: spacing[2] },
   verifyingRow: {
@@ -29,18 +35,43 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: spacing[5],
   },
   resultCard: { overflow: 'hidden', marginTop: spacing[5] },
+  existsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    padding: spacing[4],
+    backgroundColor: theme.status.successSoft,
+  },
+  existsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.status.successText,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  existsTitle: { flex: 1 },
   resultImage: { width: '100%', height: 140 },
   resultBody: { padding: spacing[4] },
   verifiedBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: brand.mintSoft,
+    backgroundColor: theme.status.successSoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.pill,
     marginBottom: spacing[2],
   },
   placeAddress: { marginTop: 2 },
-  placeReviews: { marginTop: spacing[2] },
+  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2], marginTop: spacing[1] },
+  addressText: { flex: 1 },
+  ratingChip: {
+    alignSelf: 'flex-start',
+    marginTop: spacing[3],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.subtle,
+  },
   addBtn: { marginTop: spacing[4] },
   addedLabel: {
     textAlign: 'center',
@@ -48,7 +79,7 @@ export const styles = StyleSheet.create(theme => ({
   },
   rejectedCard: {
     marginTop: spacing[5],
-    backgroundColor: brand.redSoft,
+    backgroundColor: theme.status.dangerSoft,
     borderRadius: radius.card,
     padding: spacing[5],
   },
@@ -63,7 +94,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[4],
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: neutral[100],
+    borderColor: theme.border.hairline,
     marginBottom: spacing[2],
   },
   candidateRowActive: { borderColor: theme.accent.primary, backgroundColor: theme.accent.soft },
@@ -75,7 +106,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[2],
     borderRadius: radius.pill,
-    backgroundColor: neutral[100],
+    backgroundColor: theme.surface.subtle,
   },
   chipActive: { backgroundColor: theme.accent.primary },
   priceRow: { flexDirection: 'row', gap: spacing[2] },
