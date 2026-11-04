@@ -124,7 +124,8 @@ export type DeviceIdentityDeps = {
   create: () => Promise<DeviceCreateOutcome>
   renew: (credential: DeviceCredential) => Promise<DeviceRenewOutcome>
   submit: (credential: DeviceCredential, body: DeviceSubscriptionReport) => Promise<DeviceReportOutcome>
-  retire: (credential: DeviceCredential) => Promise<DeviceRetireOutcome>
+  /** `budgetMs`: what is left of this retirement pass; the DELETE must not outlive it. */
+  retire: (credential: DeviceCredential, budgetMs: number) => Promise<DeviceRetireOutcome>
   optOut: () => void
   getSubscriptionId: () => Promise<string | null>
   /** Who the SDK says it is right now: what a previous launch may have left. */
@@ -205,6 +206,13 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   /** DISABLED: no new identity until the next launch (D9). */
   let serviceOff = false
   let recreates = 0
+  /**
+   * A neutralisation could not put what this install holds on the retiring list
+   * (storage refused). The obligation survives the failure: whatever a later
+   * read returns is quarantined before any identity is restored or created, and
+   * a later acceptance never renews it (R-17, R-17b, D5; Sol r3 F-10).
+   */
+  let retirementOwed = false
 
   let expirySubscription: { remove(): void } | null = null
   let consecutiveRefreshes = 0
@@ -383,12 +391,15 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     const started = now()
     let first = true
     for (const credential of await device.credentials.retiring()) {
-      if (!first && now() - started >= DEVICE_RETIREMENT_BUDGET_MS) {
+      // The first DELETE gets the whole budget; each later one only what is left
+      // of it, so the pass — not each request — stays within D2's bound.
+      const remaining = first ? DEVICE_RETIREMENT_BUDGET_MS : DEVICE_RETIREMENT_BUDGET_MS - (now() - started)
+      if (remaining <= 0) {
         report('push_device_retire_deferred')
         return
       }
       first = false
-      const outcome = await device.retire(credential)
+      const outcome = await device.retire(credential, remaining)
       if (outcome.kind !== 'done') {
         report(outcome.kind === 'malformed' ? 'push_device_credential_malformed' : 'push_device_retire_pending')
         return
@@ -407,8 +418,13 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   async function quarantineCurrent(): Promise<boolean> {
     if (!device) return false
     const credential = binding.kind === 'device' ? binding.credential : await device.credentials.read()
-    if (!credential) return false
+    if (!credential) {
+      // Nothing stored and nothing bound: a read that worked settles the debt.
+      retirementOwed = false
+      return false
+    }
     await device.credentials.quarantine(credential)
+    retirementOwed = false
     if (binding.kind === 'device' && binding.credential.deviceId === credential.deviceId) {
       binding = { ...binding, quarantined: true }
     }
@@ -516,6 +532,7 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
     try {
       quarantined = await quarantineCurrent()
     } catch {
+      retirementOwed = true
       report('push_device_quarantine_failed')
     }
     const nativeHolder = binding.kind !== 'none' || quarantined || Boolean(await device.getNativeExternalId().catch(() => null))
@@ -536,6 +553,18 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
   /** D3 steps 1-2. Disclosure (step 0) is already settled by the caller. */
   async function bindDevice(gen: number): Promise<void> {
     if (!device) return
+    if (retirementOwed) {
+      // The last neutralisation could not retire what was stored. It goes to the
+      // list now, or nothing is restored and nothing is created (Sol r3 F-10).
+      try {
+        await quarantineCurrent()
+      } catch {
+        report('push_device_quarantine_failed')
+        return
+      }
+      await drainRetirements()
+      if (gen !== generation) return
+    }
     let credential = await device.credentials.read()
     let token: IdentityToken | null = null
 

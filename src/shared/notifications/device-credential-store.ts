@@ -90,13 +90,23 @@ export function createDeviceCredentialStore(storage: DeviceCredentialStorage) {
 
     retiring,
 
-    /** Written to the retiring list first: a crash between the two leaves it in both, never in neither. */
-    async quarantine(credential: DeviceCredential): Promise<void> {
+    /**
+     * Written to the retiring list first: a crash between the two leaves it in
+     * both, never in neither. Resolves once the list names the credential; a
+     * failed removal of the active entry is reported in the result, not thrown,
+     * because the list is what decides (`read()` excludes it, `retired()` drops
+     * it) and the caller must know the quarantine holds (Sol r3 F-11).
+     */
+    async quarantine(credential: DeviceCredential): Promise<{ activeRemoved: boolean }> {
       const list = await retiring()
       if (!list.some(entry => entry.deviceId === credential.deviceId)) {
         await writeRetiring([...list, credential], list.length)
       }
-      await storage.remove(DEVICE_CREDENTIAL_KEY)
+      const activeRemoved = await storage.remove(DEVICE_CREDENTIAL_KEY).then(
+        () => true,
+        () => false,
+      )
+      return { activeRemoved }
     },
 
     /**

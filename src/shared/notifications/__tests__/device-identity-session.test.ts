@@ -57,7 +57,7 @@ function setup(options: {
   nativeExternalId?: string | null
   renew?: (credential: DeviceCredential) => Promise<DeviceRenewOutcome>
   submit?: () => Promise<DeviceReportOutcome>
-  retire?: () => Promise<DeviceRetireOutcome>
+  retire?: (timeoutMs?: number) => Promise<DeviceRetireOutcome>
   eligible?: () => Promise<boolean>
   confirmIdentity?: () => Promise<{ kind: string }>
   fetchToken?: () => Promise<{ kind: 'ok'; token: { externalId: string; token: string; expiresAt: string } } | { kind: 'error' }>
@@ -114,9 +114,9 @@ function setup(options: {
         }),
     ),
     retire: vi.fn(
-      async (credential: DeviceCredential): Promise<DeviceRetireOutcome> => {
+      async (credential: DeviceCredential, timeoutMs?: number): Promise<DeviceRetireOutcome> => {
         calls.push(`retire:${credential.deviceId}`)
-        return options.retire ? options.retire() : { kind: 'done' }
+        return options.retire ? options.retire(timeoutMs) : { kind: 'done' }
       },
     ),
   }
@@ -987,21 +987,39 @@ describe('Sol round 2 (GoGo-MobileApp#411)', () => {
     const t = setup({
       retiring: backlog,
       now: () => clock,
-      retire: async () => {
+      retire: async timeoutMs => {
+        // A DELETE given less than it needs times out; it does not finish late.
+        if (timeoutMs === undefined || timeoutMs < 1_500) return { kind: 'error' }
         clock += 1_500
         return { kind: 'done' }
       },
     })
     await t.session.apply(USER)
     await t.session.settled()
-    expect(t.api.retire).toHaveBeenCalledTimes(2)
-    expect((await t.credentials.retiring()).map(c => c.deviceId)).toEqual(['d3'])
+    // The second DELETE gets what is left of the 2 s, not a fresh 2 s (D2, Sol r3).
+    expect(t.api.retire.mock.calls.map(([, timeoutMs]) => timeoutMs)).toEqual([2_000, 500])
+    expect((await t.credentials.retiring()).map(c => c.deviceId)).toEqual(['d2', 'd3'])
     expect(t.session.boundUserId()).toBe('A')
-    expect(t.events).toContain('push_device_retire_deferred')
 
     await t.session.retryPending()
     await t.session.settled()
-    expect(await t.credentials.retiring()).toEqual([])
+    expect((await t.credentials.retiring()).map(c => c.deviceId)).toEqual(['d3'])
+  })
+
+  it('F-12: a pass that ran out of budget before the second DELETE says so', async () => {
+    let clock = 0
+    const t = setup({
+      retiring: [OLD, { deviceId: 'd2', deviceSecret: 's' }],
+      now: () => clock,
+      retire: async () => {
+        clock += 2_000
+        return { kind: 'done' }
+      },
+    })
+    await t.session.apply(USER)
+    await t.session.settled()
+    expect(t.api.retire).toHaveBeenCalledTimes(1)
+    expect(t.events).toContain('push_device_retire_deferred')
   })
 
   it('F-13 (F-05): a disclosure answered while a user is signed in resumes that user', async () => {
@@ -1028,5 +1046,66 @@ describe('Sol round 2 (GoGo-MobileApp#411)', () => {
     await t.session.setPromotions(true)
     await t.session.settled()
     expect(t.calls).toEqual(['login:A', 'optIn', 'reportUser'])
+  })
+})
+
+describe('Sol round 3 (GoGo-MobileApp#411)', () => {
+  it('F-10: a quarantine that failed is owed: a later acceptance retires the identity, never restores it', async () => {
+    const t = setup({ record: declined(), credential: OLD, nativeExternalId: 'device:old' })
+    let refusing = true
+    t.secure.get.mockImplementation(async (key: string) => {
+      if (refusing && key.startsWith('push.device.retiring')) throw new Error('keychain')
+      return t.secure.data.get(key) ?? null
+    })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.calls).toEqual(['optOut', 'logout'])
+
+    refusing = false
+    await t.session.answerDisclosure('accepted')
+    await t.session.settled()
+    expect(t.api.renew).not.toHaveBeenCalled()
+    // Version 2: the acceptance is a newer choice than the declined record's.
+    expect(t.calls).toEqual(['optOut', 'logout', 'retire:old', 'create', 'login:device:new', 'optIn', 'report:true:2'])
+    expect(await t.credentials.retiring()).toEqual([])
+    expect(await t.credentials.read()).toEqual(NEW)
+  })
+
+  it('F-10: while the owed quarantine keeps failing, nothing is created either', async () => {
+    const t = setup({ record: declined(), credential: OLD, nativeExternalId: 'device:old' })
+    t.secure.get.mockImplementation(async (key: string) => {
+      if (key.startsWith('push.device.retiring')) throw new Error('keychain')
+      return t.secure.data.get(key) ?? null
+    })
+    await t.session.apply(null)
+    await t.session.settled()
+    await t.session.answerDisclosure('accepted')
+    await t.session.settled()
+    expect(t.api.create).not.toHaveBeenCalled()
+    expect(t.api.renew).not.toHaveBeenCalled()
+    expect(t.secure.data.get('push.device')).toBe(JSON.stringify(OLD))
+  })
+
+  it('F-11 (F-01): a quarantine persisted but not cleaned up still marks the binding', async () => {
+    let rejectRemoval!: () => void
+    const t = setup({ record: accepted(), credential: OLD, retire: async () => ({ kind: 'error' }) })
+    await t.session.apply(null)
+    await t.session.settled()
+    expect(t.session.boundDeviceId()).toBe('old')
+    t.calls.length = 0
+    t.secure.remove.mockImplementationOnce(
+      () => new Promise<undefined>((_, reject) => (rejectRemoval = () => reject(new Error('keychain')))),
+    )
+
+    const signingIn = t.session.apply(USER)
+    await vi.waitFor(() => expect(JSON.parse(t.secure.data.get('push.device.retiring') ?? '[]')).toEqual([OLD]))
+    const signingOut = t.session.apply(null)
+    rejectRemoval()
+    await Promise.all([signingIn, signingOut])
+    await t.session.settled()
+
+    expect(t.calls).toEqual(['retire:old', 'retire:old', 'logout', 'create', 'login:device:new', 'optIn', 'report:true:1'])
+    expect(t.api.submit.mock.calls.map(([credential]) => credential.deviceId)).toEqual(['old', 'new'])
+    expect(await t.credentials.retiring()).toEqual([OLD])
   })
 })

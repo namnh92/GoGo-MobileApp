@@ -117,11 +117,15 @@ export async function reportDeviceSubscription(
   }
 }
 
-export async function retireDeviceIdentity(credential: DeviceCredential): Promise<DeviceRetireOutcome> {
+/**
+ * `budgetMs`: what is left of the caller's retirement pass (shape D2, ≤ 2 s for
+ * the pass, not per request). Never more than this route's own cap.
+ */
+export async function retireDeviceIdentity(credential: DeviceCredential, budgetMs?: number): Promise<DeviceRetireOutcome> {
   try {
     await api.delete<OpResponse<'retirePushDeviceIdentity'>>('/notifications/identity/device', undefined, {
       deviceCredential: header(credential),
-      timeoutMs: RETIRE_TIMEOUT_MS,
+      timeoutMs: Math.min(RETIRE_TIMEOUT_MS, Math.max(budgetMs ?? RETIRE_TIMEOUT_MS, 1)),
     })
     return { kind: 'done' }
   } catch (error) {
