@@ -12,6 +12,10 @@ const mockMutate = jest.fn()
 type Settings = { pushEnabled: boolean; source: string; updatedAt: string | null }
 let mockSettings: { data: Settings | undefined; isPending: boolean; isError: boolean; refetch: jest.Mock }
 let mockSave: { mutate: jest.Mock; isPending: boolean; isError: boolean; variables?: { pushEnabled: boolean } }
+jest.mock('@/features/settings/device-promotions.view', () => {
+  const { Text } = jest.requireActual('react-native')
+  return { DevicePromotionsSection: () => <Text>device-promotions-section</Text> }
+})
 jest.mock('@/shared/notifications/permission-bootstrap', () => ({ pushPermission: { status: () => mockStatus() } }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/api', () => ({

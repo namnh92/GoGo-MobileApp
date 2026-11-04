@@ -572,7 +572,7 @@ export interface paths {
         };
         /**
          * GoGo AI: is the assistant available to this account, and how much is left today
-         * @description GoGo-BE#713. **Planned — declared ahead of the module (contract-first); not served until the module PR lands.** Every `/assistant/*` operation carries `x-gogo-planned` until then and answers 404 on a deployed API.
+         * @description GoGo-BE#713. Served since 2.0.0-alpha.4 (ADR-0036: Jev decides, the backend executes and validates, Claude Haiku explains). Every `/assistant/*` operation answers only while the module is deployed; sends additionally need the kill switch on and the environment's limits and spend ceiling configured.
          *
          *     Lets the app decide what the entry point does before the user types: `disabled` means the kill switch is off (feature flag `assistant.enabled`) and the app shows its own "not available" state; `limit_reached` means the per-account daily message budget is spent until `resetsAt`. The server still enforces both on every send — this is a hint for the UI, never an authorization.
          *
@@ -2110,7 +2110,7 @@ export interface paths {
          *
          *     The subscription id is the provider's own — the same id `POST /notifications/identity/logout` takes — and is verified against the provider before anything is written: it must belong to the calling user and be enabled. A client cannot register someone else's device.
          *
-         *     Idempotent on `subscriptionId`: reporting again refreshes the record, and a device where a different account signs in moves to that account.
+         *     Idempotent on `subscriptionId`: reporting again refreshes the record, and a device where a different account signs in moves to that account. If the record changed while the provider was being asked, nothing is written and the answer is 409: report again, which verifies again (#746, ADR-0037).
          *
          *     Called after the client has confirmed identity binding and the OS permits notifications — never before, since an unconfirmed device is not reachable.
          */
@@ -2695,6 +2695,71 @@ export interface paths {
          * @description A **read**, asked while signing out: it disables nothing, deletes nothing, and never touches the OneSignal user. The client cannot answer this itself — it holds no provider credential, and the device SDK does not report the disabled flag that Identity Verification logout sets, so a logout that never reached the provider looks identical on the device to one that did. The only user read is the caller's own, taken from the session, so no field in the body can point this at another person's devices. `confirmed` is true when the given subscription is absent from the caller's user or present but not enabled. A client that gets `confirmed: false`, or an error, must not clear its session.
          */
         post: operations["confirmDeviceUnsubscribed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/identity/device": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a push identity to a device with no session (NTF-BE-017)
+         * @description No body and no session. Returns `externalId = device:<id>`, a provider JWT with the same claims a user's has (`iss`, `exp` ≤ 1 hour, `identity.external_id`), and a device credential whose secret is returned **once** and stored only as a hash. The JWT is for the provider SDK; GoGo's API never accepts it. A device identity receives `public` campaigns and nothing else, and holds nothing about an account.
+         *
+         *     Limited per IP like a login, and by a ceiling on new identities in any 24 hours across all callers. Off by default per environment (`push.device_identity.enabled`, ADR-0038).
+         */
+        post: operations["createPushDeviceIdentity"];
+        /**
+         * Retire this device identity (NTF-BE-017)
+         * @description Revokes the identity and every subscription row it owns in one transaction, and queues provider cleanup. Works with the flag off: this is how a device leaves. Retry until 2xx or `PUSH_DEVICE_IDENTITY_GONE`.
+         */
+        delete: operations["retirePushDeviceIdentity"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/identity/device/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew the provider JWT of a device identity (NTF-BE-017) */
+        post: operations["renewPushDeviceToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/device-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record this device's subscription and promotions choice (NTF-BE-017)
+         * @description Verified against the provider before anything is written: the subscription must be attached to this device identity, and enabled when `promotionsEnabled` is true. An opt-out is accepted for a disabled subscription.
+         *
+         *     A higher `preferenceVersion` applies; the same version replays the stored choice and reports the provider afresh; a lower one answers 409. Clear a pending change only when `appliedVersion` equals it. An opt-out has reached the provider only when a response for the current version shows `providerEnabled: false`.
+         */
+        put: operations["reportPushDeviceSubscription"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4174,6 +4239,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/campaigns/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops: which audiences this environment can actually reach (NTF-BE-017)
+         * @description Hide `public` when `publicAudience` is false.
+         */
+        get: operations["cmsGetCampaignCapabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cms/campaigns/{id}": {
         parameters: {
             query?: never;
@@ -4758,7 +4843,7 @@ export interface paths {
         };
         /**
          * Content: the "GoGo guide" source documents GoGo AI answers from (cursor)
-         * @description GoGo-BE#713, GoGo-CMS#249. **Planned — declared ahead of the module; not served until the module PR lands.**
+         * @description GoGo-BE#713, GoGo-CMS#249. Served since 2.0.0-alpha.4.
          *
          *     The assistant answers product questions only from **published** versions of these documents, and cites them by `title` and `description` — so those strings are what the app shows in `SourceList`, never something the model wrote. Owner decision on GoGo-MobileApp#377 (2026-10-26): the source set lives in the CMS, with versions, publish / unpublish and audit.
          *
@@ -4816,7 +4901,9 @@ export interface paths {
          * Content: publish a version — the assistant answers from it from now on
          * @description `ops_admin` only: publishing changes what GoGo AI tells every user, a release decision rather than an edit, so it does not sit with the role that wrote the draft (the same split as safety rules and campaigns).
          *
-         *     `versionId` is the open draft, or an earlier version to roll back to. The previously published version becomes `superseded`; exactly one version per document is `published` at a time. Takes effect for new replies; a reply already streaming keeps the version it started with. Audited (`assistant_document.published`) with the version id and `reason`.
+         *     `versionId` is the open draft, or an earlier version to roll back to. The previously published version becomes `superseded`; exactly one version per document is `published` at a time. Takes effect for new replies; a reply already streaming keeps the version it started with. Audited (`assistant_document.published`) with the version id, its revision, `bodySha256` and `reason`.
+         *
+         *     `revision` (GoGo-BE#736) is the revision of `versionId` the publisher reviewed. When sent and the version has moved on — the draft was edited after review — the publish is `409 REVISION_CONFLICT` with a `field_errors` entry on `revision`, so what goes live is what was read. Consoles send it; it is optional only so an older client keeps working.
          */
         post: operations["cmsPublishAssistantDocument"];
         delete?: never;
@@ -4874,6 +4961,26 @@ export interface paths {
         };
         /** Content: one version in full (preview, diff, rollback) */
         get: operations["cmsGetAssistantDocumentVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/assistant/guide-coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Content: which published guide sections a question retrieves
+         * @description GoGo-BE#736 / GoGo-CMS#266. Runs `question` through the same retrieval an assistant turn uses — published versions only, the caller's `locale` first, at most 3 sections — and says why nothing was found: `no_published` (no document is live: a content gap) or `no_match` (documents are live, none answers this wording: a coverage or retrieval gap). `editor` / `ops_admin`; reads follow the hierarchical rule. Read-only; the question is not stored or audited.
+         */
+        get: operations["cmsCheckAssistantGuideCoverage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5316,6 +5423,30 @@ export interface paths {
          *     `ops_admin` and above.
          */
         get: operations["cmsOpsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/ops/config-readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops: which variables this process holds, joined with the deploy readiness snapshot
+         * @description GoGo-BE#727 (OPS-BE-002; GoGo-Infra#309 D-9). Facts only, never a value: for every variable the answer is a boolean — never the value, a prefix, a length or a hash. `process` lists every key of the API's env schema, derived from it; `process_dynamic` the export keyring's open-ended `EXPORT_WRAPPING_KEY_V<n>`, the one loader outside the schema.
+         *
+         *     `infra` is the readiness projection the deploy left beside its env file (GoGo-Infra `ops/secrets-readiness.deploy.json`): a dated snapshot of one deploy, labelled `deploy_snapshot`. Its verdicts are copied, never recomputed here; `deploy_match` says whether it describes the env file this process was started with, and a mismatch is a warning, never readiness. It proves neither the current SSM state nor that a credential works. Nothing here calls AWS.
+         *
+         *     `ops_admin` and above.
+         */
+        get: operations["cmsOpsConfigReadiness"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6369,6 +6500,92 @@ export interface components {
             oldestPendingSeconds?: number | null;
             /** @description Connected consumers. Null when the backend does not report it — null and 0 are different facts, and zero on a queue with work is the alarm. */
             workers?: number | null;
+        };
+        CmsConfigVariable: {
+            /** @example OPENROUTER_ASSISTANT_API_KEY */
+            name: string;
+            /** @description Set and not blank in the raw process environment — presence, not validity. */
+            present: boolean;
+            /** @description The env schema lets it be absent (optional or defaulted). */
+            optional: boolean;
+            /** @description Its requirement is decided by a cross-field rule at boot, not by the field. */
+            conditional: boolean;
+        };
+        CmsConfigInfraRow: {
+            /** @example /gogo/dev/backend/openrouter/assistant-api-key */
+            path: string;
+            env_var: string | null;
+            /** @description required, optional, planned or parked, from the manifest. */
+            lifecycle: string;
+            /**
+             * @description In SSM at deploy time.
+             * @enum {string}
+             */
+            presence: "present" | "absent" | "unknown";
+            findings: string[];
+            verdict: components["schemas"]["CmsReadinessVerdict"];
+            capabilities: string[];
+            /**
+             * @description `api` when the API process reads the variable; `host` for the deploy host's own variables in the same env file (DOMAIN, ACME_EMAIL, TUNNEL_TOKEN …), which never get a process column.
+             * @enum {string}
+             */
+            applicable: "api" | "host";
+            /** @description Whether this process holds it; `null` for a host row. */
+            process_present: boolean | null;
+        };
+        /** @enum {string} */
+        CmsReadinessVerdict: "OK" | "FAIL" | "UNKNOWN";
+        CmsConfigInfra: {
+            /** @enum {string} */
+            label: "deploy_snapshot";
+            /** @enum {integer} */
+            schema_version: 1;
+            /** @example dev */
+            env: string;
+            /** Format: date-time */
+            generated_at: string;
+            manifest_sha: string | null;
+            /** @description `<release commit>-<run id>-<run attempt>`. */
+            deploy_id: string;
+            release_sha: string;
+            run_id: string;
+            run_attempt: string;
+            /** @description This process's APP_DEPLOY_ID, an identifier (not a secret); null when unset. */
+            process_deploy_id: string | null;
+            /** @description The snapshot describes the env file this process was started with. Show false as a warning. */
+            deploy_match: boolean;
+            rows: components["schemas"]["CmsConfigInfraRow"][];
+        };
+        CmsConfigCapability: {
+            /** @example public_catalogue_uploads */
+            name: string;
+            /** @enum {string} */
+            status: "enabled" | "planned";
+            ssm_verdict: components["schemas"]["CmsReadinessVerdict"];
+            /** @description Copied from the snapshot (verdict OK); never recomputed here. */
+            ssm_ready: boolean;
+            ssm_missing: string[];
+            /** @description A count of its rows stored in SSM — shown as a count, never as readiness. */
+            ssm_present: {
+                present: number;
+                total: number;
+            };
+            /** @description Every api-applicable row is present in this process; null when it has none. */
+            process_ready: boolean | null;
+            process_missing: string[];
+            /** @description Host rows, left out of process_ready. */
+            excluded_from_process: string[];
+        };
+        CmsConfigReadiness: {
+            process: components["schemas"]["CmsConfigVariable"][];
+            process_dynamic: components["schemas"]["CmsConfigVariable"][];
+            infra: components["schemas"]["CmsConfigInfra"] | null;
+            /**
+             * @description Why `infra` is null; null when it is not.
+             * @enum {string|null}
+             */
+            reason: "not_configured" | "missing" | "unreadable" | "invalid" | "unknown_schema" | null;
+            capabilities: components["schemas"]["CmsConfigCapability"][];
         };
         CmsOpsEnvelope: {
             /**
@@ -9128,10 +9345,10 @@ export interface components {
          */
         CampaignStatus: "draft" | "scheduled" | "sending" | "sent" | "cancelled" | "failed";
         /**
-         * @description Only what the backend can resolve from data it holds. `city`, `app_version` and `custom_segment` from the mockup are absent on purpose: nothing stores a user's city or their app version, and a campaign aimed at a segment the server has to guess at reaches the wrong people — the one failure with no undo.
+         * @description `public` is `all` plus devices with no account that said yes (#747); ask `GET /cms/campaigns/capabilities` before offering it. Only what the backend can resolve from data it holds. `city`, `app_version` and `custom_segment` from the mockup are absent on purpose: nothing stores a user's city or their app version, and a campaign aimed at a segment the server has to guess at reaches the wrong people — the one failure with no undo.
          * @enum {string}
          */
-        CampaignAudience: "all" | "couple" | "group" | "platform";
+        CampaignAudience: "all" | "couple" | "group" | "platform" | "public";
         /**
          * @description `plan_template` rather than `plan`: a campaign points every recipient at the same thing, and a plan belongs to one room.
          * @enum {string}
@@ -9172,6 +9389,10 @@ export interface components {
             /** @description How many the provider accepted. Not "seen", and not a guarantee of delivery to a device. */
             sentCount: number;
             failedCount: number;
+            /** @description The device half of a `public` send. Absent when no device half ran. */
+            deviceRecipientCount?: number;
+            deviceSentCount?: number;
+            deviceFailedCount?: number;
             lastError?: string;
             /** Format: date-time */
             testSendRequestedAt?: string;
@@ -9189,12 +9410,37 @@ export interface components {
             nextCursor: string | null;
             totalCount: number;
         };
+        CmsCampaignCapabilities: {
+            /** @description Whether the `public` audience reaches devices in this environment. */
+            publicAudience: boolean;
+        };
+        PushDeviceIdentity: {
+            /** Format: uuid */
+            deviceId: string;
+            /** @description Returned once. Never logged. */
+            deviceSecret: string;
+            /** @description `device:<deviceId>`. */
+            externalId: string;
+            /** @description ES256 JWT for the provider SDK. Never logged. */
+            token: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        PushDeviceSubscriptionResult: {
+            appliedVersion: number;
+            storedVersion: number;
+            /** @description What the provider read in this request showed. */
+            providerEnabled: boolean;
+        };
         CmsCampaignAudienceEstimate: {
             /** Format: uuid */
             campaignId: string;
             audienceType: components["schemas"]["CampaignAudience"];
-            /** @description Accounts with a registered device that match right now. */
+            /** @description Accounts plus devices that match right now. */
             estimatedRecipients: number;
+            estimatedAccounts: number;
+            /** @description Zero unless the audience is `public` and device identities are on. */
+            estimatedDevices: number;
             /** Format: date-time */
             estimatedAt: string;
         };
@@ -9943,7 +10189,7 @@ export interface components {
             /** Format: date-time */
             exportedAt?: string;
             /**
-             * @description 2.0.0-alpha.3 (GoGo-BE#713, owner-delegated SA decision Q2). The account's retained GoGo AI conversations (90-day retention, so only what still exists). **Absent until the assistant module lands** — the collector populates it then; a client must treat absent and `[]` alike.
+             * @description 2.0.0-alpha.3 (GoGo-BE#713, owner-delegated SA decision Q2). The account's retained GoGo AI conversations (90-day retention, so only what still exists). Populated since 2.0.0-alpha.4, when the module landed; a client must still treat absent and `[]` alike.
              *
              *     Included: conversation titles, each message's role, text, timestamps and terminal status, and the account's own feedback on assistant replies. Excluded: internal prompts and system instructions, retrieval internals (guide sections and versions retrieved, scores, model identifiers), upload keys, and card / proposal internals. **Attachments are excluded pending explicit owner approval** of their portability scope — neither the images nor their metadata are exported in this version.
              */
@@ -10172,6 +10418,30 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** @description GoGo-BE#736 — what an assistant turn would retrieve for a question. */
+        CmsAssistantGuideCoverage: {
+            /**
+             * @description `hit` — at least one section; `no_match` — documents are live but none answers this wording; `no_published` — no document is live.
+             * @enum {string}
+             */
+            outcome: "hit" | "no_match" | "no_published";
+            /** @description The folded search terms the question was reduced to (stopwords dropped). */
+            terms: string[];
+            /** @description Best first, as a reply would cite them. */
+            sections: {
+                /** Format: uuid */
+                documentId: string;
+                /** Format: uuid */
+                versionId: string;
+                slug: string;
+                title: string;
+                /** @description The markdown heading the section sits under; null before the first one. */
+                heading: string | null;
+                excerpt: string;
+                /** @description Term-overlap score; only comparable within one response. */
+                score: number;
+            }[];
         };
         CmsAssistantDocumentDetail: {
             document: components["schemas"]["CmsAssistantDocument"];
@@ -14128,6 +14398,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description PUSH_SUBSCRIPTION_CONFLICT — the record of this subscription changed while the provider was being asked, so the answer may be stale and nothing was written. Retryable: reporting again verifies again. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description PUSH_SUBSCRIPTION_UNVERIFIED — the provider could not be reached, so the claim was not written. Retryable. */
             503: {
                 headers: {
@@ -15097,6 +15374,208 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             429: components["responses"]["RateLimited"];
             /** @description No identity signing key (`PUSH_IDENTITY_UNAVAILABLE`), or the provider could not be reached (`PUSH_UNSUBSCRIBE_UNCONFIRMED`, `retryable: true`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createPushDeviceIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created. Keep `deviceSecret`; it cannot be read again. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceIdentity"];
+                };
+            };
+            /** @description PUSH_DEVICE_IDENTITY_DISABLED — the flag is off. Do not recreate until the next launch. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description No identity signing key in this environment (`PUSH_IDENTITY_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    retirePushDeviceIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retired */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description DEVICE_CREDENTIAL_REQUIRED — no well-formed credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description PUSH_DEVICE_IDENTITY_GONE — unknown, retired or wrong secret; one answer for all three. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    renewPushDeviceToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A new JWT */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushIdentityToken"];
+                };
+            };
+            /** @description DEVICE_CREDENTIAL_REQUIRED — no well-formed credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `PUSH_DEVICE_IDENTITY_GONE` (unknown, retired or wrong secret: discard and create anew) or `PUSH_DEVICE_IDENTITY_DISABLED` (flag off: discard, and do not recreate until the next launch). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description No identity signing key in this environment (`PUSH_IDENTITY_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    reportPushDeviceSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    platform: "ios" | "android" | "web";
+                    /** @description OneSignal subscription id for this device. Not a device token. */
+                    subscriptionId: string;
+                    promotionsEnabled: boolean;
+                    preferenceVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded, or an idempotent replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceSubscriptionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description DEVICE_CREDENTIAL_REQUIRED — no well-formed credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description PUSH_SUBSCRIPTION_NOT_CONFIRMED — not attached to this device, or disabled on an opt-in. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description PUSH_DEVICE_IDENTITY_GONE or PUSH_DEVICE_IDENTITY_DISABLED, as on the token route. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `PUSH_PREFERENCE_STALE` — a newer choice is stored, its version in `field_errors[0].message`; adopt that version plus one for the next change. `PUSH_SUBSCRIPTION_CONFLICT` — the record changed during verification; nothing was written, report again. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description PUSH_SUBSCRIPTION_UNVERIFIED — the provider could not be reached. Retryable. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -17262,6 +17741,7 @@ export interface operations {
                     /** @enum {string} */
                     kind: "mood" | "category" | "setting" | "dietary" | "accessibility" | "spending_style" | "suitability" | "checkin_tag";
                     key: string;
+                    /** @description Locale → label. Each label is one line of plain text (GoGo-BE#737). The pattern states the characters a label may contain as sent: letters, combining marks, digits, space separators and ' " ‘ ’ “ ” ( ) & + , . / - – —. The server then normalises it (NFC, every space separator to one ASCII space, runs collapsed, leading and trailing spaces removed) and requires 1–80 code points after normalisation. A label outside the rule is refused (400), never stripped or truncated. */
                     labels: {
                         [key: string]: string;
                     };
@@ -17291,6 +17771,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description Locale → label. Each label is one line of plain text (GoGo-BE#737). The pattern states the characters a label may contain as sent: letters, combining marks, digits, space separators and ' " ‘ ’ “ ” ( ) & + , . / - – —. The server then normalises it (NFC, every space separator to one ASCII space, runs collapsed, leading and trailing spaces removed) and requires 1–80 code points after normalisation. A label outside the rule is refused (400), never stripped or truncated. */
                     labels?: {
                         [key: string]: string;
                     };
@@ -18300,6 +18781,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cmsGetCampaignCapabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Capabilities */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsCampaignCapabilities"];
                 };
             };
         };
@@ -19486,6 +19987,8 @@ export interface operations {
                 "application/json": {
                     /** Format: uuid */
                     versionId: string;
+                    /** @description The revision of `versionId` that was reviewed (GoGo-BE#736). */
+                    revision?: number;
                     reason?: string;
                 };
             };
@@ -19512,7 +20015,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `VERSION_ALREADY_PUBLISHED`. */
+            /** @description `VERSION_ALREADY_PUBLISHED`, or `REVISION_CONFLICT` — `revision` is not the version's current revision. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19616,6 +20119,32 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    cmsCheckAssistantGuideCoverage: {
+        parameters: {
+            query: {
+                question: string;
+                locale?: "vi" | "en";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The retrieval result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantGuideCoverage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     cmsListAssistantFeedback: {
@@ -20347,6 +20876,28 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    cmsOpsConfigReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Always 200. A projection that is not configured, missing, unreadable, malformed or of an unknown schema is `infra: null` with `reason`; `process` is complete either way. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsConfigReadiness"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     cmsOpsProviders: {

@@ -14,6 +14,7 @@ import {
 import { SessionProvider } from './session-provider'
 import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
 import { initializePushSdk } from '@/shared/notifications/bootstrap'
+import { devicePromotionsStore } from '@/shared/notifications/device-promotions-store'
 import { initializePushIdentity } from '@/shared/notifications/identity-bootstrap'
 import { retryInitialization } from '@/shared/notifications/initialize'
 import { startNotificationClicks } from '@/shared/notifications/notification-clicks-bootstrap'
@@ -39,6 +40,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     void SplashScreen.hideAsync().catch(() => {}).finally(markSplashHidden)
   }, [accentReady])
   useEffect(() => {
+    void devicePromotionsStore.load()
     let cancelled = false
     let stopClicks: (() => void) | undefined
     let stopIdentity: (() => void) | undefined

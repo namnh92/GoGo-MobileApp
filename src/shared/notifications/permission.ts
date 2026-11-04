@@ -19,15 +19,15 @@
  *   - **`fallbackToSettings` is a decision, not a default.** Sending someone to
  *     the OS settings screen unasked is hostile. The caller says whether this
  *     moment justifies it;
- *   - **granted ≠ subscribed.** OneSignal only counts a device as messageable
- *     once the subscription is opted in. Permission and opt-in are two facts
- *     and this returns both, because "granted but not messageable" is exactly
- *     the state a device sits in otherwise — measured on DEV, where an
- *     adb-granted permission left `messageable_players` at 0.
+ *   - **granted ≠ subscribed, and opting in is not this file's call.** OneSignal
+ *     only counts a device as messageable once the subscription is opted in, but
+ *     the identity coordinator owns that mutation (#398, D3): an opt-in from here
+ *     lands on whichever identity the SDK holds when the prompt closes, including
+ *     one that is being retired. A caller runs the coordinator after asking.
  */
 
 export type PermissionOutcome =
-  /** The prompt was shown and accepted, and the subscription is opted in. */
+  /** The prompt was shown and accepted. */
   | { kind: 'granted' }
   /** Shown and declined. Do not ask again; the OS prompt is spent. */
   | { kind: 'denied' }
@@ -48,13 +48,19 @@ export interface PushPermissionSdk {
   hasPermission(): Promise<boolean>
   canRequestPermission(): Promise<boolean>
   requestPermission(fallbackToSettings: boolean): Promise<boolean>
-  optIn(): void
 }
 
 export type PushPermissionDeps = {
   sdk: PushPermissionSdk
   /** Reason codes only — never a user id, never a token. */
   report?: (event: string) => void
+  /**
+   * Called once the OS has just permitted notifications. The identity coordinator
+   * owns the opt-in (#398 D3), and it may have checked eligibility before this
+   * prompt was answered; resuming it is how the grant turns into a subscription
+   * on whichever identity is current. Not called when nothing changed.
+   */
+  resume?: () => void
 }
 
 export function createPushPermission(deps: PushPermissionDeps) {
@@ -78,10 +84,6 @@ export function createPushPermission(deps: PushPermissionDeps) {
     async request(options: { fallbackToSettings?: boolean } = {}): Promise<PermissionOutcome> {
       try {
         if (await deps.sdk.hasPermission()) {
-          // Opt in anyway: a device can hold the OS permission and still be
-          // opted out of the provider, which is the state that produces
-          // "granted but nothing arrives".
-          deps.sdk.optIn()
           report('push_permission_already_granted')
           return { kind: 'already_granted' }
         }
@@ -97,10 +99,8 @@ export function createPushPermission(deps: PushPermissionDeps) {
           return { kind: 'denied' }
         }
 
-        // Granted is not subscribed. Opt-in is what makes the device
-        // messageable, and it is the step whose absence is invisible.
-        deps.sdk.optIn()
         report('push_permission_granted')
+        deps.resume?.()
         return { kind: 'granted' }
       } catch {
         report('push_permission_unavailable')

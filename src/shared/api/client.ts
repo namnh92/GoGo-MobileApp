@@ -25,6 +25,11 @@ export interface RequestOptions {
   body?: unknown
   /** Skip the Authorization header (login, register, guest join, refresh). */
   anonymous?: boolean
+  /**
+   * `<deviceId>.<deviceSecret>` for the device routes (ADR-0038). Replaces the
+   * session bearer and never enters the refresh path: a 401 here is a client bug.
+   */
+  deviceCredential?: string
   /** Sent as `Idempotency-Key` — required for retryable mutations (RULE-API-004). */
   idempotencyKey?: string
   timeoutMs?: number
@@ -192,7 +197,8 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
 
   const headers: Record<string, string> = { accept: 'application/json' }
   if (options.body !== undefined) headers['content-type'] = 'application/json'
-  if (accessToken) headers.authorization = `Bearer ${accessToken}`
+  if (options.deviceCredential) headers.authorization = `Device ${options.deviceCredential}`
+  else if (accessToken) headers.authorization = `Bearer ${accessToken}`
   if (options.idempotencyKey) headers['idempotency-key'] = options.idempotencyKey
 
   try {
@@ -236,7 +242,7 @@ export async function currentAccessGrant(
 export async function request<T>(options: RequestOptions): Promise<T> {
   let accessToken: string | null = null
 
-  if (!options.anonymous) {
+  if (!options.anonymous && !options.deviceCredential) {
     let session = getSession() ?? (await hydrateSession())
     if (session && isAccessTokenExpired(session)) {
       session = await refreshSession()

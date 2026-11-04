@@ -127,3 +127,30 @@ export function createIdentityConfirmation(deps: ConfirmationDeps) {
     }
   }
 }
+
+/**
+ * #398 — waits for the SDK to finish a login, wanted or not, so the next
+ * transition does not start on top of it (M-3, shape §8.1). Unlike `confirm`, it
+ * looks past the identity the SDK held before: reading that id means the login is
+ * still on its way, not that someone else owns the device. Bounded, and it never
+ * throws: a queue must not stall on a login the provider refused.
+ */
+export function createLoginSettlement(deps: Pick<ConfirmationDeps, 'reader' | 'timeoutMs' | 'pollIntervalMs'>) {
+  const timeout = deps.timeoutMs ?? CONFIRM_TIMEOUT_MS
+  const interval = deps.pollIntervalMs ?? CONFIRM_POLL_MS
+
+  return async function settled(externalId: string): Promise<void> {
+    const deadline = Date.now() + timeout
+    for (;;) {
+      try {
+        const seenExternal = await deps.reader.getExternalId()
+        const seenOnesignal = await deps.reader.getOnesignalId()
+        if (seenExternal === externalId && isServerIssued(seenOnesignal)) return
+      } catch {
+        return
+      }
+      if (Date.now() >= deadline) return
+      await new Promise(resolve => setTimeout(resolve, interval))
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { AppState, Platform } from 'react-native'
 import { OneSignal } from 'react-native-onesignal'
 
 import { registerPushSubscription } from '@/shared/api/endpoints/me'
-import { subscribeToSession, getSession } from '@/shared/api/session'
+import { subscribeToSession, getSession, hydrateSession } from '@/shared/api/session'
 
 import {
   loginWithToken,
@@ -11,9 +11,18 @@ import {
   onJwtExpired,
   respondToJwtExpired,
 } from '../../../modules/onesignal-identity'
+import { createDeviceCredentialStore, secureDeviceCredentialStorage } from './device-credential-store'
+import {
+  createDeviceIdentity,
+  renewDeviceToken,
+  reportDeviceSubscription,
+  retireDeviceIdentity,
+} from './device-identity-api'
+import { devicePromotionsStore } from './device-promotions-store'
 import { fetchIdentityToken } from './identity-api'
-import { createIdentityConfirmation } from './identity-confirmation'
+import { createIdentityConfirmation, createLoginSettlement } from './identity-confirmation'
 import { createIdentitySession } from './identity-session'
+import { unsubscribeCurrentDeviceAndConfirm } from './logout-confirmation-bootstrap'
 
 /**
  * NTF-APP-004 (#51) — the wiring, kept thin on purpose.
@@ -24,7 +33,14 @@ import { createIdentitySession } from './identity-session'
  */
 const report = (event: string) => console.warn(event)
 
-const identity = createIdentitySession({
+const readIdentity = {
+  getExternalId: () => OneSignal.User.getExternalId(),
+  getOnesignalId: () => OneSignal.User.getOnesignalId(),
+}
+
+const pushPlatform = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null
+
+export const pushIdentity = createIdentitySession({
   native: { loginWithToken, loginWithoutToken, logout, respondToJwtExpired, onJwtExpired },
   fetchToken: fetchIdentityToken,
   report,
@@ -32,13 +48,13 @@ const identity = createIdentitySession({
   // NTF-APP-004 (#161). `login()` returning is not the provider accepting it:
   // under Identity Verification a refused JWT leaves a `local-` id behind and
   // looks like success. Read both values, as OneSignal's own guidance says.
-  confirmIdentity: createIdentityConfirmation({
-    reader: {
-      getExternalId: () => OneSignal.User.getExternalId(),
-      getOnesignalId: () => OneSignal.User.getOnesignalId(),
-    },
-    report,
-  }),
+  confirmIdentity: createIdentityConfirmation({ reader: readIdentity, report }),
+
+  // Bounded by the same 15 s. Whether or not this login is still wanted, the next
+  // transition waits for the SDK to finish it (M-3, shape §8.1).
+  settleNative: createLoginSettlement({ reader: readIdentity }),
+
+  confirmSignOut: unsubscribeCurrentDeviceAndConfirm,
 
   /**
    * What the OS already permits — never what we could ask it for.
@@ -78,12 +94,27 @@ const identity = createIdentitySession({
       report('push_subscription_id_missing')
       return
     }
-    const platform = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null
-    if (!platform) {
+    if (!pushPlatform) {
       report('push_subscription_platform_unsupported')
       return
     }
-    await registerPushSubscription({ platform, subscriptionId })
+    await registerPushSubscription({ platform: pushPlatform, subscriptionId })
+  },
+
+  /** NTF-APP-011 (#398): a device with no user session. Every decision is in the session. */
+  device: {
+    credentials: createDeviceCredentialStore(secureDeviceCredentialStorage),
+    promotions: devicePromotionsStore,
+    create: createDeviceIdentity,
+    renew: renewDeviceToken,
+    submit: reportDeviceSubscription,
+    retire: retireDeviceIdentity,
+    optOut: () => {
+      OneSignal.User.pushSubscription.optOut()
+    },
+    getSubscriptionId: () => OneSignal.User.pushSubscription.getIdAsync(),
+    getNativeExternalId: () => OneSignal.User.getExternalId(),
+    platform: pushPlatform,
   },
   // Identity is verified or it does not happen. An environment with no signing
   // key leaves the device unbound, which is honest; an unverified login would
@@ -92,11 +123,11 @@ const identity = createIdentitySession({
 })
 
 export function initializePushIdentity(): () => void {
-  identity.start()
+  pushIdentity.start()
   // Apply once for a session that hydrated before this ran, then follow.
-  void identity.apply(getSession())
+  void hydrateSession().finally(() => void pushIdentity.apply(getSession()))
   const unsubscribe = subscribeToSession((session) => {
-    void identity.apply(session)
+    void pushIdentity.apply(session)
   })
 
   // Coming back to the foreground is the retry moment. If the token was being
@@ -105,12 +136,15 @@ export function initializePushIdentity(): () => void {
   // stay unbound until the next login. Rare enough that it cannot rebuild the
   // loop the budget exists to stop.
   const appState = AppState.addEventListener('change', (status) => {
-    if (status === 'active') identity.resetRefreshBudget()
+    if (status === 'active') {
+      pushIdentity.resetRefreshBudget()
+      void pushIdentity.retryPending()
+    }
   })
 
   return () => {
     unsubscribe()
     appState.remove()
-    identity.stop()
+    pushIdentity.stop()
   }
 }

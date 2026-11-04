@@ -6,6 +6,10 @@ import { renderScreen } from './harness'
  */
 
 const mockSession = { status: 'user' as string }
+jest.mock('@/features/settings/device-promotions.view', () => {
+  const { Text } = jest.requireActual('react-native')
+  return { DevicePromotionsSection: () => <Text>device-promotions-section</Text> }
+})
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => mockSession }))
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
@@ -43,6 +47,7 @@ it('shows both sections under their own headers for a signed-in account', async 
   expect(view.getByText('Quyền và dữ liệu')).toBeTruthy()
   expect(view.getAllByRole('header').map(header => header.props.children)).toEqual(['Thông báo', 'Vị trí', 'Đo lượt cài đặt'])
   expect(view.getByText('notification-section')).toBeTruthy()
+  expect(view.queryByText('device-promotions-section')).toBeNull()
   expect(view.getByText('location-section')).toBeTruthy()
   expect(view.getByText('tracking-section')).toBeTruthy()
 })
@@ -51,6 +56,7 @@ it('keeps location for a signed-out person and offers sign-in only for the accou
   mockSession.status = 'anonymous'
   const view = await renderScreen(<PermissionsSettingsScreen />)
   expect(view.queryByText('notification-section')).toBeNull()
+  expect(view.getByText('device-promotions-section')).toBeTruthy()
   expect(view.getByText('Đăng nhập')).toBeTruthy()
   expect(view.getByText('location-section')).toBeTruthy()
 })

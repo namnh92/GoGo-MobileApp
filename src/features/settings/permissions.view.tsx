@@ -9,6 +9,7 @@ import { Atmosphere, BackHeader, Card, GhostBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
+import { DevicePromotionsSection } from './device-promotions.view'
 import { LocationPermissionSection } from './location-permission.view'
 import { styles } from './permissions.style'
 import { TrackingConsentSection } from './tracking-consent.view'
@@ -21,7 +22,8 @@ import { TrackingConsentSection } from './tracking-consent.view'
  *
  * The location half needs no account: it is this device's permission. The
  * notification switch belongs to an account, so a signed-out person is offered
- * sign-in for that half only. Install measurement is this device's too.
+ * sign-in for that half only, next to this device's promotions switch (#398).
+ * Install measurement is this device's too.
  */
 export default function PermissionsSettingsScreen() {
   const { t } = useTranslation()
@@ -41,10 +43,13 @@ export default function PermissionsSettingsScreen() {
         {status === 'user' ? (
           <NotificationSwitchSection />
         ) : (
-          <Card padded={false} style={styles.signInCard}>
-            <Text>{t('notifications.signInBody')}</Text>
-            <GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />
-          </Card>
+          <>
+            <DevicePromotionsSection />
+            <Card padded={false} style={styles.signInCard}>
+              <Text>{t('notifications.signInBody')}</Text>
+              <GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />
+            </Card>
+          </>
         )}
 
         <Text variant="title2" accessibilityRole="header" style={styles.sectionTitle}>
