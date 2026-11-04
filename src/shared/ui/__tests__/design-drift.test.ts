@@ -96,7 +96,6 @@ describe('i18n copy is sentence case (#382)', () => {
 const GLASS_FX_ALLOWED: Record<string, string[]> = {
   // Over a photo.
   'features/date-plan/place-detail.style.tsx': ['badge', 'solid'],
-  'features/matching/swipe.style.tsx': ['borderBright', 'solid'],
   // A fixed bottom bar.
   'features/date-plan/date-plan.style.tsx': ['bar'],
 }
