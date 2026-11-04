@@ -185,7 +185,7 @@ describe('host invite after reopen (#199)', () => {
     const code = await screen.findByTestId('invite-code')
     expect(code).toHaveTextContent(CODE, { exact: true })
     expect(code.props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.6, selectable: true })
-    expect(StyleSheet.flatten(code.props.style)).toMatchObject({ ...type.body, letterSpacing: 0.5 })
+    expect(StyleSheet.flatten(code.props.style)).toMatchObject({ ...type.title1, letterSpacing: 0.5 })
     await finish()
   })
 
