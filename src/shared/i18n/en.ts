@@ -122,6 +122,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'account.dobBody': 'Optional. Only you can see it; other members never do.',
   'account.dobUnset': 'No date of birth set',
   'account.dobCurrent': 'Saved: {{date}}',
+  'account.dobDate': '{{monthName}} {{day}}, {{year}}',
   'account.dobInputLabel': 'Date of birth (day/month/year)',
   'account.dobFormat': 'Enter day/month/year, for example 17/05/1990.',
   'account.dobPlaceholder': '17/05/1990',
@@ -1157,4 +1158,5 @@ export const enContent: LocaleContent = {
   searchFilters: ['All', 'Food', 'Coffee', 'Activities', 'Nightlife', 'Stay'],
   suitedOptions: ['Couples', 'Groups'],
   matchingMessages: ['Finding what you all like…', 'Assembling the itinerary…', 'Matched'],
+  monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 }

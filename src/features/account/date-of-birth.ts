@@ -4,6 +4,8 @@
  * in the app, and is never handed to `new Date(iso)`: that parses as UTC
  * midnight, and a formatter west of UTC then shows the day before.
  */
+import i18n, { localeContent, resolveLocale } from '@/shared/i18n'
+
 export type CalendarDate = { year: number; month: number; day: number }
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -75,17 +77,22 @@ export function checkTypedDateOfBirth(text: string, now: Date = new Date()): Dat
 }
 
 /**
- * `17 tháng 5, 1990` / `May 17, 1990`. The formatter reads the date's own
- * parts in UTC, so no device time zone can move it by a day.
+ * `17 tháng 5, 1990` / `May 17, 1990`, composed from the date's own calendar
+ * parts through the `account.dobDate` template and the locale's month names.
+ * Not `Intl.DateTimeFormat`: its punctuation follows the CLDR release of
+ * whatever ICU runs it, and CLDR 49 (ICU 79, Node 26) dropped the comma from
+ * the Vietnamese pattern that CLDR 48 still had (#410). Hermes takes Intl from
+ * the phone's OS, so the same account would read differently across devices.
+ * No `Date` is built either, so no device time zone can move the day.
  */
 export function formatDateOfBirth(value: string | null | undefined, locale: string): string | null {
   const date = parseIsoDate(value)
   if (!date) return null
-  try {
-    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-      utcInstant(date),
-    )
-  } catch {
-    return isoToTyped(value)
-  }
+  const language = resolveLocale(locale)
+  return i18n.t('account.dobDate', {
+    lng: language,
+    day: date.day,
+    monthName: localeContent(language).monthNames[date.month - 1],
+    year: date.year,
+  })
 }
