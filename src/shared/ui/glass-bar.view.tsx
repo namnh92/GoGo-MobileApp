@@ -5,7 +5,7 @@ import { Platform, View, type LayoutChangeEvent, type StyleProp, type ViewStyle 
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 
-import { glassFx, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './glass-bar.style'
 
@@ -41,12 +41,17 @@ function Material({ material }: { material: GlassMaterial }) {
     <>
       {material === 'native' ? (
         <View testID="glass-bar-native" pointerEvents="none" style={styles.fill}>
-          <LiquidGlassView effect="regular" colorScheme="light" tintColor={glassFx.nativeTint} style={NATIVE_FILL} />
+          <LiquidGlassView
+            effect="regular"
+            colorScheme={theme.glass.bar.tint}
+            tintColor={theme.glass.bar.nativeTint}
+            style={NATIVE_FILL}
+          />
         </View>
       ) : null}
       {material === 'blur' ? (
         <View testID="glass-bar-blur" pointerEvents="none" style={styles.fill}>
-          <BlurView intensity={theme.glass.bar.intensity} tint="light" style={NATIVE_FILL} />
+          <BlurView intensity={theme.glass.bar.intensity} tint={theme.glass.bar.tint} style={NATIVE_FILL} />
         </View>
       ) : null}
       <View testID="glass-bar-wash" pointerEvents="none" style={[styles.fill, styles.wash]} />

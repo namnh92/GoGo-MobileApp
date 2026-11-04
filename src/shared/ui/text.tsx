@@ -35,6 +35,9 @@ export type TextColor =
   | 'onDark.soft'
 
 /**
+ * `accent.primary` as text resolves to `accent.text`: the same colour in light,
+ * the AA tint in dark, where `primary` is a fill.
+ *
  * A lookup rather than `key.split('.')`: the compiler checks every key resolves
  * to a string on the theme, and a renamed token fails here instead of at
  * runtime as `color: undefined`.
@@ -44,7 +47,7 @@ const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
   'text.secondary': theme => theme.text.secondary,
   'text.tertiary': theme => theme.text.tertiary,
   'text.inverse': theme => theme.text.inverse,
-  'accent.primary': theme => theme.accent.primary,
+  'accent.primary': theme => theme.accent.text,
   'accent.onAccent': theme => theme.accent.onAccent,
   'accent.onSoft': theme => theme.accent.onSoft,
   'status.successText': theme => theme.status.successText,

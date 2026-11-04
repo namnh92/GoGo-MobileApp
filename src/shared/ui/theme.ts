@@ -1,6 +1,12 @@
 import {
   accents,
   border,
+  darkAccents,
+  darkBorder,
+  darkGlass,
+  darkStatus,
+  darkSurface,
+  darkText,
   glass,
   night,
   onDark,
@@ -33,14 +39,41 @@ export type Accent = (typeof ACCENTS)[number]
 /** Closest to the coral the app shipped with, so an unchanged user sees no change. */
 export const DEFAULT_ACCENT: Accent = 'orange'
 
-function buildTheme(accent: Accent) {
-  const palette = accents[accent]
+/** The device's appearance. There is no in-app switch: the setting is the device's. */
+export type Mode = 'light' | 'dark'
+
+/**
+ * Unistyles theme name for an accent in a mode. Light keeps the bare accent key
+ * (what the app, the saved preference and every test already call a theme);
+ * dark appends `Dark`, so the accent key and the mode stay separable.
+ */
+export type ThemeName = Accent | `${Accent}Dark`
+
+export function themeName(accent: Accent, mode: Mode): ThemeName {
+  return mode === 'dark' ? `${accent}Dark` : accent
+}
+
+/** Inverse of `themeName`'s accent half; `undefined` for anything that is not a theme name. */
+export function accentOf(name: unknown): Accent | undefined {
+  if (typeof name !== 'string') return undefined
+  const bare = name.endsWith('Dark') ? name.slice(0, -4) : name
+  return (ACCENTS as readonly string[]).includes(bare) ? (bare as Accent) : undefined
+}
+
+export function modeOf(scheme: string | null | undefined): Mode {
+  return scheme === 'dark' ? 'dark' : 'light'
+}
+
+function buildTheme(accent: Accent, mode: Mode) {
+  const dark = mode === 'dark'
+  const palette = (dark ? darkAccents : accents)[accent]
   return {
+    mode,
     accent: palette,
-    surface,
-    border,
-    text,
-    status,
+    surface: dark ? darkSurface : surface,
+    border: dark ? darkBorder : border,
+    text: dark ? darkText : text,
+    status: dark ? darkStatus : status,
     onDark,
     night,
     type,
@@ -51,15 +84,19 @@ function buildTheme(accent: Accent) {
       toast: shadows.toast,
       cta: { ...shadows.cta, shadowColor: palette.primary },
     },
-    glass: { bar: glass.bar },
+    glass: { bar: dark ? darkGlass.bar : glass.bar },
   }
 }
 
 export type AppTheme = ReturnType<typeof buildTheme>
 
 export const themes = {
-  orange: buildTheme('orange'),
-  green: buildTheme('green'),
-  blue: buildTheme('blue'),
-  purple: buildTheme('purple'),
-} satisfies Record<Accent, AppTheme>
+  orange: buildTheme('orange', 'light'),
+  green: buildTheme('green', 'light'),
+  blue: buildTheme('blue', 'light'),
+  purple: buildTheme('purple', 'light'),
+  orangeDark: buildTheme('orange', 'dark'),
+  greenDark: buildTheme('green', 'dark'),
+  blueDark: buildTheme('blue', 'dark'),
+  purpleDark: buildTheme('purple', 'dark'),
+} satisfies Record<ThemeName, AppTheme>

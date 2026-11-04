@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
+import { Appearance } from 'react-native'
 import { UnistylesRuntime } from 'react-native-unistyles'
 
 import { readAccentPreference } from '@/shared/theme/accent-preference'
-import { DEFAULT_ACCENT, type Accent } from '@/shared/ui/theme'
+import { DEFAULT_ACCENT, accentOf, modeOf, themeName, type Accent } from '@/shared/ui/theme'
+
+/** The theme for an accent under the device's current appearance. */
+export function deviceThemeName(accent: Accent) {
+  return themeName(accent, modeOf(Appearance.getColorScheme()))
+}
 
 /**
  * How long the splash may wait on the preference read. A colour is not worth
@@ -22,7 +28,7 @@ function withDeadline(read: Promise<Accent>): Promise<Accent> {
 }
 
 /**
- * Applies the saved accent at start-up and reports when it is on screen.
+ * Applies the saved accent, in the device's appearance, at start-up, follows the device from then on, and reports when it is on screen.
  *
  * Unistyles boots with the default theme (`unistyles.ts`), and the preference
  * is one asynchronous read away. The native splash stays up until this
@@ -36,13 +42,25 @@ export function useAccentBootstrap(): boolean {
 
   useEffect(() => {
     let cancelled = false
+    let subscription: ReturnType<typeof Appearance.addChangeListener> | undefined
     void withDeadline(readAccentPreference()).then(accent => {
       if (cancelled) return
-      if (UnistylesRuntime.themeName !== accent) UnistylesRuntime.setTheme(accent)
+      const apply = () => {
+        // The accent is whatever the runtime holds now: the user may have
+        // picked another since start-up, and the device flipping to dark must
+        // keep that pick.
+        const current = accentOf(UnistylesRuntime.themeName) ?? accent
+        const next = deviceThemeName(current)
+        if (UnistylesRuntime.themeName !== next) UnistylesRuntime.setTheme(next)
+      }
+      apply()
+      // No in-app switch: the device setting is the only source of the mode.
+      subscription = Appearance.addChangeListener(apply)
       setReady(true)
     })
     return () => {
       cancelled = true
+      subscription?.remove()
     }
   }, [])
 

@@ -123,13 +123,77 @@ export const status = {
  * badge. `primary` on `soft` measures 3.9–4.3: fine for an icon or an outline,
  * not for a 13pt label. `onSoft` is the `pressed` hex in all four palettes
  * (orange 5.66 · green 6.59 · blue 4.67 · purple 5.00 on `soft`).
+ *
+ * `text` is the accent as a label or link on a plain surface. In light it is
+ * `primary`; in dark `primary` is a fill (3.1:1 on the card) and `text` is the
+ * lighter tint that clears AA there.
  */
 export const accents = {
-  orange: { primary: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onSoft: '#A72E19', onAccent: '#FFFFFF' },
-  green: { primary: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onSoft: '#1B5E3E', onAccent: '#FFFFFF' },
-  blue: { primary: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onSoft: '#2565BF', onAccent: '#FFFFFF' },
-  purple: { primary: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onSoft: '#6247CC', onAccent: '#FFFFFF' },
+  orange: { primary: '#CA381F', text: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onSoft: '#A72E19', onAccent: '#FFFFFF' },
+  green: { primary: '#247D52', text: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onSoft: '#1B5E3E', onAccent: '#FFFFFF' },
+  blue: { primary: '#1A6CD5', text: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onSoft: '#2565BF', onAccent: '#FFFFFF' },
+  purple: { primary: '#7250F4', text: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onSoft: '#6247CC', onAccent: '#FFFFFF' },
 } as const
+
+// ---------------------------------------------------------------------------
+// Dark roles. Values are read from the approved Stitch Dark screens (project
+// 8730375380958217191): Home Dark 5e4ab03b837b4a8cb3278e30e7b8e916 and Splash
+// Dark bf51ca613c7d4632a72d135476095d3f, from their Tailwind config and
+// classes. A value Stitch does not carry is the previous value and is marked
+// NOT FROM STITCH. Same keys as the light roles above, so a screen reads
+// `theme.surface.card` and never branches on the mode.
+// ---------------------------------------------------------------------------
+
+export const darkSurface = {
+  // canvas / surface / background (Home, Splash)
+  canvas: '#181715',
+  // card, surface-container-low
+  card: '#222222',
+  // surface-muted (Home), surface-container (Splash)
+  subtle: '#2A2A2A',
+} as const satisfies Record<keyof typeof surface, string>
+
+export const darkBorder = {
+  // border-[#333333] (Home), outline-variant (Splash)
+  hairline: '#333333',
+} as const satisfies Record<keyof typeof border, string>
+
+export const darkText = {
+  // ink, on-surface
+  primary: '#E6E6E6',
+  // ink-secondary, on-surface-variant
+  secondary: '#CCCCCC',
+  // outline (Splash). Placeholder-only, like the light `tertiary`.
+  tertiary: '#999999',
+  // on-primary
+  inverse: '#FFFFFF',
+} as const satisfies Record<keyof typeof text, string>
+
+export const darkStatus = {
+  // tertiary (Splash)
+  success: '#4FAF86',
+  // tertiary-container
+  successSoft: '#16402F',
+  // on-tertiary-container
+  successText: '#A7E8CD',
+  // the rating star on Home
+  warning: '#E59700',
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  warningSoft: '#3D2E0B',
+  warningText: '#FFD074',
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  danger: '#FF6B6B',
+  // error-container (Splash)
+  dangerSoft: '#4A1A20',
+  // error (Splash)
+  dangerText: '#FF8A94',
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  info: '#7B8CFF',
+  // lavender-bg (Home), secondary-container (Splash)
+  infoSoft: '#2F2A55',
+  // lavender (Home), secondary (Splash)
+  infoText: '#A99DF5',
+} as const satisfies Record<keyof typeof status, string>
 
 /** Dark-theme surfaces (shared result / night screens, spec §46). */
 export const night = {
@@ -253,7 +317,33 @@ export const glass = {
     blur: 24,
     intensity: 60,
     wash: 'rgba(255,255,255,0.78)',
+    /** Opaque `surface.card`, for a path that cannot show translucency. */
+    solid: colors.neutral[0],
     hairline: colors.neutral[100],
+    /** `expo-blur` tint and `LiquidGlassView` colour scheme. */
+    tint: 'light',
+    /** Tint over the iOS 26 system glass. */
+    nativeTint: 'rgba(255,255,255,0.4)',
+  },
+} as const
+
+/**
+ * The dark bar, from the Home Dark bottom nav: `bg-[#181715]/80` with a
+ * `border-[#333333]/70` top edge. The wash carries contrast without the blur,
+ * as the light one does; `solid` is the same colour opaque. `blur`,
+ * `intensity`, `tint` and `nativeTint` are NOT FROM STITCH.
+ */
+export const darkGlass = {
+  bar: {
+    // NOT FROM STITCH: blur, intensity
+    blur: 24,
+    intensity: 60,
+    wash: 'rgba(24,23,21,0.8)',
+    solid: '#181715',
+    hairline: 'rgba(51,51,51,0.7)',
+    // NOT FROM STITCH: tint, nativeTint
+    tint: 'dark',
+    nativeTint: 'rgba(0,0,0,0.4)',
   },
 } as const
 
@@ -367,3 +457,17 @@ export type NeutralColor = keyof typeof colors.neutral
 export type TypeStyle = keyof typeof type
 export type GlyphSize = keyof typeof glyph
 export type AccentName = keyof typeof accents
+
+/**
+ * Dark accent palettes. Orange is from Stitch: `primary` #CA381F and `pressed`
+ * (primary-hover) #A72E19 on Home, `text` and `onSoft` #FF746C on Home and
+ * Splash, `soft` #2A2A2A (the "Tối nay" pill on Home). Green, blue and purple are from
+ * Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120.
+ */
+export const darkAccents = {
+  orange: { primary: '#CA381F', text: '#FF746C', pressed: '#A72E19', soft: '#2A2A2A', onSoft: '#FF746C', onAccent: '#FFFFFF' },
+  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
+  green: { primary: '#247D52', text: '#79D9AD', pressed: '#1A5E3D', soft: '#16402F', onSoft: '#79D9AD', onAccent: '#FFFFFF' },
+  blue: { primary: '#1E68D7', text: '#94BEF7', pressed: '#164EB0', soft: '#192B45', onSoft: '#94BEF7', onAccent: '#FFFFFF' },
+  purple: { primary: '#7161E2', text: '#C7BFFF', pressed: '#5747C8', soft: '#2F2A55', onSoft: '#C7BFFF', onAccent: '#FFFFFF' },
+} as const satisfies Record<AccentName, Record<keyof (typeof accents)['orange'], string>>

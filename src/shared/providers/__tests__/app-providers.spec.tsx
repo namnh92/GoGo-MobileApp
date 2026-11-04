@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { render, waitFor } from '@testing-library/react-native'
 import * as SplashScreen from 'expo-splash-screen'
-import { Text } from 'react-native'
+import { Appearance, Text } from 'react-native'
 import { UnistylesRuntime } from 'react-native-unistyles'
 
 import { AppProviders } from '../app-providers'
@@ -161,6 +161,50 @@ describe('AppProviders accent bootstrap', () => {
     await waitFor(() => expect(hideAsync).toHaveBeenCalledTimes(1))
     expect(setTheme).toHaveBeenCalledWith('green')
     expect(setTheme.mock.invocationCallOrder[0]).toBeLessThan(hideAsync.mock.invocationCallOrder[0]!)
+  })
+
+  it('starts in the dark variant of the saved accent when the device is dark', async () => {
+    await AsyncStorage.setItem(ACCENT_PREFERENCE_KEY, 'green')
+    const scheme = jest.spyOn(Appearance, 'getColorScheme').mockReturnValue('dark')
+    try {
+      await render(
+        <AppProviders>
+          <Text>app</Text>
+        </AppProviders>,
+      )
+      await waitFor(() => expect(hideAsync).toHaveBeenCalledTimes(1))
+      expect(setTheme).toHaveBeenCalledWith('greenDark')
+    } finally {
+      scheme.mockRestore()
+    }
+  })
+
+  it('follows the device when it flips appearance, keeping the accent', async () => {
+    await AsyncStorage.setItem(ACCENT_PREFERENCE_KEY, 'blue')
+    let flip: (p: { colorScheme: 'light' | 'dark' | null }) => void = () => {}
+    const listen = jest.spyOn(Appearance, 'addChangeListener').mockImplementation(l => {
+      flip = l as typeof flip
+      return { remove: jest.fn() }
+    })
+    const scheme = jest.spyOn(Appearance, 'getColorScheme').mockReturnValue('light')
+    const runtime = UnistylesRuntime as unknown as { themeName?: string }
+    try {
+      await render(
+        <AppProviders>
+          <Text>app</Text>
+        </AppProviders>,
+      )
+      await waitFor(() => expect(hideAsync).toHaveBeenCalledTimes(1))
+      expect(setTheme).toHaveBeenLastCalledWith('blue')
+      runtime.themeName = 'blue'
+      scheme.mockReturnValue('dark')
+      flip({ colorScheme: 'dark' })
+      expect(setTheme).toHaveBeenLastCalledWith('blueDark')
+    } finally {
+      runtime.themeName = undefined
+      scheme.mockRestore()
+      listen.mockRestore()
+    }
   })
 
   it('falls back to the default accent and still lifts the splash when nothing is saved', async () => {

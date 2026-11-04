@@ -1,8 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { colors, radius, spacing, touchTarget } from '@/shared/ui/tokens'
-
-const { neutral } = colors
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   headerRow: {
@@ -47,7 +45,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: spacing[4],
     minHeight: touchTarget.min,
     borderBottomWidth: 1,
-    borderBottomColor: neutral[100],
+    borderBottomColor: theme.border.hairline,
   },
   settingRowLast: { borderBottomWidth: 0 },
   settingRowPressed: { backgroundColor: theme.surface.subtle },
@@ -59,7 +57,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: radius.compact,
-    backgroundColor: neutral[50],
+    backgroundColor: theme.surface.canvas,
   },
   segmentBtnActive: { backgroundColor: theme.accent.primary },
 

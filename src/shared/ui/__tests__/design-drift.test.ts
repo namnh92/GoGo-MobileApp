@@ -94,8 +94,6 @@ describe('i18n copy is sentence case (#382)', () => {
  * deleting its line here.
  */
 const GLASS_FX_ALLOWED: Record<string, string[]> = {
-  // The glass bar itself.
-  'shared/ui/glass-bar.view.tsx': ['nativeTint'],
   // On an accent fill.
   'shared/ui/button.style.tsx': ['badge'],
   'features/home/home.style.tsx': ['badge', 'borderLight', 'btnBorder'],
@@ -106,9 +104,6 @@ const GLASS_FX_ALLOWED: Record<string, string[]> = {
   'features/matching/swipe.style.tsx': ['borderBright', 'solid'],
   // A fixed bottom bar.
   'features/date-plan/date-plan.style.tsx': ['bar'],
-  // The ATT consent sheet: a native-prompt primer that stays a plain Modal.
-  'shared/consent/tracking-sheet.style.tsx': ['sheet'],
-  'shared/notifications/device-promotions-sheet.style.tsx': ['sheet'],
 }
 
 describe('glass wash stays off ordinary surfaces (#382)', () => {

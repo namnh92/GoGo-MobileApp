@@ -18,7 +18,7 @@ const FLEX = { flex: 1 } as const
  * the safe area, glass behind (`GlassBar`, hairline on top). Absolute, so the
  * tab screens scroll under it and pad their end with `useBottomBarInset()`.
  *
- * Active: filled icon + `accent.primary` label. Inactive: outline icon +
+ * Active: filled icon + `accent.text` label. Inactive: outline icon +
  * `text.secondary` label. Labels are `caption` — the scale's smallest size, not
  * one below it.
  */
@@ -34,7 +34,7 @@ export default function TabsLayout() {
       screenLayout={screenTagLayout}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.accent.primary,
+        tabBarActiveTintColor: theme.accent.text,
         tabBarInactiveTintColor: theme.text.secondary,
         tabBarStyle: {
           position: 'absolute',

@@ -1,6 +1,7 @@
+import { Appearance } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 
-import { DEFAULT_ACCENT, themes } from '@/shared/ui/theme'
+import { DEFAULT_ACCENT, modeOf, themeName, themes } from '@/shared/ui/theme'
 
 /**
  * Unistyles registration (ADR-0009). Imported from the app entry (`index.ts`)
@@ -8,11 +9,12 @@ import { DEFAULT_ACCENT, themes } from '@/shared/ui/theme'
  * therefore before any `StyleSheet.create` — is evaluated. Jest loads it from
  * `setupFiles`, after `react-native-unistyles/mocks`.
  *
- * `initialTheme` is the default accent, not the saved one: the preference is
- * in AsyncStorage, which is asynchronous, so `AppProviders` reads it and calls
- * `UnistylesRuntime.setTheme` while the native splash is still up. Adaptive
- * themes stay off — dark mode is out of scope and would conflict with
- * `initialTheme`.
+ * `initialTheme` is the default accent in the device's current appearance, not
+ * the saved accent: the preference is in AsyncStorage, which is asynchronous,
+ * so `AppProviders` reads it and calls `UnistylesRuntime.setTheme` while the
+ * native splash is still up. Adaptive themes stay off: Unistyles' own
+ * switching wants themes named `light` and `dark`, and ours are an accent in a
+ * mode. `use-accent-bootstrap.ts` follows the device setting instead.
  */
 
 type AppThemes = typeof themes
@@ -24,5 +26,5 @@ declare module 'react-native-unistyles' {
 
 StyleSheet.configure({
   themes,
-  settings: { initialTheme: DEFAULT_ACCENT },
+  settings: { initialTheme: () => themeName(DEFAULT_ACCENT, modeOf(Appearance.getColorScheme())) },
 })
