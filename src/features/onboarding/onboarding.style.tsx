@@ -1,7 +1,22 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { colors, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  header: {
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing[6],
+  },
+  /** 44 x 44 minimum touch target around the text link. */
+  skip: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dots: {
+    alignItems: 'center',
+    marginBottom: spacing[3],
+  },
   body: {
     flex: 1,
     alignItems: 'center',
@@ -28,6 +43,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 16,
+    flexShrink: 1,
   },
   chipCoral: {
     backgroundColor: theme.accent.primary,
@@ -35,7 +51,7 @@ export const styles = StyleSheet.create(theme => ({
   chipGlass: {
     backgroundColor: theme.surface.card,
     borderWidth: 1,
-    borderColor: colors.neutral[100],
+    borderColor: theme.border.hairline,
   },
   emoji: {
     marginTop: spacing[2],

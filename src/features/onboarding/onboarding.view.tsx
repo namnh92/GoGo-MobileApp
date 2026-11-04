@@ -48,8 +48,8 @@ export default function OnboardingScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top + spacing[3], alignItems: 'flex-end', paddingHorizontal: spacing[6] }}>
-        <Pressable disabled={finishing} onPress={finish} accessibilityRole="button">
+      <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
+        <Pressable disabled={finishing} onPress={finish} accessibilityRole="button" style={styles.skip}>
           <Text variant="bodySmall" color="text.secondary">{t('onboarding.skip')}</Text>
         </Pressable>
       </View>
@@ -70,7 +70,7 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing[6] }]}>
-        <View style={{ alignItems: 'center', marginBottom: spacing[3] }}>
+        <View style={styles.dots}>
           <ProgressDots total={slides.length} current={slide} />
         </View>
         <PrimaryBtn
