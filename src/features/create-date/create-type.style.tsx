@@ -4,7 +4,7 @@ import { radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   content: { paddingHorizontal: spacing[5], paddingBottom: spacing[4] },
-  nameLabel: { marginTop: spacing[4], marginBottom: spacing[2] },
+  nameLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing[6], marginBottom: spacing[2] },
   nameInput: {
     ...type.body,
     color: theme.text.primary,

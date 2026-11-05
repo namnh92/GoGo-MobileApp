@@ -2,19 +2,15 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
-import { useGenerateSuggestions } from '@/shared/api'
-import { Icon, type IconName } from '@/shared/ui/icons'
-import { Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { useGenerateSuggestions, useRoom } from '@/shared/api'
+import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
+import { formatMoney } from '@/shared/pricing/money'
+import { Icon } from '@/shared/ui/icons'
+import { GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 
 import { regenerateFailure } from './run-state'
 import { styles } from './suggestion-run-notice.style'
-
-const RELAX_ROWS: { key: 'radius' | 'budget' | 'time'; icon: IconName }[] = [
-  { key: 'radius', icon: 'compass' },
-  { key: 'budget', icon: 'dollar' },
-  { key: 'time', icon: 'clock' },
-]
 
 /**
  * A run that went stale, or finished with nothing to choose from (#199). The
@@ -36,6 +32,28 @@ export function SuggestionRunNotice({
   const { t } = useTranslation()
   const router = useRouter()
   const regenerate = useGenerateSuggestions(roomId)
+  // The conditions that found nothing, read from the room itself: a fact is
+  // shown only when the room has it.
+  const room = useRoom(roomId).data
+  const radiusM = room?.constraints?.radiusM
+  const budget = room?.constraints?.budgetAmount
+  const constraintChips = state === 'empty'
+    ? [
+        radiusM
+          ? { key: 'radius', icon: 'navigation' as const, label: t('suggestionRun.constraintRadius', { km: radiusM / 1000 }) }
+          : null,
+        budget
+          ? {
+              key: 'budget',
+              icon: 'dollar' as const,
+              label: t('suggestionRun.constraintBudget', {
+                amount: formatMoney(budget, room?.constraints?.currency ?? 'VND'),
+                unit: budgetUnitLabel(room?.constraints?.budgetMode, room?.type ?? 'group', t),
+              }),
+            }
+          : null,
+      ].filter(item => item !== null)
+    : []
 
   const body =
     state === 'empty'
@@ -59,19 +77,15 @@ export function SuggestionRunNotice({
           {t(state === 'empty' ? 'suggestionRun.emptyTitle' : 'suggestionRun.staleTitle')}
         </Text>
         <Text color="text.secondary" style={styles.body}>{body}</Text>
-        {adjust ? (
-          // TODO(#452): rows stay unavailable until the API suggests a relaxation;
-          // today's way forward is the primary action below (core rule 16).
-          <Card padded={false} style={styles.relaxCard}>
-            <Text variant="label">{t('suggestionRun.relaxTitle')}</Text>
-            {RELAX_ROWS.map(row => (
-              <View key={row.key} style={styles.relaxRow}>
-                <Icon name={row.icon} size={18} color="text.secondary" />
-                <Text variant="bodySmall" color="text.secondary" style={styles.relaxLabel}>{t(`suggestionRun.relax.${row.key}`)}</Text>
-                <Chip label={t('planChange.soon')} variant="disabled" />
+        {constraintChips.length > 0 ? (
+          <View style={styles.constraintRow}>
+            {constraintChips.map(chip => (
+              <View key={chip.key} style={styles.constraintChip}>
+                <Icon name={chip.icon} size={16} color="text.secondary" />
+                <Text variant="label" color="text.secondary" numberOfLines={1}>{chip.label}</Text>
               </View>
             ))}
-          </Card>
+          </View>
         ) : null}
       </View>
       <View style={styles.actions}>
