@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from 're
 import { useUnistyles } from 'react-native-unistyles'
 
 import { haptic } from '@/shared/ui/feedback'
+import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text, type TextColor } from '@/shared/ui/text'
 import type { AppTheme } from '@/shared/ui/theme'
 import { hitSlop } from '@/shared/ui/tokens'
@@ -28,6 +29,8 @@ export interface ButtonProps {
   accessibilityHint?: string
   disabled?: boolean
   loading?: boolean
+  /** A glyph drawn before the label, in the label's colour. Decorative: the label names the action. */
+  icon?: IconName
   style?: StyleProp<ViewStyle>
 }
 
@@ -68,7 +71,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && styles[`${kind}Pressed`], disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, style }: ButtonProps & {
+function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, style }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -98,6 +101,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       ]}
     >
       {loading ? <ActivityIndicator testID="button-spinner" size="small" color={look.spinner(theme)} /> : null}
+      {icon && !loading ? <Icon name={icon} size={18} color={greyed ? look.disabledLabel : look.label} /> : null}
       <Text
         variant="label"
         color={greyed ? look.disabledLabel : look.label}

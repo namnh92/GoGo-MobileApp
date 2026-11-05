@@ -228,6 +228,7 @@ export default function GuestJoinScreen() {
           <PrimaryBtn
             label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
             onPress={join}
+            icon="arrowRight"
             loading={pending}
             disabled={!asUser && !trimmedName}
           />
