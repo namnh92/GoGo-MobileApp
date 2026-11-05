@@ -13,7 +13,7 @@ import Svg, { Circle, Ellipse, G, Path, Text as SvgText } from 'react-native-svg
 import { useTranslation } from 'react-i18next'
 import { useUnistyles } from 'react-native-unistyles'
 
-import { fontFamily } from '@/shared/ui/tokens'
+import { fontFamily, type } from '@/shared/ui/tokens'
 
 import { styles } from './splash.style'
 import {
@@ -22,31 +22,39 @@ import {
   VIETNAM_MARKERS,
 } from './vietnam-map'
 
-/** The draft draws the map 200 wide; the height follows the outline's own ratio. */
-const MAP_WIDTH = 200
-const SCALE = MAP_WIDTH / VIETNAM_MAP_VIEWBOX.width
-const MAP_HEIGHT = Math.round(VIETNAM_MAP_VIEWBOX.height * SCALE)
+/** The map's height for a given width: the outline's own aspect ratio. */
+export const mapHeightFor = (width: number) => (width * VIETNAM_MAP_VIEWBOX.height) / VIETNAM_MAP_VIEWBOX.width
+/** The draft draws labels at 9 units on a 200 wide map; they never go under the caption size. */
+const LABEL_UNITS = 9
 
-/** The whole entrance is about 1.2 s; the screen holds for 1.5 s (`SPLASH_MIN_MS`). */
+/** A city label's font size in viewBox units for a map this wide: never under the caption size on screen. */
+export const labelFontUnits = (width: number) => {
+  const scale = width / VIETNAM_MAP_VIEWBOX.width
+  return Math.max(type.caption.fontSize, LABEL_UNITS * scale) / scale
+}
+
+/** The map entrance is about 1.2 s; the screen holds for 1.5 s (`SPLASH_MIN_MS`). */
 export const MAP_FADE_MS = 350
 const FIRST_DROP_MS = 200
 const DROP_STEP_MS = 200
 const DROP_MS = 180
 const BOUNCE_MS = 70
 const RIPPLE_MS = 400
-const DROP_FROM = -20
+const DROP_FROM = -20 // viewBox units, scaled with the map
 const BOUNCE_UP = -4
 
 /** A pin with its tip at the origin, drawn as in the draft. */
 const PIN_PATH = 'M0 0 C0 0 -6 -6.5 -6 -10.5 C-6 -13.8 -3.3 -16.5 0 -16.5 C3.3 -16.5 6 -13.8 6 -10.5 C6 -6.5 0 0 0 0Z'
 
-function Marker({ index, reduced }: { index: number; reduced: boolean }) {
+function Marker({ index, reduced, width }: { index: number; reduced: boolean; width: number }) {
   const { t } = useTranslation()
   const { theme } = useUnistyles()
   const marker = VIETNAM_MARKERS[index]
   const label =
     marker.id === 'hanoi' ? t('splash.city.hanoi') : marker.id === 'danang' ? t('splash.city.danang') : t('splash.city.hcm')
-  const lift = useSharedValue(reduced ? 0 : DROP_FROM)
+  const scale = width / VIETNAM_MAP_VIEWBOX.width
+  const height = mapHeightFor(width)
+  const lift = useSharedValue(reduced ? 0 : DROP_FROM * scale)
   const seen = useSharedValue(reduced ? 1 : 0)
   const ripple = useSharedValue(0)
 
@@ -67,7 +75,7 @@ function Marker({ index, reduced }: { index: number; reduced: boolean }) {
         delay,
         withSequence(
           withTiming(0, { duration: DROP_MS, easing: Easing.in(Easing.quad) }),
-          withTiming(BOUNCE_UP, { duration: BOUNCE_MS, easing: Easing.out(Easing.quad) }),
+          withTiming(BOUNCE_UP * scale, { duration: BOUNCE_MS, easing: Easing.out(Easing.quad) }),
           withTiming(0, { duration: BOUNCE_MS, easing: Easing.in(Easing.quad) }),
         ),
       ),
@@ -78,7 +86,7 @@ function Marker({ index, reduced }: { index: number; reduced: boolean }) {
       cancelAnimation(seen)
       cancelAnimation(ripple)
     }
-  }, [reduced, index, lift, seen, ripple])
+  }, [reduced, index, lift, seen, ripple, scale])
 
   const pinStyle = useAnimatedStyle(() => ({ opacity: seen.get(), transform: [{ translateY: lift.get() }] }))
   // One ring per landing: invisible before it starts and again once it has spread.
@@ -91,15 +99,19 @@ function Marker({ index, reduced }: { index: number; reduced: boolean }) {
     <>
       <Animated.View
         testID={`splash-ripple-${marker.id}`}
-        style={[styles.ripple, { left: marker.x * SCALE - 8, top: marker.y * SCALE - 8 }, rippleStyle]}
+        style={[
+          styles.ripple,
+          { width: 14 * scale, height: 14 * scale, borderRadius: 7 * scale, left: marker.x * scale - 7 * scale, top: marker.y * scale - 7 * scale },
+          rippleStyle,
+        ]}
       />
       <Animated.View testID={`splash-pin-${marker.id}`} style={[styles.pin, pinStyle]}>
-        <Svg width={MAP_WIDTH} height={MAP_HEIGHT} viewBox={`0 0 ${VIETNAM_MAP_VIEWBOX.width} ${VIETNAM_MAP_VIEWBOX.height}`}>
+        <Svg width={width} height={height} viewBox={`0 0 ${VIETNAM_MAP_VIEWBOX.width} ${VIETNAM_MAP_VIEWBOX.height}`}>
           <G transform={`translate(${marker.x} ${marker.y})`}>
             <Ellipse cx={0} cy={0} rx={3.5} ry={1.4} fill={theme.text.primary} fillOpacity={0.12} />
             <Path d={PIN_PATH} fill={theme.accent.primary} />
             <Circle cx={0} cy={-10.5} r={2} fill={theme.surface.card} />
-            <SvgText x={9} y={-7.5} fontFamily={fontFamily.medium} fontSize={9} fill={theme.text.secondary}>
+            <SvgText x={9} y={-7.5} fontFamily={fontFamily.medium} fontSize={labelFontUnits(width)} fill={theme.text.secondary}>
               {label}
             </SvgText>
           </G>
@@ -115,7 +127,8 @@ function Marker({ index, reduced }: { index: number; reduced: boolean }) {
  * Plays once. Under reduced motion it is drawn in its final state. Decoration:
  * hidden from screen readers.
  */
-export function SplashMap({ reduced }: { reduced: boolean }) {
+export function SplashMap({ reduced, width }: { reduced: boolean; width: number }) {
+  const height = mapHeightFor(width)
   const { theme } = useUnistyles()
   const fade = useSharedValue(reduced ? 1 : 0)
 
@@ -134,12 +147,12 @@ export function SplashMap({ reduced }: { reduced: boolean }) {
   return (
     <View
       testID="splash-map"
-      style={[styles.map, { width: MAP_WIDTH, height: MAP_HEIGHT }]}
+      style={[styles.map, { width, height }]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
       <Animated.View style={mapStyle}>
-        <Svg width={MAP_WIDTH} height={MAP_HEIGHT} viewBox={`0 0 ${VIETNAM_MAP_VIEWBOX.width} ${VIETNAM_MAP_VIEWBOX.height}`}>
+        <Svg width={width} height={height} viewBox={`0 0 ${VIETNAM_MAP_VIEWBOX.width} ${VIETNAM_MAP_VIEWBOX.height}`}>
           <Path
             d={VIETNAM_MAP_PATH}
             fill={theme.accent.soft}
@@ -152,7 +165,7 @@ export function SplashMap({ reduced }: { reduced: boolean }) {
         </Svg>
       </Animated.View>
       {VIETNAM_MARKERS.map((marker, index) => (
-        <Marker key={marker.id} index={index} reduced={reduced} />
+        <Marker key={marker.id} index={index} reduced={reduced} width={width} />
       ))}
     </View>
   )
