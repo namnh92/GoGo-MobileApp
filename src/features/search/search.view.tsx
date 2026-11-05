@@ -345,25 +345,31 @@ export default function SearchScreen() {
 
         <SheetSection icon="dollar" label={t('search.filterPrice')} />
         <View style={styles.priceRow}>
-          <TextInput
-            value={priceFrom}
-            onChangeText={setPriceFrom}
-            accessibilityLabel={t('search.priceFromLabel')}
-            placeholder={t('search.priceFrom')}
-            placeholderTextColor={theme.text.secondary}
-            keyboardType="numeric"
-            style={[styles.sheetInput, styles.priceInput]}
-          />
+          <View style={[styles.sheetInput, styles.priceInput, styles.priceField]}>
+            <TextInput
+              value={priceFrom}
+              onChangeText={setPriceFrom}
+              accessibilityLabel={t('search.priceFromLabel')}
+              placeholder={t('search.priceFrom')}
+              placeholderTextColor={theme.text.secondary}
+              keyboardType="numeric"
+              style={styles.priceText}
+            />
+            <Text color="text.secondary" accessibilityElementsHidden importantForAccessibility="no">{t('search.priceSuffix')}</Text>
+          </View>
           <Text color="text.secondary">–</Text>
-          <TextInput
-            value={priceTo}
-            onChangeText={setPriceTo}
-            accessibilityLabel={t('search.priceToLabel')}
-            placeholder={t('search.priceTo')}
-            placeholderTextColor={theme.text.secondary}
-            keyboardType="numeric"
-            style={[styles.sheetInput, styles.priceInput]}
-          />
+          <View style={[styles.sheetInput, styles.priceInput, styles.priceField]}>
+            <TextInput
+              value={priceTo}
+              onChangeText={setPriceTo}
+              accessibilityLabel={t('search.priceToLabel')}
+              placeholder={t('search.priceTo')}
+              placeholderTextColor={theme.text.secondary}
+              keyboardType="numeric"
+              style={styles.priceText}
+            />
+            <Text color="text.secondary" accessibilityElementsHidden importantForAccessibility="no">{t('search.priceSuffix')}</Text>
+          </View>
         </View>
 
         <SheetSection icon="users" label={t('search.filterSuited')} />
