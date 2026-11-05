@@ -272,6 +272,7 @@ export default function SignInScreen() {
                       autoComplete="email"
                       keyboardType="email-address"
                       autoCorrect={false}
+                      numberOfLines={1}
                       editable={!pending}
                       accessibilityLabel={t('auth.email')}
                       style={styles.input}
