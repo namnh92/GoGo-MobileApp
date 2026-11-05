@@ -2,15 +2,17 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
+import i18n from '@/shared/i18n'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Card, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { Icon } from '@/shared/ui/icons'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
-import { endSlotToIso, slotToIso } from './schedule'
+import { freshDay, localDayKey, scheduleToIso, upcomingDays } from './schedule-day'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-time.style'
 
@@ -19,6 +21,8 @@ const TIME_SLOTS = Array.from({ length: 32 }, (_, i) => {
   const h = Math.floor(i / 2) + 8
   return `${String(h).padStart(2, '0')}:${i % 2 === 0 ? '00' : '30'}`
 })
+
+const upper = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1)
 
 type PickerTarget = 'start' | 'end' | null
 
@@ -40,8 +44,29 @@ export default function CreateTimeScreen() {
   const { roomType, startTime, endTime, setStartTime, setEndTime } = useRoom()
   const durationPreset = useRoomStore(state => state.durationPreset)
   const setDurationPreset = useRoomStore(state => state.setDurationPreset)
+  const scheduleDay = useRoomStore(state => state.scheduleDay)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null)
+
+  // No chosen day, or one that has passed, is today: the screen behaves as it did before the row.
+  const now = new Date()
+  const day = freshDay(scheduleDay, now)
+  const days = upcomingDays(now)
+  const selectedKey = day ?? localDayKey(now)
+  const locale = i18n.language
+  const monthLabel = upper(
+    (days.find(d => d.key === selectedKey)?.date ?? now).toLocaleDateString(locale, { month: 'long', year: 'numeric' }),
+  )
+
+  function chooseDay(key: string) {
+    patchDraft({ scheduleDay: key === localDayKey(now) ? null : key })
+  }
+
+  function dayLabel(index: number, date: Date) {
+    if (index === 0) return t('createTime.today')
+    if (index === 1) return t('createTime.tomorrow')
+    return date.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit' })
+  }
 
   // Start time is mandatory (per SRS room constraints) — end stays optional.
   const canContinue = startTime !== null
@@ -51,8 +76,7 @@ export default function CreateTimeScreen() {
   const endsNextDay = startTime !== null && endTime !== null && endTime <= startTime
 
   function next() {
-    const startAt = startTime ? slotToIso(startTime) : null
-    patchDraft({ startAt, endAt: endTime ? endSlotToIso(endTime, startAt) : null })
+    patchDraft(scheduleToIso(startTime, endTime, day))
     router.push('/create/budget')
   }
 
@@ -96,6 +120,41 @@ export default function CreateTimeScreen() {
       >
         <Text variant="display">{t('createTime.title', { context: roomType })}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
+
+        <View style={styles.dayHeader}>
+          <Icon name="calendar" size={20} color="accent.primary" />
+          <Text variant="title2" style={styles.dayTitle}>{t('createTime.dayTitle')}</Text>
+          <Text variant="caption" color="text.secondary" numberOfLines={1}>{monthLabel}</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          testID="create-time-days"
+          style={styles.dayScroll}
+          contentContainerStyle={styles.dayRow}
+        >
+          {days.map(({ key, date }, index) => {
+            const active = key === selectedKey
+            const label = dayLabel(index, date)
+            return (
+              <Pressable
+                key={key}
+                onPress={() => chooseDay(key)}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: active }}
+                testID={`create-time-day-${key}`}
+                style={[styles.dayChip, active ? styles.dayChipActive : glassStyles.card]}
+              >
+                {/* Selection is never colour alone: a check and a heavier label. */}
+                {active ? <Icon name="check" size={14} color="accent.onSoft" /> : null}
+                <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onSoft' : 'text.primary'} numberOfLines={1}>
+                  {label}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </ScrollView>
 
         <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
         <View style={{ gap: spacing[2], marginBottom: spacing[6] }}>
