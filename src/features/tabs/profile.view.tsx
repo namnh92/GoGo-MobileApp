@@ -149,7 +149,17 @@ export default function ProfileScreen() {
                   ? t(`profile.shortcut.${shortcut.key}`)
                   : `${t(`profile.shortcut.${shortcut.key}`)}: ${shortcut.count}`
               }
-              onPress={() => router.push(shortcut.route)}
+              onPress={() =>
+                // The Plans tab stays mounted and keeps its params, so a fixed
+                // param would not change on a second tap. Only this shortcut
+                // sends a value that is new on every press, and Plans answers
+                // by showing "Sắp tới" (owner decision, #471).
+                router.push(
+                  shortcut.key === 'plans'
+                    ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } }
+                    : shortcut.route,
+                )
+              }
               style={{ flex: 1 }}
             >
               <Card padded={false} style={styles.shortcut}>

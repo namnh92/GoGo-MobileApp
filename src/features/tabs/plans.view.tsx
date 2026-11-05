@@ -1,7 +1,7 @@
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
@@ -38,6 +38,15 @@ export default function PlansScreen() {
 
   const canRead = status === 'user' || status === 'guest'
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming')
+  // Set by the Cá nhân "Kèo" shortcut to a new value on every press (#471).
+  // This tab stays mounted, so the change is the signal; opening it from the
+  // tab bar sends nothing and keeps the person's last choice.
+  const { showUpcoming } = useLocalSearchParams<{ showUpcoming?: string }>()
+  const [handled, setHandled] = useState(showUpcoming)
+  if (showUpcoming !== handled) {
+    setHandled(showUpcoming)
+    if (showUpcoming) setTab('upcoming')
+  }
   const rooms = useMyRooms({ enabled: canRead, status: tab === 'upcoming' ? UPCOMING.join(',') : 'completed,cancelled,expired' })
   const waitingForNetwork = useWaitingForNetwork(rooms)
 

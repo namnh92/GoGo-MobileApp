@@ -14,7 +14,7 @@ const mockQuery = {
   fetchNextPage: mockFetch, refetch: jest.fn(),
 }
 const mockUseRooms = jest.fn((_options: unknown) => mockQuery)
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }), useFocusEffect: () => undefined }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }), useFocusEffect: () => undefined, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), useMyRooms: (options: unknown) => mockUseRooms(options) }))
 
