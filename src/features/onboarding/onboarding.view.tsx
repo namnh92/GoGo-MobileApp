@@ -6,27 +6,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
 import { markOnboardingComplete } from '@/shared/storage/onboarding'
 import type { MessageKey } from '@/shared/i18n/types'
-import { Atmosphere, Card, GhostBtn, PrimaryBtn, ProgressDots } from '@/shared/ui/primitives'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Atmosphere, GhostBtn, PrimaryBtn, ProgressDots } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
+import { OnboardingVisual } from './onboarding-visual.view'
 import { styles } from './onboarding.style'
 
 interface Slide {
-  emoji: string
   titleKey: MessageKey
   bodyKey: MessageKey
 }
 
 const slides: Slide[] = [
-  { emoji: '🤔', titleKey: 'onboarding.slide1.title', bodyKey: 'onboarding.slide1.body' },
-  { emoji: '👤', titleKey: 'onboarding.slide2.title', bodyKey: 'onboarding.slide2.body' },
-  { emoji: '✨', titleKey: 'onboarding.slide3.title', bodyKey: 'onboarding.slide3.body' },
-]
-
-const slideChips = [
-  ['Ăn ngon', 'Chill', 'Creative'],
-  ['🍣 Japanese', '🎨 Creative', '😌 Chill'],
-  ['🍣 Dinner · 450k', '🎨 Pottery · 300k', '🍰 Dessert · 100k'],
+  { titleKey: 'onboarding.slide1.title', bodyKey: 'onboarding.slide1.body' },
+  { titleKey: 'onboarding.slide2.title', bodyKey: 'onboarding.slide2.body' },
+  { titleKey: 'onboarding.slide3.title', bodyKey: 'onboarding.slide3.body' },
 ]
 
 export default function OnboardingScreen() {
@@ -55,16 +49,7 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={styles.body}>
-        <Card padded={false} style={styles.visual}>
-          <View style={styles.chipRow}>
-            {slideChips[slide].map((chip, i) => (
-              <View key={chip} style={[styles.chip, i % 2 === 0 ? styles.chipCoral : styles.chipGlass]}>
-                <Text variant="label" color={i % 2 === 0 ? 'accent.onAccent' : 'text.primary'}>{chip}</Text>
-              </View>
-            ))}
-          </View>
-        </Card>
-        <Glyph size="xl" style={styles.emoji}>{current.emoji}</Glyph>
+        <OnboardingVisual slide={slide} />
         <Text variant="display" style={styles.title}>{t(current.titleKey)}</Text>
         <Text color="text.secondary" style={styles.slideBody}>{t(current.bodyKey)}</Text>
       </View>
