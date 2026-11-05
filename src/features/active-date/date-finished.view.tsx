@@ -230,6 +230,7 @@ export default function DateFinishedScreen() {
 
       <PrimaryBtn
         label={t('dateFinished.cta', { context: roomType })}
+        icon="arrowRight"
         onPress={() => router.push(`/plans/${planId}/review`)}
         // Review is the one way off this screen, and neither it nor the shared
         // result closes a room. Following it while the room is unknown or still
