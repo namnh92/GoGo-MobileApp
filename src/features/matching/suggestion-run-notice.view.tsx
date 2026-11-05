@@ -3,12 +3,18 @@ import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
 import { useGenerateSuggestions } from '@/shared/api'
-import { Icon } from '@/shared/ui/icons'
-import { GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Icon, type IconName } from '@/shared/ui/icons'
+import { Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 
 import { regenerateFailure } from './run-state'
 import { styles } from './suggestion-run-notice.style'
+
+const RELAX_ROWS: { key: 'radius' | 'budget' | 'time'; icon: IconName }[] = [
+  { key: 'radius', icon: 'compass' },
+  { key: 'budget', icon: 'dollar' },
+  { key: 'time', icon: 'clock' },
+]
 
 /**
  * A run that went stale, or finished with nothing to choose from (#199). The
@@ -53,6 +59,20 @@ export function SuggestionRunNotice({
           {t(state === 'empty' ? 'suggestionRun.emptyTitle' : 'suggestionRun.staleTitle')}
         </Text>
         <Text color="text.secondary" style={styles.body}>{body}</Text>
+        {adjust ? (
+          // TODO(#452): rows stay unavailable until the API suggests a relaxation;
+          // today's way forward is the primary action below (core rule 16).
+          <Card padded={false} style={styles.relaxCard}>
+            <Text variant="label">{t('suggestionRun.relaxTitle')}</Text>
+            {RELAX_ROWS.map(row => (
+              <View key={row.key} style={styles.relaxRow}>
+                <Icon name={row.icon} size={18} color="text.secondary" />
+                <Text variant="bodySmall" color="text.secondary" style={styles.relaxLabel}>{t(`suggestionRun.relax.${row.key}`)}</Text>
+                <Chip label={t('planChange.soon')} variant="disabled" />
+              </View>
+            ))}
+          </Card>
+        ) : null}
       </View>
       <View style={styles.actions}>
         {adjust ? (

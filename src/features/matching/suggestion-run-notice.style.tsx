@@ -46,4 +46,7 @@ export const styles = StyleSheet.create(theme => ({
   body: { textAlign: 'center' },
   actions: { alignSelf: 'stretch', gap: spacing[2] },
   error: { textAlign: 'center' },
+  relaxCard: { alignSelf: 'stretch', gap: theme.spacing[2], padding: theme.spacing[4], marginTop: theme.spacing[4] },
+  relaxRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
+  relaxLabel: { flex: 1, minWidth: 0 },
 }))

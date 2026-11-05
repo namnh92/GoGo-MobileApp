@@ -487,6 +487,9 @@ export default function DatePlanScreen() {
             </View>
           )
         })}
+        {capabilities.canRegenerate ? (
+          <GhostBtn label={t('planChange.title')} onPress={() => router.push(`/plans/${planId}/change`)} />
+        ) : null}
       </ScrollView>
 
       <GlassBar placement="floating">

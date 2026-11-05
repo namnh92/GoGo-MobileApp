@@ -15,6 +15,7 @@ import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
+import { InviteExpired } from './invite-expired.view'
 import { styles } from './guest-join.style'
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
@@ -44,6 +45,7 @@ export default function GuestJoinScreen() {
 
   const [displayName, setDisplayName] = useState('')
   const [pending, setPending] = useState(false)
+  const [expired, setExpired] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const asUser = status === 'user'
@@ -120,6 +122,12 @@ export default function GuestJoinScreen() {
       }
       if (stillHere()) router.replace(`/room/${session.roomId}/preference`)
     } catch (caught) {
+      setExpired(
+        isApiError(caught) &&
+          caught.status === 410 &&
+          caught.code !== 'ROOM_NOT_JOINABLE' &&
+          caught.code !== 'ROOM_EXPIRED',
+      )
       setError(toMessage(caught))
     } finally {
       setPending(false)
@@ -149,6 +157,15 @@ export default function GuestJoinScreen() {
       <Atmosphere>
         {header}
         <LoadingState />
+      </Atmosphere>
+    )
+  }
+
+  if (expired) {
+    return (
+      <Atmosphere>
+        {header}
+        <InviteExpired />
       </Atmosphere>
     )
   }

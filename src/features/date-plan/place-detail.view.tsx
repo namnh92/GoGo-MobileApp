@@ -384,7 +384,7 @@ export default function PlaceDetailScreen() {
 
           {/* APP-056 — real, moderated GoGo reviews with their own loading and
               error states, so the facts above never wait on them. */}
-          <PlaceReviews placeId={id} />
+          <PlaceReviews placeId={id} showPageLink />
 
           {vibes.length > 0 ? (
             <>
