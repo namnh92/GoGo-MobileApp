@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   scroll: { flex: 1 },
@@ -14,6 +14,21 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[5],
   },
   optionActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.primary },
+  dayHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
+  dayTitle: { flex: 1 },
+  dayScroll: { flexGrow: 0, marginHorizontal: -spacing[5], marginBottom: spacing[6] },
+  dayRow: { paddingHorizontal: spacing[5], gap: spacing[2] },
+  dayChip: {
+    minHeight: touchTarget.min,
+    minWidth: touchTarget.min,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[1],
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing[4],
+  },
+  dayChipActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.primary },
   exactLabel: { marginBottom: spacing[3] },
   timeBox: {
     flex: 1,

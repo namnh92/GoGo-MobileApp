@@ -8,6 +8,7 @@ import { clearSavedRoomDraft, draftStepPath, restoreRoomDraft, useSavedRoomDraft
 import { useDialog } from '@/shared/ui/dialog.view'
 import { GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 
+import { dropStaleDay } from './resume-day'
 import { styles } from './draft-resume.style'
 
 /** Entry back into a saved wizard draft; renders nothing for other accounts. */
@@ -22,6 +23,7 @@ export function DraftResume() {
   function resume() {
     const step = restoreRoomDraft(session!.userId!)
     if (!step) return
+    dropStaleDay()
     // Re-enter the steps before the saved one too, so Back walks the wizard
     // rather than falling out of it (expo-router queues the pushes in order).
     for (const route of draftStepPath(step, useRoomStore.getState().audience)) {
