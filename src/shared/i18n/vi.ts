@@ -652,6 +652,13 @@ export const viMessages = {
   'common.weekday.6': 'Thứ bảy',
   'placeDetail.save': 'Lưu',
   'placeDetail.createRoom': 'Tạo kèo từ địa điểm này',
+  'placeDetail.title': 'Chi tiết địa điểm',
+  'placeDetail.photoCount': '{{index}}/{{total}} ảnh',
+  'placeDetail.gogoNone': 'Chưa đủ đánh giá',
+  'placeDetail.address': 'Địa chỉ',
+  'placeDetail.phone': 'Số điện thoại',
+  'placeDetail.website': 'Website',
+  'placeDetail.visitTime': 'Thời gian ghé gợi ý',
 
   'activeDate.live': 'Date đang diễn ra',
   'activeDate.stop': 'Điểm {{n}} / {{total}}',

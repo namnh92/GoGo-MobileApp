@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWindowDimensions, Pressable, ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   detailToPlaceCard,
+  formatCount,
   formatMinuteOfDay,
   isSaved,
   openStateFromHours,
@@ -27,16 +28,16 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { IconBookmark, IconChevronLeft, IconMapPin, IconNavigation } from '@/shared/ui/icons'
+import { Icon, IconBookmark, IconChevronLeft, IconNavigation } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { hitSlop, spacing, touchTarget } from '@/shared/ui/tokens'
+import { hitSlop } from '@/shared/ui/tokens'
 
-import { GALLERY_HEIGHT, SHEET_OVERLAP, styles } from './place-detail.style'
+import { GALLERY_MARGIN, styles } from './place-detail.style'
 import { AssistantPlaceCard } from '@/features/assistant/assistant-place-card.view'
 import { PlaceReviews } from './place-reviews.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
@@ -51,12 +52,9 @@ export default function PlaceDetailScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { width, height } = useWindowDimensions()
+  const { width } = useWindowDimensions()
   const [actionHeight, setActionHeight] = useState(0)
   const actionInset = useBottomBarInset(actionHeight)
-  // The floating back button keeps a strip of its own above the page scroll,
-  // so an expanded sheet never slides underneath it.
-  const headerHeight = insets.top + touchTarget.min + spacing[4]
   const { placeId } = useLocalSearchParams<{ placeId: string }>()
   const { status } = useSession()
 
@@ -71,13 +69,25 @@ export default function PlaceDetailScreen() {
   const [photoIndex, setPhotoIndex] = useState(0)
   const [hoursOpen, setHoursOpen] = useState(false)
 
-  const backButton = (
-    <View style={{ paddingTop: insets.top }}>
-      <Pressable onPress={() => goBackOrHome(router)} accessibilityLabel={t('common.back')} hitSlop={hitSlop} style={styles.backInline}>
-        <IconChevronLeft />
-      </Pressable>
+  // The draft's top bar: back, the screen's name, and the save toggle on the right.
+  const header = (saveToggle: ReactNode) => (
+    <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={styles.headerRow}>
+        <Pressable
+          onPress={() => goBackOrHome(router)}
+          accessibilityLabel={t('common.back')}
+          accessibilityRole="button"
+          hitSlop={hitSlop}
+          style={styles.headerBtn}
+        >
+          <IconChevronLeft />
+        </Pressable>
+        <Text variant="title2" numberOfLines={1} style={styles.headerTitle}>{t('placeDetail.title')}</Text>
+        {saveToggle}
+      </View>
     </View>
   )
+  const backButton = header(null)
 
   if (waitingForNetwork) {
     return (
@@ -128,7 +138,6 @@ export default function PlaceDetailScreen() {
     .sort((a, b) => b[1] - a[1])
 
   const categoryLine = categories.map(tag => taxonomyLabel('category', tag.key as string)).join(' · ')
-  const secondary = [categoryLine, detail.addressText].filter(Boolean).join(' · ')
   const destination = detail.addressText ?? (detail.lat != null && detail.lng != null ? `${detail.lat},${detail.lng}` : name)
   const hasCoords = detail.lat != null && detail.lng != null
   const currentlySaved = isSaved(saved.data, 'place', id)
@@ -151,8 +160,10 @@ export default function PlaceDetailScreen() {
     router.push('/create/type')
   }
 
+  const galleryWidth = width - GALLERY_MARGIN * 2
+
   function onGalleryScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    const next = Math.round(event.nativeEvent.contentOffset.x / width)
+    const next = Math.round(event.nativeEvent.contentOffset.x / galleryWidth)
     if (next !== photoIndex) setPhotoIndex(next)
   }
 
@@ -165,96 +176,85 @@ export default function PlaceDetailScreen() {
     return opens ? t('search.closedOpens', { time: opens }) : t('common.closed')
   }
 
+  const saveToggle = canSave ? (
+    <Pressable
+      onPress={onSave}
+      accessibilityRole="togglebutton"
+      accessibilityState={{ checked: currentlySaved }}
+      accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
+      hitSlop={hitSlop}
+      style={styles.headerBtn}
+    >
+      {/* Saved is the filled glyph, not only a colour (RULE-DS, #382). */}
+      <IconBookmark filled={currentlySaved} size={22} />
+    </Pressable>
+  ) : null
+
   return (
     <Atmosphere>
+      {header(saveToggle)}
       <ScrollView
         testID="place-detail-scroll"
-        style={{ marginTop: headerHeight }}
         contentContainerStyle={{ paddingBottom: actionInset }}
-        // Two rests: the hero gallery, and the sheet's top edge — after that
-        // the content scrolls freely.
-        snapToOffsets={[0, GALLERY_HEIGHT - SHEET_OVERLAP]}
         snapToEnd={false}
-        decelerationRate="fast"
       >
-      <View style={styles.gallery}>
-        {photos.length > 1 ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={onGalleryScroll}
-            scrollEventThrottle={32}
-          >
-            {photos.map(photo => (
-              <PlacePhoto
-                key={photo.id}
-                placeId={id}
-                name={name}
-                uri={photo.url}
-                style={[styles.galleryPage, { width }]}
-              />
-            ))}
-          </ScrollView>
-        ) : (
-          <PlacePhoto placeId={id} name={name} uri={photos[0]?.url ?? null} style={StyleSheet.absoluteFill} />
-        )}
-        <View pointerEvents="none" style={styles.imageScrim} />
-
-        {photos.length > 1 ? (
-          <>
-            <View pointerEvents="none" style={styles.galleryDots}>
-              {photos.map((photo, index) => (
-                <View
+        {/* No photo: a short placeholder, not a tall empty frame. */}
+        <View testID="place-detail-gallery" style={[styles.gallery, photos.length === 0 && styles.galleryEmpty]}>
+          {photos.length > 1 ? (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={onGalleryScroll}
+              scrollEventThrottle={32}
+            >
+              {photos.map(photo => (
+                <PlacePhoto
                   key={photo.id}
-                  style={[styles.galleryDot, index === photoIndex && styles.galleryDotActive]}
+                  placeId={id}
+                  name={name}
+                  uri={photo.url}
+                  style={[styles.galleryPage, { width: galleryWidth }]}
                 />
               ))}
-            </View>
-            <View pointerEvents="none" style={styles.galleryCount}>
-              <Text variant="caption" color="text.inverse">
-                {photoIndex + 1}/{photos.length}
-              </Text>
-            </View>
-          </>
-        ) : null}
+            </ScrollView>
+          ) : (
+            <PlacePhoto placeId={id} name={name} uri={photos[0]?.url ?? null} style={StyleSheet.absoluteFill} />
+          )}
+          {photos.length > 0 ? <View pointerEvents="none" style={styles.imageScrim} /> : null}
 
-      </View>
+          {photos.length > 1 ? (
+            <>
+              <View pointerEvents="none" style={styles.galleryDots}>
+                {photos.map((photo, index) => (
+                  <View
+                    key={photo.id}
+                    style={[styles.galleryDot, index === photoIndex && styles.galleryDotActive]}
+                  />
+                ))}
+              </View>
+              <View pointerEvents="none" style={styles.galleryCount}>
+                <Text variant="caption" color="text.inverse">
+                  {t('placeDetail.photoCount', { index: photoIndex + 1, total: photos.length })}
+                </Text>
+              </View>
+            </>
+          ) : null}
+        </View>
 
-      {/* One vertical scroll surface lets the gallery leave the viewport as
-          the sheet expands, then continues through the content naturally. */}
-      <View testID="place-detail-sheet" style={[styles.sheet, { minHeight: height - headerHeight - actionInset }]}>
-        <View style={styles.body}>
-          {/* On the sheet: between the gallery and the sheet, the sheet's rounded
-              top edge covered half of the bar (#253). */}
+        <View testID="place-detail-sheet" style={styles.body}>
           <StaleNotice
             error={place.isError ? place.error : null}
             onRetry={() => void place.refetch()}
             style={styles.sheetNotice}
           />
-          <View style={styles.identityRow}>
-            <View style={styles.identityText}>
-              <Text variant="display">{name}</Text>
-              {secondary ? <Text color="text.secondary" style={styles.meta}>{secondary}</Text> : null}
-            </View>
-            {canSave ? (
-              <Pressable
-                onPress={onSave}
-                accessibilityRole="togglebutton"
-                accessibilityState={{ checked: currentlySaved }}
-                accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
-                style={[styles.saveBtn, currentlySaved && styles.saveBtnActive]}
-              >
-                {/* Saved is the filled glyph, not only a colour (RULE-DS, #382). */}
-                <IconBookmark filled={currentlySaved} size={20} />
-              </Pressable>
-            ) : null}
-          </View>
+          <Text variant="display">{name}</Text>
+          {categoryLine ? <Text color="text.secondary" style={styles.meta}>{categoryLine}</Text> : null}
 
           {/* Colour is never the only signal — the dot repeats what the words say. */}
           <View style={styles.openRow}>
             <View style={[styles.openDot, open.openNow ? styles.openDotOn : styles.openDotOff]} />
-            <Text variant={!(open.openNow) ? 'label' : open.openNow ? 'label' : undefined} color={!(open.openNow) ? 'text.secondary' : open.openNow ? 'status.successText' : undefined}>{openLabel()}</Text>
+            <Text variant="label" color={open.openNow ? 'status.successText' : 'text.secondary'}>{openLabel()}</Text>
             {(detail.hours ?? []).length > 0 ? (
               <Pressable
                 onPress={() => setHoursOpen(value => !value)}
@@ -294,111 +294,174 @@ export default function PlaceDetailScreen() {
             </View>
           ) : null}
 
-          {/* The facts a decision actually turns on, side by side. A fact with
-              no data is left out rather than drawn as a dash (RULE-CORE-015). */}
-          <View testID="place-detail-facts" style={styles.factStrip}>
-            <View style={styles.fact}>
-              {isStandalonePrice(price.unit) ? (
-                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t(priceUnitKey(price.unit))}</Text>
-              ) : (
-                <>
-                  <Text variant="title2" style={styles.factValue} numberOfLines={1}>{price.amount}</Text>
-                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t(priceUnitKey(price.unit)).replace(/^\//, '')}</Text>
-                </>
-              )}
+          {/* Price, then the two rating sources side by side and never merged
+              (spec §6). A fact with no data is left out rather than drawn as a
+              dash (RULE-CORE-015). */}
+          <View testID="place-detail-facts" style={styles.facts}>
+            {isStandalonePrice(price.unit) ? (
+              <View style={styles.priceRow}>
+                <Icon name="dollar" size={20} color="text.secondary" />
+                <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
+              </View>
+            ) : (
+              <View style={styles.priceRow}>
+                <Icon name="dollar" size={20} color="accent.primary" />
+                <Text variant="title2" color="accent.primary" numberOfLines={1} style={styles.priceText}>
+                  {price.amount} <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit)).replace(/^\//, '')}</Text>
+                </Text>
+              </View>
+            )}
+            <View style={styles.ratingRow}>
+              <View style={styles.ratingChip}>
+                {google ? (
+                  <>
+                    <Text variant="label">★ {google.value.toFixed(1)}</Text>
+                    {google.count != null ? (
+                      <Text variant="caption" color="text.secondary">({formatCount(google.count, i18n.language)})</Text>
+                    ) : null}
+                    <Text variant="label">{t('rating.google')}</Text>
+                  </>
+                ) : (
+                  <Text variant="label" color="text.secondary" numberOfLines={1}>{t('placeDetail.noRating')}</Text>
+                )}
+              </View>
+              {/* The contract carries no GoGo aggregate yet, so the chip says so
+                  in words instead of inventing a number. */}
+              <View
+                accessible
+                accessibilityLabel={`${t('rating.gogo')}: ${t('rating.gogoInsufficient')}`}
+                style={[styles.ratingChip, styles.ratingChipGogo]}
+              >
+                <Text variant="label" color="status.infoText">{t('rating.gogo')}</Text>
+                <Text variant="caption" color="status.infoText" numberOfLines={1}>{t('placeDetail.gogoNone')}</Text>
+              </View>
             </View>
-            <View testID="place-detail-fact-divider" style={styles.factDivider} />
-            <View style={styles.fact}>
-              {google ? (
-                <>
-                  <Text variant="title2" style={styles.factValue}>★ {google.value.toFixed(1)}</Text>
-                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('rating.google')}</Text>
-                </>
-              ) : (
-                <Text variant="bodySmall" color="text.secondary" style={styles.factValueMuted}>{t('placeDetail.noRating')}</Text>
-              )}
-            </View>
-            {detail.avgVisitMinutes != null ? (
-              <>
-                <View testID="place-detail-fact-divider" style={styles.factDivider} />
-                <View style={styles.fact}>
-                  <Text variant="title2" style={styles.factValue}>{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
-                  <Text variant="caption" color="text.secondary" style={styles.factCaption}>{t('placeDetail.avgVisit')}</Text>
-                </View>
-              </>
-            ) : null}
           </View>
 
           {/* Questions about this place (#379): the contextual way into GoGo
               AI here — this screen has its own action bar, so no float button. */}
-          <AssistantPlaceCard placeId={id} placeName={name} />
+          <View style={styles.assistant}>
+            <AssistantPlaceCard placeId={id} placeName={name} />
+          </View>
 
-          {detail.addressText || hasCoords ? (
-            <View style={styles.addressCard}>
-              {hasCoords ? (
-                <MapCanvas
-                  interactive={false}
-                  pins={[{ id, lat: detail.lat as number, lng: detail.lng as number, title: name }]}
-                  style={styles.mapPreview}
-                  fallback={
-                    <View style={styles.mapFallback}>
-                      <Text variant="bodySmall" color="text.secondary" style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
-                    </View>
-                  }
-                />
-              ) : null}
-              {detail.addressText ? (
-                <View style={styles.addressRow}>
-                  <View style={styles.addressIcon}>
-                    <IconMapPin />
-                  </View>
-                  <Text variant="bodySmall" style={styles.addressLabel}>{detail.addressText}</Text>
+          <View testID="place-detail-info" style={styles.infoCard}>
+            {/* Directions stay reachable for a place with no address too: the
+                destination falls back to its coordinates, then its name. */}
+            <View style={styles.infoRow}>
+              <View style={styles.infoIcon}><Icon name="mapPin" size={20} color="text.secondary" /></View>
+              <View style={styles.infoBody}>
+                {detail.addressText ? (
+                  <>
+                    <Text variant="caption" color="text.secondary">{t('placeDetail.address')}</Text>
+                    <Text variant="body">{detail.addressText}</Text>
+                  </>
+                ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    haptic('select')
+                    openGoogleMapsDirections(destination)
+                  }}
+                  style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
+                >
+                  <IconNavigation />
+                  <Text variant="label" color="accent.primary">{t('common.directions')}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {detail.phone ? (
+              <View style={[styles.infoRow, styles.infoRowRule]}>
+                <View style={styles.infoIcon}><Icon name="support" size={20} color="text.secondary" /></View>
+                <View style={styles.infoBody}>
+                  <Text variant="caption" color="text.secondary">{t('placeDetail.phone')}</Text>
+                  <Text variant="label">{detail.phone}</Text>
                 </View>
-              ) : null}
-            </View>
-          ) : null}
+              </View>
+            ) : null}
 
-          {/* Google and GoGo measure different things and never merge into one
-              star (spec §6). The contract carries no GoGo aggregate yet, so the
-              second card says so in words instead of inventing a number. */}
-          <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.ratingsTitle')}</Text>
-          <View style={styles.ratingCards}>
-            <View style={styles.ratingCard}>
-              <Text variant="caption" color="text.secondary">{t('rating.google')}</Text>
-              {google ? (
-                <>
-                  <Text variant="title1">★ {google.value.toFixed(1)}</Text>
-                  {google.count != null ? (
-                    <Text variant="caption" color="text.secondary">{t('placeDetail.ratingCount', { count: google.count })}</Text>
-                  ) : null}
-                </>
-              ) : (
-                <Text variant="bodySmall" color="text.secondary">{t('placeDetail.noRating')}</Text>
-              )}
-            </View>
-            <View style={[styles.ratingCard, styles.ratingCardGogo]}>
-              <Text variant="caption" color="status.infoText">{t('rating.gogo')}</Text>
-              <Text variant="bodySmall" color="status.infoText">{t('rating.gogoInsufficient')}</Text>
+            {detail.website ? (
+              <View style={[styles.infoRow, styles.infoRowRule]}>
+                <View style={styles.infoIcon}><Icon name="compass" size={20} color="text.secondary" /></View>
+                <View style={styles.infoBody}>
+                  <Text variant="caption" color="text.secondary">{t('placeDetail.website')}</Text>
+                  <Text variant="label">{detail.website}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {detail.avgVisitMinutes != null ? (
+              <View style={[styles.infoRow, styles.infoRowRule]}>
+                <View style={styles.infoIcon}><Icon name="clock" size={20} color="text.secondary" /></View>
+                <View style={styles.infoBody}>
+                  <Text variant="caption" color="text.secondary">{t('placeDetail.visitTime')}</Text>
+                  <Text variant="label">{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {vibes.length > 0 ? (
+              <View style={[styles.infoRow, styles.infoRowRule]}>
+                <View style={styles.infoIcon}><Icon name="users" size={20} color="text.secondary" /></View>
+                <View style={styles.infoBody}>
+                  <Text variant="caption" color="text.secondary">{t('placeDetail.goodFor')}</Text>
+                  <View style={styles.tagRow}>
+                    {vibes.map(tag => (
+                      <Chip key={`${tag.kind}:${tag.key}`} label={taxonomyLabel(tag.kind as string, tag.key as string)} />
+                    ))}
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Only attributes with real data — no generic "accessible" claims. */}
+            {accessibility.length > 0 ? (
+              <View style={[styles.infoRow, styles.infoRowRule]}>
+                <View style={styles.infoIcon}><Icon name="sparkle" size={20} color="text.secondary" /></View>
+                <View style={styles.infoBody}>
+                  <Text variant="caption" color="text.secondary">{t('placeDetail.attributes')}</Text>
+                  <View style={styles.tagRow}>
+                    {accessibility.map(entry => (
+                      <Chip key={entry.key} label={taxonomyLabel('accessibility', entry.key as string)} />
+                    ))}
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            <View style={[styles.infoRow, styles.infoRowRule, styles.updatedRow]}>
+              <Icon name="checkCircle" size={16} color="text.secondary" />
+              <Text variant="bodySmall" color="text.secondary" style={styles.updated}>
+                {checkedAt
+                  ? t('placeDetail.updatedAt', { date: checkedAt.toLocaleDateString(i18n.language) })
+                  : t('placeDetail.updated')}
+              </Text>
             </View>
           </View>
 
-          {/* APP-056 — real, moderated GoGo reviews with their own loading and
-              error states, so the facts above never wait on them. */}
-          <PlaceReviews placeId={id} showPageLink />
-
-          {vibes.length > 0 ? (
-            <>
-              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.goodFor')}</Text>
-              <View style={styles.tagRow}>
-                {vibes.map(tag => (
-                  <Chip
-                    key={`${tag.kind}:${tag.key}`}
-                    label={taxonomyLabel(tag.kind as string, tag.key as string)}
-                    variant="info"
-                  />
-                ))}
-              </View>
-            </>
+          {/* Provider facts must be shown with their attribution. */}
+          <View style={styles.trustRow}>
+            {/* No report endpoint exists on `/v1` yet, so this stays visibly
+                unavailable rather than pretending to send something. */}
+            {/* Disabled the way a Button is (#382): `text.secondary` on
+                `surface.subtle`, never the 1.6:1 placeholder colour. */}
+            <View
+              testID="place-detail-report"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: true }}
+              style={styles.reportDisabled}
+            >
+              <Text variant="label" color="text.secondary">{t('placeDetail.report')}</Text>
+            </View>
+          </View>
+          <Text variant="caption" color="text.secondary">{t('placeDetail.reportUnavailable')}</Text>
+          {(detail.sources ?? []).map(source => (
+            <Text variant="caption" color="text.secondary" key={source.url ?? source.provider} style={styles.attribution}>
+              {source.attribution ?? source.provider}
+            </Text>
+          ))}
+          {photos[photoIndex]?.attribution ? (
+            <Text variant="caption" color="text.secondary" style={styles.attribution}>{photos[photoIndex].attribution}</Text>
           ) : null}
 
           {/* Real suitability scores from the ranking pipeline, not invented bars. */}
@@ -419,79 +482,29 @@ export default function PlaceDetailScreen() {
             </>
           ) : null}
 
-          {/* Only attributes with real data — no generic "accessible" claims. */}
-          {accessibility.length > 0 ? (
-            <>
-              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.attributes')}</Text>
-              <View style={styles.factsGrid}>
-                {accessibility.map(entry => (
-                  <Card padded={false} key={entry.key} style={styles.factCard}>
-                    <Text>♿</Text>
-                    <Text variant="bodySmall" style={styles.factLabel}>{taxonomyLabel('accessibility', entry.key as string)}</Text>
-                  </Card>
-                ))}
-              </View>
-            </>
+          {hasCoords ? (
+            <View style={styles.mapCard}>
+              <MapCanvas
+                interactive={false}
+                pins={[{ id, lat: detail.lat as number, lng: detail.lng as number, title: name }]}
+                style={styles.mapPreview}
+                fallback={
+                  <View style={styles.mapFallback}>
+                    <Text variant="bodySmall" color="text.secondary" style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
+                  </View>
+                }
+              />
+            </View>
           ) : null}
 
-          {/* Provider facts must be shown with their attribution. */}
-          <View style={styles.trustCard}>
-            <View style={styles.trustRow}>
-              <Text variant="bodySmall" color="text.secondary" style={styles.updated}>
-                {checkedAt
-                  ? t('placeDetail.updatedAt', { date: checkedAt.toLocaleDateString(i18n.language) })
-                  : t('placeDetail.updated')}
-              </Text>
-              {/* No report endpoint exists on `/v1` yet, so this stays visibly
-                  unavailable rather than pretending to send something. */}
-              {/* Disabled the way a Button is (#382): `text.secondary` on
-                  `surface.subtle`, never the 1.6:1 placeholder colour. */}
-              <View
-                testID="place-detail-report"
-                accessibilityRole="button"
-                accessibilityState={{ disabled: true }}
-                style={styles.reportDisabled}
-              >
-                <Text variant="label" color="text.secondary">{t('placeDetail.report')}</Text>
-              </View>
-            </View>
-            <Text variant="caption" color="text.secondary">{t('placeDetail.reportUnavailable')}</Text>
-            {(detail.sources ?? []).map(source => (
-              <Text variant="caption" color="text.secondary" key={source.url ?? source.provider} style={styles.attribution}>
-                {source.attribution ?? source.provider}
-              </Text>
-            ))}
-            {photos[photoIndex]?.attribution ? (
-              <Text variant="caption" color="text.secondary" style={styles.attribution}>{photos[photoIndex].attribution}</Text>
-            ) : null}
-          </View>
+          {/* APP-056 — real, moderated GoGo reviews with their own loading and
+              error states, so the facts above never wait on them. */}
+          <PlaceReviews placeId={id} showPageLink />
         </View>
-      </View>
       </ScrollView>
 
-        <Pressable
-          onPress={() => goBackOrHome(router)}
-          accessibilityLabel={t('common.back')}
-          accessibilityRole="button"
-          hitSlop={hitSlop}
-          style={[styles.backBtn, { top: insets.top + spacing[2] }]}
-        >
-          <IconChevronLeft />
-        </Pressable>
-
-      <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight} style={styles.actionBar}>
-        <PrimaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} icon="plus" style={styles.addBtn} />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            haptic('select')
-            openGoogleMapsDirections(destination)
-          }}
-          style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
-        >
-          <IconNavigation />
-          <Text variant="label" color="accent.primary">{t('common.directions')}</Text>
-        </Pressable>
+      <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight}>
+        <PrimaryBtn label={t('placeDetail.createRoom')} onPress={addToPlan} icon="plus" style={styles.addBtn} />
       </GlassBar>
     </Atmosphere>
   )
