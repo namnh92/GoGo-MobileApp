@@ -94,9 +94,10 @@ it('keeps GoGo reviews apart from the Google rating', async () => {
   await renderScreen(<PlaceDetailScreen />)
 
   // Google's number stays in Google's places; the GoGo card still has no
-  // aggregate, because two reviews are not a community rating.
+  // aggregate (its chip says so in words), because two reviews are not a
+  // community rating.
   expect(screen.getAllByText('★ 4.6').length).toBeGreaterThan(0)
-  expect(screen.getByText('Chưa đủ đánh giá từ cộng đồng GoGo')).toBeTruthy()
+  expect(screen.getByText('Chưa đủ đánh giá')).toBeTruthy()
   expect(section().queryByText('★ 4.6')).toBeNull()
   expect(section().getAllByText('★ 1/5')).toHaveLength(2)
 })
