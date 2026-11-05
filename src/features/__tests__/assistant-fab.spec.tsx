@@ -29,6 +29,7 @@ jest.mock('expo-router', () => {
     usePathname: () => mockNav.pathname,
     useRouter: () => ({ push: mockPush }),
     useFocusEffect: () => undefined,
+    useLocalSearchParams: () => ({}),
   }
 })
 jest.mock('@/shared/hooks/use-screen-focused', () => ({ useScreenFocused: () => mockNav.focused }))
@@ -164,4 +165,3 @@ describe('feature gate (off until the assistant API exists)', () => {
     expect(StyleSheet.flatten(list.props.contentContainerStyle).paddingBottom).toBe(BAR + 24)
   })
 })
-
