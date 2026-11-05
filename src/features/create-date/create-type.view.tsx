@@ -130,7 +130,7 @@ export default function CreateTypeScreen() {
         />
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={handleSubmit(next)} disabled={!selected} />
+        <PrimaryBtn label={t('common.continue')} onPress={handleSubmit(next)} disabled={!selected} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

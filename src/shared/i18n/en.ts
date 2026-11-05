@@ -252,6 +252,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createTime.presetNeedsStart': 'Pick a start time — GoGo works out the end from this length.',
   'createTime.openEnd': 'Open',
   'createTime.nextDay': '(next day)',
+  'createTime.estimated': 'Expected: about {{hours}} h out',
 
   'createBudget.title': 'Budget\nfor both?',
   'createBudget.body': 'Estimated total for two people.',
@@ -268,6 +269,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createBudget.useUsual': 'Use my usual budget: {{tier}}',
 
   'createMood.title': "Tonight's\nmood?",
+  'createMood.moodTitle': 'Mood & experience',
   'createMood.body': 'Pick up to {{max}} moods.',
   'createMood.settingTitle': 'Setting',
   'createMood.spendingTitle': 'Spending style',

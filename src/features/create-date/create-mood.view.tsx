@@ -178,6 +178,7 @@ export default function CreateMoodScreen() {
           <Text variant="display">{t('createMood.title')}</Text>
           <Text color="text.secondary" style={styles.body}>{t('createMood.body', { max: MAX_MOODS })}</Text>
 
+          <Text variant="title2" style={styles.moodTitle}>{t('createMood.moodTitle')}</Text>
           <ChipGrid options={toOptions('mood')} selected={moods} onToggle={toggleCapped(setMoods, MAX_MOODS)} />
 
           <Text variant="title2" style={styles.sectionTitle}>{t('createMood.settingTitle')}</Text>
@@ -224,6 +225,7 @@ export default function CreateMoodScreen() {
         <PrimaryBtn
           label={createRoom.isPending ? t('createMood.creating') : t('createMood.cta')}
           onPress={submit}
+          icon="arrowRight"
           loading={createRoom.isPending}
           disabled={taxonomies.isPending || taxonomies.isError}
         />

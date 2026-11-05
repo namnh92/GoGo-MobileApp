@@ -9,8 +9,11 @@ export const styles = StyleSheet.create(theme => ({
   errorWrap: { flex: 1 },
   seedHint: { marginBottom: spacing[3], marginTop: -spacing[2] },
   seedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], alignItems: 'center' },
+  moodTitle: { marginBottom: spacing[3] },
   seedAddBtn: {
-    minHeight: touchTarget.min - 12,
+    width: '100%',
+    minHeight: touchTarget.min,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[3],
     paddingVertical: 6,
