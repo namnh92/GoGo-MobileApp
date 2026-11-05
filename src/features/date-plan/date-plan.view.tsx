@@ -315,12 +315,6 @@ export default function DatePlanScreen() {
         <BackHeader
           onBack={() => goBackOrHome(router)}
           title={screenTitle()}
-          right={
-            <View style={styles.matchBadge}>
-              <Icon name="zap" size={12} color="status.successText" filled />
-              <Text variant="caption" color="status.successText">{t('datePlan.match')}</Text>
-            </View>
-          }
         />
       </View>
       <RoomConnectionNotice

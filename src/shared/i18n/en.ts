@@ -524,7 +524,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'datePlan.when.tomorrow': 'tomorrow {{time}}',
   'datePlan.when.other': '{{month}}/{{day}} {{time}}',
   'datePlan.when.otherYear': '{{month}}/{{day}}/{{year}} {{time}}',
-  'datePlan.match': 'Great fit',
   'datePlan.optionalExtra': 'Add this stop: +{{amount}}',
   'datePlan.for2': 'for 2 people',
   'datePlan.perPerson': '/person',
