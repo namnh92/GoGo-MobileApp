@@ -252,6 +252,9 @@ export const viMessages = {
   'createTime.openEnd': 'Không cố định',
   'createTime.nextDay': '(hôm sau)',
   'createTime.estimated': 'Dự kiến: ~{{hours}} giờ trải nghiệm',
+  'createTime.dayTitle': 'Lịch chọn ngày',
+  'createTime.today': 'Hôm nay',
+  'createTime.tomorrow': 'Ngày mai',
 
   'createBudget.title': 'Ngân sách\ncho cả hai?',
   'createBudget.body': 'Tổng chi phí dự kiến cho hai người.',

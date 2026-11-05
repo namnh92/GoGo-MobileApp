@@ -257,6 +257,9 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createTime.openEnd': 'Open',
   'createTime.nextDay': '(next day)',
   'createTime.estimated': 'Expected: about {{hours}} h out',
+  'createTime.dayTitle': 'Pick a day',
+  'createTime.today': 'Today',
+  'createTime.tomorrow': 'Tomorrow',
 
   'createBudget.title': 'Budget\nfor both?',
   'createBudget.body': 'Estimated total for two people.',
