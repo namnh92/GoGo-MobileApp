@@ -429,6 +429,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'joinByCode.failed': 'Could not join. Please try again.',
 
   'preference.title': 'What are you\nmore in the mood for?',
+  'preference.headerTitle': 'Your interests',
+  'preference.selectedCount': 'Selected: {{n}}/{{max}}',
   'preference.body': 'Pick the 2–3 things that fit your evening best.',
   'preference.saveFailed': 'Could not save your picks. Please try again.',
   'preference.conflict': 'Your picks changed on another device. Reload and choose again.',
@@ -443,6 +445,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
 
   'swipe.header': 'Pick what you like',
   'swipe.subheader': 'GoGo will find the overlap',
+  'swipe.hint': 'Swipe right to like • Swipe left to pass',
   'swipe.likeLabel': 'Like',
   'swipe.passLabel': 'Not for me',
   'swipe.starLabel': 'Really want',

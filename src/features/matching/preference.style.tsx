@@ -2,6 +2,14 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  countPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.pill,
+    backgroundColor: theme.status.successSoft,
+    marginTop: spacing[2],
+  },
   title: { marginTop: spacing[2] },
   body: { marginTop: spacing[2], marginBottom: spacing[5] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },

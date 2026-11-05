@@ -426,6 +426,8 @@ export const viMessages = {
   'joinByCode.failed': 'Chưa vào được phòng. Thử lại nhé.',
 
   'preference.title': 'Bạn đang\nmuốn gì hơn?',
+  'preference.headerTitle': 'Chọn sở thích',
+  'preference.selectedCount': 'Đã chọn: {{n}}/{{max}} tiêu chí',
   'preference.body': 'Chọn 2–3 thứ phù hợp nhất với tối nay của bạn.',
   'preference.saveFailed': 'Chưa lưu được lựa chọn. Thử lại nhé.',
   'preference.conflict': 'Lựa chọn của bạn đã được cập nhật ở thiết bị khác. Tải lại rồi chọn lại nhé.',
@@ -440,6 +442,7 @@ export const viMessages = {
 
   'swipe.header': 'Chọn theo ý bạn',
   'swipe.subheader': 'GoGo sẽ tìm phần giao nhau',
+  'swipe.hint': 'Quẹt phải để thích • Quẹt trái để bỏ qua',
   // "star" là super-like: 2 điểm khi chốt, nên nhãn phải nói rõ trọng số.
   // Dấu xác nhận khi vuốt dùng chính các nhãn này (#382: không viết hoa toàn bộ, không emoji).
   'swipe.likeLabel': 'Thích',
