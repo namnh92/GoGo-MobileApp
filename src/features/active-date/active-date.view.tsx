@@ -488,6 +488,7 @@ export default function ActiveDateScreen() {
                 : t('activeDate.finish')
           }
           onPress={onDone}
+          icon="check"
           loading={completeStop.isPending}
         />
       </GlassBar>

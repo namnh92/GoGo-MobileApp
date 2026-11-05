@@ -193,7 +193,7 @@ export default function ReviewScreen() {
             </View>
           </Card>
           <View style={styles.successActions}>
-            <PrimaryBtn label={t('review.continue')} onPress={onContinue} />
+            <PrimaryBtn label={t('review.continue')} onPress={onContinue} icon="arrowRight" />
             {/* The other stops are the point of #277: one review per subject,
                 and the way to the next one is here rather than a second trip
                 through the date. */}
@@ -320,6 +320,7 @@ export default function ReviewScreen() {
         <PrimaryBtn
           label={createReview.isPending ? t('review.submitting') : t('review.submit')}
           onPress={submit}
+          icon="send"
           disabled={rating === 0}
           loading={createReview.isPending}
         />
