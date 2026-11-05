@@ -118,4 +118,7 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
 jest.mock('@/features/notifications/unread-count', () => ({
   useUnreadInbox: () => ({ count: 0, more: false }),
 }))
-jest.mock('@/features/tabs/live-rooms', () => ({ useLiveRoomCount: () => 0 }))
+jest.mock('@/features/tabs/upcoming-rooms', () => ({
+  ...jest.requireActual('@/features/tabs/upcoming-rooms'),
+  useUpcomingRooms: () => ({ count: 0, more: false, live: false }),
+}))
