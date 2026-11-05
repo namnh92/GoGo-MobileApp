@@ -33,7 +33,7 @@ export default function NotFoundScreen() {
         </Text>
         <Text color="text.secondary" style={styles.body}>{t('notFound.body')}</Text>
         <View style={styles.cardActions}>
-          <PrimaryBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} />
+          <PrimaryBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} icon="home" />
         </View>
       </View>
     </Atmosphere>

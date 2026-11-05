@@ -336,6 +336,7 @@ export default function SignInScreen() {
             <PrimaryBtn
               label={t(mode === 'signIn' ? 'auth.signInCta' : 'auth.signUpCta')}
               onPress={mode === 'signIn' ? onSignIn : onSignUp}
+              icon="arrowRight"
               loading={pending}
             />
           </View>
