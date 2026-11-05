@@ -21,11 +21,6 @@ export const styles = StyleSheet.create(theme => ({
   openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.status.success },
   openLabel: { flexShrink: 1 },
 
-  // --- grid ---------------------------------------------------------------
-  gridCard: { overflow: 'hidden' },
-  gridThumbWrap: { height: 124, backgroundColor: theme.surface.subtle },
-  gridBody: { padding: theme.spacing[3], gap: 3, minWidth: 0 },
-
   // --- hero ---------------------------------------------------------------
   heroCard: { height: 260, borderRadius: theme.radius.hero, overflow: 'hidden', justifyContent: 'flex-end' },
   heroScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: overlay.scrim },

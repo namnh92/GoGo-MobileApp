@@ -37,7 +37,7 @@ import { styles } from './place-card.style'
  * reads as "free" to some people and "broken" to the rest.
  */
 
-export type PlaceCardVariant = 'list' | 'grid' | 'hero'
+export type PlaceCardVariant = 'list' | 'hero'
 
 export interface PlaceCardProps {
   place: PlaceCardModel
@@ -212,27 +212,6 @@ export function PlaceCard({
               ) : null}
             </View>
           </View>
-        </Pressable>
-        {save}
-      </View>
-    )
-  }
-
-  if (variant === 'grid') {
-    return (
-      <View style={[styles.wrap, style]}>
-        <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
-          <Card padded={false} style={styles.gridCard}>
-            <View style={styles.gridThumbWrap}>
-              <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
-            </View>
-            <View style={styles.gridBody}>
-              <Text variant="title2" numberOfLines={1}>{place.name}</Text>
-              <MetaLine place={place} categoryLabel={categoryLabel} />
-              <RatingPriceLine place={place} />
-              <OpenLine place={place} />
-            </View>
-          </Card>
         </Pressable>
         {save}
       </View>

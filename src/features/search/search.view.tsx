@@ -21,7 +21,7 @@ import { useLocaleContent } from '@/shared/i18n'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState } from '@/shared/ui/async-state.view'
-import { Icon } from '@/shared/ui/icons'
+import { Icon, type IconName } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { SearchField } from '@/shared/ui/search-field.view'
@@ -36,6 +36,15 @@ const SUITED_OPTIONS = ['couple', 'group'] as const
 const SEARCH_DEBOUNCE_MS = 300
 /** Price inputs are typed in thousands of dong; the API wants minor units. */
 const PRICE_INPUT_MULTIPLIER = 1000
+
+function SheetSection({ icon, label }: { icon: IconName; label: string }) {
+  return (
+    <View style={styles.sheetSection}>
+      <Icon name={icon} size={20} color="text.primary" />
+      <Text variant="title2" accessibilityRole="header">{label}</Text>
+    </View>
+  )
+}
 
 function parseNum(value: string): number | null {
   const parsed = Number(value.replace(',', '.'))
@@ -317,7 +326,7 @@ export default function SearchScreen() {
           </Pressable>
         </View>
 
-        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterDistance')}</Text>
+        <SheetSection icon="navigation" label={t('search.filterDistance')} />
         {hasOrigin ? (
           <TextInput
             value={maxKm}
@@ -334,7 +343,7 @@ export default function SearchScreen() {
           <Text variant="bodySmall" color="text.secondary" style={styles.sheetHint}>{t('search.distanceNeedsArea')}</Text>
         )}
 
-        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterPrice')}</Text>
+        <SheetSection icon="dollar" label={t('search.filterPrice')} />
         <View style={styles.priceRow}>
           <TextInput
             value={priceFrom}
@@ -357,7 +366,7 @@ export default function SearchScreen() {
           />
         </View>
 
-        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterSuited')}</Text>
+        <SheetSection icon="users" label={t('search.filterSuited')} />
         <View style={styles.sheetOptionRow}>
           {SUITED_OPTIONS.map((option, index) => (
             <Chip
@@ -369,7 +378,7 @@ export default function SearchScreen() {
           ))}
         </View>
 
-        <Text variant="label" color="text.secondary" style={styles.sheetSection}>{t('search.filterCategory')}</Text>
+        <SheetSection icon="home" label={t('search.filterCategory')} />
         <View style={styles.sheetOptionRow}>
           {categories.map(category => (
             <Chip

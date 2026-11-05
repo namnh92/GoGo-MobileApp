@@ -225,11 +225,3 @@ describe('PlaceCard — list', () => {
     expect(screen.queryByTestId('place-card-save')).toBeNull()
   })
 })
-
-describe('PlaceCard — grid', () => {
-  it('shares the same lines', async () => {
-    await render(<PlaceCard place={fixture()} variant="grid" categoryLabel="Cà phê" />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) · 45k–90k/người', { exact: true })
-    expect(screen.queryByText(/Google/)).toBeNull()
-  })
-})
