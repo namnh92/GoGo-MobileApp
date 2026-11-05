@@ -523,7 +523,6 @@ export const viMessages = {
   'datePlan.when.tomorrow': 'ngày mai {{time}}',
   'datePlan.when.other': '{{day}}/{{month}} {{time}}',
   'datePlan.when.otherYear': '{{day}}/{{month}}/{{year}} {{time}}',
-  'datePlan.match': 'Rất hợp',
   'datePlan.optionalExtra': 'Thêm stop này: +{{amount}}',
   'datePlan.for2': 'cho 2 người',
   'datePlan.perPerson': '/người',

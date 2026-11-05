@@ -3,16 +3,6 @@ import { StyleSheet } from 'react-native-unistyles'
 import { fill, overlay, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  matchBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: theme.status.successSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.radius.pill,
-  },
-
   /** Total, time and the over-budget note lead the screen as one card. */
   summaryCard: { marginBottom: theme.spacing[5], gap: theme.spacing[3] },
   summaryTotalRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing[4] },
