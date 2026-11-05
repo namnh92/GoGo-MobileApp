@@ -24,6 +24,7 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { decisionScreen } from '@/shared/navigation/room-routing'
 
+import { MatchingOrbit } from './matching-orbit.view'
 import { styles } from './matching.style'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
@@ -111,23 +112,7 @@ export default function MatchingScreen() {
         />
       </View>
       <View style={styles.root}>
-        {/* No avatars: a room has N members, so the mark is the run itself. */}
-        <View style={styles.orbit} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <View style={styles.orbitMid}>
-            <View style={styles.orbitCore}>
-              <Icon name="compass" size={44} color="accent.onAccent" />
-            </View>
-          </View>
-          <View style={[styles.satellite, styles.satelliteTop]}>
-            <Icon name="mapPin" size={18} color="accent.onSoft" />
-          </View>
-          <View style={[styles.satellite, styles.satelliteLeft]}>
-            <Icon name="heart" size={16} color="accent.onSoft" />
-          </View>
-          <View style={[styles.satellite, styles.satelliteRight]}>
-            <Icon name="star" size={16} color="status.warningText" />
-          </View>
-        </View>
+        <MatchingOrbit running={!waitingForNetwork && !failed && !(hasRun && !isStale)} />
 
         {waitingForNetwork && !failed ? (
           <View style={styles.offlineCard}>

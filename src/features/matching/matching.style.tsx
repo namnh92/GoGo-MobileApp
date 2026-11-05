@@ -21,6 +21,13 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.surface.subtle,
     marginBottom: spacing[6],
   },
+  orbitPing: {
+    position: 'absolute',
+    width: 232,
+    height: 232,
+    borderRadius: 116,
+    backgroundColor: theme.accent.soft,
+  },
   orbitMid: {
     width: 168,
     height: 168,
