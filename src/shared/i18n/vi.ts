@@ -459,6 +459,7 @@ export const viMessages = {
 
   'swipe.header': 'Chọn theo ý bạn',
   'swipe.subheader': 'GoGo sẽ tìm phần giao nhau',
+  'swipe.progress': '{{index}} / {{total}} địa điểm',
   'swipe.hint': 'Quẹt phải để thích • Quẹt trái để bỏ qua',
   // "star" là super-like: 2 điểm khi chốt, nên nhãn phải nói rõ trọng số.
   // Dấu xác nhận khi vuốt dùng chính các nhãn này (#382: không viết hoa toàn bộ, không emoji).

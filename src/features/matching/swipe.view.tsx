@@ -39,6 +39,7 @@ import { haptic, useReducedMotion } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
+import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -263,6 +264,7 @@ export default function SwipeScreen() {
     <View style={{ paddingTop: insets.top }}>
       <BackHeader
         title={withCounter ? t('swipe.header') : undefined}
+        subtitle={withCounter ? t('swipe.subheader') : undefined}
         onBack={() => router.back()}
         right={
           withCounter && candidates.length > 0 ? (
@@ -423,7 +425,10 @@ export default function SwipeScreen() {
       {renderHeader(true)}
       <View style={styles.subheader}>
         <View style={styles.subheaderDot} />
-        <Text variant="bodySmall" color="text.secondary">{t('swipe.subheader')}</Text>
+        <Text variant="caption" color="text.secondary" style={styles.subheaderText}>{t('swipe.subheader')}</Text>
+        <Text variant="caption" color="text.secondary">
+          {t('swipe.progress', { index: Math.min(cardIndex + 1, candidates.length), total: candidates.length })}
+        </Text>
       </View>
 
       {castVote.isError ? (
@@ -494,29 +499,28 @@ export default function SwipeScreen() {
 
             {/* The facts a swipe decision turns on, and nothing more (spec §17). */}
             <View style={styles.footer}>
-              <View style={styles.titleRow}>
-                <View style={styles.titleCol}>
-                  <Text variant="title1" numberOfLines={2}>{card.name}</Text>
-                  {detail.data?.addressText ? (
-                    <View style={styles.addressRow}>
-                      <Icon name="mapPin" size={14} color="text.secondary" />
-                      <Text variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.addressText}>{detail.data.addressText}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                {price ? (
-                  <View style={styles.priceCol}>
-                    {isStandalonePrice(price.unit) ? (
-                      <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
-                    ) : (
-                      <Text variant="title2" color="status.successText">
-                        {price.amount}
-                        <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
-                      </Text>
-                    )}
+              <View style={styles.titleCol}>
+                <Text variant="title1" numberOfLines={1}>{card.name}</Text>
+                {detail.data?.addressText ? (
+                  <View style={styles.addressRow}>
+                    <Icon name="mapPin" size={14} color="text.secondary" />
+                    <Text variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.addressText}>{detail.data.addressText}</Text>
                   </View>
                 ) : null}
               </View>
+
+              {/* Name, address, price on their own lines; then ratings, then tags. */}
+              {price ? (
+                isStandalonePrice(price.unit) ? (
+                  <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
+                ) : (
+                  <Text variant="title2" color="status.successText">
+                    {price.amount}
+                    <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
+                  </Text>
+                )
+              ) : null}
+              {place ? <RatingChips place={place} /> : null}
 
               {card.reasonCodes.length > 0 ? (
                 <View style={styles.tagRow}>

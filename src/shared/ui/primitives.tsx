@@ -142,7 +142,7 @@ export function ProgressDots({ total, current }: { total: number; current: numbe
   )
 }
 
-export function BackHeader({ title, onBack, right }: { title?: string; onBack: () => void; right?: ReactNode }) {
+export function BackHeader({ title, subtitle, onBack, right }: { title?: string; subtitle?: string; onBack: () => void; right?: ReactNode }) {
   const { t } = useTranslation()
   return (
     <View style={styles.backHeader}>
@@ -155,7 +155,12 @@ export function BackHeader({ title, onBack, right }: { title?: string; onBack: (
       >
         <IconChevronLeft />
       </Pressable>
-      {title ? <Text variant="title2" style={styles.backTitle}>{title}</Text> : null}
+      {title && subtitle ? (
+        <View style={styles.backTitleBlock}>
+          <Text variant="title2" numberOfLines={1}>{title}</Text>
+          <Text variant="caption" color="text.secondary" numberOfLines={1}>{subtitle}</Text>
+        </View>
+      ) : title ? <Text variant="title2" style={styles.backTitle}>{title}</Text> : null}
       {right ?? <View style={styles.backSpacer} />}
     </View>
   )
@@ -290,6 +295,8 @@ const styles = StyleSheet.create(theme => ({
     textAlign: 'center',
     marginHorizontal: theme.spacing[2],
   },
+  // Title with a caption under it, left-aligned beside the back button.
+  backTitleBlock: { flex: 1, marginHorizontal: theme.spacing[3] },
   backSpacer: { width: 36 },
 
   avatar: {

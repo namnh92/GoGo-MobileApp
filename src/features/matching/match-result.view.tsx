@@ -35,6 +35,7 @@ import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
+import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon, IconZap, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -209,6 +210,17 @@ export default function MatchResultScreen() {
   const winnerPhoto = winnerPlace?.photoUrl ?? null
   const winnerOpen = openStateFromHours(winnerDetail.data?.hours)
   const winnerPrice = winnerPlace ? placePriceParts(winnerPlace) : null
+  const winnerPriceText = winnerPrice
+    ? isStandalonePrice(winnerPrice.unit)
+      ? t(priceUnitKey(winnerPrice.unit))
+      : `${winnerPrice.amount}${t(priceUnitKey(winnerPrice.unit))}`
+    : null
+  // Spec §36.2: the per-person figure and the group figure together.
+  const planCostText = plan.data?.totals
+    ? allScopes(planCost(toPlanSummary(plan.data), room.data ? toRoomAudience(room.data) : null, t))
+        .map(costLineText)
+        .join(' · ')
+    : null
   const winnerFacts: { key: string; label: string; icon?: IconName; variant: 'default' | 'positive' | 'warning' }[] = []
   if (winnerPrice) {
     winnerFacts.push({
@@ -281,22 +293,19 @@ export default function MatchResultScreen() {
             </View>
           </View>
           <View style={styles.heroBody}>
-            <View style={styles.heroTitleRow}>
-              <Text variant="title1" style={styles.heroName}>{winner.name}</Text>
-              {winnerPrice ? (
-                <Text variant="title2" color="accent.primary" style={styles.heroPrice}>
-                  {isStandalonePrice(winnerPrice.unit)
-                    ? t(priceUnitKey(winnerPrice.unit))
-                    : `${winnerPrice.amount}${t(priceUnitKey(winnerPrice.unit))}`}
-                </Text>
-              ) : null}
-            </View>
+            <Text variant="title1" numberOfLines={1}>{winner.name}</Text>
             {winnerDetail.data?.addressText ? (
               <View style={styles.heroAddress}>
                 <Icon name="mapPin" size={14} color="text.secondary" />
                 <Text variant="bodySmall" color="text.secondary" style={styles.heroAddressText}>{winnerDetail.data.addressText}</Text>
               </View>
             ) : null}
+            {/* Price on its own line, once: the plan cost line below already says
+                "no price" when that is all there is. */}
+            {winnerPrice && !(planCostText && winnerPriceText && planCostText.includes(winnerPriceText)) ? (
+              <Text variant="title2" color="accent.primary">{winnerPriceText}</Text>
+            ) : null}
+            {winnerPlace ? <RatingChips place={winnerPlace} /> : null}
             {/* The facts behind the verdict, not just the verdict (spec §19). */}
             {winnerFacts.some(fact => fact.key !== 'price') ? (
               <View style={styles.factRow}>
@@ -306,13 +315,17 @@ export default function MatchResultScreen() {
               </View>
             ) : null}
             {plan.data?.totals ? (
-              <Text variant="bodySmall" color="text.secondary" style={styles.heroMeta}>
-                ⏱ {Math.round((plan.data.totals.durationMinutes ?? 0) / 60)}h · 💰{' '}
-                {/* Spec §36.2: the per-person figure and the group figure together. */}
-                {allScopes(planCost(toPlanSummary(plan.data), room.data ? toRoomAudience(room.data) : null, t))
-                  .map(costLineText)
-                  .join(' · ')}
-              </Text>
+              <View style={styles.heroMeta}>
+                <Icon name="clock" size={14} color="text.secondary" />
+                <Text variant="bodySmall" color="text.secondary">
+                  {Math.round((plan.data.totals.durationMinutes ?? 0) / 60)}h
+                </Text>
+                <Text variant="bodySmall" color="text.secondary">·</Text>
+                <Icon name="dollar" size={14} color="text.secondary" />
+                <Text variant="bodySmall" color="text.secondary" style={styles.heroMetaText}>
+                  {planCostText}
+                </Text>
+              </View>
             ) : null}
           </View>
         </Card>
