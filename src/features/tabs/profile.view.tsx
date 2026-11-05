@@ -1,6 +1,6 @@
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useUnreadInbox } from '@/features/notifications/unread-count'
-import { CountBadge } from '@/shared/ui/count-badge.view'
+import { badgeLabel, CountBadge } from '@/shared/ui/count-badge.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +19,7 @@ import { Atmosphere, AvatarCircle, Card } from '@/shared/ui/primitives'
 import { Icon, IconChevronRight, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
+import { useUpcomingRooms } from '@/features/tabs/upcoming-rooms'
 import { AssistantHelpSection } from '@/features/assistant/assistant-help-row.view'
 import { SETTINGS_ROWS } from './profile-settings-rows'
 import { styles } from './profile.style'
@@ -64,10 +65,19 @@ export default function ProfileScreen() {
   // notification settings then has data on the first frame in the usual flow.
   useNotificationSettings({ enabled: canRead })
   const recentRooms = useRecentRoomsStore(state => state.rooms)
+  // The Kèo card counts what "Sắp tới" lists, through the hook behind the tab
+  // badge, so the two read the same (#475). It is a user-only query: a guest
+  // keeps the count of rooms this device has seen, as before, and a signed-out
+  // person has no count at all.
+  const upcoming = useUpcomingRooms()
+  const plansCount =
+    status === 'user' ? badgeLabel(upcoming.count, upcoming.more)
+    : status === 'guest' ? String(recentRooms.length)
+    : null
 
-  const shortcuts: { key: string; route: string; count: number | null }[] = [
+  const shortcuts: { key: string; route: string; count: string | number | null }[] = [
     { key: 'saved', route: '/(tabs)/saved', count: canRead ? (saved.data?.length ?? null) : null },
-    { key: 'plans', route: '/(tabs)/plans', count: recentRooms.length },
+    { key: 'plans', route: '/(tabs)/plans', count: plansCount },
     { key: 'reviews', route: '/settings/reviews', count: canRead ? (reviews.data?.length ?? null) : null },
   ]
 
