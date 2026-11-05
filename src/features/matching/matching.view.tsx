@@ -152,6 +152,7 @@ export default function MatchingScreen() {
           </View>
         ) : (
           <View style={{ alignItems: 'center', gap: spacing[2], alignSelf: 'stretch' }}>
+            <Text variant="label" color="text.secondary" style={styles.finding}>{t('matching.finding')}</Text>
             <Text variant="title1" style={styles.message} accessibilityLiveRegion="polite">
               {content.matchingMessages[messageIndex]}
             </Text>

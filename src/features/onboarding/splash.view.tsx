@@ -1,9 +1,14 @@
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Animated, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
-import Svg, { Circle, Path } from 'react-native-svg'
+import { View } from 'react-native'
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated'
 
 import { useSession } from '@/shared/providers/session-provider'
 import { hasCompletedOnboarding, markOnboardingComplete } from '@/shared/storage/onboarding'
@@ -12,26 +17,28 @@ import { useReducedMotion } from '@/shared/ui/feedback'
 import { Glyph, Text } from '@/shared/ui/text'
 import { motion } from '@/shared/ui/tokens'
 
+import { SplashMap } from './splash-map.view'
 import { styles } from './splash.style'
 
-const SPLASH_MS = 2200
+/** The animation plays once and the screen holds this long; readiness can only add to it. */
+export const SPLASH_MIN_MS = 1500
+/** The wordmark and tagline arrive once the pins have landed. */
+const BRAND_DELAY_MS = 800
 
 export default function SplashScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const { status } = useSession()
   const reducedMotion = useReducedMotion()
   const [minimumElapsed, setMinimumElapsed] = useState(false)
+  const reveal = useSharedValue(reducedMotion ? 1 : 0)
 
-  // Lazy initialiser, not a ref: the value must survive re-renders without
-  // being read during render.
-  const [entrance] = useState(() => new Animated.Value(0))
-
+  // Reduced motion shows the final state and holds for no minimum at all.
+  const minimumMs = reducedMotion ? 0 : SPLASH_MIN_MS
   useEffect(() => {
-    const timer = setTimeout(() => setMinimumElapsed(true), SPLASH_MS)
+    const timer = setTimeout(() => setMinimumElapsed(true), minimumMs)
     return () => clearTimeout(timer)
-  }, [])
+  }, [minimumMs])
 
   useEffect(() => {
     if (!minimumElapsed || status === 'hydrating') return
@@ -50,42 +57,24 @@ export default function SplashScreen() {
   }, [minimumElapsed, router, status])
 
   useEffect(() => {
-    // Reduced motion gets the finished state immediately — a cut, not a slower
-    // fade. Everyone else gets one settle, which is the whole animation.
-    Animated.timing(entrance, {
-      toValue: 1,
-      duration: reducedMotion ? 0 : motion.slow,
-      useNativeDriver: true,
-    }).start()
-  }, [entrance, reducedMotion])
+    if (reducedMotion) {
+      cancelAnimation(reveal)
+      reveal.set(1)
+      return
+    }
+    reveal.set(withDelay(BRAND_DELAY_MS, withTiming(1, { duration: motion.standard })))
+    return () => cancelAnimation(reveal)
+  }, [reveal, reducedMotion])
 
-  const rise = entrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] })
-  const settle = entrance.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] })
+  const brandStyle = useAnimatedStyle(() => ({ opacity: reveal.get() }))
 
   return (
     <View style={styles.root}>
-      <View style={styles.card}>
-        <Animated.View
-          // The wordmark is the accessible name; the mark above it is decoration.
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[styles.logoBox, { opacity: entrance, transform: [{ scale: settle }] }]}
-        >
-          <Svg width={36} height={36} viewBox="0 0 42 42" fill="none">
-            <Circle cx={14} cy={21} r={9} fill={theme.accent.primary} />
-            <Circle cx={28} cy={21} r={9} fill={theme.accent.primary} opacity={0.6} />
-            <Path
-              d="M21 14 C17 14, 14 17, 14 21 C14 25, 17 28, 21 28 C25 28, 28 25, 28 21 C28 17, 25 14, 21 14Z"
-              fill={theme.accent.soft}
-            />
-          </Svg>
-        </Animated.View>
-
-        <Animated.View style={[styles.textBlock, { opacity: entrance, transform: [{ translateY: rise }] }]}>
-          <Glyph size="xl" color="accent.primary" style={styles.wordmark} accessibilityRole="header">GoGo</Glyph>
-          <Text color="text.secondary" style={styles.tagline}>{t('splash.tagline')}</Text>
-        </Animated.View>
-      </View>
+      <SplashMap reduced={reducedMotion} />
+      <Animated.View testID="splash-brand" style={[styles.textBlock, brandStyle]}>
+        <Glyph size="xl" color="accent.primary" style={styles.wordmark} accessibilityRole="header">GoGo</Glyph>
+        <Text variant="title2" color="text.primary" style={styles.tagline}>{t('splash.tagline')}</Text>
+      </Animated.View>
     </View>
   )
 }
