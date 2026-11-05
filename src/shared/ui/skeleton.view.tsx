@@ -63,28 +63,16 @@ export function Skeleton({ width, height = 12, radius: r = 6, style }: {
   )
 }
 
-/** Mirrors the list PlaceCard (#293 §3): padded card, 96pt thumb, four lines. */
+/** Mirrors the list PlaceCard: 16:10 photo over the body lines. */
 export function PlaceCardSkeleton() {
   return (
-    <Card style={styles.listCard}>
-      <Skeleton style={styles.listThumb} height={96} radius={radius.thumbnail} />
+    <Card padded={false} style={styles.listCard}>
+      <Skeleton style={styles.listThumb} height={undefined} radius={0} />
       <View style={styles.listBody}>
         <Skeleton width="70%" height={17} />
         <Skeleton width="55%" height={13} />
         <Skeleton width="45%" height={13} />
         <Skeleton width="35%" height={13} />
-      </View>
-    </Card>
-  )
-}
-
-export function PlaceGridSkeleton() {
-  return (
-    <Card padded={false} style={styles.gridCard}>
-      <Skeleton style={styles.gridThumb} height={undefined} radius={0} />
-      <View style={styles.gridBody}>
-        <Skeleton width="80%" height={14} />
-        <Skeleton width="55%" height={10} />
       </View>
     </Card>
   )

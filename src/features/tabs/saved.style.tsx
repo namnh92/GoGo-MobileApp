@@ -17,6 +17,8 @@ export const styles = StyleSheet.create(theme => ({
   subgroup: { marginBottom: spacing[4] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
   gridItem: { width: '48%' },
+  // A place is the full-width Stitch card; plans keep their two-up tiles.
+  placeItem: { width: '100%' },
   unavailable: { width: '48%', padding: spacing[3], gap: spacing[2] },
   unavailableRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2] },
   unavailableText: { flex: 1 },

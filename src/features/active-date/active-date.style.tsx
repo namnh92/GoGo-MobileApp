@@ -18,7 +18,7 @@ export const styles = StyleSheet.create(theme => ({
 
   // The current stop is the screen. Everything else is context around it.
   card: { overflow: 'hidden', marginBottom: spacing[5] },
-  photo: { width: '100%', height: 220 },
+  photo: { width: '100%', height: 192 },
   cardImage: { width: '100%', height: '100%' },
   photoBadge: { position: 'absolute', top: spacing[3], left: spacing[3] },
   cardBody: { padding: spacing[5], gap: spacing[3] },
@@ -57,7 +57,7 @@ export const styles = StyleSheet.create(theme => ({
     gap: spacing[3],
     minHeight: touchTarget.min + 20,
   },
-  nextThumb: { width: 64, height: 64, borderRadius: radius.compact, overflow: 'hidden' },
+  nextThumb: { width: 80, height: 80, borderRadius: radius.compact, overflow: 'hidden' },
   nextName: { marginTop: 2 },
   nextMeta: { marginTop: 2 },
 
