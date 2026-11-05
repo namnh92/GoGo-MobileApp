@@ -75,6 +75,7 @@ export const styles = StyleSheet.create(theme => ({
   codeCard: { marginBottom: theme.spacing[4] },
   cardHeading: { marginBottom: theme.spacing[2] },
   inviteNote: { marginBottom: theme.spacing[3] },
+  createInvite: { marginBottom: theme.spacing[3] },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',

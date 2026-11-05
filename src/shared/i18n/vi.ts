@@ -40,6 +40,8 @@ export const viMessages = {
   'auth.email': 'Email',
   'auth.emailInvalid': 'Email chưa đúng định dạng.',
   'auth.password': 'Mật khẩu',
+  'auth.showPassword': 'Hiện mật khẩu',
+  'auth.hidePassword': 'Ẩn mật khẩu',
   'auth.passwordHint': 'Ít nhất 10 ký tự.',
   'auth.passwordInvalid': 'Mật khẩu cần từ 10 đến 128 ký tự.',
   'auth.signInPasswordInvalid': 'Nhập mật khẩu, tối đa 128 ký tự.',

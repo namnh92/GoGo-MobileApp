@@ -661,3 +661,13 @@ describe('focus moves to the first rejected field after the submit settles (#273
     }
   })
 })
+
+it('shows and hides the password on request, hidden by default (#461)', async () => {
+  const view = await renderScreen(<SignInScreen />)
+  const secure = () => view.getByLabelText('Mật khẩu').props.secureTextEntry
+  expect(secure()).toBe(true)
+  await fireEvent.press(view.getByLabelText('Hiện mật khẩu'))
+  expect(secure()).toBe(false)
+  await fireEvent.press(view.getByLabelText('Ẩn mật khẩu'))
+  expect(secure()).toBe(true)
+})

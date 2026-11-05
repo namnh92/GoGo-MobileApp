@@ -48,6 +48,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'auth.email': 'Email',
   'auth.emailInvalid': 'That email does not look right.',
   'auth.password': 'Password',
+  'auth.showPassword': 'Show password',
+  'auth.hidePassword': 'Hide password',
   'auth.passwordHint': 'At least 10 characters.',
   'auth.passwordInvalid': 'Password needs 10 to 128 characters.',
   'auth.signInPasswordInvalid': 'Enter your password, up to 128 characters.',

@@ -578,7 +578,7 @@ export default function GoGoRoomScreen() {
                 say so rather than show controls that cannot work (RULE-CORE-016). */}
             {!joinable ? <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</Text> : null}
             {joinable && inviteDisplay.kind === 'none' ? (
-              <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite}
+              <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite} style={styles.createInvite}
                 loading={createInvite.isPending} disabled={createInvite.isPending || (createInvite.isError && !isRetryable(createInvite.error))} />
             ) : null}
             {joinable && inviteDisplay.kind === 'active-elsewhere' ? (
@@ -589,6 +589,7 @@ export default function GoGoRoomScreen() {
                 <SecondaryBtn
                   label={t('gogoRoom.reissueInvite')}
                   onPress={() => confirmReissue(inviteDisplay.inviteIds)}
+                  style={styles.createInvite}
                   loading={revokeInvite.isPending || createInvite.isPending}
                 />
               </>
