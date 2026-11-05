@@ -21,7 +21,7 @@ import { PUSH_UNAVAILABLE_NOTICE } from '../notification-target'
  * These run the shipped wiring inside expo-router's real navigator
  * (`renderRouter`): the SDK listener, the queue, the readiness gate in the root
  * layout, the refetch, the deep-link router, and the real splash with its
- * 2.2 s `replace('/(tabs)')`. Only the OneSignal native module, the session,
+ * 1.5 s `replace('/(tabs)')`. Only the OneSignal native module, the session,
  * the API reads and analytics are faked.
  */
 
@@ -68,8 +68,8 @@ jest.mock('@/shared/storage/onboarding', () => ({
 }))
 
 jest.mock('react-native-svg', () => {
-  const { View } = jest.requireActual<typeof import('react-native')>('react-native')
-  return { __esModule: true, default: View, Circle: View, Path: View }
+  const { View, Text } = jest.requireActual<typeof import('react-native')>('react-native')
+  return { __esModule: true, default: View, Circle: View, Path: View, Ellipse: View, G: View, Text }
 })
 
 const mockGetRoom = jest.fn()
@@ -267,10 +267,10 @@ describe('cold start', () => {
     // The SDK delivers the launch tap before React has mounted anything.
     tap({ kind: 'invite', roomId: ROOM, eventType: 'member.joined' }, 'launch-tap')
     const { view } = await mount()
-    await advance(1_000)
+    await advance(500)
     expect(mockGetRoom).not.toHaveBeenCalled()
 
-    // The session settles while the splash still holds (2.2 s). Opening now
+    // The session settles while the splash still holds (1.5 s). Opening now
     // would be undone by the splash's replace; the tap has to wait for it.
     await act(async () => setSession('user'))
     await advance(500)
