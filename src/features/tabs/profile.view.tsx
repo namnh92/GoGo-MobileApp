@@ -1,4 +1,6 @@
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
+import { useUnreadInbox } from '@/features/notifications/unread-count'
+import { CountBadge } from '@/shared/ui/count-badge.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -39,6 +41,7 @@ export default function ProfileScreen() {
   const router = useRouter()
   // The float button (#379) collapses on scroll; the list's end clears it.
   const fab = useAssistantFabScroll('profile')
+  const unread = useUnreadInbox()
   const { session, status, signOut } = useSession()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const [signingOut, setSigningOut] = useState(false)
@@ -192,6 +195,7 @@ export default function ProfileScreen() {
                   {t(`profile.settings.${row.key}`)}
                 </Text>
               </View>
+              {row.key === 'inbox' ? <CountBadge count={unread.count} more={unread.more} style={styles.inboxBadge} /> : null}
               {row.route ? (
                 <IconChevronRight />
               ) : (

@@ -136,6 +136,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'account.defaultsFailed': 'Could not save defaults. Please try again.',
 
   'tabs.home': 'Home',
+  'tabs.plansLive': 'Plans, {{count}} live plans',
+  'home.bellUnread': 'Notifications, {{count}} unread',
   'tabs.plans': 'Plans',
   'tabs.saved': 'Saved',
   'tabs.profile': 'Profile',
