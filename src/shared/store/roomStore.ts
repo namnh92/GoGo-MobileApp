@@ -49,6 +49,8 @@ export interface RoomDraft {
   /** ISO-8601 UTC, built from the picked local times. */
   startAt: string | null
   endAt: string | null
+  /** The local day (`YYYY-MM-DD`) the times are on; null is today. Kept with startAt and endAt. */
+  scheduleDay: string | null
   /** Stable taxonomy keys, carried into the first preference save. */
   moodKeys: string[]
   settingKeys: string[]
@@ -111,6 +113,7 @@ const emptyDraft: RoomDraft = {
   radiusM: null,
   startAt: null,
   endAt: null,
+  scheduleDay: null,
   moodKeys: [],
   settingKeys: [],
   spendingStyleKey: null,
