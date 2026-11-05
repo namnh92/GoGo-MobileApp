@@ -15,8 +15,8 @@ export function InviteExpired() {
     <View testID="invite-expired" style={styles.container}>
       <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.expiredTitle')}</Text>
       <Text color="text.secondary" accessibilityLiveRegion="polite" style={styles.body}>{t('guestJoin.expiredBody')}</Text>
-      <PrimaryBtn label={t('guestJoin.expiredHome')} onPress={() => router.replace('/')} />
-      <SecondaryBtn label={t('joinByCode.title')} onPress={() => router.replace('/join')} />
+      <PrimaryBtn label={t('guestJoin.expiredHome')} onPress={() => router.replace('/')} icon="home" />
+      <SecondaryBtn label={t('joinByCode.title')} onPress={() => router.replace('/join')} icon="unlock" />
     </View>
   )
 }
