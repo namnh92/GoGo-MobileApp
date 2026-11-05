@@ -81,6 +81,16 @@ it('keeps the whole-date review free of a place', async () => {
   await waitFor(() => expect(mockCreate).toHaveBeenCalledWith({ planId: 'plan-1', rating: 5 }))
 })
 
+it('shows the stars this person sent when the response omits the rating (#455)', async () => {
+  // @ts-expect-error DEV answers only id and status, though the contract requires rating.
+  mockCreate.mockImplementationOnce(async () => ({ id: 'review-1', status: 'pending' }))
+  const view = await renderScreen(<ReviewScreen />)
+  await fireEvent.press(view.getByLabelText(FIVE_STARS))
+  await fireEvent.press(view.getByText(SUBMIT))
+  await waitFor(() => expect(view.getByText('Đã gửi đánh giá')).toBeTruthy())
+  expect(view.getByLabelText(FIVE_STARS)).toBeTruthy()
+})
+
 it('offers the next unreviewed stop instead of ending the flow', async () => {
   const view = await renderScreen(<ReviewScreen />)
 
