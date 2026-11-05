@@ -22,6 +22,13 @@ const TIME_SLOTS = Array.from({ length: 32 }, (_, i) => {
 
 type PickerTarget = 'start' | 'end' | null
 
+/** Whole and half hours from `start` to `end` ("HH:MM"); an end at or before the start is the next day. */
+function hoursBetween(start: string, end: string): number {
+  const minutes = (slot: string) => Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3))
+  const span = (minutes(end) - minutes(start) + 24 * 60) % (24 * 60) || 24 * 60
+  return Math.round(span / 30) / 2
+}
+
 /**
  * APP-051 (#204): a length preset is not an alternative to a start time — the
  * contract has no duration field (see `duration-presets.ts`). It fills in the
@@ -38,6 +45,8 @@ export default function CreateTimeScreen() {
 
   // Start time is mandatory (per SRS room constraints) — end stays optional.
   const canContinue = startTime !== null
+  // Display only: what the two times add up to, rolling past midnight like `endSlotToIso`.
+  const spanHours = startTime !== null && endTime !== null ? hoursBetween(startTime, endTime) : null
   // "01:00" after "23:00" is tomorrow; `endSlotToIso` rolls it forward the same way.
   const endsNextDay = startTime !== null && endTime !== null && endTime <= startTime
 
@@ -138,6 +147,11 @@ export default function CreateTimeScreen() {
             </Text>
           )}
         </Card>
+        {spanHours !== null ? (
+          <Text variant="bodySmall" color="text.secondary" style={styles.estimate}>
+            {t('createTime.estimated', { hours: spanHours })}
+          </Text>
+        ) : null}
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} />
