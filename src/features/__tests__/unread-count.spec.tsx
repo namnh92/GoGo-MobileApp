@@ -40,7 +40,7 @@ it('says more may exist when another page does', async () => {
 
 it('never asks for a guest, who gets 403 on the inbox', async () => {
   mockSession.status = 'guest'
-  mockInbox.data = undefined
+  mockInbox.data = page(2, 0, null) // what a previous account left in the cache
   const { result } = await renderHook(() => useUnreadInbox())
   expect(mockInbox.enabled).toBe(false)
   expect(result.current).toEqual({ count: 0, more: false })

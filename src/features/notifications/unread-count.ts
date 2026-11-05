@@ -10,6 +10,8 @@ import { useSession } from '@/shared/providers/session-provider'
 export function useUnreadInbox(): { count: number; more: boolean } {
   const { status } = useSession()
   const inbox = useNotifications({ enabled: status === 'user' })
+  // A disabled query still returns its cache: after sign-out that is someone else's.
+  if (status !== 'user') return { count: 0, more: false }
   const first = inbox.data?.pages[0]
   const count = first?.notifications?.filter(item => !item.readAt).length ?? 0
   return { count, more: count > 0 && !!first?.nextCursor }
