@@ -46,7 +46,14 @@ export const styles = StyleSheet.create(theme => ({
   body: { textAlign: 'center' },
   actions: { alignSelf: 'stretch', gap: spacing[2] },
   error: { textAlign: 'center' },
-  relaxCard: { alignSelf: 'stretch', gap: theme.spacing[2], padding: theme.spacing[4], marginTop: theme.spacing[4] },
-  relaxRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
-  relaxLabel: { flex: 1, minWidth: 0 },
+  constraintRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing[2], marginTop: spacing[2] },
+  constraintChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.subtle,
+  },
 }))

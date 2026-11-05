@@ -6,18 +6,17 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, TextInput, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { track } from '@/shared/analytics'
 import { useRoom, useRoomStore, type RoomType } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { Icon, IconCheck, type IconName } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, BackHeader, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
-import { WizardActions } from './wizard-actions.view'
+import { WizardStep } from './wizard-step.view'
 import { styles } from './create-type.style'
 
 const nameSchema = z.object({ title: z.string().trim().max(80) })
@@ -36,7 +35,6 @@ export default function CreateTypeScreen() {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
   const { roomType, setAudience } = useRoom()
@@ -45,6 +43,8 @@ export default function CreateTypeScreen() {
     resolver: zodResolver(nameSchema),
     defaultValues: { title: useRoomStore.getState().title },
   })
+
+  const title = useRoomStore(state => state.title)
 
   /**
    * Tapping a card used to navigate immediately, which made the selected state
@@ -69,29 +69,10 @@ export default function CreateTypeScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} right={<WizardActions step="type" />} />
-      </View>
+      <WizardStep step="type" onBack={() => router.back()} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}>
         <Text variant="display" style={styles.title}>{t('createType.title')}</Text>
-        <Text variant="label" style={styles.nameLabel}>{t('createType.roomName')}</Text>
-        <Controller
-          control={control}
-          name="title"
-          render={({ field: { value, onChange, onBlur } }) => (
-            <TextInput
-              value={value}
-              onChangeText={text => { onChange(text); patchDraft({ title: text }) }}
-              onBlur={onBlur}
-              maxLength={80}
-              accessibilityLabel={t('createType.roomName')}
-              placeholder={t('createType.roomNameHint')}
-              placeholderTextColor={theme.text.secondary}
-              style={styles.nameInput}
-            />
-          )}
-        />
-        <View style={{ gap: spacing[3], marginTop: spacing[7] }}>
+        <View style={{ gap: spacing[3], marginTop: spacing[4] }}>
           {options.map(option => {
             const active = selected === option.type
             return (
@@ -127,6 +108,26 @@ export default function CreateTypeScreen() {
             )
           })}
         </View>
+        <View style={styles.nameLabelRow}>
+          <Text variant="label">{t('createType.roomName')}</Text>
+          <Text variant="caption" color="text.secondary">{`${title.length}/80`}</Text>
+        </View>
+        <Controller
+          control={control}
+          name="title"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <TextInput
+              value={value}
+              onChangeText={text => { onChange(text); patchDraft({ title: text }) }}
+              onBlur={onBlur}
+              maxLength={80}
+              accessibilityLabel={t('createType.roomName')}
+              placeholder={t('createType.roomNameHint')}
+              placeholderTextColor={theme.text.secondary}
+              style={styles.nameInput}
+            />
+          )}
+        />
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={handleSubmit(next)} disabled={!selected} />

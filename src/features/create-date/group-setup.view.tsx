@@ -2,17 +2,16 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { hitSlop, spacing } from '@/shared/ui/tokens'
 
-import { WizardActions } from './wizard-actions.view'
+import { WizardStep } from './wizard-step.view'
 import { styles } from './group-setup.style'
 
 const MIN_PEOPLE = 3
@@ -27,7 +26,6 @@ export default function GroupSetupScreen() {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { participantCount, setParticipantCount, budgetMode, setBudgetMode } = useRoom()
 
   function step(delta: number) {
@@ -39,9 +37,7 @@ export default function GroupSetupScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} right={<WizardActions step="group-setup" />} />
-      </View>
+      <WizardStep step="group-setup" onBack={() => router.back()} />
       <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
         <Text variant="display" style={styles.title}>{t('groupSetup.title')}</Text>
 
