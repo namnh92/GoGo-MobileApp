@@ -480,7 +480,7 @@ export default function PlaceDetailScreen() {
         </Pressable>
 
       <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight} style={styles.actionBar}>
-        <PrimaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} style={styles.addBtn} />
+        <PrimaryBtn label={t('placeDetail.addToPlan')} onPress={addToPlan} icon="plus" style={styles.addBtn} />
         <Pressable
           accessibilityRole="button"
           onPress={() => {

@@ -287,6 +287,7 @@ export default function PlaceImportScreen() {
           ) : (
             <PrimaryBtn
               label={t('placeImport.verify')}
+              icon="search"
               onPress={onResolve}
               disabled={url.trim() === ''}
               style={styles.verifyBtn}
@@ -335,6 +336,7 @@ export default function PlaceImportScreen() {
               {result.existingPlaceId ? (
                 <PrimaryBtn
                   label={t('placeImport.openPlace')}
+                  icon="arrowRight"
                   onPress={() => router.replace(`/places/${result.existingPlaceId}`)}
                   style={styles.addBtn}
                 />
@@ -364,6 +366,7 @@ export default function PlaceImportScreen() {
             })}
             <PrimaryBtn
               label={t('placeImport.submit')}
+              icon="send"
               onPress={() => {
                 if (selectedGooglePlaceId) void onSubmitPlace(selectedGooglePlaceId)
               }}
@@ -510,6 +513,7 @@ export default function PlaceImportScreen() {
                   {submission.data?.status === 'approved' && submission.data.placeId ? (
                     <GhostBtn
                       label={t('placeImport.openPlace')}
+                      icon="arrowRight"
                       onPress={() => router.replace(`/places/${submission.data?.placeId}`)}
                     />
                   ) : null}
@@ -518,6 +522,7 @@ export default function PlaceImportScreen() {
                 <>
                   <PrimaryBtn
                     label={t('placeImport.submit')}
+                    icon="send"
                     onPress={() => {
                       if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)
                     }}
