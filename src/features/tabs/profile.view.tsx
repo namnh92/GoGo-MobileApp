@@ -116,6 +116,18 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
+        {/* Under the header card, as drawn: at the end of the list the assistant
+            button covered it until the person scrolled. */}
+        {status === 'anonymous' ? (
+          <Pressable
+            accessibilityRole="button"
+            style={styles.signIn}
+            onPress={() => router.push('/auth/sign-in')}
+          >
+            <Text variant="label" color="accent.onAccent">{t('auth.signInCta')}</Text>
+          </Pressable>
+        ) : null}
+
         {/*
           The two cards that stood here were fabricated: a "couple" pairing the
           contract does not model, and a preferences list hard-coded in English
@@ -236,15 +248,7 @@ export default function ProfileScreen() {
           </Card>
         )}
 
-        {status === 'anonymous' ? (
-          <Pressable
-            accessibilityRole="button"
-            style={styles.signIn}
-            onPress={() => router.push('/auth/sign-in')}
-          >
-            <Text variant="label" color="accent.onAccent">{t('auth.signInCta')}</Text>
-          </Pressable>
-        ) : (
+        {status === 'anonymous' ? null : (
           <Pressable
             style={styles.logout}
             onPress={signOutNow}

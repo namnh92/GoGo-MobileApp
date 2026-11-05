@@ -99,7 +99,7 @@ export const styles = StyleSheet.create(theme => ({
     marginHorizontal: spacing[5],
     borderRadius: radius.button,
     backgroundColor: theme.accent.primary,
-    marginBottom: spacing[6],
+    marginBottom: spacing[4],
   },
   logoutError: { textAlign: 'center', paddingHorizontal: spacing[4] },
 }))

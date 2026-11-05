@@ -98,6 +98,9 @@ function SaveToggle({ saved, onToggle, onPhoto = false }: {
  * instead of wrapping apart; the score sits in a nested `label` Text for
  * weight. The word "Google" is not on screen (owner decision 2026-09-24,
  * RULE-CORE-014) — it is in the line's accessibility label.
+ *
+ * An unknown price may take a second line: it is a sentence, and core rule 13
+ * says it is shown, so it is never cut. A known price stays on the one line.
  */
 function RatingPriceLine({ place }: { place: PlaceCardModel }) {
   const { t, i18n } = useTranslation()
@@ -114,7 +117,7 @@ function RatingPriceLine({ place }: { place: PlaceCardModel }) {
     <Text
       testID="place-card-rating-price"
       variant="bodySmall"
-      numberOfLines={1}
+      numberOfLines={price === t('price.unit.unknown') ? 2 : 1}
       ellipsizeMode="tail"
       accessibilityLabel={a11y}
     >
