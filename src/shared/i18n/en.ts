@@ -657,6 +657,13 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'common.weekday.6': 'Saturday',
   'placeDetail.save': 'Save',
   'placeDetail.createRoom': 'Start a hangout from this place',
+  'placeDetail.title': 'Place details',
+  'placeDetail.photoCount': '{{index}}/{{total}} photos',
+  'placeDetail.gogoNone': 'Not enough ratings',
+  'placeDetail.address': 'Address',
+  'placeDetail.phone': 'Phone',
+  'placeDetail.website': 'Website',
+  'placeDetail.visitTime': 'Suggested visit time',
 
   'activeDate.live': 'Date in progress',
   'activeDate.stop': 'Stop {{n}} / {{total}}',
