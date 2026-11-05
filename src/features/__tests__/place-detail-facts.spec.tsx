@@ -1,5 +1,5 @@
-import { within } from '@testing-library/react-native'
-import { StyleSheet } from 'react-native'
+import { fireEvent, within } from '@testing-library/react-native'
+import { Linking, StyleSheet } from 'react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
 
@@ -34,10 +34,10 @@ const PLACE = { id: 'place-1', name: 'Quán thử', photos: [] }
 it('leaves the visit-time fact out when the place has none', async () => {
   mockDetail.value = { ...PLACE, avgVisitMinutes: null }
   const view = await renderScreen(<PlaceDetailScreen />)
-  const card = within(view.getByTestId('place-detail-info'))
-
-  expect(card.queryByText('—')).toBeNull()
-  expect(card.queryByText('Thời gian ghé gợi ý')).toBeNull()
+  expect(view.queryByText('—')).toBeNull()
+  expect(view.queryByText('Thời gian ghé gợi ý')).toBeNull()
+  // A card left with no rows is hidden, not drawn empty.
+  expect(view.queryByTestId('place-detail-info')).toBeNull()
   // The facts that do exist still render: no rating is said in words.
   expect(within(view.getByTestId('place-detail-facts')).getByText('Chưa có đánh giá')).toBeTruthy()
 })
@@ -59,15 +59,57 @@ it('draws price, the two rating sources and the AI card as separate blocks, with
   expect(facts.getByText('(1.280)')).toBeTruthy()
   expect(facts.getByText('GoGo')).toBeTruthy()
   expect(view.getByTestId('place-detail-action-bar')).toBeTruthy()
-  // One bar in the footer: the directions action lives in the info card.
+  // Directions is the map's job, not the action bar's or the info card's.
   expect(within(view.getByTestId('place-detail-action-bar')).queryByText('Chỉ đường')).toBeNull()
-  expect(within(view.getByTestId('place-detail-info')).getByText('Chỉ đường')).toBeTruthy()
+  expect(view.queryByTestId('place-detail-info')).toBeNull()
 })
 
-it('draws a short placeholder, not a tall empty hero, when the place has no photo', async () => {
+it('keeps the same 260pt hero with or without photos, and draws the illustration with its caption when empty', async () => {
   mockDetail.value = { ...PLACE }
-  const none = StyleSheet.flatten((await renderScreen(<PlaceDetailScreen />)).getByTestId('place-detail-gallery').props.style)
+  const emptyView = await renderScreen(<PlaceDetailScreen />)
+  const none = StyleSheet.flatten(emptyView.getByTestId('place-detail-gallery').props.style)
+  expect(emptyView.getByText('Chưa có ảnh địa điểm')).toBeTruthy()
   mockDetail.value = { ...PLACE, photos: [{ id: 'p1', url: 'https://example.test/a.jpg' }] }
   const some = StyleSheet.flatten((await renderScreen(<PlaceDetailScreen />)).getByTestId('place-detail-gallery').props.style)
-  expect(none.height).toBeLessThan(some.height)
+  expect(none.height).toBe(260)
+  expect(some.height).toBe(260)
+})
+
+it('omits rows the API did not return and leaves no hairline; keeps last checked as the final row', async () => {
+  mockDetail.value = { ...PLACE, phone: '028 7300 1234', freshnessCheckedAt: '2026-11-02T00:00:00Z' }
+  const view = await renderScreen(<PlaceDetailScreen />)
+  const card = view.getByTestId('place-detail-info')
+  const rows = card.children as unknown as { props: { style: unknown } }[]
+  expect(rows).toHaveLength(2)
+  expect(within(card).queryByText('Địa chỉ')).toBeNull()
+  expect(within(card).queryByText('Website')).toBeNull()
+  expect((StyleSheet.flatten(rows[0].props.style as object) as { borderTopWidth?: number }).borderTopWidth).toBeUndefined()
+  expect((StyleSheet.flatten(rows[1].props.style as object) as { borderTopWidth?: number }).borderTopWidth).toBe(1)
+})
+
+it('with coordinates the whole map runs directions; without them a directions card stays', async () => {
+  mockDetail.value = { ...PLACE, lat: 10.8, lng: 106.7 }
+  const withMap = await renderScreen(<PlaceDetailScreen />)
+  expect(withMap.getByLabelText('Chỉ đường').props.accessibilityRole).toBe('button')
+  mockDetail.value = { ...PLACE }
+  const without = await renderScreen(<PlaceDetailScreen />)
+  expect(without.getByLabelText('Chỉ đường')).toBeTruthy()
+})
+
+it('phone and website are 44pt link rows that hand off to the system; a failure shows a notice', async () => {
+  const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true)
+  mockDetail.value = { ...PLACE, phone: '028 7300 1234', website: 'rangrangcoffee.com' }
+  const view = await renderScreen(<PlaceDetailScreen />)
+  const call = view.getByLabelText('Gọi 028 7300 1234')
+  const site = view.getByLabelText('Mở website rangrangcoffee.com')
+  expect(call.props.accessibilityRole).toBe('link')
+  expect(StyleSheet.flatten(site.props.style).minHeight).toBe(44)
+  await fireEvent.press(call)
+  expect(openURL).toHaveBeenCalledWith('tel:02873001234')
+  await fireEvent.press(site)
+  expect(openURL).toHaveBeenCalledWith('https://rangrangcoffee.com')
+  openURL.mockRejectedValue(new Error('no handler'))
+  await fireEvent.press(site)
+  expect(await view.findByText('Chưa mở được liên kết này.')).toBeTruthy()
+  openURL.mockRestore()
 })

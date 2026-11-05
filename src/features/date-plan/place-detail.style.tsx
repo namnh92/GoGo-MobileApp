@@ -4,9 +4,9 @@ import { fill, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 /** The hero sits inside the page margin, as the Stitch draft draws it. */
 export const GALLERY_MARGIN = spacing[4]
-const GALLERY_HEIGHT = 224
-/** No photo: a short placeholder, not a tall empty frame. */
-const GALLERY_EMPTY_HEIGHT = 112
+/** The same hero height with or without photos. */
+const GALLERY_HEIGHT = 260
+const MAP_HEIGHT = 160
 
 export const styles = StyleSheet.create(theme => {
   /** The white, hairline-edged card the Stitch draft stacks on the canvas. */
@@ -48,7 +48,13 @@ export const styles = StyleSheet.create(theme => {
     overflow: 'hidden',
     backgroundColor: theme.surface.subtle,
   },
-  galleryEmpty: { height: GALLERY_EMPTY_HEIGHT },
+  emptyCaptionWrap: { position: 'absolute', left: 0, right: 0, bottom: spacing[4], alignItems: 'center' },
+  emptyCaption: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.card,
+  },
   galleryPage: { height: GALLERY_HEIGHT },
   imageScrim: { ...fill, backgroundColor: overlay.scrimLight },
   galleryDots: {
@@ -113,7 +119,12 @@ export const styles = StyleSheet.create(theme => {
 
   // --- info card -----------------------------------------------------------
   infoCard: { ...card, marginTop: spacing[4], paddingHorizontal: spacing[4] },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3], paddingVertical: spacing[4] },
+  // One rhythm for every row: 10pt above and below, 12pt after the icon.
+  // Plain text is not a control, so no 44pt minimum.
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: 10 },
+  // Tappable rows are controls: 44pt at least. Pressed is a colour change only (#382).
+  infoRowLink: { minHeight: touchTarget.min },
+  infoRowPressed: { backgroundColor: theme.surface.subtle },
   infoRowRule: { borderTopWidth: 1, borderTopColor: theme.border.hairline },
   infoIcon: {
     width: 40,
@@ -124,36 +135,12 @@ export const styles = StyleSheet.create(theme => {
     justifyContent: 'center',
   },
   infoBody: { flex: 1, gap: 2 },
-  updatedRow: { alignItems: 'center', gap: spacing[2], paddingVertical: spacing[3] },
+  updatedIcon: { width: 40, alignItems: 'center', justifyContent: 'center' },
   updated: { flex: 1 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[1] },
-  // Directions is the quiet action inside the address row.
-  dirBtn: {
-    alignSelf: 'flex-start',
-    minHeight: touchTarget.min,
-    marginTop: spacing[2],
-    paddingHorizontal: spacing[4],
-    borderRadius: radius.button,
-    backgroundColor: theme.accent.soft,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  /** Pressed is a colour change only (#382). */
-  dirBtnPressed: { backgroundColor: theme.surface.subtle },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: 2 },
 
   // --- trust ---------------------------------------------------------------
-  attribution: { marginTop: spacing[2] },
-  trustRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing[4], marginBottom: spacing[2] },
-  reportDisabled: {
-    minHeight: touchTarget.min,
-    justifyContent: 'center',
-    paddingHorizontal: spacing[3],
-    borderRadius: radius.button,
-    backgroundColor: theme.surface.subtle,
-  },
-
+  attribution: { marginTop: spacing[3] },
   // --- sections ------------------------------------------------------------
   sectionTitle: { marginTop: spacing[6], marginBottom: spacing[3] },
   suitCard: {
@@ -172,8 +159,36 @@ export const styles = StyleSheet.create(theme => {
   suitTrack: { width: 84, height: 6, borderRadius: 3, backgroundColor: theme.surface.subtle, overflow: 'hidden' },
   suitFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 3 },
   suitValue: { width: 28, textAlign: 'right' },
-  mapCard: { ...card, marginTop: spacing[6], overflow: 'hidden' },
-  mapPreview: { height: 140 },
+  // Directly under the info card, the same width; the whole card is the directions control.
+  mapCard: { ...card, marginTop: spacing[3], overflow: 'hidden' },
+  /** Pressed is a colour change only (#382). */
+  mapCardPressed: { backgroundColor: theme.surface.subtle },
+  mapPreview: { height: MAP_HEIGHT },
+  mapCorner: {
+    position: 'absolute',
+    top: spacing[3],
+    right: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface.card,
+  },
+  mapAttribution: { position: 'absolute', left: spacing[3], bottom: spacing[2] },
+  // No coordinates: no map, but directions stay one tap away.
+  dirCard: {
+    ...card,
+    marginTop: spacing[3],
+    minHeight: touchTarget.min,
+    paddingHorizontal: spacing[4],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  reportNotice: { marginBottom: spacing[3] },
   mapFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[4] },
   mapFallbackLabel: { textAlign: 'center' },
 
