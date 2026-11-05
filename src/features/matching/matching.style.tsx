@@ -45,6 +45,18 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.accent.primary,
     ...theme.shadows.cta,
   },
+  /** The outer ring: dashed, turns as one, carries the bubbles. Fills the orbit. */
+  orbitRing: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 116,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: theme.border.hairline,
+  },
   satellite: {
     position: 'absolute',
     width: 40,
@@ -61,6 +73,7 @@ export const styles = StyleSheet.create(theme => ({
 
   /** What is happening, and why it is taking a moment (spec §18). */
   message: { textAlign: 'center' },
+  finding: { textAlign: 'center' },
   reason: { textAlign: 'center' },
   statusCard: {
     alignSelf: 'stretch',

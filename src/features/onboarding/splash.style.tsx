@@ -8,32 +8,34 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  /** One round card holds the mark, wordmark and tagline, as in the Stitch pair. */
-  card: {
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: theme.surface.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.toast,
+  map: {
+    overflow: 'visible',
   },
-  logoBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.accent.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
+  /** A pin layer sits over the outline, same box, so both share one coordinate system. */
+  pin: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  /** The ring that spreads from a pin's tip as it lands. Size and position are per pin. */
+  ripple: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: theme.accent.primary,
+    opacity: 0,
   },
   textBlock: {
     alignItems: 'center',
+    marginTop: theme.spacing[7],
   },
   wordmark: {
     letterSpacing: -0.5,
-    marginTop: theme.spacing[3],
   },
   tagline: {
-    marginTop: theme.spacing[1],
+    marginTop: theme.spacing[2],
+    textAlign: 'center',
   },
 }))
