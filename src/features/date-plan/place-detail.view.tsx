@@ -22,13 +22,14 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
+import { openPhone, openWebsite } from '@/shared/navigation/external-links'
 import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { Icon, IconBookmark, IconChevronLeft, IconNavigation } from '@/shared/ui/icons'
+import { Icon, IconBookmark, IconChevronLeft } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
@@ -39,6 +40,7 @@ import { hitSlop } from '@/shared/ui/tokens'
 
 import { GALLERY_MARGIN, styles } from './place-detail.style'
 import { AssistantPlaceCard } from '@/features/assistant/assistant-place-card.view'
+import { PlaceDetailEmptyHero } from './place-detail-empty-hero.view'
 import { PlaceReviews } from './place-reviews.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
@@ -68,9 +70,10 @@ export default function PlaceDetailScreen() {
 
   const [photoIndex, setPhotoIndex] = useState(0)
   const [hoursOpen, setHoursOpen] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
-  // The draft's top bar: back, the screen's name, and the save toggle on the right.
-  const header = (saveToggle: ReactNode) => (
+  // The draft's top bar: back, the screen's name, report and save on the right.
+  const header = (saveToggle: ReactNode, reportButton?: ReactNode) => (
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
         <Pressable
@@ -83,6 +86,7 @@ export default function PlaceDetailScreen() {
           <IconChevronLeft />
         </Pressable>
         <Text variant="title2" numberOfLines={1} style={styles.headerTitle}>{t('placeDetail.title')}</Text>
+        {reportButton}
         {saveToggle}
       </View>
     </View>
@@ -142,6 +146,11 @@ export default function PlaceDetailScreen() {
   const hasCoords = detail.lat != null && detail.lng != null
   const currentlySaved = isSaved(saved.data, 'place', id)
 
+  function openDirections() {
+    haptic('select')
+    openGoogleMapsDirections(destination)
+  }
+
   function onSave() {
     haptic(currentlySaved ? 'select' : 'success')
     toggleSaved.mutate({ type: 'place', id, saved: currentlySaved })
@@ -158,6 +167,123 @@ export default function PlaceDetailScreen() {
     addSeedPlace({ placeId: id, name })
     track('date_create_started', { from: 'place_detail' })
     router.push('/create/type')
+  }
+
+  // A row the API did not fill is not built at all, so no hairline is left behind.
+  const infoRows: { key: string; node: ReactNode; onPress?: () => void; label?: string }[] = []
+  async function openLink(launch: () => Promise<boolean>) {
+    const ok = await launch()
+    setNotice(ok ? null : t('placeDetail.linkFailed'))
+  }
+  if (detail.addressText) {
+    infoRows.push({
+      key: 'address',
+      node: (
+        <>
+          <View style={styles.infoIcon}><Icon name="mapPin" size={20} color="text.secondary" /></View>
+          <View style={styles.infoBody}>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.address')}</Text>
+            <Text variant="body">{detail.addressText}</Text>
+          </View>
+        </>
+      ),
+    })
+  }
+  if (detail.phone) {
+    infoRows.push({
+      key: 'phone',
+      onPress: () => void openLink(() => openPhone(detail.phone as string)),
+      label: t('placeDetail.callA11y', { phone: detail.phone }),
+      node: (
+        <>
+          <View style={styles.infoIcon}><Icon name="support" size={20} color="text.secondary" /></View>
+          <View style={styles.infoBody}>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.phone')}</Text>
+            <Text variant="label" color="accent.primary">{detail.phone}</Text>
+          </View>
+        </>
+      ),
+    })
+  }
+  if (detail.website) {
+    infoRows.push({
+      key: 'website',
+      onPress: () => void openLink(() => openWebsite(detail.website as string)),
+      label: t('placeDetail.websiteA11y', { site: detail.website }),
+      node: (
+        <>
+          <View style={styles.infoIcon}><Icon name="compass" size={20} color="text.secondary" /></View>
+          <View style={styles.infoBody}>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.website')}</Text>
+            <Text variant="label" color="accent.primary">{detail.website}</Text>
+          </View>
+        </>
+      ),
+    })
+  }
+  if (detail.avgVisitMinutes != null) {
+    infoRows.push({
+      key: 'visit',
+      node: (
+        <>
+          <View style={styles.infoIcon}><Icon name="clock" size={20} color="text.secondary" /></View>
+          <View style={styles.infoBody}>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.visitTime')}</Text>
+            <Text variant="label">{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
+          </View>
+        </>
+      ),
+    })
+  }
+  if (vibes.length > 0) {
+    infoRows.push({
+      key: 'goodFor',
+      node: (
+        <>
+          <View style={styles.infoIcon}><Icon name="users" size={20} color="text.secondary" /></View>
+          <View style={styles.infoBody}>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.goodFor')}</Text>
+            <View style={styles.tagRow}>
+              {vibes.map(tag => (
+                <Chip key={`${tag.kind}:${tag.key}`} label={taxonomyLabel(tag.kind as string, tag.key as string)} />
+              ))}
+            </View>
+          </View>
+        </>
+      ),
+    })
+  }
+  // Only attributes with real data — no generic "accessible" claims.
+  if (accessibility.length > 0) {
+    infoRows.push({
+      key: 'attributes',
+      node: (
+        <>
+          <View style={styles.infoIcon}><Icon name="sparkle" size={20} color="text.secondary" /></View>
+          <View style={styles.infoBody}>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.attributes')}</Text>
+            <View style={styles.tagRow}>
+              {accessibility.map(entry => (
+                <Chip key={entry.key} label={taxonomyLabel('accessibility', entry.key as string)} />
+              ))}
+            </View>
+          </View>
+        </>
+      ),
+    })
+  }
+  if (checkedAt) {
+    infoRows.push({
+      key: 'checked',
+      node: (
+        <>
+          <View style={styles.updatedIcon}><Icon name="checkCircle" size={16} color="text.secondary" /></View>
+          <Text variant="bodySmall" color="text.secondary" style={styles.updated}>
+            {t('placeDetail.updatedAt', { date: checkedAt.toLocaleDateString(i18n.language) })}
+          </Text>
+        </>
+      ),
+    })
   }
 
   const galleryWidth = width - GALLERY_MARGIN * 2
@@ -190,17 +316,42 @@ export default function PlaceDetailScreen() {
     </Pressable>
   ) : null
 
+  // No report endpoint exists on `/v1` yet: the control stays unavailable and a
+  // tap only shows the existing notice, as the page-body button did.
+  const reportToggle = (
+    <Pressable
+      testID="place-detail-report"
+      onPress={() => setNotice(t('placeDetail.reportUnavailable'))}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: true }}
+      accessibilityLabel={t('placeDetail.report')}
+      hitSlop={hitSlop}
+      style={styles.headerBtn}
+    >
+      <Icon name="flag" size={22} color="text.secondary" />
+    </Pressable>
+  )
+
   return (
     <Atmosphere>
-      {header(saveToggle)}
+      {header(saveToggle, reportToggle)}
       <ScrollView
         testID="place-detail-scroll"
         contentContainerStyle={{ paddingBottom: actionInset }}
         snapToEnd={false}
       >
-        {/* No photo: a short placeholder, not a tall empty frame. */}
-        <View testID="place-detail-gallery" style={[styles.gallery, photos.length === 0 && styles.galleryEmpty]}>
-          {photos.length > 1 ? (
+        {/* Same 260pt hero with or without photos; no photo draws the illustration. */}
+        <View testID="place-detail-gallery" style={styles.gallery}>
+          {photos.length === 0 ? (
+            <>
+              <PlaceDetailEmptyHero />
+              <View pointerEvents="none" style={styles.emptyCaptionWrap}>
+                <View style={styles.emptyCaption}>
+                  <Text variant="caption" color="text.secondary">{t('placeDetail.noPhoto')}</Text>
+                </View>
+              </View>
+            </>
+          ) : photos.length > 1 ? (
             <ScrollView
               horizontal
               pagingEnabled
@@ -219,7 +370,7 @@ export default function PlaceDetailScreen() {
               ))}
             </ScrollView>
           ) : (
-            <PlacePhoto placeId={id} name={name} uri={photos[0]?.url ?? null} style={StyleSheet.absoluteFill} />
+            <PlacePhoto placeId={id} name={name} uri={photos[0].url} style={StyleSheet.absoluteFill} />
           )}
           {photos.length > 0 ? <View pointerEvents="none" style={styles.imageScrim} /> : null}
 
@@ -243,6 +394,16 @@ export default function PlaceDetailScreen() {
         </View>
 
         <View testID="place-detail-sheet" style={styles.body}>
+          {notice ? (
+            <Text
+              variant="caption"
+              color="text.secondary"
+              accessibilityLiveRegion="polite"
+              style={styles.reportNotice}
+            >
+              {notice}
+            </Text>
+          ) : null}
           <StaleNotice
             error={place.isError ? place.error : null}
             onRetry={() => void place.refetch()}
@@ -344,117 +505,76 @@ export default function PlaceDetailScreen() {
             <AssistantPlaceCard placeId={id} placeName={name} />
           </View>
 
-          <View testID="place-detail-info" style={styles.infoCard}>
-            {/* Directions stay reachable for a place with no address too: the
-                destination falls back to its coordinates, then its name. */}
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}><Icon name="mapPin" size={20} color="text.secondary" /></View>
-              <View style={styles.infoBody}>
-                {detail.addressText ? (
-                  <>
-                    <Text variant="caption" color="text.secondary">{t('placeDetail.address')}</Text>
-                    <Text variant="body">{detail.addressText}</Text>
-                  </>
-                ) : null}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    haptic('select')
-                    openGoogleMapsDirections(destination)
-                  }}
-                  style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
-                >
-                  <IconNavigation />
-                  <Text variant="label" color="accent.primary">{t('common.directions')}</Text>
-                </Pressable>
-              </View>
+          {infoRows.length > 0 ? (
+            <View testID="place-detail-info" style={styles.infoCard}>
+              {infoRows.map((row, index) =>
+                row.onPress ? (
+                  <Pressable
+                    key={row.key}
+                    accessibilityRole="link"
+                    accessibilityLabel={row.label}
+                    onPress={row.onPress}
+                    style={({ pressed }) => [
+                      styles.infoRow,
+                      styles.infoRowLink,
+                      index > 0 && styles.infoRowRule,
+                      pressed && styles.infoRowPressed,
+                    ]}
+                  >
+                    {row.node}
+                  </Pressable>
+                ) : (
+                  <View key={row.key} style={[styles.infoRow, index > 0 && styles.infoRowRule]}>
+                    {row.node}
+                  </View>
+                ),
+              )}
             </View>
+          ) : null}
 
-            {detail.phone ? (
-              <View style={[styles.infoRow, styles.infoRowRule]}>
-                <View style={styles.infoIcon}><Icon name="support" size={20} color="text.secondary" /></View>
-                <View style={styles.infoBody}>
-                  <Text variant="caption" color="text.secondary">{t('placeDetail.phone')}</Text>
-                  <Text variant="label">{detail.phone}</Text>
-                </View>
+          {/* The map is the directions control: one tap anywhere runs the
+              existing handler. No coordinates, no map: a plain directions card
+              takes its place so the capability is not lost. */}
+          {hasCoords ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('common.directions')}
+              onPress={openDirections}
+              style={({ pressed }) => [styles.mapCard, pressed && styles.mapCardPressed]}
+            >
+              <View pointerEvents="none">
+                <MapCanvas
+                  interactive={false}
+                  pins={[{ id, lat: detail.lat as number, lng: detail.lng as number, title: name }]}
+                  style={styles.mapPreview}
+                  fallback={
+                    <View style={styles.mapFallback}>
+                      <Text variant="bodySmall" color="text.secondary" style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
+                    </View>
+                  }
+                />
               </View>
-            ) : null}
-
-            {detail.website ? (
-              <View style={[styles.infoRow, styles.infoRowRule]}>
-                <View style={styles.infoIcon}><Icon name="compass" size={20} color="text.secondary" /></View>
-                <View style={styles.infoBody}>
-                  <Text variant="caption" color="text.secondary">{t('placeDetail.website')}</Text>
-                  <Text variant="label">{detail.website}</Text>
-                </View>
+              <View pointerEvents="none" style={styles.mapCorner}>
+                <Icon name="navigation" size={16} color="accent.primary" filled />
+                <Text variant="label" color="accent.primary">{t('common.directions')}</Text>
               </View>
-            ) : null}
-
-            {detail.avgVisitMinutes != null ? (
-              <View style={[styles.infoRow, styles.infoRowRule]}>
-                <View style={styles.infoIcon}><Icon name="clock" size={20} color="text.secondary" /></View>
-                <View style={styles.infoBody}>
-                  <Text variant="caption" color="text.secondary">{t('placeDetail.visitTime')}</Text>
-                  <Text variant="label">{t('datePlan.minutes', { n: detail.avgVisitMinutes })}</Text>
-                </View>
-              </View>
-            ) : null}
-
-            {vibes.length > 0 ? (
-              <View style={[styles.infoRow, styles.infoRowRule]}>
-                <View style={styles.infoIcon}><Icon name="users" size={20} color="text.secondary" /></View>
-                <View style={styles.infoBody}>
-                  <Text variant="caption" color="text.secondary">{t('placeDetail.goodFor')}</Text>
-                  <View style={styles.tagRow}>
-                    {vibes.map(tag => (
-                      <Chip key={`${tag.kind}:${tag.key}`} label={taxonomyLabel(tag.kind as string, tag.key as string)} />
-                    ))}
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            {/* Only attributes with real data — no generic "accessible" claims. */}
-            {accessibility.length > 0 ? (
-              <View style={[styles.infoRow, styles.infoRowRule]}>
-                <View style={styles.infoIcon}><Icon name="sparkle" size={20} color="text.secondary" /></View>
-                <View style={styles.infoBody}>
-                  <Text variant="caption" color="text.secondary">{t('placeDetail.attributes')}</Text>
-                  <View style={styles.tagRow}>
-                    {accessibility.map(entry => (
-                      <Chip key={entry.key} label={taxonomyLabel('accessibility', entry.key as string)} />
-                    ))}
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            <View style={[styles.infoRow, styles.infoRowRule, styles.updatedRow]}>
-              <Icon name="checkCircle" size={16} color="text.secondary" />
-              <Text variant="bodySmall" color="text.secondary" style={styles.updated}>
-                {checkedAt
-                  ? t('placeDetail.updatedAt', { date: checkedAt.toLocaleDateString(i18n.language) })
-                  : t('placeDetail.updated')}
+              <Text variant="caption" color="text.secondary" pointerEvents="none" style={styles.mapAttribution}>
+                {t('placeDetail.mapAttribution')}
               </Text>
-            </View>
-          </View>
+            </Pressable>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('common.directions')}
+              onPress={openDirections}
+              style={({ pressed }) => [styles.dirCard, pressed && styles.mapCardPressed]}
+            >
+              <Icon name="navigation" size={16} color="accent.primary" filled />
+              <Text variant="label" color="accent.primary">{t('common.directions')}</Text>
+            </Pressable>
+          )}
 
           {/* Provider facts must be shown with their attribution. */}
-          <View style={styles.trustRow}>
-            {/* No report endpoint exists on `/v1` yet, so this stays visibly
-                unavailable rather than pretending to send something. */}
-            {/* Disabled the way a Button is (#382): `text.secondary` on
-                `surface.subtle`, never the 1.6:1 placeholder colour. */}
-            <View
-              testID="place-detail-report"
-              accessibilityRole="button"
-              accessibilityState={{ disabled: true }}
-              style={styles.reportDisabled}
-            >
-              <Text variant="label" color="text.secondary">{t('placeDetail.report')}</Text>
-            </View>
-          </View>
-          <Text variant="caption" color="text.secondary">{t('placeDetail.reportUnavailable')}</Text>
           {(detail.sources ?? []).map(source => (
             <Text variant="caption" color="text.secondary" key={source.url ?? source.provider} style={styles.attribution}>
               {source.attribution ?? source.provider}
@@ -480,21 +600,6 @@ export default function PlaceDetailScreen() {
                 ))}
               </View>
             </>
-          ) : null}
-
-          {hasCoords ? (
-            <View style={styles.mapCard}>
-              <MapCanvas
-                interactive={false}
-                pins={[{ id, lat: detail.lat as number, lng: detail.lng as number, title: name }]}
-                style={styles.mapPreview}
-                fallback={
-                  <View style={styles.mapFallback}>
-                    <Text variant="bodySmall" color="text.secondary" style={styles.mapFallbackLabel}>{t('saved.mapUnavailable')}</Text>
-                  </View>
-                }
-              />
-            </View>
           ) : null}
 
           {/* APP-056 — real, moderated GoGo reviews with their own loading and

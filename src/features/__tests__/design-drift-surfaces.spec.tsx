@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react-n
 import { StyleSheet } from 'react-native'
 
 import i18n from '@/shared/i18n'
-import { accents, surface, text } from '@/shared/ui/tokens'
+import { accents, surface } from '@/shared/ui/tokens'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
 
@@ -109,12 +109,15 @@ describe('place sheet (#382 §2, §4, §7)', () => {
     expect(view.getByText('Phù hợp với')).toBeTruthy()
   })
 
-  it('the unavailable Report reads text.secondary on surface.subtle — a disabled control, not a 1.6:1 ghost', async () => {
+  it('the unavailable Report is a header icon in text.secondary; a tap shows the existing notice', async () => {
     mockDetail.value = PLACE
     const view = await renderScreen(<PlaceDetailScreen />)
-    const label = view.getByText('Báo thông tin sai')
-    expect(flat(label.props.style).color).toBe(text.secondary)
-    expect(flat(view.getByTestId('place-detail-report').props.style).backgroundColor).toBe(surface.subtle)
+    const report = view.getByTestId('place-detail-report')
+    expect(report.props.accessibilityState).toEqual({ disabled: true })
+    expect(report.props.accessibilityLabel).toBe('Báo thông tin sai')
+    expect(view.queryByText('Kênh báo lỗi đang được hoàn thiện.')).toBeNull()
+    await fireEvent.press(report)
+    expect(view.getByText('Kênh báo lỗi đang được hoàn thiện.')).toBeTruthy()
   })
 })
 
