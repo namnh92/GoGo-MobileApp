@@ -796,6 +796,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'search.priceTo': 'To',
   'search.priceFromLabel': 'Price from (k VND / person)',
   'search.priceToLabel': 'Price to (k VND / person)',
+  'search.priceSuffix': 'k',
   'search.distancePlaceholder': 'e.g. 5',
   'search.filterSuited': 'Suited for',
   'search.filterCategory': 'Category',
