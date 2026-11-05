@@ -790,6 +790,7 @@ export const viMessages = {
   'search.priceTo': 'Đến',
   'search.priceFromLabel': 'Giá từ (nghìn đồng / người)',
   'search.priceToLabel': 'Giá đến (nghìn đồng / người)',
+  'search.priceSuffix': 'k',
   'search.distancePlaceholder': 'VD: 5',
   'search.filterSuited': 'Phù hợp cho',
   'search.filterCategory': 'Loại hình',
