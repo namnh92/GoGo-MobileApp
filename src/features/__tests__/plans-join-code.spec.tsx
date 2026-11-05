@@ -15,7 +15,7 @@ import { renderScreen } from './harness'
 const mockPush = jest.fn()
 const mockSession = { status: 'user' as 'user' | 'guest' | 'signed_out' }
 const mockItems: { id: string; title: string; status: string; type: string; participantCount: number }[] = []
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }), useFocusEffect: () => undefined }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }), useFocusEffect: () => undefined, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => mockSession }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
