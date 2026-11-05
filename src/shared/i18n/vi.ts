@@ -144,10 +144,14 @@ export const viMessages = {
   'onboarding.guest': 'Tiếp tục với tư cách khách',
   'onboarding.slide1.title': 'Đỡ mất nửa tiếng\nhỏi "đi đâu?"',
   'onboarding.slide1.body': 'GoGo tìm địa điểm và hoạt động phù hợp với các bạn.',
+  'onboarding.slide1.bubble': 'Ăn gì cũng được...',
   'onboarding.slide2.title': 'Mỗi người\nchọn riêng',
   'onboarding.slide2.body': 'Không cần tranh luận. GoGo chỉ hiển thị những lựa chọn các bạn cùng thích.',
+  'onboarding.slide2.swipe': 'Quẹt riêng',
+  'onboarding.slide2.private': 'Bí mật của bạn',
   'onboarding.slide3.title': 'Nhận ngay một\nbuổi date hoàn chỉnh',
   'onboarding.slide3.body': 'Ăn gì, đi đâu, mất bao lâu và khoảng bao nhiêu tiền.',
+  'onboarding.slide3.plan': 'Kế hoạch date',
 
   // By the hour on the device (#382): morning 5–11, afternoon 12–17, evening otherwise.
   'home.greeting.morning': 'Chào buổi sáng',
