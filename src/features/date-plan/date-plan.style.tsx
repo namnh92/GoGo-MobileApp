@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { fill, touchTarget } from '@/shared/ui/tokens'
+import { fill, overlay, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   matchBadge: {
@@ -23,6 +23,15 @@ export const styles = StyleSheet.create(theme => ({
   summarySecondary: { flexShrink: 1, textAlign: 'right' },
   summaryOverBudget: { marginTop: 2 },
 
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: theme.spacing[3],
+    marginBottom: theme.spacing[3],
+  },
+  sectionHint: { flexShrink: 1, textAlign: 'right' },
+
   legRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -35,7 +44,7 @@ export const styles = StyleSheet.create(theme => ({
 
   stopCard: { overflow: 'hidden', marginBottom: theme.spacing[3] },
   /** The photo carries the order, the lock and the status; the name sits under it so it never depends on the picture for contrast. */
-  stopHero: { height: 144, justifyContent: 'flex-start' },
+  stopHero: { height: 168, justifyContent: 'flex-start' },
   stopImage: { ...fill },
   stopHeroTop: {
     flexDirection: 'row',
@@ -51,7 +60,31 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: theme.radius.pill,
   },
   stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  stopInfo: { padding: theme.spacing[4], gap: 2 },
+  // Dark scrim under the whole photo so the white name and address hold AA over any picture or the illustration.
+  stopScrim: { ...fill, backgroundColor: overlay.scrimStrong },
+  stopHeroBottom: { position: 'absolute', left: theme.spacing[4], right: theme.spacing[4], bottom: theme.spacing[3], gap: 2 },
+  stopInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing[3],
+    paddingHorizontal: theme.spacing[4],
+    paddingVertical: theme.spacing[3],
+  },
+  stopTime: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  stopPrice: { flexShrink: 1, textAlign: 'right' },
+  rebuildBtn: {
+    flex: 1,
+    minHeight: touchTarget.min + 8,
+    paddingHorizontal: theme.spacing[3],
+    borderRadius: theme.radius.button,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+    backgroundColor: theme.surface.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rebuildBtnPressed: { backgroundColor: theme.surface.subtle },
   lockBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -63,29 +96,6 @@ export const styles = StyleSheet.create(theme => ({
   },
   lockBtnOn: { backgroundColor: theme.accent.primary },
   lockBtnOff: { backgroundColor: theme.surface.card },
-  stopArea: { marginTop: 2 },
-  stopPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: theme.spacing[2] },
-  stopActions: { flexDirection: 'row', gap: theme.spacing[2], marginTop: theme.spacing[3] },
-  detailBtn: {
-    flex: 1,
-    height: touchTarget.min,
-    borderRadius: theme.radius.button,
-    borderWidth: 1,
-    borderColor: theme.border.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  directionBtn: {
-    flex: 1,
-    height: touchTarget.min,
-    borderRadius: theme.radius.button,
-    backgroundColor: theme.surface.subtle,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-
   goBtn: { alignSelf: 'stretch' },
   /** #251 — where the start CTA would be when this caller cannot start the date. */
   startNotice: {
@@ -110,11 +120,6 @@ export const styles = StyleSheet.create(theme => ({
   },
   staleText: { flex: 1 },
 
-  /**
-   * Locked / required / completed must be told apart without colour (spec §20):
-   * a locked stop carries a left edge, a padlock and the word, not just a tint.
-   */
-  stopCardLocked: { borderLeftWidth: 4, borderLeftColor: theme.accent.primary },
   // A finished stop steps back by surface, not by fading (#382): opacity took
   // its text.secondary lines under AA. The "Xong" chip says it.
   stopCardCompleted: { backgroundColor: theme.surface.canvas, shadowOpacity: 0, elevation: 0 },

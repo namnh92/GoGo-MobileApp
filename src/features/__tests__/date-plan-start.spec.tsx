@@ -76,8 +76,8 @@ import { createQueryClient } from '@/shared/api/query-client'
 import { queryKeys } from '@/shared/api/query-keys'
 import DatePlanScreen from '@/features/date-plan/date-plan.view'
 
-const GO = 'Bắt đầu đi →'
-const ENTER = 'Vào buổi đi chơi →'
+const GO = 'Bắt đầu đi'
+const ENTER = 'Vào buổi đi chơi'
 const SUMMARY = 'Xem tổng kết →'
 const RETRY = 'Thử lại'
 const WAITING = /Đang đợi chủ phòng bắt đầu buổi đi chơi/
@@ -426,5 +426,41 @@ describe('a start answered with a room that is not active', () => {
     expect(screen.queryByText(GO)).toBeNull()
     expect(mockGet).toHaveBeenCalledWith('/rooms/{id}', { pathParams: { id: 'room-1' } })
     expect(mockPush).not.toHaveBeenCalled()
+  })
+})
+
+describe('plan layout (Stitch Lịch trình)', () => {
+  const twoStops = {
+    ...plan,
+    stops: [
+      { id: 'stop-1', placeId: 'place-1', order: 1, durationMinutes: 60, isLocked: true, status: 'planned' },
+      { id: 'stop-2', placeId: 'place-2', order: 2, durationMinutes: 90, isLocked: false, status: 'planned', travelMinutesFromPrev: 10 },
+      { id: 'stop-3', placeId: 'place-3', order: 3, durationMinutes: 30, isLocked: false, status: 'planned', travelMinutesFromPrev: 15 },
+    ],
+  }
+
+  it('sums the legs, titles the itinerary, and drops the per-stop Chi tiết and Chỉ đường buttons', async () => {
+    mockPlan.query = loaded(twoStops)
+    await renderPlan()
+    expect(await screen.findByText('Tổng chi phí')).toBeTruthy()
+    expect(screen.getByText('Di chuyển')).toBeTruthy()
+    expect(screen.getByText('25 phút')).toBeTruthy()
+    expect(screen.getByText('Lịch trình chi tiết')).toBeTruthy()
+    expect(screen.getByText('Khoá để giữ chặng khi tạo lại')).toBeTruthy()
+    expect(screen.queryByText('Chi tiết')).toBeNull()
+    expect(screen.queryByText('Chỉ đường')).toBeNull()
+    expect(screen.getByText('giữ nguyên các điểm đã khoá')).toBeTruthy()
+  })
+
+  it('hides the travel row when the plan has no legs', async () => {
+    await renderPlan()
+    expect(await screen.findByText('Tổng chi phí')).toBeTruthy()
+    expect(screen.queryByText('Di chuyển')).toBeNull()
+  })
+
+  it('keeps one arrow on the start button: the icon, not the label', async () => {
+    await renderPlan()
+    expect(await screen.findByText(GO)).toBeTruthy()
+    expect(screen.queryByText(/→/)).toBeNull()
   })
 })

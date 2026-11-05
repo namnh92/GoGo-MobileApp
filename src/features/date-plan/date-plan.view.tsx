@@ -22,7 +22,6 @@ import {
   toRoomAudience,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { costLineText, planCost, stopCostLabel } from '@/shared/pricing/plan-cost'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
@@ -31,14 +30,15 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn, Toast } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn, Toast } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
-import { Icon, IconNavigation } from '@/shared/ui/icons'
+import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
+import { PlaceDetailEmptyHero } from './place-detail-empty-hero.view'
 import { styles } from './date-plan.style'
 import { planStart, planWhen } from './plan-title'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
@@ -305,6 +305,8 @@ export default function DatePlanScreen() {
   // GoGo-MobileApp#249 — the amounts carry their scope; the room only decides
   // how the other scope is phrased. Until the room loads, only the scope the API
   // stated is shown, never an assumed couple.
+  const legs = summary.stops.map(stop => stop.travelMinutesFromPrev).filter((n): n is number => n != null)
+  const legMinutes = legs.length > 0 ? legs.reduce((sum, n) => sum + n, 0) : null
   const cost = planCost(summary, room.data ? toRoomAudience(room.data) : null, t)
 
   return (
@@ -353,7 +355,7 @@ export default function DatePlanScreen() {
 
         <Card style={styles.summaryCard}>
           <View style={styles.summaryTotalRow}>
-            <Text variant="body" color="text.secondary">{t('datePlan.total')}</Text>
+            <Text variant="body" color="text.secondary">{t('datePlan.totalCost')}</Text>
             <View style={styles.summaryTotalValue}>
               {/* One formatter owns the amount and its scope (GoGo-MobileApp#249).
                   They are separate texts so the scope wraps under the amount
@@ -380,7 +382,24 @@ export default function DatePlanScreen() {
               {Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m
             </Text>
           </View>
+          {/* Sum of the optimizer's legs; hidden when the plan has none. */}
+          {legMinutes != null ? (
+            <>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryTimeRow}>
+                <Text variant="body" color="text.secondary">{t('datePlan.travel')}</Text>
+                <Text variant="title2">{t('datePlan.minutes', { n: legMinutes })}</Text>
+              </View>
+            </>
+          ) : null}
         </Card>
+
+        <View style={styles.sectionRow}>
+          <Text variant="title2">{t('datePlan.itinerary')}</Text>
+          {capabilities.canLockStops && editable ? (
+            <Text variant="caption" color="text.secondary" style={styles.sectionHint}>{t('datePlan.itineraryHint')}</Text>
+          ) : null}
+        </View>
 
         {summary.stops.map((stop, index) => {
           const place = places.byPlaceId.get(stop.placeId)
@@ -412,28 +431,24 @@ export default function DatePlanScreen() {
               >
                 <Card
                   padded={false}
-                  style={[
-                    styles.stopCard,
-                    stop.isLocked && styles.stopCardLocked,
-                    stop.status === 'completed' && styles.stopCardCompleted,
-                  ]}
+                  style={[styles.stopCard, stop.status === 'completed' && styles.stopCardCompleted]}
                 >
                   <View style={styles.stopHero}>
-                    <PlacePhoto placeId={stop.placeId} name={name} uri={place?.photoUrl ?? null} style={styles.stopImage} />
+                    {place?.photoUrl ? (
+                      <PlacePhoto placeId={stop.placeId} name={name} uri={place.photoUrl} style={styles.stopImage} />
+                    ) : (
+                      <View style={styles.stopImage}><PlaceDetailEmptyHero /></View>
+                    )}
+                    <View pointerEvents="none" style={styles.stopScrim} />
                     <View style={styles.stopHeroTop}>
-                      {/* A room with no `startAt` gets no scheduled times, so
-                          the order is shown rather than an empty clock. */}
                       <View style={styles.stopOrderBadge}>
-                        <Text variant="label" color="text.inverse">
-                          {stop.arriveLabel ?? t('datePlan.stopOrder', { n: index + 1 })}
-                        </Text>
+                        <Text variant="label" color="text.inverse">{t('datePlan.stopOrder', { n: index + 1 })}</Text>
                       </View>
                       <View style={styles.stopBadges}>
                         {stop.status === 'completed' ? (
                           <Chip label={t('datePlan.done')} variant="positive" />
                         ) : null}
-                        {/* Locked reads as locked without colour: padlock,
-                            word, and the card's left edge all say it. */}
+                        {/* Locked reads as locked without colour: padlock and word. */}
                         {stop.isLocked && !(capabilities.canLockStops && editable) ? (
                           <Chip label={t('datePlan.locked')} icon="lock" variant="warning" />
                         ) : null}
@@ -455,36 +470,24 @@ export default function DatePlanScreen() {
                         )}
                       </View>
                     </View>
+                    <View pointerEvents="none" style={styles.stopHeroBottom}>
+                      <Text variant="title1" color="text.inverse" numberOfLines={1}>{name}</Text>
+                      {place?.addressText ? (
+                        <Text variant="bodySmall" color="text.inverse" numberOfLines={1}>{place.addressText}</Text>
+                      ) : null}
+                    </View>
                   </View>
                   <View style={styles.stopInfo}>
-                    <Text variant="title1">{name}</Text>
-                    {place?.addressText ? <Text variant="bodySmall" color="text.secondary" style={styles.stopArea}>{place.addressText}</Text> : null}
-                    <View style={styles.stopPriceRow}>
-                      {stopCost ? <Text variant="title2" color="accent.primary">{stopCost}</Text> : null}
+                    <View style={styles.stopTime}>
+                      <Icon name="clock" size={16} color="text.secondary" />
+                      {/* A room with no `startAt` gets no scheduled times: the duration stands in. */}
                       <Text variant="bodySmall" color="text.secondary">
-                        · {t('datePlan.minutes', { n: stop.durationMinutes })}
+                        {stop.arriveLabel && stop.departLabel
+                          ? `${stop.arriveLabel} - ${stop.departLabel}`
+                          : t('datePlan.minutes', { n: stop.durationMinutes })}
                       </Text>
                     </View>
-                    <View style={styles.stopActions}>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => router.push(`/places/${stop.placeId}`)}
-                        style={styles.detailBtn}
-                      >
-                        <Text variant="label" color="text.secondary">{t('common.details')}</Text>
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => {
-                          haptic('select')
-                          openGoogleMapsDirections(place?.addressText ?? name)
-                        }}
-                        style={styles.directionBtn}
-                      >
-                        <IconNavigation />
-                        <Text variant="label">{t('common.directions')}</Text>
-                      </Pressable>
-                    </View>
+                    {stopCost ? <Text variant="title2" color="accent.primary" style={styles.stopPrice}>{stopCost}</Text> : null}
                   </View>
                 </Card>
               </Pressable>
@@ -500,12 +503,17 @@ export default function DatePlanScreen() {
         {/* Starting or opening the date is the one dominant CTA; edit and rebuild sit above it. */}
         <View style={styles.secondaryRow}>
           {capabilities.canRegenerate && editable ? (
-            <SecondaryBtn
-              label={regenerate.isPending ? t('datePlan.regenerating') : t('datePlan.regenerate')}
+            <Pressable
               onPress={rebuild}
-              loading={regenerate.isPending}
-              style={{ flex: 1 }}
-            />
+              disabled={regenerate.isPending}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('datePlan.regenerate')}, ${t('datePlan.regenerateSub')}`}
+              accessibilityState={{ disabled: regenerate.isPending, busy: regenerate.isPending }}
+              style={({ pressed }) => [styles.rebuildBtn, pressed && styles.rebuildBtnPressed]}
+            >
+              <Text variant="label">{regenerate.isPending ? t('datePlan.regenerating') : t('datePlan.regenerate')}</Text>
+              <Text variant="caption" color="text.secondary">{t('datePlan.regenerateSub')}</Text>
+            </Pressable>
           ) : null}
           {capabilities.isHost && editable ? (
             <GhostBtn label={t('datePlan.edit')} onPress={() => router.push(`/plans/${planId}/edit`)} style={{ flex: 1 }} />

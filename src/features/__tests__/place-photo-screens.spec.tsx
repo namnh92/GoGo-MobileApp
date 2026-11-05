@@ -103,10 +103,11 @@ describe('place photo × screen', () => {
     expect(photoFor('place-1')).toBeNull()
   })
 
-  it('plan: each stop shows its own photo, or the fallback when it has none', async () => {
+  it('plan: each stop shows its own photo, or the no-photo illustration when it has none', async () => {
     await renderScreen(withCache(<DatePlanScreen />))
     expect(photoFor('place-1')).toBe(PHOTO_1)
-    expect(photoFor('place-2')).toBeNull()
+    // The illustration replaces the placeholder tile, so no photo is asked for.
+    expect(photoFor('place-2')).toBeUndefined()
   })
 
   it('active date: the stop in progress shows its photo', async () => {
