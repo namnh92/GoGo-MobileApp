@@ -27,18 +27,22 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[5],
     paddingBottom: spacing[2],
   },
+  subheaderText: { flex: 1 },
   subheaderDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },
 
   // The card is as tall as its content: a 4:3 photo over the facts, centred in
   // the space the header and the action row leave.
   deck: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2], justifyContent: 'center' },
+  // The draft's 4:5 card, at most 500pt tall, with the photo over its top 58%.
   card: {
+    aspectRatio: 0.8,
+    maxHeight: 500,
     borderRadius: radius.hero,
     overflow: 'hidden',
     backgroundColor: theme.surface.card,
   },
 
-  imageWrap: { aspectRatio: 1.3 },
+  imageWrap: { height: '58%' },
   categoryBadge: {
     position: 'absolute',
     top: spacing[3],
@@ -83,10 +87,8 @@ export const styles = StyleSheet.create(theme => ({
   },
   overlayLabel: { letterSpacing: 1 },
 
-  footer: { padding: spacing[4], gap: spacing[3] },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[3] },
-  titleCol: { flex: 1, gap: 4 },
-  priceCol: { alignItems: 'flex-end', maxWidth: '45%' },
+  footer: { flex: 1, padding: spacing[3], gap: spacing[2], overflow: 'hidden' },
+  titleCol: { gap: 2 },
   openDot: { width: 6, height: 6, borderRadius: 3 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 

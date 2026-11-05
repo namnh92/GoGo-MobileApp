@@ -462,6 +462,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
 
   'swipe.header': 'Pick what you like',
   'swipe.subheader': 'GoGo will find the overlap',
+  'swipe.progress': '{{index}} / {{total}} places',
   'swipe.hint': 'Swipe right to like • Swipe left to pass',
   'swipe.likeLabel': 'Like',
   'swipe.passLabel': 'Not for me',
