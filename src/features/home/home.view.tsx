@@ -175,14 +175,17 @@ export default function HomeScreen() {
             <Icon name="bell" size={22} color="text.primary" />
             <CountBadge count={unread.count} more={unread.more} style={styles.bellBadge} />
           </Pressable>
-          <Pressable
-            onPress={() => router.push('/(tabs)/profile')}
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.title')}
-            hitSlop={8}
-          >
-            <AvatarCircle label={initial || '·'} size={44} imageUri={me.data?.avatarUrl} />
-          </Pressable>
+          {/* A person with no name has no avatar to show: no placeholder dot. */}
+          {initial ? (
+            <Pressable
+              onPress={() => router.push('/(tabs)/profile')}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.title')}
+              hitSlop={8}
+            >
+              <AvatarCircle label={initial} size={44} imageUri={me.data?.avatarUrl} />
+            </Pressable>
+          ) : null}
         </View>
 
         {/* Suggestions still on screen from an earlier search (GoGo-MobileApp#253). */}

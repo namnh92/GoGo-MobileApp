@@ -54,6 +54,7 @@ export default function SignInScreen() {
   const { signIn, signUp } = useSession()
   const { next } = useLocalSearchParams<{ next?: string }>()
 
+  const [showPassword, setShowPassword] = useState(false)
   const [mode, setMode] = useState<Mode>('signIn')
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -271,6 +272,7 @@ export default function SignInScreen() {
                       autoComplete="email"
                       keyboardType="email-address"
                       autoCorrect={false}
+                      numberOfLines={1}
                       editable={!pending}
                       accessibilityLabel={t('auth.email')}
                       style={styles.input}
@@ -299,11 +301,20 @@ export default function SignInScreen() {
                       placeholderTextColor={theme.text.secondary}
                       autoCapitalize="none"
                       autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-                      secureTextEntry
+                      secureTextEntry={!showPassword}
                       editable={!pending}
                       accessibilityLabel={t('auth.password')}
                       style={styles.input}
                     />
+                    <Pressable
+                      testID="password-visibility"
+                      onPress={() => setShowPassword(shown => !shown)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
+                      hitSlop={12}
+                    >
+                      <Icon name={showPassword ? 'eyeOff' : 'eye'} size={20} color="text.secondary" />
+                    </Pressable>
                   </View>
                   {mode === 'signUp' ? <Text variant="caption" color="text.secondary">{t('auth.passwordHint')}</Text> : null}
                   {fieldState.error ? (
