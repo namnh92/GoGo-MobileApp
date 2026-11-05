@@ -20,6 +20,7 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
+import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 import { stopCostLabel } from '@/shared/pricing/plan-cost'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
@@ -29,7 +30,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -237,9 +238,17 @@ export default function ActiveDateScreen() {
     />
   ) : null
 
+  // The way back to wherever this was opened from (the inbox, a plan, a link).
+  const header = (
+    <View style={{ paddingTop: insets.top }}>
+      <BackHeader onBack={() => goBackOrHome(router)} />
+    </View>
+  )
+
   if (plan.isPending || awaitingRoom) {
     return (
       <Atmosphere>
+        {header}
         {/* Nothing cached and offline: the paused read would keep the skeleton forever (#253). */}
         {waitingForNetwork ? (
           <OfflineState />
@@ -257,6 +266,7 @@ export default function ActiveDateScreen() {
   if (!summary) {
     return (
       <Atmosphere>
+        {header}
         <ErrorState error={plan.error} onRetry={() => void plan.refetch()} />
       </Atmosphere>
     )
@@ -266,9 +276,10 @@ export default function ActiveDateScreen() {
     const ended = roomStatus === 'completed'
     return (
       <Atmosphere>
+        {header}
         <View
           accessibilityLiveRegion="polite"
-          style={[styles.notActive, { paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom }]}
+          style={[styles.notActive, { paddingTop: spacing[6], paddingBottom: insets.bottom }]}
         >
           {/* Still watching the room: a date about to start arrives through it (#292). */}
           <RoomConnectionNotice
@@ -320,7 +331,8 @@ export default function ActiveDateScreen() {
   if (!stop) {
     return (
       <Atmosphere>
-        <View style={[styles.notActive, { paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom }]}>
+        {header}
+        <View style={[styles.notActive, { paddingTop: spacing[6], paddingBottom: insets.bottom }]}>
           <RoomConnectionNotice
             roomId={summary.roomId}
             status={realtime.status}
@@ -344,7 +356,8 @@ export default function ActiveDateScreen() {
 
   return (
     <Atmosphere>
-      <View style={[styles.topBar, { paddingTop: insets.top + spacing[3] }]}>
+      {header}
+      <View style={styles.topBar}>
         <Card style={styles.progressCard}>
           <View style={styles.liveRow}>
             <View style={styles.liveDot} />
