@@ -104,7 +104,7 @@ export default function PlanChangeScreen() {
 
       <GlassBar placement="floating">
         <View style={styles.actions}>
-          <PrimaryBtn label={t('planChange.submit')} disabled onPress={() => undefined} />
+          <PrimaryBtn label={t('planChange.submit')} disabled icon="sparkle" onPress={() => undefined} />
           <GhostBtn label={t('common.cancel')} onPress={leave} />
         </View>
       </GlassBar>

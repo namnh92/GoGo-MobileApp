@@ -158,6 +158,7 @@ export default function PlanEditScreen() {
               <View style={styles.rowMain}>
                 <PlacePhoto placeId={stop.placeId} name={place?.name ?? ''} uri={place?.photoUrl ?? null} style={styles.thumb} />
                 <View style={styles.rowText}>
+                  <Text variant="caption" color="accent.primary">{t('datePlan.stopOrder', { n: index + 1 })}</Text>
                   <Text variant="title2" numberOfLines={1}>
                     {place?.name ?? ''}
                   </Text>
@@ -215,6 +216,7 @@ export default function PlanEditScreen() {
           label={editStops.isPending ? t('account.saving') : t('account.save')}
           onPress={save}
           disabled={!changed}
+          icon="checkCircle"
           loading={editStops.isPending}
           style={styles.saveBtn}
         />
