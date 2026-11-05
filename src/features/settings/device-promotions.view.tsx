@@ -108,7 +108,7 @@ export function DevicePromotionsSection() {
       {on && osOff ? (
         <>
           <Text variant="bodySmall" color="status.warningText">{t('devicePromotions.osOff')}</Text>
-          <SecondaryBtn label={t('notificationSettings.openSettings')} onPress={() => void Linking.openSettings().catch(() => undefined)} />
+          <SecondaryBtn label={t('notificationSettings.openSettings')} onPress={() => void Linking.openSettings().catch(() => undefined)} icon="settings" />
         </>
       ) : null}
     </Card>
