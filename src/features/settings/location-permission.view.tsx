@@ -110,15 +110,15 @@ export function LocationPermissionSection() {
 
       {state === 'denied' ? (
         <View style={styles.actions}>
-          <SecondaryBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} />
+          <SecondaryBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} icon="settings" />
         </View>
       ) : state === 'undetermined' ? (
         <View style={styles.actions}>
-          <SecondaryBtn label={t('locationSettings.allow')} onPress={allow} />
+          <SecondaryBtn label={t('locationSettings.allow')} onPress={allow} icon="navigation" />
         </View>
       ) : state === 'granted' ? (
         <View style={styles.actions}>
-          <GhostBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} />
+          <GhostBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} icon="settings" />
         </View>
       ) : null}
 

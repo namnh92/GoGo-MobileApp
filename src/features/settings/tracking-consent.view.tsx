@@ -98,7 +98,7 @@ function IosSettingsLink() {
   return (
     <Card padded={false} style={styles.card}>
       <Text variant="bodySmall">{t('permissionsSettings.trackingIos')}</Text>
-      <SecondaryBtn label={t('permissionsSettings.openSettings')} onPress={() => void open()} />
+      <SecondaryBtn label={t('permissionsSettings.openSettings')} onPress={() => void open()} icon="settings" />
       {failed ? (
         <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite">
           {t('notificationSettings.openSettingsFailed')}
