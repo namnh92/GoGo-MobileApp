@@ -85,6 +85,7 @@ export function ConfirmationCard({
               <PrimaryBtn
                 label={confirming ? t('assistant.proposal.working') : action}
                 loading={confirming}
+                icon="check"
                 disabled={busy}
                 onPress={() => onConfirm(Object.keys(edits).length > 0 ? edits : undefined)}
               />
