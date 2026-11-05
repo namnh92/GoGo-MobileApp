@@ -926,6 +926,14 @@ export const viMessages = {
   'notifications.kind.plan_changed': 'Kế hoạch có thay đổi',
   'notifications.kind.date_reminder': 'Nhắc lịch đi chơi',
   'notifications.kind.moderation_update': 'Kết quả kiểm duyệt',
+  'notifications.body.campaign': 'GoGo có tin mới dành cho bạn.',
+  'notifications.body.invite': 'Bạn được mời tham gia một phòng. Chạm để xem phòng.',
+  'notifications.body.preference_reminder': 'Phòng đang đợi bạn chọn sở thích để ghép kèo.',
+  'notifications.body.plan_ready': 'Kế hoạch của phòng đã tạo xong. Chạm để xem.',
+  'notifications.body.plan_changed': 'Kế hoạch của phòng vừa có thay đổi. Chạm để xem lại.',
+  'notifications.body.date_reminder': 'Sắp đến giờ đi chơi theo kế hoạch của phòng.',
+  'notifications.body.moderation_update': 'Có kết quả kiểm duyệt cho nội dung của bạn.',
+  'notifications.room': 'Phòng "{{name}}"',
   'notifications.pushUnavailable': 'Không mở được nội dung của thông báo này. Có thể nội dung đã bị xoá hoặc bạn không còn quyền xem.',
   'permissionsSettings.title': 'Quyền và dữ liệu',
   'permissionsSettings.notifications': 'Thông báo',
@@ -1207,8 +1215,8 @@ export const viContent = {
   searchFilters: ['Tất cả', 'Ăn uống', 'Cà phê', 'Hoạt động', 'Về đêm', 'Lưu trú'],
   suitedOptions: ['Cặp đôi', 'Nhóm bạn'],
   matchingMessages: ['Đang tìm phần các bạn cùng thích…', 'Đang ghép lịch trình…', 'Match rồi'],
-  // Month names for dates composed from their calendar parts (#410). Index 0 is
-  // January. The product writes these itself: CLDR's Vietnamese date pattern
+  // Month names for dates composed from their calendar parts (#410). The product
+  // writes these itself: CLDR's Vietnamese date pattern
   // changed between ICU versions, and the phone's ICU is not the app's.
   monthNames: ['tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6', 'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'],
 }
