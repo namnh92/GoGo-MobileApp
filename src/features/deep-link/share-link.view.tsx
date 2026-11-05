@@ -183,7 +183,7 @@ export default function ShareLinkScreen() {
                 }}
               />
             ) : null}
-            <HomeBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} />
+            <HomeBtn label={t('shareLink.goHome')} onPress={() => router.replace('/(tabs)')} icon="home" />
           </View>
         </Card>
       </View>

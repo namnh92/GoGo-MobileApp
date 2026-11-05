@@ -76,6 +76,7 @@ export default function OnboardingScreen() {
         <PrimaryBtn
           loading={finishing}
           label={isLast ? t('onboarding.start') : t('onboarding.next')}
+          icon="arrowRight"
           onPress={() => (isLast ? finish() : setSlide(slide + 1))}
         />
         {isLast && <GhostBtn disabled={finishing} label={t('onboarding.guest')} onPress={finish} />}
