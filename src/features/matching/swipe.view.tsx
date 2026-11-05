@@ -423,14 +423,6 @@ export default function SwipeScreen() {
   return (
     <Atmosphere>
       {renderHeader(true)}
-      <View style={styles.subheader}>
-        <View style={styles.subheaderDot} />
-        <Text variant="caption" color="text.secondary" style={styles.subheaderText}>{t('swipe.subheader')}</Text>
-        <Text variant="caption" color="text.secondary">
-          {t('swipe.progress', { index: Math.min(cardIndex + 1, candidates.length), total: candidates.length })}
-        </Text>
-      </View>
-
       {castVote.isError ? (
         <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite">
           {t(isRoomNotMatching(castVote.error) ? 'swipe.votingClosed' : 'swipe.saveFailed')}

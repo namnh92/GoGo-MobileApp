@@ -23,7 +23,8 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
 }))
 jest.mock('@/shared/ui/place-photo.view', () => ({ PlacePhoto: () => null }))
-jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: () => true }))
+const mockMotion = { reduced: true }
+jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: () => mockMotion.reduced }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockLoaded(mockState.room),
@@ -93,14 +94,37 @@ it('explains NO_VOTES instead of suggesting a blind retry', async () => {
   const view = await renderScreen(<MatchResult />)
   expect(view.getByText('Chưa có phiếu. Hãy bình chọn trước khi chốt.')).toBeTruthy()
 })
-it.each(['vote', 'match', 'host'] as const)('routes %s to the correct next step', async mode => {
+it.each(['vote', 'match', 'host'] as const)('routes %s to the correct next step, holding 2500 ms from open', async mode => {
   mockState.room.decisionMode = mode
+  mockMotion.reduced = false
+  jest.useFakeTimers()
+  try {
+    const view = await renderScreen(<Matching />)
+    expect(view.queryByText('Match rồi!')).toBeNull()
+    await act(async () => { jest.advanceTimersByTime(2499) })
+    expect(mockReplace).not.toHaveBeenCalled()
+    await act(async () => { jest.advanceTimersByTime(1) })
+    expect(mockReplace).toHaveBeenCalledWith(`/room/room-1/${mode === 'host' ? 'match-result' : 'swipe'}`)
+  } finally { jest.useRealTimers(); mockMotion.reduced = true }
+})
+it('holds for no minimum under reduced motion', async () => {
   jest.useFakeTimers()
   try {
     await renderScreen(<Matching />)
-    await act(async () => { jest.advanceTimersByTime(800) })
-    expect(mockReplace).toHaveBeenCalledWith(`/room/room-1/${mode === 'host' ? 'match-result' : 'swipe'}`)
+    await act(async () => { jest.advanceTimersByTime(0) })
+    expect(mockReplace).toHaveBeenCalledWith('/room/room-1/swipe')
   } finally { jest.useRealTimers() }
+})
+it('clears the hold timer on unmount', async () => {
+  mockMotion.reduced = false
+  jest.useFakeTimers()
+  try {
+    const view = await renderScreen(<Matching />)
+    await act(async () => { jest.advanceTimersByTime(1000) })
+    await act(async () => { view.unmount() })
+    await act(async () => { jest.advanceTimersByTime(5000) })
+    expect(mockReplace).not.toHaveBeenCalled()
+  } finally { jest.useRealTimers(); mockMotion.reduced = true }
 })
 it('keeps a failed vote on the same card', async () => {
   mockVote.mockRejectedValue(new Error('offline'))

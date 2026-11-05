@@ -420,6 +420,11 @@ export default function GoGoRoomScreen() {
   const progress = memberProgress(summary)
   const inviteUrl = inviteCode ? `${env.webBaseUrl}/r/${inviteCode}` : null
   const joinable = JOINABLE.includes(summary.status)
+  // The same facts the auto-route reads: a confirmed run that sends this member to the deck,
+  // and at least one card still without their vote. Finished, empty or moved on: no button.
+  const mineVotes = suggestions.data?.votes?.mine
+  const candidatesLeft = (suggestions.data?.candidates ?? []).some(c => c.placeId && !mineVotes?.[c.placeId])
+  const continueVoting = status === 'matching' && screen === 'swipe' && candidatesLeft && Boolean(nextPath)
   const startVisible =
     capabilities.isHost && (summary.matching?.canStart ?? (progress.completed >= 2 && progress.completed === progress.total))
 
@@ -728,7 +733,13 @@ export default function GoGoRoomScreen() {
 
         {/* Back must not auto-open a run again, but a person can explicitly
             return to its current decision screen without saving preferences. */}
-        {screen && nextPath ? (
+        {continueVoting && nextPath ? (
+          <PrimaryBtn
+            label={t('gogoRoom.continueVoting')}
+            onPress={() => router.push(nextPath)}
+            disabled={routingHold.held || startMatching.isPending}
+          />
+        ) : screen && nextPath ? (
           <SecondaryBtn
             label={t(screen === 'swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult')}
             onPress={() => router.push(nextPath)}
@@ -743,11 +754,19 @@ export default function GoGoRoomScreen() {
           server-enforced. Inviting lives in the code card above.
         */}
         {startVisible ? (
-          <PrimaryBtn
-            label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-            onPress={() => { void beginMatching() }}
-            loading={startMatching.isPending}
-          />
+          continueVoting ? (
+            <SecondaryBtn
+              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+              onPress={() => { void beginMatching() }}
+              loading={startMatching.isPending}
+            />
+          ) : (
+            <PrimaryBtn
+              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+              onPress={() => { void beginMatching() }}
+              loading={startMatching.isPending}
+            />
+          )
         ) : null}
 
         {capabilities.isHost && summary.matching?.canStartWithIncomplete ? (
@@ -763,7 +782,7 @@ export default function GoGoRoomScreen() {
           </Text>
         ) : null}
 
-        {startVisible ? (
+        {startVisible || continueVoting ? (
           <SecondaryBtn
             label={t('gogoRoom.myPreferences')}
             onPress={() => router.push(`/room/${roomId}/preference`)}

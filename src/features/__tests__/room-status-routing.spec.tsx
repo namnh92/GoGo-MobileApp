@@ -286,7 +286,7 @@ describe('routing once per change', () => {
     await poll({ suggestions: run(mine) })
     expect(view.pathname()).toBe(LOBBY)
 
-    const label = viMessages[suffix === '/swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult']
+    const label = viMessages[suffix === '/swipe' ? 'gogoRoom.continueVoting' : 'gogoRoom.returnToResult']
     await fireEvent.press(screen.getByText(label))
     await settle()
 
@@ -304,13 +304,33 @@ describe('routing once per change', () => {
     await renderRoom()
     await poll({ room: member({ status: 'matching' }), suggestions: run() })
     await navigate(() => router.back())
-    expect(screen.getByText(viMessages['gogoRoom.returnToVote'])).toBeTruthy()
+    expect(screen.getByText(viMessages['gogoRoom.continueVoting'])).toBeTruthy()
 
     await poll({ suggestions: run({}, RUN_ID, true) })
+    expect(screen.queryByText(viMessages['gogoRoom.continueVoting'])).toBeNull()
     expect(screen.queryByText(viMessages['gogoRoom.returnToVote'])).toBeNull()
     expect(screen.queryByText(viMessages['gogoRoom.returnToResult'])).toBeNull()
     await poll({ room: member(), suggestions: run() })
+    expect(screen.queryByText(viMessages['gogoRoom.continueVoting'])).toBeNull()
     expect(screen.queryByText(viMessages['gogoRoom.returnToVote'])).toBeNull()
+  })
+
+  it('shows "Tiếp tục chọn" with votes left, not when the member has finished or the room moved on', async () => {
+    mockStore.set(ROOM_ID, { room: member() })
+    await renderRoom()
+    await poll({ room: member({ status: 'matching' }), suggestions: run({ 'place-1': 'yes' }) })
+    await navigate(() => router.back())
+    expect(screen.getByText(viMessages['gogoRoom.continueVoting'])).toBeTruthy()
+
+    await poll({ suggestions: run({ 'place-1': 'yes', 'place-2': 'no' }) })
+    expect(screen.queryByText(viMessages['gogoRoom.continueVoting'])).toBeNull()
+    await poll({ suggestions: run({ 'place-1': 'yes' }) })
+    expect(screen.getByText(viMessages['gogoRoom.continueVoting'])).toBeTruthy()
+    await poll({ suggestions: run({}, RUN_ID, false, 0) })
+    expect(screen.queryByText(viMessages['gogoRoom.continueVoting'])).toBeNull()
+    await poll({ suggestions: run({ 'place-1': 'yes' }) })
+    await poll({ room: member({ status: 'ready' }) })
+    expect(screen.queryByText(viMessages['gogoRoom.continueVoting'])).toBeNull()
   })
 
   it('never pushes the same step twice, and Back or "Về phòng chờ" stay in the lobby', async () => {

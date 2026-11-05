@@ -506,11 +506,13 @@ export default function DatePlanScreen() {
               style={({ pressed }) => [styles.rebuildBtn, pressed && styles.rebuildBtnPressed]}
             >
               <Text variant="label">{regenerate.isPending ? t('datePlan.regenerating') : t('datePlan.regenerate')}</Text>
-              <Text variant="caption" color="text.secondary">{t('datePlan.regenerateSub')}</Text>
+              <Text variant="caption" color="text.secondary" numberOfLines={1} ellipsizeMode="tail">
+                {t('datePlan.regenerateSub')}
+              </Text>
             </Pressable>
           ) : null}
           {capabilities.isHost && editable ? (
-            <GhostBtn label={t('datePlan.edit')} onPress={() => router.push(`/plans/${planId}/edit`)} style={{ flex: 1 }} />
+            <GhostBtn label={t('datePlan.edit')} onPress={() => router.push(`/plans/${planId}/edit`)} style={styles.editBtn} />
           ) : null}
         </View>
         {renderDateAction()}
