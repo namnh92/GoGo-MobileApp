@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { parseApiDate, useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
+import { parseApiDate, useMarkNotificationRead, useNotifications, useRoom, type Notification } from '@/shared/api'
+import { isUuid } from '@/shared/navigation/deep-link'
 import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
@@ -14,8 +15,27 @@ import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInboxTarget } from './inbox-target'
+import { kindPresentation } from './notification-kind'
 import { styles } from './notifications.style'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
+
+/**
+ * Only the first rows ask for their room's name, so a long inbox cannot fire a
+ * request per row. Rows share one query per room id, and a failed or missing
+ * read omits the line: it never blocks or breaks the list.
+ */
+const ROOM_NAME_ROWS = 5
+
+function RoomLine({ roomId }: { roomId: string }) {
+  const { t } = useTranslation()
+  const name = useRoom(roomId).data?.title
+  if (!name) return null
+  return (
+    <Text variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.roomLine}>
+      {t('notifications.room', { name })}
+    </Text>
+  )
+}
 
 export default function NotificationsScreen() {
   const { t, i18n } = useTranslation()
@@ -156,11 +176,14 @@ export default function NotificationsScreen() {
         ListFooterComponent={
           inbox.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: spacing[4] }} /> : null
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const unread = !item.readAt
           const created = parseApiDate(item.createdAt)
           const busy = openingId !== null && openingId === item.id
           const kindLabel = t(`notifications.kind.${item.kind}`, { defaultValue: item.kind ?? '' })
+          const { icon, body } = kindPresentation(item.kind)
+          const payloadRoomId = (item.payload as Record<string, unknown> | undefined)?.roomId
+          const roomId = index < ROOM_NAME_ROWS && isUuid(payloadRoomId) ? payloadRoomId : null
           return (
             <Pressable
               onPress={() => void open(item)}
@@ -171,11 +194,14 @@ export default function NotificationsScreen() {
             >
               <Card padded={false} style={[styles.row, unread && styles.rowUnread]}>
                 {/* Unread is marked by more than colour (RULE-DS-COLOR). */}
-                <View style={styles.iconTile}>
-                  <Icon name="bell" size={20} color="accent.onSoft" />
+                <View style={[styles.iconTile, unread && styles.iconTileUnread]}>
+                  <Icon name={icon} size={20} color={unread ? 'accent.onSoft' : 'text.secondary'} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text variant={unread ? 'title2' : 'body'}>{kindLabel}</Text>
+                  {body ? <Text variant="bodySmall" style={styles.body}>{t(body)}</Text> : null}
+                  {roomId ? <RoomLine roomId={roomId} /> : null}
+                  {/* TODO(https://github.com/namnh92/GoGo-BE/issues/753): inviter name, progress, stop count, change details, campaign text and the draft's "Để sau" action need data the API does not give. */}
                   {created ? (
                     <Text variant="caption" color="text.secondary" style={styles.time}>{created.toLocaleString(i18n.language)}</Text>
                   ) : null}
