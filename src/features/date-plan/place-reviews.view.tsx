@@ -49,7 +49,7 @@ type MarkFailure = 'own' | 'failed'
  * accounts (ADR-0026, proposal), so a guest reads the counts and is asked to
  * sign in rather than shown a control that would fail.
  */
-export function PlaceReviews({ placeId }: { placeId: string }) {
+export function PlaceReviews({ placeId, showPageLink = false }: { placeId: string; showPageLink?: boolean }) {
   const { t } = useTranslation()
   const router = useRouter()
   const { status } = useSession()
@@ -166,6 +166,12 @@ export function PlaceReviews({ placeId }: { placeId: string }) {
         </View>
       ) : null}
       {body}
+      {showPageLink && reviews.data && reviews.data.reviews.length > 0 ? (
+        <GhostBtn
+          label={t('placeReviews.openPage')}
+          onPress={() => router.push(`/places/reviews/${placeId}` as Href)}
+        />
+      ) : null}
       {askSignIn ? (
         <View style={styles.notice} accessibilityLiveRegion="polite">
           <Text variant="bodySmall" color="text.secondary">{t('placeReviews.signInToReact')}</Text>
