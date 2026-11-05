@@ -6,25 +6,21 @@ import i18n from '@/shared/i18n'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
-import { freshDay, localDayKey, scheduleToIso, upcomingDays } from './schedule-day'
+import { DateTimeSheet } from './date-time-sheet.view'
+import { dayTimeLabel, dayLabel } from './day-format'
+import { isPastSlot, parseDayKey } from './calendar'
+import { freshDay, scheduleToIso } from './schedule-day'
+import { TIME_SLOTS } from './time-slots'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-time.style'
 
-// 30-minute slots, 08:00 → 23:30 (mock — real slots come from constraints).
-const TIME_SLOTS = Array.from({ length: 32 }, (_, i) => {
-  const h = Math.floor(i / 2) + 8
-  return `${String(h).padStart(2, '0')}:${i % 2 === 0 ? '00' : '30'}`
-})
-
-const upper = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1)
-
-type PickerTarget = 'start' | 'end' | null
+type PickerTarget = 'end' | null
 
 /** Whole and half hours from `start` to `end` ("HH:MM"); an end at or before the start is the next day. */
 function hoursBetween(start: string, end: string): number {
@@ -47,33 +43,25 @@ export default function CreateTimeScreen() {
   const scheduleDay = useRoomStore(state => state.scheduleDay)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null)
+  const [dateSheet, setDateSheet] = useState(false)
 
-  // No chosen day, or one that has passed, is today: the screen behaves as it did before the row.
+  // No chosen day, or one that has passed, is today.
   const now = new Date()
   const day = freshDay(scheduleDay, now)
-  const days = upcomingDays(now)
-  const selectedKey = day ?? localDayKey(now)
   const locale = i18n.language
-  const monthLabel = upper(
-    (days.find(d => d.key === selectedKey)?.date ?? now).toLocaleDateString(locale, { month: 'long', year: 'numeric' }),
-  )
-
-  function chooseDay(key: string) {
-    patchDraft({ scheduleDay: key === localDayKey(now) ? null : key })
-  }
-
-  function dayLabel(index: number, date: Date) {
-    if (index === 0) return t('createTime.today')
-    if (index === 1) return t('createTime.tomorrow')
-    return date.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit' })
-  }
+  const startDate = (day ? parseDayKey(day) : null) ?? now
 
   // Start time is mandatory (per SRS room constraints) — end stays optional.
-  const canContinue = startTime !== null
+  // A start already over today is shown as invalid and blocks Continue: the slot
+  // helpers would roll it to tomorrow, and the row must never say today while
+  // the room is made for tomorrow.
+  const startPast = startTime !== null && isPastSlot(startTime, day, now)
+  const canContinue = startTime !== null && !startPast
   // "01:00" after "23:00" is tomorrow; `endSlotToIso` rolls it forward the same way.
   // Display only: what the two times add up to, rolling past midnight like `endSlotToIso`.
   const spanHours = startTime !== null && endTime !== null ? hoursBetween(startTime, endTime) : null
   const endsNextDay = startTime !== null && endTime !== null && endTime <= startTime
+  const endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + (endsNextDay ? 1 : 0))
 
   function next() {
     patchDraft(scheduleToIso(startTime, endTime, day))
@@ -91,16 +79,22 @@ export default function CreateTimeScreen() {
     if (startTime) setEndTime(presetEnd(startTime, key))
   }
 
+  function applyStart(slot: string) {
+    setStartTime(slot)
+    if (durationPreset) setEndTime(presetEnd(slot, durationPreset))
+    else if (endTime && endTime <= slot) setEndTime(null)
+  }
+
+  function finishDateSheet(chosenDay: string | null, slot: string) {
+    patchDraft({ scheduleDay: chosenDay })
+    applyStart(slot)
+    setDateSheet(false)
+  }
+
   function pickSlot(slot: string) {
-    if (pickerFor === 'start') {
-      setStartTime(slot)
-      if (durationPreset) setEndTime(presetEnd(slot, durationPreset))
-      else if (endTime && endTime <= slot) setEndTime(null)
-    } else if (pickerFor === 'end') {
-      setEndTime(slot)
-      // A hand-picked end replaces whatever length was chosen.
-      setDurationPreset(null)
-    }
+    setEndTime(slot)
+    // A hand-picked end replaces whatever length was chosen.
+    setDurationPreset(null)
     setPickerFor(null)
   }
 
@@ -108,7 +102,7 @@ export default function CreateTimeScreen() {
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
 
-  const slotOptions = pickerFor === 'end' && startTime ? TIME_SLOTS.filter(s => s > startTime) : TIME_SLOTS
+  const slotOptions = startTime ? TIME_SLOTS.filter(s => s > startTime) : TIME_SLOTS
 
   return (
     <Atmosphere>
@@ -121,40 +115,58 @@ export default function CreateTimeScreen() {
         <Text variant="display">{t('createTime.title', { context: roomType })}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
 
-        <View style={styles.dayHeader}>
-          <Icon name="calendar" size={20} color="accent.primary" />
-          <Text variant="title2" style={styles.dayTitle}>{t('createTime.dayTitle')}</Text>
-          <Text variant="caption" color="text.secondary" numberOfLines={1}>{monthLabel}</Text>
+        {/* Start and end, each as one line: day and time. */}
+        <View style={styles.rows}>
+          <Pressable
+            onPress={() => setDateSheet(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('createTime.start')}: ${startTime ? dayTimeLabel(startDate, startTime, locale) : t('createTime.notSet')}`}
+            testID="create-time-start-row"
+            style={[styles.row, startTime === null && styles.rowRequired, startPast && styles.rowInvalid]}
+          >
+            <Icon name="calendar" size={20} color={startPast ? 'status.dangerText' : 'accent.primary'} />
+            <Text variant="label" color="text.secondary">{t('createTime.start')} *</Text>
+            <Text
+              variant="title2"
+              color={startPast ? 'status.dangerText' : startTime === null ? 'accent.primary' : 'text.primary'}
+              numberOfLines={1}
+              style={styles.rowValue}
+            >
+              {startTime ? dayTimeLabel(startDate, startTime, locale) : `${dayLabel(startDate, locale)} · ${t('createTime.notSet')}`}
+            </Text>
+            <Icon name="chevronRight" size={16} color="text.secondary" />
+          </Pressable>
+          <Pressable
+            onPress={() => setPickerFor('end')}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('createTime.end')}: ${endTime ? dayTimeLabel(endDate, endTime, locale) : t('createTime.notSet')}`}
+            testID="create-time-end-row"
+            style={styles.row}
+          >
+            <Icon name="calendar" size={20} color="text.secondary" />
+            <Text variant="label" color="text.secondary">{t('createTime.end')}</Text>
+            <Text variant="title2" numberOfLines={1} style={styles.rowValue}>
+              {endTime
+                ? dayTimeLabel(endDate, endTime, locale)
+                : t(durationPreset === 'evening' ? 'createTime.openEnd' : 'createTime.notSet')}
+            </Text>
+            {endsNextDay ? <Text variant="caption" color="text.secondary" numberOfLines={1}>{t('createTime.nextDay')}</Text> : null}
+            <Icon name="chevronRight" size={16} color="text.secondary" />
+          </Pressable>
+          {startPast ? (
+            <Text variant="caption" color="status.dangerText" style={styles.requiredHint}>{t('createTime.startPast')}</Text>
+          ) : null}
+          {!canContinue && !startPast ? (
+            <Text variant="caption" color="accent.primary" style={styles.requiredHint}>
+              {t(durationPreset ? 'createTime.presetNeedsStart' : 'createTime.startRequired')}
+            </Text>
+          ) : null}
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          testID="create-time-days"
-          style={styles.dayScroll}
-          contentContainerStyle={styles.dayRow}
-        >
-          {days.map(({ key, date }, index) => {
-            const active = key === selectedKey
-            const label = dayLabel(index, date)
-            return (
-              <Pressable
-                key={key}
-                onPress={() => chooseDay(key)}
-                accessibilityRole="button"
-                accessibilityLabel={label}
-                accessibilityState={{ selected: active }}
-                testID={`create-time-day-${key}`}
-                style={[styles.dayChip, active ? styles.dayChipActive : glassStyles.card]}
-              >
-                {/* Selection is never colour alone: a check and a heavier label. */}
-                {active ? <Icon name="check" size={14} color="accent.onSoft" /> : null}
-                <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onSoft' : 'text.primary'} numberOfLines={1}>
-                  {label}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </ScrollView>
+        {spanHours !== null ? (
+          <Text variant="bodySmall" color="text.secondary" style={styles.estimate}>
+            {t('createTime.estimated', { hours: spanHours })}
+          </Text>
+        ) : null}
 
         <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
         <View style={{ gap: spacing[2], marginBottom: spacing[6] }}>
@@ -178,52 +190,27 @@ export default function CreateTimeScreen() {
           })}
         </View>
 
-        <Card padded={false} style={{ padding: spacing[4] }}>
-          <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.specificTime')}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4] }}>
-            <Pressable
-              onPress={() => setPickerFor('start')}
-              accessibilityRole="button"
-              style={[styles.timeBox, startTime === null && styles.timeBoxRequired]}
-            >
-              <Text variant="caption" color="text.secondary">{t('createTime.start')} *</Text>
-              <Text variant="title1" color={startTime === null ? 'accent.primary' : 'text.primary'} style={styles.timeValue}>
-                {startTime ?? t('createTime.notSet')}
-              </Text>
-            </Pressable>
-            <Text color="text.secondary">→</Text>
-            <Pressable onPress={() => setPickerFor('end')} accessibilityRole="button" style={styles.timeBox}>
-              <Text variant="caption" color="text.secondary">{t('createTime.end')}</Text>
-              <Text variant="title1" style={styles.timeValue}>
-                {endTime ?? t(durationPreset === 'evening' ? 'createTime.openEnd' : 'createTime.notSet')}
-              </Text>
-              {endsNextDay ? <Text variant="caption" color="text.secondary">{t('createTime.nextDay')}</Text> : null}
-            </Pressable>
-          </View>
-          {!canContinue && (
-            <Text variant="caption" color="accent.primary" style={styles.requiredHint}>
-              {t(durationPreset ? 'createTime.presetNeedsStart' : 'createTime.startRequired')}
-            </Text>
-          )}
-        </Card>
-        {spanHours !== null ? (
-          <Text variant="bodySmall" color="text.secondary" style={styles.estimate}>
-            {t('createTime.estimated', { hours: spanHours })}
-          </Text>
-        ) : null}
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} icon="arrowRight" />
       </GlassBar>
 
-      {/* Time slot picker sheet */}
+      <DateTimeSheet
+        visible={dateSheet}
+        initialDay={day}
+        initialTime={startTime}
+        onClose={() => setDateSheet(false)}
+        onDone={finishDateSheet}
+      />
+
+      {/* End time: the 30-minute slot grid. */}
       <Sheet visible={pickerFor !== null} onClose={() => setPickerFor(null)} maxHeight="70%">
         <Text variant="title1" style={styles.sheetTitle}>
-          {t('createTime.pickTime')} · {t(pickerFor === 'end' ? 'createTime.end' : 'createTime.start')}
+          {t('createTime.pickTime')} · {t('createTime.end')}
         </Text>
         <View style={styles.slotGrid}>
           {slotOptions.map(slot => {
-            const active = (pickerFor === 'start' ? startTime : endTime) === slot
+            const active = endTime === slot
             return (
               <Pressable
                 key={slot}
