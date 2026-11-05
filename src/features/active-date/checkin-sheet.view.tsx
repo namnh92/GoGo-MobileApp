@@ -2,7 +2,7 @@ import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, TextInput, View, ScrollView } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { useUploadImage, type PlanStopRow } from '@/shared/api'
@@ -121,7 +121,8 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
   }
 
   return (
-    <Sheet visible={visible} onClose={skip}>
+    <Sheet visible={visible} onClose={skip} scroll={false}>
+      <ScrollView style={styles.scroll} bounces={false} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <Icon name="mapPin" size={28} color="accent.primary" />
         <View style={{ flex: 1 }}>
@@ -247,6 +248,8 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
           {error}
         </Text>
       ) : null}
+      </ScrollView>
+      {/* Outside the scroll, so both ways out are on screen as the sheet opens. */}
       <PrimaryBtn
         label={pending ? t('checkin.saving') : t('checkin.save')}
         onPress={save}

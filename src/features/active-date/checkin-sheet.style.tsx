@@ -126,6 +126,7 @@ export const styles = StyleSheet.create(theme => ({
   /** #278 — a check-in that did not land; the sheet stays open for the retry. */
   saveFailed: { marginBottom: spacing[3], textAlign: 'center' },
   saveBtn: { alignSelf: 'stretch' },
+  scroll: { flexShrink: 1 },
   skipBtn: { alignItems: 'center', justifyContent: 'center', minHeight: touchTarget.min, paddingVertical: spacing[2] },
   skipBtnDisabled: { opacity: 0.45 },
   unavailableNote: { marginTop: spacing[1] },

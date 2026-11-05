@@ -223,6 +223,9 @@ export default function DatePlanScreen() {
    * Members learn that it started through `useRoomRealtime` above.
    */
   const roomStatus = room.data?.status
+  // A finished date is read-only: nothing left to lock, rebuild or edit. The
+  // server still decides; this only stops offering what no longer applies.
+  const editable = roomStatus !== 'completed'
 
   function renderDateAction() {
     if (!room.data) {
@@ -430,11 +433,11 @@ export default function DatePlanScreen() {
                         ) : null}
                         {/* Locked reads as locked without colour: padlock,
                             word, and the card's left edge all say it. */}
-                        {stop.isLocked && !capabilities.canLockStops ? (
+                        {stop.isLocked && !(capabilities.canLockStops && editable) ? (
                           <Chip label={t('datePlan.locked')} icon="lock" variant="warning" />
                         ) : null}
                         {/* Host-only, and server-enforced. */}
-                        {capabilities.canLockStops && (
+                        {capabilities.canLockStops && editable && (
                           <Pressable
                             onPress={() => toggleLock(stop, name)}
                             accessibilityRole="togglebutton"
@@ -487,7 +490,7 @@ export default function DatePlanScreen() {
             </View>
           )
         })}
-        {capabilities.canRegenerate ? (
+        {capabilities.canRegenerate && editable ? (
           <GhostBtn label={t('planChange.title')} onPress={() => router.push(`/plans/${planId}/change`)} />
         ) : null}
       </ScrollView>
@@ -495,7 +498,7 @@ export default function DatePlanScreen() {
       <GlassBar placement="floating">
         {/* Starting or opening the date is the one dominant CTA; edit and rebuild sit above it. */}
         <View style={styles.secondaryRow}>
-          {capabilities.canRegenerate ? (
+          {capabilities.canRegenerate && editable ? (
             <SecondaryBtn
               label={regenerate.isPending ? t('datePlan.regenerating') : t('datePlan.regenerate')}
               onPress={rebuild}
@@ -503,7 +506,7 @@ export default function DatePlanScreen() {
               style={{ flex: 1 }}
             />
           ) : null}
-          {capabilities.isHost ? (
+          {capabilities.isHost && editable ? (
             <GhostBtn label={t('datePlan.edit')} onPress={() => router.push(`/plans/${planId}/edit`)} style={{ flex: 1 }} />
           ) : null}
         </View>

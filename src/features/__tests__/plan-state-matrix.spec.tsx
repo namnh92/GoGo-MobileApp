@@ -122,6 +122,15 @@ describe('plan × audience', () => {
     expect(view.queryAllByText(REGENERATE).length).toBeGreaterThan(0)
   })
 
+  it('offers no edits on a finished date, even to the host (#457)', async () => {
+    mockPlan.query = loaded(planWith())
+    mockRoom.query = loaded(roomFor('group-host', { status: 'completed' }))
+    const view = await renderScreen(<DatePlanScreen />)
+    expect(view.queryByText(REGENERATE)).toBeNull()
+    expect(view.queryByText('Sửa lộ trình')).toBeNull()
+    expect(view.queryByText('Đổi phương án')).toBeNull()
+  })
+
   it('never offers regenerate to a member', async () => {
     mockRoom.query = loaded(roomFor('group-guest'))
     const view = await renderScreen(<DatePlanScreen />)
