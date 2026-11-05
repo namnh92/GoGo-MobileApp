@@ -155,6 +155,7 @@ export default function JoinByCodeScreen() {
             <PrimaryBtn
               label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
               onPress={submit}
+              icon="arrowRight"
               loading={pending}
               disabled={!ready}
             />
