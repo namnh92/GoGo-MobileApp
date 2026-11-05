@@ -98,6 +98,27 @@ describe('body text per kind', () => {
   })
 })
 
+describe('the row accessibility label', () => {
+  it('reads the title, the body line and the time, in that order', async () => {
+    mockItems.value = [row('n-invite', 'invite')]
+    const view = await renderScreen(<NotificationsScreen />)
+    const label = view
+      .getAllByRole('button')
+      .map(b => b.props.accessibilityLabel as string)
+      .find(l => l?.startsWith(viMessages['notifications.kind.invite']))!
+    const parts = label.split(', ')
+    expect(parts[0]).toBe(viMessages['notifications.kind.invite'])
+    expect(parts[1]).toBe(viMessages['notifications.body.invite'])
+    expect(parts.slice(2).join(', ')).toBe(new Date('2026-09-15T14:09:27Z').toLocaleString('vi'))
+  })
+
+  it('is the title alone for a kind with no body line and no valid date', async () => {
+    mockItems.value = [{ ...row('n-x', 'brand_new_kind'), createdAt: 'not a date' }]
+    const view = await renderScreen(<NotificationsScreen />)
+    expect(view.getByLabelText('brand_new_kind', { exact: true })).toBeTruthy()
+  })
+})
+
 describe('an unknown kind', () => {
   it.each([['a_kind_from_the_future'], [undefined]])('renders safely: %s', async kind => {
     mockItems.value = [row('n-x', kind), row('n-ok', 'plan_ready')]

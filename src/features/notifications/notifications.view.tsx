@@ -189,7 +189,7 @@ export default function NotificationsScreen() {
               onPress={() => void open(item)}
               accessibilityRole="button"
               // #271: a busy control needs a label, or Android keeps saying "busy".
-              accessibilityLabel={created ? `${kindLabel}, ${created.toLocaleString(i18n.language)}` : kindLabel}
+              accessibilityLabel={[kindLabel, body ? t(body) : null, created ? created.toLocaleString(i18n.language) : null].filter(Boolean).join(', ')}
               accessibilityState={{ busy }}
             >
               <Card padded={false} style={[styles.row, unread && styles.rowUnread]}>
