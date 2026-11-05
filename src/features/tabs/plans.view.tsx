@@ -128,7 +128,7 @@ export default function PlansScreen() {
             guest session holding their room; confirm-first is #272. */}
         {status === 'user' ? (
           <View style={[styles.createAction, styles.headerActions]}>
-            <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
+            <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} icon="plus" />
             <GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} />
           </View>
         ) : null}
@@ -194,7 +194,7 @@ export default function PlansScreen() {
             // A user has the code entry in the header; a guest keeps it here.
             action={
               <View style={{ gap: spacing[2], alignSelf: 'stretch' }}>
-                <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} />
+                <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} icon="plus" />
                 {status === 'guest' ? (
                   <GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} />
                 ) : null}
