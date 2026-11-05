@@ -393,6 +393,12 @@ export default function SwipeScreen() {
             <Text variant="display" style={styles.doneText}>{t('swipe.doneTitle')}</Text>
             <Text color="text.secondary" style={styles.doneText}>{t('swipe.doneBody')}</Text>
           </View>
+          <GhostBtn
+            label={t('swipe.goToLobby')}
+            onPress={() => router.replace(`/room/${roomId}`)}
+            icon="home"
+            style={styles.doneAction}
+          />
         </View>
       </Atmosphere>
     )
@@ -576,6 +582,7 @@ export default function SwipeScreen() {
             <Text variant="label" color="accent.primary">{t('swipe.likeLabel')}</Text>
           </View>
         </View>
+        <Text variant="caption" color="text.secondary" style={styles.hint}>{t('swipe.hint')}</Text>
       </View>
     </Atmosphere>
   )

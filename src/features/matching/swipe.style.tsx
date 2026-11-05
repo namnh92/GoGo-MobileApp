@@ -114,6 +114,8 @@ export const styles = StyleSheet.create(theme => ({
   actionBtnLikePressed: { backgroundColor: theme.accent.pressed },
   actionBtnStarPressed: { backgroundColor: theme.surface.subtle },
 
+  hint: { textAlign: 'center', marginBottom: spacing[4] },
+  doneAction: { marginTop: spacing[4] },
   done: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   doneCard: {
     alignItems: 'center',

@@ -157,9 +157,14 @@ export default function PreferenceScreen() {
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} />
+        <BackHeader onBack={() => router.back()} title={t('preference.headerTitle')} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[5] }}>
+        <View style={styles.countPill}>
+          <Text variant="caption" color="status.successText">
+            {t('preference.selectedCount', { n: selected.length, max: MAX_PREFS })}
+          </Text>
+        </View>
         <Text variant="display" style={styles.title}>{t('preference.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('preference.body')}</Text>
 
@@ -209,6 +214,7 @@ export default function PreferenceScreen() {
         <PrimaryBtn
           label={`${t('common.continue')}${selected.length > 0 ? ` (${selected.length})` : ''}`}
           onPress={complete}
+          icon="arrowRight"
           loading={pending}
         />
       </GlassBar>

@@ -402,7 +402,7 @@ export default function MatchResultScreen() {
             </Text>
           ) : null}
           {existingPlanId ? (
-            <PrimaryBtn label={t('matchResult.viewPlan')} onPress={() => viewPlan(existingPlanId)} />
+            <PrimaryBtn label={t('matchResult.viewPlan')} onPress={() => viewPlan(existingPlanId)} icon="arrowRight" />
           ) : isStale && capabilities.canRegenerate ? (
             // Finalizing a stale ranking is refused (STALE_SUGGESTIONS), so the
             // host's one way forward is a fresh run, offered as the primary action.
