@@ -18,6 +18,7 @@ const commonFields = {
   originLat: z.number().min(-90).max(90).nullable(), originLng: z.number().min(-180).max(180).nullable(),
   radiusM: nullableNumber,
   startAt: z.string().datetime().nullable(), endAt: z.string().datetime().nullable(),
+  scheduleDay: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
   startTime: z.string().nullable(), endTime: z.string().nullable(),
   // APP-051 (#204): optional length preset. Drafts written before it existed (v1 or v2) restore with none.
   durationPreset: z.enum(['upTo2h', 'upTo3h', 'upTo4h', 'evening']).nullable().default(null),
