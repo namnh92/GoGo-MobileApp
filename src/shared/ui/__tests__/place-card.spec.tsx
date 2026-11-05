@@ -97,6 +97,13 @@ describe('PlaceCard — list', () => {
     expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBe('Google 4,6 sao, 45k–90k/người')
   })
 
+  it('unknown price is never cut: its sentence may take a second line', async () => {
+    await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
+    const line = screen.getByTestId('place-card-rating-price')
+    expect(line).toHaveTextContent(/Chưa có thông tin giá/)
+    expect(line.props.numberOfLines).toBe(2)
+  })
+
   it('unknown price says so in words — never an amount without a unit', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
     expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) · Chưa có thông tin giá', { exact: true })
