@@ -247,6 +247,7 @@ export const viMessages = {
   'createTime.presetNeedsStart': 'Chọn giờ bắt đầu — GoGo sẽ tính giờ kết thúc theo thời lượng này.',
   'createTime.openEnd': 'Không cố định',
   'createTime.nextDay': '(hôm sau)',
+  'createTime.estimated': 'Dự kiến: ~{{hours}} giờ trải nghiệm',
 
   'createBudget.title': 'Ngân sách\ncho cả hai?',
   'createBudget.body': 'Tổng chi phí dự kiến cho hai người.',
@@ -263,6 +264,7 @@ export const viMessages = {
   'createBudget.useUsual': 'Dùng ngân sách thường dùng: {{tier}}',
 
   'createMood.title': 'Mood\ntối nay?',
+  'createMood.moodTitle': 'Tâm trạng & Trải nghiệm',
   'createMood.body': 'Chọn tối đa {{max}} mood.',
   'createMood.settingTitle': 'Không gian',
   'createMood.spendingTitle': 'Mức chi',

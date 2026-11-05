@@ -20,6 +20,8 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
   },
   sectionTitle: { marginTop: spacing[4], marginBottom: spacing[3] },
+  distanceHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
+  distanceTitle: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   radiusBtn: {
     width: '48%',

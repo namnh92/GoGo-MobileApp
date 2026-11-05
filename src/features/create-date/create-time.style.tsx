@@ -23,6 +23,7 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
   },
   timeBoxRequired: { borderWidth: 1, borderColor: theme.accent.primary },
+  estimate: { marginTop: spacing[4], textAlign: 'center' },
   requiredHint: { marginTop: spacing[2] },
   sheetTitle: { marginBottom: spacing[3] },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },

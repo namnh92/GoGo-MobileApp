@@ -105,7 +105,7 @@ export default function GroupSetupScreen() {
         </View>
       </View>
       <GlassBar placement="docked" testID="create-footer">
-        <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/location')} />
+        <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/location')} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

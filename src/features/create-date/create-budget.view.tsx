@@ -108,7 +108,7 @@ export default function CreateBudgetScreen() {
         </View>
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={next} />
+        <PrimaryBtn label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

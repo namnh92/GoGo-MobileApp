@@ -11,7 +11,7 @@ import { track } from '@/shared/analytics'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { IconCheck, IconMapPin } from '@/shared/ui/icons'
+import { Icon, IconCheck, IconMapPin } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Card, Chip, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
@@ -141,7 +141,13 @@ export default function CreateLocationScreen() {
 
         {usingCurrent ? (
           <>
-            <Text variant="title2" style={styles.sectionTitle}>{t('createLocation.maxDistance')}</Text>
+            <View style={styles.distanceHeader}>
+              <Icon name="navigation" size={20} color="text.secondary" />
+              <Text variant="title2" style={styles.distanceTitle}>{t('createLocation.maxDistance')}</Text>
+              <Text variant="title2" color="accent.primary">
+                {radiusM === null ? t('createLocation.anywhere') : `${radiusM / 1000} km`}
+              </Text>
+            </View>
             <View style={styles.grid}>
               {RADIUS_OPTIONS.map(option => {
                 const active = radiusM === option
@@ -183,7 +189,7 @@ export default function CreateLocationScreen() {
         ) : null}
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={next} />
+        <PrimaryBtn label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )
