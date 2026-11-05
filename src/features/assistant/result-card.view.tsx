@@ -79,7 +79,7 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
               ) : null}
             </View>
           ) : null}
-          <SecondaryBtn label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} />
+          <SecondaryBtn label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" />
         </>
       ) : (
         <View style={styles.badges}>
