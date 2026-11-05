@@ -235,11 +235,11 @@ export default function DatePlanScreen() {
           <GhostBtn label={t('common.retry')} onPress={() => void room.refetch()} />
         </View>
       ) : (
-        <PrimaryBtn label={t('datePlan.go')} onPress={onStart} disabled loading style={styles.goBtn} />
+        <PrimaryBtn label={t('datePlan.go')} onPress={onStart} disabled loading icon="arrowRight" style={styles.goBtn} />
       )
     }
     if (roomStatus === 'active') {
-      return <PrimaryBtn label={t('datePlan.enter')} onPress={openActiveDate} style={styles.goBtn} />
+      return <PrimaryBtn label={t('datePlan.enter')} onPress={openActiveDate} icon="arrowRight" style={styles.goBtn} />
     }
     // A finished date is a summary to look back on, not a live screen.
     if (roomStatus === 'completed') {
@@ -264,6 +264,7 @@ export default function DatePlanScreen() {
             }
             onPress={onStart}
             loading={startDate.isPending}
+            icon="arrowRight"
             style={styles.goBtn}
           />
           {startDate.isError || notStarted ? (
