@@ -12,7 +12,6 @@ import { Icon, type IconName } from '@/shared/ui/icons'
 import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './plan-change.style'
 
@@ -68,7 +67,7 @@ export default function PlanChangeScreen() {
   return (
     <Atmosphere>
       {header}
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: spacing[6] }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 240 }]}>
         <View style={styles.intro}>
           <Text variant="display" accessibilityRole="header">{t('planChange.question')}</Text>
           <Text color="text.secondary">{t('planChange.hint')}</Text>

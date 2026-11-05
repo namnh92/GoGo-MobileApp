@@ -200,6 +200,9 @@ export default function MatchResultScreen() {
   }
 
   const existingPlanId = plan.data?.id
+  // In a match room the top candidate is only a suggestion until a plan exists;
+  // the footer says so too, and the heading must not claim otherwise.
+  const matched = decisionMode !== 'match' || !!existingPlanId
   const winnerTally = tally.get(winner.placeId)
 
   const winnerPlace = winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : null
@@ -246,9 +249,13 @@ export default function MatchResultScreen() {
         {/* The verdict first, as the draft opens: title, then who agreed. */}
         <View style={styles.intro}>
           <Text variant="display">
-            {roomType === 'group' ? t('matchResult.groupTitle') : t('matching.matched')}
+            {roomType === 'group'
+              ? t('matchResult.groupTitle')
+              : matched
+                ? t('matching.matched')
+                : t('matchResult.pendingTitle')}
           </Text>
-          {roomType !== 'group' ? (
+          {roomType !== 'group' && matched ? (
             <Text color="text.secondary">{t('matching.matchedBody', { context: roomType })}</Text>
           ) : null}
         </View>

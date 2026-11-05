@@ -160,6 +160,9 @@ export default function ReviewScreen() {
     // the difference between "published" and "will be looked at" — and no CMS
     // moderator detail is exposed either way.
     const pending = submitted.status === 'pending'
+    // `POST /reviews` answers only id and status on DEV, though the contract
+    // requires `rating`; what this person sent is the fact to show.
+    const sentRating = submitted.rating ?? rating
     return (
       <Atmosphere>
         <View style={styles.successRoot}>
@@ -182,9 +185,9 @@ export default function ReviewScreen() {
             />
             <View style={styles.successSubject}>
               <Text variant="title2" style={styles.successSubjectName} numberOfLines={1}>{subject?.label}</Text>
-              <View style={styles.successStars} accessible accessibilityLabel={t('review.starAria', { count: submitted.rating })}>
+              <View style={styles.successStars} accessible accessibilityLabel={t('review.starAria', { count: sentRating })}>
                 {[1, 2, 3, 4, 5].map(value => (
-                  <Icon key={value} name="star" size={16} color="accent.primary" filled={value <= submitted.rating} />
+                  <Icon key={value} name="star" size={16} color="accent.primary" filled={value <= sentRating} />
                 ))}
               </View>
             </View>

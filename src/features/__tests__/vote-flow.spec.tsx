@@ -82,6 +82,12 @@ it.each(['match', 'member', 'stale'])('blocks inappropriate finalization: %s', a
   if (button) await fireEvent.press(button)
   expect(mockFinalize).not.toHaveBeenCalled()
 })
+it('does not claim a match before a couple has one (#455)', async () => {
+  mockState.room = roomFor('couple', { status: 'matching', decisionMode: 'match' })
+  const view = await renderScreen(<MatchResult />)
+  expect(view.queryByText('Match rồi!')).toBeNull()
+  expect(view.getByText('Gợi ý hợp nhất')).toBeTruthy()
+})
 it('explains NO_VOTES instead of suggesting a blind retry', async () => {
   mockState.error = new ApiError(409, { code: 'NO_VOTES', message: 'no votes' })
   const view = await renderScreen(<MatchResult />)
