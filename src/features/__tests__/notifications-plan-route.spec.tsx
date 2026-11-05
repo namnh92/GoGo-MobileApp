@@ -48,6 +48,8 @@ jest.mock('@/shared/api', () => ({
   getPlan: (...args: unknown[]) => mockGetPlan(...args),
   getCurrentPlan: (...args: unknown[]) => mockGetCurrentPlan(...args),
   getRoom: (...args: unknown[]) => mockGetRoom(...args),
+  // Rows ask for the room's name through this hook; here it has nothing to say.
+  useRoom: () => ({ data: undefined }),
   useNotifications: () => ({
     data: { pages: [{ notifications: mockItems.value }] },
     isPending: false,
