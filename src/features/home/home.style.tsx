@@ -5,6 +5,18 @@ import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 // Pressed is a colour change only (#382).
 
 export const styles = StyleSheet.create(theme => ({
+  bell: {
+    width: 44,
+    height: 44,
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: theme.surface.card,
+    borderWidth: 1,
+    borderColor: theme.border.hairline,
+  },
+  bellBadge: { position: 'absolute', top: -5, right: -5 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

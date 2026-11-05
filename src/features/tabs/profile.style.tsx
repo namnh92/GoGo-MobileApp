@@ -68,6 +68,7 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     backgroundColor: theme.surface.subtle,
   },
+  inboxBadge: { marginLeft: 'auto', marginRight: spacing[2] },
   settingLead: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexShrink: 1 },
   settingLabel: { flexShrink: 1 },
 

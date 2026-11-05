@@ -112,3 +112,10 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
   }
   return { __esModule: true, default: Modal }
 })
+
+// The bell and the inbox row read this; a screen under test needs no inbox query.
+// `unread-count.spec` unmocks it to test the real count.
+jest.mock('@/features/notifications/unread-count', () => ({
+  useUnreadInbox: () => ({ count: 0, more: false }),
+}))
+jest.mock('@/features/tabs/live-rooms', () => ({ useLiveRoomCount: () => 0 }))

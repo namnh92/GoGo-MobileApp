@@ -19,7 +19,9 @@ import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { track } from '@/shared/analytics'
 import { useLocaleContent } from '@/shared/i18n'
+import { useUnreadInbox } from '@/features/notifications/unread-count'
 import { useSession } from '@/shared/providers/session-provider'
+import { badgeLabel, CountBadge } from '@/shared/ui/count-badge.view'
 import { useRoom, useRoomStore, type QuickPreset } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { Icon, IconSearch, type IconName } from '@/shared/ui/icons'
@@ -50,6 +52,7 @@ export default function HomeScreen() {
   const fab = useAssistantFabScroll('home')
 
   const { status } = useSession()
+  const unread = useUnreadInbox()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
 
   // Saving needs an account: a guest token gets 403 USER_ONLY.
@@ -157,6 +160,21 @@ export default function HomeScreen() {
             </Text>
             <Text color="text.secondary" style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
+          <Pressable
+            testID="home-bell"
+            onPress={() => router.push('/notifications')}
+            accessibilityRole="button"
+            accessibilityLabel={
+              unread.count > 0
+                ? t('home.bellUnread', { count: badgeLabel(unread.count, unread.more) })
+                : t('notifications.title')
+            }
+            hitSlop={8}
+            style={styles.bell}
+          >
+            <Icon name="bell" size={22} color="text.primary" />
+            <CountBadge count={unread.count} more={unread.more} style={styles.bellBadge} />
+          </Pressable>
           <Pressable
             onPress={() => router.push('/(tabs)/profile')}
             accessibilityRole="button"
