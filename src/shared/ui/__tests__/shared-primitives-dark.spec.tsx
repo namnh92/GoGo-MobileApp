@@ -60,7 +60,7 @@ describe('shared primitives on a dark device', () => {
 
   it('the place-card save toggle is the dark card', () => {
     const { styles } = jest.requireActual<typeof import('@/shared/ui/place-card.style')>('@/shared/ui/place-card.style')
-    const toggle = Object.values(styles).find(s => (s as { borderRadius?: number }).borderRadius === 18 && (s as { width?: number }).width === 36)
+    const toggle = Object.values(styles).find(s => (s as { borderRadius?: number }).borderRadius === 22 && (s as { width?: number }).width === 44)
     expect((toggle as { backgroundColor: string }).backgroundColor).toBe(darkSurface.card)
   })
 })

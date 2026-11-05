@@ -80,9 +80,10 @@ describe('PlaceCard — list', () => {
     expect(flat('place-card-open')).toMatchObject({ ...type.label, color: status.successText })
   })
 
-  it('is a padded solid card with a 96pt rounded thumbnail', async () => {
+  it('is a solid card clipped to its corners, photo over body (Stitch)', async () => {
     await render(<PlaceCard place={fixture()} />)
-    expect(flat('place-card')).toMatchObject({ padding: 16, flexDirection: 'row' })
+    expect(flat('place-card')).toMatchObject({ overflow: 'hidden', borderRadius: 20 })
+    expect(flat('place-card').flexDirection).not.toBe('row')
   })
 
   it('no rating: the line is the price alone, with no accessibility override', async () => {
@@ -200,7 +201,7 @@ describe('PlaceCard — list', () => {
     await render(<PlaceCard place={fixture({ photoUrl: 'https://img.example/p1.jpg' })} />)
     const image = screen.getByLabelText('Cà phê Đỗ Phủ')
     expect(StyleSheet.flatten(image.props.style)).toMatchObject({ width: '100%', height: '100%' })
-    expect(StyleSheet.flatten(image.parent!.props.style)).toMatchObject({ width: 96, height: 96, overflow: 'hidden' })
+    expect(StyleSheet.flatten(image.parent!.parent!.props.style)).toMatchObject({ aspectRatio: 1.6 })
   })
 
   it('English: rating and count use English separators', async () => {
