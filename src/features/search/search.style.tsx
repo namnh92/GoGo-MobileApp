@@ -69,7 +69,7 @@ export const styles = StyleSheet.create(theme => ({
   priceInput: { flex: 1 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
   sheetClearBtn: { minHeight: 44, justifyContent: 'center', paddingLeft: spacing[3] },
-  sheetSection: { marginTop: spacing[5], marginBottom: spacing[2] },
+  sheetSection: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[5], marginBottom: spacing[3] },
   sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   sheetApply: { marginTop: spacing[5] },
   empty: { alignItems: 'center', paddingVertical: spacing[8], paddingHorizontal: spacing[5] },
