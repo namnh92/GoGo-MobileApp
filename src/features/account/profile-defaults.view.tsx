@@ -172,6 +172,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
       <SecondaryBtn
         label={t('account.defaultsSave')}
         onPress={save}
+        icon="check"
         disabled={!dirty}
         loading={update.isPending}
       />

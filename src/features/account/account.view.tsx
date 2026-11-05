@@ -267,6 +267,7 @@ export default function AccountScreen() {
           <PrimaryBtn
             label={updateProfile.isPending ? t('account.saving') : t('account.save')}
             onPress={saveName}
+            icon="check"
             disabled={!dirty}
             loading={updateProfile.isPending}
             style={styles.saveBtn}
