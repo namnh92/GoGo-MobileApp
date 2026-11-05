@@ -30,19 +30,32 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 const selected = (view: View, label: string) =>
   view.getByRole('button', { name: label }).props.accessibilityState?.selected
+const EVENING = ['17:00', '18:00', '19:00', '20:00', '21:00']
+// The start is picked in the date sheet: an evening chip, or "Giờ khác" and the slot grid.
 async function pickStart(view: View, slot: string) {
-  await press(view.getByText('Bắt đầu *'))
-  await press(view.getByText(slot))
+  await press(view.getByTestId('create-time-start-row'))
+  if (EVENING.includes(slot)) await press(view.getByTestId(`date-sheet-time-${slot}`))
+  else {
+    await press(view.getByTestId('date-sheet-other-time'))
+    await press(view.getByText(slot))
+  }
+  await press(view.getByText('Xong'))
 }
 const windowLength = () => {
   const { startAt, endAt } = useRoomStore.getState()
   return new Date(endAt as string).getTime() - new Date(startAt as string).getTime()
 }
 
+// The start must not be in the past on today, so the clock is fixed: Thursday 10:00.
 beforeEach(() => {
+  jest.useFakeTimers({
+    now: new Date(2026, 10, 5, 10, 0, 0, 0),
+    doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate', 'nextTick', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'hrtime'],
+  })
   useRoomStore.getState().resetDraft()
   mockPush.mockClear()
 })
+afterEach(() => jest.useRealTimers())
 
 it('keeps Continue locked for a length alone and never invents a start', async () => {
   const view = await renderScreen(<CreateTimeScreen />)
@@ -58,7 +71,7 @@ it('works out the end from the start and sends both instants', async () => {
   const view = await renderScreen(<CreateTimeScreen />)
   await press(view.getByText('2–3 giờ'))
   await pickStart(view, '19:00')
-  expect(view.getByText('22:00')).toBeTruthy()
+  expect(view.getByText(/· 22:00$/)).toBeTruthy()
   await press(view.getByText('Tiếp tục'))
   expect(mockPush).toHaveBeenCalledWith('/create/budget')
   expect(windowLength()).toBe(3 * HOUR)
@@ -68,7 +81,7 @@ it('rolls a length that crosses midnight into the next day', async () => {
   const view = await renderScreen(<CreateTimeScreen />)
   await pickStart(view, '23:00')
   await press(view.getByText('1–2 giờ'))
-  expect(view.getByText('01:00')).toBeTruthy()
+  expect(view.getByText(/· 01:00$/)).toBeTruthy()
   expect(view.getByText('(hôm sau)')).toBeTruthy()
   await press(view.getByText('Tiếp tục'))
   expect(windowLength()).toBe(2 * HOUR)
