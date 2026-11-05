@@ -6,7 +6,9 @@ export const styles = StyleSheet.create(theme => ({
   block: { backgroundColor: theme.surface.subtle },
 
   listCard: { overflow: 'hidden' },
-  listThumb: { aspectRatio: 1.6 },
+  // The pulsing thumb is its own opacity layer, which the card's clip can miss
+  // at the corners in light mode: round its top corners itself.
+  listThumb: { aspectRatio: 1.6, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card },
   listBody: { padding: spacing[4], gap: spacing[2] },
 
 
