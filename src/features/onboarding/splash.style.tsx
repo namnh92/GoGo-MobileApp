@@ -27,9 +27,22 @@ export const styles = StyleSheet.create(theme => ({
     borderColor: theme.accent.primary,
     opacity: 0,
   },
-  textBlock: {
+  brand: {
     alignItems: 'center',
-    marginTop: theme.spacing[7],
+    marginTop: theme.spacing[5],
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[3],
+  },
+  logoBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.accent.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   wordmark: {
     letterSpacing: -0.5,
@@ -37,5 +50,18 @@ export const styles = StyleSheet.create(theme => ({
   tagline: {
     marginTop: theme.spacing[2],
     textAlign: 'center',
+  },
+  /** Wrapper that a reveal cover sits over; the content inside keeps its final layout. */
+  revealBox: {
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  /** Canvas-coloured, so the covered text reads as not yet drawn. Its width is animated. */
+  revealCover: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: theme.surface.canvas,
   },
 }))
