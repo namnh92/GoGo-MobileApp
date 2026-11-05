@@ -19,7 +19,7 @@ import { useReducedMotion } from '@/shared/ui/feedback'
 import { OfflineState } from '@/shared/ui/async-state.view'
 import { Icon } from '@/shared/ui/icons'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { decisionScreen } from '@/shared/navigation/room-routing'
@@ -30,6 +30,8 @@ import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 /** Rotates the reassurance copy while the pipeline runs. */
 const MESSAGE_INTERVAL_MS = 1400
+/** The orbit stays up at least this long from when the screen opened, so it is seen. */
+const MIN_HOLD_MS = 2500
 
 export default function MatchingScreen() {
   const { t } = useTranslation()
@@ -51,7 +53,6 @@ export default function MatchingScreen() {
 
   const [messageIndex, setMessageIndex] = useState(0)
   const reducedMotion = useReducedMotion()
-  const roomType = room.data?.type ?? 'couple'
   const capabilities = roomCapabilities(room.data)
 
   const hasRun = Boolean(suggestions.data?.run)
@@ -83,11 +84,14 @@ export default function MatchingScreen() {
 
   // The same rule the lobby follows for a member (#198).
   const destination = decisionScreen(room.data?.decisionMode, room.data?.status, suggestions.data)
+  const [openedAt] = useState(() => Date.now())
   useEffect(() => {
     if (!destination) return
-    const timer = setTimeout(() => router.replace(`/room/${roomId}/${destination}`), 800)
+    // Reduced motion holds for no minimum, as the splash does.
+    const remaining = reducedMotion ? 0 : Math.max(0, MIN_HOLD_MS - (Date.now() - openedAt))
+    const timer = setTimeout(() => router.replace(`/room/${roomId}/${destination}`), remaining)
     return () => clearTimeout(timer)
-  }, [destination, roomId, router])
+  }, [destination, openedAt, reducedMotion, roomId, router])
 
   const failed = startMatching.isError
   const notReady = isApiError(startMatching.error) && startMatching.error.status === 409
@@ -112,7 +116,7 @@ export default function MatchingScreen() {
         />
       </View>
       <View style={styles.root}>
-        <MatchingOrbit running={!waitingForNetwork && !failed && !(hasRun && !isStale)} />
+        <MatchingOrbit running={!waitingForNetwork && !failed} />
 
         {waitingForNetwork && !failed ? (
           <View style={styles.offlineCard}>
@@ -143,12 +147,6 @@ export default function MatchingScreen() {
             <Pressable onPress={() => router.replace(`/room/${roomId}`)} accessibilityRole="button">
               <Text variant="label" color="accent.primary" style={styles.backLink}>{t('swipe.goToLobby')}</Text>
             </Pressable>
-          </View>
-        ) : hasRun && !isStale ? (
-          <View style={{ alignItems: 'center' }}>
-            <Glyph size="mega" style={{ marginBottom: spacing[2] }}>🎉</Glyph>
-            <Text variant="display" color="text.primary" style={styles.matched}>{t('matching.matched')}</Text>
-            <Text color="text.secondary" style={styles.matchedBody}>{t('matching.matchedBody', { context: roomType })}</Text>
           </View>
         ) : (
           <View style={{ alignItems: 'center', gap: spacing[2], alignSelf: 'stretch' }}>

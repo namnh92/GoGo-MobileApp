@@ -127,7 +127,7 @@ const SCREENS: ScreenCase[] = [
       mockState.room = mockLoaded(roomFor('group-guest', { id: ROOM_ID, status: 'matching', decisionMode: 'vote' } as never))
       mockState.suggestions = mockFresh(SUGGESTIONS)
     },
-    content: /🎉/,
+    content: /Đang tìm bạn đồng hành/,
   },
   {
     name: 'swipe',

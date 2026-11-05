@@ -20,15 +20,6 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.pill,
     backgroundColor: theme.surface.subtle,
   },
-  subheader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    paddingHorizontal: spacing[5],
-    paddingBottom: spacing[2],
-  },
-  subheaderText: { flex: 1 },
-  subheaderDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },
 
   // The card is as tall as its content: a 4:3 photo over the facts, centred in
   // the space the header and the action row leave.

@@ -217,6 +217,8 @@ export const overlay = {
   scrimMedium: 'rgba(0,0,0,0.25)',
   scrim: 'rgba(0,0,0,0.35)',
   scrimStrong: 'rgba(0,0,0,0.4)',
+  /** Under white text on a photo: 0.6 black keeps 4.5:1 even over a white picture. */
+  scrimText: 'rgba(0,0,0,0.6)',
   backdrop: 'rgba(33,31,28,0.55)',
 } as const
 

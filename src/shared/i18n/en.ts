@@ -333,6 +333,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'gogoRoom.previewGuest': "Preview the guest's screen",
   'gogoRoom.joined': '{{joined}}/{{total}} joined',
   'gogoRoom.myPreferences': 'Pick your preferences',
+  'gogoRoom.continueVoting': 'Keep choosing',
   'gogoRoom.returnToVote': 'Return to voting',
   'gogoRoom.returnToResult': 'View voting results',
   'gogoRoom.startMatching': 'Start matching',
@@ -462,7 +463,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
 
   'swipe.header': 'Pick what you like',
   'swipe.subheader': 'GoGo will find the overlap',
-  'swipe.progress': '{{index}} / {{total}} places',
   'swipe.hint': 'Swipe right to like • Swipe left to pass',
   'swipe.likeLabel': 'Like',
   'swipe.passLabel': 'Not for me',
@@ -1256,6 +1256,6 @@ export const enContent: LocaleContent = {
   tagLabels: {} as Record<string, string>,
   searchFilters: ['All', 'Food', 'Coffee', 'Activities', 'Nightlife', 'Stay'],
   suitedOptions: ['Couples', 'Groups'],
-  matchingMessages: ['Finding what you all like…', 'Assembling the itinerary…', 'Matched'],
+  matchingMessages: ['Finding what you all like…', 'Assembling the itinerary…', 'Matching everyone’s taste…'],
   monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 }

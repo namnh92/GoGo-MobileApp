@@ -50,8 +50,8 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: theme.radius.pill,
   },
   stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  // Dark scrim under the whole photo so the white name and address hold AA over any picture or the illustration.
-  stopScrim: { ...fill, backgroundColor: overlay.scrimStrong },
+  // Scrim only behind the name and address, so the rest of the picture keeps its colour; 0.6 holds AA for white text over any photo.
+  stopScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 88, backgroundColor: overlay.scrimText },
   stopHeroBottom: { position: 'absolute', left: theme.spacing[4], right: theme.spacing[4], bottom: theme.spacing[3], gap: 2 },
   stopInfo: {
     flexDirection: 'row',
@@ -64,7 +64,8 @@ export const styles = StyleSheet.create(theme => ({
   stopTime: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   stopPrice: { flexShrink: 1, textAlign: 'right' },
   rebuildBtn: {
-    flex: 1,
+    flex: 3,
+    minWidth: 0,
     minHeight: touchTarget.min + 8,
     paddingHorizontal: theme.spacing[3],
     borderRadius: theme.radius.button,
@@ -74,6 +75,7 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  editBtn: { flex: 2 },
   rebuildBtnPressed: { backgroundColor: theme.surface.subtle },
   lockBtn: {
     flexDirection: 'row',

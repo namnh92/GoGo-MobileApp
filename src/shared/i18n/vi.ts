@@ -328,6 +328,7 @@ export const viMessages = {
   'gogoRoom.previewGuest': 'Xem màn hình người được mời',
   'gogoRoom.joined': '{{joined}}/{{total}} người đã tham gia',
   'gogoRoom.myPreferences': 'Chọn sở thích của bạn',
+  'gogoRoom.continueVoting': 'Tiếp tục chọn',
   'gogoRoom.returnToVote': 'Quay lại bình chọn',
   'gogoRoom.returnToResult': 'Xem kết quả bình chọn',
   'gogoRoom.startMatching': 'Bắt đầu ghép',
@@ -459,7 +460,6 @@ export const viMessages = {
 
   'swipe.header': 'Chọn theo ý bạn',
   'swipe.subheader': 'GoGo sẽ tìm phần giao nhau',
-  'swipe.progress': '{{index}} / {{total}} địa điểm',
   'swipe.hint': 'Quẹt phải để thích • Quẹt trái để bỏ qua',
   // "star" là super-like: 2 điểm khi chốt, nên nhãn phải nói rõ trọng số.
   // Dấu xác nhận khi vuốt dùng chính các nhãn này (#382: không viết hoa toàn bộ, không emoji).
@@ -1267,7 +1267,7 @@ export const viContent = {
   } as Record<string, string>,
   searchFilters: ['Tất cả', 'Ăn uống', 'Cà phê', 'Hoạt động', 'Về đêm', 'Lưu trú'],
   suitedOptions: ['Cặp đôi', 'Nhóm bạn'],
-  matchingMessages: ['Đang tìm phần các bạn cùng thích…', 'Đang ghép lịch trình…', 'Match rồi'],
+  matchingMessages: ['Đang tìm phần các bạn cùng thích…', 'Đang ghép lịch trình…', 'Đang ghép gu cả nhóm…'],
   // Month names for dates composed from their calendar parts (#410). Index 0 is
   // January. The product writes these itself: CLDR's Vietnamese date pattern
   // changed between ICU versions, and the phone's ICU is not the app's.
