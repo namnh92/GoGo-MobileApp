@@ -554,7 +554,7 @@ export default function GoGoRoomScreen() {
           ) : (
             <View style={styles.couplePair}>
               <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={48} imageUri={members[0]?.avatarUrl} />
-              <Glyph size="sm">+</Glyph>
+              <Glyph size="sm" color="text.secondary">+</Glyph>
               {members[1] ? (
                 <AvatarCircle
                   label={initial(members[1].displayName)}
