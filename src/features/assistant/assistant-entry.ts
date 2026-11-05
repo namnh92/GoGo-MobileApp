@@ -4,8 +4,9 @@ import { create } from 'zustand'
 
 import { useSession } from '@/shared/providers/session-provider'
 import { isAssistantEntryOn } from '@/shared/config/features'
-import { useBottomBarInset } from '@/shared/ui/bottom-bar-inset'
+import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { spacing } from '@/shared/ui/tokens'
+import { fabBarInset } from './fab-inset'
 
 /**
  * Geometry and shared state of the GoGo AI float button (GoGo-MobileApp#379,
@@ -58,7 +59,11 @@ export const useAssistantFabStore = create<FabScrollState>()(set => ({
  * the inset is the one the screens had before.
  */
 export function useAssistantFabScroll(tab: AssistantTab) {
-  const barInset = useBottomBarInset()
+  // The button is laid out from the device's safe area; a screen inside the tab
+  // navigator can be handed a smaller bottom inset than the one the button used,
+  // which left the last row under it. Take the larger of the two.
+  const insets = useSafeAreaInsets()
+  const barInset = fabBarInset(insets.bottom, initialWindowMetrics?.insets.bottom ?? 0)
   const on = isAssistantEntryOn()
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
