@@ -5,13 +5,10 @@ import { radius, spacing } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   block: { backgroundColor: theme.surface.subtle },
 
-  listCard: { flexDirection: 'row', gap: spacing[3] },
-  listThumb: { width: 96 },
-  listBody: { flex: 1, gap: spacing[2], justifyContent: 'center' },
+  listCard: { overflow: 'hidden' },
+  listThumb: { aspectRatio: 1.6 },
+  listBody: { padding: spacing[4], gap: spacing[2] },
 
-  gridCard: { borderRadius: radius.card, overflow: 'hidden' },
-  gridThumb: { height: 120 },
-  gridBody: { padding: spacing[3], gap: spacing[2] },
 
   detailHero: { height: 260 },
   detailBody: { paddingHorizontal: spacing[5], paddingTop: spacing[5], gap: spacing[3] },

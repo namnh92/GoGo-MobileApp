@@ -35,7 +35,7 @@ export const styles = StyleSheet.create(theme => ({
 
   stopCard: { overflow: 'hidden', marginBottom: theme.spacing[3] },
   /** The photo carries the order, the lock and the status; the name sits under it so it never depends on the picture for contrast. */
-  stopHero: { height: 160, justifyContent: 'flex-start' },
+  stopHero: { height: 144, justifyContent: 'flex-start' },
   stopImage: { ...fill },
   stopHeroTop: {
     flexDirection: 'row',

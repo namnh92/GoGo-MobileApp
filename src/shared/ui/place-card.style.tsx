@@ -6,18 +6,17 @@ export const styles = StyleSheet.create(theme => ({
   /** Holds the card and, beside it, the save toggle positioned over it. */
   wrap: { position: 'relative' },
 
-  // --- list (default) ------------------------------------------------------
-  listCard: { flexDirection: 'row', gap: theme.spacing[3] },
-  listThumb: { width: 96, height: 96, borderRadius: theme.radius.thumbnail, overflow: 'hidden' },
+  // --- list (default): the Stitch card, photo over body ---------------------
+  listCard: { overflow: 'hidden' },
+  listPhoto: { aspectRatio: 1.6, backgroundColor: theme.surface.subtle },
   // `minWidth: 0` lets the text column shrink below its content, which is what
   // makes `numberOfLines={1}` ellipsise instead of pushing the card wider.
-  listBody: { flex: 1, minWidth: 0, gap: 2 },
-  nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[2] },
-  name: { flex: 1 },
+  listBody: { minWidth: 0, padding: theme.spacing[4], gap: theme.spacing[2] },
+  listHead: { gap: 2, minWidth: 0 },
   // #332: the reason chips share one row at any width. They shrink and
   // ellipsise instead of wrapping — at 375pt two chips took two lines.
-  tags: { flexDirection: 'row', gap: 6, marginTop: theme.spacing[2], minWidth: 0 },
-  tagChip: { flexShrink: 1, minWidth: 0 },
+  tags: { flexDirection: 'row', gap: 6, minWidth: 0 },
+  tagChip: { flexShrink: 1, minWidth: 0, backgroundColor: theme.surface.subtle },
   openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.status.success },
   openLabel: { flexShrink: 1 },
@@ -34,29 +33,14 @@ export const styles = StyleSheet.create(theme => ({
   heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: theme.spacing[2] },
 
   // --- save toggle --------------------------------------------------------
-  /**
-   * 44×44 target over the card's top-right corner. The card pads 16, so an
-   * 8pt inset puts the glyph where the old in-row toggle sat; `saveSpace` in
-   * the name row keeps the name from running under it.
-   */
-  save: {
-    position: 'absolute',
-    top: theme.spacing[2],
-    right: theme.spacing[2],
-    width: touchTarget.min,
-    height: touchTarget.min,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveSpace: { width: touchTarget.min - theme.spacing[2], height: touchTarget.min - theme.spacing[2] },
-  /** On a photo: a solid disc so the glyph reads on any image; slop makes 44. */
+  /** On a photo: a solid disc so the glyph reads on any image; 44pt. */
   saveOnPhoto: {
     position: 'absolute',
-    top: theme.spacing[2],
-    right: theme.spacing[2],
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    top: theme.spacing[3],
+    right: theme.spacing[3],
+    width: touchTarget.min,
+    height: touchTarget.min,
+    borderRadius: touchTarget.min / 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.surface.card,

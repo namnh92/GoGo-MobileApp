@@ -13,7 +13,7 @@ import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, Card, Chip, GhostBtn, IconBtn } from '@/shared/ui/primitives'
-import { PlaceGridSkeleton } from '@/shared/ui/skeleton.view'
+import { PlaceCardSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -101,11 +101,10 @@ export default function SavedScreen() {
       <PlaceCard
         key={entry.key}
         place={entry.place}
-        variant="grid"
         onPress={() => router.push(`/places/${entry.id}`)}
         saved
         onToggleSave={() => unsave(entry)}
-        style={styles.gridItem}
+        style={styles.placeItem}
       />
     )
   }
@@ -145,8 +144,8 @@ export default function SavedScreen() {
       ) : saved.isPending ? (
         <View style={[styles.grid, styles.list]}>
           {[0, 1, 2, 3].map(index => (
-            <View key={index} style={styles.gridItem}>
-              <PlaceGridSkeleton />
+            <View key={index} style={styles.placeItem}>
+              <PlaceCardSkeleton />
             </View>
           ))}
         </View>

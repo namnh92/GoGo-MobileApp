@@ -25,9 +25,10 @@ import { styles } from './place-card.style'
  * different type sizes, different idea of what mattered. One component means a
  * place looks like the same place wherever the user meets it.
  *
- * The list card is four lines, each one string on one line, so nothing can
+ * The list card is the Stitch card: a 16:10 photo over the body (Home, Search,
+ * Saved drafts). The body is four lines, each one string on one line, so nothing can
  * wrap into its neighbour at 375pt:
- *   1. name (two lines allowed) + save
+ *   1. name (two lines allowed); the save toggle sits on the photo
  *   2. category · area · distance
  *   3. ★ rating (count) · price/unit
  *   4. open state, in words
@@ -64,10 +65,9 @@ function useOpenLabel(place: PlaceCardModel): { label: string; open: boolean } |
   return { label: opens ? t('search.closedOpens', { time: opens }) : t('common.closed'), open: false }
 }
 
-function SaveToggle({ saved, onToggle, onPhoto = false }: {
+function SaveToggle({ saved, onToggle }: {
   saved: boolean
   onToggle: () => void
-  onPhoto?: boolean
 }) {
   const { t } = useTranslation()
   const { theme } = useUnistyles()
@@ -81,8 +81,7 @@ function SaveToggle({ saved, onToggle, onPhoto = false }: {
       accessibilityRole="togglebutton"
       accessibilityState={{ checked: saved }}
       accessibilityLabel={t(saved ? 'saved.remove' : 'placeDetail.save')}
-      hitSlop={onPhoto ? 4 : undefined}
-      style={onPhoto ? styles.saveOnPhoto : styles.save}
+      style={styles.saveOnPhoto}
     >
       <IconBookmark
         size={22}
@@ -129,7 +128,7 @@ function RatingPriceLine({ place }: { place: PlaceCardModel }) {
           {' · '}
         </>
       ) : null}
-      {price}
+      <Text variant="label" color="accent.primary">{price}</Text>
     </Text>
   )
 }
@@ -190,7 +189,7 @@ export function PlaceCard({
   // screen reader treats a pressable as one element, and a toggle nested in it
   // cannot be reached on its own.
   const save = canSave ? (
-    <SaveToggle saved={saved} onToggle={onToggleSave} onPhoto={variant !== 'list'} />
+    <SaveToggle saved={saved} onToggle={onToggleSave} />
   ) : null
 
   if (variant === 'hero') {
@@ -243,23 +242,23 @@ export function PlaceCard({
   return (
     <View style={[styles.wrap, style]}>
       <Pressable testID="place-card-open-target" onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
-        <Card testID="place-card" style={styles.listCard}>
-          <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.listThumb} />
+        <Card testID="place-card" padded={false} style={styles.listCard}>
+          <View style={styles.listPhoto}>
+            <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
+          </View>
           <View style={styles.listBody}>
-            <View style={styles.nameRow}>
-              <Text testID="place-card-name" variant="title2" numberOfLines={2} ellipsizeMode="tail" style={styles.name}>
+            <View style={styles.listHead}>
+              <Text testID="place-card-name" variant="title2" numberOfLines={2} ellipsizeMode="tail">
                 {place.name}
               </Text>
-              {/* Keeps the name clear of the toggle drawn over this corner. */}
-              {canSave ? <View style={styles.saveSpace} /> : null}
+              <MetaLine place={place} categoryLabel={categoryLabel} />
             </View>
-            <MetaLine place={place} categoryLabel={categoryLabel} />
             <RatingPriceLine place={place} />
             <OpenLine place={place} />
             {visibleTags.length > 0 ? (
               <View style={styles.tags}>
                 {visibleTags.map(tag => (
-                  <Chip key={tag} label={tag} variant="info" style={styles.tagChip} />
+                  <Chip key={tag} label={tag} style={styles.tagChip} />
                 ))}
               </View>
             ) : null}
