@@ -226,6 +226,7 @@ export default function HomeScreen() {
               }}
               style={({ pressed }) => [styles.heroPrimary, pressed && styles.heroPrimaryPressed]}
             >
+              <Icon name="plus" size={18} color="accent.onAccent" />
               <Text variant="label" color="accent.onAccent">{t('home.createDate')}</Text>
             </Pressable>
             <Pressable
@@ -236,6 +237,7 @@ export default function HomeScreen() {
               }}
               style={({ pressed }) => [styles.heroSecondary, pressed && styles.heroSecondaryPressed]}
             >
+              <Icon name="compass" size={18} color="text.primary" />
               <Text variant="label">{t('home.quickPick')}</Text>
             </Pressable>
           </View>
