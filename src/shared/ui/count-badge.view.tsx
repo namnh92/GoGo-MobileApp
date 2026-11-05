@@ -11,9 +11,9 @@ export function badgeLabel(count: number, more = false): string {
 }
 
 /**
- * The small count on a control. `count` is the red unread number; `live` is the
- * green pill with a dot for something happening now, so the two read differently
- * without relying on colour alone. Nothing renders at zero. Decorative for screen
+ * The small count on a control. `count` is the red unread number; `upcoming` is
+ * the green pill, and `live` adds a dot when something is happening now, so a
+ * live date reads differently without relying on colour alone. Nothing renders at zero. Decorative for screen
  * readers: the control it sits on says the number in its own label.
  */
 export function CountBadge({
@@ -24,7 +24,7 @@ export function CountBadge({
 }: {
   count: number
   more?: boolean
-  tone?: 'count' | 'live'
+  tone?: 'count' | 'upcoming' | 'live'
   style?: StyleProp<ViewStyle>
 }) {
   if (count <= 0) return null
@@ -33,10 +33,10 @@ export function CountBadge({
       testID={`count-badge-${tone}`}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.badge, tone === 'live' ? styles.live : styles.count, style]}
+      style={[styles.badge, tone === 'count' ? styles.count : styles.live, style]}
     >
       {tone === 'live' ? <View style={styles.liveDot} /> : null}
-      <Text variant="caption" color={tone === 'live' ? 'status.successText' : 'accent.onAccent'} numberOfLines={1}>
+      <Text variant="caption" color={tone === 'count' ? 'accent.onAccent' : 'status.successText'} numberOfLines={1}>
         {badgeLabel(count, more)}
       </Text>
     </View>

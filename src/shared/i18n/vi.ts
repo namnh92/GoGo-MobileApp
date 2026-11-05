@@ -132,7 +132,7 @@ export const viMessages = {
   'account.defaultsFailed': 'Chưa lưu được mặc định. Thử lại nhé.',
 
   'tabs.home': 'Khám phá',
-  'tabs.plansLive': 'Kế hoạch, {{count}} kèo đang diễn ra',
+  'tabs.plansUpcoming': 'Kế hoạch, {{count}} kèo sắp tới',
   'home.bellUnread': 'Thông báo, {{count}} chưa đọc',
   'tabs.plans': 'Kế hoạch',
   'tabs.saved': 'Đã lưu',

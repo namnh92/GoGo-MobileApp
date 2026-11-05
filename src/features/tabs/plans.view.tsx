@@ -21,9 +21,9 @@ import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './plans.style'
+import { UPCOMING } from './upcoming-rooms'
 
 /** Statuses that still have something ahead of them. */
-const UPCOMING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'matching', 'ready', 'active']
 /** Still deciding: such a room opens on its lobby, anything later on its plan (#198). */
 const DECIDING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'matching']
 
