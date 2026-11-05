@@ -14,8 +14,6 @@ export const styles = StyleSheet.create(theme => ({
     borderColor: theme.surface.canvas,
   },
   count: { backgroundColor: theme.accent.primary },
-  live: { backgroundColor: theme.status.successText },
-  countText: { color: theme.accent.onAccent },
-  liveText: { color: theme.status.successSoft },
-  liveDot: { width: 5, height: 5, borderRadius: theme.radius.pill, backgroundColor: theme.status.successSoft },
+  live: { backgroundColor: theme.status.successSoft },
+  liveDot: { width: 5, height: 5, borderRadius: theme.radius.pill, backgroundColor: theme.status.successText },
 }))

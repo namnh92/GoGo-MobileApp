@@ -1,7 +1,7 @@
-import { Text as RNText, View, type StyleProp, type ViewStyle } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { styles } from './count-badge.style'
+import { Text } from './text'
 
 const CAP = 9
 
@@ -27,7 +27,6 @@ export function CountBadge({
   tone?: 'count' | 'live'
   style?: StyleProp<ViewStyle>
 }) {
-  const { theme } = useUnistyles()
   if (count <= 0) return null
   return (
     <View
@@ -37,9 +36,9 @@ export function CountBadge({
       style={[styles.badge, tone === 'live' ? styles.live : styles.count, style]}
     >
       {tone === 'live' ? <View style={styles.liveDot} /> : null}
-      <RNText numberOfLines={1} style={[theme.type.caption, tone === 'live' ? styles.liveText : styles.countText]}>
+      <Text variant="caption" color={tone === 'live' ? 'status.successText' : 'accent.onAccent'} numberOfLines={1}>
         {badgeLabel(count, more)}
-      </RNText>
+      </Text>
     </View>
   )
 }
