@@ -43,8 +43,10 @@ export const styles = StyleSheet.create(theme => ({
   inputRowInvalid: { borderColor: theme.status.danger },
   input: {
     ...theme.type.body,
+    // A line height on a single-line field makes iOS wrap a long value; the fixed height centres it.
+    lineHeight: undefined,
     flex: 1,
-    minHeight: touchTarget.min,
+    height: touchTarget.min,
     color: theme.text.primary,
   },
   formError: {

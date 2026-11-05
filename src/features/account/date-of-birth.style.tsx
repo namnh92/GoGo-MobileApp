@@ -17,7 +17,9 @@ export const styles = StyleSheet.create(theme => ({
   header: { flex: 1, gap: spacing[1] },
   input: {
     ...type.body,
-    minHeight: touchTarget.min,
+    // A line height on a single-line field makes iOS wrap a long value; the fixed height centres it.
+    lineHeight: undefined,
+    height: touchTarget.min,
     borderRadius: radius.compact,
     paddingHorizontal: spacing[4],
     color: theme.text.primary,
