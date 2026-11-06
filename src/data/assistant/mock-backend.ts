@@ -202,6 +202,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
         guard()
         return {
           state,
+          creditBalance: 0,
           dailyMessageLimit: DAILY_LIMIT,
           messagesPerMinuteLimit: PER_MINUTE_LIMIT,
           remainingToday: remaining,

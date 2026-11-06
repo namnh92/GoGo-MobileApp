@@ -36,6 +36,8 @@ jest.mock('expo-image-picker', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useDiscoveryPreview: () => mockLoaded(undefined),
+  useContributionCredits: () => mockLoaded(undefined),
   useMe: () => mockLoaded({}),
   useTaxonomies: () => mockLoaded({ kinds: { category: [] } }),
   usePlaceSearch: () => ({

@@ -82,10 +82,17 @@ export interface PlaceCard {
 
 const PRICE_CONFIDENCE_FLOOR = 0.6
 
-export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
+export type TaxonomyLabels = Record<string, Record<string, string>>
+
+export function toPlaceCard(result: PlaceSearchResult, labels?: TaxonomyLabels): PlaceCard {
   const price = result.pricePerPerson
   const photo = result.primaryPhoto
   return {
+    ...(result.verification || result.taxonomies || result.areaSummary ? { discovery: {
+      ...(result.verification ? { verified: result.verification.status === 'verified' } : {}),
+      ...(result.areaSummary?.label ? { areaLabel: result.areaSummary.label } : {}),
+      ...(result.taxonomies ? { tagLabels: [...new Set(result.taxonomies.flatMap(tag => labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []))] } : {}),
+    } } : {}),
     id: result.id,
     name: result.name,
     areaKey: result.areaKey,

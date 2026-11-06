@@ -9,6 +9,12 @@ import type { MessageKey, LocaleContent } from '@/shared/i18n/types'
 type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
 
 export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
+  "discovery.totalCount": "Found {{count}} places",
+  "discovery.previewCount": "See {{count}} places",
+  "discovery.moods": "Mood & experience",
+  "discovery.settings": "Setting",
+  "discovery.exploreMood": "Explore by mood",
+  "discovery.allMoods": "All",
   "discovery.askAI": "Ask GoGo AI for suggestions",
   "discovery.clearQuery": "Clear search",
   "discovery.priceFrom": "From (minimum)",

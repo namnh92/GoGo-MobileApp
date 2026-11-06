@@ -1,14 +1,17 @@
 import type { PlaceSearchQuery } from '@/shared/api/endpoints/places'
 
-/** Only filters supported by the deployed contract are exposed. #774 adds groups here. */
+/** CSV dimensions follow BE semantics: ALL amenities; OR within other groups. */
 export interface DiscoveryFilters {
   categories: string[]
   priceFrom: string
   priceTo: string
-  suited: 'couple' | 'group' | null
+  suited: string[]
+  amenities: string[]
+  moods: string[]
+  settings: string[]
   openNow: boolean
 }
-export const emptyFilters = (): DiscoveryFilters => ({ categories: [], priceFrom: '', priceTo: '', suited: null, openNow: false })
+export const emptyFilters = (): DiscoveryFilters => ({ categories: [], priceFrom: '', priceTo: '', suited: [], amenities: [], moods: [], settings: [], openNow: false })
 function price(value: string): number | undefined {
   if (!value.trim()) return undefined
   return Number(value.replace(',', '.'))
@@ -16,7 +19,7 @@ function price(value: string): number | undefined {
 export function validateFilters(filters: DiscoveryFilters): boolean {
   const min = price(filters.priceFrom)
   const max = price(filters.priceTo)
-  return [min, max].every(value => value === undefined || (Number.isFinite(value) && value >= 0 && Number.isSafeInteger(Math.round(value * 1000)))) && (min === undefined || max === undefined || min <= max)
+  return [filters.categories, filters.suited, filters.amenities, filters.moods, filters.settings].every(keys => new Set(keys).size <= 10) && [min, max].every(value => value === undefined || (Number.isFinite(value) && value >= 0 && Number.isSafeInteger(Math.round(value * 1000)))) && (min === undefined || max === undefined || min <= max)
 }
 export function filterParams(filters: DiscoveryFilters): PlaceSearchQuery {
   if (!validateFilters(filters)) return {}
@@ -24,7 +27,7 @@ export function filterParams(filters: DiscoveryFilters): PlaceSearchQuery {
   const max = price(filters.priceTo)
   return {
     ...(filters.categories.length ? { categories: filters.categories.join(',') } : {}),
-    ...(filters.suited ? { suitedFor: filters.suited } : {}),
+    ...Object.fromEntries(([['suitedFor', filters.suited], ['amenities', filters.amenities], ['moods', filters.moods], ['settings', filters.settings]] as const).filter(([, keys]) => keys.length).map(([key, keys]) => [key, [...new Set(keys)].join(',')])),
     ...(filters.openNow ? { openAt: 'now' } : {}),
     ...(min !== undefined ? { priceMinPerPerson: Math.round(min * 1000) } : {}),
     ...(max !== undefined ? { priceMaxPerPerson: Math.round(max * 1000) } : {}),

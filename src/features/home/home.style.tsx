@@ -5,6 +5,13 @@ import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 // Pressed is a colour change only (#382).
 
 export const styles = StyleSheet.create(theme => ({
+  moodSection: { marginTop: 24, gap: 8 },
+  moodHeading: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
+  moods: { paddingHorizontal: 16, gap: 8 },
+  roomIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.redesign.violet, alignItems: 'center', justifyContent: 'center' },
+  roomAction: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, backgroundColor: theme.redesign.violet, alignItems: 'center', justifyContent: 'center' },
+  nearestRoom: { marginHorizontal: 16, marginTop: 24, padding: 16, gap: 12, flexDirection: 'row', alignItems: 'center', minHeight: 72, borderRadius: 16, backgroundColor: theme.redesign.violetSoft },
+  roomCopy: { flex: 1, gap: 4 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, minHeight: 64, backgroundColor: theme.redesign.canvas },
   brand: { width: 32, height: 32, borderRadius: 12, backgroundColor: theme.redesign.primaryFill, justifyContent: 'center', alignItems: 'center' },
   headerAction: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

@@ -11,6 +11,11 @@ const mockAddSeed = jest.fn()
 let mockParams: Record<string, string> = {}
 let mockScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
 const mockQueries: Record<string, unknown>[] = []
+const mockPreview = { value: {} as Record<string, unknown> }
+const mockPreviewCalls: { query: Record<string, unknown>; enabled: boolean }[] = []
+let mockKinds: Record<string, unknown> = {}
+let mockHomeRoom: unknown = undefined
+let mockCredits: unknown = undefined
 const mockSearch: { value: Record<string, unknown> } = { value: {} }
 
 jest.mock('expo-router', () => ({
@@ -31,13 +36,16 @@ jest.mock('@/shared/location/use-discovery-scope', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useHomeRoom: () => mockLoaded(mockHomeRoom),
+  useContributionCredits: () => mockLoaded(mockCredits),
+  useDiscoveryPreview: (query: Record<string, unknown>, enabled: boolean) => { mockPreviewCalls.push({ query, enabled }); return mockPreview.value },
   useJoinRoom: () => ({ mutateAsync: jest.fn() }),
   useMe: () => mockLoaded({ homeAdministrativeArea: null }),
   useSaved: () => mockLoaded([]),
   useToggleSaved: () => ({ mutate: jest.fn() }),
   useAddRoomSeedPlaces: () => ({ mutate: mockAddSeed }),
   useTaxonomies: () =>
-    mockLoaded({ kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }] } }),
+    mockLoaded({ kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }], ...mockKinds } }),
   usePlaceSearch: (query: Record<string, unknown>) => { mockQueries.push(query); return mockSearch.value },
 }))
 
@@ -63,6 +71,11 @@ function emptyPage() {
 scriptedTime()
 
 beforeEach(() => {
+  mockKinds = {}
+  mockHomeRoom = undefined
+  mockCredits = undefined
+  mockPreview.value = {}
+  mockPreviewCalls.length = 0
   mockPush.mockClear()
   mockBack.mockClear()
   mockAddSeed.mockClear()
@@ -137,4 +150,73 @@ it('clear query debounces to an empty query and contribution opens the real impo
   expect(mockQueries.at(-1)?.q).toBeUndefined()
   await fireEvent.press(view.getByRole('button', { name: 'Thêm địa điểm' }))
   expect(mockPush).toHaveBeenCalledWith('/places/import')
+})
+
+
+describe('#774 integration', () => {
+  it('requests exact totals and renders supplied zero/positive counts only while current', async () => {
+    mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [], meta: { totalCount: 42, totalCountAccuracy: 'exact' } }] } }
+    const view = await renderScreen(<SearchScreen />)
+    expect(mockQueries.at(-1)?.includeTotal).toBe(true)
+    expect(view.getByText('Tìm thấy 42 địa điểm')).toBeTruthy()
+    await fireEvent.changeText(view.getByLabelText('Tìm địa điểm'), 'new')
+    expect(view.queryByText('Tìm thấy 42 địa điểm')).toBeNull()
+  })
+  it('debounces draft preview with identical picker scope and query; never applies drafts', async () => {
+    mockParams = { picker: '1', q: 'tea' }
+    useRoomStore.setState({ originLat: 10, originLng: 106 })
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByLabelText('Bộ lọc'))
+    await fireEvent.changeText(view.getByLabelText('Giá đến (nghìn đồng / người)'), '100')
+    expect(mockPreviewCalls.at(-1)?.enabled).toBe(false)
+    await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+    expect(mockPreviewCalls.at(-1)).toMatchObject({ query: { lat: 10, lng: 106, q: 'tea', priceMaxPerPerson: 100000 }, enabled: true })
+    expect(mockQueries.at(-1)?.priceMaxPerPerson).toBeUndefined()
+    mockPreview.value = { isSuccess: true, data: { meta: { totalCount: 7 } } }
+    await view.rerender(<SearchScreen />)
+    expect(view.getByText('Xem 7 địa điểm')).toBeTruthy()
+    await fireEvent.changeText(view.getByLabelText('Giá đến (nghìn đồng / người)'), '200')
+    expect(view.queryByText('Xem 7 địa điểm')).toBeNull()
+    await fireEvent.press(view.getByLabelText('Đóng'))
+    expect(mockPreviewCalls.at(-1)?.enabled).toBe(false)
+  })
+  it('exposes only returned taxonomy groups and commits multi-value suitability', async () => {
+    mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [], meta: { totalCount: 0 } }] } }
+    mockKinds = { amenity: [{ key: 'wifi', labels: { vi: 'Wi-Fi' } }], suitability: [{ key: 'family', labels: { vi: 'Gia đình' } }, { key: 'work_reading', labels: { vi: 'Làm việc' } }] }
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByLabelText('Bộ lọc'))
+    await fireEvent.press(view.getByText('Wi-Fi'))
+    await fireEvent.press(view.getByText('Gia đình'))
+    await fireEvent.press(view.getByText('Làm việc'))
+    await fireEvent.press(view.getByText('Áp dụng bộ lọc'))
+    expect(mockQueries.at(-1)).toMatchObject({ amenities: 'wifi', suitedFor: 'family,work_reading' })
+  })
+  it('filters Home immediately and carries moods to search', async () => {
+    mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [], meta: { totalCount: 0 } }] } }
+    mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
+    const view = await renderScreen(<HomeScreen />)
+    await fireEvent.press(view.getByLabelText('Ấm cúng'))
+    expect(mockQueries.at(-1)?.moods).toBe('cozy')
+    await fireEvent.press(view.getByText('Xem thêm'))
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: { moods: 'cozy' } })
+    await fireEvent.press(view.getByLabelText('Ấm cúng'))
+    expect(mockQueries.at(-1)?.moods).toBeUndefined()
+  })
+  it('renders the server-selected Home room and canonical link only with new schedule facts', async () => {
+    mockHomeRoom = { items: [{ id: 'nearest', title: 'Đi chơi', status: 'active', startAt: null, endAt: null }] }
+    const view = await renderScreen(<HomeScreen />)
+    expect(view.getByText('Đang diễn ra')).toBeTruthy()
+    await fireEvent.press(view.getByText('Đi chơi'))
+    expect(mockPush).toHaveBeenCalledWith('/room/nearest')
+    mockHomeRoom = { items: [{ id: 'old', title: 'Old response', status: 'active' }] }
+    await view.rerender(<HomeScreen />)
+    expect(view.queryByText('Old response')).toBeNull()
+  })
+  it('shows the approval reward when credits are supported, including a zero balance', async () => {
+    const view = await renderScreen(<SearchScreen />)
+    expect(view.queryByText('+50 credit GoGo AI sau khi được duyệt (1 tin nhắn = 1 credit)')).toBeNull()
+    mockCredits = { creditBalance: 0 }
+    await view.rerender(<SearchScreen />)
+    expect(view.getByText('+50 credit GoGo AI sau khi được duyệt (1 tin nhắn = 1 credit)')).toBeTruthy()
+  })
 })

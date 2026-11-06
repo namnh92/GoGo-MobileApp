@@ -1,6 +1,12 @@
 
 // Vietnamese is the source locale: message keys are derived from this object.
 export const viMessages = {
+  "discovery.totalCount": "Tìm thấy {{count}} địa điểm",
+  "discovery.previewCount": "Xem {{count}} địa điểm",
+  "discovery.moods": "Tâm trạng & Trải nghiệm",
+  "discovery.settings": "Không gian",
+  "discovery.exploreMood": "Khám phá theo tâm trạng",
+  "discovery.allMoods": "Tất cả",
   "discovery.askAI": "Hỏi gợi ý từ GoGo AI",
   "discovery.clearQuery": "Xóa nội dung",
   "discovery.priceFrom": "Từ (tối thiểu)",
@@ -9,7 +15,7 @@ export const viMessages = {
   "discovery.verified": "Xác minh",
   "discovery.closedTomorrow": "Đã đóng · Mở {{time}} ngày mai",
   "discovery.closedLater": "Đã đóng · Mở {{time}} sau {{days}} ngày",
-  "discovery.approvalReward": "+50 GoGo AI credits sau khi được duyệt (1 tin nhắn = 1 credit)",
+  "discovery.approvalReward": "+50 credit GoGo AI sau khi được duyệt (1 tin nhắn = 1 credit)",
   "discovery.home": "Trang Chủ",
   "discovery.greetingName": "Chào {{name}}! Đi đâu hôm nay? 👋",
   "discovery.greeting": "Đi đâu hôm nay? 👋",

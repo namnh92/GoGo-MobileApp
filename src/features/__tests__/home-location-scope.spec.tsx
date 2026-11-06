@@ -35,6 +35,8 @@ jest.mock('@/shared/location/use-discovery-scope', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useHomeRoom: () => mockLoaded(undefined),
+  useTaxonomies: () => mockLoaded({ kinds: {} }),
   useJoinRoom: () => ({ mutateAsync: jest.fn() }),
   useMe: () => mockMe.query,
   useSaved: () => mockLoaded([]),

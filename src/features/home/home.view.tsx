@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useUnistyles } from 'react-native-unistyles'
 import { QuickJoin } from './quick-join.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -14,6 +14,9 @@ import {
   isSaved,
   toPlaceCard,
   useMe,
+  useHomeRoom,
+  useTaxonomies,
+  discoveryLabels,
   usePlaceSearch,
   useSaved,
   useToggleSaved,
@@ -28,7 +31,7 @@ import { badgeLabel } from '@/shared/ui/count-badge.view'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, AvatarCircle, Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
@@ -41,7 +44,7 @@ import { styles } from './home.style'
 const RAIL_SIZE = 5
 
 export default function HomeScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { theme } = useUnistyles()
@@ -68,9 +71,17 @@ export default function HomeScreen() {
     profilePending: status === 'hydrating' || (status === 'user' && me.isPending),
   })
   const location = useCurrentLocation()
+  const [moods, setMoods] = useState<string[]>([])
+  const taxonomies = useTaxonomies({ kinds: 'category,mood,setting,amenity' })
+  const labels = useMemo(() => discoveryLabels(taxonomies.data, i18n.language), [taxonomies.data, i18n.language])
+  const nearest = useHomeRoom(status === 'user' || status === 'guest')
+  const homeRoom = nearest.data?.items[0]
+  // New schedule fields prove this is the server selection contract, even if null.
+  const showRoom = homeRoom && 'startAt' in homeRoom && 'endAt' in homeRoom && homeRoom.title?.trim()
+  const roomStatus = homeRoom?.status === 'active' ? t('plans.status.active') : homeRoom?.status === 'collecting' ? t('plans.status.collecting') : homeRoom?.status === 'matching' ? t('plans.status.matching') : homeRoom?.status === 'ready' ? t('plans.status.ready') : null
 
   const search = usePlaceSearch(
-    { sort: 'curated', limit: RAIL_SIZE, ...scopeSearchParams(scope) },
+    { sort: 'curated', limit: RAIL_SIZE, ...scopeSearchParams(scope), includeTotal: true, locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...(moods.length ? { moods: moods.join(',') } : {}) },
     { enabled: scope.status === 'ready' },
   )
 
@@ -103,8 +114,8 @@ export default function HomeScreen() {
   }
 
   const places = useMemo(
-    () => (search.data?.pages ?? []).flatMap(page => page.results.map(toPlaceCard)).slice(0, RAIL_SIZE),
-    [search.data],
+    () => (search.data?.pages ?? []).flatMap(page => page.results.map(result => toPlaceCard(result, labels))).slice(0, RAIL_SIZE),
+    [search.data, labels],
   )
 
   function startCreate() {
@@ -201,11 +212,21 @@ export default function HomeScreen() {
           </Pressable>
         </LinearGradient>
         <QuickJoin knownName={me.data?.displayName} />
-        {/* Nearest-room and mood sections require authoritative #774 facts. */}
+        {showRoom && roomStatus ? <Pressable accessibilityRole="button" style={styles.nearestRoom} onPress={() => router.push(`/room/${homeRoom.id}`)}>
+          <View style={styles.roomIcon}><MaterialIcon name="groups" color="redesign.white" size={20} /></View>
+          <View style={styles.roomCopy}><Text variant="introCaptionMedium" color="redesign.violetText">{roomStatus}</Text><Text variant="introLabel">{homeRoom.title}</Text></View>
+          <View style={styles.roomAction}><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.enterRoom')}</Text></View>
+        </Pressable> : null}
+        {search.data?.pages[0]?.meta?.totalCount !== undefined && Object.keys(labels.mood ?? {}).length ? <View style={styles.moodSection}>
+          <View style={styles.moodHeading}><Text variant="introHeading">{t('discovery.exploreMood')}</Text><GhostBtn label={t('discovery.allMoods')} onPress={() => setMoods([])} /></View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moods}>
+            {Object.entries(labels.mood ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={moods.includes(key) ? 'selected' : moods.length >= 10 ? 'disabled' : 'default'} onPress={() => setMoods(prev => prev.includes(key) ? prev.filter(value => value !== key) : [...prev, key])} />)}
+          </ScrollView>
+        </View> : null}
         <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
           <View style={styles.sectionHeader}>
             <Text variant="discoveryTitle">{t('discovery.suggested')}</Text>
-            <GhostBtn label={t('discovery.more')} onPress={() => router.push('/places/search')} />
+            <GhostBtn label={t('discovery.more')} onPress={() => router.push(moods.length ? { pathname: '/places/search', params: { moods: moods.join(',') } } : '/places/search')} />
           </View>
 
           {scope.status === 'ready' && scope.source === 'none' ? (

@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, Keyboard, Pressable, ScrollView, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import {
-  useAddRoomSeedPlaces, isSaved, toPlaceCard, useSaved, useTaxonomies, useToggleSaved, usePlaceSearch, useMe,
+  useAddRoomSeedPlaces, isSaved, toPlaceCard, useSaved, useTaxonomies, useToggleSaved, usePlaceSearch, useMe, useDiscoveryPreview, useContributionCredits, discoveryLabels,
   type PlaceCard as PlaceCardModel, type PlaceSearchQuery,
 } from '@/shared/api'
 import { assistantHref } from '@/features/assistant/assistant-entry'
@@ -36,7 +36,7 @@ export default function SearchScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { picker, q, filters, roomId } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string }>()
+  const { picker, q, filters, roomId, moods } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string }>()
   const { status } = useSession()
   const isPicker = picker === '1'
   const canSave = status === 'user'
@@ -47,12 +47,14 @@ export default function SearchScreen() {
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const [query, setQuery] = useState(q ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(q ?? '')
-  const [committed, setCommitted] = useState<DiscoveryFilters>(emptyFilters)
+  const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [] }))
   const [draft, setDraft] = useState<DiscoveryFilters>(emptyFilters)
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
   const [mode, setMode] = useState<'list' | 'map'>('list')
-  const taxonomies = useTaxonomies({ kinds: 'category' })
-  const categories = useMemo(() => (taxonomies.data?.kinds?.category ?? []).map(entry => ({ key: entry.key ?? '', label: entry.labels?.[i18n.language] ?? entry.labels?.vi ?? entry.key ?? '' })), [taxonomies.data, i18n.language])
+  const taxonomies = useTaxonomies({ kinds: 'category,mood,setting,amenity,suitability' })
+  const labels = useMemo(() => discoveryLabels(taxonomies.data, i18n.language), [taxonomies.data, i18n.language])
+  const credits = useContributionCredits(canSave)
+
   useEffect(() => { track('place_search_opened', { picker: isPicker }) }, [isPicker])
   useFocusEffect(useCallback(() => () => { setTimeout(() => setSheetOpen(false), 0) }, []))
   useEffect(() => {
@@ -63,18 +65,34 @@ export default function SearchScreen() {
   const activeFilterCount = Object.keys(applied).length
   const searchQuery: PlaceSearchQuery = useMemo(() => ({
     ...(!isPicker ? scopeSearchParams(scope) : originLat != null && originLng != null ? { lat: originLat, lng: originLng } : {}),
+    locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true,
     ...applied, ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
-  }), [isPicker, scope, originLat, originLng, applied, debouncedQuery])
+  }), [isPicker, scope, originLat, originLng, applied, debouncedQuery, i18n.language])
   const search = usePlaceSearch(searchQuery, { enabled: isPicker || scope.status === 'ready' })
   const saved = useSaved({ enabled: canSave })
   const toggleSaved = useToggleSaved()
   const addSeedToRoom = useAddRoomSeedPlaces(roomId ?? '')
-  const results = useMemo(() => (search.data?.pages ?? []).flatMap(page => page.results.map(toPlaceCard)), [search.data])
+  const results = useMemo(() => (search.data?.pages ?? []).flatMap(page => page.results.map(result => toPlaceCard(result, labels))), [search.data, labels])
   // Cached/offline/pending/error results never assert a successful zero result.
   const verifiedEmpty = search.isSuccess && search.isFetchedAfterMount && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim() && results.length === 0
+  const current = search.isSuccess && search.isFetchedAfterMount && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim()
+  const total = current ? search.data?.pages[0]?.meta?.totalCount : undefined
+  const supports774 = search.data?.pages[0]?.meta?.totalCount !== undefined || results.some(place => place.discovery !== undefined)
+  const valid = validateFilters(draft)
+  const previewQuery: PlaceSearchQuery = { ...(!isPicker ? scopeSearchParams(scope) : originLat != null && originLng != null ? { lat: originLat, lng: originLng } : {}), locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...filterParams(draft), q: query.trim() || undefined }
+  const previewKey = JSON.stringify(previewQuery)
+  const [settledPreviewKey, setSettledPreviewKey] = useState('')
+  useEffect(() => {
+    if (!sheetOpen || !valid) return
+    const timer = setTimeout(() => setSettledPreviewKey(previewKey), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [previewKey, sheetOpen, valid])
+  const previewEnabled = sheetOpen && valid && previewKey === settledPreviewKey && (isPicker || scope.status === 'ready')
+  const preview = useDiscoveryPreview(previewQuery, previewEnabled)
+  const previewTotal = previewEnabled && preview.isSuccess && !preview.isFetching && !preview.isPaused && !preview.isPlaceholderData ? preview.data?.meta?.totalCount : undefined
   const served = search.data?.pages[0]?.meta?.location
   const scopeLabel = served?.source === 'gps' ? t('home.scopeGps') : served?.source === 'administrative_area' && served.area ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ') : t('home.chooseArea')
-  function openFilters() { Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
+  function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
   function clearFilters() { setCommitted(emptyFilters()); setDraft(emptyFilters()) }
   function onPlacePress(place: PlaceCardModel) {
     if (isPicker) {
@@ -89,13 +107,18 @@ export default function SearchScreen() {
     if (!currentlySaved) track('place_saved', { placeId: place.id })
   }
   function toggleCategory(key: string) { setDraft(prev => ({ ...prev, categories: prev.categories.includes(key) ? prev.categories.filter(value => value !== key) : [...prev.categories, key] })) }
-  const valid = validateFilters(draft)
+  function toggleOption(field: 'amenities' | 'moods' | 'settings' | 'suited', key: string) {
+    setDraft(prev => ({ ...prev, [field]: prev[field].includes(key) ? prev[field].filter(value => value !== key) : [...prev[field], key] }))
+  }
+  function options(kind: string, field: 'amenities' | 'moods' | 'settings' | 'suited') {
+    return Object.entries(labels[kind] ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={draft[field].includes(key) ? 'selected' : draft[field].length >= 10 ? 'disabled' : 'default'} onPress={() => toggleOption(field, key)} />)
+  }
   const contribution = <View style={styles.contribution}>
     <MaterialIcon name="location" color="redesign.primaryText" size={28} />
     <Text variant="introHeading" color="redesign.ink">{t('discovery.contributeTitle')}</Text>
     <Text variant="introSmall" color="redesign.secondary" style={styles.centerText}>{t('discovery.contributeBody')}</Text>
     <SecondaryBtn label={t('search.addPlace')} onPress={() => router.push('/places/import')} leadingIcon="plus" />
-    {/* #774: award promise stays absent until server awards are operational. */}
+    {canSave && credits.data?.creditBalance !== undefined ? <Text variant="introSmall" color="redesign.secondary" style={styles.centerText}>{t('discovery.approvalReward')}</Text> : null}
   </View>
   return <Atmosphere redesign>
     <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -118,7 +141,7 @@ export default function SearchScreen() {
       </IconBtn>
     </View>
     <View style={styles.summaryRow}>
-      <Text variant="introSmall" color="redesign.secondary">{verifiedEmpty ? t('discovery.zeroCount') : t('discovery.results')}</Text>
+      <Text variant="introSmall" color="redesign.secondary">{total !== undefined ? t('discovery.totalCount', { count: total }) : verifiedEmpty ? t('discovery.zeroCount') : t('discovery.results')}</Text>
       <SegmentedControl compact options={[{ value: 'list', label: t('discovery.list'), icon: 'list' }, { value: 'map', label: t('discovery.map'), icon: 'map' }]} value={mode} onChange={setMode} />
     </View>
     {search.isError ? <ErrorState error={search.error} onRetry={() => void search.refetch()} /> : <FlatList
@@ -144,9 +167,10 @@ export default function SearchScreen() {
     </View> : null}
     <Sheet appearance="discovery" visible={sheetOpen} onClose={() => { setSheetOpen(false); setDraft(committed) }}
       header={<View style={styles.sheetHeader}><View style={styles.sheetTitle}><MaterialIcon name="tune" color="redesign.primaryText" size={22} /><Text variant="introHeading">{t('discovery.filterTitle')}</Text></View><GhostBtn label={t('search.clearFilters')} onPress={() => setDraft(emptyFilters())} /></View>}
-      footer={<View style={styles.sheetFooter}><IconBtn accessibilityLabel={t('discovery.resetDefaults')} onPress={() => setDraft(emptyFilters())}><MaterialIcon name="restart" /></IconBtn><PrimaryBtn variant="discovery" label={t('discovery.apply')} disabled={!valid} style={{ flex: 1 }} onPress={() => { if (valid) { Keyboard.dismiss(); setCommitted(draft); setSheetOpen(false) } }} /></View>}>
+      footer={<View style={styles.sheetFooter}><IconBtn accessibilityLabel={t('discovery.resetDefaults')} onPress={() => setDraft(emptyFilters())}><MaterialIcon name="restart" /></IconBtn><PrimaryBtn variant="discovery" label={previewTotal !== undefined ? t('discovery.previewCount', { count: previewTotal }) : t('discovery.apply')} disabled={!valid} style={{ flex: 1 }} onPress={() => { if (valid) { Keyboard.dismiss(); setCommitted(draft); setSheetOpen(false) } }} /></View>}>
       <Text variant="introHeading" style={styles.sheetSection}>{t('discovery.amenities')}</Text>
       <Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} />
+      {supports774 ? <View style={styles.sheetOptionRow}>{options('amenity', 'amenities')}</View> : null}
       <View style={styles.priceHeading}><Text variant="introHeading">{t('search.filterPrice')}</Text><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceUnit')}</Text></View>
       <FieldFocusGroup>
       <View style={styles.priceRow}>
@@ -157,9 +181,11 @@ export default function SearchScreen() {
       </FieldFocusGroup>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sheetOptionRow}>{[{ label: t('discovery.priceLow'), from: '30', to: '80' }, { label: t('discovery.priceMid'), from: '80', to: '250' }, { label: t('discovery.priceHigh'), from: '250', to: '600' }].map(preset => <Chip appearance="discovery" key={preset.label} label={preset.label} variant={draft.priceFrom === preset.from && draft.priceTo === preset.to ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, priceFrom: preset.from, priceTo: preset.to }))} />)}</ScrollView>
       <Text variant="introHeading" style={styles.sheetSection}>{t('search.filterSuited')}</Text>
-      <View style={styles.sheetOptionRow}>{(['couple', 'group'] as const).map(option => <Chip appearance="discovery" key={option} label={option === 'couple' ? t('discovery.couple') : t('discovery.group')} variant={draft.suited === option ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, suited: prev.suited === option ? null : option }))} />)}</View>
+      <View style={styles.sheetOptionRow}>{supports774 ? options('suitability', 'suited') : (['couple', 'group'] as const).map(option => <Chip appearance="discovery" key={option} label={option === 'couple' ? t('discovery.couple') : t('discovery.group')} variant={draft.suited.includes(option) ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, suited: prev.suited.includes(option) ? [] : [option] }))} />)}</View>
+      {supports774 && Object.keys(labels.mood ?? {}).length ? <><Text variant="introHeading" style={styles.sheetSection}>{t('discovery.moods')}</Text><View style={styles.sheetOptionRow}>{options('mood', 'moods')}</View></> : null}
+      {supports774 && Object.keys(labels.setting ?? {}).length ? <><Text variant="introHeading" style={styles.sheetSection}>{t('discovery.settings')}</Text><View style={styles.sheetOptionRow}>{options('setting', 'settings')}</View></> : null}
       <Text variant="introHeading" style={styles.sheetSection}>{t('search.filterCategory')}</Text>
-      <View style={styles.sheetOptionRow}>{categories.map(category => <Chip appearance="discovery" key={category.key} label={category.label} variant={draft.categories.includes(category.key) ? 'selected' : 'default'} onPress={() => toggleCategory(category.key)} />)}</View>
+      <View style={styles.sheetOptionRow}>{Object.entries(labels.category ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={draft.categories.includes(key) ? 'selected' : draft.categories.length >= 10 ? 'disabled' : 'default'} onPress={() => toggleCategory(key)} />)}</View>
       <View style={styles.smartBanner}><MaterialIcon name="sparkle" size={24} color="redesign.violetText" /><View style={{ flex: 1 }}><Text variant="introLabel">{t('discovery.smartTitle')}</Text><Text variant="introSmall" color="redesign.secondary">{t('discovery.smartBody')}</Text></View></View>
     </Sheet>
   </Atmosphere>
