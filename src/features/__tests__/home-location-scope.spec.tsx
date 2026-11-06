@@ -1,5 +1,8 @@
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, waitFor } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
+import { AccessibilityInfo } from 'react-native'
+import { motion } from '@/shared/ui/tokens'
+import { themes } from '@/shared/ui/theme'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
@@ -8,6 +11,11 @@ import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './ha
  * server applied, and offers an honest way forward when there is none.
  */
 
+const mockRoomRefetch = jest.fn(async () => undefined)
+const mockInboxRefetch = jest.fn(async () => undefined)
+jest.mock('@/features/notifications/unread-count', () => ({
+  useUnreadInbox: () => ({ count: 0, more: false, refetch: mockInboxRefetch }),
+}))
 const mockPush = jest.fn()
 const mockSession = { status: 'user' as string }
 const mockMe: { query: QueryLike } = { query: loaded({ homeAdministrativeArea: null }) }
@@ -43,7 +51,7 @@ jest.mock('@/shared/administrative/queries', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  useHomeRoom: () => mockLoaded(undefined),
+  useHomeRoom: () => ({ ...mockLoaded(undefined), refetch: mockRoomRefetch }),
   useTaxonomies: () => mockLoaded({ kinds: {} }),
   useJoinRoom: () => ({ mutateAsync: jest.fn() }),
   useMe: () => mockMe.query,
@@ -85,7 +93,12 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 beforeEach(() => {
+  // The area sheet now stays mounted while hidden, so every Home render reads
+  // the native preference. Keep unrelated scope tests on the instant path.
+  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
   useDiscoveryAreaStore.setState({ area: null })
+  mockRoomRefetch.mockClear()
+  mockInboxRefetch.mockClear()
   mockPush.mockClear()
   mockRecheck.mockClear()
   mockRetryScope.mockClear()
@@ -95,8 +108,29 @@ beforeEach(() => {
   mockScope.value = { status: 'resolving' }
   mockSearch.value = page(undefined)
 })
+afterEach(() => jest.restoreAllMocks())
 
 describe('Home discovery scope', () => {
+  it('R12 retains the Home area sheet for its exit animation, then removes it', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] })
+    const preference = jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false)
+    try {
+      const view = await renderScreen(<HomeScreen />)
+      await press(view.getByTestId('home-location'))
+      expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+      await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+      await press(view.getAllByRole('button', { name: 'Đóng' })[0])
+      expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
+      expect(view.getByTestId('discovery-location-sheet', { includeHiddenElements: true })).toBeTruthy()
+      await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+      expect(view.queryByTestId('discovery-location-sheet', { includeHiddenElements: true })).toBeNull()
+    } finally {
+      preference.mockRestore()
+      jest.clearAllTimers()
+      jest.useRealTimers()
+    }
+  })
+
   it('waits for the scope before searching', async () => {
     mockSearch.value = { data: undefined, isPending: true, isError: false, error: null, refetch: jest.fn() }
     const view = await renderScreen(<HomeScreen />)
@@ -307,4 +341,43 @@ it.each(['gps', 'administrative_area'])('shows only a returned area name for %s'
   const view = await renderScreen(<HomeScreen />)
   expect(view.getByText('Thành phố Hà Nội')).toBeTruthy()
   expect(view.queryByText(/Theo khu vực|Gần vị trí|Khu vực khám phá/)).toBeNull()
+})
+
+describe('Home pull to refresh', () => {
+  it('refreshes suggestions, active room and badge together; waits through a partial failure', async () => {
+    mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
+    let finish: (() => void) | undefined
+    const refetch = jest.fn(() => new Promise<void>(resolve => { finish = resolve }))
+    mockSearch.value = { ...page(undefined), refetch }
+    mockRoomRefetch.mockRejectedValueOnce(new Error('room unavailable'))
+    const view = await renderScreen(<HomeScreen />)
+    const control = () => view.getByTestId('home-list').props.refreshControl
+    expect(control().props.refreshing).toBe(false)
+    expect(control().props.tintColor).toBe(themes.orange.redesign.primaryText)
+    expect(control().props.colors).toEqual([control().props.tintColor])
+    await act(async () => { control().props.onRefresh(); control().props.onRefresh() })
+    expect(refetch).toHaveBeenCalledTimes(1)
+    expect(mockRoomRefetch).toHaveBeenCalledTimes(1)
+    expect(mockInboxRefetch).toHaveBeenCalledTimes(1)
+    expect(control().props.refreshing).toBe(true)
+    await act(async () => { finish!() })
+    await waitFor(() => expect(control().props.refreshing).toBe(false))
+    expect(view.getByTestId('home-suggestions')).toBeTruthy()
+  })
+  it('refreshes guest data without asking for notifications', async () => {
+    mockSession.status = 'guest'
+    mockScope.value = { status: 'ready', source: 'none', reason: 'no_area' }
+    const view = await renderScreen(<HomeScreen />)
+    await act(async () => { view.getByTestId('home-list').props.refreshControl.props.onRefresh() })
+    expect(mockSearch.value.refetch).toHaveBeenCalledTimes(1)
+    expect(mockRoomRefetch).toHaveBeenCalledTimes(1)
+    expect(mockInboxRefetch).not.toHaveBeenCalled()
+  })
+  it('does not bypass an unresolved search scope on refresh', async () => {
+    const view = await renderScreen(<HomeScreen />)
+    await act(async () => { view.getByTestId('home-list').props.refreshControl.props.onRefresh() })
+    expect(mockSearch.value.refetch).not.toHaveBeenCalled()
+    expect(mockRoomRefetch).toHaveBeenCalledTimes(1)
+    expect(view.getByTestId('home-list').props.refreshControl.props.refreshing).toBe(false)
+  })
 })

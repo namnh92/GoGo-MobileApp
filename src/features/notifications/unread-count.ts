@@ -7,12 +7,13 @@ import { useSession } from '@/shared/providers/session-provider'
  * the badge says `+` instead of claiming a total it does not have.
  * Guests get 403 USER_ONLY on the inbox, so it is not asked for them.
  */
-export function useUnreadInbox(): { count: number; more: boolean } {
+export function useUnreadInbox(): { count: number; more: boolean; refetch: () => Promise<unknown> } {
   const { status } = useSession()
   const inbox = useNotifications({ enabled: status === 'user' })
   // A disabled query still returns its cache: after sign-out that is someone else's.
-  if (status !== 'user') return { count: 0, more: false }
+  const refetch = () => status === 'user' ? inbox.refetch() : Promise.resolve()
+  if (status !== 'user') return { count: 0, more: false, refetch }
   const first = inbox.data?.pages[0]
   const count = first?.notifications?.filter(item => !item.readAt).length ?? 0
-  return { count, more: count > 0 && !!first?.nextCursor }
+  return { count, more: count > 0 && !!first?.nextCursor, refetch }
 }

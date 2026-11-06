@@ -261,10 +261,15 @@ export const shadows = {
   },
 } as const
 
-/** Mock map canvas colors until a real map SDK lands. */
+/** Map surfaces and opaque Google tile style colors. */
 export const mapColors = {
   canvas: '#DCE9DC',
   road: 'rgba(255,255,255,0.55)',
+  roadFill: '#FFFFFF',
+  water: '#B8D9E8',
+  park: '#C5DDC5',
+  label: text.secondary,
+  labelStroke: surface.canvas,
 } as const
 
 /**
@@ -275,6 +280,11 @@ export const mapColors = {
 export const darkMapColors = {
   canvas: '#1F2A22',
   road: 'rgba(255,255,255,0.12)',
+  roadFill: night.line,
+  water: '#15232E',
+  park: '#24392B',
+  label: darkText.secondary,
+  labelStroke: night.surface,
 } as const satisfies Record<keyof typeof mapColors, string>
 
 /** White-alpha washes for glass surfaces, borders and tints. */

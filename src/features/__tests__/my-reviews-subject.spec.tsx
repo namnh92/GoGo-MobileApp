@@ -14,6 +14,10 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn() }),
 }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
+jest.mock('@/shared/administrative/queries', () => ({
+  useAdministrativeVersion: () => ({ data: { datasetVersion: '2026-11' } }),
+  useAdministrativeUnits: () => ({ data: [{ code: '01', fullName: 'Thành phố Hà Nội' }] }),
+}))
 
 let mockReviews: QueryLike
 let mockPlace: QueryLike
@@ -50,6 +54,20 @@ beforeEach(() => {
 })
 
 describe('my reviews: card subject', () => {
+  it('uses the same normalized address in the review subject and its accessibility label', async () => {
+    mockReviews = loaded([review('r1', { placeId: 'place-1' })])
+    mockPlace = loaded({
+      id: 'place-1', name: 'Quán thử',
+      addressText: '79 P. Lý Nam Đế, phường, Hoàn Kiếm, Hà Nội 100000',
+      areaSummary: { label: 'Hoàn Kiếm', provinceCode: '01', communeCode: '00001' },
+    })
+    const view = await renderScreen(<MyReviewsScreen />)
+    const address = '79 P. Lý Nam Đế, Hoàn Kiếm, Hà Nội'
+    expect(view.getByText(address)).toBeTruthy()
+    expect(view.getByTestId('my-review-subject').props.accessibilityLabel).toBe(`Quán thử, ${address}`)
+    expect(view.getByLabelText(address)).toBeTruthy()
+  })
+
   it('names the place and its address, opens the place, and still edits', async () => {
     mockReviews = loaded([review('r1', { placeId: 'place-1' })])
     mockPlace = loaded({ id: 'place-1', name: 'Quán thử', addressText: '12 Ngô Đức Kế, Quận 1' })

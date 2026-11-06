@@ -1,4 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native'
+import { AccessibilityInfo } from 'react-native'
 import i18n from '@/shared/i18n'
 import { renderScreen } from '../__tests__/harness'
 
@@ -29,16 +30,18 @@ import { useDiscoveryAreaStore } from './discovery-area-store'
 
 beforeEach(() => {
   jest.clearAllMocks()
+  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
   useDiscoveryAreaStore.setState({ area: null })
   mockPermission.mockResolvedValue({ status: 'granted' })
   mockPosition.mockResolvedValue({ coords: { latitude: 10.77, longitude: 106.7 } })
 })
+afterEach(() => jest.restoreAllMocks())
 
 describe('O-5 public current location', () => {
   it.each(['guest', 'anonymous'])('asks for device permission on tap for %s without sign-in', async status => {
     mockSession.status = status
     useDiscoveryAreaStore.setState({ area: { datasetVersion: 'published', provinceCode: 'other-city', provinceName: 'Other city', communeCode: null, communeName: null } })
-    const view = await renderScreen(<DiscoveryLocationSheet onClose={mockBack} onApplied={mockApplied} />)
+    const view = await renderScreen(<DiscoveryLocationSheet visible onClose={mockBack} onApplied={mockApplied} />)
     expect(mockPermission).not.toHaveBeenCalled()
     await act(async () => { await fireEvent.press(view.getByText('Dùng vị trí hiện tại')) })
     expect(mockPermission).toHaveBeenCalledTimes(1)
@@ -52,7 +55,7 @@ describe('O-5 public current location', () => {
   it.each(['denied', 'unavailable'])('keeps the manual picker available after %s', async outcome => {
     if (outcome === 'denied') mockPermission.mockResolvedValue({ status: 'denied' })
     else mockPosition.mockRejectedValue(new Error('unavailable'))
-    const view = await renderScreen(<DiscoveryLocationSheet onClose={mockBack} onApplied={mockApplied} />)
+    const view = await renderScreen(<DiscoveryLocationSheet visible onClose={mockBack} onApplied={mockApplied} />)
     await act(async () => { await fireEvent.press(view.getByText('Dùng vị trí hiện tại')) })
     expect(view.getByText(i18n.t(outcome === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable'))).toBeTruthy()
     expect(mockBack).not.toHaveBeenCalled()
@@ -67,9 +70,14 @@ describe('O-5 public current location', () => {
 
 
 it('discards an uncommitted area when the close button is pressed', async () => {
-  const view = await renderScreen(<DiscoveryLocationSheet onClose={mockBack} onApplied={mockApplied} />)
+  const view = await renderScreen(<DiscoveryLocationSheet visible onClose={mockBack} onApplied={mockApplied} />)
   await fireEvent.press(view.getByText('Pick another city'))
   await fireEvent.press(view.getAllByLabelText(i18n.t('common.close')).at(-1)!)
   expect(useDiscoveryAreaStore.getState().area).toBeNull()
   expect(mockBack).toHaveBeenCalledTimes(1)
+  await view.rerender(<DiscoveryLocationSheet visible={false} onClose={mockBack} onApplied={mockApplied} />)
+  await view.rerender(<DiscoveryLocationSheet visible onClose={mockBack} onApplied={mockApplied} />)
+  await fireEvent.press(view.getByText('Dùng khu vực này'))
+  expect(useDiscoveryAreaStore.getState().area).toBeNull()
+  expect(mockApplied).toHaveBeenCalledTimes(1)
 })

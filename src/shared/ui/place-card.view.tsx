@@ -3,16 +3,14 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import {
-  areaLabel,
   formatMinuteOfDay,
-  formatDistance,
   formatRating,
   formatCount,
   ratingParts,
-  placeCardMetaLine,
   placeCardRatingPriceLine,
   type PlaceCard as PlaceCardModel,
 } from '@/shared/api'
+import { FormattedPlaceAddress } from '@/shared/ui/place-address.view'
 import { priceUnitKey } from '@/shared/pricing/price-unit'
 import { Card } from '@/shared/ui/card.view'
 import { haptic } from '@/shared/ui/feedback'
@@ -32,10 +30,9 @@ import { styles } from './place-card.style'
  * place looks like the same place wherever the user meets it.
  *
  * The list card is the Stitch card: a 16:10 photo over the body (Home, Search,
- * Saved drafts). The body is four lines, each one string on one line, so nothing can
- * wrap into its neighbour at 375pt:
+ * Saved drafts). The body omits missing facts and allows the address two lines:
  *   1. name (two lines allowed); the save toggle sits on the photo
- *   2. category · area · distance
+ *   2. street, ward, city (shared by every appearance and variant)
  *   3. ★ rating (count) · price/unit
  *   4. open state, in words
  * plus up to two reason chips when the caller passes `tags`. A fact with no
@@ -50,7 +47,7 @@ export interface PlaceCardProps {
   appearance?: 'default' | 'discovery'
   variant?: PlaceCardVariant
   onPress?: () => void
-  /** Category label, already resolved from the taxonomy key via i18n. */
+  /** @deprecated The address row now uses street, ward and city facts. */
   categoryLabel?: string | null
   /** Reason/vibe tags, at most two render (spec §21). */
   tags?: string[]
@@ -168,14 +165,16 @@ function OpenLine({ place }: { place: PlaceCardModel }) {
   )
 }
 
-function MetaLine({ place, categoryLabel }: { place: PlaceCardModel; categoryLabel?: string | null }) {
-  const line = placeCardMetaLine(place, categoryLabel)
-  if (!line) return null
-  return (
-    <Text testID="place-card-meta" variant="bodySmall" color="text.secondary" numberOfLines={1} ellipsizeMode="tail">
-      {line}
-    </Text>
-  )
+function MetaLine({ place, appearance = 'default', hero = false }: {
+  place: PlaceCardModel; appearance?: PlaceCardProps['appearance']; hero?: boolean
+}) {
+  return <FormattedPlaceAddress place={place}>{address => {
+    if (!address.trim()) return null
+    const line = <Text testID="place-card-meta" style={appearance === 'discovery' ? styles.addressText : undefined}
+      variant={appearance === 'discovery' ? 'introSmall' : 'bodySmall'} color={hero ? 'onDark.medium' : appearance === 'discovery' ? 'redesign.secondary' : 'text.secondary'}
+      numberOfLines={2} ellipsizeMode="tail" accessibilityLabel={address}>{address}</Text>
+    return appearance === 'discovery' ? <View style={styles.addressRow}><MaterialIcon name="location" size={16} color="redesign.secondary" />{line}</View> : line
+  }}</FormattedPlaceAddress>
 }
 
 export function PlaceCard({
@@ -183,7 +182,6 @@ export function PlaceCard({
   variant = 'list',
   appearance = 'default',
   onPress,
-  categoryLabel,
   tags = [],
   saved,
   onToggleSave,
@@ -200,7 +198,6 @@ export function PlaceCard({
   ) : null
 
   if (variant === 'hero') {
-    const secondary = placeCardMetaLine(place, categoryLabel)
     return (
       <View style={[styles.wrap, style]}>
         <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
@@ -209,7 +206,7 @@ export function PlaceCard({
             <View style={styles.heroScrim} />
             <View style={styles.heroBody}>
               <Text variant="title1" color="onDark.strong" numberOfLines={2}>{place.name}</Text>
-              {secondary ? <Text variant="bodySmall" color="onDark.medium" numberOfLines={1}>{secondary}</Text> : null}
+              <MetaLine place={place} hero />
               {visibleTags.length > 0 ? (
                 <View style={styles.heroTags}>
                   {visibleTags.map(tag => (
@@ -239,7 +236,7 @@ export function PlaceCard({
               <Text testID="place-card-name" variant="title2" numberOfLines={2} ellipsizeMode="tail">
                 {place.name}
               </Text>
-              <MetaLine place={place} categoryLabel={categoryLabel} />
+              <MetaLine place={place} />
             </View>
             <RatingPriceLine place={place} />
             <OpenLine place={place} />
@@ -263,18 +260,15 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
   const { t, i18n } = useTranslation()
   const { google, gogo } = ratingParts(place)
   const { price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)), i18n.language)
-  const distance = formatDistance(place.distanceM)
   const open = useOpenLabel(place, true)
-  const address = areaLabel({ addressText: place.addressText?.trim(), areaSummary: place.areaSummary })
   return <View style={[styles.wrap, style]}>
     <Pressable testID="place-card-open-target" accessibilityRole={onPress ? 'button' : undefined} onPress={onPress}>
       <View testID="place-card-discovery" style={styles.discoveryCard}>
         <View style={styles.listPhoto}>
           <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
           {place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="redesign.white" /><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.verified')}</Text></View> : null}
-          {distance || place.discovery?.areaLabel || open ? <View testID="place-card-photo-badges" pointerEvents="none" style={styles.photoBadges}>
-          {distance || place.discovery?.areaLabel ? <View testID="place-card-area-badge" style={styles.photoBadge}><MaterialIcon name="nearMe" size={14} color="redesign.ink" /><Text numberOfLines={2} style={styles.photoBadgeText} variant="introCaptionMedium" color="redesign.ink">{[distance, place.discovery?.areaLabel].filter(Boolean).join(' • ')}</Text></View> : null}
-          {open ? <View testID="place-card-hours-badge" style={styles.photoBadge}><Text numberOfLines={2} style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.open ? '● ' : ''}{open.label}</Text></View> : null}
+          {open ? <View testID="place-card-photo-badges" pointerEvents="none" style={styles.photoBadges}>
+          <View testID="place-card-hours-badge" style={styles.photoBadge}><Text numberOfLines={2} style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.open ? '● ' : ''}{open.label}</Text></View>
           </View> : null}
         </View>
         <View style={styles.listBody}>
@@ -282,7 +276,7 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
             <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={styles.discoveryName} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
             {price ? <Text variant="introLabel" color="redesign.primaryText" style={styles.discoveryPrice}>{price}</Text> : null}
           </View>
-          {address ? <View style={styles.addressRow}><MaterialIcon name="location" size={16} color="redesign.secondary" /><Text testID="place-card-meta" style={styles.addressText} variant="introSmall" color="redesign.secondary" numberOfLines={2} ellipsizeMode="tail" accessibilityLabel={address}>{address}</Text></View> : null}
+          <MetaLine place={place} appearance="discovery" />
           {google || gogo || place.gogoRatingCount != null ? <View style={styles.ratingBadges}>
             {google ? <View style={styles.googleBadge}><Text variant="introCaptionMedium" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
             {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}</Text></View> : null}

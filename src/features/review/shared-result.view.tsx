@@ -21,6 +21,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconShare } from '@/shared/ui/icons'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -136,8 +137,8 @@ export default function SharedResultScreen() {
             <View style={styles.heroScrim} />
             <View style={styles.heroBody}>
               <Text variant="display" color="text.inverse" style={styles.winnerName} numberOfLines={2}>{winner.name}</Text>
-              {winnerDetail.data?.addressText ? (
-                <Text variant="bodySmall" color="onDark.strong" style={styles.heroMeta} numberOfLines={1}>{winnerDetail.data.addressText}</Text>
+              {winnerDetail.data ? (
+                <PlaceAddressText place={winnerDetail.data} variant="bodySmall" color="onDark.strong" style={styles.heroMeta} numberOfLines={1} />
               ) : null}
             </View>
           </View>

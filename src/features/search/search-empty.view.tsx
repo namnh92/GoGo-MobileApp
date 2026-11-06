@@ -8,6 +8,7 @@ import {
 import { formatMoney } from '@/shared/pricing/money'
 import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } from './discovery-filters'
 import { styles } from './search.style'
@@ -99,7 +100,6 @@ function NearbyPlace({ place, onPress }: { place: PlaceCard; onPress: () => void
   })[unit], i18n.language)
   const rating = google ?? gogo
   const ratingLabel = rating ? `★ ${formatRating(rating.value, i18n.language)}${rating.count == null ? '' : ` (${formatCount(rating.count, i18n.language)})`} ${google ? 'Google' : 'GoGo'}` : undefined
-  const detail = place.addressText?.trim() || place.discovery?.areaLabel
   return <Pressable testID="search-nearby-place" accessibilityRole="button" accessibilityLabel={place.name} onPress={onPress} style={styles.nearbyPlace}>
     <View style={styles.nearbyPhoto}>
       <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.nearbyPhoto} />
@@ -108,7 +108,7 @@ function NearbyPlace({ place, onPress }: { place: PlaceCard; onPress: () => void
     <View style={styles.relaxCopy}>
       {place.discovery?.verified ? <View style={styles.nearbyVerified}><MaterialIcon name="verified" size={12} color="redesign.greenText" /><Text variant="introCaptionMedium" color="redesign.greenText">{t('discovery.verified')}</Text></View> : null}
       <Text variant="introLabel" color="redesign.ink" numberOfLines={1}>{place.name}</Text>
-      {detail ? <Text variant="introCaption" color="redesign.secondary" numberOfLines={1}>{detail}</Text> : null}
+      <PlaceAddressText place={place} variant="introCaption" color="redesign.secondary" numberOfLines={1} />
       {ratingLabel || price ? <Text variant="introCaption" color="redesign.secondary">{ratingLabel ? <Text variant="introCaptionMedium" color="redesign.primaryText">{ratingLabel}</Text> : null}{ratingLabel && price ? ' • ' : ''}{price}</Text> : null}
     </View>
   </Pressable>

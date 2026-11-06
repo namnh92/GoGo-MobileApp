@@ -70,6 +70,8 @@ export const viMessages = {
   "discovery.list": "Danh sách",
   "discovery.map": "Bản đồ",
   "discovery.openPlace": "Xem chi tiết",
+  "discovery.expandMap": "Mở rộng bản đồ",
+  "discovery.collapseMap": "Trở về tìm kiếm",
   "discovery.mapFallback": "Bản đồ chưa khả dụng. Xem địa điểm trong danh sách bên dưới.",
   "discovery.mapLoaded": "Bản đồ hiển thị các địa điểm đã tải trong danh sách.",
   "discovery.contributeTitle": "Không tìm thấy địa điểm quen thuộc?",

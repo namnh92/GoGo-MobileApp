@@ -1,6 +1,6 @@
 import type { DiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { regionForPins } from '@/shared/ui/map-region'
-import { discoveryMap } from './discovery-map'
+import { discoveryMap, viewportSearchScope } from './discovery-map'
 
 const places = [
   { id: 'top', name: 'Top result', lat: 21, lng: 105 },
@@ -42,5 +42,21 @@ describe('O-4 all loaded markers and independent camera', () => {
   it('updates markers when loaded search/filter/area results change', () => {
     expect(discoveryMap(none, places).pins.map(pin => pin.id)).toEqual(['top', 'second'])
     expect(discoveryMap(none, [places[1]]).pins.map(pin => pin.id)).toEqual(['second'])
+  })
+})
+
+describe('viewport search scope', () => {
+  it('covers the viewport corner instead of only half its width', () => {
+    const scope = viewportSearchScope({ latitude: 0, longitude: 106, latitudeDelta: 0.02, longitudeDelta: 0.02 })
+    expect(scope).toEqual({ lat: 0, lng: 106, radiusM: 1573 })
+  })
+  it('uses the farthest corner at high latitude and caps contract limits', () => {
+    expect(viewportSearchScope({ latitude: 60, longitude: 179.9, latitudeDelta: 0.2, longitudeDelta: 0.2 })?.radiusM).toBe(12436)
+    expect(viewportSearchScope({ latitude: 0, longitude: 0, latitudeDelta: 0.00001, longitudeDelta: 0.00001 })?.radiusM).toBe(100)
+    expect(viewportSearchScope({ latitude: 0, longitude: 0, latitudeDelta: 90, longitudeDelta: 180 })?.radiusM).toBe(100000)
+  })
+  it('rejects invalid native region data', () => {
+    for (const latitude of [NaN, Infinity, 91]) expect(viewportSearchScope({ latitude, longitude: 0, latitudeDelta: 1, longitudeDelta: 1 })).toBeNull()
+    expect(viewportSearchScope({ latitude: 0, longitude: 0, latitudeDelta: 0, longitudeDelta: 1 })).toBeNull()
   })
 })

@@ -42,6 +42,7 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Icon } from '@/shared/ui/icons'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { hitSlop, motion } from '@/shared/ui/tokens'
 
@@ -493,10 +494,10 @@ export default function SwipeScreen() {
             <View style={styles.footer}>
               <View style={styles.titleCol}>
                 <Text variant="title1" numberOfLines={1}>{card.name}</Text>
-                {detail.data?.addressText ? (
+                {detail.data ? (
                   <View style={styles.addressRow}>
                     <Icon name="mapPin" size={14} color="text.secondary" />
-                    <Text variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.addressText}>{detail.data.addressText}</Text>
+                    <PlaceAddressText place={detail.data} variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.addressText} />
                   </View>
                 ) : null}
               </View>

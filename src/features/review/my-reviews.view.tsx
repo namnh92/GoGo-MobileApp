@@ -12,6 +12,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.vi
 import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Badge, type BadgeTone } from '@/shared/ui/badge.view'
 import { Icon } from '@/shared/ui/icons'
+import { FormattedPlaceAddress } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -44,9 +45,8 @@ function PlaceSubject({ placeId, onOpenPlace }: { placeId: string; onOpenPlace: 
   const place = usePlaceDetail(placeId)
 
   const name = place.data?.name || t('myReviews.placeFallback')
-  const address = place.data?.addressText
   return (
-    <Pressable
+    <FormattedPlaceAddress place={place.data}>{address => <Pressable
       onPress={() => onOpenPlace(placeId)}
       accessibilityRole="button"
       accessibilityLabel={address ? `${name}, ${address}` : name}
@@ -60,9 +60,9 @@ function PlaceSubject({ placeId, onOpenPlace }: { placeId: string; onOpenPlace: 
       ) : place.isError ? (
         <Text variant="caption" color="status.dangerText">{t('myReviews.placeLoadFailed')}</Text>
       ) : address ? (
-        <Text variant="caption" color="text.secondary" numberOfLines={2}>{address}</Text>
+        <Text variant="caption" color="text.secondary" numberOfLines={2} accessibilityLabel={address}>{address}</Text>
       ) : null}
-    </Pressable>
+    </Pressable>}</FormattedPlaceAddress>
   )
 }
 
