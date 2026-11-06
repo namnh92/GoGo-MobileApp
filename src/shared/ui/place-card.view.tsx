@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react'
+import { Image } from 'expo-image'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import {
+  useCandidatePhoto,
   openStateFromHours,
   type ResolveLinkResult,
   formatMinuteOfDay,
@@ -310,10 +312,14 @@ export function PlaceCard(props: PlaceCardProps | PlacePreviewProps) {
 function PreviewCard({ preview, categoryLabel, children, style }: PlacePreviewProps) {
   const { t } = useTranslation()
   const now = usePlaceClock()
+  const candidatePhoto = useCandidatePhoto(preview)
+  const [failedPhoto, setFailedPhoto] = useState<string | null>(null)
+  const photo = candidatePhoto?.uri !== failedPhoto ? candidatePhoto : null
   const open = openStateFromHours(preview.openingHours, now)
   const closing = formatMinuteOfDay(open.closesAtMinute)
   return (
     <Card padded={false} style={[styles.listCard, style]}>
+      {photo ? <View style={styles.listPhoto}><Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /></View> : null}
       <View style={styles.listBody}>
         <Text variant="caption" color="text.secondary">{t('placeImport.verifiedBadge')}</Text>
         <Text variant="title1">{preview.name}</Text>
@@ -321,6 +327,7 @@ function PreviewCard({ preview, categoryLabel, children, style }: PlacePreviewPr
         {categoryLabel ? <Text variant="bodySmall">{categoryLabel}</Text> : null}
         <RatingChips place={{ rating: preview.googleRating ?? undefined, ratingCount: preview.googleRatingCount ?? undefined, ratingSource: 'google' }} />
         {open.openNow != null ? <Text variant="bodySmall">{open.openNow ? closing ? t('search.openUntil', { time: closing }) : t('common.open') : t('common.closed')}</Text> : null}
+        {photo ? <Text variant="caption" color="text.secondary">{photo.credit}</Text> : null}
         {children}
         {(preview.attributions ?? []).map(attribution => <Text key={attribution} variant="caption" color="text.secondary">{attribution}</Text>)}
       </View>

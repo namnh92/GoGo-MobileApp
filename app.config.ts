@@ -321,12 +321,11 @@ const config: ExpoConfig = {
       'expo-image-picker',
       {
         // Apple refuses a purpose string that does not cover every use of the
-        // permission (App Review 5.1.1), and this one permission serves two
-        // screens: the check-in sheet and the avatar picker. Both have to be
-        // named here — `media-permission.test.ts` fails when a third caller
+        // permission (App Review 5.1.1). Every caller's purpose must be
+        // named here — `media-permission.test.ts` fails when a new caller
         // appears without this string naming its purpose.
         photosPermission:
-          'GoGo cần truy cập thư viện ảnh để bạn thêm ảnh đại diện, ảnh check-in tại địa điểm và ảnh gửi cho GoGo AI.',
+          'GoGo cần truy cập thư viện ảnh để bạn thêm ảnh đại diện, ảnh check-in tại địa điểm, ảnh gửi cho GoGo AI và ảnh cho địa điểm đề xuất.',
       },
     ],
     [

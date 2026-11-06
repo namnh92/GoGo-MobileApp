@@ -5,7 +5,7 @@ import type { ExpoConfig } from 'expo/config'
 import { describe, expect, it, vi } from 'vitest'
 
 /**
- * One permission, two screens, one string.
+ * One permission, multiple screens, one string.
  *
  * iOS asks for the photo library once and shows `NSPhotoLibraryUsageDescription`
  * whichever screen triggered it, and Apple refuses a purpose string that does
@@ -15,7 +15,7 @@ import { describe, expect, it, vi } from 'vitest'
  * found it, not a test, because nothing tied the callers to the string.
  *
  * So this is the tie: every call site is registered here with the word its
- * purpose must appear as in the string. A third caller fails this test until
+ * purpose must appear as in the string. A new caller fails this test until
  * both the registry and the purpose string account for it.
  */
 const PERMISSION_CALL = 'requestMediaLibraryPermissionsAsync'
@@ -26,6 +26,7 @@ const CALLERS: Record<string, string> = {
   'src/shared/media/pick-avatar.ts': 'đại diện',
   // GoGo AI photo attachments (GoGo-MobileApp#378).
   'src/features/assistant/pick-images.ts': 'GoGo AI',
+  'src/features/place-import/import-photos.view.tsx': 'địa điểm đề xuất',
 }
 
 function sourceFiles(dir: string): string[] {

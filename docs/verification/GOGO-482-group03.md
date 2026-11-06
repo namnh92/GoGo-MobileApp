@@ -169,3 +169,58 @@ Logs: `/tmp/g03-r1-before.log`, `/tmp/g03-r1-after.log`, `/tmp/g03-r1-scoped.log
 `git diff --check` PASS; không sửa `ios/`, không install/commit/push/network.
 Visual acceptance vẫn **0/8**, chưa hoàn tất. Không rerun full gates,
 typecheck/lint hay DEV/device acceptance trong phiên sửa này.
+
+## Owner verification fixes — 2026-11-07, base `fe641cc`
+
+Working-tree patch only; no install/commit/push or `ios/` changes.
+
+1. Existing-place card → action group uses `spacing[4]` (16pt); actions use
+   `spacing[3]` (12pt) gap. The lone centered “Liên kết đã nhập” control under
+   “Kết quả phân tích” was removed. Canonical open/save/reset remain wired.
+2. Preview has an image slot in the shared PlaceCard preview variant. The
+   optional runtime `candidate.photo` reference is checked against BE PR #792
+   (`4ca9b46`): `/v1/places/google-provider-photo/{googlePlaceId}` returns JSON,
+   not image bytes directly. The API adapter strips the already-configured v1
+   prefix, requests only that candidate path, displays validated returned bytes
+   plus response attribution/author names, uses `cachePolicy="none"`, and aborts
+   on change/unmount. Missing/denied/error/empty/broken photos render nothing;
+   no placeholder, direct Google request, provider-detail request or persisted
+   query/image cache. Generated contract files remain unchanged until BE lands.
+3. “Thêm ảnh” opens the real installed Expo library picker after contextual
+   permission; up to five local previews, remove, cancellation/denial/error,
+   reset on link change. It is optional and shows an explicit local-only notice.
+   **Wired:** picker, previews and removal. **Waiting for BE#793:** upload,
+   attachment identifiers, submit integration and server capability discovery.
+   The current contract capability is explicitly closed (`upload: false`);
+   no upload endpoint is invoked, no local URI/photo field enters submit,
+   and no photo-upload success is claimed. Normal text-only submit stays wired.
+4. Link input is explicitly single-line with native horizontal scrolling, right
+   inset for an accessible 44×44 clear control. Clear invalidates the attempt
+   and resets preview/token/metadata/photos.
+5. KeyboardAvoidingView bounds the scrolling body; focus groups measure both
+   price fields and helper, and note plus counter/helper. Focus, keyboard show
+   and viewport resize reveal the whole group with token clearance. Outside
+   taps and dragging dismiss the keyboard. Solid header stays outside scrolling
+   and keyboard avoidance; note has a bounded, internally scrolling input.
+
+Validation: **Jest 7 suites / 94 tests PASS** (exit 0), including 19 new owner
+regressions, all prior import suites and shared PlaceCard. Command:
+
+```sh
+node_modules/.bin/jest --runInBand \
+  src/features/__tests__/place-import-owner.spec.tsx \
+  src/features/__tests__/existing-place-result.spec.tsx \
+  src/features/__tests__/place-import-resolution-token.spec.tsx \
+  src/features/__tests__/place-import-status.spec.tsx \
+  src/features/__tests__/place-import-future-opening.spec.tsx \
+  src/features/__tests__/place-import-provider-outage.spec.tsx \
+  src/shared/ui/__tests__/place-card.spec.tsx
+```
+
+Log: `/tmp/g03-owner1-final.log`. Formatter applied to changed import views/styles,
+new API adapter and regression tests; `git diff --check` PASS. No full gate run.
+Keyboard tests mock native geometry; they prove reveal/group/blur behavior, not
+native iPhone reachability. No new device acceptance claim. Stitch inventory
+returned `The browser access host is unavailable`; saved 3.3/3.4 notes were used,
+so spacing/source-section changes are not a claim of measured Stitch parity.
+`RTK.md` was absent in this worktree and checked parent paths.

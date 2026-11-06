@@ -27,14 +27,30 @@ export function ExistingPlaceResult({ placeId, onReset }: { placeId: string; onR
   return (
     <View style={styles.resultCard}>
       <Text variant="title2">{t('placeImport.existsBody')}</Text>
-      {detail.isPending ? <Skeleton height={200} /> : !detail.data ? <ErrorState error={detail.error} onRetry={() => void detail.refetch()} /> : (
-        <PlaceCard place={{ ...detailToPlaceCard(detail.data), ...openStateFromHours(detail.data.hours, now) }} onPress={() => router.replace(`/places/${placeId}`)} />
+      {detail.isPending ? (
+        <Skeleton height={200} />
+      ) : !detail.data ? (
+        <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
+      ) : (
+        <PlaceCard
+          place={{ ...detailToPlaceCard(detail.data), ...openStateFromHours(detail.data.hours, now) }}
+          onPress={() => router.replace(`/places/${placeId}`)}
+        />
       )}
-      <PrimaryBtn label={t('placeImport.openPlace')} onPress={() => router.replace(`/places/${placeId}`)} />
-      <GhostBtn label={t(marked ? 'saved.remove' : 'placeDetail.save')} loading={toggle.isPending} disabled={!canSave || !detail.data || saved.isPending || saved.isError} onPress={() => { if (canSave && detail.data && !toggle.isPending) toggle.mutate({ type: 'place', id: placeId, saved: marked }) }} />
-      {!canSave ? <Text variant="caption">{t('saved.signInBody')}</Text> : null}
-      {toggle.isError ? <Text color="status.dangerText">{t('common.errorBody')}</Text> : null}
-      <GhostBtn label={t('placeImport.tryAgain')} onPress={onReset} />
+      <View testID="import-result-actions" style={styles.resultActions}>
+        <PrimaryBtn label={t('placeImport.openPlace')} onPress={() => router.replace(`/places/${placeId}`)} />
+        <GhostBtn
+          label={t(marked ? 'saved.remove' : 'placeDetail.save')}
+          loading={toggle.isPending}
+          disabled={!canSave || !detail.data || saved.isPending || saved.isError}
+          onPress={() => {
+            if (canSave && detail.data && !toggle.isPending) toggle.mutate({ type: 'place', id: placeId, saved: marked })
+          }}
+        />
+        {!canSave ? <Text variant="caption">{t('saved.signInBody')}</Text> : null}
+        {toggle.isError ? <Text color="status.dangerText">{t('common.errorBody')}</Text> : null}
+        <GhostBtn label={t('placeImport.tryAgain')} onPress={onReset} />
+      </View>
     </View>
   )
 }

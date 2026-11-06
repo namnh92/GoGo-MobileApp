@@ -1,25 +1,20 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { z } from 'zod'
 
-import {
-  isApiError,
-  usePlaceSubmission,
-  useResolveGoogleMapsLink,
-  useSubmitPlace,
-  useTaxonomies,
-  type ResolveLinkResult,
-} from '@/shared/api'
+import { isApiError, usePlaceSubmission, useResolveGoogleMapsLink, useSubmitPlace, useTaxonomies, type ResolveLinkResult } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
+import { ImportPhotos } from './import-photos.view'
+import { FieldFocusGroup, FocusedFieldGroup } from '@/shared/ui/field-focus-group'
 import { ExistingPlaceResult } from './existing-place-result.view'
 import { Atmosphere, BackHeader, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
@@ -36,7 +31,7 @@ const mapsUrlSchema = z
   .trim()
   .url()
   .max(2000)
-  .refine(value => {
+  .refine((value) => {
     try {
       const parsed = new URL(value)
       const host = parsed.hostname.replace(/^www\./, '')
@@ -108,6 +103,35 @@ export default function PlaceImportScreen() {
   const { status: actorStatus } = useSession()
   const { roomId } = useLocalSearchParams<{ roomId?: string }>()
 
+  const focusedGroup = useRef<View>(null)
+  const scrollRef = useRef<ScrollView>(null)
+  const contentRef = useRef<View>(null)
+  const scrollY = useRef(0)
+  const viewportHeight = useRef(0)
+  const revealFocused = useCallback(() => {
+    requestAnimationFrame(() => {
+      const target = focusedGroup.current
+      const content = contentRef.current
+      if (!target || !content) return
+      target.measureLayout(
+        content,
+        (_x, y, _width, height) => {
+          const bottom = y + height + spacing[4]
+          if (bottom > scrollY.current + viewportHeight.current) {
+            scrollRef.current?.scrollTo({ y: bottom - viewportHeight.current, animated: false })
+          } else if (y < scrollY.current) {
+            scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing[4]), animated: false })
+          }
+        },
+        () => {},
+      )
+    })
+  }, [])
+  useEffect(() => {
+    const subscription = Keyboard.addListener('keyboardDidShow', revealFocused)
+    return () => subscription.remove()
+  }, [revealFocused])
+
   const [url, setUrl] = useState('')
   const currentUrl = useRef('')
   const attemptGeneration = useRef(0)
@@ -128,6 +152,7 @@ export default function PlaceImportScreen() {
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const [note, setNote] = useState('')
+  const [photos, setPhotos] = useState<string[]>([])
 
   const taxonomies = useTaxonomies({ kinds: 'category,mood' })
   const resolve = useResolveGoogleMapsLink()
@@ -136,15 +161,15 @@ export default function PlaceImportScreen() {
   const submission = usePlaceSubmission(submit.data?.status === 'ALREADY_EXISTS' ? undefined : submit.data?.submissionId)
 
   function taxonomyOptions(kind: string) {
-    return (taxonomies.data?.kinds?.[kind] ?? []).map(entry => ({
+    return (taxonomies.data?.kinds?.[kind] ?? []).map((entry) => ({
       key: entry.key ?? '',
       label: entry.labels?.[i18n.language] ?? entry.labels?.vi ?? entry.key ?? '',
     }))
   }
 
   function toggleVibe(key: string) {
-    setVibes(prev => {
-      if (prev.includes(key)) return prev.filter(x => x !== key)
+    setVibes((prev) => {
+      if (prev.includes(key)) return prev.filter((x) => x !== key)
       return prev.length < MAX_VIBES ? [...prev, key] : prev
     })
   }
@@ -200,7 +225,7 @@ export default function PlaceImportScreen() {
     resolve.mutate(
       { url: parsed.data, ...(roomId ? { roomId } : {}) },
       {
-        onSuccess: resolved => {
+        onSuccess: (resolved) => {
           if (generation !== attemptGeneration.current) return
           if (resolved.status === 'RESOLVED') track('place_import_verified', { placeId: resolved.candidate?.googlePlaceId ?? '' })
           else track('place_import_rejected', { reason: resolved.status ?? 'UNRESOLVED' })
@@ -220,12 +245,18 @@ export default function PlaceImportScreen() {
    * fetch, which is the rollback.
    */
   // One reading of a submit refusal, shown beside whichever CTA sent it (#316 F-01).
-  const submitError = submit.isError
-    ? t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed')
-    : null
+  const submitError = submit.isError ? t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') : null
 
   async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false, generation = attemptGeneration.current) {
-    if (generation !== attemptGeneration.current || !previewMatchesUrl || currentUrl.current.trim() !== resolvedUrl || submit.isSuccess || submit.isPending || (submitLock.current && !retried)) return
+    if (
+      generation !== attemptGeneration.current ||
+      !previewMatchesUrl ||
+      currentUrl.current.trim() !== resolvedUrl ||
+      submit.isSuccess ||
+      submit.isPending ||
+      (submitLock.current && !retried)
+    )
+      return
     submitLock.current = true
     const resolutionToken = token ?? resolve.data?.resolutionToken
     try {
@@ -288,287 +319,406 @@ export default function PlaceImportScreen() {
     setPriceMin('')
     setPriceMax('')
     setNote('')
+    setPhotos([])
   }
 
   const VerifyButton = result ? GhostBtn : PrimaryBtn
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader title={t('placeImport.title')} onBack={() => router.back()} right={<HeaderNotificationButton testID="import-bell" unreadDotTestID="import-unread-dot" />} />
+      <View testID="import-header" style={[styles.header, { paddingTop: insets.top }]}>
+        <BackHeader
+          title={t('placeImport.title')}
+          onBack={() => router.back()}
+          right={<HeaderNotificationButton testID="import-bell" unreadDotTestID="import-unread-dot" />}
+        />
       </View>
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text variant="title1" style={styles.introTitle}>{t('placeImport.syncTitle')}</Text>
-        <Text color="text.secondary" style={styles.body}>{t('placeImport.body')}</Text>
-
-        <View style={styles.inputCard}>
-          <Text variant="label">{t('placeImport.linkLabel')}</Text>
-          <TextInput
-            value={url}
-            onChangeText={value => {
-              invalidateAttempt()
-              currentUrl.current = value
-              setUrl(value)
-              setResolvedUrl(null)
-              resolve.reset()
-              submit.reset()
-              setSelectedGooglePlaceId(null)
-              setCategory(null)
-              setVibes([])
-              setPriceMin('')
-              setPriceMax('')
-              setNote('')
-              setInvalid(false)
+      <FocusedFieldGroup.Provider value={focusedGroup}>
+        <KeyboardAvoidingView testID="import-keyboard-avoider" style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.flex}
+            testID="import-scroll"
+            onLayout={(event) => {
+              viewportHeight.current = event.nativeEvent.layout.height
+              revealFocused()
             }}
-            placeholder={t('placeImport.placeholder')}
-            placeholderTextColor={theme.text.secondary}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            accessibilityLabel={t('placeImport.title')}
-            style={[styles.input, invalid && styles.inputError]}
-          />
-          <GhostBtn label={t('placeImport.pasteLink')} onPress={() => {
-            void Clipboard.getStringAsync().then(value => {
-              reset()
-              currentUrl.current = value
-              setUrl(value)
-            }).catch(() => setInvalid(true))
-          }} />
-          {invalid && <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.invalidUrl')}</Text>}
+            onScroll={(event) => {
+              scrollY.current = event.nativeEvent.contentOffset.y
+            }}
+            scrollEventThrottle={16}
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <TouchableWithoutFeedback testID="import-dismiss-keyboard" onPress={Keyboard.dismiss} accessible={false}>
+              <View ref={contentRef} collapsable={false}>
+                <Text variant="title1" style={styles.introTitle}>
+                  {t('placeImport.syncTitle')}
+                </Text>
+                <Text color="text.secondary" style={styles.body}>
+                  {t('placeImport.body')}
+                </Text>
 
-          {resolve.isPending ? (
-            <View style={styles.verifyingRow}>
-              <ActivityIndicator color={theme.accent.primary} />
-              <Text variant="bodySmall" color="text.secondary">{t('placeImport.verifying')}</Text>
-            </View>
-          ) : (
-            <VerifyButton
-              label={t('placeImport.verify')}
-              icon="search"
-              onPress={onResolve}
-              disabled={url.trim() === ''}
-              style={styles.verifyBtn}
-            />
-          )}
-        </View>
-
-        {resolve.isError ? (
-          <View style={styles.rejectedCard}>
-            <Text variant="title2" color="status.dangerText">
-              {t(
-                providerUnavailable(resolve.error)
-                  ? 'placeImport.providerUnavailableTitle'
-                  : 'placeImport.rejectedTitle',
-              )}
-            </Text>
-            <Text variant="bodySmall" style={styles.rejectedReason}>
-              {providerUnavailable(resolve.error)
-                ? t('placeImport.providerUnavailable')
-                : isApiError(resolve.error) && resolve.error.status === 429
-                  ? t('placeImport.rateLimited')
-                  : t('common.errorBody')}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={reset}
-              style={styles.tryAgain}
-            >
-              <Text variant="label" color="text.secondary">{t('placeImport.tryAgain')}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {result ? <Text variant="title2" style={styles.introTitle}>{t('placeImport.analysisTitle')}</Text> : null}
-        {result?.status === 'ALREADY_EXISTS' ? <GhostBtn label={t('placeImport.enteredLink')} onPress={() => { void openWebsite(url).then(ok => setLinkFailed(!ok)) }} /> : null}
-        {linkFailed && result?.status === 'ALREADY_EXISTS' ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
-
-        {/* Already in the catalog — send the user to it instead of creating a
-            duplicate submission. */}
-        {result?.status === 'ALREADY_EXISTS' && result.existingPlaceId ? (
-          <ExistingPlaceResult placeId={result.existingPlaceId} onReset={reset} />
-        ) : null}
-
-        {/* The link matched more than one place; the user picks which. */}
-        {result?.status === 'CANDIDATE_SELECTION' ? (
-          <View style={styles.resultCard}>
-            <Text variant="label" style={styles.candidateTitle}>{t('placeImport.pickCandidate')}</Text>
-            {(result.candidates ?? []).map(option => {
-              const active = selectedGooglePlaceId === option.googlePlaceId
-              return (
-                <Pressable
-                  key={option.googlePlaceId}
-                  onPress={() => setSelectedGooglePlaceId(option.googlePlaceId ?? null)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  style={[styles.candidateRow, active && styles.candidateRowActive]}
-                >
-                  <Text variant="title2">{option.name}</Text>
-                  <Text variant="bodySmall" color="text.secondary" style={styles.candidateAddress}>{option.address}</Text>
-                </Pressable>
-              )
-            })}
-            <PrimaryBtn
-              label={t('placeImport.submit')}
-              icon="send"
-              onPress={() => {
-                if (selectedGooglePlaceId) void onSubmitPlace(selectedGooglePlaceId)
-              }}
-              disabled={!selectedGooglePlaceId || submit.isSuccess}
-              loading={submit.isPending || revalidating}
-              style={styles.addBtn}
-            />
-            {submitError ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{submitError}</Text> : null}
-          </View>
-        ) : null}
-
-        {result?.status === 'RESOLVED' && candidate && !submit.data?.placeId ? (
-          <PlaceCard variant="preview" preview={candidate} style={styles.resultCard}
-            categoryLabel={candidate.categoryKey ? taxonomyOptions('category').find(option => option.key === candidate.categoryKey)?.label : null}>
-              {/* Google's business status is a fact worth surfacing: submitting a
-                  closed place wastes a moderator's time and the user's. */}
-              {candidate.businessStatus && candidate.businessStatus !== 'OPERATIONAL' ? (
-                <View style={styles.warning}>
-                  <Icon name="alert" size={16} color="status.warningText" />
-                  <Text variant="bodySmall" color="status.warningText" style={styles.warningText}>
-                    {t(`placeImport.businessStatus.${candidate.businessStatus}`, {
-                      defaultValue: t('placeImport.businessStatusUnknown'),
-                    })}
-                  </Text>
-                </View>
-              ) : null}
-
-              <GhostBtn label={t('placeDetail.save')} disabled onPress={() => {}} accessibilityHint={t('placeImport.saveLocked')} />
-              <Text variant="caption" color="text.secondary">{t('placeImport.saveLocked')}</Text>
-              {actorStatus === 'user' && !submit.isSuccess ? <Text variant="bodySmall">{t('placeImport.approvalCredit')}</Text> : null}
-              {candidate.googleMapsUri ? <GhostBtn label={t('placeImport.googleLink')} onPress={() => { void openWebsite(candidate.googleMapsUri as string).then(ok => setLinkFailed(!ok)) }} /> : null}
-              {linkFailed ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
-              {/* Optional metadata (PI-APP-004) — moderators get better context
-                  when the submitter fills it in, and nothing here is required. */}
-              {!submit.isSuccess ? <GhostBtn label={t('placeImport.metaTitle')} onPress={() => setMetadataOpen(value => !value)} /> : null}
-              {!submit.isSuccess && metadataOpen ? (
-                <View style={styles.metaSection}>
-
-                  <Text variant="label" style={styles.metaLabel}>{t('placeImport.metaCategory')}</Text>
-                  <View style={styles.chipRow}>
-                    {taxonomyOptions('category').map(option => {
-                      const active = category === option.key
-                      return (
-                        <Pressable
-                          key={option.key}
-                          onPress={() => setCategory(active ? null : option.key)}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
-                          style={[styles.chip, active && styles.chipActive]}
-                        >
-                          <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onAccent' : 'text.primary'}>{option.label}</Text>
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-
-                  <Text variant="label" style={styles.metaLabel}>{t('placeImport.metaVibes', { max: MAX_VIBES })}</Text>
-                  <View style={styles.chipRow}>
-                    {taxonomyOptions('mood').map(option => {
-                      const active = vibes.includes(option.key)
-                      return (
-                        <Pressable
-                          key={option.key}
-                          onPress={() => toggleVibe(option.key)}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
-                          style={[styles.chip, active && styles.chipActive]}
-                        >
-                          <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onAccent' : 'text.primary'}>{option.label}</Text>
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-
-                  <Text variant="label" style={styles.metaLabel}>{t('placeImport.metaPrice')}</Text>
-                  <View style={styles.priceRow}>
+                <View style={styles.inputCard}>
+                  <Text variant="label">{t('placeImport.linkLabel')}</Text>
+                  <View style={styles.linkInputRow}>
                     <TextInput
-                      value={priceMin}
-                      onChangeText={setPriceMin}
-                      placeholder={t('search.priceFrom')}
+                      testID="import-link-input"
+                      multiline={false}
+                      numberOfLines={1}
+                      value={url}
+                      onChangeText={(value) => {
+                        invalidateAttempt()
+                        currentUrl.current = value
+                        setUrl(value)
+                        setResolvedUrl(null)
+                        resolve.reset()
+                        submit.reset()
+                        setSelectedGooglePlaceId(null)
+                        setCategory(null)
+                        setVibes([])
+                        setPriceMin('')
+                        setPriceMax('')
+                        setNote('')
+                        setPhotos([])
+                        setInvalid(false)
+                      }}
+                      placeholder={t('placeImport.placeholder')}
                       placeholderTextColor={theme.text.secondary}
-                      keyboardType="numeric"
-                      style={[styles.input, styles.priceInput]}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="url"
+                      accessibilityLabel={t('placeImport.title')}
+                      style={[styles.input, styles.linkInput, invalid && styles.inputError]}
                     />
-                    <TextInput
-                      value={priceMax}
-                      onChangeText={setPriceMax}
-                      placeholder={t('search.priceTo')}
-                      placeholderTextColor={theme.text.secondary}
-                      keyboardType="numeric"
-                      style={[styles.input, styles.priceInput]}
-                    />
+                    {url ? (
+                      <Pressable
+                        testID="import-clear-link"
+                        accessibilityRole="button"
+                        accessibilityLabel={t('placeImport.clearLink')}
+                        onPress={reset}
+                        style={styles.clearLink}
+                      >
+                        <Icon name="x" size={20} />
+                      </Pressable>
+                    ) : null}
                   </View>
-
-                  <TextInput
-                    value={note}
-                    onChangeText={value => setNote(value.slice(0, MAX_NOTE))}
-                    placeholder={t('placeImport.metaNote')}
-                    placeholderTextColor={theme.text.secondary}
-                    multiline
-                    style={[styles.input, styles.noteInput]}
-                  />
-                </View>
-              ) : null}
-
-              {!submit.isSuccess ? (
-                <>
-                  <PrimaryBtn
-                    label={t('placeImport.submit')}
-                    icon="send"
+                  <GhostBtn
+                    label={t('placeImport.pasteLink')}
                     onPress={() => {
-                      if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)
+                      void Clipboard.getStringAsync()
+                        .then((value) => {
+                          reset()
+                          currentUrl.current = value
+                          setUrl(value)
+                        })
+                        .catch(() => setInvalid(true))
                     }}
-                    loading={submit.isPending || revalidating}
-                    // #131: the server refuses an unopened place (409
-                    // PLACE_NOT_YET_OPEN). The reason sits with the button and
-                    // is read with it (#316 F-02).
-                    disabled={!candidate.googlePlaceId || notOpenYet}
-                    accessibilityHint={notOpenYet ? t('placeImport.notYetOpen') : undefined}
-                    style={styles.addBtn}
                   />
-                  {notOpenYet ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.notYetOpen')}</Text> : null}
-                </>
-              ) : null}
+                  {invalid && (
+                    <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>
+                      {t('placeImport.invalidUrl')}
+                    </Text>
+                  )}
 
-              {submitError && !notOpenYet ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{submitError}</Text> : null}
+                  {resolve.isPending ? (
+                    <View style={styles.verifyingRow}>
+                      <ActivityIndicator color={theme.accent.primary} />
+                      <Text variant="bodySmall" color="text.secondary">
+                        {t('placeImport.verifying')}
+                      </Text>
+                    </View>
+                  ) : (
+                    <VerifyButton label={t('placeImport.verify')} icon="search" onPress={onResolve} disabled={url.trim() === ''} style={styles.verifyBtn} />
+                  )}
+                </View>
 
-          </PlaceCard>
-        ) : null}
+                {resolve.isError ? (
+                  <View style={styles.rejectedCard}>
+                    <Text variant="title2" color="status.dangerText">
+                      {t(providerUnavailable(resolve.error) ? 'placeImport.providerUnavailableTitle' : 'placeImport.rejectedTitle')}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.rejectedReason}>
+                      {providerUnavailable(resolve.error)
+                        ? t('placeImport.providerUnavailable')
+                        : isApiError(resolve.error) && resolve.error.status === 429
+                          ? t('placeImport.rateLimited')
+                          : t('common.errorBody')}
+                    </Text>
+                    <Pressable accessibilityRole="button" onPress={reset} style={styles.tryAgain}>
+                      <Text variant="label" color="text.secondary">
+                        {t('placeImport.tryAgain')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
 
-        {previewMatchesUrl && submit.isSuccess ? (
-          submit.data?.placeId ? <ExistingPlaceResult placeId={submit.data.placeId} onReset={reset} /> : (
-            <View style={styles.resultBody}>
-              {!submission.data?.status || submission.data.status === 'pending' ? <Text variant="label">{t('placeImport.pendingReview')}</Text> : null}
-              {submission.data?.status ? <Text>{t(`placeImport.submissionStatus.${submission.data.status}`)}</Text> : null}
-              {(submission.data?.status === 'approved' || submission.data?.status === 'merged') && submission.data.placeId ? <ExistingPlaceResult placeId={submission.data.placeId} onReset={reset} /> : null}
-              {submission.isError ? <>
-                <Text>{t(isApiError(submission.error) && submission.error.status === 403 ? 'placeImport.ownerOnlyStatus' : 'placeImport.statusFailed')}</Text>
-                {!(isApiError(submission.error) && submission.error.status === 403) ? <GhostBtn label={t('common.retry')} onPress={() => { void submission.refetch() }} /> : null}
-              </> : null}
-            </View>
-          )
-        ) : null}
+                {result ? (
+                  <Text variant="title2" style={styles.introTitle}>
+                    {t('placeImport.analysisTitle')}
+                  </Text>
+                ) : null}
 
-        {result?.status === 'UNRESOLVED' ? (
-          <View style={styles.rejectedCard}>
-            <Text variant="title2" color="status.dangerText">{t('placeImport.rejectedTitle')}</Text>
-            <Text variant="bodySmall" style={styles.rejectedReason}>
-              {t(`placeImport.reason.${result.reasonCodes?.[0] ?? 'NOT_FOUND'}`, {
-                defaultValue: t('placeImport.reason.NOT_FOUND'),
-              })}
-            </Text>
-            <GhostBtn label={t('placeImport.tryAgain')} onPress={reset} />
-          </View>
-        ) : null}
-      </ScrollView>
+                {/* Already in the catalog — send the user to it instead of creating a
+            duplicate submission. */}
+                {result?.status === 'ALREADY_EXISTS' && result.existingPlaceId ? (
+                  <ExistingPlaceResult placeId={result.existingPlaceId} onReset={reset} />
+                ) : null}
+
+                {/* The link matched more than one place; the user picks which. */}
+                {result?.status === 'CANDIDATE_SELECTION' ? (
+                  <View style={styles.resultCard}>
+                    <Text variant="label" style={styles.candidateTitle}>
+                      {t('placeImport.pickCandidate')}
+                    </Text>
+                    {(result.candidates ?? []).map((option) => {
+                      const active = selectedGooglePlaceId === option.googlePlaceId
+                      return (
+                        <Pressable
+                          key={option.googlePlaceId}
+                          onPress={() => setSelectedGooglePlaceId(option.googlePlaceId ?? null)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          style={[styles.candidateRow, active && styles.candidateRowActive]}
+                        >
+                          <Text variant="title2">{option.name}</Text>
+                          <Text variant="bodySmall" color="text.secondary" style={styles.candidateAddress}>
+                            {option.address}
+                          </Text>
+                        </Pressable>
+                      )
+                    })}
+                    <PrimaryBtn
+                      label={t('placeImport.submit')}
+                      icon="send"
+                      onPress={() => {
+                        if (selectedGooglePlaceId) void onSubmitPlace(selectedGooglePlaceId)
+                      }}
+                      disabled={!selectedGooglePlaceId || submit.isSuccess}
+                      loading={submit.isPending || revalidating}
+                      style={styles.addBtn}
+                    />
+                    {submitError ? (
+                      <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>
+                        {submitError}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {result?.status === 'RESOLVED' && candidate && !submit.data?.placeId ? (
+                  <PlaceCard
+                    variant="preview"
+                    preview={candidate}
+                    style={styles.resultCard}
+                    categoryLabel={candidate.categoryKey ? taxonomyOptions('category').find((option) => option.key === candidate.categoryKey)?.label : null}
+                  >
+                    {/* Google's business status is a fact worth surfacing: submitting a
+                  closed place wastes a moderator's time and the user's. */}
+                    {candidate.businessStatus && candidate.businessStatus !== 'OPERATIONAL' ? (
+                      <View style={styles.warning}>
+                        <Icon name="alert" size={16} color="status.warningText" />
+                        <Text variant="bodySmall" color="status.warningText" style={styles.warningText}>
+                          {t(`placeImport.businessStatus.${candidate.businessStatus}`, {
+                            defaultValue: t('placeImport.businessStatusUnknown'),
+                          })}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    <GhostBtn label={t('placeDetail.save')} disabled onPress={() => {}} accessibilityHint={t('placeImport.saveLocked')} />
+                    <Text variant="caption" color="text.secondary">
+                      {t('placeImport.saveLocked')}
+                    </Text>
+                    {actorStatus === 'user' && !submit.isSuccess ? <Text variant="bodySmall">{t('placeImport.approvalCredit')}</Text> : null}
+                    {candidate.googleMapsUri ? (
+                      <GhostBtn
+                        label={t('placeImport.googleLink')}
+                        onPress={() => {
+                          void openWebsite(candidate.googleMapsUri as string).then((ok) => setLinkFailed(!ok))
+                        }}
+                      />
+                    ) : null}
+                    {linkFailed ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
+                    {/* Optional metadata (PI-APP-004) — moderators get better context
+                  when the submitter fills it in, and nothing here is required. */}
+                    {!submit.isSuccess ? <GhostBtn label={t('placeImport.metaTitle')} onPress={() => setMetadataOpen((value) => !value)} /> : null}
+                    {!submit.isSuccess ? <ImportPhotos photos={photos} onChange={setPhotos} /> : null}
+                    {!submit.isSuccess && metadataOpen ? (
+                      <View style={styles.metaSection}>
+                        <Text variant="label" style={styles.metaLabel}>
+                          {t('placeImport.metaCategory')}
+                        </Text>
+                        <View style={styles.chipRow}>
+                          {taxonomyOptions('category').map((option) => {
+                            const active = category === option.key
+                            return (
+                              <Pressable
+                                key={option.key}
+                                onPress={() => setCategory(active ? null : option.key)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: active }}
+                                style={[styles.chip, active && styles.chipActive]}
+                              >
+                                <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onAccent' : 'text.primary'}>
+                                  {option.label}
+                                </Text>
+                              </Pressable>
+                            )
+                          })}
+                        </View>
+
+                        <Text variant="label" style={styles.metaLabel}>
+                          {t('placeImport.metaVibes', { max: MAX_VIBES })}
+                        </Text>
+                        <View style={styles.chipRow}>
+                          {taxonomyOptions('mood').map((option) => {
+                            const active = vibes.includes(option.key)
+                            return (
+                              <Pressable
+                                key={option.key}
+                                onPress={() => toggleVibe(option.key)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: active }}
+                                style={[styles.chip, active && styles.chipActive]}
+                              >
+                                <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onAccent' : 'text.primary'}>
+                                  {option.label}
+                                </Text>
+                              </Pressable>
+                            )
+                          })}
+                        </View>
+
+                        <FieldFocusGroup>
+                          <Text variant="label" style={styles.metaLabel}>
+                            {t('placeImport.metaPrice')}
+                          </Text>
+                          <View style={styles.priceRow}>
+                            <TextInput
+                              onFocus={revealFocused}
+                              accessibilityLabel={t('search.priceFrom')}
+                              value={priceMin}
+                              onChangeText={setPriceMin}
+                              placeholder={t('search.priceFrom')}
+                              placeholderTextColor={theme.text.secondary}
+                              keyboardType="numeric"
+                              style={[styles.input, styles.priceInput]}
+                            />
+                            <TextInput
+                              onFocus={revealFocused}
+                              accessibilityLabel={t('search.priceTo')}
+                              value={priceMax}
+                              onChangeText={setPriceMax}
+                              placeholder={t('search.priceTo')}
+                              placeholderTextColor={theme.text.secondary}
+                              keyboardType="numeric"
+                              style={[styles.input, styles.priceInput]}
+                            />
+                          </View>
+
+                          <Text variant="caption" color="text.secondary">
+                            {t('placeImport.priceHelper')}
+                          </Text>
+                        </FieldFocusGroup>
+                        <FieldFocusGroup>
+                          <TextInput
+                            onFocus={revealFocused}
+                            accessibilityLabel={t('placeImport.metaNote')}
+                            value={note}
+                            onChangeText={(value) => setNote(value.slice(0, MAX_NOTE))}
+                            placeholder={t('placeImport.metaNote')}
+                            placeholderTextColor={theme.text.secondary}
+                            multiline
+                            scrollEnabled
+                            style={[styles.input, styles.noteInput]}
+                          />
+                          <Text variant="caption" color="text.secondary">
+                            {t('placeImport.noteHelper', { count: note.length, max: MAX_NOTE })}
+                          </Text>
+                        </FieldFocusGroup>
+                      </View>
+                    ) : null}
+
+                    {!submit.isSuccess ? (
+                      <>
+                        <PrimaryBtn
+                          label={t('placeImport.submit')}
+                          icon="send"
+                          onPress={() => {
+                            if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)
+                          }}
+                          loading={submit.isPending || revalidating}
+                          // #131: the server refuses an unopened place (409
+                          // PLACE_NOT_YET_OPEN). The reason sits with the button and
+                          // is read with it (#316 F-02).
+                          disabled={!candidate.googlePlaceId || notOpenYet}
+                          accessibilityHint={notOpenYet ? t('placeImport.notYetOpen') : undefined}
+                          style={styles.addBtn}
+                        />
+                        {notOpenYet ? (
+                          <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>
+                            {t('placeImport.notYetOpen')}
+                          </Text>
+                        ) : null}
+                      </>
+                    ) : null}
+
+                    {submitError && !notOpenYet ? (
+                      <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>
+                        {submitError}
+                      </Text>
+                    ) : null}
+                  </PlaceCard>
+                ) : null}
+
+                {previewMatchesUrl && submit.isSuccess ? (
+                  submit.data?.placeId ? (
+                    <ExistingPlaceResult placeId={submit.data.placeId} onReset={reset} />
+                  ) : (
+                    <View style={styles.resultBody}>
+                      {!submission.data?.status || submission.data.status === 'pending' ? <Text variant="label">{t('placeImport.pendingReview')}</Text> : null}
+                      {submission.data?.status ? <Text>{t(`placeImport.submissionStatus.${submission.data.status}`)}</Text> : null}
+                      {(submission.data?.status === 'approved' || submission.data?.status === 'merged') && submission.data.placeId ? (
+                        <ExistingPlaceResult placeId={submission.data.placeId} onReset={reset} />
+                      ) : null}
+                      {submission.isError ? (
+                        <>
+                          <Text>
+                            {t(isApiError(submission.error) && submission.error.status === 403 ? 'placeImport.ownerOnlyStatus' : 'placeImport.statusFailed')}
+                          </Text>
+                          {!(isApiError(submission.error) && submission.error.status === 403) ? (
+                            <GhostBtn
+                              label={t('common.retry')}
+                              onPress={() => {
+                                void submission.refetch()
+                              }}
+                            />
+                          ) : null}
+                        </>
+                      ) : null}
+                    </View>
+                  )
+                ) : null}
+
+                {result?.status === 'UNRESOLVED' ? (
+                  <View style={styles.rejectedCard}>
+                    <Text variant="title2" color="status.dangerText">
+                      {t('placeImport.rejectedTitle')}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.rejectedReason}>
+                      {t(`placeImport.reason.${result.reasonCodes?.[0] ?? 'NOT_FOUND'}`, {
+                        defaultValue: t('placeImport.reason.NOT_FOUND'),
+                      })}
+                    </Text>
+                    <GhostBtn label={t('placeImport.tryAgain')} onPress={reset} />
+                  </View>
+                ) : null}
+              </View>
+            </TouchableWithoutFeedback>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </FocusedFieldGroup.Provider>
     </Atmosphere>
   )
 }

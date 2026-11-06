@@ -2,7 +2,28 @@ import { StyleSheet } from 'react-native-unistyles'
 
 import { radius, spacing, type } from '@/shared/ui/tokens'
 
-export const styles = StyleSheet.create(theme => ({
+export const styles = StyleSheet.create((theme) => ({
+  flex: { flex: 1 },
+  header: { backgroundColor: theme.surface.canvas },
+  resultActions: { marginTop: spacing[4], gap: spacing[3] },
+  linkInputRow: { position: 'relative' },
+  linkInput: { paddingRight: spacing[9] },
+  clearLink: { position: 'absolute', right: 0, top: 4, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  photoSection: { marginTop: spacing[4], gap: spacing[2] },
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  localPhoto: { width: 88, height: 88, borderRadius: radius.compact, overflow: 'hidden' },
+  photoFill: { width: '100%', height: '100%' },
+  removePhoto: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.surface.card,
+    borderRadius: radius.pill,
+  },
   introTitle: { marginTop: spacing[5] },
   body: { marginTop: spacing[2], marginBottom: spacing[5] },
   // The paste field, its button and the result sit on white cards over the canvas.
@@ -112,6 +133,6 @@ export const styles = StyleSheet.create(theme => ({
   chipActive: { backgroundColor: theme.accent.primary },
   priceRow: { flexDirection: 'row', gap: spacing[2] },
   priceInput: { flex: 1 },
-  noteInput: { minHeight: 72, textAlignVertical: 'top', paddingTop: spacing[3] },
+  noteInput: { height: 96, minHeight: 72, textAlignVertical: 'top', paddingTop: spacing[3] },
   submissionStatus: { marginTop: spacing[2] },
 }))
