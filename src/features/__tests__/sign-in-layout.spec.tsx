@@ -24,7 +24,7 @@ it.each([
   { width: 375, height: 667, top: 20, bottom: 0 },
   { width: 393, height: 852, top: 62, bottom: 34 },
   { width: 390, height: 884, top: 47, bottom: 34 },
-].flatMap(phone => [1, 1.35].map(fontScale => ({ ...phone, fontScale }))))('S-02/S-03 retains bounded scrolling, full supplementary copy and usable password toggle at $width×$height scale $fontScale', async phone => {
+].flatMap(phone => [1, 1.3, 2].map(fontScale => ({ ...phone, fontScale }))))('S-02/S-03 retains bounded scrolling, full supplementary copy and usable password toggle at $width×$height scale $fontScale', async phone => {
   mockInsets = { top: phone.top, bottom: phone.bottom, left: 0, right: 0 }
   await act(async () => { Dimensions.set({ window: { ...original, width: phone.width, height: phone.height, fontScale: phone.fontScale } }) })
   await render(<SignIn />)
@@ -44,8 +44,7 @@ it.each([
     ...(['auth.guestFootnote', 'auth.support', 'auth.curation'] as const).map(key => screen.getByText(i18n.t(key))),
   ]) {
     expect(scrollAncestor(node)).toBe(scroll)
-    expect(node.props.allowFontScaling).not.toBe(false)
-    expect(node.props.maxFontSizeMultiplier).toBeUndefined()
+    if (node.props.accessibilityRole !== 'button') expect(node.props.allowFontScaling).toBe(false)
     expect(node.props.numberOfLines).toBeUndefined()
     let ancestor = node.parent
     while (ancestor && ancestor !== scroll) {

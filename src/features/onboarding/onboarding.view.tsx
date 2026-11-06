@@ -35,7 +35,7 @@ export default function OnboardingScreen() {
     owner.alive = true
     return () => { owner.alive = false }
   }, [])
-  const environment = `${window.width}:${window.height}:${window.fontScale}:${insets.top}:${insets.bottom}:${insets.left}:${insets.right}:${i18n.resolvedLanguage}`
+  const environment = `${window.width}:${window.height}:${insets.top}:${insets.bottom}:${insets.left}:${insets.right}:${i18n.resolvedLanguage}`
   const [viewport, setViewport] = useState<{ environment: string; width: number; height: number }>()
   const measured = viewport?.environment === environment
   const size = measured ? viewport : window
@@ -82,16 +82,16 @@ export default function OnboardingScreen() {
         if (width <= 0 || height <= 0) return
         setViewport(previous => previous?.environment === environment && previous.width === width && previous.height === height ? previous : { environment, width, height })
       }}>
-        <OnboardingBody key={`${slide}:${environment}:${size.width}:${size.height}`} slide={slide} navigate={navigate} finishing={finishing} finish={finish} start={start} viewport={size} viewportMeasured={measured} fontScale={window.fontScale} insets={insets} />
+        <OnboardingBody key={`${slide}:${environment}:${size.width}:${size.height}`} slide={slide} navigate={navigate} finishing={finishing} finish={finish} start={start} viewport={size} viewportMeasured={measured} insets={insets} />
       </View>
     </Atmosphere>
   )
 }
 
 type Block = 'header' | 'narrative' | 'dots' | 'actions'
-function OnboardingBody({ slide, navigate, finishing, finish, start, viewport, viewportMeasured, fontScale, insets }: {
+function OnboardingBody({ slide, navigate, finishing, finish, start, viewport, viewportMeasured, insets }: {
   slide: number; navigate: (delta: number) => void; finishing: boolean; finish: () => Promise<void>; start: () => Promise<void>
-  viewport: { width: number; height: number }; viewportMeasured: boolean; fontScale: number; insets: ReturnType<typeof useSafeAreaInsets>
+  viewport: { width: number; height: number }; viewportMeasured: boolean; insets: ReturnType<typeof useSafeAreaInsets>
 }) {
   const { t } = useTranslation()
   const current = slides[slide]
@@ -120,11 +120,10 @@ function OnboardingBody({ slide, navigate, finishing, finish, start, viewport, v
   const nonArt = Object.values(blocks).reduce((sum, height) => sum + height, 0) + margins + insets.top + insets.bottom
   const fit = art && fitIllustration(viewport.width - insets.left - insets.right, viewport.height, insets.top, insets.bottom, art.height, art.width)
   const complete = viewportMeasured && !!art && (['header', 'narrative', 'dots', 'actions'] as const).every(block => blocks[block] !== undefined)
-  const arrangement = onboardingArrangement(viewport.height, nonArt, fit?.height ?? 0, fontScale, complete)
+  const arrangement = onboardingArrangement(viewport.height, nonArt, fit?.height ?? 0, complete)
   // The former final-slide space-between had four intervals. Distribute only
   // spare space, without measuring stretched blocks or feeding back fitted art.
   const distributedGap = isLast ? arrangement.spare / 4 : 0
-  const wholeScreenScroll = (blocks.actions ?? 0) + gaps.actions + gaps.bottom + insets.top + insets.bottom >= viewport.height
   const nativeScroll = useMemo(() => Gesture.Native(), [])
   const pan = useMemo(() => Gesture.Pan().withTestId('onboarding-swipe')
     .maxPointers(1).activeOffsetX([-20, 20]).failOffsetY([-12, 12])
@@ -156,13 +155,6 @@ function OnboardingBody({ slide, navigate, finishing, finish, start, viewport, v
     {isLast && <GhostBtn variant="stitchGuest" disabled={finishing} label={t('onboarding.guest')} onPress={finish} />}
   </View>
   const padding = { paddingTop: insets.top, paddingBottom: insets.bottom + gaps.bottom, paddingLeft: 20 + insets.left, paddingRight: 20 + insets.right }
-  if (wholeScreenScroll) return <GestureDetector gesture={pan}>
-    <View style={styles.fill}>
-      <GestureDetector gesture={nativeScroll}>
-        <ScrollView ref={scroll} testID="onboarding-whole" contentContainerStyle={padding} contentOffset={{ x: 0, y: 0 }}>{narrative}{actions}</ScrollView>
-      </GestureDetector>
-    </View>
-  </GestureDetector>
   return <View style={[styles.content, padding]}>
     <GestureDetector gesture={pan}>
       <View style={styles.upperRegion}>

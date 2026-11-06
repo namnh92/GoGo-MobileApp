@@ -156,7 +156,7 @@ export function OnboardingVisual(props: VisualProps) {
   const { i18n } = useTranslation()
   // Re-measure at the unscaled design widths after a layout/content change.
   // A slide return must never reuse measurements from its previous mount.
-  return <FittedOnboardingVisual key={`${props.slide}:${window.width}:${window.height}:${window.fontScale}:${insets.top}:${insets.bottom}:${insets.left}:${insets.right}:${props.viewport?.width}:${props.viewport?.height}:${i18n.resolvedLanguage}`} {...props} window={window} />
+  return <FittedOnboardingVisual key={`${props.slide}:${window.width}:${window.height}:${insets.top}:${insets.bottom}:${insets.left}:${insets.right}:${props.viewport?.width}:${props.viewport?.height}:${i18n.resolvedLanguage}`} {...props} window={window} />
 }
 
 function FittedOnboardingVisual({ slide, window, viewport = window, remainingArtHeight, onNaturalSize }: VisualProps & { window: ReturnType<typeof useWindowDimensions> }) {

@@ -81,14 +81,14 @@ describe('splash reveal', () => {
 })
 
 describe('splash map fit', () => {
-  const mapWidthFor = async (width: number, height: number) => {
-    jest.spyOn(Dimensions, 'get').mockReturnValue({ width, height, scale: 2, fontScale: 1 })
+  const mapWidthFor = async (width: number, height: number, fontScale = 1) => {
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ width, height, scale: 2, fontScale })
     await renderScreen(<Splash />)
     const style = StyleSheet.flatten(screen.getByTestId('splash-map', { includeHiddenElements: true }).props.style)
     return { w: style.width as number, h: style.height as number }
   }
 
-  it.each([[320, 568, 80], [393, 852, 70], [430, 400, 110]])('maximizes the map after measuring the %s×%s viewport and brand', async (width, height, brandHeight) => {
+  it.each([[320, 568, 80], [393, 852, 70], [390, 884, 70], [430, 400, 110]])('maximizes the map after measuring the %s×%s viewport and brand', async (width, height, brandHeight) => {
     await mapWidthFor(width, height)
     const layout = { x: 0, y: 0, width: width - 48, height: height - 48 }
     const parent = screen.queryByTestId('splash-layout', { includeHiddenElements: true })
@@ -101,6 +101,18 @@ describe('splash map fit', () => {
     expect(style.height).toBeCloseTo(349 * expected)
     expect(style.width).toBeGreaterThan(0)
     expect(style.width / style.height).toBeCloseTo(223 / 349)
+  })
+
+  it.each([100, 220, 300])('keeps a nonzero map when a short window measures a %s-point brand', async brandHeight => {
+    await mapWidthFor(393, 300, 3)
+    const layout = { x: 0, y: 0, width: 345, height: 252 }
+    await fireEvent(screen.getByTestId('splash-layout'), 'layout', { nativeEvent: { layout } })
+    await fireEvent(screen.getByTestId('splash-brand'), 'layout', { nativeEvent: { layout: { ...layout, height: brandHeight } } })
+    const map = StyleSheet.flatten(screen.getByTestId('splash-map', { includeHiddenElements: true }).props.style)
+    expect(map.width).toBeCloseTo(111.5)
+    expect(map.height).toBeCloseTo(174.5)
+    expect(map.width / map.height).toBeCloseTo(223 / 349)
+    expect(screen.getByTestId('splash-layout').props.scrollEnabled).toBeUndefined()
   })
 
   it.each([180, 242, 342, 400])('uses the approved 9-unit map-label token on a %i px map', width => {

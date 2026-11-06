@@ -18,14 +18,13 @@ const phones = [
   { name: '16', width: 393, height: 852, top: 62, bottom: 34 },
   { name: 'reference', width: 390, height: 884, top: 47, bottom: 34 },
 ]
-// Injected natural geometry, not simulated Yoga/glyph metrics. XXXL is a
-// provisional 1.35 proxy; Luna must record the native category/scale/insets.
-const geometry = (slide: number, enlarged: boolean) => ({
-  header: enlarged ? 60 : 44,
-  narrative: enlarged ? [300, 270, 300][slide] : [116, 116, 124][slide],
+// Injected natural geometry; system font scale never changes glyph metrics.
+const geometry = (slide: number) => ({
+  header: 44,
+  narrative: [116, 116, 124][slide],
   dots: slide === 2 ? 6 : 14,
-  actions: slide === 2 ? (enlarged ? 158 : 100) : (enlarged ? 70 : 48),
-  art: enlarged ? 700 : [350, 340, 440][slide],
+  actions: slide === 2 ? 100 : 48,
+  art: [350, 340, 440][slide],
 })
 const spacing = (slide: number) => [98, 98, 132][slide]
 const visual = () => screen.getByTestId('onboarding-visual', hidden)
@@ -44,8 +43,8 @@ async function mount(phone: typeof phones[number], fontScale: number, slide: num
   for (let index = 0; index < slide; index++) await fireEvent.press(screen.getByText(i18n.t('onboarding.next')))
 }
 
-async function measure(phone: typeof phones[number], slide: number, enlarged: boolean) {
-  const g = geometry(slide, enlarged)
+async function measure(phone: typeof phones[number], slide: number) {
+  const g = geometry(slide)
   await act(async () => {
     screen.queryByTestId('onboarding-viewport')?.props.onLayout(event(phone.width, phone.height))
   })
@@ -74,7 +73,7 @@ afterEach(async () => { await act(async () => { Dimensions.set({ window: origina
 describe('S-01 measured whole-screen fit', () => {
   it.each(phones.flatMap(phone => [0, 1, 2].map(slide => ({ ...phone, slide }))))('$name slide $slide fits all natural blocks and both final actions at scale 1', async phone => {
     await mount(phone, 1, phone.slide)
-    const g = await measure(phone, phone.slide, false)
+    const g = await measure(phone, phone.slide)
     const required = Number(flat(visual().props.style).height) + g.header + g.narrative + g.dots + g.actions + spacing(phone.slide) + phone.top + phone.bottom
     expect(required).toBeLessThanOrEqual(phone.height + 0.001)
     const independent = fitIllustration(phone.width, phone.height, phone.top, phone.bottom, g.art)
@@ -95,46 +94,44 @@ describe('S-01 measured whole-screen fit', () => {
   })
 })
 
-describe('S-02 enlarged composition', () => {
-  it.each(phones.flatMap(phone => [0, 1, 2].map(slide => ({ ...phone, slide }))))('$name slide $slide reserves actions while the upper region scrolls', async phone => {
-    await mount(phone, 1.35, phone.slide)
-    const g = await measure(phone, phone.slide, true)
-    const scroll = upper()
-    // A button in a ScrollView is not proof of first-viewport visibility.
+describe('fixed font composition', () => {
+  it.each(phones.flatMap(phone => [0, 1, 2].flatMap(slide => [1.3, 2].map(fontScale => ({ ...phone, slide, fontScale })))))('$name slide $slide keeps layout unchanged at scale $fontScale', async phone => {
+    await mount(phone, phone.fontScale, phone.slide)
+    const g = await measure(phone, phone.slide)
+    const layout = flat(visual().props.style)
+    const required = Number(layout.height) + g.header + g.narrative + g.dots + g.actions + spacing(phone.slide) + phone.top + phone.bottom
+    expect(required).toBeLessThanOrEqual(phone.height + 0.001)
     expect(scrollAncestor(actions(phone.slide))).toBeNull()
-    expect(scroll.props.scrollEnabled).toBe(true)
-    // Art retains its independent fit in footer mode, even though shrinking
-    // could create a positive remainder. Narrative text keeps native scaling.
-    const independent = fitIllustration(phone.width, phone.height, phone.top, phone.bottom, g.art)
-    if (phone.slide !== 1) expect(flat(visual().props.style)).toMatchObject({ width: independent.width, height: independent.height })
-    expect(phone.height - phone.top - phone.bottom - 20 - g.actions - (phone.slide === 2 ? 16 : 24)).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: i18n.t(phone.slide === 2 ? 'onboarding.start' : 'onboarding.next') })).toHaveLength(1)
-    if (phone.slide === 2) expect(screen.getAllByRole('button', { name: i18n.t('onboarding.guest') })).toHaveLength(1)
+    expect(upper().props.scrollEnabled).toBe(false)
+    const before = { ...layout }
+    const oldActions = screen.getByTestId('onboarding-actions')
+    await act(async () => { Dimensions.set({ window: { ...Dimensions.get('window'), fontScale: 1 } }) })
+    expect(flat(visual().props.style)).toEqual(before)
+    expect(screen.getByTestId('onboarding-actions')).toBe(oldActions)
     for (const key of [phone.slide === 2 ? 'onboarding.start' : 'onboarding.next', ...(phone.slide === 2 ? ['onboarding.guest'] as const : [])] as const) {
       const label = screen.getByText(i18n.t(key))
-      expect(label.props.allowFontScaling).not.toBe(false)
-      expect(label.props.maxFontSizeMultiplier).toBeUndefined()
+      expect(label.props.allowFontScaling).toBe(false)
       expect(label.props.numberOfLines).toBeUndefined()
     }
   })
 })
 
-it.each([1, 1.35, 2])('keeps usable actions and proportional artwork on the 360×640 guard at scale %s', async fontScale => {
+it.each([1, 1.3, 2])('keeps usable actions and proportional artwork on the 360×640 guard at scale %s', async fontScale => {
   const phone = { name: 'guard', width: 360, height: 640, top: 20, bottom: 0 }
   await mount(phone, fontScale, 2)
-  const g = await measure(phone, 2, fontScale > 1)
+  const g = await measure(phone, 2)
   const art = flat(visual().props.style)
   expect(Number(art.width) / Number(art.height)).toBeCloseTo(350 / g.art)
   expect(Number(art.height)).toBeGreaterThan(0)
   expect(scrollAncestor(actions(2))).toBeNull()
-  expect(upper().props.scrollEnabled).toBe(fontScale > 1)
+  expect(upper().props.scrollEnabled).toBe(false)
 })
 
 it('waits for complete reordered measurements, rejects wrong widths, and accepts smaller natural heights without a fit feedback loop', async () => {
   const phone = phones[0]
   await mount(phone, 1, 2)
   await act(async () => { screen.getByTestId('onboarding-viewport').props.onLayout(event(phone.width, phone.height)) })
-  const g = geometry(2, false)
+  const g = geometry(2)
   const emit = (id: string, height: number, width = phone.width - 40) => screen.getByTestId(id).props.onLayout(event(width, height))
   await act(async () => {
     emit('onboarding-actions', g.actions)
@@ -159,27 +156,27 @@ it('waits for complete reordered measurements, rejects wrong widths, and accepts
 it('resets scroll and measurements on Next/Back, rejecting callbacks from the previous visit', async () => {
   const phone = phones[0]
   await mount(phone, 1.35, 1)
-  await measure(phone, 1, true)
+  await measure(phone, 1)
   const oldScroll = upper()
   const oldNarrative = screen.getByTestId('onboarding-narrative').props.onLayout
   await fireEvent.press(screen.getByText(i18n.t('onboarding.next')))
   expect(upper()).not.toBe(oldScroll)
   expect(upper().props.contentOffset).toEqual({ x: 0, y: 0 })
-  await measure(phone, 2, true)
+  await measure(phone, 2)
   await fireEvent.press(screen.getByRole('button', { name: i18n.t('common.back') }))
   expect(upper()).not.toBe(oldScroll)
   expect(upper().props.contentOffset).toEqual({ x: 0, y: 0 })
   expect(upper().props.scrollEnabled).toBe(true)
-  await measure(phone, 1, false)
+  await measure(phone, 1)
   expect(upper().props.scrollEnabled).toBe(false)
   await act(async () => { oldNarrative(event(phone.width - 40, 900)) })
   expect(upper().props.scrollEnabled).toBe(false)
 })
 
-it.each(['window', 'insets', 'fontScale', 'language', 'viewport'] as const)('invalidates the complete set on a change to %s, including stale callbacks after a round trip', async change => {
+it.each(['window', 'insets', 'language', 'viewport'] as const)('invalidates the complete set on a change to %s, including stale callbacks after a round trip', async change => {
   const phone = phones[0]
   await mount(phone, 1, 0)
-  await measure(phone, 0, false)
+  await measure(phone, 0)
   const oldNarrative = screen.getByTestId('onboarding-narrative').props.onLayout
   const oldViewport = screen.getByTestId('onboarding-viewport').props.onLayout
   const oldArt = (visual().children[0] as ReturnType<typeof screen.getByTestId>).props.onLayout
@@ -189,7 +186,7 @@ it.each(['window', 'insets', 'fontScale', 'language', 'viewport'] as const)('inv
     mockInsets = { ...mockInsets, bottom: 34 }
     await screen.rerender(<Onboarding />)
   } else if (change === 'viewport') await act(async () => { oldViewport(event(phone.width, phone.height - 40)) })
-  else await act(async () => { Dimensions.set({ window: { ...Dimensions.get('window'), ...(change === 'window' ? { width: 393, height: 852 } : { fontScale: 1.35 }) } }) })
+  else await act(async () => { Dimensions.set({ window: { ...Dimensions.get('window'), width: 393, height: 852 } }) })
   expect(upper().props.scrollEnabled).toBe(true)
   await act(async () => { oldNarrative(event(phone.width - 40, 20)); oldArt(event(350, 100)) })
   expect(upper().props.scrollEnabled).toBe(true)
@@ -210,19 +207,19 @@ it.each(['window', 'insets', 'fontScale', 'language', 'viewport'] as const)('inv
 // at the safe bottom, rather than leaving unused space underneath them.
 it('anchors the footer even when natural content leaves surplus height, and provides Back on slide 2', async () => {
   await mount(phones[1], 1, 1)
-  await measure(phones[1], 1, false)
+  await measure(phones[1], 1)
   const scroll = upper()
   expect(flat(scroll.props.style).flex).toBe(1)
   expect(scrollAncestor(actions(1))).toBeNull()
   expect(screen.getByRole('button', { name: i18n.t('common.back') })).toBeTruthy()
 })
 
-it('uses one whole-screen scroll when the measured action group alone cannot fit', async () => {
+it('keeps actions outside the upper scroll even when a short screen has no art budget', async () => {
   await mount(phones[0], 1, 2)
-  await measure(phones[0], 2, false)
-  await fireEvent(screen.getByTestId('onboarding-actions'), 'layout', event(phones[0].width - 40, 800))
-  expect(scrollAncestor(actions(2))).toBe(scrollAncestor(visual()))
-  expect(scrollAncestor(actions(2))).not.toBeNull()
+  await measure(phones[0], 2)
+  await fireEvent(screen.getByTestId('onboarding-narrative'), 'layout', event(phones[0].width - 40, 800))
+  expect(scrollAncestor(actions(2))).toBeNull()
+  expect(upper().props.scrollEnabled).toBe(true)
   expect(screen.getAllByRole('button', { name: i18n.t('onboarding.start') })).toHaveLength(1)
   expect(screen.getAllByRole('button', { name: i18n.t('onboarding.guest') })).toHaveLength(1)
 })

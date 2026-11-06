@@ -29,7 +29,7 @@ it.each(['auth.signInTab', 'auth.signUpTab'] as const)('groups the %s title besi
   expect(onBack).toHaveBeenCalledTimes(1)
 })
 
-it('allows an enlarged redesign title and header to grow within the available row', async () => {
+it('allows a long redesign title and header to grow within the available row', async () => {
   const title = 'Một tiêu đề dài có thể xuống nhiều dòng trên điện thoại nhỏ'
   await render(<BackHeader redesign title={title} onBack={jest.fn()} right={<View testID="growth-right" />} />)
   const label = screen.getByText(title)
@@ -40,7 +40,7 @@ it('allows an enlarged redesign title and header to grow within the available ro
   expect(flat(label.props.style)).toMatchObject({ flexShrink: 1, minWidth: 0, textAlign: 'left' })
   expect(flat(label.props.style).marginHorizontal).toBeUndefined()
   expect(label.props.numberOfLines).toBeUndefined()
-  expect(label.props.allowFontScaling).not.toBe(false)
+  expect(label.props.allowFontScaling).toBe(false)
   expect(flat(button.props.style).flexShrink).toBe(0)
 })
 

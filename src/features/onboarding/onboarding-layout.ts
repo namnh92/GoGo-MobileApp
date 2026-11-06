@@ -18,11 +18,10 @@ export function onboardingSpacing(slide: number) {
   }
 }
 
-export function onboardingArrangement(viewportHeight: number, nonArtHeight: number, fittedArtHeight: number, fontScale: number, complete: boolean) {
+export function onboardingArrangement(viewportHeight: number, nonArtHeight: number, fittedArtHeight: number, complete: boolean) {
   const remaining = viewportHeight - nonArtHeight
-  // Astra: enlarged text keeps the independent art fit, scrolling above both
-  // actions on overflow. No arbitrary minimum art size, or zero-height success.
-  const footer = !complete || remaining <= 0 || (fontScale > 1 && fittedArtHeight > remaining)
+  // Keep actions fixed while measurements settle or a short screen has no art budget.
+  const footer = !complete || remaining <= 0
   return { footer, artBudget: footer ? undefined : remaining, spare: footer ? 0 : Math.max(0, remaining - fittedArtHeight) }
 }
 

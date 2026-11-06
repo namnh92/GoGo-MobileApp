@@ -16,22 +16,21 @@ describe('R3/D7 illustration fit', () => {
 })
 
 describe('whole-screen budget policy', () => {
-  it('retains an independently fitting reference and uniformly shrinks default-size art to the remainder', () => {
+  it('retains an independently fitting reference and uniformly shrinks art to the remainder', () => {
     const reference = fitIllustration(390, 884, 47, 34, 440)
     expect(fitIllustration(390, 884, 47, 34, 440, 350, 500)).toEqual(reference)
     const se = fitIllustration(375, 667, 20, 0, 440, 350, 241)
     expect(se.height).toBeCloseTo(241)
     expect(se.width / se.height).toBeCloseTo(350 / 440)
   })
-  it('uses the enlarged independent fit as the exact overflow boundary, even with a positive remainder', () => {
-    expect(onboardingArrangement(667, 400, 267, 1.35, true)).toMatchObject({ footer: false, artBudget: 267 })
-    expect(onboardingArrangement(667, 400, 268, 1.35, true)).toMatchObject({ footer: true, artBudget: undefined })
-    expect(onboardingArrangement(667, 400, 268, 1, true)).toMatchObject({ footer: false, artBudget: 267 })
+  it('fits art to the exact remaining-height boundary', () => {
+    expect(onboardingArrangement(667, 400, 267, true)).toMatchObject({ footer: false, artBudget: 267 })
+    expect(onboardingArrangement(667, 400, 268, true)).toMatchObject({ footer: false, artBudget: 267 })
   })
   it('reserves provisional actions and never claims zero-height art as a complete composition', () => {
-    expect(onboardingArrangement(667, 400, 200, 1, false).footer).toBe(true)
-    expect(onboardingArrangement(667, 667, 200, 1, true).footer).toBe(true)
-    expect(onboardingArrangement(667, 700, 200, 2, true).footer).toBe(true)
+    expect(onboardingArrangement(667, 400, 200, false).footer).toBe(true)
+    expect(onboardingArrangement(667, 667, 200, true).footer).toBe(true)
+    expect(onboardingArrangement(667, 700, 200, true).footer).toBe(true)
   })
 })
 
@@ -59,7 +58,7 @@ describe('rotated illustration reservation', () => {
     expect(illustrationEnvelope([])).toEqual({ x: 0, y: 0, width: 350, height: 340 })
     expect(illustrationEnvelope([{ x: 47, y: 30, width: 256, height: 280 }])).toEqual({ x: 0, y: 0, width: 350, height: 340 })
   })
-  it.each([[320, 568], [360, 640], [390, 884], [430, 932]])('reserves enlarged rotated cards and fits the union on %ix%i', (width, height) => {
+  it.each([[320, 568], [360, 640], [390, 884], [430, 932]])('reserves tall rotated cards and fits the union on %ix%i', (width, height) => {
     const rectangles = [
       { x: 2, y: 32, width: 224, height: 560, rotation: -8 },
       { x: 124, y: 56, width: 224, height: 600, rotation: 9 },
