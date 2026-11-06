@@ -82,6 +82,7 @@ import HomeScreen from '@/features/home/home.view'
 import SearchScreen from '@/features/search/search.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
+import { createQueryClient } from '@/shared/api/query-client'
 import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
 
 function emptyPage() {
@@ -178,7 +179,7 @@ describe('group 02 discovery behaviour', () => {
 })
 
 
-it.each([{ isPending: true, isSuccess: false }, { isPaused: true }, { isFetching: true }, { isFetchedAfterMount: false }])('never presents stale, offline or unfinished empty responses as zero results (%j)', async state => {
+it.each([{ isPending: true, isSuccess: false }, { isPaused: true }, { isFetching: true }, { isFetchedAfterMount: false, isStale: true }])('never presents stale, offline or unfinished empty responses as zero results (%j)', async state => {
   mockSearch.value = { ...emptyPage(), ...state }
   const view = await renderScreen(<SearchScreen />)
   expect(view.queryByText('Tìm thấy 0 địa điểm')).toBeNull()
@@ -324,7 +325,7 @@ describe('#515 Stitch search row and empty recovery', () => {
   it.each([
     { isSuccess: false, isError: true }, { isSuccess: true, isFetching: true },
     { isSuccess: true, isPaused: true }, { isSuccess: true, isPlaceholderData: true },
-    { isSuccess: true, isFetchedAfterMount: false },
+    { isSuccess: true, isFetchedAfterMount: false, isStale: true },
   ])('does not offer unavailable or stale relaxation counts (%j)', async state => {
     mockParams = { moods: 'cozy' }
     mockPreview.value = { isFetchedAfterMount: true, data: { meta: { totalCount: 9 } }, ...state }
@@ -363,7 +364,7 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(mockQueries.at(-1)?.q).toBeUndefined()
   })
 
-  it.each([{ isPaused: true }, { isFetching: true }, { isPlaceholderData: true }, { isFetchedAfterMount: false }, { isSuccess: false }])('hides nearby cached rows while not current (%j)', async state => {
+  it.each([{ isPaused: true }, { isFetching: true }, { isPlaceholderData: true }, { isFetchedAfterMount: false, isStale: true }, { isSuccess: false }])('hides nearby cached rows while not current (%j)', async state => {
     mockNearby.value = { ...emptyPage(), ...state, data: { pages: [{ results: [{ id: 'old', name: 'Stale nearby', isLodging: false }] }] } }
     const view = await renderScreen(<SearchScreen />)
     expect(view.queryByTestId('search-nearby')).toBeNull()
@@ -950,4 +951,144 @@ it('lets an explicit location-sheet apply replace the carried Home scope even wh
   await fireEvent.press(view.getByText(i18n.t('discovery.useArea')))
   expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
   expect(mockQueries.at(-1)).toMatchObject({ lat: 21, lng: 105 })
+})
+
+describe('#515 Astra F-12..F-14', () => {
+  it.each(['remount', 'close filters'])('F-12 keeps fresh empty results, counts and nearby recovery after %s with production staleTime', async action => {
+    mockRealSearch = true
+    mockParams = { q: 'tea', moods: 'cozy' }
+    const client = createQueryClient()
+    expect(client.getDefaultOptions().queries?.staleTime).toBe(30_000)
+    notifyManager.setScheduler(callback => callback())
+    const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = new URL(String(input))
+      const limit = url.searchParams.get('limit')
+      const results = limit === '2' ? [{ id: 'near', name: 'Fresh nearby', isLodging: false }] : []
+      return httpResponse({ results, nextCursor: null, meta: { totalCount: limit === '1' ? 7 : results.length } })
+    })
+    const element = <QueryClientProvider client={client}><SearchScreen /></QueryClientProvider>
+    try {
+      let view = await renderScreen(element)
+      await waitFor(() => expect(view.getByText('Fresh nearby')).toBeTruthy())
+      expect(view.getByText('+7 quán phù hợp')).toBeTruthy()
+      const requests = fetch.mock.calls.length
+      if (action === 'remount') {
+        await view.unmount()
+        await act(async () => { await jest.advanceTimersByTimeAsync(1000) })
+        view = await renderScreen(element)
+      } else {
+        await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
+        expect(view.queryByTestId('search-empty-content')).toBeNull()
+        await fireEvent.press(view.getByLabelText(i18n.t('common.close')))
+      }
+      expect(view.getByTestId('search-empty-content')).toBeTruthy()
+      expect(view.getByText('Tìm thấy 0 địa điểm')).toBeTruthy()
+      expect(view.getByText('+7 quán phù hợp')).toBeTruthy()
+      expect(view.getByText('Fresh nearby')).toBeTruthy()
+      expect(fetch).toHaveBeenCalledTimes(requests)
+      await view.unmount()
+    } finally {
+      client.clear()
+      notifyManager.setScheduler(callback => setTimeout(callback, 0))
+    }
+  })
+
+  it.each(
+    [false, true].flatMap(existingRoom => ['callout', 'preview'].map(action => ({ existingRoom, action }))),
+  )('F-13 selects a seed from the map $action (existing room: $existingRoom)', async ({ existingRoom, action }) => {
+    mockParams = { picker: '1', ...(existingRoom ? { roomId: 'room-1' } : {}) }
+    mockSearch.value = mapPages()
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+    if (action === 'callout') {
+      await fireEvent(view.getByTestId('discovery-native-map'), 'onOpen', 'second')
+    } else {
+      await fireEvent.press(view.getByLabelText(mapPlaces[1].name))
+      await fireEvent.press(view.getByText(i18n.t('discovery.openPlace')))
+    }
+    expect(mockPush).not.toHaveBeenCalled()
+    if (existingRoom) {
+      expect(mockAddSeed).toHaveBeenCalledTimes(1)
+      expect(mockAddSeed).toHaveBeenCalledWith({ placeIds: ['second'] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+      expect(useRoomStore.getState().seedPlaces).toEqual([])
+      expect(mockBack).not.toHaveBeenCalled()
+      await act(async () => { mockAddSeed.mock.calls[0][1].onSuccess() })
+    } else {
+      expect(useRoomStore.getState().seedPlaces).toContainEqual({ placeId: 'second', name: mapPlaces[1].name })
+      expect(mockAddSeed).not.toHaveBeenCalled()
+    }
+    expect(mockBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('F-13 keeps ordinary map callouts opening place detail', async () => {
+    mockSearch.value = mapPages()
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+    await fireEvent(view.getByTestId('discovery-native-map'), 'onOpen', 'second')
+    expect(mockPush).toHaveBeenCalledWith('/places/second')
+    expect(mockAddSeed).not.toHaveBeenCalled()
+    expect(useRoomStore.getState().seedPlaces).toEqual([])
+  })
+
+  it('F-14 loads all cursor pages from map, preserves markers through failure/retry, and stops at null', async () => {
+    mockRealSearch = true
+    mockParams = { q: 'tea', moods: 'cozy' }
+    const client = createQueryClient()
+    client.setDefaultOptions({ queries: { ...client.getDefaultOptions().queries, retry: false } })
+    notifyManager.setScheduler(callback => callback())
+    let failSecond = true
+    let resolveSecond: ((value: Response) => void) | undefined
+    const page = (index: number) => httpResponse({
+      results: [{ id: `map-${index}`, name: `Map page ${index}`, isLodging: false, lat: 21 + index / 100, lng: 105 }],
+      nextCursor: index === 3 ? null : `page-${index + 1}`, meta: { totalCount: 3 },
+    })
+    const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const cursor = new URL(String(input)).searchParams.get('cursor')
+      if (cursor === 'page-2') {
+        if (failSecond) { failSecond = false; return httpResponse({ code: 'INTERNAL_ERROR', message: 'Page failed' }, 500) }
+        return new Promise<Response>(resolve => { resolveSecond = resolve })
+      }
+      return page(cursor === 'page-3' ? 3 : 1)
+    })
+    try {
+      const view = await renderScreen(<QueryClientProvider client={client}><SearchScreen /></QueryClientProvider>)
+      await waitFor(() => expect(view.getByText('Map page 1')).toBeTruthy())
+      await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+      expect(view.queryByTestId('search-results')).toBeNull()
+      expect(fetch).toHaveBeenCalledTimes(1)
+      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.more') }))
+      await waitFor(() => expect(view.getByRole('button', { name: i18n.t('common.retry') })).toBeTruthy())
+      expect(within(view.getByTestId('discovery-native-map')).getByLabelText('Map page 1')).toBeTruthy()
+      expect(fetch).toHaveBeenCalledTimes(2)
+      await fireEvent.press(view.getByRole('button', { name: i18n.t('common.retry') }))
+      await waitFor(() => expect(resolveSecond).toBeDefined())
+      expect(view.getByTestId('search-loading-more')).toBeTruthy()
+      expect(view.queryByRole('button', { name: i18n.t('discovery.more') })).toBeNull()
+      await act(async () => { resolveSecond!(page(2)) })
+      await waitFor(() => expect(view.getByLabelText('Map page 2')).toBeTruthy())
+      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.more') }))
+      await waitFor(() => expect(view.getByLabelText('Map page 3')).toBeTruthy())
+      for (const index of [1, 2, 3]) expect(within(view.getByTestId('discovery-native-map')).getByLabelText(`Map page ${index}`)).toBeTruthy()
+      expect(view.queryByRole('button', { name: i18n.t('discovery.more') })).toBeNull()
+      const urls = fetch.mock.calls.map(([input]) => new URL(String(input)))
+      expect(urls.map(url => url.searchParams.get('cursor'))).toEqual([null, 'page-2', 'page-2', 'page-3'])
+      for (const url of urls) {
+        expect(url.searchParams.get('q')).toBe('tea')
+        expect(url.searchParams.get('moods')).toBe('cozy')
+        expect(url.searchParams.get('lat')).toBe('21')
+        expect(url.searchParams.get('lng')).toBe('105')
+        expect(url.searchParams.get('limit')).toBe('20')
+      }
+      expect(urls.slice(1).every(url => !url.searchParams.has('includeTotal'))).toBe(true)
+      await fireEvent.press(view.getByText(i18n.t('discovery.list')))
+      expect(view.getByTestId('search-results').props.data).toHaveLength(3)
+      await fireEvent(view.getByTestId('search-results'), 'onEndReached')
+      await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+      expect(fetch).toHaveBeenCalledTimes(4)
+      await view.unmount()
+    } finally {
+      client.clear()
+      notifyManager.setScheduler(callback => setTimeout(callback, 0))
+    }
+  })
 })

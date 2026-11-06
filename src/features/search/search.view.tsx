@@ -108,9 +108,9 @@ export default function SearchScreen() {
   const toggleSaved = useToggleSaved()
   const addSeedToRoom = useAddRoomSeedPlaces(roomId ?? '')
   const results = useMemo(() => (search.data?.pages ?? []).flatMap(page => page.results.map(result => toPlaceCard(result, labels))), [search.data, labels])
-  // Cached/offline/pending/error results never assert a successful zero result.
-  const verifiedEmpty = search.isSuccess && search.isFetchedAfterMount && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim() && results.length === 0
-  const current = search.isSuccess && search.isFetchedAfterMount && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim()
+  // A fresh cache belongs to this exact query, even before a fetch after mount.
+  const current = (isPicker || scope.status === 'ready') && search.isSuccess && (search.isFetchedAfterMount || search.isStale === false) && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim()
+  const verifiedEmpty = current && results.length === 0
   const total = current ? search.data?.pages[0]?.meta?.totalCount : undefined
   // Rollout assumes returned discovery taxonomies and search filters ship together.
   // Count availability and an empty result set cannot revoke filter controls.
@@ -169,12 +169,20 @@ export default function SearchScreen() {
     <PrimaryBtn variant="discovery" label={t('discovery.addPlace')} onPress={() => router.push('/places/import')} leadingIcon="addLocation" />
     {canSave && credits.data?.creditBalance !== undefined ? <Text variant="introCaption" color="redesign.secondary" style={styles.centerText}>{t('discovery.approvalReward')}</Text> : null}
   </View>
+  function loadMore() {
+    if (search.hasNextPage && !search.isFetching && !search.isPaused && !search.isFetchingNextPage && !search.isFetchNextPageError) void search.fetchNextPage({ cancelRefetch: false })
+  }
+  function renderPagination(onMap = false) {
+    if (search.isFetchingNextPage) return <ActivityIndicator testID="search-loading-more" />
+    if (search.isFetchNextPageError) return <ErrorState error={search.error} onRetry={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />
+    return onMap && search.hasNextPage ? <GhostBtn label={t('discovery.more')} disabled={search.isFetching || search.isPaused} onPress={loadMore} /> : null
+  }
   function renderResults(mapFallback = false) {
     return <FlatList
       testID="search-results" data={results} keyExtractor={place => place.id}
       contentContainerStyle={[styles.results, { paddingBottom: insets.bottom + 24 }]}
       keyboardShouldPersistTaps="handled" onTouchStart={() => Keyboard.dismiss()}
-      onEndReachedThreshold={0.5} onEndReached={() => { if (search.hasNextPage && !search.isFetching && !search.isFetchingNextPage && !search.isFetchNextPageError) void search.fetchNextPage({ cancelRefetch: false }) }}
+      onEndReachedThreshold={0.5} onEndReached={loadMore}
       ListHeaderComponent={mapFallback ? <Text variant="introSmall" color="redesign.secondary">{t('discovery.mapFallback')}</Text> : null}
       ListEmptyComponent={search.isPending ? <PlaceListSkeleton count={4} /> : verifiedEmpty && !sheetOpen ? <SearchEmpty
         key={JSON.stringify(searchQuery)} filters={committed} labels={labels}
@@ -183,7 +191,7 @@ export default function SearchScreen() {
         onMore={() => { clearFilters(); setQuery(''); setDebouncedQuery(''); setMode('list') }}
         onPlacePress={onPlacePress}
       /> : null}
-      ListFooterComponent={<>{search.isFetchingNextPage ? <ActivityIndicator testID="search-loading-more" /> : search.isFetchNextPageError ? <ErrorState error={search.error} onRetry={() => void search.fetchNextPage({ cancelRefetch: false })} /> : null}{results.length > 0 ? contribution : null}</>}
+      ListFooterComponent={<>{!mapFallback ? renderPagination() : null}{results.length > 0 ? contribution : null}</>}
       renderItem={({ item: place }) => {
         const card = <PlaceCard appearance="discovery" place={place} onPress={() => onPlacePress(place)} saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined} onToggleSave={canSave ? () => onBookmark(place) : undefined} style={styles.place} />
         return mapFallback ? <View>{card}<GhostBtn label={t('common.directions')} accessibilityHint={place.name} onPress={() => openGoogleMapsDirections(map.pins.find(pin => pin.id === place.id) ? `${place.lat},${place.lng}` : place.name)} /></View> : card
@@ -197,11 +205,14 @@ export default function SearchScreen() {
     if (mode !== 'map' || verifiedEmpty) return renderResults()
     if (search.isPending || (!isPicker && scope.status !== 'ready')) return <PlaceListSkeleton count={4} />
     return <View testID="search-map" style={styles.mapBlock}>
-      <MapCanvas pins={map.pins} cameraRegion={map.region} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => router.push(`/places/${id}`)} style={styles.map} fallback={renderResults(true)} />
-      {selectedPlace ? <View style={[styles.mapPreview, { bottom: insets.bottom }]}>
-        <Text variant="introHeading" color="redesign.ink">{selectedPlace.name}</Text>
-        <GhostBtn label={t('discovery.openPlace')} onPress={() => router.push(`/places/${selectedPlace.id}`)} />
-      </View> : null}
+      <View style={styles.mapBlock}>
+        <MapCanvas pins={map.pins} cameraRegion={map.region} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => { const place = results.find(result => result.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={renderResults(true)} />
+        {selectedPlace ? <View style={[styles.mapPreview, { bottom: insets.bottom }]}>
+          <Text variant="introHeading" color="redesign.ink">{selectedPlace.name}</Text>
+          <GhostBtn label={t('discovery.openPlace')} onPress={() => onPlacePress(selectedPlace)} />
+        </View> : null}
+      </View>
+      {search.hasNextPage || search.isFetchingNextPage || search.isFetchNextPageError ? <View style={[styles.mapPagination, { paddingBottom: insets.bottom }]}>{renderPagination(true)}</View> : null}
     </View>
   }
   return <Atmosphere redesign>

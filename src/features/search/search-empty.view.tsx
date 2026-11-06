@@ -33,7 +33,7 @@ function relaxations(filters: DiscoveryFilters, t: ReturnType<typeof useTranslat
 
 function useRelaxCount(candidate: Relaxation | undefined, query: PlaceSearchQuery) {
   const preview = useDiscoveryPreview({ ...query, ...filterParams(candidate?.filters ?? emptyFilters()) }, !!candidate)
-  const count = candidate && preview.isSuccess && preview.isFetchedAfterMount && !preview.isFetching && !preview.isPaused && !preview.isPlaceholderData ? preview.data?.meta?.totalCount : undefined
+  const count = candidate && preview.isSuccess && (preview.isFetchedAfterMount || preview.isStale === false) && !preview.isFetching && !preview.isPaused && !preview.isPlaceholderData ? preview.data?.meta?.totalCount : undefined
   return typeof count === 'number' && Number.isSafeInteger(count) && count > 0 ? count : undefined
 }
 
@@ -54,7 +54,7 @@ export function SearchEmpty({ filters, query, onApply, onMore, onPlacePress, lab
   const { q: _keyword, ...nearbyScope } = query
   const hasScope = (nearbyScope.lat != null && nearbyScope.lng != null) || !!nearbyScope.provinceCode
   const nearby = usePlaceSearch({ ...nearbyScope, limit: 2 }, { enabled: hasScope })
-  const places = hasScope && nearby.isSuccess && nearby.isFetchedAfterMount && !nearby.isFetching && !nearby.isPaused && !nearby.isPlaceholderData
+  const places = hasScope && nearby.isSuccess && (nearby.isFetchedAfterMount || nearby.isStale === false) && !nearby.isFetching && !nearby.isPaused && !nearby.isPlaceholderData
     ? (nearby.data?.pages[0]?.results ?? []).slice(0, 2).map(result => toPlaceCard(result, labels)) : []
   return <View testID="search-empty-content" style={styles.emptyContent}>
     <View style={styles.empty}>

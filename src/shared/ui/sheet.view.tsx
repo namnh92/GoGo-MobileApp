@@ -218,6 +218,7 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
               style={size === 'full' ? styles.bodyFull : styles.body}
               bounces={false}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
               onScroll={event => {
@@ -227,7 +228,6 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
                 viewportHeight.current = event.nativeEvent.layout.height
               }}
               contentContainerStyle={{ paddingBottom: footer ? spacing[4] : bottomPadding }}
-              onTouchStart={() => Keyboard.dismiss()}
             >
               <View ref={contentRef} collapsable={false}>
                 {children}
