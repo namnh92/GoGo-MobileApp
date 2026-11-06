@@ -238,7 +238,7 @@ export function RemoteImage({ uri, source, style, illustration = false }: Remote
 
 const styles = StyleSheet.create(theme => ({
   redesignCanvas: { backgroundColor: theme.redesign.canvas },
-  redesignHeader: { minHeight: 56, paddingHorizontal: 16, paddingVertical: 0, gap: 8 },
+  redesignHeader: { backgroundColor: theme.redesign.canvas, minHeight: 56, paddingHorizontal: 16, paddingVertical: 0, gap: 8 },
   redesignBack: { width: 44, height: 44, borderWidth: 0, backgroundColor: 'transparent' },
   redesignHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, gap: 8 },
   redesignHeaderTitle: { flexShrink: 1, minWidth: 0, textAlign: 'left' },

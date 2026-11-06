@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet, View } from 'react-native'
 import i18n from '@/shared/i18n'
 import { BackHeader } from '../primitives'
+import { themes } from '../theme'
 
 const flat = (style: unknown) => StyleSheet.flatten(style as never) as Record<string, unknown>
 
@@ -18,6 +19,9 @@ it.each(['auth.signInTab', 'auth.signUpTab'] as const)('groups the %s title besi
   expect(flat(button.props.style)).toMatchObject({ width: 44, height: 44, marginLeft: -8 })
   const header = group.parent!
   expect(screen.getByTestId('right-avatar').parent).toBe(header)
+  // S-04: the fixed header must hide content passing behind its frosted layer.
+  expect(flat(header.props.style).backgroundColor).toBe(themes.orange.redesign.canvas)
+  expect(flat(header.props.style).opacity ?? 1).toBe(1)
   expect(flat(header.props.style)).toMatchObject({ minHeight: 56, paddingHorizontal: 16, paddingVertical: 0, gap: 8 })
   // Stitch baseline: 16pt inset - 8pt button margin + 44pt target + 8pt gap.
   expect(16 - 8 + 44 + 8).toBe(60)
@@ -52,6 +56,7 @@ it('preserves the default centered title, button surface, right fallback and cal
   expect(flat(button.props.style).marginLeft).toBeUndefined()
   expect(flat(header.props.style)).toMatchObject({ paddingHorizontal: 20, paddingVertical: 12, justifyContent: 'space-between' })
   expect(flat(header.props.style).minHeight).toBeUndefined()
+  expect(flat(header.props.style).backgroundColor).toBeUndefined()
   const spacer = header.children[header.children.length - 1]
   expect(typeof spacer === 'object' ? flat(spacer.props.style).width : spacer).toBe(36)
   await fireEvent.press(button)
