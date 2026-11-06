@@ -4,6 +4,12 @@ import { resolveColor, type TextColor } from './text'
 
 /** Material Symbols, 24-unit outline grid, as used in the approved redesign. */
 const paths = {
+  storefront: 'M3 2h18l2 7v2a4 4 0 0 1-2 3.5V22H3v-7.5A4 4 0 0 1 1 11V9zm1.5 2L3 9h18l-1.5-5zM3 11a2 2 0 0 0 4 0zm6 0a2 2 0 0 0 4 0zm6 0a2 2 0 0 0 4 0zM5 15v5h3v-4h8v4h3v-5a4 4 0 0 1-5-1 4 4 0 0 1-6 0 4 4 0 0 1-3 1z',
+  addLocation: 'M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 2a5 5 0 0 1 5 5c0 3-3 7-5 10-2-3-5-7-5-10a5 5 0 0 1 5-5zm-1 2h2v2h2v2h-2v2h-2v-2H9V8h2z',
+  filterList: 'M3 5h18v2H3zm3 6h12v2H6zm4 6h4v2h-4z',
+  filterOff: 'M2.4 1L23 21.6 21.6 23l-8.6-8.6V21h-2v-8.6L1 2.4zM6 3h16v2l-6 7-1.4-1.4L19 5H8z',
+  travelExplore: 'M10 2a8 8 0 1 0 0 16 8 8 0 0 0 3.8-1l6.8 6.8L22 22.4 15.2 15.6A8 8 0 0 0 10 2zm0 2a6 6 0 0 1 5.9 5H12V4.3zm-2 .3V9H4.1A6 6 0 0 1 8 4.3zM4.1 11H8v4.7A6 6 0 0 1 4.1 11zm7.9 0h3.9a6 6 0 0 1-3.9 4.7z',
+  payments: 'M2 6h20v14H2zm2 2v10h16V8zm8 1a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM0 3h19v2H2v12H0z',
   nearMe: 'M21 3L3 10.5v1.4l7.1 2.9 2.9 7.1h1.4L22 4zm-6.7 15.7l-2.2-5.4-5.4-2.2 12-5z',
   expandMore: 'M6.4 8.6L12 14.2l5.6-5.6L19 10l-7 7-7-7z',
   chevronRight: 'M8.6 5L7.2 6.4l5.6 5.6-5.6 5.6L8.6 19l7-7z',

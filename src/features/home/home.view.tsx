@@ -25,9 +25,8 @@ import {
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { track } from '@/shared/analytics'
-import { useUnreadInbox } from '@/features/notifications/unread-count'
 import { useSession } from '@/shared/providers/session-provider'
-import { badgeLabel } from '@/shared/ui/count-badge.view'
+import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
@@ -56,7 +55,6 @@ export default function HomeScreen() {
   const fab = useAssistantFabScroll('home')
 
   const { status } = useSession()
-  const unread = useUnreadInbox()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
 
   // Saving needs an account: a guest token gets 403 USER_ONLY.
@@ -157,20 +155,7 @@ export default function HomeScreen() {
         <Text variant="introSmall" color="redesign.secondary">•</Text>
         <Text variant="introSmall" color="redesign.secondary" style={{ flex: 1 }}>{t('discovery.home')}</Text>
         <Pressable style={styles.headerAction} onPress={() => router.push('/places/search')} accessibilityRole="button" accessibilityLabel={t('search.title')}><MaterialIcon name="search" size={22} /></Pressable>
-        <Pressable
-          testID="home-bell"
-          onPress={() => router.push('/notifications')}
-          accessibilityRole="button"
-          accessibilityLabel={
-            unread.count > 0
-              ? t('home.bellUnread', { count: badgeLabel(unread.count, unread.more) })
-              : t('notifications.title')
-          }
-          style={styles.headerAction}
-        >
-          <Icon name="bell" size={22} color="redesign.primaryText" />
-          {unread.count > 0 ? <View testID="home-unread-dot" style={styles.bellBadge} /> : null}
-        </Pressable>
+        <HeaderNotificationButton testID="home-bell" unreadDotTestID="home-unread-dot" />
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView

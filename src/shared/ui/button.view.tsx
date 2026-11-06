@@ -105,6 +105,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         styles.base,
         ...kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed),
         stitch && styles[variant],
+        variant === 'discovery' && kind === 'primary' && styles.discoveryPrimary,
         variant === 'discovery' && greyed && styles.primaryDisabled,
         stitch && pressed && !inactive && !reduced && (variant === 'stitchSubtle' ? styles.stitchPressedSubtle : styles.stitchPressed),
         style,
@@ -114,7 +115,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       {icon && !loading && !stitch ? <Icon name={icon} size={18} color={iconColor} /> : null}
       {leadingIcon && !loading ? <MaterialIcon name={leadingIcon} size={20} color={iconColor} /> : null}
       <Text
-        variant={stitch ? (kind === 'primary' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
+        variant={stitch ? (kind === 'primary' || variant === 'discovery' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
         color={greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
         numberOfLines={stitch ? undefined : 1}
         ellipsizeMode="tail"

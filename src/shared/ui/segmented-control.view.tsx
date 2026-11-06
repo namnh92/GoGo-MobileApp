@@ -6,13 +6,13 @@ import { styles } from './segmented-control.style'
 export function SegmentedControl<Value extends string>({ options, value, onChange, disabled = false, compact = false }: {
   options: readonly { value: Value; label: string; icon?: MaterialIconName }[]; value: Value; onChange: (value: Value) => void; disabled?: boolean; compact?: boolean
 }) {
-  return <View style={styles.track}><View testID="segmented-rail" pointerEvents="none" style={styles.rail} />{options.map(option => <Pressable key={option.value}
+  return <View style={[styles.track, compact && styles.compactTrack]}><View testID="segmented-rail" pointerEvents="none" style={[styles.rail, compact && styles.compactRail]} />{options.map(option => <Pressable key={option.value}
     onPress={() => onChange(option.value)} disabled={disabled} accessibilityRole="tab"
     accessibilityState={{ selected: option.value === value, disabled }}
-    style={[styles.tab, disabled && styles.disabled]}>
+    style={[styles.tab, compact && styles.compactTab, disabled && styles.disabled]}>
     {({ pressed }) => <View style={[styles.surface, compact && styles.compact, option.value === value && styles.selected, pressed && styles.pressed]}>
-    {option.icon ? <MaterialIcon name={option.icon} size={16} color="redesign.secondary" /> : null}
-    <Text variant={compact ? 'introCaptionMedium' : option.value === value ? 'introLabel' : 'introSmall'} color={option.value === value ? 'redesign.ink' : 'redesign.secondary'}>{option.label}</Text>
+    {option.icon ? <MaterialIcon name={option.icon} size={compact ? 14 : 16} color={option.value === value ? 'redesign.ink' : 'redesign.secondary'} /> : null}
+    <Text numberOfLines={1} variant={compact ? 'introCaptionMedium' : option.value === value ? 'introLabel' : 'introSmall'} color={option.value === value ? 'redesign.ink' : 'redesign.secondary'}>{option.label}</Text>
     </View>}
   </Pressable>)}</View>
 }

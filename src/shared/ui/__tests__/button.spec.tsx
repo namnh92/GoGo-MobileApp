@@ -17,6 +17,21 @@ const button = (name: string) => screen.getByRole('button', { name })
 const labelColor = (label: string) => flat(screen.getByText(label)).color
 
 describe('owner D1 Stitch buttons', () => {
+  it('gives discovery primary and secondary CTAs the same size and typography with one filled action', async () => {
+    await render(<>
+      <PrimaryBtn variant="discovery" label="Reset search" leadingIcon="tune" onPress={jest.fn()} />
+      <SecondaryBtn variant="discovery" label="Ask GoGo AI" leadingIcon="sparkle" onPress={jest.fn()} />
+    </>)
+    for (const name of ['Reset search', 'Ask GoGo AI']) {
+      expect(flat(button(name))).toMatchObject({
+        minHeight: 48, height: undefined, borderRadius: 999,
+        paddingVertical: 12, paddingHorizontal: 16, gap: 4, borderWidth: 1,
+      })
+      expect(flat(screen.getByText(name))).toMatchObject(type.introHeading)
+    }
+    expect(flat(button('Reset search')).backgroundColor).toBe(orange.primary)
+    expect(flat(button('Ask GoGo AI'))).toMatchObject({ backgroundColor: surface.card, borderColor: orange.primary })
+  })
   it('uses the drawn 48px CTA with a 17px label and press scale', async () => {
     await render(<PrimaryBtn variant="stitch" label="Tiếp theo" icon="arrowRight" onPress={jest.fn()} />)
     expect(flat(button('Tiếp theo'))).toMatchObject({ minHeight: 48, borderRadius: 12 })

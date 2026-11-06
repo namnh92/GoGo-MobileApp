@@ -25,6 +25,8 @@ let mockUnread = { count: 0, more: false }
 let mockHomeRoom: unknown = undefined
 let mockCredits: unknown = undefined
 const mockSearch: { value: Record<string, unknown> } = { value: {} }
+const mockNearby: { value: Record<string, unknown> } = { value: {} }
+let mockPreviewFor: ((query: Record<string, unknown>) => Record<string, unknown>) | undefined
 
 let mockMapUnavailable = false
 jest.mock('@/shared/ui/map-canvas.view', () => ({
@@ -65,7 +67,7 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useHomeRoom: () => mockLoaded(mockHomeRoom),
   useContributionCredits: () => mockLoaded(mockCredits),
-  useDiscoveryPreview: (query: Record<string, unknown>, enabled: boolean) => { mockPreviewCalls.push({ query, enabled }); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').useDiscoveryPreview(query, enabled) : mockPreview.value },
+  useDiscoveryPreview: (query: Record<string, unknown>, enabled: boolean) => { mockPreviewCalls.push({ query, enabled }); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').useDiscoveryPreview(query, enabled) : mockPreviewFor?.(query) ?? mockPreview.value },
   useJoinRoom: () => ({ mutateAsync: jest.fn() }),
   useMe: () => mockLoaded({ homeAdministrativeArea: null }),
   useSaved: () => mockLoaded([]),
@@ -73,13 +75,14 @@ jest.mock('@/shared/api', () => ({
   useAddRoomSeedPlaces: () => ({ mutate: mockAddSeed }),
   useTaxonomies: () =>
     mockLoaded({ kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }], ...mockKinds } }),
-  usePlaceSearch: (query: Record<string, unknown>) => { mockQueries.push(query); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').usePlaceSearch(query) : mockSearch.value },
+  usePlaceSearch: (query: Record<string, unknown>, options?: { enabled?: boolean }) => { if (query.limit !== 2) mockQueries.push(query); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').usePlaceSearch(query, options) : query.limit === 2 ? mockNearby.value : mockSearch.value },
 }))
 
 import HomeScreen from '@/features/home/home.view'
 import SearchScreen from '@/features/search/search.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
+import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
 
 function emptyPage() {
   return {
@@ -107,6 +110,8 @@ beforeEach(() => {
   mockHomeRoom = undefined
   mockCredits = undefined
   mockPreview.value = {}
+  mockPreviewFor = undefined
+  mockNearby.value = emptyPage()
   mockPreviewCalls.length = 0
   mockPush.mockClear()
   mockBack.mockClear()
@@ -151,6 +156,25 @@ describe('group 02 discovery behaviour', () => {
     expect(view.getByText('Tìm thấy 0 địa điểm')).toBeTruthy()
     expect(view.queryByText('Gợi ý nới lỏng bộ lọc')).toBeNull()
   })
+  it('shares empty-result CTA geometry, typography and icon sizing with one dominant primary', async () => {
+    const view = await renderScreen(<SearchScreen />)
+    const reset = view.getByRole('button', { name: i18n.t('discovery.resetSearch') })
+    const ai = view.getByRole('button', { name: i18n.t('discovery.askAI') })
+    for (const [button, label] of [[reset, 'discovery.resetSearch'], [ai, 'discovery.askAI']] as const) {
+      expect(StyleSheet.flatten(button.props.style)).toMatchObject({
+        minHeight: 48, height: undefined, borderRadius: 999,
+        paddingVertical: 12, paddingHorizontal: 16, gap: 4, borderWidth: 1,
+      })
+      expect(StyleSheet.flatten(view.getByText(i18n.t(label)).props.style)).toMatchObject(type.introHeading)
+      const icon = button.children[0]
+      if (typeof icon === 'string') throw new Error('Expected the shared Material icon')
+      expect(icon.props).toMatchObject({ bbWidth: 20, bbHeight: 20 })
+    }
+    expect(StyleSheet.flatten(reset.props.style).backgroundColor).toBe(accents.orange.primary)
+    expect(StyleSheet.flatten(ai.props.style)).toMatchObject({ backgroundColor: surface.card, borderColor: accents.orange.primary })
+    await fireEvent.press(ai)
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/assistant' })
+  })
 })
 
 
@@ -179,12 +203,13 @@ it.each([false, true])('preserves wizard/existing-room picker callbacks (%s)', a
 })
 it('clear query debounces to an empty query and contribution opens the real import route', async () => {
   mockParams = { q: 'coffee' }
+  mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'known', name: 'Known place', isLodging: false }] }] } }
   const view = await renderScreen(<SearchScreen />)
   expect(mockQueries.at(-1)?.q).toBe('coffee')
   await fireEvent.press(view.getByRole('button', { name: 'Xóa nội dung' }))
   await act(async () => { await jest.advanceTimersByTimeAsync(300) })
   expect(mockQueries.at(-1)?.q).toBeUndefined()
-  await fireEvent.press(view.getByRole('button', { name: 'Thêm địa điểm' }))
+  await fireEvent.press(view.getByRole('button', { name: 'Thêm địa điểm mới' }))
   expect(mockPush).toHaveBeenCalledWith('/places/import')
 })
 
@@ -249,6 +274,7 @@ describe('#774 integration', () => {
     expect(view.getByText('Old response')).toBeTruthy()
   })
   it('shows the approval reward when credits are supported, including a zero balance', async () => {
+    mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'known', name: 'Known place', isLodging: false }] }] } }
     const view = await renderScreen(<SearchScreen />)
     expect(view.queryByText('+50 credit GoGo AI sau khi được duyệt')).toBeNull()
     mockCredits = { creditBalance: 0 }
@@ -258,6 +284,105 @@ describe('#774 integration', () => {
 })
 
 const roomFacts = { id: 'nearest', status: 'ready', startAt: null, endAt: null }
+describe('#515 Stitch search row and empty recovery', () => {
+  it('keeps the count and intrinsic-width tabs on one row and highlights only the number', async () => {
+    const view = await renderScreen(<SearchScreen />)
+    const row = StyleSheet.flatten(view.getByTestId('search-summary-row').props.style)
+    expect(row.flexDirection).toBe('row')
+    expect(row.flexWrap).toBeUndefined()
+    expect(StyleSheet.flatten(view.getByText('0').props.style).color).toBe(redesignLight.primary)
+    expect(view.getByText('Tìm thấy 0 địa điểm')).toBeTruthy()
+    expect(view.getByTestId('search-filter-off-badge')).toBeTruthy()
+    expect(view.queryByText(i18n.t('discovery.contributeTitle'))).toBeNull()
+    expect(view.queryByText(i18n.t('discovery.addPlace'))).toBeNull()
+  })
+
+  it('previews only current criteria, hides unknown/zero counts, and applies a real budget relaxation', async () => {
+    mockParams = { q: 'tea', moods: 'cozy' }
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByLabelText('Bộ lọc'))
+    await fireEvent.changeText(view.getByLabelText('Giá đến (nghìn đồng / người)'), '100')
+    await fireEvent.press(view.getByLabelText('Mở cửa ngay'))
+    mockPreviewFor = query => ({ isSuccess: true, isFetchedAfterMount: true, data: { meta: { totalCount: query.priceMaxPerPerson === 150000 ? 7 : query.openAt ? undefined : 0 } } })
+    await fireEvent.press(view.getByText('Áp dụng bộ lọc'))
+    const block = within(view.getByTestId('search-relaxations'))
+    expect(block.getByText('+7 quán phù hợp')).toBeTruthy()
+    expect(block.queryByText(/Bỏ tiêu chí/)).toBeNull()
+    const previews = mockPreviewCalls.filter(call => call.enabled).slice(-3)
+    expect(previews).toHaveLength(3)
+    expect(previews.map(call => call.query)).toEqual([
+      expect.objectContaining({ lat: 21, lng: 105, q: 'tea', priceMaxPerPerson: 150000, openAt: 'now', moods: 'cozy' }),
+      expect.objectContaining({ lat: 21, lng: 105, q: 'tea', priceMaxPerPerson: 100000, moods: 'cozy' }),
+      expect.objectContaining({ lat: 21, lng: 105, q: 'tea', priceMaxPerPerson: 100000, openAt: 'now' }),
+    ])
+    expect(previews[1].query.openAt).toBeUndefined()
+    expect(previews[2].query.moods).toBeUndefined()
+    await fireEvent.press(block.getByRole('button', { name: 'Áp dụng: Tăng ngân sách lên ~150k/người' }))
+    expect(mockQueries.at(-1)).toMatchObject({ q: 'tea', priceMaxPerPerson: 150000, openAt: 'now', moods: 'cozy', lat: 21, lng: 105 })
+  })
+
+  it.each([
+    { isSuccess: false, isError: true }, { isSuccess: true, isFetching: true },
+    { isSuccess: true, isPaused: true }, { isSuccess: true, isPlaceholderData: true },
+    { isSuccess: true, isFetchedAfterMount: false },
+  ])('does not offer unavailable or stale relaxation counts (%j)', async state => {
+    mockParams = { moods: 'cozy' }
+    mockPreview.value = { isFetchedAfterMount: true, data: { meta: { totalCount: 9 } }, ...state }
+    const view = await renderScreen(<SearchScreen />)
+    expect(view.queryByTestId('search-relaxations')).toBeNull()
+  })
+
+  it('drops the whole OR group and preserves keyword and scope', async () => {
+    mockParams = { moods: 'cozy,quiet', q: 'tea' }
+    mockPreview.value = { isSuccess: true, isFetchedAfterMount: true, data: { meta: { totalCount: 4 } } }
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByRole('button', { name: /Bỏ chọn: Bỏ tiêu chí/ }))
+    expect(mockQueries.at(-1)).toMatchObject({ lat: 21, lng: 105, q: 'tea' })
+    expect(mockQueries.at(-1)?.moods).toBeUndefined()
+    expect(view.queryByTestId('search-relaxations')).toBeNull()
+  })
+
+  it('shows compact real nearby rows, omits unknown facts, and opens the place or unrestricted list', async () => {
+    mockParams = { moods: 'cozy', q: 'tea' }
+    mockNearby.value = { ...emptyPage(), data: { pages: [{ results: [
+      { id: 'near', name: 'Nearby cafe', isLodging: false, distanceM: 800, verification: { status: 'verified' } },
+      { id: 'other', name: 'Other cafe', isLodging: false },
+      { id: 'hidden', name: 'Third cafe', isLodging: false },
+    ] }] } }
+    const view = await renderScreen(<SearchScreen />)
+    expect(view.getAllByTestId('search-nearby-place')).toHaveLength(2)
+    expect(view.queryByText('Third cafe')).toBeNull()
+    expect(view.getByText('Hoặc khám phá các quán gần bạn')).toBeTruthy()
+    expect(view.getByText('800 m')).toBeTruthy()
+    expect(view.queryByText(/thịnh hành|Hot tuần này|\/người|Google|GoGo$/)).toBeNull()
+    await fireEvent.press(view.getByRole('button', { name: 'Nearby cafe' }))
+    expect(mockPush).toHaveBeenLastCalledWith('/places/near')
+    await fireEvent.press(view.getByRole('button', { name: 'Xem thêm' }))
+    expect(mockQueries.at(-1)).toMatchObject({ lat: 21, lng: 105 })
+    expect(mockQueries.at(-1)?.moods).toBeUndefined()
+    expect(mockQueries.at(-1)?.q).toBeUndefined()
+  })
+
+  it.each([{ isPaused: true }, { isFetching: true }, { isPlaceholderData: true }, { isFetchedAfterMount: false }, { isSuccess: false }])('hides nearby cached rows while not current (%j)', async state => {
+    mockNearby.value = { ...emptyPage(), ...state, data: { pages: [{ results: [{ id: 'old', name: 'Stale nearby', isLodging: false }] }] } }
+    const view = await renderScreen(<SearchScreen />)
+    expect(view.queryByTestId('search-nearby')).toBeNull()
+  })
+
+  it('uses verification, rating provenance and price only when the nearby response supplies them', async () => {
+    mockNearby.value = { ...emptyPage(), data: { pages: [{ results: [
+      { id: 'verified', name: 'Verified cafe', isLodging: false, verification: { status: 'verified' }, rating: 4.6, ratingCount: 980, pricePerPerson: { min: 65000, max: 65000, currency: 'VND', confidence: 1 } },
+      { id: 'unknown', name: 'Unknown facts', isLodging: false },
+    ] }] } }
+    const view = await renderScreen(<SearchScreen />)
+    const [known, unknown] = view.getAllByTestId('search-nearby-place').map(row => within(row))
+    expect(known.getByText('Xác minh')).toBeTruthy()
+    expect(known.getByText(/4,6 \(980\) Google/)).toBeTruthy()
+    expect(known.getByText(/65k/)).toBeTruthy()
+    expect(unknown.queryByText(/Xác minh|Google|GoGo|65k|người/)).toBeNull()
+  })
+})
+
 it.each(['vi', 'en'])('keeps untitled couple/group banners with localized room facts (%s)', async locale => {
   await act(async () => { await i18n.changeLanguage(locale) })
   try {
@@ -326,6 +451,56 @@ it.each([true, false])('keeps a carried mood removable on an uncounted empty Sea
 function httpResponse(body: unknown, status = 200): Response {
   return { ok: status < 400, status, headers: new Headers({ 'content-type': 'application/json' }), json: async () => body, text: async () => JSON.stringify(body) } as Response
 }
+
+it.each([7, 0, undefined])('empty recovery uses real search/preview HTTP and never invents counts (%s)', async count => {
+  mockRealSearch = true
+  mockParams = { q: 'tea', moods: 'cozy,quiet' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  notifyManager.setScheduler(callback => callback())
+  const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+    const url = new URL(String(input))
+    const limit = url.searchParams.get('limit')
+    if (limit === '1') {
+      if (url.searchParams.has('includeTotal') && count === undefined) return httpResponse({ code: 'SEARCH_COUNT_UNAVAILABLE', message: 'Unavailable' }, 503)
+      return httpResponse({ results: [], nextCursor: null, meta: count === undefined ? {} : { totalCount: count } })
+    }
+    const results = limit === '2' ? [{ id: 'near', name: 'Nearby from HTTP', isLodging: false }]
+      : url.searchParams.has('moods') ? [] : [{ id: 'recovered', name: 'Recovered from HTTP', isLodging: false }]
+    return httpResponse({ results, nextCursor: null, meta: { totalCount: results.length } })
+  })
+  try {
+    const view = await renderScreen(<QueryClientProvider client={client}><SearchScreen /></QueryClientProvider>)
+    await waitFor(() => expect(client.isFetching()).toBe(0))
+    expect(view.getByText('Nearby from HTTP')).toBeTruthy()
+    const urls = fetch.mock.calls.map(([input]) => new URL(String(input)))
+    const nearby = urls.find(url => url.searchParams.get('limit') === '2')!
+    expect(nearby.searchParams.get('lat')).toBe('21')
+    expect(nearby.searchParams.get('lng')).toBe('105')
+    expect(nearby.searchParams.has('q')).toBe(false)
+    expect(nearby.searchParams.has('moods')).toBe(false)
+    const preview = urls.find(url => url.searchParams.get('limit') === '1')!
+    expect(preview.searchParams.get('q')).toBe('tea')
+    expect(preview.searchParams.get('lat')).toBe('21')
+    expect(preview.searchParams.get('lng')).toBe('105')
+    expect(preview.searchParams.has('moods')).toBe(false)
+    expect(preview.searchParams.get('includeTotal')).toBe('true')
+    expect(view.queryByText(i18n.t('discovery.contributeTitle'))).toBeNull()
+    if (count) {
+      expect(view.getByText('+7 quán phù hợp')).toBeTruthy()
+      await fireEvent.press(view.getByRole('button', { name: /Bỏ chọn: Bỏ tiêu chí/ }))
+      await waitFor(() => expect(view.getByText('Recovered from HTTP')).toBeTruthy())
+      expect(view.queryByTestId('search-empty-content')).toBeNull()
+      expect(view.getByText(i18n.t('discovery.contributeTitle'))).toBeTruthy()
+    } else {
+      expect(view.queryByTestId('search-relaxations')).toBeNull()
+      expect(view.getByText(i18n.t('discovery.emptyTitle'))).toBeTruthy()
+    }
+    await view.unmount()
+  } finally {
+    client.clear()
+    fetch.mockRestore()
+  }
+})
 
 it.each(['SEARCH_COUNT_UNAVAILABLE', 'RATE_LIMITED'])('typing and preview use real hooks through HTTP count failures (%s)', async code => {
   mockRealSearch = true
@@ -414,11 +589,11 @@ describe('owner verification round 1 — O-1..O-3/O-5 entry', () => {
     }
   })
 
-  it('pushes account above search and opens the public location sheet', async () => {
+  it('preserves the query when opening notifications and opens the public location sheet', async () => {
     const view = await renderScreen(<SearchScreen />)
     await fireEvent.changeText(view.getByLabelText('Tìm địa điểm'), 'retained query')
-    await fireEvent.press(view.getByLabelText(i18n.t('profile.title')))
-    expect(mockPush).toHaveBeenCalledWith('/settings/account')
+    await fireEvent.press(view.getByRole('button', { name: i18n.t('notifications.title') }))
+    expect(mockPush).toHaveBeenCalledWith('/notifications')
     expect(view.getByLabelText('Tìm địa điểm').props.value).toBe('retained query')
     await fireEvent.press(view.getByLabelText(i18n.t('home.chooseArea')))
     expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
@@ -525,21 +700,27 @@ describe('owner verification round 2 — O-4 full-content map', () => {
 })
 
 
-describe('#515 owner round 2 — Home notifications and suggestions', () => {
-  it.each([0, 3])('has one header notification entry, no avatar, and preserves unread behaviour (%s)', async count => {
-    mockUnread = { count, more: false }
-    const view = await renderScreen(<HomeScreen />)
-    const bell = within(view.getByTestId('home-header')).getByTestId('home-bell')
-    expect(view.getAllByTestId('home-bell')).toHaveLength(1)
-    const label = count ? i18n.t('home.bellUnread', { count: String(count) }) : i18n.t('notifications.title')
+describe('#515 owner — shared Home/Search notifications and Home suggestions', () => {
+  it.each(
+    [{ screen: 'home', Screen: HomeScreen }, { screen: 'search', Screen: SearchScreen }].flatMap(screen =>
+      [{ count: 0, more: false, spokenCount: '' }, { count: 3, more: false, spokenCount: '3' }, { count: 3, more: true, spokenCount: '3+' }, { count: 12, more: false, spokenCount: '9+' }].map(unread => ({ ...screen, ...unread }))),
+  )('$screen has one header notification entry, no avatar, and preserves unread behaviour ($count/$more)', async ({ screen, Screen, count, more, spokenCount }) => {
+    mockUnread = { count, more }
+    const view = await renderScreen(<Screen />)
+    const header = within(view.getByTestId(`${screen}-header`))
+    const bell = header.getByTestId(`${screen}-bell`)
+    expect(view.getAllByTestId(`${screen}-bell`)).toHaveLength(1)
+    const label = count ? i18n.t('home.bellUnread', { count: spokenCount }) : i18n.t('notifications.title')
     expect(view.getAllByRole('button', { name: label })).toHaveLength(1)
     expect(view.queryByRole('button', { name: i18n.t('profile.title') })).toBeNull()
+    expect(header.queryByTestId('avatar-image')).toBeNull()
     const target = StyleSheet.flatten(bell.props.style)
     expect(target.width).toBeGreaterThanOrEqual(44)
     expect(target.height).toBeGreaterThanOrEqual(44)
-    expect(view.queryByTestId('home-unread-dot') !== null).toBe(count > 0)
+    expect(header.queryByTestId(`${screen}-unread-dot`) !== null).toBe(count > 0)
     await fireEvent.press(bell)
     expect(mockPush).toHaveBeenCalledWith('/notifications')
+    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
   it('renders only the first five suggestions with no Home pagination', async () => {
@@ -751,6 +932,7 @@ describe('owner verification round 3', () => {
     await act(async () => { await i18n.changeLanguage(locale) })
     try {
       mockCredits = { creditBalance: 0 }
+      mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'known', name: 'Known place', isLodging: false }] }] } }
       const view = await renderScreen(<SearchScreen />)
       expect(view.getByText(locale === 'vi' ? '+50 credit GoGo AI sau khi được duyệt' : '+50 GoGo AI credits after approval')).toBeTruthy()
       expect(view.queryByText(/1 (tin nhắn|message) = 1 credit/)).toBeNull()
