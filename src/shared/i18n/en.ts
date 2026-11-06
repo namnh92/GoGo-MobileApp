@@ -20,7 +20,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "discovery.priceFrom": "From (minimum)",
   "discovery.priceTo": "To (maximum)",
   "discovery.priceUnit": "thousand VND / person",
-  "discovery.priceRange": "Price range",
+  "discovery.priceRange": "Price range / person",
   "discovery.scopeArea": "Discovery area: {{area}}",
   "discovery.useArea": "Use this area",
   "discovery.mapCurrentLocation": "The map marks your current location.",

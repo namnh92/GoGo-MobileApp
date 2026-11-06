@@ -147,6 +147,8 @@ it.each([false, true])('preserves wizard/existing-room picker callbacks (%s)', a
   mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'place-1', name: 'Place', isLodging: false, lat: 10, lng: 106 }], meta: {} }] } }
   const view = await renderScreen(<SearchScreen />)
   expect(mockQueries.at(-1)).toMatchObject({ lat: 10, lng: 106 })
+  expect(view.getByText(i18n.t('discovery.searchTitle'))).toBeTruthy()
+  expect(view.queryByLabelText(i18n.t('home.chooseArea'))).toBeNull()
   await fireEvent.press(view.getByTestId('place-card-open-target'))
   if (existingRoom) expect(mockAddSeed).toHaveBeenCalledWith({ placeIds: ['place-1'] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
   else { expect(useRoomStore.getState().seedPlaces).toContainEqual({ placeId: 'place-1', name: 'Place' }); expect(mockBack).toHaveBeenCalled() }
@@ -371,12 +373,12 @@ describe('owner verification round 1 — O-1..O-3/O-5 entry', () => {
     expect(view.getByLabelText('Mở cửa ngay').props.accessibilityState.selected).toBe(true)
   })
 
-  it.each(['vi', 'en'])('shows matching price placeholders, two k suffixes, and sends integer VND in %s', async locale => {
+  it.each([['vi', 'Khoảng giá / người'], ['en', 'Price range / person']])('shows per-person scope once, two k suffixes, and sends integer VND in %s', async (locale, heading) => {
     await act(async () => { await i18n.changeLanguage(locale) })
     try {
       const view = await renderScreen(<SearchScreen />)
       await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
-      expect(view.getByText(i18n.t('discovery.priceRange'))).toBeTruthy()
+      expect(view.getAllByText(heading)).toHaveLength(1)
       expect(view.queryByText(i18n.t('discovery.priceUnit'))).toBeNull()
       expect(view.getAllByText('k')).toHaveLength(2)
       await fireEvent.changeText(view.getByPlaceholderText(i18n.t('search.priceFrom')), '150')

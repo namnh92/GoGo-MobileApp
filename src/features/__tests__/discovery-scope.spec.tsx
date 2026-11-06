@@ -150,13 +150,22 @@ describe('owner O-6 default discovery area', () => {
     mockAdministrative.provinces = [{ code: 'source-code', name: 'Hồ Chí Minh', fullName: 'Thành phố Hồ Chí Minh', level: 'PROVINCE', status: 'ACTIVE', isCurrent: true }]
   }
 
-  it.each(['denied', 'not asked', 'unavailable'])('defaults to the published HCM province when location is %s', async () => {
+  it.each(['denied', 'not asked', 'unavailable'])('defaults to the published HCM province without a profile area when location is %s', async () => {
     // All three outcomes of readFreshPosition are null; no permission is requested here.
     publishedCity()
     const { result } = await renderHook(() => useDiscoveryScope({ profileArea: null, profilePending: false }))
     await settle()
     expect(result.current.scope).toMatchObject({ source: 'default_area', area: { provinceName: 'Thành phố Hồ Chí Minh', communeCode: null } })
     expect(scopeSearchParams(result.current.scope)).toEqual({ datasetVersion: 'published-2026', provinceCode: 'source-code' })
+  })
+
+  it('prefers the profile city over HCM when location is not shared (F-08 owner decision)', async () => {
+    publishedCity()
+    const profileArea = { ...AREA, provinceCode: '01', provinceName: 'Thành phố Hà Nội', communeCode: null, communeName: null }
+    const { result } = await renderHook(() => useDiscoveryScope({ profileArea: { ...profileArea, status: 'current' }, profilePending: false }))
+    await settle()
+    expect(result.current.scope).toEqual({ status: 'ready', source: 'profile_area', area: profileArea })
+    expect(scopeSearchParams(result.current.scope)).toEqual({ datasetVersion: 'ds-2026', provinceCode: '01' })
   })
 
   it('waits for the default lookup rather than issuing an unscoped request', async () => {

@@ -12,7 +12,7 @@ export const viMessages = {
   "discovery.priceFrom": "Từ (tối thiểu)",
   "discovery.priceTo": "Đến (tối đa)",
   "discovery.priceUnit": "nghìn đồng / người",
-  "discovery.priceRange": "Khoảng giá",
+  "discovery.priceRange": "Khoảng giá / người",
   "discovery.scopeArea": "Khu vực khám phá: {{area}}",
   "discovery.useArea": "Dùng khu vực này",
   "discovery.mapCurrentLocation": "Bản đồ đánh dấu vị trí hiện tại của bạn.",

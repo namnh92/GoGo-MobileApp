@@ -135,10 +135,12 @@ export default function SearchScreen() {
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} style={styles.back} onPress={() => router.back()}><MaterialIcon name="arrowBack" /></Pressable>
-        <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => router.push('/places/location')}>
+        {isPicker ? <View style={styles.scope}>
           <Text variant="discoveryHeader" color="redesign.ink">{t('discovery.searchTitle')}</Text>
-          {!isPicker ? <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text></View> : null}
-        </Pressable>
+        </View> : <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => router.push('/places/location')}>
+          <Text variant="discoveryHeader" color="redesign.ink">{t('discovery.searchTitle')}</Text>
+          <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text></View>
+        </Pressable>}
         <Pressable accessibilityRole="button" accessibilityLabel={t('profile.title')} style={styles.avatar} onPress={() => router.push('/settings/account')}>
           {me.data?.displayName?.trim() ? <AvatarCircle label={me.data.displayName.trim().charAt(0).toUpperCase()} size={32} imageUri={me.data.avatarUrl} /> : <MaterialIcon name="user" />}
         </Pressable>
