@@ -12,6 +12,7 @@ const mockPush = jest.fn()
 const mockSession = { status: 'user' as string }
 const mockMe: { query: QueryLike } = { query: loaded({ homeAdministrativeArea: null }) }
 const mockScope: { value: unknown } = { value: { status: 'resolving' } }
+const mockRetryScope = jest.fn(async () => undefined)
 const mockRecheck = jest.fn(async () => undefined)
 const mockRequest = jest.fn(async () => ({ status: 'granted', lat: 10.77, lng: 106.7, label: null }))
 const mockSearchCalls: { query: Record<string, unknown>; options: { enabled?: boolean } }[] = []
@@ -31,7 +32,7 @@ jest.mock('@/shared/location/use-current-location', () => ({
 }))
 jest.mock('@/shared/location/use-discovery-scope', () => ({
   ...jest.requireActual('@/shared/location/use-discovery-scope'),
-  useDiscoveryScope: () => ({ scope: mockScope.value, recheck: mockRecheck }),
+  useDiscoveryScope: () => ({ scope: mockScope.value, recheck: mockRecheck, retry: mockRetryScope }),
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -78,6 +79,7 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 beforeEach(() => {
   mockPush.mockClear()
   mockRecheck.mockClear()
+  mockRetryScope.mockClear()
   mockRequest.mockClear()
   mockSearchCalls.length = 0
   mockSession.status = 'user'
@@ -273,4 +275,14 @@ describe('Home × connectivity', () => {
     expect(view.getByText('Không tải được gợi ý.')).toBeTruthy()
     expect(view.queryByText(FAILED)).toBeNull()
   })
+})
+
+
+it('offers a retry for a failed default-area lookup without running an unscoped search', async () => {
+  mockScope.value = { status: 'unavailable', error: new Error('lookup failed'), offline: false }
+  mockSearch.value = { data: undefined, isPending: true, isError: false, error: null, refetch: jest.fn() }
+  const view = await renderScreen(<HomeScreen />)
+  expect(mockSearchCalls.at(-1)?.options.enabled).toBe(false)
+  await press(view.getByText('Thử lại'))
+  expect(mockRetryScope).toHaveBeenCalledTimes(1)
 })

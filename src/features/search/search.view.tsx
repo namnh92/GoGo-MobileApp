@@ -14,7 +14,7 @@ import { track } from '@/shared/analytics'
 import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
-import { ErrorState } from '@/shared/ui/async-state.view'
+import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, AvatarCircle, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { SearchField } from '@/shared/ui/search-field.view'
@@ -26,6 +26,8 @@ import { TextInput } from '@/shared/ui/text-input'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { SegmentedControl } from '@/shared/ui/segmented-control.view'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
+import { useDiscoveryAreaStore } from './discovery-area-store'
+import { discoveryMap } from './discovery-map'
 import { styles } from './search.style'
 import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } from './discovery-filters'
 
@@ -41,7 +43,8 @@ export default function SearchScreen() {
   const isPicker = picker === '1'
   const canSave = status === 'user'
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
-  const { scope } = useDiscoveryScope({ profileArea: status === 'user' ? me.data?.homeAdministrativeArea : null, profilePending: status === 'hydrating' || (status === 'user' && me.isPending) })
+  const selectedArea = useDiscoveryAreaStore(state => state.area)
+  const { scope, recheck, retry: retryScope } = useDiscoveryScope({ selectedArea, profileArea: status === 'user' ? me.data?.homeAdministrativeArea : null, profilePending: status === 'hydrating' || (status === 'user' && me.isPending) })
   const originLat = useRoomStore(state => state.originLat)
   const originLng = useRoomStore(state => state.originLng)
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
@@ -56,7 +59,10 @@ export default function SearchScreen() {
   const credits = useContributionCredits(canSave)
 
   useEffect(() => { track('place_search_opened', { picker: isPicker }) }, [isPicker])
-  useFocusEffect(useCallback(() => () => { setTimeout(() => setSheetOpen(false), 0) }, []))
+  useFocusEffect(useCallback(() => {
+    void recheck()
+    return () => { setTimeout(() => setSheetOpen(false), 0) }
+  }, [recheck]))
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
@@ -92,6 +98,8 @@ export default function SearchScreen() {
   const previewEnabled = sheetOpen && valid && previewKey === settledPreviewKey && (isPicker || scope.status === 'ready')
   const preview = useDiscoveryPreview(previewQuery, previewEnabled)
   const previewTotal = previewEnabled && preview.isSuccess && !preview.isFetching && !preview.isPaused && !preview.isPlaceholderData ? preview.data?.meta?.totalCount : undefined
+  const mapScope = isPicker && originLat != null && originLng != null ? { status: 'ready' as const, source: 'gps' as const, position: { lat: originLat, lng: originLng } } : isPicker ? { status: 'ready' as const, source: 'none' as const, reason: 'no_area' as const } : scope
+  const map = discoveryMap(mapScope, results, t('createLocation.current'))
   const served = search.data?.pages[0]?.meta?.location
   const scopeLabel = served?.source === 'gps' ? t('home.scopeGps') : served?.source === 'administrative_area' && served.area ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ') : t('home.chooseArea')
   function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
@@ -127,11 +135,11 @@ export default function SearchScreen() {
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} style={styles.back} onPress={() => router.back()}><MaterialIcon name="arrowBack" /></Pressable>
-        <Pressable style={styles.scope} accessibilityRole="button" onPress={() => router.push(status === 'user' ? '/settings/account' : '/auth/sign-in')}>
+        <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => router.push('/places/location')}>
           <Text variant="discoveryHeader" color="redesign.ink">{t('discovery.searchTitle')}</Text>
           {!isPicker ? <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text></View> : null}
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('profile.title')} style={styles.avatar} onPress={() => router.push('/(tabs)/profile')}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('profile.title')} style={styles.avatar} onPress={() => router.push('/settings/account')}>
           {me.data?.displayName?.trim() ? <AvatarCircle label={me.data.displayName.trim().charAt(0).toUpperCase()} size={32} imageUri={me.data.avatarUrl} /> : <MaterialIcon name="user" />}
         </Pressable>
       </View>
@@ -147,14 +155,14 @@ export default function SearchScreen() {
       <Text variant="introSmall" color="redesign.secondary">{total !== undefined ? t('discovery.totalCount', { count: total }) : verifiedEmpty ? t('discovery.zeroCount') : t('discovery.results')}</Text>
       <SegmentedControl compact options={[{ value: 'list', label: t('discovery.list'), icon: 'list' }, { value: 'map', label: t('discovery.map'), icon: 'map' }]} value={mode} onChange={setMode} />
     </View>
-    {search.isError ? <ErrorState error={search.error} onRetry={() => void search.refetch()} /> : <FlatList
+    {!isPicker && scope.status === 'unavailable' ? scope.offline ? <OfflineState /> : <ErrorState error={scope.error} onRetry={() => void retryScope()} /> : search.isError ? <ErrorState error={search.error} onRetry={() => void search.refetch()} /> : <FlatList
       testID="search-results" data={results} keyExtractor={place => place.id}
       contentContainerStyle={[styles.results, { paddingBottom: insets.bottom + 24 }]}
       keyboardShouldPersistTaps="handled" onTouchStart={() => Keyboard.dismiss()}
       onEndReachedThreshold={0.5} onEndReached={() => { if (search.hasNextPage && !search.isFetchingNextPage) void search.fetchNextPage() }}
-      ListHeaderComponent={mode === 'map' && results.length ? <View style={styles.mapBlock}>
-        <MapCanvas pins={results.flatMap(place => place.lat != null && place.lng != null ? [{ id: place.id, lat: place.lat, lng: place.lng, title: place.name }] : [])} onSelect={id => { const place = results.find(item => item.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={<Text variant="introSmall" color="redesign.secondary">{t('discovery.mapFallback')}</Text>} />
-        <Text variant="introCaption" color="redesign.secondary">{t('discovery.mapLoaded')}</Text>
+      ListHeaderComponent={mode === 'map' ? <View style={styles.mapBlock}>
+        <MapCanvas pins={map.pins} cameraRegion={map.region} onSelect={id => { const place = results.find(item => item.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={<Text variant="introSmall" color="redesign.secondary">{t('discovery.mapFallback')}</Text>} />
+        {map.region ? <Text variant="introCaption" color="redesign.secondary">{t(mapScope.status === 'ready' && mapScope.source === 'gps' ? 'discovery.mapCurrentLocation' : 'discovery.mapTopPlace')}</Text> : null}
       </View> : null}
       ListEmptyComponent={search.isPending ? <PlaceListSkeleton count={4} /> : verifiedEmpty ? <View style={styles.empty}>
         <View style={styles.emptyIcon}><MaterialIcon name="explore" size={38} color="redesign.primaryText" /></View>
@@ -172,13 +180,13 @@ export default function SearchScreen() {
       header={<View style={styles.sheetHeader}><View style={styles.sheetTitle}><MaterialIcon name="tune" color="redesign.primaryText" size={22} /><Text variant="introHeading">{t('discovery.filterTitle')}</Text></View><GhostBtn label={t('search.clearFilters')} onPress={() => setDraft(emptyFilters())} /></View>}
       footer={<View style={styles.sheetFooter}><IconBtn accessibilityLabel={t('discovery.resetDefaults')} onPress={() => setDraft(emptyFilters())}><MaterialIcon name="restart" /></IconBtn><PrimaryBtn variant="discovery" label={previewTotal !== undefined ? t('discovery.previewCount', { count: previewTotal }) : t('discovery.apply')} disabled={!valid} style={{ flex: 1 }} onPress={() => { if (valid) { Keyboard.dismiss(); setCommitted(draft); setSheetOpen(false) } }} /></View>}>
       <Text variant="introHeading" style={styles.sheetSection}>{t('discovery.amenities')}</Text>
-      <Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} />
+      <View testID="open-now-options" style={styles.sheetOptionRow}><Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} /></View>
       {supports774 ? <View style={styles.sheetOptionRow}>{options('amenity', 'amenities')}</View> : null}
-      <View style={styles.priceHeading}><Text variant="introHeading">{t('search.filterPrice')}</Text><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceUnit')}</Text></View>
+      <View style={styles.priceHeading}><Text variant="introHeading">{t('discovery.priceRange')}</Text></View>
       <FieldFocusGroup>
       <View style={styles.priceRow}>
-        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceFrom')}</Text><TextInput value={draft.priceFrom} onChangeText={priceFrom => setDraft(prev => ({ ...prev, priceFrom }))} accessibilityLabel={t('search.priceFromLabel')} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /></View>
-        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceTo')}</Text><TextInput value={draft.priceTo} onChangeText={priceTo => setDraft(prev => ({ ...prev, priceTo }))} accessibilityLabel={t('search.priceToLabel')} keyboardType="numeric" placeholder={t('search.priceTo')} placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /></View>
+        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceFrom')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceFrom} onChangeText={priceFrom => setDraft(prev => ({ ...prev, priceFrom }))} accessibilityLabel={t('search.priceFromLabel')} keyboardType="numeric" placeholder={t('search.priceFrom')} placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
+        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceTo')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceTo} onChangeText={priceTo => setDraft(prev => ({ ...prev, priceTo }))} accessibilityLabel={t('search.priceToLabel')} keyboardType="numeric" placeholder={t('search.priceTo')} placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
       </View>
       {!valid ? <Text variant="introSmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('discovery.invalidPrice')}</Text> : null}
       </FieldFocusGroup>

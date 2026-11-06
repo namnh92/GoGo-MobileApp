@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { appActivity } from '@/shared/api/realtime/app-activity'
+import { useAdministrativeUnits, useAdministrativeVersion } from '@/shared/administrative/queries'
+import { foldName, type AdministrativeUnit } from '@/shared/administrative/snapshot'
 
 import { readFreshPosition, type LocationReader, type Position } from './fresh-position'
 
 /**
  * ADM-204 (#209) — where discovery should look, in the order the product asked
  * for: a fresh device position, else the account's canonical area, else an
- * honest "no location" state. Never both: the server keeps a position and an
+ * Hồ Chí Minh default (owner O-6, #515). Never both: the server keeps a position and an
  * area apart, and so does this.
  */
 
@@ -21,11 +23,19 @@ export type ScopeArea = {
 
 export type DiscoveryScope =
   | { status: 'resolving' }
+  | { status: 'unavailable'; error: unknown; offline: boolean }
   | { status: 'ready'; source: 'gps'; position: Position }
   | { status: 'ready'; source: 'profile_area'; area: ScopeArea }
+  | { status: 'ready'; source: 'selected_area' | 'default_area'; area: ScopeArea }
   | { status: 'ready'; source: 'none'; reason: 'no_area' | 'area_needs_reselection' }
 
 type ProfileArea = (ScopeArea & { status: 'current' | 'needs_reselection' }) | null | undefined
+
+/** Resolve the current municipality from the published source, never a pinned GSO code. */
+export function defaultDiscoveryArea(version: string | undefined, provinces: AdministrativeUnit[] | undefined): ScopeArea | null {
+  const province = provinces?.find(unit => unit.isCurrent && unit.status === 'ACTIVE' && unit.level === 'PROVINCE' && foldName(unit.name) === 'ho chi minh')
+  return version && province ? { datasetVersion: version, provinceCode: province.code, provinceName: province.fullName, communeCode: null, communeName: null } : null
+}
 
 /** Foreground returns closer together than this reuse the last answer. */
 export const RECHECK_MIN_INTERVAL_MS = 60_000
@@ -63,9 +73,11 @@ export function scopeFor(
 export function useDiscoveryScope({
   profileArea,
   profilePending,
+  selectedArea,
 }: {
   profileArea: ProfileArea
   profilePending: boolean
+  selectedArea?: ScopeArea | null
 }) {
   // undefined: not checked yet; null: checked, nothing usable.
   const [position, setPosition] = useState<Position | null | undefined>(undefined)
@@ -100,14 +112,34 @@ export function useDiscoveryScope({
   }, [check])
 
   const recheck = useCallback(() => check(true), [check])
-  return { scope: scopeFor(position, profileArea, profilePending), recheck }
+  const resolved = scopeFor(position, profileArea, profilePending)
+  const needsDefault = !selectedArea && resolved.status === 'ready' && resolved.source === 'none'
+  const version = useAdministrativeVersion({ enabled: needsDefault })
+  const provinces = useAdministrativeUnits(needsDefault ? version.data?.datasetVersion : undefined)
+  const defaultArea = defaultDiscoveryArea(version.data?.datasetVersion, provinces.data)
+  const defaultPending = !version.isError && !provinces.isError && (version.isPending || provinces.isPending)
+  const defaultOffline = Boolean(version.isPaused || provinces.isPaused)
+  const scope: DiscoveryScope = selectedArea
+    ? { status: 'ready', source: 'selected_area', area: selectedArea }
+    : needsDefault && defaultArea ? { status: 'ready', source: 'default_area', area: defaultArea }
+    : needsDefault && defaultPending && !defaultOffline ? { status: 'resolving' }
+    : needsDefault ? { status: 'unavailable', error: version.error ?? provinces.error ?? new Error('DEFAULT_DISCOVERY_AREA_UNAVAILABLE'), offline: defaultOffline }
+    : resolved
+  async function retry() {
+    await check(true)
+    const refreshed = await version.refetch()
+    // A new version automatically loads its own province query; never refetch
+    // the old snapshot against a newly published version.
+    if (refreshed.data?.datasetVersion && refreshed.data.datasetVersion === version.data?.datasetVersion) await provinces.refetch()
+  }
+  return { scope, recheck, retry }
 }
 
 /** Search parameters for a scope; nothing for "resolving" or "none". */
 export function scopeSearchParams(scope: DiscoveryScope) {
   if (scope.status !== 'ready') return {}
   if (scope.source === 'gps') return { lat: scope.position.lat, lng: scope.position.lng }
-  if (scope.source === 'profile_area') {
+  if (scope.source === 'profile_area' || scope.source === 'selected_area' || scope.source === 'default_area') {
     return {
       datasetVersion: scope.area.datasetVersion,
       provinceCode: scope.area.provinceCode,

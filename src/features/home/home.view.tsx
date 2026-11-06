@@ -62,11 +62,11 @@ export default function HomeScreen() {
   const toggleSaved = useToggleSaved()
 
   // ADM-204 (#209): a fresh device position first, else the account's canonical
-  // area, else no location — never the create wizard's draft, which is about a
+  // area, else Hồ Chí Minh (owner O-6) — never the create wizard's draft, which is about a
   // room rather than about where the user is. Search waits until the scope is
   // known, so one scope means one request.
   const profileArea = status === 'user' ? me.data?.homeAdministrativeArea : null
-  const { scope, recheck } = useDiscoveryScope({
+  const { scope, recheck, retry: retryScope } = useDiscoveryScope({
     profileArea,
     profilePending: status === 'hydrating' || (status === 'user' && me.isPending),
   })
@@ -97,7 +97,7 @@ export default function HomeScreen() {
     served?.source === 'gps'
       ? t('home.scopeGps')
       : served?.source === 'administrative_area' && served.area
-        ? t('home.scopeArea', {
+        ? t(scope.status === 'ready' && scope.source === 'default_area' ? 'discovery.scopeArea' : 'home.scopeArea', {
             area: served.area.communeName
               ? `${served.area.communeName}, ${served.area.provinceName}`
               : served.area.provinceName,
@@ -138,7 +138,7 @@ export default function HomeScreen() {
    * dataset still needs the error card, since those results no longer apply.
    * Nothing cached while offline is its own state, not an endless skeleton.
    */
-  const realState = search.isPending
+  const realState = scope.status === 'unavailable' ? scope.offline ? 'offline' : 'error' : search.isPending
     ? waitingForNetwork
       ? 'offline'
       : 'loading'
@@ -293,7 +293,8 @@ export default function HomeScreen() {
                     label={t('home.retry')}
                     onPress={() => {
                       setUiState('default')
-                      void search.refetch()
+                      if (scope.status === 'unavailable') void retryScope()
+                      else void search.refetch()
                     }}
                   />
                 )}

@@ -152,3 +152,17 @@ describe('Android native configuration', () => {
     expect(mockNativeMap.isGoogleMapsConfigured).toHaveBeenCalledTimes(1)
   })
 })
+
+
+it('updates the controlled camera when the single discovery marker changes scope', async () => {
+  const region = { latitude: PINS[0].lat, longitude: PINS[0].lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }
+  const view = await renderScreen(<MapCanvas pins={[PINS[0]]} cameraRegion={region} />)
+  expect(view.getByTestId('map:google').props.region).toEqual(region)
+  expect(view.getAllByLabelText('Quán A')).toHaveLength(1)
+  expect(view.queryByLabelText('Quán B')).toBeNull()
+  const next = { ...region, latitude: PINS[1].lat, longitude: PINS[1].lng }
+  await view.rerender(<MapCanvas pins={[PINS[1]]} cameraRegion={next} />)
+  expect(view.getByTestId('map:google').props.region).toEqual(next)
+  expect(view.queryByLabelText('Quán A')).toBeNull()
+  expect(view.getAllByLabelText('Quán B')).toHaveLength(1)
+})

@@ -1,3 +1,5 @@
+import type { DiscoveryScope } from '@/shared/location/use-discovery-scope'
+import { StyleSheet } from 'react-native'
 import { QueryClient, QueryClientProvider, notifyManager } from '@tanstack/react-query'
 import i18n from '@/shared/i18n'
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
@@ -9,10 +11,12 @@ import { scriptedTime } from './scripted-time'
 
 const mockPush = jest.fn()
 const mockBack = jest.fn()
+const mockRetryScope = jest.fn()
 const mockAddSeed = jest.fn()
+let mockSessionStatus = 'user'
 let mockRealSearch = false
 let mockParams: Record<string, string> = {}
-let mockScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
+let mockScope: DiscoveryScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
 const mockQueries: Record<string, unknown>[] = []
 const mockPreview = { value: {} as Record<string, unknown> }
 const mockPreviewCalls: { query: Record<string, unknown>; enabled: boolean }[] = []
@@ -27,7 +31,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }))
 jest.mock('@/shared/providers/session-provider', () => ({
-  useSession: () => ({ status: 'user', session: null }),
+  useSession: () => ({ status: mockSessionStatus, session: null }),
 }))
 jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/location/use-current-location', () => ({
@@ -35,7 +39,7 @@ jest.mock('@/shared/location/use-current-location', () => ({
 }))
 jest.mock('@/shared/location/use-discovery-scope', () => ({
   ...jest.requireActual('@/shared/location/use-discovery-scope'),
-  useDiscoveryScope: () => ({ scope: mockScope, recheck: jest.fn() }),
+  useDiscoveryScope: () => ({ scope: mockScope, recheck: jest.fn(), retry: mockRetryScope }),
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -75,6 +79,7 @@ scriptedTime()
 
 beforeEach(() => {
   mockRealSearch = false
+  mockSessionStatus = 'user'
   mockKinds = {}
   mockHomeRoom = undefined
   mockCredits = undefined
@@ -82,6 +87,7 @@ beforeEach(() => {
   mockPreviewCalls.length = 0
   mockPush.mockClear()
   mockBack.mockClear()
+  mockRetryScope.mockClear()
   mockAddSeed.mockClear()
   mockQueries.length = 0
   mockParams = {}
@@ -351,4 +357,62 @@ it.each(['SEARCH_COUNT_UNAVAILABLE', 'RATE_LIMITED'])('typing and preview use re
     client.clear()
     notifyManager.setScheduler(callback => setTimeout(callback, 0))
   }
+})
+
+
+describe('owner verification round 1 — O-1..O-3/O-5 entry', () => {
+  it('keeps Open now in a content-sized chip row and toggles its selected state', async () => {
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByLabelText('Bộ lọc'))
+    expect(StyleSheet.flatten(view.getByTestId('open-now-options').props.style)).toMatchObject({ flexDirection: 'row' })
+    const chip = view.getByLabelText('Mở cửa ngay')
+    expect(chip.props.accessibilityState.selected).toBe(false)
+    await fireEvent.press(chip)
+    expect(view.getByLabelText('Mở cửa ngay').props.accessibilityState.selected).toBe(true)
+  })
+
+  it.each(['vi', 'en'])('shows matching price placeholders, two k suffixes, and sends integer VND in %s', async locale => {
+    await act(async () => { await i18n.changeLanguage(locale) })
+    try {
+      const view = await renderScreen(<SearchScreen />)
+      await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
+      expect(view.getByText(i18n.t('discovery.priceRange'))).toBeTruthy()
+      expect(view.queryByText(i18n.t('discovery.priceUnit'))).toBeNull()
+      expect(view.getAllByText('k')).toHaveLength(2)
+      await fireEvent.changeText(view.getByPlaceholderText(i18n.t('search.priceFrom')), '150')
+      await fireEvent.changeText(view.getByPlaceholderText(i18n.t('search.priceTo')), '250')
+      await fireEvent.press(view.getByText(i18n.t('discovery.apply')))
+      expect(mockQueries.at(-1)).toMatchObject({ priceMinPerPerson: 150000, priceMaxPerPerson: 250000 })
+    } finally {
+      await act(async () => { await i18n.changeLanguage('vi') })
+    }
+  })
+
+  it('pushes account above search and opens the public location route', async () => {
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.changeText(view.getByLabelText('Tìm địa điểm'), 'retained query')
+    await fireEvent.press(view.getByLabelText(i18n.t('profile.title')))
+    expect(mockPush).toHaveBeenCalledWith('/settings/account')
+    expect(view.getByLabelText('Tìm địa điểm').props.value).toBe('retained query')
+    await fireEvent.press(view.getByLabelText(i18n.t('home.chooseArea')))
+    expect(mockPush).toHaveBeenCalledWith('/places/location')
+  })
+})
+
+
+it('shows a recoverable lookup failure rather than an endless search skeleton', async () => {
+  mockScope = { status: 'unavailable', error: new Error('province lookup failed'), offline: false }
+  mockSearch.value = { ...emptyPage(), isPending: true }
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByText('Thử lại'))
+  expect(mockRetryScope).toHaveBeenCalledTimes(1)
+})
+
+
+it.each(['guest', 'anonymous'])('opens location without sign-in from search for %s', async status => {
+  mockSessionStatus = status
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByLabelText(i18n.t('home.chooseArea')))
+  expect(mockPush).toHaveBeenCalledWith('/places/location')
+  expect(mockPush).not.toHaveBeenCalledWith('/auth/sign-in')
 })

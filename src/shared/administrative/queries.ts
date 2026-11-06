@@ -3,9 +3,10 @@ import { api } from '@/shared/api/client'
 import type { OpResponse } from '@/shared/api/types'
 import { loadAdministrativeSnapshot } from './snapshot'
 
-export function useAdministrativeVersion() {
+export function useAdministrativeVersion(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['administrative', 'version'],
+    enabled: options?.enabled,
     queryFn: () => api.get<OpResponse<'getAdministrativeVersion'>>('/administrative/version', { anonymous: true }),
     staleTime: 5 * 60_000,
   })

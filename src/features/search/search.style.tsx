@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { type } from '@/shared/ui/tokens'
+import { spacing, type } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   header: { backgroundColor: theme.redesign.canvas },
   headerRow: { flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingLeft: 16, gap: 8 },
@@ -30,6 +30,7 @@ export const styles = StyleSheet.create(theme => ({
   sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   priceRow: { flexDirection: 'row', gap: 8 },
   priceField: { flex: 1, gap: 4, padding: 12, borderRadius: 16, backgroundColor: theme.redesign.low },
-  priceText: { ...type.introHeading, minHeight: 44, borderRadius: 12, backgroundColor: theme.redesign.low, paddingHorizontal: 0, color: theme.redesign.ink },
+  priceInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  priceText: { flex: 1, minWidth: 0, ...type.introHeading, minHeight: 44, borderRadius: 12, backgroundColor: theme.redesign.low, paddingHorizontal: 0, color: theme.redesign.ink },
   smartBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, backgroundColor: theme.redesign.violetSoft, padding: 12, marginVertical: 24 },
 }))

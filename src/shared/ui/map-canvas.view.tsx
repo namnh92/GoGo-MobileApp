@@ -26,6 +26,8 @@ export interface MapCanvasProps {
   fallback?: ReactNode
   /** Detail previews leave gestures to the surrounding scroll view. */
   interactive?: boolean
+  /** Recenter when a discovery scope changes; other maps retain their camera behaviour. */
+  cameraRegion?: NonNullable<ReturnType<typeof regionForPins>> | null
 }
 
 interface MapsModule {
@@ -63,10 +65,10 @@ function googleMapsLinked(): boolean {
   }
 }
 
-export function MapCanvas({ pins, onSelect, style, fallback, interactive = true }: MapCanvasProps) {
+export function MapCanvas({ pins, onSelect, style, fallback, interactive = true, cameraRegion }: MapCanvasProps) {
   const { theme } = useUnistyles()
   const maps = loadMaps()
-  const region = regionForPins(pins)
+  const region = cameraRegion ?? regionForPins(pins)
   // What the installed binary linked cannot change while it is running, but
   // this component re-renders with its screen — `saved.view` re-renders on
   // every pin tap. Read the binary once per mount, not once per render.
@@ -83,7 +85,7 @@ export function MapCanvas({ pins, onSelect, style, fallback, interactive = true 
     <MapView
       style={style}
       initialRegion={region}
-      region={interactive ? undefined : region}
+      region={cameraRegion ?? (interactive ? undefined : region)}
       pointerEvents={interactive ? 'auto' : 'none'}
       scrollEnabled={interactive}
       zoomEnabled={interactive}

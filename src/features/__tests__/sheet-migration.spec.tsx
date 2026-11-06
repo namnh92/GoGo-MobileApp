@@ -17,6 +17,11 @@ import { scriptedTime } from './scripted-time'
  */
 
 const mockPush = jest.fn()
+// This suite exercises filter-sheet behaviour, independently of location lookup.
+jest.mock('@/shared/location/use-discovery-scope', () => ({
+  ...jest.requireActual('@/shared/location/use-discovery-scope'),
+  useDiscoveryScope: () => ({ scope: { status: 'ready', source: 'none', reason: 'no_area' }, recheck: jest.fn() }),
+}))
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn(), dismissTo: jest.fn() }),
