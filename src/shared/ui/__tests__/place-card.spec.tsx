@@ -229,6 +229,41 @@ describe('PlaceCard — list', () => {
 })
 
 describe('discovery appearance protects Saved/default', () => {
+  const areaSummary: NonNullable<PlaceCardModel['areaSummary']> = {
+    datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740',
+    label: 'Phường Sài Gòn', locale: 'vi',
+  }
+
+  it.each([
+    ['12 Nguyễn Huệ', '12 Nguyễn Huệ'],
+    [undefined, 'Phường Sài Gòn'],
+    ['', 'Phường Sài Gòn'],
+  ] as const)('renders address %s with matching accessibility text', async (addressText, expected) => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, areaSummary, discovery: { areaLabel: 'Discovery bucket' } })} />)
+    const line = screen.getByTestId('place-card-meta')
+    expect(line).toHaveTextContent(expected, { exact: true })
+    expect(line.props.numberOfLines).toBe(2)
+    expect(line.props.accessibilityLabel).toBe(expected)
+    expect(flat('place-card-meta')).toMatchObject({ ...type.introSmall, color: themes.orange.redesign.secondary })
+  })
+
+  it('omits the address line without either fact instead of using the chip or area key', async () => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, areaKey: 'hcm_q3', discovery: { areaLabel: 'Discovery bucket' } })} />)
+    expect(screen.queryByTestId('place-card-meta')).toBeNull()
+    expect(screen.queryByLabelText('Discovery bucket')).toBeNull()
+  })
+
+  it('keeps the proper name when the label locale differs from the app language', async () => {
+    await act(async () => { await i18n.changeLanguage('en') })
+    try {
+      await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, areaSummary })} />)
+      expect(screen.getByTestId('place-card-meta')).toHaveTextContent('Phường Sài Gòn', { exact: true })
+      expect(screen.getByLabelText('Phường Sài Gòn')).toBeTruthy()
+    } finally {
+      await act(async () => { await i18n.changeLanguage('vi') })
+    }
+  })
+
   it('renders separate rating sources and isolates save from open', async () => {
     const open = jest.fn(); const save = jest.fn()
     await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: 20 })} saved onPress={open} onToggleSave={save} />)
@@ -303,9 +338,11 @@ describe('#515 shared discovery card address', () => {
     [undefined, 'Quận 1'],
     ['  ', 'Quận 1'],
   ])('uses the address before the real area label (%s)', async (addressText, expected) => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, discovery: { areaLabel: 'Quận 1' } })} />)
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, areaSummary: { datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740', label: 'Quận 1', locale: 'vi' }, discovery: { areaLabel: 'Discovery bucket' } })} />)
     expect(screen.getByTestId('place-card-meta')).toHaveTextContent(expected!, { exact: true })
     expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
+    expect(screen.getByTestId('place-card-meta').props.ellipsizeMode).toBe('tail')
+    expect(screen.getByTestId('place-card-meta').props.accessibilityLabel).toBe(expected)
     expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(1)
     expect(screen.getByTestId('place-card-name').props.ellipsizeMode).toBe('tail')
   })

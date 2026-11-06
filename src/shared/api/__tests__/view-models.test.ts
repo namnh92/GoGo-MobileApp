@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { PlaceSearchResult, Plan, RoomSummary } from '../types'
 import {
+  areaLabel,
   detailToPlaceCard,
   formatCount,
   formatDistance,
@@ -36,6 +37,35 @@ function searchResult(overrides: Partial<PlaceSearchResult> = {}): PlaceSearchRe
 }
 
 describe('toPlaceCard', () => {
+  const areaSummary: NonNullable<PlaceSearchResult['areaSummary']> = {
+    datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740',
+    label: 'Phường Sài Gòn', locale: 'vi',
+  }
+
+  it('keeps addressText ahead of the verified administrative label', () => {
+    const card = toPlaceCard(searchResult({ addressText: '12 Nguyễn Huệ', areaSummary }))
+    expect(card.areaSummary).toEqual(areaSummary)
+    expect(areaLabel(card)).toBe('12 Nguyễn Huệ')
+  })
+
+  it.each([undefined, ''])('uses areaSummary.label without an address (%s)', addressText => {
+    const card = toPlaceCard(searchResult({ addressText, areaSummary }))
+    expect(card.addressText).toBe(addressText)
+    expect(areaLabel(card)).toBe('Phường Sài Gòn')
+  })
+
+  it('accepts a province label when no commune is supplied', () => {
+    expect(areaLabel(toPlaceCard(searchResult({
+      areaSummary: { ...areaSummary, communeCode: null, label: 'Ho Chi Minh City', locale: 'en' },
+    })))).toBe('Ho Chi Minh City')
+  })
+
+  it('returns no address without either fact, even with an area key or chip', () => {
+    const card = toPlaceCard(searchResult({ areaKey: 'hcm_q3' }))
+    card.discovery = { areaLabel: 'Discovery bucket' }
+    expect(areaLabel(card)).toBeNull()
+  })
+
   it('carries the per-person price range through in minor units', () => {
     const card = toPlaceCard(
       searchResult({ pricePerPerson: { min: 45_000, max: 90_000, currency: 'VND', confidence: 0.8 } }),

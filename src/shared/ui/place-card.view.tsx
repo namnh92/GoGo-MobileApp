@@ -3,6 +3,7 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import {
+  areaLabel,
   formatMinuteOfDay,
   formatDistance,
   formatRating,
@@ -168,8 +169,6 @@ function OpenLine({ place }: { place: PlaceCardModel }) {
 }
 
 function MetaLine({ place, categoryLabel }: { place: PlaceCardModel; categoryLabel?: string | null }) {
-  // `areaKey` has no label source in the contract, so the area is the address
-  // until GoGo-BE#169 — long, but one line with an ellipsis.
   const line = placeCardMetaLine(place, categoryLabel)
   if (!line) return null
   return (
@@ -266,7 +265,7 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
   const { price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)), i18n.language)
   const distance = formatDistance(place.distanceM)
   const open = useOpenLabel(place, true)
-  const address = place.addressText?.trim() || place.discovery?.areaLabel
+  const address = areaLabel({ addressText: place.addressText?.trim(), areaSummary: place.areaSummary })
   return <View style={[styles.wrap, style]}>
     <Pressable testID="place-card-open-target" accessibilityRole={onPress ? 'button' : undefined} onPress={onPress}>
       <View testID="place-card-discovery" style={styles.discoveryCard}>
@@ -283,7 +282,7 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
             <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={styles.discoveryName} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
             {price ? <Text variant="introLabel" color="redesign.primaryText" style={styles.discoveryPrice}>{price}</Text> : null}
           </View>
-          {address ? <View style={styles.addressRow}><MaterialIcon name="location" size={16} color="redesign.secondary" /><Text testID="place-card-meta" style={styles.addressText} variant="introSmall" color="redesign.secondary" numberOfLines={2} ellipsizeMode="tail">{address}</Text></View> : null}
+          {address ? <View style={styles.addressRow}><MaterialIcon name="location" size={16} color="redesign.secondary" /><Text testID="place-card-meta" style={styles.addressText} variant="introSmall" color="redesign.secondary" numberOfLines={2} ellipsizeMode="tail" accessibilityLabel={address}>{address}</Text></View> : null}
           {google || gogo || place.gogoRatingCount != null ? <View style={styles.ratingBadges}>
             {google ? <View style={styles.googleBadge}><Text variant="introCaptionMedium" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
             {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}</Text></View> : null}

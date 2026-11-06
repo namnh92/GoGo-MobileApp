@@ -39,6 +39,7 @@ export interface PlaceCard {
   name: string
   areaKey?: string
   addressText?: string
+  areaSummary?: PlaceSearchResult['areaSummary']
   lat?: number
   lng?: number
   rating?: number
@@ -97,6 +98,7 @@ export function toPlaceCard(result: PlaceSearchResult, labels?: TaxonomyLabels):
     name: result.name,
     areaKey: result.areaKey,
     addressText: result.addressText,
+    areaSummary: result.areaSummary,
     lat: result.lat,
     lng: result.lng,
     rating: result.rating,
@@ -279,14 +281,12 @@ export function formatDistance(distanceM: number | undefined): string | null {
 /**
  * Human-readable location for a card.
  *
- * `areaKey` is a stable internal key (`hcm_q3`) and the contract exposes no
- * label for it — taxonomy has no `area` kind, and `/places/areas` only answers
- * autocomplete queries (GoGo-BE#169). Showing the raw key would put an internal
- * identifier in front of a user, so it is omitted until there is something to
- * resolve it with.
+ * Prefer the address, then the verified administrative label. Labels are
+ * proper names and remain usable regardless of their reported locale.
+ * Neither the discovery chip nor the internal `areaKey` is an address source.
  */
-export function areaLabel(card: Pick<PlaceCard, 'addressText'>): string | null {
-  return card.addressText ?? null
+export function areaLabel(card: Pick<PlaceCard, 'addressText' | 'areaSummary'>): string | null {
+  return card.addressText || card.areaSummary?.label || null
 }
 
 /** Per-person price line for a card. Returns null when the price is unknown. */
