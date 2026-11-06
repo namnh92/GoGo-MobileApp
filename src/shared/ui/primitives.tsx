@@ -78,7 +78,8 @@ const CHIP_LABEL: Record<ChipVariant, TextColor> = {
   warning: 'status.warningText',
 }
 
-export function Chip({ label, variant = 'default', icon, emoji, onPress, accessibilityLabel, style }: {
+export function Chip({ label, variant = 'default', icon, emoji, onPress, accessibilityLabel, style, appearance = 'default' }: {
+  appearance?: 'default' | 'discovery'
   label: string
   variant?: ChipVariant
   /** A glyph from `icons.tsx`, drawn in the label's colour before it (#382). */
@@ -96,11 +97,11 @@ export function Chip({ label, variant = 'default', icon, emoji, onPress, accessi
   const disabled = variant === 'disabled'
 
   const body = (pressed: boolean) => (
-    <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], style]}>
+    <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], appearance === 'discovery' && styles.discoveryChip, appearance === 'discovery' && selected && styles.discoveryChipSelected, style]}>
       {icon ? <Icon name={icon} size={14} color={CHIP_LABEL[variant]} /> : null}
       {!icon && emoji ? <Text variant="bodySmall">{emoji}</Text> : null}
       {/* Shrinks with a chip its row constrains, so the label ellipsises (#332). */}
-      <Text variant="label" color={CHIP_LABEL[variant]} numberOfLines={1} style={styles.chipLabel}>
+      <Text variant={appearance === 'discovery' ? 'introSmall' : 'label'} color={appearance === 'discovery' ? selected ? 'redesign.primaryText' : 'redesign.secondary' : CHIP_LABEL[variant]} numberOfLines={appearance === 'discovery' ? undefined : 1} style={styles.chipLabel}>
         {selected ? `✓ ${label}` : label}
       </Text>
     </View>
@@ -261,6 +262,8 @@ const styles = StyleSheet.create(theme => ({
   tag_green: { backgroundColor: theme.status.successSoft },
   tag_neutral: { backgroundColor: theme.surface.subtle },
 
+  discoveryChip: { minHeight: 44, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.redesign.low, borderWidth: 0 },
+  discoveryChipSelected: { backgroundColor: theme.redesign.primarySoft },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -4,6 +4,10 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import {
   formatMinuteOfDay,
+  formatDistance,
+  formatRating,
+  formatCount,
+  ratingParts,
   placeCardMetaLine,
   placeCardRatingPriceLine,
   type PlaceCard as PlaceCardModel,
@@ -14,6 +18,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { IconBookmark } from '@/shared/ui/icons'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Chip, TagChip } from '@/shared/ui/primitives'
+import { MaterialIcon } from './material-icon'
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './place-card.style'
@@ -41,6 +46,7 @@ export type PlaceCardVariant = 'list' | 'hero'
 
 export interface PlaceCardProps {
   place: PlaceCardModel
+  appearance?: 'default' | 'discovery'
   variant?: PlaceCardVariant
   onPress?: () => void
   /** Category label, already resolved from the taxonomy key via i18n. */
@@ -54,7 +60,7 @@ export interface PlaceCardProps {
 }
 
 /** "Đang mở · Đóng 23:00" composed from facts, never sent as a sentence. */
-function useOpenLabel(place: PlaceCardModel): { label: string; open: boolean } | null {
+function useOpenLabel(place: PlaceCardModel, discovery = false): { label: string; open: boolean } | null {
   const { t } = useTranslation()
   if (place.openNow == null) return null
   if (place.openNow) {
@@ -62,6 +68,8 @@ function useOpenLabel(place: PlaceCardModel): { label: string; open: boolean } |
     return { label: closes ? t('search.openUntil', { time: closes }) : t('common.open'), open: true }
   }
   const opens = formatMinuteOfDay(place.opensAtMinute)
+  if (discovery && opens && place.opensDayOffset === 1) return { label: t('discovery.closedTomorrow', { time: opens }), open: false }
+  if (discovery && opens && (place.opensDayOffset ?? 0) > 1) return { label: t('discovery.closedLater', { time: opens, days: place.opensDayOffset }), open: false }
   return { label: opens ? t('search.closedOpens', { time: opens }) : t('common.closed'), open: false }
 }
 
@@ -175,6 +183,7 @@ function MetaLine({ place, categoryLabel }: { place: PlaceCardModel; categoryLab
 export function PlaceCard({
   place,
   variant = 'list',
+  appearance = 'default',
   onPress,
   categoryLabel,
   tags = [],
@@ -218,6 +227,8 @@ export function PlaceCard({
     )
   }
 
+  if (appearance === 'discovery') return <DiscoveryCard place={place} onPress={onPress} save={save} style={style} />
+
   return (
     <View style={[styles.wrap, style]}>
       <Pressable testID="place-card-open-target" onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
@@ -247,4 +258,38 @@ export function PlaceCard({
       {save}
     </View>
   )
+}
+
+
+function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'place' | 'onPress' | 'style'> & { save: React.ReactNode }) {
+  const { t, i18n } = useTranslation()
+  const { google, gogo } = ratingParts(place)
+  const { price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)), i18n.language)
+  const distance = formatDistance(place.distanceM)
+  const open = useOpenLabel(place, true)
+  return <View style={[styles.wrap, style]}>
+    <Pressable testID="place-card-open-target" accessibilityRole={onPress ? 'button' : undefined} onPress={onPress}>
+      <View testID="place-card-discovery" style={styles.discoveryCard}>
+        <View style={styles.listPhoto}>
+          <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
+          {place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="redesign.white" /><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.verified')}</Text></View> : null}
+          {distance || place.discovery?.areaLabel ? <View style={styles.distanceBadge}><Text variant="introCaptionMedium" color="redesign.ink">{[distance, place.discovery?.areaLabel].filter(Boolean).join(' • ')}</Text></View> : null}
+          {open ? <View style={styles.openBadge}><Text variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.label}</Text></View> : null}
+        </View>
+        <View style={styles.listBody}>
+          <View style={styles.discoveryHead}>
+            <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={{ flex: 1 }} numberOfLines={2}>{place.name}</Text>
+            <Text variant="introLabel" color="redesign.primaryText" style={{ flexShrink: 1 }}>{price}</Text>
+          </View>
+          {place.addressText ? <Text testID="place-card-meta" variant="introSmall" color="redesign.secondary" numberOfLines={2}>{place.addressText}</Text> : null}
+          <View style={styles.ratingBadges}>
+            {google ? <View style={styles.googleBadge}><Text variant="introCaptionMedium" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
+            {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}</Text></View> : null}
+          </View>
+          {place.discovery?.tagLabels?.length ? <View style={styles.discoveryTags}>{place.discovery.tagLabels.map(label => <View key={label} style={styles.googleBadge}><Text variant="introCaptionMedium" color="redesign.secondary">{label}</Text></View>)}</View> : null}
+        </View>
+      </View>
+    </Pressable>
+    {save}
+  </View>
 }

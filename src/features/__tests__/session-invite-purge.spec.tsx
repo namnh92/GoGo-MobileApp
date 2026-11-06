@@ -20,7 +20,7 @@ jest.mock('@/shared/api/endpoints/sessions', () => ({
 }))
 jest.mock('@/shared/api/endpoints/rooms', () => ({
   ...jest.requireActual('@/shared/api/endpoints/rooms'),
-  joinRoomAsGuest: jest.fn(async () => ({ kind: 'guest', accessToken: 'token', expiresAt: 0, roomId: 'room-1' })),
+  joinRoomAsGuest: jest.fn(async (_body: unknown, beforePersist?: () => Promise<void>) => { await beforePersist?.(); return { kind: 'guest', accessToken: 'token', expiresAt: 0, roomId: 'room-1' } }),
 }))
 jest.mock('@/shared/api/client', () => ({
   ...jest.requireActual('@/shared/api/client'),
@@ -33,6 +33,7 @@ jest.mock('expo-network', () => ({
   getNetworkStateAsync: jest.fn(async () => ({ isConnected: true })),
 }))
 
+import * as rooms from '@/shared/api/endpoints/rooms'
 import { SessionProvider, useSession } from '@/shared/providers/session-provider'
 import { loadInviteCode, saveInviteCode } from '@/shared/storage/invite-codes'
 
@@ -90,4 +91,17 @@ it('an expired session removes every stored invite code', async () => {
   expect(mockExpiry.callback).not.toBeNull()
   await act(async () => { mockExpiry.callback?.() })
   await expectPurgedThenUnmount()
+})
+
+it('a rejected guest join preserves the current room cache and invite codes', async () => {
+  jest.mocked(rooms.joinRoomAsGuest).mockRejectedValueOnce(new Error('not joinable'))
+  await seedAndMount()
+  client.setQueryData(['existing-room'], { title: 'Current room' })
+  await act(async () => {
+    await expect(session!.joinAsGuest({ inviteCode: 'bad', displayName: 'Guest' })).rejects.toThrow('not joinable')
+  })
+  expect(await loadInviteCode(ROOMS[0], USER)).not.toBeNull()
+  expect(client.getQueryData(['existing-room'])).toEqual({ title: 'Current room' })
+  await act(async () => { await screen.unmount() })
+  client.clear()
 })

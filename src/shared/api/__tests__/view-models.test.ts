@@ -12,6 +12,7 @@ import {
   parseApiDate,
   placeCardMetaLine,
   placeCardRatingPriceLine,
+  ratingParts,
   type PlaceCard,
   toCandidateCard,
   toNumber,
@@ -405,5 +406,21 @@ describe('PlaceCard lines (#295, #293 §3)', () => {
   it('keeps the unit it was given and marks an estimate', () => {
     expect(placeCardRatingPriceLine(card({ priceUnit: 'per_hour' }), units).price).toBe('45k–90k/giờ')
     expect(placeCardRatingPriceLine(card({ priceUncertain: true }), units).price).toBe('~45k–90k/người')
+  })
+})
+
+
+describe('#754 discovery ratings', () => {
+  it.each([0, 4, 5])('carries the community count and only exposes scores at five reviews (%i)', count => {
+    const card = toPlaceCard(searchResult({ gogoRating: 4.2, gogoRatingCount: count, rating: 4.6, ratingCount: 980 }))
+    expect(card.gogoRatingCount).toBe(count)
+    expect(ratingParts(card).google).toEqual({ value: 4.6, count: 980 })
+    expect(ratingParts(card).gogo).toEqual(count >= 5 ? { value: 4.2, count: 5 } : null)
+  })
+  it('does not infer verification from confidence and preserves missing community facts', () => {
+    const card = toPlaceCard(searchResult({ confidence: 1 }))
+    expect(card.gogoRating).toBeUndefined()
+    expect(card.gogoRatingCount).toBeUndefined()
+    expect(card).not.toHaveProperty('verified')
   })
 })

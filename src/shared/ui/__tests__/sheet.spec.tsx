@@ -72,3 +72,18 @@ it('pads the safe area only while the keyboard is down', async () => {
   }
   expect(padded(screen.getByText('Nội dung'))).toContain(54)
 })
+
+it('keeps optional header and footer outside the scrolling body and supports non-scrolling consumers', async () => {
+  const view = await render(<Sheet visible onClose={jest.fn()} header={<Text>Header</Text>} footer={<Text>Footer</Text>}><Text>Body</Text></Sheet>)
+  const scrollAncestor = (label: string) => {
+    let node = screen.getByText(label).parent
+    while (node) { if (String(node.type).includes('ScrollView')) return true; node = node.parent }
+    return false
+  }
+  expect(scrollAncestor('Body')).toBe(true)
+  expect(scrollAncestor('Header')).toBe(false)
+  expect(scrollAncestor('Footer')).toBe(false)
+  await view.rerender(<Sheet visible onClose={jest.fn()} scroll={false}><Text>Custom list</Text></Sheet>)
+  expect(screen.getByText('Custom list')).toBeTruthy()
+  expect(screen.queryByText('Header')).toBeNull()
+})

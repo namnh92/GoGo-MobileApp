@@ -173,10 +173,13 @@ export function joinRoom(body: OpBody<'joinRoom'>): Promise<OpResponse<'joinRoom
 }
 
 /** Guest join by invite code — persists the room-scoped guest session. */
-export async function joinRoomAsGuest(body: OpBody<'joinRoomAsGuest'>): Promise<Session> {
+export async function joinRoomAsGuest(body: OpBody<'joinRoomAsGuest'>, beforePersist?: () => Promise<void>): Promise<Session> {
   const grant = await api.post<OpResponse<'joinRoomAsGuest'>>('/rooms/join/guest', body, {
     anonymous: true,
   })
+  // A rejected invite preserves the old session and room data. Clean up only
+  // after the grant succeeds, before exposing the replacement identity.
+  await beforePersist?.()
   return persistSession(sessionFromGuestGrant(grant))
 }
 

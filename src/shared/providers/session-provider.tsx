@@ -92,8 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const joinAsGuest = useCallback(
     async (body: OpBody<'joinRoomAsGuest'>) => {
-      await purge()
-      return roomsApi.joinRoomAsGuest(body)
+      return roomsApi.joinRoomAsGuest(body, () => purge())
     },
     [purge],
   )

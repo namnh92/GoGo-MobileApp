@@ -245,3 +245,11 @@ describe('glass bar wash (#296, #293 §5)', () => {
     expect(contrast(text.primary, composite(glass.bar.wash, '#000000'))).toBeGreaterThanOrEqual(AA_TEXT)
   })
 })
+
+
+it.each(Object.values(themes))('discovery small text meets 4.5:1 in $mode', theme => {
+  const r = theme.redesign
+  for (const [foreground, background] of [[r.ink, r.card], [r.secondary, r.high], [r.violetText, r.violetSoft], [r.primaryText, r.primarySoft], [r.primaryText, r.canvas], [r.white, r.primaryFill]]) {
+    expect(contrast(foreground, background), `${foreground} on ${background}`).toBeGreaterThanOrEqual(4.5)
+  }
+})

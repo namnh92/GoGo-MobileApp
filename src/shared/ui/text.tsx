@@ -19,6 +19,7 @@ import { glyphText, type GlyphSize, type TypeStyle } from '@/shared/ui/tokens'
  */
 
 export type TextColor =
+  | 'redesign.primaryText'
   | 'redesign.ink'
   | 'redesign.secondary'
   | 'redesign.outline'
@@ -53,6 +54,7 @@ export type TextColor =
  * runtime as `color: undefined`.
  */
 const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
+  'redesign.primaryText': theme => theme.redesign.primaryText,
   'redesign.ink': theme => theme.redesign.ink,
   'redesign.secondary': theme => theme.redesign.secondary,
   'redesign.outline': theme => theme.redesign.outline,

@@ -36,6 +36,7 @@ jest.mock('expo-image-picker', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useMe: () => mockLoaded({}),
   useTaxonomies: () => mockLoaded({ kinds: { category: [] } }),
   usePlaceSearch: () => ({
     ...mockLoaded({ pages: [{ results: [] }] }),
@@ -124,7 +125,7 @@ describe('search filters sheet', () => {
     useRoomStore.setState({ originLat: 10.77, originLng: 106.7 })
     const view = await openFilters()
     expect(view.getByRole('button', { name: 'Đóng' })).toBeTruthy()
-    expect(view.getByLabelText('Khoảng cách tối đa (km)')).toBeTruthy()
+    expect(view.queryByLabelText('Khoảng cách tối đa (km)')).toBeNull()
     expect(view.getByLabelText('Giá từ (nghìn đồng / người)')).toBeTruthy()
     expect(view.getByLabelText('Giá đến (nghìn đồng / người)')).toBeTruthy()
   })
@@ -132,13 +133,13 @@ describe('search filters sheet', () => {
   it('closes from the named backdrop', async () => {
     const view = await openFilters()
     await press(view.getByRole('button', { name: 'Đóng' }))
-    expect(view.queryByText('Áp dụng')).toBeNull()
+    expect(view.queryByText('Áp dụng bộ lọc')).toBeNull()
   })
 
   it('appears without sliding when reduced motion is on', async () => {
     await withReducedMotion(true)
     const view = await openFilters()
-    const title = view.getByText('Áp dụng')
+    const title = view.getByText('Áp dụng bộ lọc')
     expect(modalOf(title).props.animationType).not.toBe('slide')
     expect(translatedY(title)).toEqual([])
   })

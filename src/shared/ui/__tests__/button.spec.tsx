@@ -214,3 +214,12 @@ describe.each([
     expect(host().props.accessibilityState).toMatchObject({ busy: false, disabled: false })
   })
 })
+
+it('supports explicit icon slots while preserving legacy auth/onboarding arrows and loading suppression', async () => {
+  const view = await render(<PrimaryBtn variant="stitch" label="Continue" icon="arrowRight" onPress={jest.fn()} />)
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+  await view.rerender(<PrimaryBtn variant="stitch" label="Apply" leadingIcon="tune" trailingIcon="arrowRight" loading onPress={jest.fn()} />)
+  expect(screen.getByTestId('button-spinner')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
+  expect(screen.getByText('Apply').props.numberOfLines).toBeUndefined()
+})

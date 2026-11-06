@@ -51,6 +51,8 @@ const CATALOGS = [
 describe('i18n copy carries no emoji (#382)', () => {
   it.each(CATALOGS)('%s: messages and content are words; glyphs come from icons.tsx', (name, messages, content) => {
     const offenders = [...strings(messages, name), ...strings(content, `${name}Content`)]
+      // Owner group 02 uses Stitch's waving hand in the Home greeting.
+      .filter(([at]) => !/\.discovery\.greeting(Name)?$/.test(at))
       .filter(([, value]) => EMOJI.test(value))
       .map(([at, value]) => `${at} ${JSON.stringify(value)}`)
     expect(offenders).toEqual([])
@@ -60,7 +62,7 @@ describe('i18n copy carries no emoji (#382)', () => {
     const offenders = ['shared/i18n/en.ts', 'shared/i18n/vi.ts'].flatMap(file =>
       readFileSync(path.join(SRC, file), 'utf8')
         .split('\n')
-        .flatMap((line, i) => (EMOJI.test(line) ? [`${file}:${i + 1} ${line.trim()}`] : [])),
+        .flatMap((line, i) => (EMOJI.test(line) && !/['"]discovery\.greeting(Name)?['"]/.test(line) ? [`${file}:${i + 1} ${line.trim()}`] : [])),
     )
     expect(offenders).toEqual([])
   })

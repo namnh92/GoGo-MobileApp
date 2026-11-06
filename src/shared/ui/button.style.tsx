@@ -16,6 +16,8 @@ import { motion, touchTarget } from '@/shared/ui/tokens'
 const noShadow = { shadowOpacity: 0, elevation: 0 } as const
 
 export const styles = StyleSheet.create(theme => ({
+  discoveryJoin: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 12, gap: 4, borderWidth: 0, backgroundColor: theme.redesign.high },
+  discovery: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 999, gap: 4, backgroundColor: theme.redesign.primaryFill },
   stitch: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
   stitchSubtle: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
   stitchGuest: { minHeight: 44, height: undefined, borderRadius: 12 },

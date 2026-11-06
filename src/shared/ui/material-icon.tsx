@@ -4,6 +4,15 @@ import { resolveColor, type TextColor } from './text'
 
 /** Material Symbols, 24-unit outline grid, as used in the approved redesign. */
 const paths = {
+  groups: 'M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM6 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm10 1c-3 0-8 1.5-8 4v4h16v-4c0-2.5-5-4-8-4zM6 14c-2 0-6 1-6 3v4h6v-4c0-1 .4-2 1-3z',
+  search: 'M9.5 3a6.5 6.5 0 1 0 4.1 11.5L20 21l1-1-6.5-6.4A6.5 6.5 0 0 0 9.5 3zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z',
+  tune: 'M3 6h10V4h2v2h6v2h-6v2h-2V8H3zm0 10h4v-2h2v2h12v2H9v2H7v-2H3z',
+  list: 'M3 5h2v2H3zm4 0h14v2H7zM3 11h2v2H3zm4 0h14v2H7zM3 17h2v2H3zm4 0h14v2H7z',
+  map: 'M2 4l7-2 6 2 7-2v18l-7 2-6-2-7 2zm2 1.5v14L8 18V4.5zm6-1v14l4 1.3v-14zm6 1.2v14l4-1.2v-14z',
+  location: 'M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 2a5 5 0 0 1 5 5c0 3-3 7-5 10-2-3-5-7-5-10a5 5 0 0 1 5-5zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  explore: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm5 3-7 3-3 7 7-3zm-5 3.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z',
+  plus: 'M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z',
+  restart: 'M12 4a8 8 0 1 1-8 8h2a6 6 0 1 0 6-6H8l3 3-1.4 1.4L4.2 5l5.4-5.4L11 1 8 4z',
   arrowRight: 'M12 20l-1.4-1.4 5.6-5.6H4v-2h12.2l-5.6-5.6L12 4l8 8z',
   arrowBack: 'M12 20l-8-8 8-8 1.4 1.4L7.8 11H20v2H7.8l5.6 5.6z',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0-2a2 2 0 1 1 0-4 2 2 0 0 1 0 4zM4 20v-3c0-3 5.3-4 8-4s8 1 8 4v3zm2-2h12v-1c0-1-3.4-2-6-2s-6 1-6 2z',

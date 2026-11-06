@@ -25,7 +25,16 @@ import type {
 // Places
 // ---------------------------------------------------------------------------
 
+/** Normalized, optional #774 facts. Populate only from explicit contract facts.
+ * Search reason codes and confidence cannot populate any of these fields.
+ */
+export interface DiscoveryCardFacts {
+  verified?: boolean
+  tagLabels?: readonly string[]
+  areaLabel?: string
+}
 export interface PlaceCard {
+  discovery?: DiscoveryCardFacts
   id: string
   name: string
   areaKey?: string
@@ -34,6 +43,8 @@ export interface PlaceCard {
   lng?: number
   rating?: number
   ratingCount?: number
+  gogoRating?: number
+  gogoRatingCount?: number
   distanceM?: number
   /** Per-person estimate in minor units; null when the price is unknown. */
   priceMin: number | null
@@ -44,6 +55,7 @@ export interface PlaceCard {
   openNow?: boolean
   closesAtMinute?: number
   opensAtMinute?: number
+  opensDayOffset?: number
   isLodging: boolean
   reasonCodes: string[]
   /** Stale place data must be flagged rather than shown as certain. */
@@ -61,7 +73,7 @@ export interface PlaceCard {
   photoSource: PlacePhoto['source'] | null
   /**
    * The rating is provider data, never a GoGo community score — the contract
-   * carries no GoGo aggregate, so nothing may present it as one (spec §6).
+   * is kept separate from the optional GoGo community aggregate (spec §6).
    */
   ratingSource: 'google'
   /** What the price is per. `unknown` when the contract carries no price. */
@@ -82,6 +94,8 @@ export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
     lng: result.lng,
     rating: result.rating,
     ratingCount: result.ratingCount,
+    gogoRating: result.gogoRating,
+    gogoRatingCount: result.gogoRatingCount,
     distanceM: result.distanceM,
     priceMin: price?.min ?? null,
     priceMax: price?.max ?? null,
@@ -90,6 +104,7 @@ export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
     openNow: result.open?.openNow,
     closesAtMinute: result.open?.closesAtMinute,
     opensAtMinute: result.open?.opensAtMinute,
+    opensDayOffset: result.open?.opensDayOffset,
     isLodging: result.isLodging,
     reasonCodes: result.reasonCodes ?? [],
     freshnessCheckedAt: result.freshnessCheckedAt,
@@ -153,6 +168,8 @@ export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
     lng: toNumber(detail.lng),
     rating: toNumber(detail.rating),
     ratingCount: toNumber(detail.ratingCount),
+    gogoRating: toNumber(detail.gogoRating),
+    gogoRatingCount: toNumber(detail.gogoRatingCount),
     priceMin: toNumber(price?.priceMin) ?? null,
     priceMax: toNumber(price?.priceMax) ?? null,
     currency: price?.currency ?? 'VND',
@@ -285,16 +302,16 @@ export function placePriceParts(card: PlaceCard): { amount: string | null; unit:
 /**
  * Rating with its provenance. Provider ratings and GoGo community ratings are
  * different measurements of different things and must never merge into one
- * star (spec §6). The contract carries no GoGo aggregate, so `gogo` is always
- * `null` here — the UI says so in words rather than inventing a number.
+ * star (spec §6). #754 exposes an optional community aggregate, suppressed
+ * below five published reviews even if an inconsistent server sends a score.
  */
-export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource'>): {
+export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'>): {
   google: { value: number; count?: number } | null
   gogo: { value: number; count?: number } | null
 } {
   return {
     google: card.rating == null ? null : { value: card.rating, count: card.ratingCount },
-    gogo: null,
+    gogo: card.gogoRating != null && (card.gogoRatingCount ?? 0) >= 5 ? { value: card.gogoRating, count: card.gogoRatingCount } : null,
   }
 }
 

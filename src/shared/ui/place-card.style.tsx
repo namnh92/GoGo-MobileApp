@@ -4,6 +4,15 @@ import { overlay, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   /** Holds the card and, beside it, the save toggle positioned over it. */
+  verifiedBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: theme.redesign.verifiedFill },
+  discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  discoveryCard: { backgroundColor: theme.redesign.card, borderRadius: 20, overflow: 'hidden', ...theme.shadows.card },
+  discoveryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  ratingBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  googleBadge: { backgroundColor: theme.redesign.container, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  gogoBadge: { backgroundColor: theme.redesign.violetSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  distanceBadge: { position: 'absolute', left: 12, bottom: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
+  openBadge: { position: 'absolute', right: 12, bottom: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
   wrap: { position: 'relative' },
 
   // --- list (default): the Stitch card, photo over body ---------------------

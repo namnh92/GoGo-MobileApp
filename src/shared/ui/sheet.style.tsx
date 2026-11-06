@@ -23,6 +23,8 @@ export const styles = StyleSheet.create(theme => ({
     flexShrink: 1,
     ...theme.shadows.toast,
   },
+  discoveryPanel: { backgroundColor: theme.redesign.card, paddingHorizontal: 16, paddingTop: 8 },
+  discoveryHandle: { height: 6, marginBottom: 8, backgroundColor: theme.redesign.highest },
   panelFull: { height: '92%' },
   handle: {
     width: 40,

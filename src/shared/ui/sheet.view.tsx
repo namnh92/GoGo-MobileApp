@@ -19,12 +19,16 @@ import { useReducedMotionPreference } from '@/shared/ui/feedback'
 import { useKeyboardVisible } from '@/shared/ui/keyboard'
 import { motion, spacing } from '@/shared/ui/tokens'
 
+import { FocusedFieldGroup } from './field-focus-group'
 import { styles } from './sheet.style'
 
 export interface SheetProps {
+  appearance?: 'default' | 'discovery'
   visible: boolean
   /** Backdrop tap, Android back, the VoiceOver escape gesture. */
   onClose: () => void
+  header?: ReactNode
+  footer?: ReactNode
   children: ReactNode
   /**
    * `content` grows with its children up to `maxHeight`; `full` is a tall
@@ -71,7 +75,7 @@ const FOCUS_MARGIN = spacing[4]
  * - Screen readers: the backdrop is a button named "Đóng", and the escape
  *   gesture closes the sheet.
  */
-export function Sheet({ visible, onClose, onClosed, children, size = 'content', maxHeight = '85%', scroll = true, testID }: SheetProps) {
+export function Sheet({ appearance = 'default', visible, onClose, onClosed, children, header, footer, size = 'content', maxHeight = '85%', scroll = true, testID }: SheetProps) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
@@ -125,6 +129,7 @@ export function Sheet({ visible, onClose, onClosed, children, size = 'content', 
   const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - progress.get()) * windowHeight }] }))
 
   // Keep the focused field visible once the panel has made room for the keyboard.
+  const focusedGroup = useRef<View>(null)
   const scrollRef = useRef<ScrollView>(null)
   const contentRef = useRef<View>(null)
   const scrollY = useRef(0)
@@ -138,7 +143,8 @@ export function Sheet({ visible, onClose, onClosed, children, size = 'content', 
       // One frame for the avoiding view's padding to land in layout.
       requestAnimationFrame(() => {
         try {
-          input.measureLayout(
+          const target = focusedGroup.current ?? input
+          target.measureLayout(
             content,
             (_x, y, _width, height) => {
               const bottom = y + height + FOCUS_MARGIN
@@ -161,6 +167,7 @@ export function Sheet({ visible, onClose, onClosed, children, size = 'content', 
   const bottomPadding = (keyboardVisible ? 0 : insets.bottom) + spacing[5]
 
   return (
+    <FocusedFieldGroup.Provider value={focusedGroup}>
     <Modal
       visible={mounted}
       transparent
@@ -192,12 +199,14 @@ export function Sheet({ visible, onClose, onClosed, children, size = 'content', 
           onAccessibilityEscape={onClose}
           style={[
             styles.panel,
+            appearance === 'discovery' && styles.discoveryPanel,
             size === 'full' ? styles.panelFull : { maxHeight },
             !scroll && { paddingBottom: bottomPadding },
             !reduced && panelStyle,
           ]}
         >
-          <View style={styles.handle} />
+          <View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle]} />
+          {header}
           {scroll ? (
             <ScrollView
               ref={scrollRef}
@@ -212,7 +221,8 @@ export function Sheet({ visible, onClose, onClosed, children, size = 'content', 
               onLayout={event => {
                 viewportHeight.current = event.nativeEvent.layout.height
               }}
-              contentContainerStyle={{ paddingBottom: bottomPadding }}
+              contentContainerStyle={{ paddingBottom: footer ? spacing[4] : bottomPadding }}
+              onTouchStart={() => Keyboard.dismiss()}
             >
               <View ref={contentRef} collapsable={false}>
                 {children}
@@ -221,8 +231,10 @@ export function Sheet({ visible, onClose, onClosed, children, size = 'content', 
           ) : (
             <View style={size === 'full' ? styles.bodyFull : styles.body}>{children}</View>
           )}
+          {footer ? <View style={{ paddingBottom: bottomPadding }}>{footer}</View> : null}
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
+    </FocusedFieldGroup.Provider>
   )
 }

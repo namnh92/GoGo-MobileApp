@@ -35,6 +35,7 @@ jest.mock('@/shared/location/use-discovery-scope', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useJoinRoom: () => ({ mutateAsync: jest.fn() }),
   useMe: () => mockMe.query,
   useSaved: () => mockLoaded([]),
   useToggleSaved: () => ({ mutate: jest.fn() }),
@@ -115,7 +116,7 @@ describe('Home discovery scope', () => {
     mockScope.value = { status: 'ready', source: 'profile_area', area: AREA }
     mockSearch.value = page(undefined)
     const view = await renderScreen(<HomeScreen />)
-    expect(view.getByText('Có thể bạn sẽ thích')).toBeTruthy()
+    expect(view.getByText('Gợi ý dành cho bạn')).toBeTruthy()
     expect(view.queryByText(/Theo khu vực tài khoản/)).toBeNull()
   })
 
@@ -124,7 +125,7 @@ describe('Home discovery scope', () => {
     mockSearch.value = page({ source: 'none' })
     const view = await renderScreen(<HomeScreen />)
     expect(view.getByText('Gợi ý chung, chưa theo vị trí')).toBeTruthy()
-    await press(view.getByText('Chọn khu vực'))
+    await press(view.getAllByText('Chọn khu vực').at(-1)!)
     expect(mockPush).toHaveBeenCalledWith('/settings/account')
     await press(view.getByText('Dùng vị trí hiện tại'))
     expect(mockRequest).toHaveBeenCalledTimes(1)
@@ -137,7 +138,7 @@ describe('Home discovery scope', () => {
     mockSearch.value = page({ source: 'none' })
     const view = await renderScreen(<HomeScreen />)
     expect(view.getByText(/cần chọn lại/)).toBeTruthy()
-    await press(view.getByText('Chọn khu vực'))
+    await press(view.getAllByText('Chọn khu vực').at(-1)!)
     expect(mockPush).toHaveBeenCalledWith('/auth/sign-in')
   })
 

@@ -225,3 +225,30 @@ describe('PlaceCard — list', () => {
     expect(screen.queryByTestId('place-card-save')).toBeNull()
   })
 })
+
+describe('discovery appearance protects Saved/default', () => {
+  it('renders separate rating sources and isolates save from open', async () => {
+    const open = jest.fn(); const save = jest.fn()
+    await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: 20 })} saved onPress={open} onToggleSave={save} />)
+    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByText('★ 4,9 (20) GoGo')).toBeTruthy()
+    await fireEvent.press(screen.getByTestId('place-card-save'))
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(open).not.toHaveBeenCalled()
+  })
+  it.each([0, 4])('hides a community score below five reviews (%i)', async count => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: count })} />)
+    expect(screen.queryByText(/4,9/)).toBeNull()
+    expect(screen.getByText('GoGo · Chưa đủ đánh giá')).toBeTruthy()
+    expect(screen.queryByTestId('place-card-save')).toBeNull()
+  })
+  it('keeps the default Saved card layout and remove toggle when new facts exist', async () => {
+    const remove = jest.fn()
+    await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 20, priceMin: null, priceMax: null, priceUnit: 'unknown', openNow: undefined })} saved onToggleSave={remove} />)
+    expect(screen.getByTestId('place-card')).toBeTruthy()
+    expect(screen.queryByTestId('place-card-discovery')).toBeNull()
+    expect(screen.getByText('Chưa có thông tin giá')).toBeTruthy()
+    await fireEvent.press(screen.getByTestId('place-card-save'))
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
+})
