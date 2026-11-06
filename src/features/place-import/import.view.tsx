@@ -110,6 +110,7 @@ export default function PlaceImportScreen() {
 
   const [url, setUrl] = useState('')
   const currentUrl = useRef('')
+  const attemptGeneration = useRef(0)
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [invalid, setInvalid] = useState(false)
@@ -176,12 +177,20 @@ export default function PlaceImportScreen() {
   // #131: Google lists it as opening soon; the server refuses the submit.
   const notOpenYet = candidate?.businessStatus === 'FUTURE_OPENING'
 
+  function invalidateAttempt() {
+    attemptGeneration.current += 1
+    submitLock.current = false
+    setRevalidating(false)
+  }
+
   function onResolve() {
     const parsed = mapsUrlSchema.safeParse(url)
     if (!parsed.success) {
       setInvalid(true)
       return
     }
+    invalidateAttempt()
+    const generation = attemptGeneration.current
     setInvalid(false)
     setResolvedUrl(parsed.data)
     setSelectedGooglePlaceId(null)
@@ -192,6 +201,7 @@ export default function PlaceImportScreen() {
       { url: parsed.data, ...(roomId ? { roomId } : {}) },
       {
         onSuccess: resolved => {
+          if (generation !== attemptGeneration.current) return
           if (resolved.status === 'RESOLVED') track('place_import_verified', { placeId: resolved.candidate?.googlePlaceId ?? '' })
           else track('place_import_rejected', { reason: resolved.status ?? 'UNRESOLVED' })
         },
@@ -214,8 +224,8 @@ export default function PlaceImportScreen() {
     ? t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed')
     : null
 
-  async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false) {
-    if (!previewMatchesUrl || currentUrl.current.trim() !== resolvedUrl || submit.isSuccess || submit.isPending || (submitLock.current && !retried)) return
+  async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false, generation = attemptGeneration.current) {
+    if (generation !== attemptGeneration.current || !previewMatchesUrl || currentUrl.current.trim() !== resolvedUrl || submit.isSuccess || submit.isPending || (submitLock.current && !retried)) return
     submitLock.current = true
     const resolutionToken = token ?? resolve.data?.resolutionToken
     try {
@@ -225,19 +235,20 @@ export default function PlaceImportScreen() {
         ...(roomId ? { roomId } : {}),
         ...metadata(),
       })
+      if (generation !== attemptGeneration.current) return
       track('place_import_added', { placeId: submission.placeId ?? googlePlaceId })
     } catch (error) {
-      if (retried || !staleResolution(error)) return
-      await revalidateAndResubmit(googlePlaceId)
+      if (generation !== attemptGeneration.current || retried || !staleResolution(error)) return
+      await revalidateAndResubmit(googlePlaceId, generation)
     } finally {
-      submitLock.current = false
+      if (generation === attemptGeneration.current) submitLock.current = false
     }
   }
 
   /** One silent re-resolve, then one retry — never a loop. */
-  async function revalidateAndResubmit(googlePlaceId: string) {
+  async function revalidateAndResubmit(googlePlaceId: string, generation: number) {
     const verifiedUrl = resolvedUrl
-    if (!verifiedUrl || currentUrl.current.trim() !== verifiedUrl) return
+    if (generation !== attemptGeneration.current || !verifiedUrl || currentUrl.current.trim() !== verifiedUrl) return
     const parsed = mapsUrlSchema.safeParse(verifiedUrl)
     if (!parsed.success) return
     setRevalidating(true)
@@ -250,17 +261,19 @@ export default function PlaceImportScreen() {
       // several branches — is a new answer for the user to see, not something
       // to resubmit behind their back. `resolve.data` already carries it into
       // the view.
-      if (currentUrl.current.trim() !== verifiedUrl) return
+      // URL equality cannot distinguish a new A after an A→B→A edit.
+      if (generation !== attemptGeneration.current || currentUrl.current.trim() !== verifiedUrl) return
       if (fresh.status !== 'RESOLVED' || !fresh.resolutionToken) return
-      await onSubmitPlace(fresh.candidate?.googlePlaceId ?? googlePlaceId, fresh.resolutionToken, true)
+      await onSubmitPlace(fresh.candidate?.googlePlaceId ?? googlePlaceId, fresh.resolutionToken, true, generation)
     } catch {
       // The retry failed on its own terms; `submit.isError` already says so.
     } finally {
-      setRevalidating(false)
+      if (generation === attemptGeneration.current) setRevalidating(false)
     }
   }
 
   function reset() {
+    invalidateAttempt()
     resolve.reset()
     submit.reset()
     currentUrl.current = ''
@@ -295,6 +308,7 @@ export default function PlaceImportScreen() {
           <TextInput
             value={url}
             onChangeText={value => {
+              invalidateAttempt()
               currentUrl.current = value
               setUrl(value)
               setResolvedUrl(null)

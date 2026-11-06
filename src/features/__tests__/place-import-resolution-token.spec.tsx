@@ -151,13 +151,15 @@ describe('APP-042 — the resolve proof reaches submit', () => {
     })
 
     await openWithPreview()
+    await fireEvent.press(screen.getByText('Bổ sung thông tin'))
+    await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Keep this note')
     await pressSubmit()
 
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
     // The user is never asked to paste the link again.
     expect(mockResolve.mutateAsync).toHaveBeenCalledWith({ url: LINK })
     expect(mockSubmit.mutateAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({ resolutionToken: 'token-from-the-retry' }),
+      expect.objectContaining({ resolutionToken: 'token-from-the-retry', note: 'Keep this note' }),
     )
   })
 
@@ -240,4 +242,46 @@ it('does not retry A after a stale-token resolve returns while the user is on B'
   await act(async () => { finish(RESOLVED) })
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(screen.queryByText('Quán Thử')).toBeNull()
+})
+
+it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after editing A→B→A', async pendingStep => {
+  let finish: () => void = () => {}
+  if (pendingStep === 'resolve') {
+    mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+    mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finish = () => resolve(RESOLVED) }))
+  } else {
+    mockSubmit.mutateAsync.mockImplementationOnce(() => new Promise((_resolve, reject) => { finish = () => reject(staleToken()) }))
+  }
+  await openWithPreview()
+  await fireEvent.press(screen.getByText('Bổ sung thông tin'))
+  await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Old A note')
+  await pressSubmit()
+  const input = screen.getByPlaceholderText('https://maps.app.goo.gl/…')
+  await fireEvent.changeText(input, 'https://maps.app.goo.gl/B')
+  await fireEvent.changeText(input, LINK)
+  await act(async () => { finish() })
+
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ note: 'Old A note' }))
+  expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(pendingStep === 'resolve' ? 1 : 0)
+  expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
+})
+
+it('keeps a new attempt locked when an outdated retry finishes', async () => {
+  let finishOld: (value: unknown) => void = () => {}
+  let finishNew: (value: unknown) => void = () => {}
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+    .mockImplementationOnce(() => new Promise(resolve => { finishNew = resolve }))
+  mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finishOld = resolve }))
+  await openWithPreview()
+  await pressSubmit()
+  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/B')
+  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), LINK)
+  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await pressSubmit()
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
+  await act(async () => { finishOld(RESOLVED) })
+  await pressSubmit()
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
+  await act(async () => { finishNew({ status: 'PENDING', submissionId: 'new' }) })
 })

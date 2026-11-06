@@ -10,7 +10,7 @@ import {
   isOffline,
   parseApiDate,
   useMyReviewReactions,
-  usePlaceReviews,
+  type usePlaceReviews,
   useToggleReviewHelpful,
   type PublicPlaceReview,
   type ReviewOrder,
@@ -49,17 +49,21 @@ type MarkFailure = 'own' | 'failed'
  * accounts (ADR-0026, proposal), so a guest reads the counts and is asked to
  * sign in rather than shown a control that would fail.
  */
-export function PlaceReviews({ placeId, onLayout }: { placeId: string; onLayout?: (event: LayoutChangeEvent) => void }) {
+export function PlaceReviews({ placeId, reviews, order, onOrderChange, onLayout }: {
+  placeId: string
+  reviews: ReturnType<typeof usePlaceReviews>
+  order: ReviewOrder
+  onOrderChange: (order: ReviewOrder) => void
+  onLayout?: (event: LayoutChangeEvent) => void
+}) {
   const { t } = useTranslation()
   const router = useRouter()
   const { status } = useSession()
   const canReact = status === 'user'
 
-  const [order, setOrder] = useState<ReviewOrder>('latest')
   const [askSignIn, setAskSignIn] = useState(false)
   const [failure, setFailure] = useState<{ reviewId: string; kind: MarkFailure } | null>(null)
 
-  const reviews = usePlaceReviews(placeId, order)
   const firstPage = reviews.data?.pages[0]
   const rows = [...new Map(reviews.data?.pages.flatMap(page => page.items ?? page.reviews).map(review => [review.id, review])).values()]
   const mine = useMyReviewReactions(placeId, { enabled: canReact })
@@ -162,7 +166,7 @@ export function PlaceReviews({ placeId, onLayout }: { placeId: string; onLayout?
               key={option.value}
               label={t(option.labelKey)}
               variant={order === option.value ? 'selected' : 'default'}
-              onPress={() => setOrder(option.value)}
+              onPress={() => onOrderChange(option.value)}
             />
           ))}
         </View>

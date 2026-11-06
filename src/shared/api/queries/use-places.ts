@@ -44,21 +44,9 @@ export function usePlaceDetail(placeId: string | undefined) {
  * short stale time: a moderator's takedown should not linger on screen.
  */
 export function usePlaceReviews(placeId: string | undefined, order: ReviewOrder = 'latest') {
-  const client = useQueryClient()
   return useInfiniteQuery({
     queryKey: queryKeys.placeReviews(placeId ?? '', order),
-    queryFn: async ({ pageParam }) => {
-      const page = await placesApi.listPlaceReviews(placeId as string, order, { limit: 10, cursor: pageParam })
-      // The public review read is the freshest moderated aggregate. Header and
-      // list must use that same source, never compute a mean from loaded rows.
-      const gogoRatingCount = page.gogoRatingCount
-      if (!pageParam && gogoRatingCount != null) {
-        client.setQueryData<Awaited<ReturnType<typeof placesApi.getPlaceDetail>>>(queryKeys.place(placeId as string), detail => detail ? {
-          ...detail, gogoRating: page.gogoRating, gogoRatingCount,
-        } : detail)
-      }
-      return page
-    },
+    queryFn: ({ pageParam }) => placesApi.listPlaceReviews(placeId as string, order, { limit: 10, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: page => page.nextCursor ?? undefined,
     enabled: Boolean(placeId),

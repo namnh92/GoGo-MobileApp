@@ -46,15 +46,17 @@ cần đi vào bảng lệch workspace khi công cụ hoạt động lại.
    cùng clock/helper.
 6. Preview gắn URL đã resolve. Sửa link bỏ preview/token/selection/metadata;
    submit kiểm tra lại URL bằng ref. Retry chỉ resolve URL đã xác minh, tối đa
-   một lần, bỏ kết quả về muộn khi URL thay đổi. Lock chặn double submit.
+   một lần. Generation tăng khi edit/reset/xác minh mới; continuation cũ bị bỏ
+   cả khi URL đổi A→B→A. Cleanup cũ không mở lock của attempt mới.
 7. Copy 3.3 “Đã tìm thấy trên Google Maps” dùng màu trung tính; 3.4 chỉ khẳng định
    catalog existence. Không có menu/photos/100%/giới hạn loại địa điểm giả.
 8. PlaceCard preview nhận generated candidate, không gán googlePlaceId vào place.id,
    không có navigation/save handler canonical. Canonical result dùng PlaceCard
    hiện hữu. Không dựng ảnh/price/verification/số nhóm từ mẫu.
 9. Full detail đổi sang key có discriminator detail, không persist, staleTime=0.
-   Public review aggregate cập nhật lại header từ response trang đầu, không tính
-   từ sample. Reviews/marks không persist. Cache buster alpha.3 bỏ cache cũ đã chứa
+   Header và list dùng chung query/order và aggregate trang đầu nếu có; không
+   ghi chéo vào detail cache, không tính từ sample. Reviews/marks không persist.
+   Cache buster alpha.3 bỏ cache cũ đã chứa
    aggregate. **Hệ quả:** lần nâng cấp đầu tiên cần online để nạp lại cả cache plan;
    sau đó plan/stop summaries vẫn được persist, full detail chỉ có memory fallback.
 10. Chưa đóng visual/device acceptance: cần direct Stitch, HTML parity, hai theme,
@@ -104,7 +106,7 @@ không chứa note, link hoặc resolution token. Chưa gọi DEV hay provider t
 
 ## Kiểm chứng
 
-Kết quả cuối trên working tree hiện tại:
+Kết quả được ghi trước Astra r1 (không rerun các gate này trong phiên sửa r1):
 
 | Kiểm tra | Kết quả |
 | --- | --- |
@@ -127,3 +129,43 @@ Full repo gates, HTML parity và device visual, independent review, commit/push
 thuộc Claude theo lệnh owner. Không chạy DEV, không sửa ios/, không commit/push.
 Rollback code: revert patch này cùng cache policy/buster; không có DB migration.
 Không hạ cache buster trên thiết bị như cách phục hồi dữ liệu cache cũ.
+
+## Astra r1 — F-01 / F-02, base `3596fbf`
+
+Sửa ngày 2026-11-07, chưa commit. F-01 dùng generation theo lần nhập/xác minh;
+kiểm tra sau submit và re-resolve, bỏ retry và cleanup đã hết hiệu lực. F-02
+đưa query/order reviews lên detail, truyền cùng kết quả xuống list và ưu tiên
+aggregate trang đầu cho header. Khi chưa có aggregate, giữ fallback detail;
+count 0 hoặc score bị bỏ dưới ngưỡng không giữ lại score cũ.
+
+Cùng hai file regression (`place-import-resolution-token.spec.tsx`,
+`place-rating-refresh.spec.tsx`) chạy với production source tại `3596fbf`, rồi
+với source đã sửa:
+
+```text
+FAIL-before @3596fbf — exit 1
+Test Suites: 2 failed, 2 total
+Tests:       5 failed, 9 passed, 14 total
+
+PASS-after — exit 0
+Test Suites: 2 passed, 2 total
+Tests:       14 passed, 14 total
+
+Jest scoped import/detail/reviews/hooks — exit 0
+Test Suites: 11 passed, 11 total
+Tests:       73 passed, 73 total
+```
+
+FAIL-before gồm hai continuation A→B→A (submit và resolve), lock attempt mới,
+detail response về cuối làm header sai, và ghi chéo detail cache khi reviews
+response về cuối. PASS-after còn kiểm tra metadata giữ nguyên khi retry hợp lệ,
+order helpful, pagination không thay aggregate trang đầu và count 0.
+
+Lệnh focused: `pnpm exec jest --runInBand src/features/__tests__/place-import-resolution-token.spec.tsx src/features/__tests__/place-rating-refresh.spec.tsx`.
+Scoped gồm hai file trên, `places-g03-hooks`, `place-import-status`,
+`place-import-future-opening`, `place-import-provider-outage`, `place-detail-facts`,
+`place-detail-sheet`, `place-detail-offline`, `place-reviews`, `place-reviews-helpful`.
+Logs: `/tmp/g03-r1-before.log`, `/tmp/g03-r1-after.log`, `/tmp/g03-r1-scoped.log`.
+`git diff --check` PASS; không sửa `ios/`, không install/commit/push/network.
+Visual acceptance vẫn **0/8**, chưa hoàn tất. Không rerun full gates,
+typecheck/lint hay DEV/device acceptance trong phiên sửa này.

@@ -42,7 +42,7 @@ it('sends limit/cursor, keeps every page and resets the cursor on order change',
   expect(mockReviews).toHaveBeenLastCalledWith('p', 'latest', { limit: 10, cursor: 'next' })
   await waitFor(() => expect(result.current.data?.pages.flatMap(page => page.items?.map(item => item.id))).toEqual(['first', 'second']))
   expect(result.current.hasNextPage).toBe(false)
-  expect(client.getQueryData<PlaceDetail>(queryKeys.place('p'))).toMatchObject({ gogoRatingCount: 7, gogoRating: 4.2 })
+  expect(client.getQueryData<PlaceDetail>(queryKeys.place('p'))).toMatchObject({ gogoRatingCount: 8, gogoRating: 4.8 })
   await rerender({ order: 'helpful' })
   await waitFor(() => expect(mockReviews).toHaveBeenLastCalledWith('p', 'helpful', { limit: 10, cursor: undefined }))
 })

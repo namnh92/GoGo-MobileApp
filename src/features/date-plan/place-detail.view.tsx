@@ -15,9 +15,11 @@ import {
   placePriceParts,
   usePlaceDetail,
   usePlaceProviderPhotos,
+  usePlaceReviews,
   useSaved,
   useTaxonomyLabel,
   useToggleSaved,
+  type ReviewOrder,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
@@ -70,6 +72,8 @@ export default function PlaceDetailScreen() {
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const now = usePlaceClock()
   const place = usePlaceDetail(placeId)
+  const [reviewOrder, setReviewOrder] = useState<ReviewOrder>('latest')
+  const reviews = usePlaceReviews(place.data ? place.data.id ?? placeId : undefined, reviewOrder)
   const providerPhotos = usePlaceProviderPhotos(place.data?.id ?? (place.data ? placeId : undefined))
   const waitingForNetwork = useWaitingForNetwork(place)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
@@ -133,7 +137,12 @@ export default function PlaceDetailScreen() {
   }
 
   const detail = place.data
-  const card = detailToPlaceCard(detail)
+  const firstReviewPage = reviews.data?.pages[0]
+  // Header and list read the same moderated aggregate, regardless of which
+  // refresh completes last. An omitted score below the threshold clears it.
+  const card = detailToPlaceCard(firstReviewPage?.gogoRatingCount != null ? {
+    ...detail, gogoRating: firstReviewPage.gogoRating, gogoRatingCount: firstReviewPage.gogoRatingCount,
+  } : detail)
   const id = detail.id ?? placeId
   const name = detail.name ?? ''
   const open = openStateFromHours(detail.hours, now)
@@ -573,7 +582,7 @@ export default function PlaceDetailScreen() {
           ))}
           {/* APP-056 — real, moderated GoGo reviews with their own loading and
               error states, so the facts above never wait on them. */}
-          <PlaceReviews placeId={id} onLayout={event => setReviewsY(event.nativeEvent.layout.y)} />
+          <PlaceReviews placeId={id} reviews={reviews} order={reviewOrder} onOrderChange={setReviewOrder} onLayout={event => setReviewsY(event.nativeEvent.layout.y)} />
         </View>
       </ScrollView>
 
