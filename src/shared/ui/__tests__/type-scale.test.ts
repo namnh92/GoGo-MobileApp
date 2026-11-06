@@ -48,7 +48,8 @@ function offenders(pattern: RegExp): string[] {
 
 describe('type scale', () => {
   it('retains the six base sizes and explicitly tokens every owner-approved Stitch size', () => {
-    const { brand, introTitle, introCompact, introHeading, introTagline, introSection, introBody, introRelaxed, introSmall, introLabel, introCaption, introCaptionMedium, illustrationBadge, mapLabel, ...base } = type
+    const { discoveryTitle, discoveryHeading, discoveryHeader, brand, introTitle, introCompact, introHeading, introTagline, introSection, introBody, introRelaxed, introSmall, introLabel, introCaption, introCaptionMedium, illustrationBadge, mapLabel, ...base } = type
+    expect([discoveryTitle.fontSize, discoveryHeading.fontSize, discoveryHeader.fontSize]).toEqual([22, 17, 16])
     expect([introTagline.fontSize, introCaptionMedium.fontSize]).toEqual([17, 11])
     expect([brand.fontSize, introCompact.fontSize, illustrationBadge.fontSize, mapLabel.fontSize]).toEqual([38, 24, 10, 9])
     expect([introTitle.fontSize, introHeading.fontSize, introSection.fontSize, introBody.fontSize, introRelaxed.fontSize, introSmall.fontSize, introLabel.fontSize, introCaption.fontSize]).toEqual([28, 17, 22, 15, 15, 13, 13, 11])

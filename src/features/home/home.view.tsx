@@ -1,15 +1,22 @@
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
-import { useMemo } from 'react'
+import { LinearGradient } from 'expo-linear-gradient'
+import { useUnistyles } from 'react-native-unistyles'
+import { QuickJoin } from './quick-join.view'
+import { MaterialIcon } from '@/shared/ui/material-icon'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isSaved,
   toPlaceCard,
   useMe,
+  useHomeRoom,
+  useTaxonomies,
+  discoveryLabels,
   usePlaceSearch,
   useSaved,
   useToggleSaved,
@@ -18,41 +25,36 @@ import {
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { track } from '@/shared/analytics'
-import { useLocaleContent } from '@/shared/i18n'
-import { useUnreadInbox } from '@/features/notifications/unread-count'
 import { useSession } from '@/shared/providers/session-provider'
-import { badgeLabel, CountBadge } from '@/shared/ui/count-badge.view'
-import { useRoom, useRoomStore, type QuickPreset } from '@/shared/store/roomStore'
-import { haptic } from '@/shared/ui/feedback'
-import { Icon, IconSearch, type IconName } from '@/shared/ui/icons'
+import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
+import { useRoom, useRoomStore } from '@/shared/store/roomStore'
+import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
-import { dayPart } from './greeting'
 import { styles } from './home.style'
+import { roomBanner } from './room-banner'
+import { DiscoveryLocationSheet } from '@/features/search/discovery-location.view'
+import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 
 
-const PRESET_KEYS: QuickPreset[] = ['tonight', 'weekend', 'special']
-/** The preset glyphs are icons, not emoji in the copy (#382). */
-const PRESET_ICONS: Record<QuickPreset, IconName> = { tonight: 'moon', weekend: 'sun', special: 'sparkle' }
 const RAIL_SIZE = 5
 
 export default function HomeScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const content = useLocaleContent()
-  const { uiState, setUiState, quickPreset, setQuickPreset } = useRoom()
+  const { theme } = useUnistyles()
+  const { uiState, setUiState, quickPreset } = useRoom()
   // The float button (#379) collapses on scroll; the list's end clears it.
   const fab = useAssistantFabScroll('home')
 
   const { status } = useSession()
-  const unread = useUnreadInbox()
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
 
   // Saving needs an account: a guest token gets 403 USER_ONLY.
@@ -61,34 +63,43 @@ export default function HomeScreen() {
   const toggleSaved = useToggleSaved()
 
   // ADM-204 (#209): a fresh device position first, else the account's canonical
-  // area, else no location — never the create wizard's draft, which is about a
+  // area, else Hồ Chí Minh (owner O-6) — never the create wizard's draft, which is about a
   // room rather than about where the user is. Search waits until the scope is
   // known, so one scope means one request.
+  const [locationOpen, setLocationOpen] = useState(false)
+  const selectedArea = useDiscoveryAreaStore(state => state.area)
   const profileArea = status === 'user' ? me.data?.homeAdministrativeArea : null
-  const { scope, recheck } = useDiscoveryScope({
-    profileArea,
+  const { scope, recheck, retry: retryScope } = useDiscoveryScope({
+    profileArea, selectedArea,
     profilePending: status === 'hydrating' || (status === 'user' && me.isPending),
   })
   const location = useCurrentLocation()
+  const [moods, setMoods] = useState<string[]>([])
+  const taxonomies = useTaxonomies({ kinds: 'category,mood,setting,amenity' })
+  const labels = useMemo(() => discoveryLabels(taxonomies.data, i18n.language), [taxonomies.data, i18n.language])
+  const nearest = useHomeRoom(status === 'user' || status === 'guest')
+  const homeRoom = nearest.data?.items[0]
+  // Terminal rooms cannot supply a live outing banner.
+  const showRoom = homeRoom && !['completed', 'cancelled', 'expired'].includes(homeRoom.status)
+  const banner = homeRoom ? roomBanner(homeRoom) : null
+  const roomTitle = homeRoom?.title?.trim() || (homeRoom?.type === 'group'
+    ? t('discovery.groupRoomTitle', { count: homeRoom.participantCount })
+    : t('discovery.coupleRoomTitle'))
+  // Taxonomy is the deployed mood-filter signal; active keys always stay removable.
+  const moodOptions = { ...labels.mood, ...Object.fromEntries(moods.filter(key => !labels.mood?.[key]).map((key, index) => [key, t('discovery.selectedMood', { number: index + 1 })])) }
+
 
   const search = usePlaceSearch(
-    { sort: 'curated', limit: RAIL_SIZE, ...scopeSearchParams(scope) },
+    { limit: RAIL_SIZE, ...scopeSearchParams(scope), includeTotal: true, locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...(moods.length ? { moods: moods.join(',') } : {}) },
     { enabled: scope.status === 'ready' },
   )
 
   // What the server says scoped the page, not what was asked: an older server
   // ignores area parameters and reports nothing, and then nothing is claimed.
   const served = search.data?.pages[0]?.meta?.location
-  const scopeLabel =
-    served?.source === 'gps'
-      ? t('home.scopeGps')
-      : served?.source === 'administrative_area' && served.area
-        ? t('home.scopeArea', {
-            area: served.area.communeName
-              ? `${served.area.communeName}, ${served.area.provinceName}`
-              : served.area.provinceName,
-          })
-        : null
+  const scopeLabel = served?.area
+    ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ')
+    : null
   const areaVersionChanged =
     isApiError(search.error) && search.error.code === 'ADMINISTRATIVE_VERSION_CHANGED'
   const waitingForNetwork = useWaitingForNetwork(search)
@@ -100,13 +111,12 @@ export default function HomeScreen() {
   }
 
   function chooseArea() {
-    // The account area lives in account information; a guest needs an account first.
-    router.push(status === 'user' ? '/settings/account' : '/auth/sign-in')
+    setLocationOpen(true)
   }
 
   const places = useMemo(
-    () => (search.data?.pages ?? []).flatMap(page => page.results.map(toPlaceCard)).slice(0, RAIL_SIZE),
-    [search.data],
+    () => (search.data?.pages[0]?.results ?? []).slice(0, RAIL_SIZE).map(result => toPlaceCard(result, labels)),
+    [search.data, labels],
   )
 
   function startCreate() {
@@ -124,7 +134,7 @@ export default function HomeScreen() {
    * dataset still needs the error card, since those results no longer apply.
    * Nothing cached while offline is its own state, not an endless skeleton.
    */
-  const realState = search.isPending
+  const realState = scope.status === 'unavailable' ? scope.offline ? 'offline' : 'error' : search.isPending
     ? waitingForNetwork
       ? 'offline'
       : 'loading'
@@ -137,55 +147,34 @@ export default function HomeScreen() {
   const offlineCard = visualState === 'offline'
   useOfflineAnnouncement(offlineCard, t('common.offlineBody'))
 
-  const initial = (me.data?.displayName ?? '').trim().charAt(0).toUpperCase()
-
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
+      <View testID="home-header" style={[styles.topBar, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
+        <View style={styles.brand}><MaterialIcon name="explore" color="redesign.white" size={19} /></View>
+        <Text variant="discoveryHeading" color="redesign.primaryText">GoGo</Text>
+        <Text variant="introSmall" color="redesign.secondary">•</Text>
+        <Text variant="introSmall" color="redesign.secondary" style={{ flex: 1 }}>{t('discovery.home')}</Text>
+        <Pressable style={styles.headerAction} onPress={() => router.push('/places/search')} accessibilityRole="button" accessibilityLabel={t('search.title')}><MaterialIcon name="search" size={22} /></Pressable>
+        <HeaderNotificationButton testID="home-bell" unreadDotTestID="home-unread-dot" />
+      </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         testID="home-list"
+        keyboardShouldPersistTaps="handled"
+        onTouchStart={() => Keyboard.dismiss()}
         onScroll={fab.onScroll}
         scrollEventThrottle={fab.scrollEventThrottle}
-        contentContainerStyle={{ paddingTop: insets.top + spacing[3], paddingBottom: fab.bottomInset }}
+        contentContainerStyle={{ paddingTop: spacing[1], paddingBottom: fab.bottomInset }}
       >
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text variant="display">
-              {t(
-                ({
-                  morning: 'home.greeting.morning',
-                  afternoon: 'home.greeting.afternoon',
-                  evening: 'home.greeting.evening',
-                } as const)[dayPart(new Date().getHours())],
-              )}
-            </Text>
-            <Text color="text.secondary" style={styles.subtitle}>{t('home.subtitle')}</Text>
-          </View>
-          <Pressable
-            testID="home-bell"
-            onPress={() => router.push('/notifications')}
-            accessibilityRole="button"
-            accessibilityLabel={
-              unread.count > 0
-                ? t('home.bellUnread', { count: badgeLabel(unread.count, unread.more) })
-                : t('notifications.title')
-            }
-            hitSlop={8}
-            style={styles.bell}
-          >
-            <Icon name="bell" size={22} color="text.primary" />
-            <CountBadge count={unread.count} more={unread.more} style={styles.bellBadge} />
-          </Pressable>
-          {/* A person with no name has no avatar to show: no placeholder dot. */}
-          {initial ? (
-            <Pressable
-              onPress={() => router.push('/(tabs)/profile')}
-              accessibilityRole="button"
-              accessibilityLabel={t('profile.title')}
-              hitSlop={8}
-            >
-              <AvatarCircle label={initial} size={44} imageUri={me.data?.avatarUrl} />
+            <Pressable testID="home-location" accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={chooseArea} style={styles.locationRow}>
+              <MaterialIcon name="location" size={15} color="redesign.primaryText" />
+              <Text variant="introCaptionMedium" color="redesign.secondary">{scopeLabel ?? t('home.chooseArea')}</Text>
+              <MaterialIcon name="expandMore" size={16} color="redesign.secondary" />
             </Pressable>
-          ) : null}
+            <Text variant="discoveryHeading">{me.data?.displayName?.trim() ? t('discovery.greetingName', { name: me.data.displayName.trim() }) : t('discovery.greeting')}</Text>
+          </View>
         </View>
 
         {/* Suggestions still on screen from an earlier search (GoGo-MobileApp#253). */}
@@ -197,80 +186,36 @@ export default function HomeScreen() {
 
         <DraftResume />
 
-        {/* Search entry — full discovery lives at /places/search */}
-        <Pressable
-          onPress={() => router.push('/places/search')}
-          accessibilityRole="search"
-          accessibilityLabel={t('search.placeholder')}
-          style={styles.searchBar}
-        >
-          <IconSearch />
-          <Text color="text.secondary">{t('search.placeholder')}</Text>
-        </Pressable>
-
-        {/* Brand surface rather than a stock photo of somewhere GoGo has no
-            relationship with. A solid card in both themes. */}
-        <View style={styles.hero}>
-          <View style={styles.heroBadge}>
-            <Icon name="moon" size={12} color="accent.onSoft" />
-            <Text variant="caption" color="accent.onSoft">{t('home.heroBadge')}</Text>
+        <LinearGradient colors={[theme.redesign.heroStart, theme.redesign.heroMiddle, theme.redesign.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+          <View pointerEvents="none" style={styles.heroDecor}><MaterialIcon name="groups" size={140} color="redesign.primaryText" /></View>
+          <View style={styles.heroBadge}><MaterialIcon name="bolt" color="redesign.primaryText" size={14} /><Text variant="introCaptionMedium" color="redesign.primaryText">{t('discovery.heroBadge')}</Text></View>
+          <Text variant="discoveryTitle">{t('discovery.heroTitle')}</Text>
+          <Text variant="introSmall" color="redesign.secondary" style={styles.heroBody}>{t('discovery.heroBody')}</Text>
+          <Pressable accessibilityRole="button" onPress={startCreate} style={styles.heroPrimary}>
+            <MaterialIcon name="plus" color="redesign.white" /><Text variant="introLabel" color="redesign.white">{t('discovery.createRoom')}</Text>
+          </Pressable>
+        </LinearGradient>
+        <QuickJoin knownName={me.data?.displayName} />
+        {showRoom && banner ? <Pressable testID="home-room-banner" accessibilityRole="button" accessibilityLabel={`${t(banner.status)}. ${roomTitle}. ${t(banner.secondary)}. ${t(banner.cta)}`} style={styles.nearestRoom} onPress={() => router.push(banner.destination)}>
+          <View style={styles.roomIcon}><MaterialIcon name="groups" color="redesign.violetText" size={20} /></View>
+          <View style={styles.roomCopy}>
+            <View style={styles.roomStatus}><View style={styles.roomDot} /><Text variant="introCaptionMedium" color="redesign.violetText">{t(banner.status)}</Text></View>
+            <Text variant="discoveryHeader">{roomTitle}</Text>
+            <Text variant="introCaption" color="redesign.secondary">{t(banner.secondary)}</Text>
           </View>
-          <Text variant="title1">{t('home.heroTitle')}</Text>
-          <Text variant="bodySmall" color="text.secondary" style={styles.heroBody}>{t('home.heroBody')}</Text>
-          <View style={styles.heroActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                haptic('impact')
-                startCreate()
-              }}
-              style={({ pressed }) => [styles.heroPrimary, pressed && styles.heroPrimaryPressed]}
-            >
-              <Icon name="plus" size={18} color="accent.onAccent" />
-              <Text variant="label" color="accent.onAccent">{t('home.createDate')}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                haptic('select')
-                router.push('/places/search')
-              }}
-              style={({ pressed }) => [styles.heroSecondary, pressed && styles.heroSecondaryPressed]}
-            >
-              <Icon name="compass" size={18} color="text.primary" />
-              <Text variant="label">{t('home.quickPick')}</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Quick presets — context filter for the next room, not a create action */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: spacing[5] }}
-          contentContainerStyle={styles.presetRow}
-        >
-          {content.quickPresets.map((preset, index) => {
-            const key = PRESET_KEYS[index]
-            return (
-              <Chip
-                key={preset.label}
-                label={preset.label}
-                icon={key ? PRESET_ICONS[key] : undefined}
-                variant={quickPreset === key ? 'selected' : 'default'}
-                onPress={() => setQuickPreset(key)}
-              />
-            )
-          })}
-        </ScrollView>
-
-        <View style={{ paddingHorizontal: spacing[5], marginTop: spacing[6] }}>
+          <View style={styles.roomAction}><Text variant="introCaptionMedium" color="redesign.white">{t(banner.cta)}</Text></View>
+        </Pressable> : null}
+        <View testID="home-suggestions" style={styles.suggestions}>
           <View style={styles.sectionHeader}>
-            <Text variant="title2">{t('home.suggested')}</Text>
-            {visualState === 'default' ? (
-              <Text variant="bodySmall" color="text.secondary">{t('home.suggestedHint')}</Text>
-            ) : null}
+            <Text variant="discoveryTitle">{t('discovery.suggested')}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('discovery.more')} style={styles.moreAction} onPress={() => router.push({ pathname: '/places/search', params: { suggestions: '1', suggestionScope: JSON.stringify(scope), ...(moods.length ? { moods: moods.join(',') } : {}) } })}>
+              <Text variant="introSmall" color="redesign.primaryText">{t('discovery.more')}</Text>
+              <MaterialIcon name="chevronRight" size={16} color="redesign.primaryText" />
+            </Pressable>
           </View>
+          {Object.keys(moodOptions).length ? <ScrollView testID="home-mood-chips" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moods}>
+            {Object.entries(moodOptions).map(([key, label]) => <Chip appearance="mood" key={key} label={label} variant={moods.includes(key) ? 'selected' : moods.length >= 10 ? 'disabled' : 'default'} onPress={() => setMoods(prev => prev.includes(key) ? prev.filter(value => value !== key) : [...prev, key])} />)}
+          </ScrollView> : null}
 
           {scope.status === 'ready' && scope.source === 'none' ? (
             <Card padded={false} style={styles.scopeCard}>
@@ -292,10 +237,6 @@ export default function HomeScreen() {
                 <GhostBtn label={t('home.chooseArea')} onPress={chooseArea} />
               </View>
             </Card>
-          ) : scopeLabel ? (
-            <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.scopeLabel}>
-              {scopeLabel}
-            </Text>
           ) : null}
 
           {/* A skeleton in the shape of the list, not a spinner (spec §30). */}
@@ -335,7 +276,8 @@ export default function HomeScreen() {
                     label={t('home.retry')}
                     onPress={() => {
                       setUiState('default')
-                      void search.refetch()
+                      if (scope.status === 'unavailable') void retryScope()
+                      else void search.refetch()
                     }}
                   />
                 )}
@@ -354,8 +296,8 @@ export default function HomeScreen() {
                 <PlaceCard
                   key={place.id}
                   place={place}
+                  appearance="discovery"
                   onPress={() => router.push(`/places/${place.id}`)}
-                  tags={place.reasonCodes.map(code => t(`search.reason.${code}`, { defaultValue: code }))}
                   saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined}
                   onToggleSave={
                     canSave
@@ -372,6 +314,8 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
+      {locationOpen ? <DiscoveryLocationSheet onClose={() => setLocationOpen(false)} onApplied={() => { void recheck() }} /> : null}
     </Atmosphere>
   )
 }

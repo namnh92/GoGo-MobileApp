@@ -392,6 +392,9 @@ export const fontFamily = {
  */
 export const type = {
   brand: { fontFamily: fontFamily.bold, fontSize: 38, lineHeight: 44 },
+  discoveryTitle: { fontFamily: fontFamily.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.33 },
+  discoveryHeading: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22, letterSpacing: -0.17 },
+  discoveryHeader: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 22 },
   introTitle: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 34 },
   introCompact: { fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 30 },
   introHeading: { fontFamily: fontFamily.semiBold, fontSize: 17, lineHeight: 22 },
@@ -488,12 +491,13 @@ export const motion = {
 
 /** Approved project 17315762413421369447. Screen-specific material roles. */
 export const redesignLight = {
+  verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#A71E07', heroStart: '#FFE8E2', heroMiddle: '#FFF3EE', heroEnd: '#EAE6FE',
   canvas: '#FFF8F3', card: '#FFFFFF', low: '#F9F2ED', container: '#F3EDE8',
   high: '#EDE7E2', highest: '#E7E1DC', dim: '#DFD9D4',
   ink: '#1D1B18', secondary: '#5A413B', outline: '#8E706A', line: '#E3BEB7',
   checklistUnmet: '#8A6C66', recommendationFill: '#237C51',
   mutedTitle: '#211F1C', mutedBody: '#746E68',
-  primary: '#A71E07', primarySoft: '#FFDAD3',
+  primary: '#A71E07', primarySoft: '#FFDAD3', moodSelected: '#FFE3DA',
   violet: '#7161E2', violetText: '#5747C8', violetSoft: '#E4DFFF', violetInk: '#170065',
   green: '#237C51', greenText: '#00623C', greenSoft: '#ECFFF3',
   white: '#FFFFFF', bubble: 'rgba(255,255,255,0.95)', panel: 'rgba(255,255,255,0.90)', header: 'rgba(255,248,243,0.85)',
@@ -503,12 +507,13 @@ export const redesignLight = {
 
 /** Undrawn dark materials derived from S70's canvas/card/accent/status roles. */
 export const redesignDark = {
+  verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#FF746C', heroStart: '#2A2A2A', heroMiddle: '#222222', heroEnd: '#2F2A55',
   canvas: darkSurface.canvas, card: darkSurface.card, low: darkSurface.subtle,
   container: darkSurface.subtle, high: '#333333', highest: '#333333', dim: '#333333',
   ink: darkText.primary, secondary: darkText.secondary, outline: darkText.tertiary, line: darkBorder.hairline,
   checklistUnmet: darkText.tertiary, recommendationFill: '#3B8365',
   mutedTitle: darkText.primary, mutedBody: darkText.secondary,
-  primary: '#A72E19', primarySoft: '#2A2A2A',
+  primary: '#A72E19', primarySoft: '#2A2A2A', moodSelected: '#57332B',
   violet: '#7161E2', violetText: '#C7BFFF',
   violetSoft: '#2F2A55', violetInk: '#C7BFFF',
   green: darkStatus.success, greenText: darkStatus.successText, greenSoft: darkStatus.successSoft,

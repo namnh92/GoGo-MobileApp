@@ -71,16 +71,16 @@ describe('planCost', () => {
     expect(text(cost.perPerson)).toBe('180k/người')
   })
 
-  it('says there is no price instead of printing 0 (I21)', () => {
+  it('omits an unknown price instead of printing 0 (I21)', () => {
     const cost = planCost(facts({ costMax: 0, uncertain: true, priced: false, hasUnpricedStop: true }), group(4), t)
-    expect(cost.primary).toEqual({ amount: null, unit: 'Chưa có thông tin giá' })
+    expect(cost.primary).toEqual(null)
     expect(cost.secondary).toBeNull()
     expect(cost.perPerson).toBeNull()
   })
 
   it('never calls a free stop next to an unpriced one a free plan', () => {
     const cost = planCost(facts({ costMax: 0, hasUnpricedStop: true }), group(4), t)
-    expect(text(cost.primary)).toBe('Chưa có thông tin giá')
+    expect(text(cost.primary)).toBeNull()
   })
 
   it('calls an all-free plan free, even when a price is low-confidence', () => {
@@ -118,7 +118,7 @@ describe('planCost', () => {
 
   it('shows no number for a floor of nothing', () => {
     expect(text(planCost(facts({ costMin: 0, costMax: 50_000, hasUnpricedStop: true }), group(4), t).primary)).toBe(
-      'Chưa có thông tin giá',
+      null,
     )
   })
 
@@ -142,7 +142,7 @@ describe('planCost', () => {
   })
 
   it('shows no number for an amount whose scope was never stated', () => {
-    expect(text(planCost(facts({ costScope: null }), group(4), t).primary)).toBe('Chưa có thông tin giá')
+    expect(text(planCost(facts({ costScope: null }), group(4), t).primary)).toBeNull()
   })
 
   it('says only what the API stated while the room is still loading', () => {
@@ -169,7 +169,7 @@ describe('a plan stored before GoGo-BE#593 (uncertain: false, one stop unpriced)
 
   it('never reads a free stop plus an unpriced one as free', () => {
     const summary = { ...legacy([{ costMin: 0, costMax: 0 }, { costMin: null, costMax: null }]), costMax: 0 }
-    expect(text(planCost(summary, group(4), t).primary)).toBe('Chưa có thông tin giá')
+    expect(text(planCost(summary, group(4), t).primary)).toBeNull()
   })
 })
 
@@ -185,8 +185,8 @@ describe('allScopes', () => {
     ])
   })
 
-  it('gives a plan with no price one line', () => {
-    expect(allScopes(planCost(facts({ priced: false }), group(4), t)).map(costLineText)).toEqual(['Chưa có thông tin giá'])
+  it('gives a plan with no price no lines', () => {
+    expect(allScopes(planCost(facts({ priced: false }), group(4), t)).map(costLineText)).toEqual([])
   })
 })
 
@@ -216,7 +216,7 @@ describe('stopCostLabel', () => {
   })
 
   it('says a stop has no price instead of printing nothing or 0', () => {
-    expect(stopCostLabel({ costMin: null, costMax: null, costScope: 'per_person' }, 'VND', t)).toBe('Chưa có thông tin giá')
-    expect(stopCostLabel({ costMin: 1, costMax: 2, costScope: null }, 'VND', t)).toBe('Chưa có thông tin giá')
+    expect(stopCostLabel({ costMin: null, costMax: null, costScope: 'per_person' }, 'VND', t)).toBe('')
+    expect(stopCostLabel({ costMin: 1, costMax: 2, costScope: null }, 'VND', t)).toBe('')
   })
 })

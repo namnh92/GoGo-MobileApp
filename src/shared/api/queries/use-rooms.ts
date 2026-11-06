@@ -439,3 +439,14 @@ export function useMyRooms(options?: { status?: string; enabled?: boolean }) {
     enabled: options?.enabled ?? true,
   })
 }
+
+
+/** Server chooses across all memberships; never derive Home from the activity page. */
+export function useHomeRoom(enabled: boolean) {
+  return useQuery({
+    queryKey: ['rooms', 'list', 'home'],
+    queryFn: () => roomsApi.listRooms({ view: 'home', limit: 1 }),
+    enabled,
+    staleTime: 0,
+  })
+}

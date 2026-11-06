@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from 're
 import { useUnistyles } from 'react-native-unistyles'
 
 import { haptic, useReducedMotion } from '@/shared/ui/feedback'
-import { MaterialIcon } from './material-icon'
+import { MaterialIcon, type MaterialIconName } from './material-icon'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text, type TextColor } from '@/shared/ui/text'
 import type { AppTheme } from '@/shared/ui/theme'
@@ -24,7 +24,7 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
-  variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill'
+  variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin'
   label: string
   onPress: () => void
   /** Why the button is unavailable, or what it does, read after the label. */
@@ -33,6 +33,8 @@ export interface ButtonProps {
   loading?: boolean
   /** A glyph drawn before the label, in the label's colour. Decorative: the label names the action. */
   icon?: IconName
+  leadingIcon?: MaterialIconName
+  trailingIcon?: MaterialIconName
   style?: StyleProp<ViewStyle>
 }
 
@@ -73,7 +75,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && styles[`${kind}Pressed`], disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, style, variant = 'default' }: ButtonProps & {
+function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, variant = 'default' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -85,6 +87,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
   // request is in flight the button reads as loading, not as greyed out.
   const greyed = disabled && !loading
   const look = (onAccent ? ON_ACCENT_LOOK[kind] : undefined) ?? LOOK[kind]
+  const iconColor: TextColor = greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : look.label
   return (
     <Pressable
       onPress={() => {
@@ -102,22 +105,26 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         styles.base,
         ...kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed),
         stitch && styles[variant],
+        variant === 'discovery' && kind === 'primary' && styles.discoveryPrimary,
+        variant === 'discovery' && greyed && styles.primaryDisabled,
         stitch && pressed && !inactive && !reduced && (variant === 'stitchSubtle' ? styles.stitchPressedSubtle : styles.stitchPressed),
         style,
       ]}
     >
       {loading ? <ActivityIndicator testID="button-spinner" size="small" color={look.spinner(theme)} /> : null}
-      {icon && !loading && !stitch ? <Icon name={icon} size={18} color={greyed ? look.disabledLabel : look.label} /> : null}
+      {icon && !loading && !stitch ? <Icon name={icon} size={18} color={iconColor} /> : null}
+      {leadingIcon && !loading ? <MaterialIcon name={leadingIcon} size={20} color={iconColor} /> : null}
       <Text
-        variant={stitch ? (kind === 'primary' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
-        color={greyed ? look.disabledLabel : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
+        variant={stitch ? (kind === 'primary' || variant === 'discovery' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
+        color={greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
         numberOfLines={stitch ? undefined : 1}
         ellipsizeMode="tail"
         style={styles.label}
       >
         {label}
       </Text>
-      {stitch && icon && !loading ? <MaterialIcon name="arrowRight" size={20} color={greyed ? look.disabledLabel : look.label} /> : null}
+      {trailingIcon && !loading ? <MaterialIcon name={trailingIcon} size={20} color={iconColor} /> : null}
+      {stitch && icon && !trailingIcon && !loading ? <MaterialIcon name="arrowRight" size={20} color={iconColor} /> : null}
     </Pressable>
   )
 }

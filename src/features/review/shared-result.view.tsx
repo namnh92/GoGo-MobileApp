@@ -71,7 +71,7 @@ export default function SharedResultScreen() {
   // GoGo-MobileApp#249 — the stats and the share line use the same scoped amounts.
   const cost = summary ? planCost(summary, toRoomAudience(room.data), t) : null
   // The whole-room figure, or the words for no price when there is no number.
-  const totalLine = cost ? (cost.whole ?? (cost.primary.amount === null ? cost.primary : null)) : null
+  const totalLine = cost ? (cost.whole ?? (cost.primary?.amount === null ? cost.primary : null)) : null
 
   /**
    * The pipeline's own explainable score parts, rendered as they are. The

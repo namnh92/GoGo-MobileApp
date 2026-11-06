@@ -99,12 +99,12 @@ describe('plan cost × unit', () => {
     expect(view.getByText('90k–180k/người')).toBeTruthy()
   })
 
-  it('says there is no price for a plan with none, never 0 (I21)', async () => {
+  it('hides unknown plan and stop price rows, never 0 (I21)', async () => {
     mockPlan.query = loaded(planCosting(null, null, true))
     const view = await renderScreen(<DatePlanScreen />)
 
-    // Once for the total, once for the stop.
-    expect(view.getAllByText('Chưa có thông tin giá')).toHaveLength(2)
+    expect(view.queryByText('Chưa có thông tin giá')).toBeNull()
+    expect(view.queryByText('Tổng chi phí')).toBeNull()
     expect(view.queryByText(/0 tổng nhóm/)).toBeNull()
     expect(view.queryByText(/~0/)).toBeNull()
   })
@@ -129,7 +129,7 @@ describe('plan cost × unit', () => {
 
     expect(view.getByText('từ 250k')).toBeTruthy()
     expect(view.getByText('từ 1tr tổng nhóm 4 người')).toBeTruthy()
-    expect(view.getByText('Chưa có thông tin giá')).toBeTruthy()
+    expect(view.queryByText('Chưa có thông tin giá')).toBeNull()
     expect(view.queryByText(/~/)).toBeNull()
   })
 })

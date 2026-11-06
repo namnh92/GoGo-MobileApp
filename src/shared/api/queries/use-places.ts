@@ -1,6 +1,8 @@
-import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
 
+import { getAssistantStatus } from '../endpoints/assistant'
+import { isApiError } from '../errors'
 import * as placesApi from '../endpoints/places'
 import type { PlaceSearchQuery } from '../endpoints/places'
 import { newIdempotencyKey } from '../idempotency'
@@ -19,7 +21,7 @@ export function usePlaceSearch(query: PlaceSearchQuery, options?: { enabled?: bo
   return useInfiniteQuery({
     queryKey: queryKeys.placeSearch(query),
     queryFn: ({ pageParam }) =>
-      placesApi.searchPlaces({ ...query, limit: query.limit ?? PAGE_SIZE, cursor: pageParam }),
+      countedSearch({ ...query, includeTotal: pageParam ? undefined : query.includeTotal, limit: query.limit ?? PAGE_SIZE, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
     enabled: options?.enabled ?? true,
@@ -107,10 +109,47 @@ export function useSubmitPlace() {
 
 /** Polled while pending — a moderator decides, so the answer arrives later. */
 export function usePlaceSubmission(id: string | undefined) {
+  const client = useQueryClient()
   return useQuery({
     queryKey: queryKeys.placeSubmission(id ?? ''),
-    queryFn: () => placesApi.getPlaceSubmission(id as string),
+    queryFn: async () => {
+      const submission = await placesApi.getPlaceSubmission(id as string)
+      if (submission.status === 'approved') await client.invalidateQueries({ queryKey: ['assistant'] })
+      return submission
+    },
     enabled: Boolean(id),
     refetchInterval: query => (query.state.data?.status === 'pending' ? 10_000 : false),
+  })
+}
+
+
+/** A count outage must not take discovery down. A fallback never invents a count. */
+async function countedSearch(query: PlaceSearchQuery) {
+  try { return await placesApi.searchPlaces(query) }
+  catch (error) {
+    if (query.includeTotal && isApiError(error) && error.code === 'SEARCH_COUNT_UNAVAILABLE') {
+      return placesApi.searchPlaces({ ...query, includeTotal: undefined })
+    }
+    throw error
+  }
+}
+
+/** Each complete scope/query/draft is its own cache entry; older replies cannot replace it. */
+export function useDiscoveryPreview(query: PlaceSearchQuery, enabled: boolean) {
+  return useQuery({
+    queryKey: ['places', 'discovery-preview', query],
+    queryFn: () => countedSearch({ ...query, includeTotal: true, limit: 1 }),
+    enabled,
+    retry: false,
+  })
+}
+
+/** Always HTTP: a development assistant fixture cannot promise a real approval award. */
+export function useContributionCredits(enabled: boolean) {
+  return useQuery({
+    queryKey: ['assistant', 'contribution-credits'],
+    queryFn: getAssistantStatus,
+    enabled,
+    staleTime: 0,
   })
 }

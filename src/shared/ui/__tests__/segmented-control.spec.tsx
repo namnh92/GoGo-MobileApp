@@ -47,3 +47,17 @@ it('retains the 42-point rail and 34-point surfaces with content-driven growth a
   expect(inner.backgroundColor).toBeTruthy()
   expect(flat(authStyles.tabs)).toMatchObject({ marginTop: 11, marginBottom: 23 })
 })
+
+it('compact icon tabs retain selection, disabled semantics and 44pt targets', async () => {
+  const onChange = jest.fn()
+  await render(<SegmentedControl compact options={[{ value: 'list', label: 'Danh sách', icon: 'list' }, { value: 'map', label: 'Bản đồ', icon: 'map' }]} value="list" onChange={onChange} />)
+  const map = screen.getByRole('tab', { name: 'Bản đồ' })
+  expect(flat(map.props.style).flex).toBe(0)
+  expect(flat(map.parent!.props.style)).toMatchObject({ flexShrink: 0, alignSelf: 'flex-start' })
+  expect(flat(screen.getByText('Bản đồ').parent!.props.style)).toMatchObject({ minHeight: 28, flexGrow: 0 })
+  expect(screen.getByText('Bản đồ').props.numberOfLines).toBe(1)
+  expect(flat(screen.getByTestId('segmented-rail').props.style)).toMatchObject({ top: 8, bottom: 8 })
+  expect(flat(map.props.style).minHeight).toBeGreaterThanOrEqual(44)
+  await fireEvent.press(map)
+  expect(onChange).toHaveBeenCalledWith('map')
+})

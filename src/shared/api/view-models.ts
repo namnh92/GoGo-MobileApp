@@ -25,15 +25,27 @@ import type {
 // Places
 // ---------------------------------------------------------------------------
 
+/** Normalized, optional #774 facts. Populate only from explicit contract facts.
+ * Search reason codes and confidence cannot populate any of these fields.
+ */
+export interface DiscoveryCardFacts {
+  verified?: boolean
+  tagLabels?: readonly string[]
+  areaLabel?: string
+}
 export interface PlaceCard {
+  discovery?: DiscoveryCardFacts
   id: string
   name: string
   areaKey?: string
   addressText?: string
+  areaSummary?: PlaceSearchResult['areaSummary']
   lat?: number
   lng?: number
   rating?: number
   ratingCount?: number
+  gogoRating?: number
+  gogoRatingCount?: number
   distanceM?: number
   /** Per-person estimate in minor units; null when the price is unknown. */
   priceMin: number | null
@@ -44,6 +56,7 @@ export interface PlaceCard {
   openNow?: boolean
   closesAtMinute?: number
   opensAtMinute?: number
+  opensDayOffset?: number
   isLodging: boolean
   reasonCodes: string[]
   /** Stale place data must be flagged rather than shown as certain. */
@@ -61,7 +74,7 @@ export interface PlaceCard {
   photoSource: PlacePhoto['source'] | null
   /**
    * The rating is provider data, never a GoGo community score — the contract
-   * carries no GoGo aggregate, so nothing may present it as one (spec §6).
+   * is kept separate from the optional GoGo community aggregate (spec §6).
    */
   ratingSource: 'google'
   /** What the price is per. `unknown` when the contract carries no price. */
@@ -70,18 +83,28 @@ export interface PlaceCard {
 
 const PRICE_CONFIDENCE_FLOOR = 0.6
 
-export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
+export type TaxonomyLabels = Record<string, Record<string, string>>
+
+export function toPlaceCard(result: PlaceSearchResult, labels?: TaxonomyLabels): PlaceCard {
   const price = result.pricePerPerson
   const photo = result.primaryPhoto
   return {
+    ...(result.verification || result.taxonomies || result.areaSummary ? { discovery: {
+      ...(result.verification ? { verified: result.verification.status === 'verified' } : {}),
+      ...(result.areaSummary?.label ? { areaLabel: result.areaSummary.label } : {}),
+      ...(result.taxonomies ? { tagLabels: [...new Set(result.taxonomies.flatMap(tag => labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []))] } : {}),
+    } } : {}),
     id: result.id,
     name: result.name,
     areaKey: result.areaKey,
     addressText: result.addressText,
+    areaSummary: result.areaSummary,
     lat: result.lat,
     lng: result.lng,
     rating: result.rating,
     ratingCount: result.ratingCount,
+    gogoRating: result.gogoRating,
+    gogoRatingCount: result.gogoRatingCount,
     distanceM: result.distanceM,
     priceMin: price?.min ?? null,
     priceMax: price?.max ?? null,
@@ -90,6 +113,7 @@ export function toPlaceCard(result: PlaceSearchResult): PlaceCard {
     openNow: result.open?.openNow,
     closesAtMinute: result.open?.closesAtMinute,
     opensAtMinute: result.open?.opensAtMinute,
+    opensDayOffset: result.open?.opensDayOffset,
     isLodging: result.isLodging,
     reasonCodes: result.reasonCodes ?? [],
     freshnessCheckedAt: result.freshnessCheckedAt,
@@ -153,6 +177,8 @@ export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
     lng: toNumber(detail.lng),
     rating: toNumber(detail.rating),
     ratingCount: toNumber(detail.ratingCount),
+    gogoRating: toNumber(detail.gogoRating),
+    gogoRatingCount: toNumber(detail.gogoRatingCount),
     priceMin: toNumber(price?.priceMin) ?? null,
     priceMax: toNumber(price?.priceMax) ?? null,
     currency: price?.currency ?? 'VND',
@@ -255,14 +281,12 @@ export function formatDistance(distanceM: number | undefined): string | null {
 /**
  * Human-readable location for a card.
  *
- * `areaKey` is a stable internal key (`hcm_q3`) and the contract exposes no
- * label for it — taxonomy has no `area` kind, and `/places/areas` only answers
- * autocomplete queries (GoGo-BE#169). Showing the raw key would put an internal
- * identifier in front of a user, so it is omitted until there is something to
- * resolve it with.
+ * Prefer the address, then the verified administrative label. Labels are
+ * proper names and remain usable regardless of their reported locale.
+ * Neither the discovery chip nor the internal `areaKey` is an address source.
  */
-export function areaLabel(card: Pick<PlaceCard, 'addressText'>): string | null {
-  return card.addressText ?? null
+export function areaLabel(card: Pick<PlaceCard, 'addressText' | 'areaSummary'>): string | null {
+  return card.addressText || card.areaSummary?.label || null
 }
 
 /** Per-person price line for a card. Returns null when the price is unknown. */
@@ -276,6 +300,7 @@ export function placePriceLabel(card: PlaceCard): string | null {
  * "150k–250k" with no unit is exactly the ambiguity spec §5 forbids.
  */
 export function placePriceParts(card: PlaceCard): { amount: string | null; unit: PriceUnit } {
+  if (card.priceUnit === 'unknown') return { amount: null, unit: 'unknown' }
   if (card.priceUnit === 'free') return { amount: null, unit: 'free' }
   const amount = formatRange(card.priceMin, card.priceMax, card.currency)
   if (amount == null) return { amount: null, unit: 'unknown' }
@@ -285,16 +310,16 @@ export function placePriceParts(card: PlaceCard): { amount: string | null; unit:
 /**
  * Rating with its provenance. Provider ratings and GoGo community ratings are
  * different measurements of different things and must never merge into one
- * star (spec §6). The contract carries no GoGo aggregate, so `gogo` is always
- * `null` here — the UI says so in words rather than inventing a number.
+ * star (spec §6). #754 exposes an optional community aggregate, suppressed
+ * below five published reviews even if an inconsistent server sends a score.
  */
-export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource'>): {
+export function ratingParts(card: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'>): {
   google: { value: number; count?: number } | null
   gogo: { value: number; count?: number } | null
 } {
   return {
     google: card.rating == null ? null : { value: card.rating, count: card.ratingCount },
-    gogo: null,
+    gogo: card.gogoRating != null && (card.gogoRatingCount ?? 0) >= 5 ? { value: card.gogoRating, count: card.gogoRatingCount } : null,
   }
 }
 
@@ -330,8 +355,7 @@ export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null
 /**
  * PlaceCard line 3: `★ 4,6 (980) · 45k–90k/người`. The rating comes back as
  * parts so the card can set the score heavier inside the same line; the price
- * always carries its unit (RULE-CORE-013), and "Miễn phí" / "Chưa có thông tin
- * giá" stand in for the whole price part rather than being left out.
+ * always carries its unit (RULE-CORE-013), and "Miễn phí" stands in for a free price; unknown prices are omitted.
  *
  * No "Google" on this line — owner decision 2026-09-24 (RULE-CORE-014 list-card
  * clause). The source is in the row's accessibility label and on the detail
@@ -339,7 +363,7 @@ export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null
  */
 export function placeCardRatingPriceLine(
   card: PlaceCard,
-  unitLabel: (unit: PriceUnit) => string,
+  unitLabel: (unit: Exclude<PriceUnit, 'unknown'>) => string,
   locale = 'vi',
 ): { rating: { score: string; count: string | null } | null; price: string } {
   const { google } = ratingParts(card)
@@ -348,7 +372,7 @@ export function placeCardRatingPriceLine(
     rating: google
       ? { score: formatRating(google.value, locale), count: google.count != null ? formatCount(google.count, locale) : null }
       : null,
-    price: amount && !isStandalonePrice(unit) ? `${amount}${unitLabel(unit)}` : unitLabel(unit),
+    price: unit === 'unknown' ? '' : amount && !isStandalonePrice(unit) ? `${amount}${unitLabel(unit)}` : unitLabel(unit),
   }
 }
 

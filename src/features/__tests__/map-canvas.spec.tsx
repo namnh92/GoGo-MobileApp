@@ -1,3 +1,4 @@
+import { act, fireEvent } from '@testing-library/react-native'
 import { Platform, Text, UIManager, View } from 'react-native'
 
 import { renderScreen } from './harness'
@@ -14,6 +15,7 @@ jest.mock('expo-modules-core', () => ({
 }))
 
 const mockMapMissing = { value: false }
+const mockMapRenderFailure = { value: false }
 
 jest.mock('react-native-maps', () => {
   if (mockMapMissing.value) throw new Error("Cannot find native module 'AIRMap'")
@@ -23,8 +25,10 @@ jest.mock('react-native-maps', () => {
   const { View: RNView } = require('react-native')
   // Surfaces the provider the adapter asked for; the real values are
   // `PROVIDER_DEFAULT = undefined` and `PROVIDER_GOOGLE = 'google'`.
-  const MapView = ({ provider, children, ...rest }: Record<string, unknown>) =>
-    React.createElement(RNView, { ...rest, testID: `map:${String(provider ?? 'default')}` }, children)
+  const MapView = ({ provider, children, ...rest }: Record<string, unknown>) => {
+    if (mockMapRenderFailure.value) throw new Error('Provider failed to render')
+    return React.createElement(RNView, { ...rest, testID: `map:${String(provider ?? 'default')}` }, children)
+  }
   return {
     __esModule: true,
     default: MapView,
@@ -55,6 +59,7 @@ function binaryLinks(...viewManagers: string[]) {
 
 beforeEach(() => {
   mockMapMissing.value = false
+  mockMapRenderFailure.value = false
   mockNativeMap.isGoogleMapsConfigured.mockClear()
   jest.resetModules()
   binaryLinks('AIRGoogleMap')
@@ -151,4 +156,66 @@ describe('Android native configuration', () => {
     await view.rerender(<MapCanvas pins={PINS} fallback={<Text>Map unavailable</Text>} />)
     expect(mockNativeMap.isGoogleMapsConfigured).toHaveBeenCalledTimes(1)
   })
+})
+
+
+it('updates the controlled camera independently of the loaded discovery markers', async () => {
+  const region = { latitude: PINS[0].lat, longitude: PINS[0].lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }
+  const view = await renderScreen(<MapCanvas pins={PINS} cameraRegion={region} showsUserLocation />)
+  expect(view.getByTestId('map:google').props.region).toEqual(region)
+  expect(view.getAllByLabelText('Quán A')).toHaveLength(1)
+  expect(view.getAllByLabelText('Quán B')).toHaveLength(1)
+  expect(view.getByTestId('map:google').props.showsUserLocation).toBe(true)
+  expect(view.getByTestId('map:google').props.moveOnMarkerPress).toBe(false)
+  const next = { ...region, latitude: PINS[1].lat, longitude: PINS[1].lng }
+  await view.rerender(<MapCanvas pins={[PINS[1]]} cameraRegion={next} />)
+  expect(view.getByTestId('map:google').props.region).toEqual(next)
+  expect(view.queryByLabelText('Quán A')).toBeNull()
+  expect(view.getAllByLabelText('Quán B')).toHaveLength(1)
+})
+
+
+it('selects a named marker and opens its detail through the native callout', async () => {
+  const select = jest.fn()
+  const open = jest.fn()
+  const view = await renderScreen(<MapCanvas pins={PINS} onSelect={select} onOpen={open} />)
+  const marker = view.getByLabelText('Quán B')
+  expect(marker.props.title).toBe('Quán B')
+  await fireEvent.press(marker)
+  expect(select).toHaveBeenCalledWith('b')
+  await fireEvent(marker, 'calloutPress')
+  expect(open).toHaveBeenCalledWith('b')
+})
+
+it('falls back when a linked provider never loads tiles', async () => {
+  jest.useFakeTimers()
+  try {
+    const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>List and directions</Text>} />)
+    expect(view.getByTestId('map:google')).toBeTruthy()
+    await act(async () => { await jest.advanceTimersByTimeAsync(20000) })
+    expect(view.queryByTestId('map:google')).toBeNull()
+    expect(view.getByText('List and directions')).toBeTruthy()
+  } finally { jest.useRealTimers() }
+})
+
+it('keeps a loaded provider after the failure deadline', async () => {
+  jest.useFakeTimers()
+  try {
+    const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>List and directions</Text>} />)
+    await fireEvent(view.getByTestId('map:google'), 'mapLoaded')
+    await act(async () => { await jest.advanceTimersByTimeAsync(20000) })
+    expect(view.getByTestId('map:google')).toBeTruthy()
+    expect(view.queryByText('List and directions')).toBeNull()
+  } finally { jest.useRealTimers() }
+})
+
+
+it('preserves the fallback when the linked provider throws while rendering', async () => {
+  mockMapRenderFailure.value = true
+  const log = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+  try {
+    const view = await renderScreen(<MapCanvas pins={PINS} fallback={<Text>List and directions</Text>} />)
+    expect(view.getByText('List and directions')).toBeTruthy()
+    expect(view.queryByTestId('map:google')).toBeNull()
+  } finally { log.mockRestore() }
 })

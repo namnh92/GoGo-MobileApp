@@ -17,6 +17,14 @@ import { scriptedTime } from './scripted-time'
  */
 
 const mockPush = jest.fn()
+// TanStack keeps unchanged query data stable across local screen updates.
+// Reallocating it on every render repeatedly resets the map selection.
+const mockSearchData = { pages: [{ results: [] }] }
+// This suite exercises filter-sheet behaviour, independently of location lookup.
+jest.mock('@/shared/location/use-discovery-scope', () => ({
+  ...jest.requireActual('@/shared/location/use-discovery-scope'),
+  useDiscoveryScope: () => ({ scope: { status: 'ready', source: 'none', reason: 'no_area' }, recheck: jest.fn() }),
+}))
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn(), dismissTo: jest.fn() }),
@@ -36,9 +44,12 @@ jest.mock('expo-image-picker', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useDiscoveryPreview: () => mockLoaded(undefined),
+  useContributionCredits: () => mockLoaded(undefined),
+  useMe: () => mockLoaded({}),
   useTaxonomies: () => mockLoaded({ kinds: { category: [] } }),
   usePlaceSearch: () => ({
-    ...mockLoaded({ pages: [{ results: [] }] }),
+    ...mockLoaded(mockSearchData),
     hasNextPage: false,
     isFetchingNextPage: false,
     fetchNextPage: jest.fn(),
@@ -124,7 +135,7 @@ describe('search filters sheet', () => {
     useRoomStore.setState({ originLat: 10.77, originLng: 106.7 })
     const view = await openFilters()
     expect(view.getByRole('button', { name: 'Đóng' })).toBeTruthy()
-    expect(view.getByLabelText('Khoảng cách tối đa (km)')).toBeTruthy()
+    expect(view.queryByLabelText('Khoảng cách tối đa (km)')).toBeNull()
     expect(view.getByLabelText('Giá từ (nghìn đồng / người)')).toBeTruthy()
     expect(view.getByLabelText('Giá đến (nghìn đồng / người)')).toBeTruthy()
   })
@@ -132,13 +143,13 @@ describe('search filters sheet', () => {
   it('closes from the named backdrop', async () => {
     const view = await openFilters()
     await press(view.getByRole('button', { name: 'Đóng' }))
-    expect(view.queryByText('Áp dụng')).toBeNull()
+    expect(view.queryByText('Áp dụng bộ lọc')).toBeNull()
   })
 
   it('appears without sliding when reduced motion is on', async () => {
     await withReducedMotion(true)
     const view = await openFilters()
-    const title = view.getByText('Áp dụng')
+    const title = view.getByText('Áp dụng bộ lọc')
     expect(modalOf(title).props.animationType).not.toBe('slide')
     expect(translatedY(title)).toEqual([])
   })

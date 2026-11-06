@@ -116,7 +116,7 @@ it('a burst limit asks to wait, and Retry stays', async () => {
 it('a burst limit reads its number from the status: another configured limit shows that one', async () => {
   const backend = spyOn({
     ...createMockAssistantBackend({ speed: 0, actor: () => 'user' }),
-    getStatus: async () => ({ state: 'enabled', dailyMessageLimit: 12, remainingToday: 9, resetsAt: '2026-10-27T17:00:00Z', messagesPerMinuteLimit: 2 }),
+    getStatus: async () => ({ creditBalance: 0, state: 'enabled', dailyMessageLimit: 12, remainingToday: 9, resetsAt: '2026-10-27T17:00:00Z', messagesPerMinuteLimit: 2 }),
   })
   setAssistantBackend(backend)
   const view = await renderAssistant(<AssistantRoute />)
@@ -136,7 +136,7 @@ it('the kill switch: "isn’t available right now", from a send or from the stat
 it('a disabled status turns sending off before anything is typed', async () => {
   const backend = spyOn({
     ...createMockAssistantBackend({ speed: 0, actor: () => 'user' }),
-    getStatus: async () => ({ state: 'disabled', dailyMessageLimit: 50, remainingToday: 50, resetsAt: '2026-10-27T17:00:00Z' }),
+    getStatus: async () => ({ creditBalance: 0, state: 'disabled', dailyMessageLimit: 50, remainingToday: 50, resetsAt: '2026-10-27T17:00:00Z' }),
   })
   setAssistantBackend(backend)
   const view = await renderAssistant(<AssistantRoute />)

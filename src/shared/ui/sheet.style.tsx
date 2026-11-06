@@ -9,6 +9,7 @@ import { fill, overlay } from '@/shared/ui/tokens'
  * backdrop.
  */
 export const styles = StyleSheet.create(theme => ({
+  gestureRoot: { flex: 1 },
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...fill, backgroundColor: overlay.backdrop },
   backdropButton: { ...fill },
@@ -23,7 +24,10 @@ export const styles = StyleSheet.create(theme => ({
     flexShrink: 1,
     ...theme.shadows.toast,
   },
+  discoveryPanel: { backgroundColor: theme.redesign.card, paddingHorizontal: 16, paddingTop: 8 },
+  discoveryHandle: { height: 6, marginBottom: 8, backgroundColor: theme.redesign.highest },
   panelFull: { height: '92%' },
+  dragHandle: { minHeight: 44, justifyContent: 'center' },
   handle: {
     width: 40,
     height: 4,

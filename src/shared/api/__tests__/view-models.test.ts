@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { PlaceSearchResult, Plan, RoomSummary } from '../types'
 import {
+  areaLabel,
   detailToPlaceCard,
   formatCount,
   formatDistance,
@@ -12,6 +13,7 @@ import {
   parseApiDate,
   placeCardMetaLine,
   placeCardRatingPriceLine,
+  ratingParts,
   type PlaceCard,
   toCandidateCard,
   toNumber,
@@ -35,6 +37,35 @@ function searchResult(overrides: Partial<PlaceSearchResult> = {}): PlaceSearchRe
 }
 
 describe('toPlaceCard', () => {
+  const areaSummary: NonNullable<PlaceSearchResult['areaSummary']> = {
+    datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740',
+    label: 'Phường Sài Gòn', locale: 'vi',
+  }
+
+  it('keeps addressText ahead of the verified administrative label', () => {
+    const card = toPlaceCard(searchResult({ addressText: '12 Nguyễn Huệ', areaSummary }))
+    expect(card.areaSummary).toEqual(areaSummary)
+    expect(areaLabel(card)).toBe('12 Nguyễn Huệ')
+  })
+
+  it.each([undefined, ''])('uses areaSummary.label without an address (%s)', addressText => {
+    const card = toPlaceCard(searchResult({ addressText, areaSummary }))
+    expect(card.addressText).toBe(addressText)
+    expect(areaLabel(card)).toBe('Phường Sài Gòn')
+  })
+
+  it('accepts a province label when no commune is supplied', () => {
+    expect(areaLabel(toPlaceCard(searchResult({
+      areaSummary: { ...areaSummary, communeCode: null, label: 'Ho Chi Minh City', locale: 'en' },
+    })))).toBe('Ho Chi Minh City')
+  })
+
+  it('returns no address without either fact, even with an area key or chip', () => {
+    const card = toPlaceCard(searchResult({ areaKey: 'hcm_q3' }))
+    card.discovery = { areaLabel: 'Discovery bucket' }
+    expect(areaLabel(card)).toBeNull()
+  })
+
   it('carries the per-person price range through in minor units', () => {
     const card = toPlaceCard(
       searchResult({ pricePerPerson: { min: 45_000, max: 90_000, currency: 'VND', confidence: 0.8 } }),
@@ -394,16 +425,32 @@ describe('PlaceCard lines (#295, #293 §3)', () => {
     expect(placeCardRatingPriceLine(card({ rating: undefined }), units).rating).toBeNull()
   })
 
-  it('free and unknown are the whole price part — never an amount with no unit', () => {
+  it('shows free and omits unknown prices, including an amount with no unit', () => {
     expect(placeCardRatingPriceLine(card({ priceUnit: 'free' }), units).price).toBe('Miễn phí')
-    expect(placeCardRatingPriceLine(card({ priceMin: null, priceMax: null }), units).price).toBe('Chưa có thông tin giá')
+    expect(placeCardRatingPriceLine(card({ priceMin: null, priceMax: null }), units).price).toBe('')
     // A range whose scope nobody stated is not a price anyone can act on —
     // "45k–90k" with no unit is what RULE-CORE-013 forbids.
-    expect(placeCardRatingPriceLine(card({ priceUnit: 'unknown' }), units).price).toBe('Chưa có thông tin giá')
+    expect(placeCardRatingPriceLine(card({ priceUnit: 'unknown' }), units).price).toBe('')
   })
 
   it('keeps the unit it was given and marks an estimate', () => {
     expect(placeCardRatingPriceLine(card({ priceUnit: 'per_hour' }), units).price).toBe('45k–90k/giờ')
     expect(placeCardRatingPriceLine(card({ priceUncertain: true }), units).price).toBe('~45k–90k/người')
+  })
+})
+
+
+describe('#754 discovery ratings', () => {
+  it.each([0, 4, 5])('carries the community count and only exposes scores at five reviews (%i)', count => {
+    const card = toPlaceCard(searchResult({ gogoRating: 4.2, gogoRatingCount: count, rating: 4.6, ratingCount: 980 }))
+    expect(card.gogoRatingCount).toBe(count)
+    expect(ratingParts(card).google).toEqual({ value: 4.6, count: 980 })
+    expect(ratingParts(card).gogo).toEqual(count >= 5 ? { value: 4.2, count: 5 } : null)
+  })
+  it('does not infer verification from confidence and preserves missing community facts', () => {
+    const card = toPlaceCard(searchResult({ confidence: 1 }))
+    expect(card.gogoRating).toBeUndefined()
+    expect(card.gogoRatingCount).toBeUndefined()
+    expect(card).not.toHaveProperty('verified')
   })
 })

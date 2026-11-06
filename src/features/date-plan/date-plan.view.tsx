@@ -348,7 +348,7 @@ export default function DatePlanScreen() {
         ) : null}
 
         <Card style={styles.summaryCard}>
-          <View style={styles.summaryTotalRow}>
+          {cost.primary ? <View style={styles.summaryTotalRow}>
             <Text variant="body" color="text.secondary">{t('datePlan.totalCost')}</Text>
             <View style={styles.summaryTotalValue}>
               {/* One formatter owns the amount and its scope (GoGo-MobileApp#249).
@@ -368,8 +368,8 @@ export default function DatePlanScreen() {
                 </Text>
               ) : null}
             </View>
-          </View>
-          <View style={styles.summaryDivider} />
+          </View> : null}
+          {cost.primary ? <View style={styles.summaryDivider} /> : null}
           <View style={styles.summaryTimeRow}>
             <Text variant="body" color="text.secondary">{t('datePlan.time')}</Text>
             <Text variant="title2">

@@ -459,13 +459,13 @@ export default function PlaceDetailScreen() {
               (spec §6). A fact with no data is left out rather than drawn as a
               dash (RULE-CORE-015). */}
           <View testID="place-detail-facts" style={styles.facts}>
-            {isStandalonePrice(price.unit) ? (
-              <View style={styles.priceRow}>
+            {price.unit === 'unknown' ? null : isStandalonePrice(price.unit) ? (
+              <View testID="place-detail-price" style={styles.priceRow}>
                 <Icon name="dollar" size={20} color="text.secondary" />
                 <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
               </View>
             ) : (
-              <View style={styles.priceRow}>
+              <View testID="place-detail-price" style={styles.priceRow}>
                 <Icon name="dollar" size={20} color="accent.primary" />
                 <Text variant="title2" color="accent.primary" numberOfLines={1} style={styles.priceText}>
                   {price.amount} <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit)).replace(/^\//, '')}</Text>

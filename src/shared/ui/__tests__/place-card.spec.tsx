@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
+import { themes, type AppTheme } from '@/shared/ui/theme'
 
 import type { PlaceCard as PlaceCardModel } from '@/shared/api'
 import i18n from '@/shared/i18n'
@@ -98,16 +100,16 @@ describe('PlaceCard — list', () => {
     expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBe('Google 4,6 sao, 45k–90k/người')
   })
 
-  it('unknown price is never cut: its sentence may take a second line', async () => {
+  it('unknown price leaves only the rating on one line', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
     const line = screen.getByTestId('place-card-rating-price')
-    expect(line).toHaveTextContent(/Chưa có thông tin giá/)
-    expect(line.props.numberOfLines).toBe(2)
+    expect(line).toHaveTextContent('★ 4,6 (980)', { exact: true })
+    expect(line.props.numberOfLines).toBe(1)
   })
 
-  it('unknown price says so in words — never an amount without a unit', async () => {
+  it('unknown price has no separator or amount', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) · Chưa có thông tin giá', { exact: true })
+    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980)', { exact: true })
   })
 
   it('free is the whole price part', async () => {
@@ -223,5 +225,132 @@ describe('PlaceCard — list', () => {
   it('guest (no save handler): no toggle at all', async () => {
     await render(<PlaceCard place={fixture()} />)
     expect(screen.queryByTestId('place-card-save')).toBeNull()
+  })
+})
+
+describe('discovery appearance protects Saved/default', () => {
+  const areaSummary: NonNullable<PlaceCardModel['areaSummary']> = {
+    datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740',
+    label: 'Phường Sài Gòn', locale: 'vi',
+  }
+
+  it.each([
+    ['12 Nguyễn Huệ', '12 Nguyễn Huệ'],
+    [undefined, 'Phường Sài Gòn'],
+    ['', 'Phường Sài Gòn'],
+  ] as const)('renders address %s with matching accessibility text', async (addressText, expected) => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, areaSummary, discovery: { areaLabel: 'Discovery bucket' } })} />)
+    const line = screen.getByTestId('place-card-meta')
+    expect(line).toHaveTextContent(expected, { exact: true })
+    expect(line.props.numberOfLines).toBe(2)
+    expect(line.props.accessibilityLabel).toBe(expected)
+    expect(flat('place-card-meta')).toMatchObject({ ...type.introSmall, color: themes.orange.redesign.secondary })
+  })
+
+  it('omits the address line without either fact instead of using the chip or area key', async () => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, areaKey: 'hcm_q3', discovery: { areaLabel: 'Discovery bucket' } })} />)
+    expect(screen.queryByTestId('place-card-meta')).toBeNull()
+    expect(screen.queryByLabelText('Discovery bucket')).toBeNull()
+  })
+
+  it('keeps the proper name when the label locale differs from the app language', async () => {
+    await act(async () => { await i18n.changeLanguage('en') })
+    try {
+      await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, areaSummary })} />)
+      expect(screen.getByTestId('place-card-meta')).toHaveTextContent('Phường Sài Gòn', { exact: true })
+      expect(screen.getByLabelText('Phường Sài Gòn')).toBeTruthy()
+    } finally {
+      await act(async () => { await i18n.changeLanguage('vi') })
+    }
+  })
+
+  it('renders separate rating sources and isolates save from open', async () => {
+    const open = jest.fn(); const save = jest.fn()
+    await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: 20 })} saved onPress={open} onToggleSave={save} />)
+    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByText('★ 4,9 (20) GoGo')).toBeTruthy()
+    await fireEvent.press(screen.getByTestId('place-card-save'))
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(open).not.toHaveBeenCalled()
+  })
+  it.each([0, 4])('hides a community score below five reviews (%i)', async count => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: count })} />)
+    expect(screen.queryByText(/4,9/)).toBeNull()
+    expect(screen.getByText('GoGo · Chưa đủ đánh giá')).toBeTruthy()
+    expect(screen.queryByTestId('place-card-save')).toBeNull()
+  })
+  it('keeps the default Saved card layout and remove toggle when new facts exist', async () => {
+    const remove = jest.fn()
+    await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 20, priceMin: null, priceMax: null, priceUnit: 'unknown', openNow: undefined })} saved onToggleSave={remove} />)
+    expect(screen.getByTestId('place-card')).toBeTruthy()
+    expect(screen.queryByTestId('place-card-discovery')).toBeNull()
+    expect(screen.queryByText('Chưa có thông tin giá')).toBeNull()
+    await fireEvent.press(screen.getByTestId('place-card-save'))
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
+})
+
+/** Structural evidence only: RNTL/Jest do not perform Yoga text measurement. */
+describe('F-06 bounded discovery photo badges', () => {
+  it.each(['orange', 'orangeDark'] as const)('shares a 264pt wrapping overlay inside a 288pt card on a 320pt phone (%s)', async themeName => {
+    const create = jest.spyOn(UnistylesStyleSheet, 'create')
+    jest.isolateModules(() => { jest.requireActual('../place-card.style') })
+    const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
+    const styles = factory(themes[themeName])
+    create.mockRestore()
+    await render(<PlaceCard appearance="discovery" style={{ width: 320 - 2 * 16 }} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu', verified: true }, distanceM: 2100 })} saved onToggleSave={jest.fn()} />)
+    const overlay = screen.getByTestId('place-card-photo-badges')
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-discovery').parent!.parent!.props.style).width).toBe(288)
+    expect(styles.photoBadges).toMatchObject({ position: 'absolute', left: 12, right: 12, top: 64, bottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', gap: 8 })
+    expect(288 - styles.photoBadges.left - styles.photoBadges.right).toBe(264)
+    expect(288 / styles.listPhoto.aspectRatio - styles.photoBadges.top - styles.photoBadges.bottom).toBe(104)
+    expect(overlay.children).toHaveLength(2)
+    for (const id of ['place-card-area-badge', 'place-card-hours-badge']) {
+      expect(screen.getByTestId(id).parent).toBe(overlay)
+      expect(styles.photoBadge).toMatchObject({ maxWidth: '100%', minWidth: 0, flexShrink: 1, backgroundColor: themes[themeName].redesign.card })
+      expect(styles.photoBadge.position).toBeUndefined()
+      expect(screen.getByText(id === 'place-card-area-badge' ? '2,1 km • Tỉnh Bà Rịa - Vũng Tàu' : '● Mở đến 20:00').props.numberOfLines).toBe(2)
+    }
+    expect(screen.getByText('2,1 km • Tỉnh Bà Rịa - Vũng Tàu')).toBeTruthy()
+    expect(screen.getByText('● Mở đến 20:00')).toBeTruthy()
+    expect(flat('place-card-save')).toMatchObject({ width: 44, height: 44 })
+    // Even if both badges use two lines and wrap to separate rows, 80pt fits
+    // in the 104pt reserved region below the top actions at default text size.
+    expect(2 * (2 * type.introCaptionMedium.lineHeight + 8) + 8).toBeLessThanOrEqual(104)
+  })
+  it.each([[false, false], [true, false], [false, true], [true, true]])('renders only supplied area/hours badges (%s/%s)', async (area, hours) => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ distanceM: undefined, discovery: area ? { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } : undefined, openNow: hours ? true : undefined })} />)
+    expect(Boolean(screen.queryByTestId('place-card-area-badge'))).toBe(area)
+    expect(Boolean(screen.queryByTestId('place-card-hours-badge'))).toBe(hours)
+    expect(Boolean(screen.queryByTestId('place-card-photo-badges'))).toBe(area || hours)
+  })
+  it.each(['list', 'hero'] as const)('does not add the discovery overlay to the default %s variant', async variant => {
+    await render(<PlaceCard variant={variant} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } })} />)
+    expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
+    expect(screen.getByText('Cà phê Đỗ Phủ')).toBeTruthy()
+  })
+})
+
+
+describe('#515 shared discovery card address', () => {
+  it.each([
+    ['12 Nguyễn Huệ', '12 Nguyễn Huệ'],
+    [undefined, 'Quận 1'],
+    ['  ', 'Quận 1'],
+  ])('uses the address before the real area label (%s)', async (addressText, expected) => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, areaSummary: { datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740', label: 'Quận 1', locale: 'vi' }, discovery: { areaLabel: 'Discovery bucket' } })} />)
+    expect(screen.getByTestId('place-card-meta')).toHaveTextContent(expected!, { exact: true })
+    expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
+    expect(screen.getByTestId('place-card-meta').props.ellipsizeMode).toBe('tail')
+    expect(screen.getByTestId('place-card-meta').props.accessibilityLabel).toBe(expected)
+    expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(1)
+    expect(screen.getByTestId('place-card-name').props.ellipsizeMode).toBe('tail')
+  })
+  it('omits address and overlays without facts, and unknown price', async () => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, distanceM: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, priceMin: null, priceMax: null, priceUnit: 'unknown' })} />)
+    expect(screen.queryByTestId('place-card-meta')).toBeNull()
+    expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
+    expect(screen.queryByText(/Google|GoGo|Xác minh/)).toBeNull()
+    expect(screen.queryByText('Chưa có thông tin giá')).toBeNull()
   })
 })

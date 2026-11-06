@@ -1,27 +1,33 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-// Pressed is a colour change only (#382).
+// Home discovery surfaces follow the approved Stitch design.
 
 export const styles = StyleSheet.create(theme => ({
-  bell: {
-    width: 44,
-    height: 44,
-    marginRight: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: theme.surface.card,
-    borderWidth: 1,
-    borderColor: theme.border.hairline,
-  },
-  bellBadge: { position: 'absolute', top: -5, right: -5 },
+  suggestions: { paddingHorizontal: spacing[4], marginTop: spacing[6] },
+  moreAction: { minHeight: touchTarget.min, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  moods: { gap: spacing[2], paddingVertical: spacing[1], marginBottom: spacing[3] },
+  roomIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.redesign.card, alignItems: 'center', justifyContent: 'center' },
+  roomStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  roomDot: { width: spacing[1], height: spacing[1], borderRadius: radius.pill, backgroundColor: theme.redesign.violetText },
+  roomAction: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, backgroundColor: theme.redesign.violet, alignItems: 'center', justifyContent: 'center' },
+  nearestRoom: { marginHorizontal: 16, marginTop: 24, padding: 16, gap: 12, flexDirection: 'row', alignItems: 'center', minHeight: 72, borderRadius: 16, backgroundColor: theme.redesign.violetSoft },
+  roomCopy: { flex: 1, gap: 4 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, minHeight: 64, backgroundColor: theme.redesign.canvas },
+  brand: { width: 32, height: 32, borderRadius: 12, backgroundColor: theme.redesign.primaryFill, justifyContent: 'center', alignItems: 'center' },
+  headerAction: { width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 4 },
+  join: { marginHorizontal: 16, marginTop: 24, backgroundColor: theme.redesign.card, borderRadius: 16, padding: 12, gap: 8 },
+  joinHeading: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  joinRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  joinInput: { ...type.introBody, color: theme.redesign.ink, flex: 1, minHeight: 48, minWidth: 0, backgroundColor: theme.redesign.container, borderRadius: 12, paddingHorizontal: 12 },
+  joinButton: { minHeight: 48, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.redesign.high, borderWidth: 0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing[5],
+    paddingHorizontal: 16,
     paddingTop: spacing[2],
     paddingBottom: spacing[4],
   },
@@ -42,13 +48,14 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[4],
   },
 
+  heroDecor: { position: 'absolute', right: -12, bottom: -12, opacity: 0.25 },
   hero: {
-    marginHorizontal: spacing[5],
-    padding: spacing[5],
+    marginHorizontal: 16,
+    padding: 16,
+    marginTop: 24,
     borderRadius: radius.hero,
-    backgroundColor: theme.surface.card,
-    borderWidth: 1,
-    borderColor: theme.border.hairline,
+    overflow: 'hidden',
+    ...theme.shadows.card,
   },
   heroBadge: {
     alignSelf: 'flex-start',
@@ -66,14 +73,15 @@ export const styles = StyleSheet.create(theme => ({
   // One dominant CTA (spec §7): "Tạo kèo" is filled, "Chọn nhanh" is a quiet fill.
   heroActions: { flexDirection: 'row', gap: spacing[3], alignItems: 'center' },
   heroPrimary: {
-    flex: 1,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 24,
     height: touchTarget.min + 4,
     borderRadius: radius.pill,
     flexDirection: 'row',
     gap: spacing[2],
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.accent.primary,
+    backgroundColor: theme.redesign.primary,
   },
   heroPrimaryPressed: { backgroundColor: theme.accent.pressed },
   heroSecondary: {
@@ -92,7 +100,7 @@ export const styles = StyleSheet.create(theme => ({
 
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing[3],
   },
