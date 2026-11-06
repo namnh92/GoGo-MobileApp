@@ -6,8 +6,8 @@ const last = onboardingSpacing(2)
 export const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { flex: 1, paddingHorizontal: 20 },
-  upper: { flexGrow: 0, flexShrink: 1 },
-  scrollingUpper: { flex: 1 },
+  upperRegion: { flex: 1, minHeight: 0 },
+  upper: { flex: 1, minHeight: 0 },
   header: { minHeight: 44, flexShrink: 0, flexDirection: 'row', alignItems: 'center' },
   headerSpaced: { marginVertical: swipe.header },
   headerSpace: { flex: 1 },

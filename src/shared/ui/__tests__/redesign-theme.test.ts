@@ -27,3 +27,14 @@ describe('approved group 01 theme and copy', () => {
     expect(viMessages['auth.recoveryUnavailable']).toBe('Khôi phục mật khẩu chưa khả dụng.')
   })
 })
+
+// N1 changes marketing scope; named places and splash cities remain examples.
+it('uses the owner-approved nationwide marketing in both catalogs', () => {
+  expect([viMessages['auth.coffeeBody'], viMessages['auth.curation']]).toEqual(['Cùng bạn bè bình chọn địa điểm ăn uống trên khắp Việt Nam', 'Địa điểm GoGo tuyển chọn'])
+  expect([enMessages['auth.coffeeBody'], enMessages['auth.curation']]).toEqual(['Vote with friends on places to eat across Vietnam', 'Curated by GoGo'])
+  for (const catalog of [viMessages, enMessages]) {
+    for (const [key, copy] of Object.entries(catalog)) {
+      if (/^(auth|splash|onboarding)\./.test(key) && !key.startsWith('onboarding.art.')) expect(copy).not.toMatch(/Saigon|Sài Gòn/i)
+    }
+  }
+})

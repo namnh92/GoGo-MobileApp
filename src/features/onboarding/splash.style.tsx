@@ -8,6 +8,7 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  composition: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   map: {
     overflow: 'visible',
   },
@@ -28,6 +29,7 @@ export const styles = StyleSheet.create(theme => ({
     opacity: 0,
   },
   brand: {
+    alignSelf: 'stretch',
     alignItems: 'center',
     marginTop: theme.spacing[7],
   },

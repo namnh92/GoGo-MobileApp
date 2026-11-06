@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { act, screen } from '@testing-library/react-native'
+import { act, fireEvent, screen } from '@testing-library/react-native'
 import { Dimensions, StyleSheet } from 'react-native'
 import { getAnimatedStyle } from 'react-native-reanimated'
 
@@ -88,16 +88,19 @@ describe('splash map fit', () => {
     return { w: style.width as number, h: style.height as number }
   }
 
-  it.each([
-    ['a small phone', 320, 568],
-    ['a large phone', 430, 932],
-  ])('fits the 200px Stitch map on %s and keeps its aspect ratio', async (_name, width, height) => {
-    const { w, h } = await mapWidthFor(width, height)
-    expect(w).toBeLessThanOrEqual(width - 48)
-    expect(h).toBeLessThan(height - 48 - 96)
-    expect(w / h).toBeCloseTo(223 / 349, 1)
-    expect(w).toBeLessThanOrEqual(200)
-    expect(w).toBeGreaterThan(0)
+  it.each([[320, 568, 80], [393, 852, 70], [430, 400, 110]])('maximizes the map after measuring the %s×%s viewport and brand', async (width, height, brandHeight) => {
+    await mapWidthFor(width, height)
+    const layout = { x: 0, y: 0, width: width - 48, height: height - 48 }
+    const parent = screen.queryByTestId('splash-layout', { includeHiddenElements: true })
+    if (parent) await fireEvent(parent, 'layout', { nativeEvent: { layout } })
+    await fireEvent(screen.getByTestId('splash-brand'), 'layout', { nativeEvent: { layout: { ...layout, height: brandHeight } } })
+    const style = StyleSheet.flatten(screen.getByTestId('splash-map', { includeHiddenElements: true }).props.style)
+    // 0.25 SVG unit stroke reserve on every edge; 5.1-unit pin-drop overhang above the viewBox.
+    const expected = Math.min(layout.width / 223.5, (layout.height - brandHeight - 32) / 354.6)
+    expect(style.width).toBeCloseTo(223 * expected)
+    expect(style.height).toBeCloseTo(349 * expected)
+    expect(style.width).toBeGreaterThan(0)
+    expect(style.width / style.height).toBeCloseTo(223 / 349)
   })
 
   it.each([180, 242, 342, 400])('uses the approved 9-unit map-label token on a %i px map', width => {

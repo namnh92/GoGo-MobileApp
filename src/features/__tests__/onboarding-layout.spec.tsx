@@ -205,3 +205,24 @@ it.each(['window', 'insets', 'fontScale', 'language', 'viewport'] as const)('inv
   await act(async () => { oldViewport(event(100, 100)); oldNarrative(event(phone.width - 40, 900)) })
   expect(screen.getByTestId('onboarding-narrative')).toBe(currentNarrative)
 })
+
+// O-5: fitting content must still consume the upper space, placing the actions
+// at the safe bottom, rather than leaving unused space underneath them.
+it('anchors the footer even when natural content leaves surplus height, and provides Back on slide 2', async () => {
+  await mount(phones[1], 1, 1)
+  await measure(phones[1], 1, false)
+  const scroll = upper()
+  expect(flat(scroll.props.style).flex).toBe(1)
+  expect(scrollAncestor(actions(1))).toBeNull()
+  expect(screen.getByRole('button', { name: i18n.t('common.back') })).toBeTruthy()
+})
+
+it('uses one whole-screen scroll when the measured action group alone cannot fit', async () => {
+  await mount(phones[0], 1, 2)
+  await measure(phones[0], 2, false)
+  await fireEvent(screen.getByTestId('onboarding-actions'), 'layout', event(phones[0].width - 40, 800))
+  expect(scrollAncestor(actions(2))).toBe(scrollAncestor(visual()))
+  expect(scrollAncestor(actions(2))).not.toBeNull()
+  expect(screen.getAllByRole('button', { name: i18n.t('onboarding.start') })).toHaveLength(1)
+  expect(screen.getAllByRole('button', { name: i18n.t('onboarding.guest') })).toHaveLength(1)
+})
