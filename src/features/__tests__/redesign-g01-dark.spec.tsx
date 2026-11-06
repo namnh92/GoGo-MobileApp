@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import '@/shared/i18n'
@@ -32,12 +32,21 @@ it('renders splash and each onboarding slide with S70-derived dark canvas and ar
 })
 it('renders both auth modes and nested inputs in dark', async () => {
   await render(<SignIn />)
+  const expectHeader = (title: string) => {
+    const back = screen.getByRole('button', { name: 'Quay lại' })
+    const label = within(back.parent!).getByText(title)
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ textAlign: 'left', color: themes.orangeDark.redesign.ink })
+    expect(StyleSheet.flatten(back.parent!.props.style)).toMatchObject({ gap: 8, minWidth: 0 })
+    expect(StyleSheet.flatten(back.parent!.parent!.props.style)).toMatchObject({ minHeight: 56 })
+  }
+  expectHeader('Đăng nhập')
   const input = screen.getByLabelText('Email')
   expect(flat(input.props.style).color).toBe('#E6E6E6')
   const field = jest.requireActual<typeof import('@/shared/ui/labelled-input.style')>('@/shared/ui/labelled-input.style').styles
   expect(field.shell.backgroundColor).toBe('#222222')
   expect(field.row.backgroundColor).toBe('#2A2A2A')
   await fireEvent.press(screen.getByRole('tab', { name: 'Đăng ký' }))
+  expectHeader('Đăng ký')
   expect(screen.getByLabelText('Tên hiển thị')).toBeTruthy()
   expect(screen.getByTestId('password-requirements')).toBeTruthy()
 })

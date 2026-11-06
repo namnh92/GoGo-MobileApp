@@ -147,24 +147,31 @@ export function ProgressDots({ total, current, variant = 'default' }: { total: n
 
 export function BackHeader({ title, subtitle, onBack, right, redesign = false }: { title?: string; subtitle?: string; onBack: () => void; right?: ReactNode; redesign?: boolean }) {
   const { t } = useTranslation()
+  const grouped = redesign && title && !subtitle
+  const back = <Pressable
+    onPress={onBack}
+    accessibilityRole="button"
+    accessibilityLabel={t('common.back')}
+    hitSlop={hitSlop}
+    style={({ pressed }) => [styles.backBtn, !redesign && glassStyles.card, redesign && styles.redesignBack, grouped && styles.redesignGroupedBack, pressed && styles.backBtnPressed]}
+  >
+    {redesign ? <MaterialIcon name="arrowBack" size={24} /> : <IconChevronLeft />}
+  </Pressable>
   return (
     <View style={[styles.backHeader, redesign && styles.redesignHeader]}>
       {redesign && <FrostedMaterial kind="header" />}
-      <Pressable
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.back')}
-        hitSlop={hitSlop}
-        style={({ pressed }) => [styles.backBtn, !redesign && glassStyles.card, redesign && styles.redesignBack, pressed && styles.backBtnPressed]}
-      >
-        {redesign ? <MaterialIcon name="arrowBack" size={24} /> : <IconChevronLeft />}
-      </Pressable>
-      {title && subtitle ? (
-        <View style={styles.backTitleBlock}>
-          <Text variant="title2" numberOfLines={1}>{title}</Text>
-          <Text variant="caption" color="text.secondary" numberOfLines={1}>{subtitle}</Text>
-        </View>
-      ) : title ? <Text variant={redesign ? 'introHeading' : 'title2'} color={redesign ? 'redesign.ink' : 'text.primary'} style={styles.backTitle}>{title}</Text> : null}
+      {grouped ? <View style={styles.redesignHeaderLeft}>
+        {back}
+        <Text variant="introHeading" color="redesign.ink" style={styles.redesignHeaderTitle}>{title}</Text>
+      </View> : <>
+        {back}
+        {title && subtitle ? (
+          <View style={styles.backTitleBlock}>
+            <Text variant="title2" numberOfLines={1}>{title}</Text>
+            <Text variant="caption" color="text.secondary" numberOfLines={1}>{subtitle}</Text>
+          </View>
+        ) : title ? <Text variant="title2" color="text.primary" style={styles.backTitle}>{title}</Text> : null}
+      </>}
       {right ?? <View style={styles.backSpacer} />}
     </View>
   )
@@ -231,8 +238,11 @@ export function RemoteImage({ uri, source, style, illustration = false }: Remote
 
 const styles = StyleSheet.create(theme => ({
   redesignCanvas: { backgroundColor: theme.redesign.canvas },
-  redesignHeader: { height: 56, paddingHorizontal: 16, paddingVertical: 0, gap: 8 },
+  redesignHeader: { minHeight: 56, paddingHorizontal: 16, paddingVertical: 0, gap: 8 },
   redesignBack: { width: 44, height: 44, borderWidth: 0, backgroundColor: 'transparent' },
+  redesignHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, gap: 8 },
+  redesignHeaderTitle: { flexShrink: 1, minWidth: 0, textAlign: 'left' },
+  redesignGroupedBack: { marginLeft: -8, flexShrink: 0 },
   redesignDotsRow: { gap: 8 },
   debateDotsRow: { gap: 4 },
   redesignDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.redesign.highest },

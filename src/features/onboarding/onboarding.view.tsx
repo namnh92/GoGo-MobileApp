@@ -5,6 +5,7 @@ import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { MessageKey } from '@/shared/i18n/types'
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
+import { onboardingPermissionStore } from '@/shared/notifications/onboarding-permission-store'
 import { markOnboardingComplete } from '@/shared/storage/onboarding'
 import { Atmosphere, GhostBtn, IconBtn, PrimaryBtn, ProgressDots } from '@/shared/ui/primitives'
 import { MaterialIcon } from '@/shared/ui/material-icon'
@@ -38,6 +39,7 @@ export default function OnboardingScreen() {
   async function start() {
     if (finishing) return
     setFinishing(true)
+    await onboardingPermissionStore.defer()
     await markOnboardingComplete()
     router.replace('/auth/sign-in')
   }

@@ -22,6 +22,7 @@ export type TextColor =
   | 'redesign.ink'
   | 'redesign.secondary'
   | 'redesign.outline'
+  | 'redesign.checklistUnmet'
   | 'redesign.greenText'
   | 'redesign.violetText'
   | 'redesign.violetInk'
@@ -55,6 +56,7 @@ const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
   'redesign.ink': theme => theme.redesign.ink,
   'redesign.secondary': theme => theme.redesign.secondary,
   'redesign.outline': theme => theme.redesign.outline,
+  'redesign.checklistUnmet': theme => theme.redesign.checklistUnmet,
   'redesign.greenText': theme => theme.redesign.greenText,
   'redesign.violetText': theme => theme.redesign.violetText,
   'redesign.violetInk': theme => theme.redesign.violetInk,

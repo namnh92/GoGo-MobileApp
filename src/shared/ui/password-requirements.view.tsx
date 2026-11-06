@@ -19,8 +19,8 @@ export function PasswordRequirements({ value }: { value: string }) {
     const met = rules[rule]
     const text = labels[rule]
     return <View key={rule} testID={`password-requirement-${rule}`} accessibilityLabel={t(met ? 'auth.requirement.met' : 'auth.requirement.unmet', { requirement: text })} style={styles.row}>
-      <MaterialIcon name={met ? 'checkCircle' : 'close'} size={14} color={met ? 'redesign.greenText' : 'redesign.outline'} />
-      <Text variant="introCaption" color={met ? 'redesign.greenText' : 'redesign.outline'}>{text}</Text>
+      <MaterialIcon name={met ? 'checkCircle' : 'close'} size={14} color={met ? 'redesign.greenText' : 'redesign.checklistUnmet'} />
+      <Text variant="introCaption" color={met ? 'redesign.greenText' : 'redesign.checklistUnmet'}>{text}</Text>
     </View>
   })}</View>
 }

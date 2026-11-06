@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { fireEvent, screen } from '@testing-library/react-native'
+import { fireEvent, screen, within } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
 import { renderScreen } from './harness'
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), canGoBack: () => false }
@@ -39,6 +40,14 @@ it('goes back one slide and keeps guest completion plus notification request', a
 })
 it('keeps recovery unavailable and shows requirements in registration only', async () => {
   await renderScreen(<SignIn />)
+  const expectHeader = (title: string) => {
+    const back = screen.getByRole('button', { name: 'Quay lại' })
+    const label = within(back.parent!).getByText(title)
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ textAlign: 'left', color: '#1D1B18' })
+    expect(StyleSheet.flatten(back.parent!.props.style)).toMatchObject({ gap: 8, minWidth: 0 })
+    expect(StyleSheet.flatten(back.parent!.parent!.props.style)).toMatchObject({ minHeight: 56 })
+  }
+  expectHeader('Đăng nhập')
   expect(screen.queryByText('Auth Phone Entry')).toBeNull()
   expect(screen.queryByTestId('password-requirements')).toBeNull()
   const forgot = screen.getByRole('button', { name: 'Quên?' })
@@ -47,6 +56,7 @@ it('keeps recovery unavailable and shows requirements in registration only', asy
   await fireEvent.press(forgot)
   expect(mockRouter.replace).not.toHaveBeenCalled()
   await fireEvent.press(screen.getByRole('tab', { name: 'Đăng ký' }))
+  expectHeader('Đăng ký')
   expect(screen.getByTestId('password-requirements')).toBeTruthy()
   expect(screen.queryByText('Quên?')).toBeNull()
   await fireEvent.changeText(screen.getByLabelText('Mật khẩu'), 'Abcdef1!')

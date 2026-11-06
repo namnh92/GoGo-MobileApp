@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { View, type StyleProp, type ViewStyle } from 'react-native'
+import { View, type StyleProp, type ViewStyle, type ViewProps } from 'react-native'
 
 import { styles } from './card.style'
 
@@ -12,16 +12,17 @@ import { styles } from './card.style'
  * the corners sets `overflow: 'hidden'` itself. Not pressable: wrap it in a
  * `Pressable` where the whole card is a target.
  */
-export function Card({ children, style, padded = true, testID, appearance = 'default' }: {
+export function Card({ children, style, padded = true, testID, onLayout, appearance = 'default' }: {
   appearance?: 'default' | 'stitch' | 'stitchLow'
   children: ReactNode
   style?: StyleProp<ViewStyle>
   /** 16pt inside. Off for a card whose content runs to the edge (a photo). */
   padded?: boolean
   testID?: string
+  onLayout?: ViewProps['onLayout']
 }) {
   return (
-    <View testID={testID} style={[styles.card, padded && styles.padded, appearance !== 'default' && styles[appearance], style]}>
+    <View testID={testID} onLayout={onLayout} style={[styles.card, padded && styles.padded, appearance !== 'default' && styles[appearance], style]}>
       {children}
     </View>
   )

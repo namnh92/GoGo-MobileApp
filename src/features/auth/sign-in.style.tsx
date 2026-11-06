@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native-unistyles'
 export const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 16 },
-  tabs: { marginTop: 12, marginBottom: 24 },
+  tabs: { marginTop: 11, marginBottom: 23 },
   editorial: { marginBottom: 24 },
   hostBadge: { marginBottom: 8 },
   title: { marginBottom: 4, letterSpacing: -0.33 },

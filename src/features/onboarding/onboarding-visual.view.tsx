@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useWindowDimensions, View } from 'react-native'
+import { useWindowDimensions, View, type ViewProps } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import { FrostedMaterial } from '@/shared/ui/frosted-material.view'
@@ -13,7 +13,7 @@ import { Card } from '@/shared/ui/card.view'
 import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { artwork } from './onboarding-artwork'
-import { fitIllustration } from './onboarding-layout'
+import { fitIllustration, illustrationEnvelope, type IllustrationRect } from './onboarding-layout'
 import { styles } from './onboarding-visual.style'
 
 function Disc({ icon, violet = false, neutral = false, big = false }: { icon: MaterialIconName; violet?: boolean; neutral?: boolean; big?: boolean }) {
@@ -60,13 +60,13 @@ function Debate() {
   </Card>
 }
 
-function GhostCard({ right = false }: { right?: boolean }) {
+function GhostCard({ right = false, onLayout }: { right?: boolean; onLayout?: ViewProps['onLayout'] }) {
   const { t } = useTranslation()
-  return <Card appearance="stitch" style={[styles.ghost, right ? styles.ghostRight : styles.ghostLeft]}>
+  return <Card appearance="stitch" onLayout={onLayout} style={[styles.ghost, right ? styles.ghostRight : styles.ghostLeft]}>
     <View style={styles.between}>
-      <View style={styles.row}>
+      <View style={[styles.row, styles.ghostIdentity]}>
         <View style={[styles.avatar, right && styles.avatarWarm]}><Text variant="introCaption" color="redesign.violetInk">{t(right ? 'onboarding.art.mq' : 'onboarding.art.tt')}</Text></View>
-        <Text variant="introCaption" color="redesign.outline">{t(right ? 'onboarding.art.quan' : 'onboarding.art.trang')}</Text>
+        <Text variant="introCaption" color="redesign.outline" style={styles.swipeLabel}>{t(right ? 'onboarding.art.quan' : 'onboarding.art.trang')}</Text>
       </View>
       <MaterialIcon name="heart" size={18} color={right ? 'accent.primary' : 'redesign.greenText'} />
     </View>
@@ -78,15 +78,20 @@ function GhostCard({ right = false }: { right?: boolean }) {
   </Card>
 }
 
-function Swipe() {
+type SwipeCard = 'left' | 'right' | 'main'
+function Swipe({ bounds, measure }: {
+  bounds: ReturnType<typeof illustrationEnvelope>
+  measure: (card: SwipeCard) => ViewProps['onLayout']
+}) {
   const { t } = useTranslation()
-  return <View style={styles.stack}>
+  return <View style={[styles.stack, { width: bounds.width, height: bounds.height }]}>
+    <View style={[styles.stackStage, { left: -bounds.x, top: -bounds.y }]}>
     <AmbientGlow variant="swipe" />
-    <GhostCard /><GhostCard right />
-    <Card appearance="stitch" style={styles.mainCard}>
-      <View style={styles.between}>
+    <GhostCard onLayout={measure('left')} /><GhostCard right onLayout={measure('right')} />
+    <Card appearance="stitch" onLayout={measure('main')} style={styles.mainCard}>
+      <View style={[styles.between, styles.swipeHeader]}>
         <Badge appearance="stitchNeutral" icon="lock" label={t('onboarding.slide2.private')} />
-        <View style={styles.row}><MaterialIcon name="touch" size={16} color="accent.primary" /><Text variant="introCaption" color="accent.primary">{t('onboarding.slide2.swipe')}</Text></View>
+        <View style={[styles.row, styles.swipeHint]}><MaterialIcon name="touch" size={16} color="accent.primary" /><Text variant="introCaption" color="accent.primary" style={styles.swipeLabel}>{t('onboarding.slide2.swipe')}</Text></View>
       </View>
       <View style={styles.swipePhoto}><RemoteImage source={artwork.swipe[2]} style={styles.photoFill} illustration />
         <Badge appearance="stitchGreen" icon="verified" label={t('onboarding.art.suggested')} style={styles.photoBadge} />
@@ -96,6 +101,7 @@ function Swipe() {
       <Text variant="introCaption" color="redesign.outline" style={styles.placeMeta}>{t('onboarding.art.district1')}</Text>
       <View style={styles.swipeActions}><Disc icon="close" neutral /><Disc icon="bookmark" violet /><Disc icon="heart" big /></View>
     </Card>
+    </View>
   </View>
 }
 
@@ -145,13 +151,32 @@ function Plan() {
 /** The art has its own coordinate space; the entire drawing scales, never stretches or clips. */
 export function OnboardingVisual({ slide }: { slide: number }) {
   const window = useWindowDimensions()
+  const { i18n } = useTranslation()
+  // Re-measure at the unscaled design widths after a layout/content change.
+  // A slide return must never reuse measurements from its previous mount.
+  return <FittedOnboardingVisual key={`${slide}:${window.width}:${window.height}:${window.fontScale}:${i18n.resolvedLanguage}`} slide={slide} window={window} />
+}
+
+function FittedOnboardingVisual({ slide, window }: { slide: number; window: ReturnType<typeof useWindowDimensions> }) {
   const insets = useSafeAreaInsets()
   const [heights, setHeights] = useState<Record<number, number>>({})
-  const height = heights[slide] ?? (slide === 0 ? 320 : slide === 1 ? 340 : 400)
-  const fit = fitIllustration(window.width, window.height, insets.top, insets.bottom, height)
+  const [rectangles, setRectangles] = useState<Partial<Record<SwipeCard, IllustrationRect>>>({})
+  const bounds = illustrationEnvelope(rectangles.left && rectangles.right && rectangles.main ? Object.values(rectangles) : [])
+  const height = slide === 1 ? bounds.height : heights[slide] ?? (slide === 0 ? 320 : 400)
+  const width = slide === 1 ? bounds.width : 350
+  const fit = fitIllustration(window.width, window.height, insets.top, insets.bottom, height, width)
+  const measure = (card: SwipeCard): ViewProps['onLayout'] => event => {
+    const rect = event.nativeEvent.layout
+    if (rect.width <= 0 || rect.height <= 0) return
+    setRectangles(previous => {
+      const old = previous[card]
+      if (old && old.x === rect.x && old.y === rect.y && old.width === rect.width && old.height === rect.height) return previous
+      return { ...previous, [card]: { ...rect, rotation: card === 'left' ? -8 : card === 'right' ? 9 : 0 } }
+    })
+  }
   return <View testID="onboarding-visual" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.visual, { width: fit.width, height: fit.height }]}>
-    <View onLayout={event => { const h = event.nativeEvent.layout.height; if (h > 0 && heights[slide] !== h) setHeights(previous => ({ ...previous, [slide]: h })) }} style={[styles.art, { transform: [{ scale: fit.scale }] }]}>
-      {slide === 0 ? <Debate /> : slide === 1 ? <Swipe /> : <Plan />}
+    <View onLayout={event => { const h = event.nativeEvent.layout.height; if (slide !== 1 && h > 0 && heights[slide] !== h) setHeights(previous => ({ ...previous, [slide]: h })) }} style={[styles.art, { width, transform: [{ scale: fit.scale }] }]}>
+      {slide === 0 ? <Debate /> : slide === 1 ? <Swipe bounds={bounds} measure={measure} /> : <Plan />}
     </View>
   </View>
 }
