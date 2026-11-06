@@ -78,7 +78,10 @@ describe('i18n copy is sentence case (#382)', () => {
   }
 
   it.each(CATALOGS)('%s: no message is written in capitals', (name, messages) => {
+    // S63 explicitly labels the map marker with the city acronym (owner R1).
+    expect(messages['splash.city.hcm']).toBe('TP.HCM')
     const offenders = Object.entries(messages)
+      .filter(([key]) => key !== 'splash.city.hcm')
       .filter(([, value]) => typeof value === 'string' && shouting(value))
       .map(([key, value]) => `${name}:${key} ${JSON.stringify(value)}`)
     expect(offenders).toEqual([])

@@ -1,5 +1,4 @@
 import { useEffect, type ReactNode } from 'react'
-import { View } from 'react-native'
 import Animated, {
   cancelAnimation,
   Easing,
@@ -20,10 +19,7 @@ type RevealProps = {
 }
 
 /**
- * Shows its children from left to right. The children keep their final layout
- * the whole time: a canvas-coloured cover sits over them and its width shrinks
- * from the right edge, so nothing reflows. Under reduced motion the cover has
- * no width from the first frame.
+ * Stitch wordmark entrance: fade and 14px upward reveal, final state when reduced.
  */
 export function Reveal({ children, delay, duration, reduced, testID }: RevealProps) {
   const progress = useSharedValue(reduced ? 1 : 0)
@@ -38,12 +34,11 @@ export function Reveal({ children, delay, duration, reduced, testID }: RevealPro
     return () => cancelAnimation(progress)
   }, [reduced, delay, duration, progress])
 
-  const coverStyle = useAnimatedStyle(() => ({ width: `${(1 - progress.get()) * 100}%` }))
+  const revealStyle = useAnimatedStyle(() => ({ opacity: progress.get(), transform: [{ translateY: 14 * (1 - progress.get()) }] }))
 
   return (
-    <View style={styles.revealBox}>
+    <Animated.View testID={testID} style={[styles.revealBox, revealStyle]}>
       {children}
-      <Animated.View testID={testID} pointerEvents="none" style={[styles.revealCover, coverStyle]} />
-    </View>
+    </Animated.View>
   )
 }

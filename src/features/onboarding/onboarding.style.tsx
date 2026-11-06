@@ -1,37 +1,20 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { spacing } from '@/shared/ui/tokens'
-
-export const styles = StyleSheet.create(theme => ({
-  header: {
-    alignItems: 'flex-end',
-    paddingHorizontal: spacing[6],
-  },
-  /** 44 x 44 minimum touch target around the text link. */
-  skip: {
-    minHeight: 44,
-    minWidth: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dots: {
-    alignItems: 'center',
-    marginBottom: spacing[3],
-  },
-  body: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing[7],
-    gap: spacing[4],
-  },
-  title: {
-    textAlign: 'center',
-  },
-  slideBody: {
-    textAlign: 'center',
-  },
-  footer: {
-    paddingHorizontal: spacing[6],
-    gap: spacing[2],
-  },
-}))
+export const styles = StyleSheet.create({
+  content: { paddingHorizontal: 20 },
+  lastContent: { flexGrow: 1, justifyContent: 'space-between' },
+  header: { minHeight: 44, flexDirection: 'row', alignItems: 'center' },
+  headerSpaced: { marginVertical: 12 },
+  headerSpace: { flex: 1 },
+  back: { width: 44, height: 44, borderWidth: 0, backgroundColor: 'transparent' },
+  visual: { marginTop: 6 },
+  lastVisual: { marginVertical: 12 },
+  narrative: { alignItems: 'center', marginTop: 24, paddingHorizontal: 4 },
+  swipeNarrative: { marginTop: 8, paddingHorizontal: 8 },
+  title: { textAlign: 'center', letterSpacing: -0.56, marginBottom: 8 },
+  body: { textAlign: 'center', maxWidth: 320 },
+  dots: { alignItems: 'center', marginTop: 24, paddingVertical: 4 },
+  swipeDots: { marginTop: 16 },
+  lastDots: { alignItems: 'center', marginTop: 8, marginBottom: 16 },
+  actions: { marginTop: 24 },
+  lastActions: { marginTop: 16, gap: 8 },
+})

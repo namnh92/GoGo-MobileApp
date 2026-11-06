@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
-import { haptic } from '@/shared/ui/feedback'
+import { haptic, useReducedMotion } from '@/shared/ui/feedback'
+import { MaterialIcon } from './material-icon'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text, type TextColor } from '@/shared/ui/text'
 import type { AppTheme } from '@/shared/ui/theme'
@@ -19,10 +20,11 @@ import { styles } from './button.style'
  * Loading keeps the label and puts a spinner beside it: the button says what is
  * in flight instead of turning into an anonymous spinner, and `Pressable` is
  * disabled for the whole request so a second tap never reaches `onPress`.
- * A long label ellipsises on one line; it never shrinks to fit.
+ * Default labels ellipsise on one line. Stitch labels wrap to preserve content.
  */
 
 export interface ButtonProps {
+  variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill'
   label: string
   onPress: () => void
   /** Why the button is unavailable, or what it does, read after the label. */
@@ -71,11 +73,13 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && styles[`${kind}Pressed`], disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, style }: ButtonProps & {
+function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, style, variant = 'default' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
   const { theme } = useUnistyles()
+  const reduced = useReducedMotion()
+  const stitch = variant !== 'default'
   const inactive = disabled || loading
   // Callers often pass `loading={pending} disabled={pending || …}`: while a
   // request is in flight the button reads as loading, not as greyed out.
@@ -97,20 +101,23 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       style={({ pressed }) => [
         styles.base,
         ...kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed),
+        stitch && styles[variant],
+        stitch && pressed && !inactive && !reduced && (variant === 'stitchSubtle' ? styles.stitchPressedSubtle : styles.stitchPressed),
         style,
       ]}
     >
       {loading ? <ActivityIndicator testID="button-spinner" size="small" color={look.spinner(theme)} /> : null}
-      {icon && !loading ? <Icon name={icon} size={18} color={greyed ? look.disabledLabel : look.label} /> : null}
+      {icon && !loading && !stitch ? <Icon name={icon} size={18} color={greyed ? look.disabledLabel : look.label} /> : null}
       <Text
-        variant="label"
-        color={greyed ? look.disabledLabel : look.label}
-        numberOfLines={1}
+        variant={stitch ? (kind === 'primary' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
+        color={greyed ? look.disabledLabel : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
+        numberOfLines={stitch ? undefined : 1}
         ellipsizeMode="tail"
         style={styles.label}
       >
         {label}
       </Text>
+      {stitch && icon && !loading ? <MaterialIcon name="arrowRight" size={20} color={greyed ? look.disabledLabel : look.label} /> : null}
     </Pressable>
   )
 }

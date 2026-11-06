@@ -68,7 +68,8 @@ module.exports = defineConfig([
           message: 'Pressed changes colour only (theme.accent.pressed / theme.surface.subtle), never scale or opacity (#382).',
         },
         {
-          selector: 'Property[key.name=/[Pp]ressed$/] > ObjectExpression > Property[key.name=/^(transform|opacity)$/]',
+          // Owner 2026-11-06 D1: this shared Stitch variant alone adds press scale.
+          selector: "Property[key.name=/[Pp]ressed$/][key.name!='stitchPressed'] > ObjectExpression > Property[key.name=/^(transform|opacity)$/]",
           message: 'A pressed style changes colour only, never scale or opacity (#382).',
         },
       ],

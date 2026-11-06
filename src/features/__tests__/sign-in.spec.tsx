@@ -51,7 +51,7 @@ import { classifyAuthFailure } from '@/features/auth/auth-failure'
 
 const COPY = {
   emailInvalid: 'Email chưa đúng định dạng.',
-  passwordInvalid: 'Mật khẩu cần từ 10 đến 128 ký tự.',
+  passwordInvalid: 'Mật khẩu cần 8–128 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.',
   signInPasswordInvalid: 'Nhập mật khẩu, tối đa 128 ký tự.',
   displayNameInvalid: 'Nhập tên từ 1 đến 50 ký tự.',
   network: 'Mất kết nối. Kiểm tra mạng rồi thử lại.',
@@ -166,7 +166,7 @@ describe('sign-up validation (#252)', () => {
     const view = await openSignUp()
     await type(view.getByLabelText('Tên hiển thị'), 'An')
     await type(view.getByLabelText('Email'), 'an@example.com')
-    await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+    await type(view.getByLabelText('Mật khẩu'), 'Long-enough-1!')
 
     await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
 
@@ -176,7 +176,7 @@ describe('sign-up validation (#252)', () => {
     expect(JSON.parse(register[0][1].body)).toEqual({
       displayName: 'An',
       email: 'an@example.com',
-      password: 'long-enough-1',
+      password: 'Long-enough-1!',
     })
     expect(mockTrack).toHaveBeenCalledWith('auth_registered')
   })
@@ -296,7 +296,7 @@ describe('sign-up failure classification (#252)', () => {
     const view = await openSignUp()
     await type(view.getByLabelText('Tên hiển thị'), 'An')
     await type(view.getByLabelText('Email'), 'an@example.com')
-    await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+    await type(view.getByLabelText('Mật khẩu'), 'Long-enough-1!')
     await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
     return view
   }
@@ -423,7 +423,7 @@ describe('server field errors attach to their fields (#273)', () => {
     const view = await openSignUp()
     await type(view.getByLabelText('Tên hiển thị'), 'An')
     await type(view.getByLabelText('Email'), 'an@example.com')
-    await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+    await type(view.getByLabelText('Mật khẩu'), 'Long-enough-1!')
     await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
     return view
   }
@@ -551,7 +551,7 @@ describe('server field errors are announced (#273 F-01)', () => {
       const view = await openSignUp()
       await type(view.getByLabelText('Tên hiển thị'), 'An')
       await type(view.getByLabelText('Email'), 'an@example.com')
-      await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+      await type(view.getByLabelText('Mật khẩu'), 'Long-enough-1!')
       await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
 
       expect(await view.findByText(COPY.emailInvalid)).toBeTruthy()
@@ -649,7 +649,7 @@ describe('focus moves to the first rejected field after the submit settles (#273
       const view = await openSignUp()
       await type(view.getByLabelText('Tên hiển thị'), 'An')
       await type(view.getByLabelText('Email'), 'an@example.com')
-      await type(view.getByLabelText('Mật khẩu'), 'long-enough-1')
+      await type(view.getByLabelText('Mật khẩu'), 'Long-enough-1!')
       await press(view.getByRole('button', { name: 'Tạo tài khoản' }))
 
       expect(await view.findByText(COPY.passwordInvalid)).toBeTruthy()

@@ -56,21 +56,21 @@ describe('splash minimum time', () => {
   })
 })
 
-const coverWidth = (id: string) =>
-  (getAnimatedStyle(screen.getByTestId(id, { includeHiddenElements: true })) as { width: string }).width
+const revealOpacity = (id: string) =>
+  (getAnimatedStyle(screen.getByTestId(id, { includeHiddenElements: true })) as { opacity: number }).opacity
 
 describe('splash reveal', () => {
-  it('covers the logo, wordmark and line at first, then uncovers them left to right', async () => {
+  it('fades and lifts the wordmark and line after Stitch’s one-second delay', async () => {
     await renderScreen(<Splash />)
-    expect(coverWidth('splash-reveal-logo')).toBe('100%')
-    expect(coverWidth('splash-reveal-line')).toBe('100%')
-    await act(async () => { jest.advanceTimersByTime(900) })
-    const mid = parseFloat(coverWidth('splash-reveal-logo'))
+    expect(revealOpacity('splash-reveal-logo')).toBe(0)
+    expect(revealOpacity('splash-reveal-line')).toBe(0)
+    await act(async () => { jest.advanceTimersByTime(1200) })
+    const mid = revealOpacity('splash-reveal-logo')
     expect(mid).toBeGreaterThan(0)
-    expect(mid).toBeLessThan(100)
+    expect(mid).toBeLessThan(1)
     await act(async () => { jest.advanceTimersByTime(700) })
-    expect(coverWidth('splash-reveal-logo')).toBe('0%')
-    expect(coverWidth('splash-reveal-line')).toBe('0%')
+    expect(revealOpacity('splash-reveal-logo')).toBe(1)
+    expect(revealOpacity('splash-reveal-line')).toBe(1)
   })
 
   it('keeps the text in the tree at its final layout while covered', async () => {
@@ -91,17 +91,17 @@ describe('splash map fit', () => {
   it.each([
     ['a small phone', 320, 568],
     ['a large phone', 430, 932],
-  ])('fills %s inside the margins and keeps the aspect ratio', async (_name, width, height) => {
+  ])('fits the 200px Stitch map on %s and keeps its aspect ratio', async (_name, width, height) => {
     const { w, h } = await mapWidthFor(width, height)
     expect(w).toBeLessThanOrEqual(width - 48)
     expect(h).toBeLessThan(height - 48 - 96)
     expect(w / h).toBeCloseTo(223 / 349, 1)
-    // As large as the margins allow: one of the two limits is reached.
-    expect(w >= width - 48 - 1 || h >= height - 48 - 96 - 130).toBe(true)
+    expect(w).toBeLessThanOrEqual(200)
+    expect(w).toBeGreaterThan(0)
   })
 
-  it.each([180, 242, 342, 400])('draws no label under the caption size on a %i px map', width => {
-    expect(labelFontUnits(width) * (width / 223)).toBeGreaterThanOrEqual(11 - 0.001)
+  it.each([180, 242, 342, 400])('uses the approved 9-unit map-label token on a %i px map', width => {
+    expect(labelFontUnits(width)).toBe(9)
   })
 })
 
@@ -109,8 +109,8 @@ describe('splash reduced motion', () => {
   it('shows the final state at once and adds no delay', async () => {
     mockReduced = true
     await renderScreen(<Splash />)
-    expect(coverWidth('splash-reveal-logo')).toBe('0%')
-    expect(coverWidth('splash-reveal-line')).toBe('0%')
+    expect(revealOpacity('splash-reveal-logo')).toBe(1)
+    expect(revealOpacity('splash-reveal-line')).toBe(1)
     expect(opacityOf('splash-pin-hcm')).toBe(1)
     await act(async () => { jest.advanceTimersByTime(0) })
     expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)')

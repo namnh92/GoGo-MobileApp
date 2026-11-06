@@ -1,10 +1,14 @@
 import { render, screen } from '@testing-library/react-native'
+import { Image, type ImageProps } from 'expo-image'
 import { Text as RNText, StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 
 import '@/shared/i18n'
 import { themes } from '@/shared/ui/theme'
 import { darkBorder, darkStatus, darkSurface, mapColors } from '@/shared/ui/tokens'
+
+// Observe the public Expo Image props, before native source/transition normalization.
+jest.mock('expo-image', () => ({ Image: jest.fn((_props: ImageProps) => null) }))
 
 /**
  * Group 01 (shared primitives) on a dark device. The unistyles mock resolves
@@ -28,9 +32,24 @@ describe('shared primitives on a dark device', () => {
 
   it('the image placeholder behind a remote photo is the dark subtle surface', async () => {
     const { RemoteImage } = jest.requireActual<typeof import('@/shared/ui/primitives')>('@/shared/ui/primitives')
+    jest.mocked(Image).mockClear()
     await render(<RemoteImage uri="https://example.test/a.jpg" style={{ width: 4, height: 4 }} />)
-    const image = screen.toJSON() as unknown as { props: { style?: unknown } }
-    expect(flat(image.props.style).backgroundColor).toBe(darkSurface.subtle)
+    const [props] = jest.mocked(Image).mock.calls[0]
+    expect(props.source).toEqual({ uri: 'https://example.test/a.jpg' })
+    expect(props.contentFit).toBe('cover')
+    expect(props.transition).toBe(150)
+    expect(flat(props.style)).toMatchObject({ backgroundColor: darkSurface.subtle, width: 4, height: 4 })
+  })
+
+  it('passes a bundled illustration source directly with contain, no transition and the dark placeholder', async () => {
+    const { RemoteImage } = jest.requireActual<typeof import('@/shared/ui/primitives')>('@/shared/ui/primitives')
+    jest.mocked(Image).mockClear()
+    await render(<RemoteImage source={106} illustration style={{ width: 4, height: 4 }} />)
+    const [props] = jest.mocked(Image).mock.calls[0]
+    expect(props.source).toBe(106)
+    expect(props.contentFit).toBe('contain')
+    expect(props.transition).toBe(0)
+    expect(flat(props.style)).toMatchObject({ backgroundColor: themes.orangeDark.redesign.low, width: 4, height: 4 })
   })
 
   it('the BackHeader button is the dark card, not a light one under light text', async () => {

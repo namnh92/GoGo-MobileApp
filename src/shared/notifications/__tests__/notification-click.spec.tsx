@@ -67,11 +67,6 @@ jest.mock('@/shared/storage/onboarding', () => ({
   markOnboardingComplete: async () => {},
 }))
 
-jest.mock('react-native-svg', () => {
-  const { View, Text } = jest.requireActual<typeof import('react-native')>('react-native')
-  return { __esModule: true, default: View, Circle: View, Path: View, Ellipse: View, G: View, Text }
-})
-
 const mockGetRoom = jest.fn()
 const mockGetPlan = jest.fn()
 const mockGetCurrentPlan = jest.fn()

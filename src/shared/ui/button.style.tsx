@@ -1,20 +1,28 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { touchTarget } from '@/shared/ui/tokens'
+import { motion, touchTarget } from '@/shared/ui/tokens'
 
 /**
- * The button family (#293 §2). Pressed is a colour change and nothing else —
+ * The default button family (#293 §2). Pressed is a colour change —
  * no scale, no opacity — so a press never moves the layout and every button
  * answers a finger the same way. Disabled is a fill change, not a fade, so the
  * label keeps a colour that was measured (`text.secondary` on `surface.subtle`).
  *
- * The one exception is `onAccent`: a button sitting on an accent-coloured hero
+ * Owner 2026-11-06 D1 adds tokenized scale to the Stitch variants only.
+ * Another exception is `onAccent`: a button sitting on an accent-coloured hero
  * has no neutral fill that still reads as "part of this surface", so its
  * disabled state fades instead.
  */
 const noShadow = { shadowOpacity: 0, elevation: 0 } as const
 
 export const styles = StyleSheet.create(theme => ({
+  stitch: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
+  stitchSubtle: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
+  stitchGuest: { minHeight: 44, height: undefined, borderRadius: 12 },
+  stitchSkip: { minHeight: 44, height: undefined, paddingHorizontal: 12, borderRadius: 999 },
+  stitchSkipPill: { minHeight: 44, height: undefined, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.redesign.low },
+  stitchPressed: { transform: [{ scale: motion.pressScale }] },
+  stitchPressedSubtle: { transform: [{ scale: motion.pressScaleSubtle }] },
   base: {
     borderRadius: theme.radius.button,
     paddingHorizontal: theme.spacing[4],

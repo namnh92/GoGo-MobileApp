@@ -378,7 +378,8 @@ export const fontFamily = {
 } as const
 
 /**
- * Six sizes, no more (spec §7). Every screen spreads one of these instead of
+ * Six base sizes (spec §7), plus explicit approved Stitch redesign variants
+ * (owner 2026-11-06 D1). Every screen spreads one of these instead of
  * writing `fontSize` — a scale with three near-identical sizes reads as
  * accidental, and that is what the app looked like before.
  *
@@ -390,6 +391,20 @@ export const fontFamily = {
  * code uses `body` — the spec's `mono` style was dropped (owner, 2026-09-24).
  */
 export const type = {
+  brand: { fontFamily: fontFamily.bold, fontSize: 38, lineHeight: 44 },
+  introTitle: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 34 },
+  introCompact: { fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 30 },
+  introHeading: { fontFamily: fontFamily.semiBold, fontSize: 17, lineHeight: 22 },
+  introTagline: { fontFamily: fontFamily.medium, fontSize: 17, lineHeight: 22 },
+  introSection: { fontFamily: fontFamily.semiBold, fontSize: 22, lineHeight: 28 },
+  introBody: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 20 },
+  introRelaxed: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 24 },
+  introSmall: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 18 },
+  introLabel: { fontFamily: fontFamily.semiBold, fontSize: 13, lineHeight: 18 },
+  introCaption: { fontFamily: fontFamily.regular, fontSize: 11, lineHeight: 14 },
+  introCaptionMedium: { fontFamily: fontFamily.medium, fontSize: 11, lineHeight: 14 },
+  illustrationBadge: { fontFamily: fontFamily.medium, fontSize: 10, lineHeight: 14 },
+  mapLabel: { fontFamily: fontFamily.medium, fontSize: 9, lineHeight: 12 },
   display: { fontFamily: fontFamily.extraBold, fontSize: 28, lineHeight: 34 },
   title1: { fontFamily: fontFamily.extraBold, fontSize: 22, lineHeight: 28 },
   title2: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22 },
@@ -452,9 +467,52 @@ export const radius = {
 } as const
 
 export const motion = {
+  mapReveal: 350,
+  pinDrop: 250,
+  pinFirstDelay: 350,
+  pinStep: 200,
+  brandDelay: 1000,
+  brandReveal: 450,
+  markerBounce: 400,
+  ripple: 600,
+  ping: 1000,
+  splashHold: 1500,
+  ambientWarm: 8000,
+  ambientCool: 10000,
+  pressScale: 0.98,
+  pressScaleSubtle: 0.99,
   fast: 140,
   standard: 240,
   slow: 320,
+} as const
+
+/** Approved project 17315762413421369447. Screen-specific material roles. */
+export const redesignLight = {
+  canvas: '#FFF8F3', card: '#FFFFFF', low: '#F9F2ED', container: '#F3EDE8',
+  high: '#EDE7E2', highest: '#E7E1DC', dim: '#DFD9D4',
+  ink: '#1D1B18', secondary: '#5A413B', outline: '#8E706A', line: '#E3BEB7',
+  mutedTitle: '#211F1C', mutedBody: '#746E68',
+  primary: '#A71E07', primarySoft: '#FFDAD3',
+  violet: '#7161E2', violetText: '#5747C8', violetSoft: '#E4DFFF', violetInk: '#170065',
+  green: '#237C51', greenText: '#00623C', greenSoft: '#ECFFF3',
+  white: '#FFFFFF', bubble: 'rgba(255,255,255,0.95)', panel: 'rgba(255,255,255,0.90)', header: 'rgba(255,248,243,0.85)',
+  scrimStart: 'rgba(50,48,45,0.80)', scrimMiddle: 'rgba(50,48,45,0.20)',
+  clear: 'rgba(50,48,45,0)', glowWarm: '#FFDAD3', glowCool: '#7161E2', glowGreen: '#237C51',
+} as const
+
+/** Undrawn dark materials derived from S70's canvas/card/accent/status roles. */
+export const redesignDark = {
+  canvas: darkSurface.canvas, card: darkSurface.card, low: darkSurface.subtle,
+  container: darkSurface.subtle, high: '#333333', highest: '#333333', dim: '#333333',
+  ink: darkText.primary, secondary: darkText.secondary, outline: darkText.tertiary, line: darkBorder.hairline,
+  mutedTitle: darkText.primary, mutedBody: darkText.secondary,
+  primary: '#A72E19', primarySoft: '#2A2A2A',
+  violet: '#7161E2', violetText: '#C7BFFF',
+  violetSoft: '#2F2A55', violetInk: '#C7BFFF',
+  green: darkStatus.success, greenText: darkStatus.successText, greenSoft: darkStatus.successSoft,
+  white: '#FFFFFF', bubble: 'rgba(34,34,34,0.95)', panel: 'rgba(34,34,34,0.90)', header: 'rgba(24,23,21,0.85)',
+  scrimStart: redesignLight.scrimStart, scrimMiddle: redesignLight.scrimMiddle, clear: redesignLight.clear,
+  glowWarm: '#FF746C', glowCool: '#7161E2', glowGreen: darkStatus.success,
 } as const
 
 export const touchTarget = { min: 44 } as const

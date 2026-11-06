@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native'
 
 import { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/button.view'
 import { accents, glassFx, shadows, status, surface, text, type } from '@/shared/ui/tokens'
+import * as feedback from '@/shared/ui/feedback'
 
 /**
  * #295 — the button family per #293 §2. Colours are the orange theme: the
@@ -14,6 +15,26 @@ const orange = accents.orange
 const flat = (node: { props: Record<string, any> }): Record<string, any> => StyleSheet.flatten(node.props.style)
 const button = (name: string) => screen.getByRole('button', { name })
 const labelColor = (label: string) => flat(screen.getByText(label)).color
+
+describe('owner D1 Stitch buttons', () => {
+  it('uses the drawn 48px CTA with a 17px label and press scale', async () => {
+    await render(<PrimaryBtn variant="stitch" label="Tiếp theo" icon="arrowRight" onPress={jest.fn()} />)
+    expect(flat(button('Tiếp theo'))).toMatchObject({ minHeight: 48, borderRadius: 12 })
+    expect(flat(screen.getByText('Tiếp theo'))).toMatchObject(type.introHeading)
+    expect((await pressedStyle('Tiếp theo')).transform).toEqual([{ scale: 0.98 }])
+  })
+  it('keeps the static pressed response under reduced motion', async () => {
+    const reduced = jest.spyOn(feedback, 'useReducedMotion').mockReturnValue(true)
+    try {
+      await render(<PrimaryBtn variant="stitchSubtle" label="Đăng nhập" onPress={jest.fn()} />)
+      const style = await pressedStyle('Đăng nhập')
+      expect(style.transform).toBeUndefined()
+      expect(style.backgroundColor).toBe(orange.pressed)
+    } finally {
+      reduced.mockRestore()
+    }
+  })
+})
 
 /**
  * Put a finger down and leave it there. RNTL's `pressIn` calls a prop the host

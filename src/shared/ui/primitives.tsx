@@ -1,4 +1,4 @@
-import { Image } from 'expo-image'
+import { Image, type ImageProps } from 'expo-image'
 import { useState, type ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +9,9 @@ import { Icon, IconChevronLeft, type IconName } from '@/shared/ui/icons'
 import { haptic } from '@/shared/ui/feedback'
 import { ScaledText, Text, type TextColor } from '@/shared/ui/text'
 import { hitSlop, touchTarget } from '@/shared/ui/tokens'
+import { AmbientGlow } from './ambient-glow.view'
+import { MaterialIcon } from './material-icon'
+import { FrostedMaterial } from './frosted-material.view'
 
 export { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn, type ButtonProps } from '@/shared/ui/button.view'
 export { Card } from '@/shared/ui/card.view'
@@ -44,8 +47,8 @@ export const glassStyles = StyleSheet.create(theme => ({
  * system asks of a background — no full-screen blur, contrast never depending
  * on the layer behind (RULE-DS).
  */
-export function Atmosphere({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.canvas, style]}>{children}</View>
+export function Atmosphere({ children, style, redesign = false, glow = false }: { children: ReactNode; style?: StyleProp<ViewStyle>; redesign?: boolean; glow?: boolean }) {
+  return <View style={[styles.canvas, redesign && styles.redesignCanvas, style]}>{glow && <AmbientGlow />}{children}</View>
 }
 
 export type TagColor = 'coral' | 'violet' | 'green' | 'neutral'
@@ -132,35 +135,36 @@ export function TagChip({ label, color = 'neutral' }: { label: string; color?: T
   )
 }
 
-export function ProgressDots({ total, current }: { total: number; current: number }) {
+export function ProgressDots({ total, current, variant = 'default' }: { total: number; current: number; variant?: 'default' | 'debate' | 'swipe' | 'plan' }) {
   return (
-    <View style={styles.dotsRow}>
+    <View style={[styles.dotsRow, variant !== 'default' && styles.redesignDotsRow, variant === 'debate' && styles.debateDotsRow]}>
       {Array.from({ length: total }).map((_, i) => (
-        <View key={i} style={[styles.dot, i === current && styles.dotActive]} />
+        <View testID={`progress-dot-${i}`} key={i} style={[styles.dot, variant !== 'default' && styles.redesignDot, variant === 'swipe' && styles.swipeDot, variant === 'plan' && styles.planDot, i === current && styles.dotActive, i === current && variant !== 'default' && styles.redesignDotActive]} />
       ))}
     </View>
   )
 }
 
-export function BackHeader({ title, subtitle, onBack, right }: { title?: string; subtitle?: string; onBack: () => void; right?: ReactNode }) {
+export function BackHeader({ title, subtitle, onBack, right, redesign = false }: { title?: string; subtitle?: string; onBack: () => void; right?: ReactNode; redesign?: boolean }) {
   const { t } = useTranslation()
   return (
-    <View style={styles.backHeader}>
+    <View style={[styles.backHeader, redesign && styles.redesignHeader]}>
+      {redesign && <FrostedMaterial kind="header" />}
       <Pressable
         onPress={onBack}
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
         hitSlop={hitSlop}
-        style={({ pressed }) => [styles.backBtn, glassStyles.card, pressed && styles.backBtnPressed]}
+        style={({ pressed }) => [styles.backBtn, !redesign && glassStyles.card, redesign && styles.redesignBack, pressed && styles.backBtnPressed]}
       >
-        <IconChevronLeft />
+        {redesign ? <MaterialIcon name="arrowBack" size={24} /> : <IconChevronLeft />}
       </Pressable>
       {title && subtitle ? (
         <View style={styles.backTitleBlock}>
           <Text variant="title2" numberOfLines={1}>{title}</Text>
           <Text variant="caption" color="text.secondary" numberOfLines={1}>{subtitle}</Text>
         </View>
-      ) : title ? <Text variant="title2" style={styles.backTitle}>{title}</Text> : null}
+      ) : title ? <Text variant={redesign ? 'introHeading' : 'title2'} color={redesign ? 'redesign.ink' : 'text.primary'} style={styles.backTitle}>{title}</Text> : null}
       {right ?? <View style={styles.backSpacer} />}
     </View>
   )
@@ -173,7 +177,8 @@ export function BackHeader({ title, subtitle, onBack, right }: { title?: string;
  * drawn instead, so a broken image never ships. The failed URI is remembered
  * rather than a boolean, so a fresh picture after a failure is tried again.
  */
-export function AvatarCircle({ label, size = 40, background, emoji, imageUri }: {
+export function AvatarCircle({ label, size = 40, background, emoji, imageUri, icon }: {
+  icon?: 'user'
   label?: string
   size?: number
   /** Defaults to the theme accent. */
@@ -191,10 +196,10 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri }: 
       style={[
         styles.avatar,
         circle,
-        { backgroundColor: emoji ? theme.surface.subtle : background ?? theme.accent.primary },
+        { backgroundColor: icon ? theme.redesign.primary : emoji ? theme.surface.subtle : background ?? theme.accent.primary },
       ]}
     >
-      {uri ? (
+      {icon ? <MaterialIcon name={icon} size={18} color="redesign.white" /> : uri ? (
         <Image
           testID="avatar-image"
           source={{ uri }}
@@ -214,12 +219,26 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri }: 
   )
 }
 
-export function RemoteImage({ uri, style }: { uri: string; style?: StyleProp<ViewStyle> }) {
+type RemoteImageProps = (
+  | { uri: string; source?: never }
+  | { source: NonNullable<ImageProps['source']>; uri?: never }
+) & { style?: StyleProp<ViewStyle>; illustration?: boolean }
+
+export function RemoteImage({ uri, source, style, illustration = false }: RemoteImageProps) {
   const { theme } = useUnistyles()
-  return <Image source={{ uri }} style={[{ backgroundColor: theme.surface.subtle }, style as object]} contentFit="cover" transition={150} />
+  return <Image source={source !== undefined ? source : { uri }} style={[{ backgroundColor: illustration ? theme.redesign.low : theme.surface.subtle }, style as object]} contentFit={illustration ? 'contain' : 'cover'} transition={illustration ? 0 : 150} />
 }
 
 const styles = StyleSheet.create(theme => ({
+  redesignCanvas: { backgroundColor: theme.redesign.canvas },
+  redesignHeader: { height: 56, paddingHorizontal: 16, paddingVertical: 0, gap: 8 },
+  redesignBack: { width: 44, height: 44, borderWidth: 0, backgroundColor: 'transparent' },
+  redesignDotsRow: { gap: 8 },
+  debateDotsRow: { gap: 4 },
+  redesignDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.redesign.highest },
+  swipeDot: { backgroundColor: theme.redesign.line, opacity: 0.6 },
+  planDot: { backgroundColor: theme.redesign.dim },
+  redesignDotActive: { width: 24, backgroundColor: theme.accent.primary, opacity: 1 },
   canvas: { flex: 1, backgroundColor: theme.surface.canvas },
 
   tag: {

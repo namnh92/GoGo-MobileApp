@@ -28,11 +28,11 @@ it('says the sign-in is for GoGo AI when reached from the assistant', async () =
   mockParams.value = { next: 'assistant' }
   const screen = await renderScreen(<SignInScreen />)
   expect(screen.getByText('Đăng nhập\nđể dùng GoGo AI')).toBeTruthy()
-  expect(screen.queryByText('Đăng nhập\nđể tạo phòng')).toBeNull()
+  expect(screen.queryByText('Đăng nhập để tạo phòng')).toBeNull()
 })
 
 it('keeps the room title for every other entry', async () => {
   mockParams.value = {}
   const screen = await renderScreen(<SignInScreen />)
-  expect(screen.getByText('Đăng nhập\nđể tạo phòng')).toBeTruthy()
+  expect(screen.getByText('Đăng nhập để tạo phòng')).toBeTruthy()
 })
