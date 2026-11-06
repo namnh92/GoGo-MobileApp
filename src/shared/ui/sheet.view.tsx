@@ -7,11 +7,11 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  TextInput,
   View,
   useWindowDimensions,
   type DimensionValue,
 } from 'react-native'
+import { TextInput } from '@/shared/ui/text-input'
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 

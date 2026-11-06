@@ -116,7 +116,7 @@ export function iosProblems(project) {
   return problems;
 }
 
-/** Gradle text with `/* … */` blocks and whole-line `//` comments removed. */
+/** Gradle text with block comments and whole-line // comments removed. */
 function stripGradleComments(text) {
   return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 }

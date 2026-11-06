@@ -103,7 +103,7 @@ export type TextProps = Omit<RNTextProps, 'style'> & {
 
 export function Text({ variant = 'body', color = 'text.primary', style, ref, ...rest }: TextProps) {
   const { theme } = useUnistyles()
-  return <RNText ref={ref} {...rest} style={[theme.type[variant], { color: COLOR[color](theme) }, style]} />
+  return <RNText ref={ref} {...rest} allowFontScaling={false} style={[theme.type[variant], { color: COLOR[color](theme) }, style]} />
 }
 
 export type GlyphProps = Omit<RNTextProps, 'style'> & {
@@ -125,6 +125,7 @@ export function Glyph({ size, color, style, ref, ...rest }: GlyphProps) {
     <RNText
       ref={ref}
       {...rest}
+      allowFontScaling={false}
       style={[glyphText[size], color ? { color: COLOR[color](theme) } : null, style]}
     />
   )
@@ -148,5 +149,5 @@ export function ScaledText({ box, kind, color = 'accent.onAccent', children }: {
     kind === 'emoji'
       ? { fontSize: box * 0.45 }
       : [theme.type.label, { fontSize: box * 0.38, lineHeight: box * 0.5, color: COLOR[color](theme) }]
-  return <RNText style={style}>{children}</RNText>
+  return <RNText allowFontScaling={false} style={style}>{children}</RNText>
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, SectionList, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, SectionList, View } from 'react-native'
+import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
 import {

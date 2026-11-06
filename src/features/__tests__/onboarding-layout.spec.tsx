@@ -223,3 +223,24 @@ it('keeps actions outside the upper scroll even when a short screen has no art b
   expect(screen.getAllByRole('button', { name: i18n.t('onboarding.start') })).toHaveLength(1)
   expect(screen.getAllByRole('button', { name: i18n.t('onboarding.guest') })).toHaveLength(1)
 })
+
+// F-02: wrapped action labels can exhaust a very short viewport even with fixed fonts.
+it.each([1, 1.3, 2])('scrolls the whole screen when measured actions exhaust the viewport at scale %s', async fontScale => {
+  const phone = { name: 'very short', width: 320, height: 240, top: 20, bottom: 34 }
+  await mount(phone, fontScale, 2)
+  await measure(phone, 2)
+  await fireEvent(screen.getByTestId('onboarding-actions'), 'layout', event(phone.width - 40, 180))
+  const whole = screen.getByTestId('onboarding-whole')
+  expect(scrollAncestor(actions(2))).toBe(whole)
+  expect(scrollAncestor(visual())).toBe(whole)
+  expect(whole.props.scrollEnabled).not.toBe(false)
+  expect(screen.queryByTestId('onboarding-upper')).toBeNull()
+  expect(flat(whole.props.contentContainerStyle)).toMatchObject({ paddingTop: phone.top, paddingBottom: phone.bottom + 20 })
+  const buttons = screen.getAllByRole('button')
+  expect(buttons.indexOf(screen.getByRole('button', { name: i18n.t('onboarding.start') })))
+    .toBeLessThan(buttons.indexOf(screen.getByRole('button', { name: i18n.t('onboarding.guest') })))
+  // Shrinking the measured group restores the ordinary fixed footer.
+  await fireEvent(screen.getByTestId('onboarding-actions'), 'layout', event(phone.width - 40, 100))
+  expect(screen.queryByTestId('onboarding-whole')).toBeNull()
+  expect(scrollAncestor(actions(2))).toBeNull()
+})

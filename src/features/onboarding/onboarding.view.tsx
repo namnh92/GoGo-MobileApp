@@ -124,6 +124,7 @@ function OnboardingBody({ slide, navigate, finishing, finish, start, viewport, v
   // The former final-slide space-between had four intervals. Distribute only
   // spare space, without measuring stretched blocks or feeding back fitted art.
   const distributedGap = isLast ? arrangement.spare / 4 : 0
+  const wholeScreenScroll = (blocks.actions ?? 0) + gaps.actions + gaps.bottom + insets.top + insets.bottom >= viewport.height
   const nativeScroll = useMemo(() => Gesture.Native(), [])
   const pan = useMemo(() => Gesture.Pan().withTestId('onboarding-swipe')
     .maxPointers(1).activeOffsetX([-20, 20]).failOffsetY([-12, 12])
@@ -155,6 +156,13 @@ function OnboardingBody({ slide, navigate, finishing, finish, start, viewport, v
     {isLast && <GhostBtn variant="stitchGuest" disabled={finishing} label={t('onboarding.guest')} onPress={finish} />}
   </View>
   const padding = { paddingTop: insets.top, paddingBottom: insets.bottom + gaps.bottom, paddingLeft: 20 + insets.left, paddingRight: 20 + insets.right }
+  if (wholeScreenScroll) return <GestureDetector gesture={pan}>
+    <View style={styles.fill}>
+      <GestureDetector gesture={nativeScroll}>
+        <ScrollView ref={scroll} testID="onboarding-whole" contentContainerStyle={padding} contentOffset={{ x: 0, y: 0 }}>{narrative}{actions}</ScrollView>
+      </GestureDetector>
+    </View>
+  </GestureDetector>
   return <View style={[styles.content, padding]}>
     <GestureDetector gesture={pan}>
       <View style={styles.upperRegion}>

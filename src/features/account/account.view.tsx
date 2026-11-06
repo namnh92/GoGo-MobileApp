@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, ScrollView, Share, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, Share, View } from 'react-native'
+import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 

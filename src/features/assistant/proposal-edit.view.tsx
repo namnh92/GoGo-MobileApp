@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, TextInput, View } from 'react-native'
+import { Pressable, View } from 'react-native'
+import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { GhostBtn, PrimaryBtn } from '@/shared/ui/button.view'

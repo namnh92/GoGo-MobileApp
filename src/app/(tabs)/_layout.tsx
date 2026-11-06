@@ -55,6 +55,7 @@ export default function TabsLayout() {
         },
         tabBarBackground: () => <GlassBar testID="tab-bar-glass" style={FILL} />,
         tabBarLabelStyle: theme.type.caption,
+        tabBarAllowFontScaling: false,
       }}
     >
       <Tabs.Screen
