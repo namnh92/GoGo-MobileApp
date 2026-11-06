@@ -10,7 +10,7 @@ describe('formatPlaceAddress', () => {
     ['79 P. Lý Nam Đế, phường, Hoàn Kiếm, Hà Nội 100000', 'Hoàn Kiếm', '79 P. Lý Nam Đế, Hoàn Kiếm, Hà Nội'],
     ['43 Tràng Tiền', 'Cửa Nam', '43 Tràng Tiền, Cửa Nam, Hà Nội'],
     ['  8 P. Chân Cầm , , Tầng 2 , HOAN KIEM, bỏ phần sau', 'Hoàn Kiếm', '8 P. Chân Cầm, Hoàn Kiếm, Hà Nội'],
-    ['Hà Nội, 43 Tràng Tiền', 'Cửa Nam', 'Hà Nội, 43 Tràng Tiền, Cửa Nam, Hà Nội'],
+    ['Hà Nội, 43 Tràng Tiền', 'Cửa Nam', 'Hà Nội, 43 Tràng Tiền, Cửa Nam'],
     ['PHƯỜNG HOÀN KIẾM, 43 Tràng Tiền', 'Hoàn Kiếm', 'PHƯỜNG HOÀN KIẾM, 43 Tràng Tiền, Hoàn Kiếm, Hà Nội'],
     ['8 P. Chân Cầm, Phố cổ Hà Nội', 'Hoàn Kiếm', '8 P. Chân Cầm, Hoàn Kiếm, Hà Nội'],
     ['8 Đường Hoàn Kiếm', 'Hoàn Kiếm', '8 Đường Hoàn Kiếm, Hoàn Kiếm, Hà Nội'],
@@ -33,6 +33,22 @@ describe('formatPlaceAddress', () => {
     ['  Tòa nhà Bitexco , , 2 Hải Triều , Bến Nghé', 'Tòa nhà Bitexco, 2 Hải Triều, Sài Gòn, Hồ Chí Minh'],
   ])('replaces legacy administrative names in %s', (addressText, expected) => {
     expect(formatPlaceAddress({ addressText, areaSummary: { ...areaSummary, label: 'Phường Sài Gòn' } }, 'Thành phố Hồ Chí Minh')).toBe(expected)
+  })
+
+  it.each([
+    ['Tầng 2, 43 Tràng Tiền, Hoàn Kiếm, Hà Nội', 'Cửa Nam', province, 'Tầng 2, 43 Tràng Tiền, Cửa Nam, Hà Nội'],
+    ['12 Nguyễn Huệ, Bến Nghé, Quận 1, Hồ Chí Minh', 'Sài Gòn', 'Thành phố Hồ Chí Minh', '12 Nguyễn Huệ, Sài Gòn, Hồ Chí Minh'],
+    ['Hẻm 212B/D28 Nguyễn Trãi, P. Nguyễn Cư Trinh, Quận 1', 'Sài Gòn', 'Thành phố Hồ Chí Minh', 'Hẻm 212B/D28 Nguyễn Trãi, Sài Gòn, Hồ Chí Minh'],
+    ['Tòa nhà Bitexco, 2 Hải Triều, Bến Nghé, Quận 1', 'Sài Gòn', 'Thành phố Hồ Chí Minh', 'Tòa nhà Bitexco, 2 Hải Triều, Sài Gòn, Hồ Chí Minh'],
+    ['43 Tràng Tiền', 'Cửa Nam', province, '43 Tràng Tiền, Cửa Nam, Hà Nội'],
+    ['Ngõ 5 Láng Hạ, Đống Đa, Hà Nội', 'Láng', province, 'Ngõ 5 Láng Hạ, Láng, Hà Nội'],
+    ['Tầng 2, Số 2 P. Đinh Liệt, Hoàn Kiếm, Hà Nội', 'Cửa Nam', province, 'Tầng 2, Số 2 P. Đinh Liệt, Cửa Nam, Hà Nội'],
+    ['Tầng 2, 212B/D28 Nguyễn Trãi, Quận 1', 'Sài Gòn', 'Thành phố Hồ Chí Minh', 'Tầng 2, 212B/D28 Nguyễn Trãi, Sài Gòn, Hồ Chí Minh'],
+    ['Tầng 2, 15/3 Lê Lợi, Quận 1', 'Sài Gòn', 'Thành phố Hồ Chí Minh', 'Tầng 2, 15/3 Lê Lợi, Sài Gòn, Hồ Chí Minh'],
+    ['  Tầng 2 , , số 15a-b3 Lê Lợi , Quận 1', 'Sài Gòn', 'Thành phố Hồ Chí Minh', 'Tầng 2, số 15a-b3 Lê Lợi, Sài Gòn, Hồ Chí Minh'],
+    ['Tầng 2, Tòa nhà Bitexco, Bến Nghé, Quận 1', 'Sài Gòn', 'Thành phố Hồ Chí Minh', 'Tầng 2, Sài Gòn, Hồ Chí Minh'],
+  ])('cuts after the first segment starting with a house number in %s', (addressText, label, provinceName, expected) => {
+    expect(formatPlaceAddress({ addressText, areaSummary: { ...areaSummary, label } }, provinceName)).toBe(expected)
   })
 
   it.each(['Phường', 'Xã', 'Đặc khu', 'Thị trấn', '  PHƯỜNG  '])('composes short ward names from %s', prefix => {

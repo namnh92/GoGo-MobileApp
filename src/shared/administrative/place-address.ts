@@ -17,7 +17,7 @@ function withoutPrefix(value: string): string {
   return value.replace(ADMIN_PREFIX, '').trim()
 }
 
-/** Keep through the first numbered segment (or just the first), then append verified names. */
+/** Keep through the first segment starting with a house number (or just the first), then append verified names. */
 export function formatPlaceAddress(place: PlaceAddress, provinceFullName?: string | null): string {
   const ward = place.areaSummary?.label?.trim()
   const province = provinceFullName?.trim()
@@ -28,12 +28,13 @@ export function formatPlaceAddress(place: PlaceAddress, provinceFullName?: strin
     return [normalized, withoutPrefix(normalized)]
   }))
   const segments = (place.addressText ?? '').split(',').map(segment => segment.trim()).filter(Boolean)
-  const numbered = segments.findIndex(segment => /\d/.test(segment))
+  const numbered = segments.findIndex(segment => /^(số\s*)?\d+[a-z]?([\/-][a-z]?\d+[a-z]?)*\b/i.test(segment))
   const street = segments.slice(0, numbered === -1 ? 1 : numbered + 1)
   while (street.length) {
     const normalized = foldName(street[street.length - 1])
     if (!names.has(normalized) && !names.has(withoutPrefix(normalized))) break
     street.pop()
   }
-  return [...street, ward.replace(WARD_PREFIX, '').trim(), province.replace(PROVINCE_PREFIX, '').trim()].join(', ')
+  const parts = [...street, ward.replace(WARD_PREFIX, '').trim(), province.replace(PROVINCE_PREFIX, '').trim()]
+  return [...new Set(parts)].join(', ')
 }
