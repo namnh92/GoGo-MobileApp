@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { act, screen } from '@testing-library/react-native'
+import { act, fireEvent, screen } from '@testing-library/react-native'
 import { Dimensions, StyleSheet } from 'react-native'
 import { getAnimatedStyle } from 'react-native-reanimated'
 
@@ -56,21 +56,21 @@ describe('splash minimum time', () => {
   })
 })
 
-const coverWidth = (id: string) =>
-  (getAnimatedStyle(screen.getByTestId(id, { includeHiddenElements: true })) as { width: string }).width
+const revealOpacity = (id: string) =>
+  (getAnimatedStyle(screen.getByTestId(id, { includeHiddenElements: true })) as { opacity: number }).opacity
 
 describe('splash reveal', () => {
-  it('covers the logo, wordmark and line at first, then uncovers them left to right', async () => {
+  it('fades and lifts the wordmark and line after Stitch’s one-second delay', async () => {
     await renderScreen(<Splash />)
-    expect(coverWidth('splash-reveal-logo')).toBe('100%')
-    expect(coverWidth('splash-reveal-line')).toBe('100%')
-    await act(async () => { jest.advanceTimersByTime(900) })
-    const mid = parseFloat(coverWidth('splash-reveal-logo'))
+    expect(revealOpacity('splash-reveal-logo')).toBe(0)
+    expect(revealOpacity('splash-reveal-line')).toBe(0)
+    await act(async () => { jest.advanceTimersByTime(1200) })
+    const mid = revealOpacity('splash-reveal-logo')
     expect(mid).toBeGreaterThan(0)
-    expect(mid).toBeLessThan(100)
+    expect(mid).toBeLessThan(1)
     await act(async () => { jest.advanceTimersByTime(700) })
-    expect(coverWidth('splash-reveal-logo')).toBe('0%')
-    expect(coverWidth('splash-reveal-line')).toBe('0%')
+    expect(revealOpacity('splash-reveal-logo')).toBe(1)
+    expect(revealOpacity('splash-reveal-line')).toBe(1)
   })
 
   it('keeps the text in the tree at its final layout while covered', async () => {
@@ -81,27 +81,42 @@ describe('splash reveal', () => {
 })
 
 describe('splash map fit', () => {
-  const mapWidthFor = async (width: number, height: number) => {
-    jest.spyOn(Dimensions, 'get').mockReturnValue({ width, height, scale: 2, fontScale: 1 })
+  const mapWidthFor = async (width: number, height: number, fontScale = 1) => {
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ width, height, scale: 2, fontScale })
     await renderScreen(<Splash />)
     const style = StyleSheet.flatten(screen.getByTestId('splash-map', { includeHiddenElements: true }).props.style)
     return { w: style.width as number, h: style.height as number }
   }
 
-  it.each([
-    ['a small phone', 320, 568],
-    ['a large phone', 430, 932],
-  ])('fills %s inside the margins and keeps the aspect ratio', async (_name, width, height) => {
-    const { w, h } = await mapWidthFor(width, height)
-    expect(w).toBeLessThanOrEqual(width - 48)
-    expect(h).toBeLessThan(height - 48 - 96)
-    expect(w / h).toBeCloseTo(223 / 349, 1)
-    // As large as the margins allow: one of the two limits is reached.
-    expect(w >= width - 48 - 1 || h >= height - 48 - 96 - 130).toBe(true)
+  it.each([[320, 568, 80], [393, 852, 70], [390, 884, 70], [430, 400, 110]])('maximizes the map after measuring the %s×%s viewport and brand', async (width, height, brandHeight) => {
+    await mapWidthFor(width, height)
+    const layout = { x: 0, y: 0, width: width - 48, height: height - 48 }
+    const parent = screen.queryByTestId('splash-layout', { includeHiddenElements: true })
+    if (parent) await fireEvent(parent, 'layout', { nativeEvent: { layout } })
+    await fireEvent(screen.getByTestId('splash-brand'), 'layout', { nativeEvent: { layout: { ...layout, height: brandHeight } } })
+    const style = StyleSheet.flatten(screen.getByTestId('splash-map', { includeHiddenElements: true }).props.style)
+    // 0.25 SVG unit stroke reserve on every edge; 5.1-unit pin-drop overhang above the viewBox.
+    const expected = Math.min(layout.width / 223.5, (layout.height - brandHeight - 32) / 354.6)
+    expect(style.width).toBeCloseTo(223 * expected)
+    expect(style.height).toBeCloseTo(349 * expected)
+    expect(style.width).toBeGreaterThan(0)
+    expect(style.width / style.height).toBeCloseTo(223 / 349)
   })
 
-  it.each([180, 242, 342, 400])('draws no label under the caption size on a %i px map', width => {
-    expect(labelFontUnits(width) * (width / 223)).toBeGreaterThanOrEqual(11 - 0.001)
+  it.each([100, 220, 300])('keeps a nonzero map when a short window measures a %s-point brand', async brandHeight => {
+    await mapWidthFor(393, 300, 3)
+    const layout = { x: 0, y: 0, width: 345, height: 252 }
+    await fireEvent(screen.getByTestId('splash-layout'), 'layout', { nativeEvent: { layout } })
+    await fireEvent(screen.getByTestId('splash-brand'), 'layout', { nativeEvent: { layout: { ...layout, height: brandHeight } } })
+    const map = StyleSheet.flatten(screen.getByTestId('splash-map', { includeHiddenElements: true }).props.style)
+    expect(map.width).toBeCloseTo(111.5)
+    expect(map.height).toBeCloseTo(174.5)
+    expect(map.width / map.height).toBeCloseTo(223 / 349)
+    expect(screen.getByTestId('splash-layout').props.scrollEnabled).toBeUndefined()
+  })
+
+  it.each([180, 242, 342, 400])('uses the approved 9-unit map-label token on a %i px map', width => {
+    expect(labelFontUnits(width)).toBe(9)
   })
 })
 
@@ -109,8 +124,8 @@ describe('splash reduced motion', () => {
   it('shows the final state at once and adds no delay', async () => {
     mockReduced = true
     await renderScreen(<Splash />)
-    expect(coverWidth('splash-reveal-logo')).toBe('0%')
-    expect(coverWidth('splash-reveal-line')).toBe('0%')
+    expect(revealOpacity('splash-reveal-logo')).toBe(1)
+    expect(revealOpacity('splash-reveal-line')).toBe(1)
     expect(opacityOf('splash-pin-hcm')).toBe(1)
     await act(async () => { jest.advanceTimersByTime(0) })
     expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)')

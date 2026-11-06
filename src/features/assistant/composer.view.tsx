@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Image, Pressable, TextInput, View } from 'react-native'
+import { ActivityIndicator, Image, Pressable, View } from 'react-native'
+import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 

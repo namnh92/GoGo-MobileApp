@@ -3,11 +3,12 @@ import { StyleSheet } from 'react-native-unistyles'
 export const styles = StyleSheet.create(theme => ({
   root: {
     flex: 1,
-    backgroundColor: theme.surface.canvas,
+    backgroundColor: theme.redesign.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  composition: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   map: {
     overflow: 'visible',
   },
@@ -28,8 +29,9 @@ export const styles = StyleSheet.create(theme => ({
     opacity: 0,
   },
   brand: {
+    alignSelf: 'stretch',
     alignItems: 'center',
-    marginTop: theme.spacing[5],
+    marginTop: theme.spacing[7],
   },
   logoRow: {
     flexDirection: 'row',
@@ -45,7 +47,7 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
   },
   wordmark: {
-    letterSpacing: -0.5,
+    letterSpacing: -0.95,
   },
   tagline: {
     marginTop: theme.spacing[2],
@@ -62,6 +64,6 @@ export const styles = StyleSheet.create(theme => ({
     top: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: theme.surface.canvas,
+    backgroundColor: theme.redesign.canvas,
   },
 }))

@@ -47,13 +47,17 @@ function offenders(pattern: RegExp): string[] {
 }
 
 describe('type scale', () => {
-  it('has exactly six text sizes', () => {
-    expect(Object.keys(type).sort()).toEqual(
+  it('retains the six base sizes and explicitly tokens every owner-approved Stitch size', () => {
+    const { brand, introTitle, introCompact, introHeading, introTagline, introSection, introBody, introRelaxed, introSmall, introLabel, introCaption, introCaptionMedium, illustrationBadge, mapLabel, ...base } = type
+    expect([introTagline.fontSize, introCaptionMedium.fontSize]).toEqual([17, 11])
+    expect([brand.fontSize, introCompact.fontSize, illustrationBadge.fontSize, mapLabel.fontSize]).toEqual([38, 24, 10, 9])
+    expect([introTitle.fontSize, introHeading.fontSize, introSection.fontSize, introBody.fontSize, introRelaxed.fontSize, introSmall.fontSize, introLabel.fontSize, introCaption.fontSize]).toEqual([28, 17, 22, 15, 15, 13, 13, 11])
+    expect(Object.keys(base).sort()).toEqual(
       ['body', 'bodySmall', 'caption', 'display', 'label', 'title1', 'title2'].sort(),
     )
     // `label` is `bodySmall` at button weight, not a seventh size.
     expect(type.label.fontSize).toBe(type.bodySmall.fontSize)
-    expect(new Set(Object.values(type).map(t => t.fontSize)).size).toBe(6)
+    expect(new Set(Object.values(base).map(t => t.fontSize)).size).toBe(6)
   })
 
   it('every style names an embedded Inter face and no weight', () => {

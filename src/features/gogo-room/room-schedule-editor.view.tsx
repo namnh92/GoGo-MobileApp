@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { TextInput } from 'react-native'
+import { TextInput } from '@/shared/ui/text-input'
 import { z } from 'zod'
 
 import { isApiError, useUpdateRoomConstraints, type RoomSummary } from '@/shared/api'

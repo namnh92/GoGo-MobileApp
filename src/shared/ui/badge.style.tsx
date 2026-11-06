@@ -5,6 +5,12 @@ import { StyleSheet } from 'react-native-unistyles'
  * test measures at ≥ 4.5:1 (`__tests__/contrast.test.ts`).
  */
 export const styles = StyleSheet.create(theme => ({
+  stitchNeutral: { backgroundColor: theme.redesign.low, paddingVertical: 4, gap: 4 },
+  stitchViolet: { backgroundColor: theme.redesign.violetSoft, paddingHorizontal: 12, paddingVertical: 4, gap: 4 },
+  stitchGreen: { backgroundColor: theme.redesign.recommendationFill, gap: 4 },
+  stitchWhite: { backgroundColor: theme.redesign.bubble, borderRadius: 4 },
+  stitchBadge: { maxWidth: '100%' },
+  stitchLabel: { flexShrink: 1, minWidth: 0 },
   badge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

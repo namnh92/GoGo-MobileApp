@@ -13,6 +13,8 @@ import {
   night,
   onDark,
   radius,
+  redesignLight,
+  redesignDark,
   shadows,
   spacing,
   status,
@@ -71,6 +73,7 @@ function buildTheme(accent: Accent, mode: Mode) {
   const palette = (dark ? darkAccents : accents)[accent]
   return {
     mode,
+    redesign: dark ? redesignDark : redesignLight,
     accent: palette,
     surface: dark ? darkSurface : surface,
     border: dark ? darkBorder : border,

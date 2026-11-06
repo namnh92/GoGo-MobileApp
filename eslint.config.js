@@ -1,6 +1,17 @@
 const { defineConfig } = require('eslint/config')
 const expoConfig = require('eslint-config-expo/flat')
 
+// Native rendering is confined to two shared primitives.
+function nativeImports(allowed = []) {
+  return ['error', { paths: [
+    {
+      name: 'react-native',
+      importNames: ['Text', 'TextInput', 'Button', 'StyleSheet'].filter(name => !allowed.includes(name)),
+      message: "Use shared fixed-font text/input/button primitives and Unistyles StyleSheet.",
+    },
+  ] }]
+}
+
 module.exports = defineConfig([
   expoConfig,
   {
@@ -10,7 +21,7 @@ module.exports = defineConfig([
     // Jest config and setup run in Node with jest globals, not in the app.
     files: ['jest.setup.js', 'jest.config.js'],
     languageOptions: {
-      globals: { jest: 'readonly', require: 'readonly', module: 'writable', process: 'readonly' },
+      globals: { beforeEach: 'readonly', afterEach: 'readonly', jest: 'readonly', require: 'readonly', module: 'writable', process: 'readonly' },
     },
   },
   {
@@ -20,31 +31,26 @@ module.exports = defineConfig([
     rules: { 'import/first': 'off' },
   },
   {
-    // #298 (#293 §4): screens draw text through the `Text` primitive (variant +
-    // semantic colour) and style through Unistyles, so an accent change reaches
-    // every surface. The primitive itself wraps React Native's `Text`; tests
-    // query the host component and are not screens.
-    files: ['src/features/**/*.{ts,tsx}', 'src/shared/**/*.{ts,tsx}'],
-    ignores: ['src/shared/ui/text.tsx', 'src/shared/ui/tokens.ts', 'src/shared/ui/theme.ts', '**/__tests__/**'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            {
-              name: 'react-native',
-              importNames: ['Text'],
-              message: "Use `Text` from '@/shared/ui/text' (variant + semantic colour).",
-            },
-            {
-              name: 'react-native',
-              importNames: ['StyleSheet'],
-              message: "Use `StyleSheet` from 'react-native-unistyles' so styles follow the theme.",
-            },
-          ],
-        },
-      ],
-    },
+    // #298 + fixed-font policy: every src surface uses the shared primitives.
+    files: ['src/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': nativeImports() },
+  },
+  {
+    files: ['src/shared/ui/tokens.ts', 'src/shared/ui/theme.ts'],
+    rules: { 'no-restricted-imports': nativeImports(['StyleSheet']) },
+  },
+  {
+    files: ['src/shared/ui/text.tsx'],
+    rules: { 'no-restricted-imports': nativeImports(['Text']) },
+  },
+  {
+    files: ['src/shared/ui/text-input.tsx'],
+    rules: { 'no-restricted-imports': nativeImports(['TextInput']) },
+  },
+  {
+    // Tests intentionally query native hosts and build native component mocks.
+    files: ['src/**/__tests__/**', 'src/**/*.spec.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     // #382 (extends #298): pressed is a colour change and nothing else —
@@ -68,7 +74,8 @@ module.exports = defineConfig([
           message: 'Pressed changes colour only (theme.accent.pressed / theme.surface.subtle), never scale or opacity (#382).',
         },
         {
-          selector: 'Property[key.name=/[Pp]ressed$/] > ObjectExpression > Property[key.name=/^(transform|opacity)$/]',
+          // Owner 2026-11-06 D1: this shared Stitch variant alone adds press scale.
+          selector: "Property[key.name=/[Pp]ressed$/][key.name!='stitchPressed'] > ObjectExpression > Property[key.name=/^(transform|opacity)$/]",
           message: 'A pressed style changes colour only, never scale or opacity (#382).',
         },
       ],

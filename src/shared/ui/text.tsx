@@ -19,6 +19,16 @@ import { glyphText, type GlyphSize, type TypeStyle } from '@/shared/ui/tokens'
  */
 
 export type TextColor =
+  | 'redesign.ink'
+  | 'redesign.secondary'
+  | 'redesign.outline'
+  | 'redesign.checklistUnmet'
+  | 'redesign.greenText'
+  | 'redesign.violetText'
+  | 'redesign.violetInk'
+  | 'redesign.white'
+  | 'redesign.mutedTitle'
+  | 'redesign.mutedBody'
   | 'text.primary'
   | 'text.secondary'
   | 'text.tertiary'
@@ -43,6 +53,16 @@ export type TextColor =
  * runtime as `color: undefined`.
  */
 const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
+  'redesign.ink': theme => theme.redesign.ink,
+  'redesign.secondary': theme => theme.redesign.secondary,
+  'redesign.outline': theme => theme.redesign.outline,
+  'redesign.checklistUnmet': theme => theme.redesign.checklistUnmet,
+  'redesign.greenText': theme => theme.redesign.greenText,
+  'redesign.violetText': theme => theme.redesign.violetText,
+  'redesign.violetInk': theme => theme.redesign.violetInk,
+  'redesign.white': theme => theme.redesign.white,
+  'redesign.mutedTitle': theme => theme.redesign.mutedTitle,
+  'redesign.mutedBody': theme => theme.redesign.mutedBody,
   'text.primary': theme => theme.text.primary,
   'text.secondary': theme => theme.text.secondary,
   'text.tertiary': theme => theme.text.tertiary,
@@ -83,7 +103,7 @@ export type TextProps = Omit<RNTextProps, 'style'> & {
 
 export function Text({ variant = 'body', color = 'text.primary', style, ref, ...rest }: TextProps) {
   const { theme } = useUnistyles()
-  return <RNText ref={ref} {...rest} style={[theme.type[variant], { color: COLOR[color](theme) }, style]} />
+  return <RNText ref={ref} {...rest} allowFontScaling={false} style={[theme.type[variant], { color: COLOR[color](theme) }, style]} />
 }
 
 export type GlyphProps = Omit<RNTextProps, 'style'> & {
@@ -105,6 +125,7 @@ export function Glyph({ size, color, style, ref, ...rest }: GlyphProps) {
     <RNText
       ref={ref}
       {...rest}
+      allowFontScaling={false}
       style={[glyphText[size], color ? { color: COLOR[color](theme) } : null, style]}
     />
   )
@@ -128,5 +149,5 @@ export function ScaledText({ box, kind, color = 'accent.onAccent', children }: {
     kind === 'emoji'
       ? { fontSize: box * 0.45 }
       : [theme.type.label, { fontSize: box * 0.38, lineHeight: box * 0.5, color: COLOR[color](theme) }]
-  return <RNText style={style}>{children}</RNText>
+  return <RNText allowFontScaling={false} style={style}>{children}</RNText>
 }

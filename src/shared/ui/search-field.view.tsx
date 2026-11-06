@@ -1,5 +1,6 @@
 import type { Ref } from 'react'
-import { TextInput, type TextInputProps } from 'react-native'
+import { type TextInputProps } from 'react-native'
+import { TextInput, type TextInputRef } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { styles } from './search-field.style'
@@ -10,7 +11,7 @@ export interface SearchFieldProps extends Omit<TextInputProps, 'accessibilityLab
    * types, and screen readers treat it as a hint at best (#381).
    */
   accessibilityLabel: string
-  ref?: Ref<TextInput>
+  ref?: Ref<TextInputRef>
 }
 
 /**
@@ -29,6 +30,7 @@ export function SearchField({ accessibilityLabel, style, ref, ...props }: Search
       returnKeyType="search"
       clearButtonMode="while-editing"
       {...props}
+      allowFontScaling={false}
       style={[styles.input, style]}
     />
   )

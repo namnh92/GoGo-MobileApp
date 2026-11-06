@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native'
 import { styles as accountStyles } from '@/features/account/account.style'
 import { styles as dobStyles } from '@/features/account/date-of-birth.style'
 import { styles as joinStyles } from '@/features/gogo-room/join-by-code.style'
-import { styles as signInStyles } from '@/features/auth/sign-in.style'
+import { styles as signInStyles } from '@/shared/ui/labelled-input.style'
 
 /**
  * A single-line field with a line height and only a minHeight wraps a long
@@ -12,7 +12,6 @@ import { styles as signInStyles } from '@/features/auth/sign-in.style'
  */
 describe('single-line text inputs', () => {
   it.each([
-    ['sign-in, sign-up and display name', signInStyles.input],
     ['join by code', joinStyles.input],
     ['date of birth', dobStyles.input],
     ['account', accountStyles.input],
@@ -22,4 +21,11 @@ describe('single-line text inputs', () => {
     expect(flat.minHeight).toBeUndefined()
     expect(flat.lineHeight).toBeUndefined()
   })
+})
+
+it('auth single-line input grows with native text instead of clipping at 48 points', () => {
+  const flat = StyleSheet.flatten(signInStyles.input) as { height?: number; minHeight?: number; lineHeight?: number }
+  expect(flat.height).toBeUndefined()
+  expect(flat.minHeight).toBe(48)
+  expect(flat.lineHeight).toBeUndefined()
 })
