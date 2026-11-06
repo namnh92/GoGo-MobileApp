@@ -1,3 +1,5 @@
+import { Gesture, State } from 'react-native-gesture-handler'
+import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { AccessibilityInfo, StyleSheet, Text } from 'react-native'
 
@@ -86,4 +88,19 @@ it('keeps optional header and footer outside the scrolling body and supports non
   await view.rerender(<Sheet visible onClose={jest.fn()} scroll={false}><Text>Custom list</Text></Sheet>)
   expect(screen.getByText('Custom list')).toBeTruthy()
   expect(screen.queryByText('Header')).toBeNull()
+})
+
+
+it('dismisses an opted-in sheet with a downward swipe on its handle', async () => {
+  const onClose = jest.fn()
+  await render(<Sheet swipeToClose visible onClose={onClose}><Text>Area picker</Text></Sheet>)
+  expect(screen.getByTestId('sheet-drag-handle')).toBeTruthy()
+  await act(async () => {
+    fireGestureHandler<ReturnType<typeof Gesture.Pan>>(getByGestureTestId('sheet-dismiss'), [
+      { state: State.BEGAN, translationY: 0, velocityY: 0 },
+      { state: State.ACTIVE, translationY: 80, velocityY: 100 },
+      { state: State.END, translationY: 100, velocityY: 100 },
+    ])
+  })
+  expect(onClose).toHaveBeenCalledTimes(1)
 })

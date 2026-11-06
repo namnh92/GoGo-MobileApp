@@ -430,12 +430,20 @@ describe('a start answered with a room that is not active', () => {
 })
 
 describe('plan layout (Stitch Lịch trình)', () => {
-  const twoStops = {
+  // These layout checks include the cost row, which only renders known prices.
+  const pricedStop = { ...plan.stops[0], costMin: 50_000, costMax: 50_000, costScope: 'per_person' }
+  const pricedPlan = {
     ...plan,
+    totals: { costMin: 50_000, costMax: 50_000, costScope: 'per_person', currency: 'VND' },
+    stops: [pricedStop],
+  }
+  const twoStops = {
+    ...pricedPlan,
+    totals: { ...pricedPlan.totals, costMin: 150_000, costMax: 150_000 },
     stops: [
-      { id: 'stop-1', placeId: 'place-1', order: 1, durationMinutes: 60, isLocked: true, status: 'planned' },
-      { id: 'stop-2', placeId: 'place-2', order: 2, durationMinutes: 90, isLocked: false, status: 'planned', travelMinutesFromPrev: 10 },
-      { id: 'stop-3', placeId: 'place-3', order: 3, durationMinutes: 30, isLocked: false, status: 'planned', travelMinutesFromPrev: 15 },
+      { ...pricedStop, order: 1, isLocked: true },
+      { ...pricedStop, id: 'stop-2', placeId: 'place-2', order: 2, durationMinutes: 90, travelMinutesFromPrev: 10 },
+      { ...pricedStop, id: 'stop-3', placeId: 'place-3', order: 3, durationMinutes: 30, travelMinutesFromPrev: 15 },
     ],
   }
 
@@ -453,6 +461,7 @@ describe('plan layout (Stitch Lịch trình)', () => {
   })
 
   it('hides the travel row when the plan has no legs', async () => {
+    mockPlan.query = loaded(pricedPlan)
     await renderPlan()
     expect(await screen.findByText('Tổng chi phí')).toBeTruthy()
     expect(screen.queryByText('Di chuyển')).toBeNull()

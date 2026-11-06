@@ -100,16 +100,16 @@ describe('PlaceCard — list', () => {
     expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBe('Google 4,6 sao, 45k–90k/người')
   })
 
-  it('unknown price is never cut: its sentence may take a second line', async () => {
+  it('unknown price leaves only the rating on one line', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
     const line = screen.getByTestId('place-card-rating-price')
-    expect(line).toHaveTextContent(/Chưa có thông tin giá/)
-    expect(line.props.numberOfLines).toBe(2)
+    expect(line).toHaveTextContent('★ 4,6 (980)', { exact: true })
+    expect(line.props.numberOfLines).toBe(1)
   })
 
-  it('unknown price says so in words — never an amount without a unit', async () => {
+  it('unknown price has no separator or amount', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) · Chưa có thông tin giá', { exact: true })
+    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980)', { exact: true })
   })
 
   it('free is the whole price part', async () => {
@@ -249,7 +249,7 @@ describe('discovery appearance protects Saved/default', () => {
     await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 20, priceMin: null, priceMax: null, priceUnit: 'unknown', openNow: undefined })} saved onToggleSave={remove} />)
     expect(screen.getByTestId('place-card')).toBeTruthy()
     expect(screen.queryByTestId('place-card-discovery')).toBeNull()
-    expect(screen.getByText('Chưa có thông tin giá')).toBeTruthy()
+    expect(screen.queryByText('Chưa có thông tin giá')).toBeNull()
     await fireEvent.press(screen.getByTestId('place-card-save'))
     expect(remove).toHaveBeenCalledTimes(1)
   })
@@ -274,10 +274,10 @@ describe('F-06 bounded discovery photo badges', () => {
       expect(screen.getByTestId(id).parent).toBe(overlay)
       expect(styles.photoBadge).toMatchObject({ maxWidth: '100%', minWidth: 0, flexShrink: 1, backgroundColor: themes[themeName].redesign.card })
       expect(styles.photoBadge.position).toBeUndefined()
-      expect(screen.getByText(id === 'place-card-area-badge' ? '2,1 km • Tỉnh Bà Rịa - Vũng Tàu' : 'Đang mở · Đóng 20:00').props.numberOfLines).toBe(2)
+      expect(screen.getByText(id === 'place-card-area-badge' ? '2,1 km • Tỉnh Bà Rịa - Vũng Tàu' : '● Mở đến 20:00').props.numberOfLines).toBe(2)
     }
     expect(screen.getByText('2,1 km • Tỉnh Bà Rịa - Vũng Tàu')).toBeTruthy()
-    expect(screen.getByText('Đang mở · Đóng 20:00')).toBeTruthy()
+    expect(screen.getByText('● Mở đến 20:00')).toBeTruthy()
     expect(flat('place-card-save')).toMatchObject({ width: 44, height: 44 })
     // Even if both badges use two lines and wrap to separate rows, 80pt fits
     // in the 104pt reserved region below the top actions at default text size.
@@ -293,5 +293,27 @@ describe('F-06 bounded discovery photo badges', () => {
     await render(<PlaceCard variant={variant} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } })} />)
     expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
     expect(screen.getByText('Cà phê Đỗ Phủ')).toBeTruthy()
+  })
+})
+
+
+describe('#515 shared discovery card address', () => {
+  it.each([
+    ['12 Nguyễn Huệ', '12 Nguyễn Huệ'],
+    [undefined, 'Quận 1'],
+    ['  ', 'Quận 1'],
+  ])('uses the address before the real area label (%s)', async (addressText, expected) => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, discovery: { areaLabel: 'Quận 1' } })} />)
+    expect(screen.getByTestId('place-card-meta')).toHaveTextContent(expected!, { exact: true })
+    expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
+    expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(1)
+    expect(screen.getByTestId('place-card-name').props.ellipsizeMode).toBe('tail')
+  })
+  it('omits address and overlays without facts, and unknown price', async () => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, distanceM: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, priceMin: null, priceMax: null, priceUnit: 'unknown' })} />)
+    expect(screen.queryByTestId('place-card-meta')).toBeNull()
+    expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
+    expect(screen.queryByText(/Google|GoGo|Xác minh/)).toBeNull()
+    expect(screen.queryByText('Chưa có thông tin giá')).toBeNull()
   })
 })

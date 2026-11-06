@@ -31,7 +31,7 @@ import { badgeLabel } from '@/shared/ui/count-badge.view'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
@@ -39,6 +39,9 @@ import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './home.style'
+import { roomBanner } from './room-banner'
+import { DiscoveryLocationSheet } from '@/features/search/discovery-location.view'
+import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 
 
 const RAIL_SIZE = 5
@@ -65,9 +68,11 @@ export default function HomeScreen() {
   // area, else Hồ Chí Minh (owner O-6) — never the create wizard's draft, which is about a
   // room rather than about where the user is. Search waits until the scope is
   // known, so one scope means one request.
+  const [locationOpen, setLocationOpen] = useState(false)
+  const selectedArea = useDiscoveryAreaStore(state => state.area)
   const profileArea = status === 'user' ? me.data?.homeAdministrativeArea : null
   const { scope, recheck, retry: retryScope } = useDiscoveryScope({
-    profileArea,
+    profileArea, selectedArea,
     profilePending: status === 'hydrating' || (status === 'user' && me.isPending),
   })
   const location = useCurrentLocation()
@@ -76,33 +81,27 @@ export default function HomeScreen() {
   const labels = useMemo(() => discoveryLabels(taxonomies.data, i18n.language), [taxonomies.data, i18n.language])
   const nearest = useHomeRoom(status === 'user' || status === 'guest')
   const homeRoom = nearest.data?.items[0]
-  // New schedule fields prove this is the server selection contract, even if null.
-  const showRoom = homeRoom && 'startAt' in homeRoom && 'endAt' in homeRoom
+  // Terminal rooms cannot supply a live outing banner.
+  const showRoom = homeRoom && !['completed', 'cancelled', 'expired'].includes(homeRoom.status)
+  const banner = homeRoom ? roomBanner(homeRoom) : null
   const roomTitle = homeRoom?.title?.trim() || (homeRoom?.type === 'group'
     ? t('discovery.groupRoomTitle', { count: homeRoom.participantCount })
     : t('discovery.coupleRoomTitle'))
   // Taxonomy is the deployed mood-filter signal; active keys always stay removable.
   const moodOptions = { ...labels.mood, ...Object.fromEntries(moods.filter(key => !labels.mood?.[key]).map((key, index) => [key, t('discovery.selectedMood', { number: index + 1 })])) }
-  const roomStatus = homeRoom?.status === 'active' ? t('plans.status.active') : homeRoom?.status === 'collecting' ? t('plans.status.collecting') : homeRoom?.status === 'matching' ? t('plans.status.matching') : homeRoom?.status === 'ready' ? t('plans.status.ready') : null
+
 
   const search = usePlaceSearch(
-    { sort: 'curated', limit: RAIL_SIZE, ...scopeSearchParams(scope), includeTotal: true, locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...(moods.length ? { moods: moods.join(',') } : {}) },
+    { limit: RAIL_SIZE, ...scopeSearchParams(scope), includeTotal: true, locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...(moods.length ? { moods: moods.join(',') } : {}) },
     { enabled: scope.status === 'ready' },
   )
 
   // What the server says scoped the page, not what was asked: an older server
   // ignores area parameters and reports nothing, and then nothing is claimed.
   const served = search.data?.pages[0]?.meta?.location
-  const scopeLabel =
-    served?.source === 'gps'
-      ? t('home.scopeGps')
-      : served?.source === 'administrative_area' && served.area
-        ? t(scope.status === 'ready' && scope.source === 'default_area' ? 'discovery.scopeArea' : 'home.scopeArea', {
-            area: served.area.communeName
-              ? `${served.area.communeName}, ${served.area.provinceName}`
-              : served.area.provinceName,
-          })
-        : null
+  const scopeLabel = served?.area
+    ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ')
+    : null
   const areaVersionChanged =
     isApiError(search.error) && search.error.code === 'ADMINISTRATIVE_VERSION_CHANGED'
   const waitingForNetwork = useWaitingForNetwork(search)
@@ -114,12 +113,11 @@ export default function HomeScreen() {
   }
 
   function chooseArea() {
-    // The account area lives in account information; a guest needs an account first.
-    router.push(status === 'user' ? '/settings/account' : '/auth/sign-in')
+    setLocationOpen(true)
   }
 
   const places = useMemo(
-    () => (search.data?.pages ?? []).flatMap(page => page.results.map(result => toPlaceCard(result, labels))).slice(0, RAIL_SIZE),
+    () => (search.data?.pages[0]?.results ?? []).slice(0, RAIL_SIZE).map(result => toPlaceCard(result, labels)),
     [search.data, labels],
   )
 
@@ -151,17 +149,27 @@ export default function HomeScreen() {
   const offlineCard = visualState === 'offline'
   useOfflineAnnouncement(offlineCard, t('common.offlineBody'))
 
-  const initial = (me.data?.displayName ?? '').trim().charAt(0).toUpperCase()
-
   return (
     <Atmosphere redesign>
-      <View style={[styles.topBar, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
+      <View testID="home-header" style={[styles.topBar, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
         <View style={styles.brand}><MaterialIcon name="explore" color="redesign.white" size={19} /></View>
         <Text variant="discoveryHeading" color="redesign.primaryText">GoGo</Text>
+        <Text variant="introSmall" color="redesign.secondary">•</Text>
         <Text variant="introSmall" color="redesign.secondary" style={{ flex: 1 }}>{t('discovery.home')}</Text>
         <Pressable style={styles.headerAction} onPress={() => router.push('/places/search')} accessibilityRole="button" accessibilityLabel={t('search.title')}><MaterialIcon name="search" size={22} /></Pressable>
-        <Pressable style={styles.headerAction} onPress={() => router.push('/(tabs)/profile')} accessibilityRole="button" accessibilityLabel={t('profile.title')}>
-          {initial ? <AvatarCircle label={initial} size={32} imageUri={me.data?.avatarUrl} /> : <MaterialIcon name="user" />}
+        <Pressable
+          testID="home-bell"
+          onPress={() => router.push('/notifications')}
+          accessibilityRole="button"
+          accessibilityLabel={
+            unread.count > 0
+              ? t('home.bellUnread', { count: badgeLabel(unread.count, unread.more) })
+              : t('notifications.title')
+          }
+          style={styles.headerAction}
+        >
+          <Icon name="bell" size={22} color="redesign.primaryText" />
+          {unread.count > 0 ? <View testID="home-unread-dot" style={styles.bellBadge} /> : null}
         </Pressable>
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -175,27 +183,13 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Pressable accessibilityRole="button" onPress={chooseArea} style={styles.locationRow}>
+            <Pressable testID="home-location" accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={chooseArea} style={styles.locationRow}>
               <MaterialIcon name="location" size={15} color="redesign.primaryText" />
               <Text variant="introCaptionMedium" color="redesign.secondary">{scopeLabel ?? t('home.chooseArea')}</Text>
+              <MaterialIcon name="expandMore" size={16} color="redesign.secondary" />
             </Pressable>
             <Text variant="discoveryHeading">{me.data?.displayName?.trim() ? t('discovery.greetingName', { name: me.data.displayName.trim() }) : t('discovery.greeting')}</Text>
           </View>
-          <Pressable
-            testID="home-bell"
-            onPress={() => router.push('/notifications')}
-            accessibilityRole="button"
-            accessibilityLabel={
-              unread.count > 0
-                ? t('home.bellUnread', { count: badgeLabel(unread.count, unread.more) })
-                : t('notifications.title')
-            }
-            hitSlop={8}
-            style={styles.bell}
-          >
-            <Icon name="bell" size={22} color="text.primary" />
-            {unread.count > 0 ? <View style={styles.bellBadge} /> : null}
-          </Pressable>
         </View>
 
         {/* Suggestions still on screen from an earlier search (GoGo-MobileApp#253). */}
@@ -217,22 +211,26 @@ export default function HomeScreen() {
           </Pressable>
         </LinearGradient>
         <QuickJoin knownName={me.data?.displayName} />
-        {showRoom && roomStatus ? <Pressable accessibilityRole="button" style={styles.nearestRoom} onPress={() => router.push(`/room/${homeRoom.id}`)}>
-          <View style={styles.roomIcon}><MaterialIcon name="groups" color="redesign.white" size={20} /></View>
-          <View style={styles.roomCopy}><Text variant="introCaptionMedium" color="redesign.violetText">{roomStatus}</Text><Text variant="introLabel">{roomTitle}</Text></View>
-          <View style={styles.roomAction}><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.enterRoom')}</Text></View>
+        {showRoom && banner ? <Pressable testID="home-room-banner" accessibilityRole="button" accessibilityLabel={`${t(banner.status)}. ${roomTitle}. ${t(banner.secondary)}. ${t(banner.cta)}`} style={styles.nearestRoom} onPress={() => router.push(banner.destination)}>
+          <View style={styles.roomIcon}><MaterialIcon name="groups" color="redesign.violetText" size={20} /></View>
+          <View style={styles.roomCopy}>
+            <View style={styles.roomStatus}><View style={styles.roomDot} /><Text variant="introCaptionMedium" color="redesign.violetText">{t(banner.status)}</Text></View>
+            <Text variant="discoveryHeader">{roomTitle}</Text>
+            <Text variant="introCaption" color="redesign.secondary">{t(banner.secondary)}</Text>
+          </View>
+          <View style={styles.roomAction}><Text variant="introCaptionMedium" color="redesign.white">{t(banner.cta)}</Text></View>
         </Pressable> : null}
-        {Object.keys(moodOptions).length ? <View style={styles.moodSection}>
-          <View style={styles.moodHeading}><Text variant="introHeading">{t('discovery.exploreMood')}</Text><GhostBtn label={t('discovery.allMoods')} onPress={() => setMoods([])} /></View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moods}>
-            {Object.entries(moodOptions).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={moods.includes(key) ? 'selected' : moods.length >= 10 ? 'disabled' : 'default'} onPress={() => setMoods(prev => prev.includes(key) ? prev.filter(value => value !== key) : [...prev, key])} />)}
-          </ScrollView>
-        </View> : null}
-        <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+        <View testID="home-suggestions" style={styles.suggestions}>
           <View style={styles.sectionHeader}>
             <Text variant="discoveryTitle">{t('discovery.suggested')}</Text>
-            <GhostBtn label={t('discovery.more')} onPress={() => router.push(moods.length ? { pathname: '/places/search', params: { moods: moods.join(',') } } : '/places/search')} />
+            <Pressable accessibilityRole="button" accessibilityLabel={t('discovery.more')} style={styles.moreAction} onPress={() => router.push({ pathname: '/places/search', params: { suggestions: '1', suggestionScope: JSON.stringify(scope), ...(moods.length ? { moods: moods.join(',') } : {}) } })}>
+              <Text variant="introSmall" color="redesign.primaryText">{t('discovery.more')}</Text>
+              <MaterialIcon name="chevronRight" size={16} color="redesign.primaryText" />
+            </Pressable>
           </View>
+          {Object.keys(moodOptions).length ? <ScrollView testID="home-mood-chips" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moods}>
+            {Object.entries(moodOptions).map(([key, label]) => <Chip appearance="mood" key={key} label={label} variant={moods.includes(key) ? 'selected' : moods.length >= 10 ? 'disabled' : 'default'} onPress={() => setMoods(prev => prev.includes(key) ? prev.filter(value => value !== key) : [...prev, key])} />)}
+          </ScrollView> : null}
 
           {scope.status === 'ready' && scope.source === 'none' ? (
             <Card padded={false} style={styles.scopeCard}>
@@ -332,6 +330,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+      {locationOpen ? <DiscoveryLocationSheet onClose={() => setLocationOpen(false)} onApplied={() => { void recheck() }} /> : null}
     </Atmosphere>
   )
 }

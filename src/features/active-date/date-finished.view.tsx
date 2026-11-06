@@ -142,7 +142,7 @@ export default function DateFinishedScreen() {
             </View>
             <Text variant="title1">{Math.floor(summary.durationMinutes / 60)}h {summary.durationMinutes % 60}m</Text>
           </View>
-          <View style={styles.statTile}>
+          {cost.primary ? <View style={styles.statTile}>
             <View style={styles.statLabelRow}>
               <Icon name="dollar" size={14} color="text.secondary" />
             </View>
@@ -151,7 +151,7 @@ export default function DateFinishedScreen() {
               {costLineText(cost.primary)}
               {cost.secondary ? ` · ${costLineText(cost.secondary)}` : ''}
             </Text>
-          </View>
+          </View> : null}
         </View>
       </Card>
 

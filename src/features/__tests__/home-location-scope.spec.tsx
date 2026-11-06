@@ -34,6 +34,13 @@ jest.mock('@/shared/location/use-discovery-scope', () => ({
   ...jest.requireActual('@/shared/location/use-discovery-scope'),
   useDiscoveryScope: () => ({ scope: mockScope.value, recheck: mockRecheck, retry: mockRetryScope }),
 }))
+// The owner moved area selection into Home's sheet. Keep the real picker,
+// with its own server reads supplied just like Home's search reads below.
+jest.mock('@/shared/administrative/queries', () => ({
+  ...jest.requireActual('@/shared/administrative/queries'),
+  useAdministrativeVersion: () => mockLoaded({ datasetVersion: 'ds-2026' }),
+  useAdministrativeUnits: () => mockLoaded([]),
+}))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useHomeRoom: () => mockLoaded(undefined),
@@ -48,6 +55,7 @@ jest.mock('@/shared/api', () => ({
   },
 }))
 
+import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import HomeScreen from '@/features/home/home.view'
 import { ApiError } from '@/shared/api/errors'
 import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
@@ -77,6 +85,7 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 beforeEach(() => {
+  useDiscoveryAreaStore.setState({ area: null })
   mockPush.mockClear()
   mockRecheck.mockClear()
   mockRetryScope.mockClear()
@@ -103,7 +112,8 @@ describe('Home discovery scope', () => {
     expect(last.options.enabled).toBe(true)
     expect(last.query).toMatchObject({ lat: 10.77, lng: 106.7 })
     expect(last.query).not.toHaveProperty('provinceCode')
-    expect(view.getByText('Gần vị trí hiện tại của bạn')).toBeTruthy()
+    expect(view.getByTestId('home-location')).toBeTruthy()
+    expect(view.queryByText('Gần vị trí hiện tại của bạn')).toBeNull()
   })
 
   it('searches in the account area and names it from the server answer', async () => {
@@ -113,14 +123,15 @@ describe('Home discovery scope', () => {
     const last = mockSearchCalls.at(-1)!
     expect(last.query).toMatchObject({ datasetVersion: 'ds-2026', provinceCode: '79', communeCode: '26734' })
     expect(last.query).not.toHaveProperty('lat')
-    expect(view.getByText('Theo khu vực tài khoản: Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
+    expect(view.getByText('Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
+    expect(view.queryByText(/Theo khu vực tài khoản/)).toBeNull()
   })
 
   it('claims no scope when the server does not report one', async () => {
     mockScope.value = { status: 'ready', source: 'profile_area', area: AREA }
     mockSearch.value = page(undefined)
     const view = await renderScreen(<HomeScreen />)
-    expect(view.getByText('Gợi ý dành cho bạn')).toBeTruthy()
+    expect(view.getByTestId('home-location')).toBeTruthy()
     expect(view.queryByText(/Theo khu vực tài khoản/)).toBeNull()
   })
 
@@ -128,22 +139,24 @@ describe('Home discovery scope', () => {
     mockScope.value = { status: 'ready', source: 'none', reason: 'no_area' }
     mockSearch.value = page({ source: 'none' })
     const view = await renderScreen(<HomeScreen />)
-    expect(view.getByText('Gợi ý chung, chưa theo vị trí')).toBeTruthy()
+    expect(view.getByTestId('home-location')).toBeTruthy()
     await press(view.getAllByText('Chọn khu vực').at(-1)!)
-    expect(mockPush).toHaveBeenCalledWith('/settings/account')
+    expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+    await press(view.getAllByLabelText('Đóng').at(-1)!)
     await press(view.getByText('Dùng vị trí hiện tại'))
     expect(mockRequest).toHaveBeenCalledTimes(1)
     expect(mockRecheck).toHaveBeenCalledTimes(1)
   })
 
-  it('sends a guest to sign in to choose an area, and explains a replaced area', async () => {
+  it('lets a guest choose an area and explains a replaced area', async () => {
     mockSession.status = 'guest'
     mockScope.value = { status: 'ready', source: 'none', reason: 'area_needs_reselection' }
     mockSearch.value = page({ source: 'none' })
     const view = await renderScreen(<HomeScreen />)
     expect(view.getByText(/cần chọn lại/)).toBeTruthy()
     await press(view.getAllByText('Chọn khu vực').at(-1)!)
-    expect(mockPush).toHaveBeenCalledWith('/auth/sign-in')
+    expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('explains an area from a replaced dataset instead of a generic failure', async () => {
@@ -158,7 +171,7 @@ describe('Home discovery scope', () => {
     const view = await renderScreen(<HomeScreen />)
     expect(view.getByText(/Dữ liệu hành chính đã thay đổi/)).toBeTruthy()
     await press(view.getAllByText('Chọn khu vực').at(-1)!)
-    expect(mockPush).toHaveBeenCalledWith('/settings/account')
+    expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
   })
 })
 
@@ -285,4 +298,13 @@ it('offers a retry for a failed default-area lookup without running an unscoped 
   expect(mockSearchCalls.at(-1)?.options.enabled).toBe(false)
   await press(view.getByText('Thử lại'))
   expect(mockRetryScope).toHaveBeenCalledTimes(1)
+})
+
+
+it.each(['gps', 'administrative_area'])('shows only a returned area name for %s', async source => {
+  mockScope.value = { status: 'ready', source: 'profile_area', area: AREA }
+  mockSearch.value = page({ source, area: { ...AREA, provinceName: 'Thành phố Hà Nội', communeName: null } })
+  const view = await renderScreen(<HomeScreen />)
+  expect(view.getByText('Thành phố Hà Nội')).toBeTruthy()
+  expect(view.queryByText(/Theo khu vực|Gần vị trí|Khu vực khám phá/)).toBeNull()
 })

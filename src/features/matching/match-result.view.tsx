@@ -210,7 +210,7 @@ export default function MatchResultScreen() {
   const winnerPhoto = winnerPlace?.photoUrl ?? null
   const winnerOpen = openStateFromHours(winnerDetail.data?.hours)
   const winnerPrice = winnerPlace ? placePriceParts(winnerPlace) : null
-  const winnerPriceText = winnerPrice
+  const winnerPriceText = winnerPrice && winnerPrice.unit !== 'unknown'
     ? isStandalonePrice(winnerPrice.unit)
       ? t(priceUnitKey(winnerPrice.unit))
       : `${winnerPrice.amount}${t(priceUnitKey(winnerPrice.unit))}`
@@ -222,7 +222,7 @@ export default function MatchResultScreen() {
         .join(' · ')
     : null
   const winnerFacts: { key: string; label: string; icon?: IconName; variant: 'default' | 'positive' | 'warning' }[] = []
-  if (winnerPrice) {
+  if (winnerPrice && winnerPrice.unit !== 'unknown') {
     winnerFacts.push({
       key: 'price',
       icon: 'dollar',
@@ -300,9 +300,8 @@ export default function MatchResultScreen() {
                 <Text variant="bodySmall" color="text.secondary" style={styles.heroAddressText}>{winnerDetail.data.addressText}</Text>
               </View>
             ) : null}
-            {/* Price on its own line, once: the plan cost line below already says
-                "no price" when that is all there is. */}
-            {winnerPrice && !(planCostText && winnerPriceText && planCostText.includes(winnerPriceText)) ? (
+            {/* Show a known price once; omit unknown prices entirely. */}
+            {winnerPriceText && !(planCostText && planCostText.includes(winnerPriceText)) ? (
               <Text variant="title2" color="accent.primary">{winnerPriceText}</Text>
             ) : null}
             {winnerPlace ? <RatingChips place={winnerPlace} /> : null}

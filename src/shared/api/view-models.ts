@@ -300,6 +300,7 @@ export function placePriceLabel(card: PlaceCard): string | null {
  * "150k–250k" with no unit is exactly the ambiguity spec §5 forbids.
  */
 export function placePriceParts(card: PlaceCard): { amount: string | null; unit: PriceUnit } {
+  if (card.priceUnit === 'unknown') return { amount: null, unit: 'unknown' }
   if (card.priceUnit === 'free') return { amount: null, unit: 'free' }
   const amount = formatRange(card.priceMin, card.priceMax, card.currency)
   if (amount == null) return { amount: null, unit: 'unknown' }
@@ -354,8 +355,7 @@ export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null
 /**
  * PlaceCard line 3: `★ 4,6 (980) · 45k–90k/người`. The rating comes back as
  * parts so the card can set the score heavier inside the same line; the price
- * always carries its unit (RULE-CORE-013), and "Miễn phí" / "Chưa có thông tin
- * giá" stand in for the whole price part rather than being left out.
+ * always carries its unit (RULE-CORE-013), and "Miễn phí" stands in for a free price; unknown prices are omitted.
  *
  * No "Google" on this line — owner decision 2026-09-24 (RULE-CORE-014 list-card
  * clause). The source is in the row's accessibility label and on the detail
@@ -363,7 +363,7 @@ export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null
  */
 export function placeCardRatingPriceLine(
   card: PlaceCard,
-  unitLabel: (unit: PriceUnit) => string,
+  unitLabel: (unit: Exclude<PriceUnit, 'unknown'>) => string,
   locale = 'vi',
 ): { rating: { score: string; count: string | null } | null; price: string } {
   const { google } = ratingParts(card)
@@ -372,7 +372,7 @@ export function placeCardRatingPriceLine(
     rating: google
       ? { score: formatRating(google.value, locale), count: google.count != null ? formatCount(google.count, locale) : null }
       : null,
-    price: amount && !isStandalonePrice(unit) ? `${amount}${unitLabel(unit)}` : unitLabel(unit),
+    price: unit === 'unknown' ? '' : amount && !isStandalonePrice(unit) ? `${amount}${unitLabel(unit)}` : unitLabel(unit),
   }
 }
 

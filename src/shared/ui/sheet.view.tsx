@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useReducedMotionPreference } from '@/shared/ui/feedback'
@@ -23,6 +24,7 @@ import { FocusedFieldGroup } from './field-focus-group'
 import { styles } from './sheet.style'
 
 export interface SheetProps {
+  swipeToClose?: boolean
   appearance?: 'default' | 'discovery'
   visible: boolean
   /** Backdrop tap, Android back, the VoiceOver escape gesture. */
@@ -75,7 +77,7 @@ const FOCUS_MARGIN = spacing[4]
  * - Screen readers: the backdrop is a button named "Đóng", and the escape
  *   gesture closes the sheet.
  */
-export function Sheet({ appearance = 'default', visible, onClose, onClosed, children, header, footer, size = 'content', maxHeight = '85%', scroll = true, testID }: SheetProps) {
+export function Sheet({ swipeToClose = false, appearance = 'default', visible, onClose, onClosed, children, header, footer, size = 'content', maxHeight = '85%', scroll = true, testID }: SheetProps) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
@@ -176,6 +178,7 @@ export function Sheet({ appearance = 'default', visible, onClose, onClosed, chil
       onRequestClose={onClose}
       onDismiss={Platform.OS === 'ios' ? dismissed : undefined}
     >
+      <GestureHandlerRootView style={styles.gestureRoot}>
       <KeyboardAvoidingView
         behavior="padding"
         enabled={Platform.OS !== 'web'}
@@ -205,7 +208,9 @@ export function Sheet({ appearance = 'default', visible, onClose, onClosed, chil
             !reduced && panelStyle,
           ]}
         >
-          <View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle]} />
+          {swipeToClose ? <GestureDetector gesture={Gesture.Pan().withTestId('sheet-dismiss').activeOffsetY(10).onEnd(event => {
+            if (event.translationY > 40 || event.velocityY > 500) runOnJS(onClose)()
+          })}><View testID="sheet-drag-handle" style={styles.dragHandle}><View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle]} /></View></GestureDetector> : <View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle]} />}
           {header}
           {scroll ? (
             <ScrollView
@@ -234,6 +239,7 @@ export function Sheet({ appearance = 'default', visible, onClose, onClosed, chil
           {footer ? <View style={{ paddingBottom: bottomPadding }}>{footer}</View> : null}
         </Animated.View>
       </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
     </FocusedFieldGroup.Provider>
   )

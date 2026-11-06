@@ -1,12 +1,16 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { overlay, touchTarget } from '@/shared/ui/tokens'
+import { overlay, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   /** Holds the card and, beside it, the save toggle positioned over it. */
   verifiedBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: theme.redesign.verifiedFill },
   discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   discoveryCard: { backgroundColor: theme.redesign.card, borderRadius: 20, overflow: 'hidden', ...theme.shadows.card },
+  discoveryName: { flex: 1, minWidth: 0 },
+  discoveryPrice: { flexShrink: 1 },
+  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[1] },
+  addressText: { flex: 1, minWidth: 0 },
   discoveryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   ratingBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   googleBadge: { backgroundColor: theme.redesign.container, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
@@ -14,7 +18,7 @@ export const styles = StyleSheet.create(theme => ({
   // Stitch Search: one inset bottom overlay. Reserve the top 44pt save/verified
   // row; badges wrap within the photo rather than occupying opposing corners.
   photoBadges: { position: 'absolute', left: 12, right: 12, top: 64, bottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  photoBadge: { maxWidth: '100%', minWidth: 0, flexShrink: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
+  photoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0, flexShrink: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
   photoBadgeText: { flexShrink: 1 },
   wrap: { position: 'relative' },
 

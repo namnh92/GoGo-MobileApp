@@ -1,20 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { View } from 'react-native'
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
-import { Atmosphere, BackHeader, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
+import { Sheet } from '@/shared/ui/sheet.view'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { useDiscoveryAreaStore } from './discovery-area-store'
 import { styles } from './discovery-location.style'
 
 /** Device permission and search area are public; account management stays gated. */
-export default function DiscoveryLocationScreen() {
+export function DiscoveryLocationSheet({ onClose, onApplied }: { onClose: () => void; onApplied: () => void }) {
   const { t } = useTranslation()
-  const router = useRouter()
-  const insets = useSafeAreaInsets()
   const location = useCurrentLocation()
   const { area, setArea } = useDiscoveryAreaStore()
   const [draftArea, setDraftArea] = useState(area)
@@ -25,15 +23,15 @@ export default function DiscoveryLocationScreen() {
   }, [])
   async function requestDeviceLocation() {
     const result = await location.request()
-    if (mounted.current && result.status === 'granted') { setArea(null); router.back() }
+    if (mounted.current && result.status === 'granted') { setArea(null); onApplied(); onClose() }
   }
-  return <Atmosphere redesign>
-    <View style={{ paddingTop: insets.top }}><BackHeader title={t('home.chooseArea')} onBack={() => router.back()} /></View>
-    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}>
+  return <Sheet swipeToClose appearance="discovery" visible onClose={onClose} testID="discovery-location-sheet"
+    header={<View style={styles.header}><Text variant="introHeading">{t('home.chooseArea')}</Text><IconBtn accessibilityLabel={t('common.close')} onPress={onClose}><MaterialIcon name="close" /></IconBtn></View>}>
+    <View style={styles.content}>
       <SecondaryBtn label={t('home.useLocation')} onPress={() => void requestDeviceLocation()} loading={location.state.status === 'asking'} />
       {location.state.status === 'denied' || location.state.status === 'unavailable' ? <Text accessibilityLiveRegion="polite" color="text.secondary">{t(location.state.status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable')}</Text> : null}
       <AdministrativePicker value={draftArea} onChange={setDraftArea} />
-      <PrimaryBtn label={t('discovery.useArea')} disabled={location.state.status === 'asking'} onPress={() => { setArea(draftArea); router.back() }} />
-    </ScrollView>
-  </Atmosphere>
+      <PrimaryBtn label={t('discovery.useArea')} disabled={location.state.status === 'asking'} onPress={() => { setArea(draftArea); onApplied(); onClose() }} />
+    </View>
+  </Sheet>
 }

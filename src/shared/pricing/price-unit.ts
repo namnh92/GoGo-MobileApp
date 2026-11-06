@@ -39,8 +39,8 @@ export function toPriceUnit(unit: string | undefined, hasPrice: boolean): PriceU
   return 'unknown'
 }
 
-/** i18n key for the unit suffix. `free` and `unknown` carry the whole line. */
-export function priceUnitKey(unit: PriceUnit): MessageKey {
+/** i18n key for the unit suffix. `free` carries the whole line; unknown prices are hidden. */
+export function priceUnitKey(unit: Exclude<PriceUnit, 'unknown'>): MessageKey {
   return `price.unit.${unit}`
 }
 

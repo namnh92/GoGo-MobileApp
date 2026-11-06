@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { Component, useEffect, useState, type ReactNode } from 'react'
 import { Platform, UIManager, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { styles } from './map-canvas.style'
 
 import { isGoogleMapsConfigured } from '../../../modules/map-capability'
 
@@ -21,6 +21,9 @@ export type { MapPin }
 export interface MapCanvasProps {
   pins: MapPin[]
   onSelect?: (id: string) => void
+  /** Native callout action; selecting a marker can show a separate preview. */
+  onOpen?: (id: string) => void
+  showsUserLocation?: boolean
   style?: object
   /** Shown when no map is available; keeps the surface from reading as broken. */
   fallback?: ReactNode
@@ -65,8 +68,14 @@ function googleMapsLinked(): boolean {
   }
 }
 
-export function MapCanvas({ pins, onSelect, style, fallback, interactive = true, cameraRegion }: MapCanvasProps) {
-  const { theme } = useUnistyles()
+/** A provider render failure must preserve the caller's list/directions fallback. */
+class MapBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() { return this.state.failed ? this.props.fallback : this.props.children }
+}
+
+export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, style, fallback, interactive = true, cameraRegion }: MapCanvasProps) {
   const maps = loadMaps()
   const region = cameraRegion ?? regionForPins(pins)
   // What the installed binary linked cannot change while it is running, but
@@ -74,45 +83,63 @@ export function MapCanvas({ pins, onSelect, style, fallback, interactive = true,
   // every pin tap. Read the binary once per mount, not once per render.
   const [mapsLinked] = useState(googleMapsLinked)
 
-  if (!maps || !region || !mapsLinked) {
-    return <View style={[{ backgroundColor: theme.map.canvas }, style]}>{fallback}</View>
-  }
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const [providerFailed, setProviderFailed] = useState(false)
+  const canMount = !!maps && !!region && mapsLinked
+  const hasFallback = fallback != null
+  // Google exposes no tile-error event. A provider that never finishes loading
+  // must still yield the list, rather than leave an indefinitely blank map.
+  useEffect(() => {
+    if (!canMount || !hasFallback || mapLoaded || providerFailed) return
+    const timer = setTimeout(() => setProviderFailed(true), 20000)
+    return () => clearTimeout(timer)
+  }, [canMount, hasFallback, mapLoaded, providerFailed])
+  const unavailable = <View style={[styles.fallback, style]}>{fallback}</View>
+  if (!maps || !region || !mapsLinked || providerFailed) return unavailable
 
   const MapView = maps.default
   const Marker = maps.Marker
 
   return (
-    <MapView
-      style={style}
-      initialRegion={region}
-      region={cameraRegion ?? (interactive ? undefined : region)}
-      pointerEvents={interactive ? 'auto' : 'none'}
-      scrollEnabled={interactive}
-      zoomEnabled={interactive}
-      zoomTapEnabled={interactive}
-      rotateEnabled={interactive}
-      pitchEnabled={interactive}
-      // Android draws +/- zoom buttons by default; a static preview hides
-      // them, an interactive map keeps whatever it had before.
-      zoomControlEnabled={interactive ? undefined : false}
-      provider={maps.PROVIDER_GOOGLE}
-      showsUserLocation={false}
-      toolbarEnabled={false}
-      accessibilityLabel={undefined}
-    >
-      {pins.map(pin => (
-        <Marker
-          key={pin.id}
-          identifier={pin.id}
-          coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-          title={pin.title}
-          onPress={interactive ? () => onSelect?.(pin.id) : undefined}
-          accessibilityLabel={pin.title}
-          tracksViewChanges={false}
-        >
-          {pin.content}
-        </Marker>
-      ))}
-    </MapView>
+    <MapBoundary fallback={unavailable}>
+      <MapView
+        style={style}
+        initialRegion={region}
+        // Controlled region updates move the native camera without animation on
+        // both Google adapters, including while reduced motion is enabled.
+        region={cameraRegion ?? (interactive ? undefined : region)}
+        pointerEvents={interactive ? 'auto' : 'none'}
+        scrollEnabled={interactive}
+        zoomEnabled={interactive}
+        zoomTapEnabled={interactive}
+        rotateEnabled={interactive}
+        pitchEnabled={interactive}
+        // Android draws +/- zoom buttons by default; a static preview hides
+        // them, an interactive map keeps whatever it had before.
+        zoomControlEnabled={interactive ? undefined : false}
+        provider={maps.PROVIDER_GOOGLE}
+        showsUserLocation={showsUserLocation}
+        followsUserLocation={false}
+        moveOnMarkerPress={false}
+        onMapLoaded={() => setMapLoaded(true)}
+        toolbarEnabled={false}
+        accessibilityLabel={undefined}
+      >
+        {pins.map(pin => (
+          <Marker
+            key={pin.id}
+            identifier={pin.id}
+            coordinate={{ latitude: pin.lat, longitude: pin.lng }}
+            title={pin.title}
+            onPress={interactive ? () => onSelect?.(pin.id) : undefined}
+            onCalloutPress={interactive && onOpen ? () => onOpen(pin.id) : undefined}
+            accessibilityLabel={pin.title}
+            tracksViewChanges={false}
+          >
+            {pin.content}
+          </Marker>
+        ))}
+      </MapView>
+    </MapBoundary>
   )
 }

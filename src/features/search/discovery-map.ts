@@ -3,13 +3,19 @@ import { regionForPins, type MapPin } from '@/shared/ui/map-region'
 
 type PlacePosition = { id: string; name: string; lat?: number | null; lng?: number | null }
 
-/** One marker, at the camera centre: device for GPS, otherwise the top-1 place.
- * Never replace a top-1 without coordinates with a lower-ranked result. */
-export function discoveryMap(scope: DiscoveryScope, places: PlacePosition[], currentLocationTitle: string) {
+function usable(lat: number | null | undefined, lng: number | null | undefined): boolean {
+  return lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)
+    && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+}
+
+/** All loaded results are markers; the camera follows GPS or the top-ranked place. */
+export function discoveryMap(scope: DiscoveryScope, places: PlacePosition[]) {
+  const pins: MapPin[] = places.filter(place => usable(place.lat, place.lng))
+    .map(place => ({ id: place.id, title: place.name, lat: place.lat!, lng: place.lng! }))
   const top = places[0]
-  const pins: MapPin[] = scope.status === 'ready' && scope.source === 'gps'
-    ? [{ id: 'discovery-current-location', ...scope.position, title: currentLocationTitle }]
-    : top?.lat != null && top.lng != null && Number.isFinite(top.lat) && Number.isFinite(top.lng)
-      ? [{ id: top.id, lat: top.lat, lng: top.lng, title: top.name }] : []
-  return { pins, region: regionForPins(pins) }
+  const gps = scope.status === 'ready' && scope.source === 'gps' && usable(scope.position.lat, scope.position.lng)
+    ? scope.position : null
+  const camera = gps ? [{ id: 'camera', title: '', ...gps }]
+    : top && usable(top.lat, top.lng) ? [{ id: top.id, title: top.name, lat: top.lat!, lng: top.lng! }] : pins
+  return { pins, region: regionForPins(camera), showsUserLocation: gps !== null }
 }

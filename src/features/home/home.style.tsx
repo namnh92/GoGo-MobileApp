@@ -2,37 +2,28 @@ import { StyleSheet } from 'react-native-unistyles'
 
 import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
-// Pressed is a colour change only (#382).
+// Home discovery surfaces follow the approved Stitch design.
 
 export const styles = StyleSheet.create(theme => ({
-  moodSection: { marginTop: 24, gap: 8 },
-  moodHeading: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
-  moods: { paddingHorizontal: 16, gap: 8 },
-  roomIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.redesign.violet, alignItems: 'center', justifyContent: 'center' },
+  suggestions: { paddingHorizontal: spacing[4], marginTop: spacing[6] },
+  moreAction: { minHeight: touchTarget.min, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  moods: { gap: spacing[2], paddingVertical: spacing[1], marginBottom: spacing[3] },
+  roomIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.redesign.card, alignItems: 'center', justifyContent: 'center' },
+  roomStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  roomDot: { width: spacing[1], height: spacing[1], borderRadius: radius.pill, backgroundColor: theme.redesign.violetText },
   roomAction: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, backgroundColor: theme.redesign.violet, alignItems: 'center', justifyContent: 'center' },
   nearestRoom: { marginHorizontal: 16, marginTop: 24, padding: 16, gap: 12, flexDirection: 'row', alignItems: 'center', minHeight: 72, borderRadius: 16, backgroundColor: theme.redesign.violetSoft },
   roomCopy: { flex: 1, gap: 4 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, minHeight: 64, backgroundColor: theme.redesign.canvas },
   brand: { width: 32, height: 32, borderRadius: 12, backgroundColor: theme.redesign.primaryFill, justifyContent: 'center', alignItems: 'center' },
-  headerAction: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerAction: { width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
   locationRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 4 },
   join: { marginHorizontal: 16, marginTop: 24, backgroundColor: theme.redesign.card, borderRadius: 16, padding: 12, gap: 8 },
   joinHeading: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   joinRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   joinInput: { ...type.introBody, color: theme.redesign.ink, flex: 1, minHeight: 48, minWidth: 0, backgroundColor: theme.redesign.container, borderRadius: 12, paddingHorizontal: 12 },
   joinButton: { minHeight: 48, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.redesign.high, borderWidth: 0 },
-  bell: {
-    width: 44,
-    height: 44,
-    marginRight: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: theme.surface.card,
-    borderWidth: 1,
-    borderColor: theme.border.hairline,
-  },
-  bellBadge: { position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: theme.redesign.primaryFill },
+  bellBadge: { position: 'absolute', top: spacing[1], right: spacing[1], width: spacing[2], height: spacing[2], borderRadius: radius.pill, backgroundColor: theme.redesign.primaryFill },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -110,7 +101,7 @@ export const styles = StyleSheet.create(theme => ({
 
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing[3],
   },

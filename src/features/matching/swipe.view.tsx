@@ -502,7 +502,7 @@ export default function SwipeScreen() {
               </View>
 
               {/* Name, address, price on their own lines; then ratings, then tags. */}
-              {price ? (
+              {price && price.unit !== 'unknown' ? (
                 isStandalonePrice(price.unit) ? (
                   <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
                 ) : (

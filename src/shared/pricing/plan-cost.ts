@@ -37,8 +37,7 @@ export interface PlanCostFacts {
 /**
  * An amount and what it is per, kept apart so a screen can set the scope in its
  * own style, with its own spacing, without truncating it. `amount` is null when
- * there is no number to show; `unit` is then the whole line (`Miễn phí`,
- * `Chưa có thông tin giá`). `unit` carries no leading space.
+ * there is no number to show; `unit` is then the whole line (`Miễn phí`). Unknown prices are omitted. `unit` carries no leading space.
  */
 export interface CostLine {
   amount: string | null
@@ -50,14 +49,15 @@ export interface PlanCost {
   perPerson: CostLine | null
   /** The whole room's amount: "cho 2 người", "tổng nhóm 4 người". */
   whole: CostLine | null
-  /** The line to lead with (spec §23.3) — always scoped, or the words for no price. */
-  primary: CostLine
+  /** The line to lead with (spec §23.3) — scoped when known, otherwise omitted. */
+  primary: CostLine | null
   /** The other scope, for a group. */
   secondary: CostLine | null
 }
 
 /** One line of text: a "/người" suffix sits against the amount, a scope after a space. */
-export function costLineText(line: CostLine): string {
+export function costLineText(line: CostLine | null): string {
+  if (!line) return ''
   if (line.amount === null) return line.unit
   return line.unit.startsWith('/') ? `${line.amount}${line.unit}` : `${line.amount} ${line.unit}`
 }
@@ -74,28 +74,29 @@ export function scopeLabel(line: CostLine): string {
  * figure together.
  */
 export function allScopes(cost: PlanCost): CostLine[] {
+  if (!cost.primary) return []
   const other = cost.secondary ?? (cost.primary === cost.whole ? cost.perPerson : cost.whole)
   return other && other !== cost.primary ? [cost.primary, other] : [cost.primary]
 }
 
 export function planCost(plan: PlanCostFacts, audience: PlanAudience | null, t: TFunction): PlanCost {
-  const only = (unit: string): PlanCost => {
-    const line = { amount: null, unit }
+  const only = (unit: string | null): PlanCost => {
+    const line = unit === null ? null : { amount: null, unit }
     return { perPerson: null, whole: null, primary: line, secondary: null }
   }
 
   // No stop has a price, or the scope is unknown (a plan cached before the
   // contract stated it): there is no number to stand behind — never "0".
-  if (!plan.priced || plan.costScope === null) return only(t('price.unit.unknown'))
+  if (!plan.priced || plan.costScope === null) return only(null)
   // Free only when every stop is known to be free; a free stop next to an
   // unpriced one is not a free plan. Low confidence does not unmake "free".
-  if (plan.costMax === 0) return only(t(plan.hasUnpricedStop ? 'price.unit.unknown' : 'price.unit.free'))
+  if (plan.costMax === 0) return only(plan.hasUnpricedStop ? null : t('price.unit.free'))
 
   // A stop with no price leaves only a floor: the sum of the known LOWER bounds,
   // read the way `formatRange` reads an open range ("từ …"). A floor of nothing
   // says nothing about the price, so it is not shown as a number.
   const floor = plan.hasUnpricedStop
-  if (floor && plan.costMin <= 0) return only(t('price.unit.unknown'))
+  if (floor && plan.costMin <= 0) return only(null)
   const base = floor ? plan.costMin : plan.costMax
   const amount = (value: number) => {
     // A floor rounds down and an estimate rounds up, so neither ever reads as
@@ -152,10 +153,10 @@ export interface StopCostFacts {
   costScope: BudgetScope | null
 }
 
-/** One stop's price with its unit, `Miễn phí`, or `Chưa có thông tin giá` — never a bare number. */
+/** One stop's price with its unit, `Miễn phí`, or an empty string when unknown — never a bare number. */
 export function stopCostLabel(stop: StopCostFacts, currency: string, t: TFunction): string {
   if (stop.costScope === null || (stop.costMin === null && stop.costMax === null)) {
-    return t('price.unit.unknown')
+    return ''
   }
   if (stop.costMin === 0 && stop.costMax === 0) return t('price.unit.free')
   // A range that starts at nothing is an upper bound: "≤ 50k", not "0–50k".

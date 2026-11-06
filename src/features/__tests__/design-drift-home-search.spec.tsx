@@ -2,7 +2,7 @@ import type { DiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { StyleSheet } from 'react-native'
 import { QueryClient, QueryClientProvider, notifyManager } from '@tanstack/react-query'
 import i18n from '@/shared/i18n'
-import { act, fireEvent, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
 import { scriptedTime } from './scripted-time'
@@ -21,9 +21,21 @@ const mockQueries: Record<string, unknown>[] = []
 const mockPreview = { value: {} as Record<string, unknown> }
 const mockPreviewCalls: { query: Record<string, unknown>; enabled: boolean }[] = []
 let mockKinds: Record<string, unknown> = {}
+let mockUnread = { count: 0, more: false }
 let mockHomeRoom: unknown = undefined
 let mockCredits: unknown = undefined
 const mockSearch: { value: Record<string, unknown> } = { value: {} }
+
+let mockMapUnavailable = false
+jest.mock('@/shared/ui/map-canvas.view', () => ({
+  MapCanvas: ({ pins, onSelect, fallback, ...props }: { pins: { id: string; title: string }[]; onSelect: (id: string) => void; fallback: unknown }) => {
+    if (mockMapUnavailable) return fallback
+    const React = jest.requireActual('react')
+    const { View, Text } = jest.requireActual('react-native')
+    return React.createElement(View, { ...props, testID: 'discovery-native-map' }, pins.map(pin =>
+      React.createElement(Text, { key: pin.id, accessibilityLabel: pin.title, onPress: () => onSelect(pin.id) }, pin.title)))
+  },
+}))
 
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
@@ -33,13 +45,21 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ status: mockSessionStatus, session: null }),
 }))
+jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
 jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/location/use-current-location', () => ({
   useCurrentLocation: () => ({ state: { status: 'idle' }, request: jest.fn() }),
 }))
 jest.mock('@/shared/location/use-discovery-scope', () => ({
   ...jest.requireActual('@/shared/location/use-discovery-scope'),
-  useDiscoveryScope: () => ({ scope: mockScope, recheck: jest.fn(), retry: mockRetryScope }),
+  useDiscoveryScope: () => ({ scope: { ...mockScope }, recheck: jest.fn(), retry: mockRetryScope }),
+}))
+// Home and Search now open the real area picker inline; its dataset reads
+// are independent of the discovery queries exercised by this suite.
+jest.mock('@/shared/administrative/queries', () => ({
+  ...jest.requireActual('@/shared/administrative/queries'),
+  useAdministrativeVersion: () => mockLoaded({ datasetVersion: 'ds-2026' }),
+  useAdministrativeUnits: () => mockLoaded([]),
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -59,6 +79,7 @@ jest.mock('@/shared/api', () => ({
 import HomeScreen from '@/features/home/home.view'
 import SearchScreen from '@/features/search/search.view'
 import { useRoomStore } from '@/shared/store/roomStore'
+import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 
 function emptyPage() {
   return {
@@ -78,7 +99,9 @@ function emptyPage() {
 scriptedTime()
 
 beforeEach(() => {
+  mockUnread = { count: 0, more: false }
   mockRealSearch = false
+  mockMapUnavailable = false
   mockSessionStatus = 'user'
   mockKinds = {}
   mockHomeRoom = undefined
@@ -92,6 +115,7 @@ beforeEach(() => {
   mockQueries.length = 0
   mockParams = {}
   mockScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
+  useDiscoveryAreaStore.setState({ area: null })
   useRoomStore.getState().resetDraft()
   mockSearch.value = emptyPage()
 })
@@ -210,26 +234,26 @@ describe('#774 integration', () => {
     await fireEvent.press(view.getByLabelText('Ấm cúng'))
     expect(mockQueries.at(-1)?.moods).toBe('cozy')
     await fireEvent.press(view.getByText('Xem thêm'))
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: { moods: 'cozy' } })
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: { suggestions: '1', suggestionScope: JSON.stringify(mockScope), moods: 'cozy' } })
     await fireEvent.press(view.getByLabelText('Ấm cúng'))
     expect(mockQueries.at(-1)?.moods).toBeUndefined()
   })
-  it('renders the server-selected Home room and canonical link only with new schedule facts', async () => {
+  it('renders the server-selected Home room with a safe lobby fallback', async () => {
     mockHomeRoom = { items: [{ id: 'nearest', title: '  Đi chơi  ', type: 'group', participantCount: 4, status: 'active', startAt: null, endAt: null }] }
     const view = await renderScreen(<HomeScreen />)
-    expect(view.getByText('Đang diễn ra')).toBeTruthy()
+    expect(view.getByText('Kèo hẹn đang diễn ra')).toBeTruthy()
     await fireEvent.press(view.getByText('Đi chơi'))
     expect(mockPush).toHaveBeenCalledWith('/room/nearest')
     mockHomeRoom = { items: [{ id: 'old', title: 'Old response', type: 'couple', participantCount: 2, status: 'active' }] }
     await view.rerender(<HomeScreen />)
-    expect(view.queryByText('Old response')).toBeNull()
+    expect(view.getByText('Old response')).toBeTruthy()
   })
   it('shows the approval reward when credits are supported, including a zero balance', async () => {
     const view = await renderScreen(<SearchScreen />)
-    expect(view.queryByText('+50 credit GoGo AI sau khi được duyệt (1 tin nhắn = 1 credit)')).toBeNull()
+    expect(view.queryByText('+50 credit GoGo AI sau khi được duyệt')).toBeNull()
     mockCredits = { creditBalance: 0 }
     await view.rerender(<SearchScreen />)
-    expect(view.getByText('+50 credit GoGo AI sau khi được duyệt (1 tin nhắn = 1 credit)')).toBeTruthy()
+    expect(view.getByText('+50 credit GoGo AI sau khi được duyệt')).toBeTruthy()
   })
 })
 
@@ -243,20 +267,20 @@ it.each(['vi', 'en'])('keeps untitled couple/group banners with localized room f
         mockHomeRoom = { items: [{ ...roomFacts, type, participantCount: type === 'group' ? 7 : 2, title }] }
         await view.rerender(<HomeScreen />)
         const expected = locale === 'vi' ? type === 'group' ? 'Kèo nhóm 7 người' : 'Kèo hẹn hò' : type === 'group' ? 'Group outing for 7 people' : 'Couple outing'
-        expect(view.getByText(locale === 'vi' ? 'Đã có kế hoạch' : 'Plan ready')).toBeTruthy()
+        expect(view.getByText(locale === 'vi' ? 'Đã chọn địa điểm' : 'Places selected')).toBeTruthy()
         await fireEvent.press(view.getByText(expected))
-        expect(mockPush).toHaveBeenLastCalledWith('/room/nearest')
+        expect(mockPush).toHaveBeenLastCalledWith('/room/nearest/match-result')
       }
     }
   } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })
-it.each(['completed', 'cancelled', 'expired', 'draft'])('omits an ineligible nearest room (%s)', async status => {
+it.each(['completed', 'cancelled', 'expired'])('omits an ineligible nearest room (%s)', async status => {
   mockHomeRoom = { items: [{ ...roomFacts, type: 'group', participantCount: 3, title: 'Excluded room', status }] }
   const view = await renderScreen(<HomeScreen />)
   expect(view.queryByText('Excluded room')).toBeNull()
 })
 
-it.each(['count only', 'all taxonomy', 'selected entry'])('keeps Home mood removal, reset and See more after losing %s', async loss => {
+it.each(['count only', 'all taxonomy', 'selected entry'])('keeps Home mood removal and See more after losing %s', async loss => {
   mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }, { key: 'quiet', labels: { vi: 'Yên tĩnh' } }] }
   mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [], meta: { totalCount: 2 } }] } }
   const view = await renderScreen(<HomeScreen />)
@@ -267,16 +291,16 @@ it.each(['count only', 'all taxonomy', 'selected entry'])('keeps Home mood remov
   const label = loss === 'count only' ? 'Ấm cúng' : 'Bỏ tâm trạng đã chọn 1'
   expect(view.getByLabelText(label).props.accessibilityState.selected).toBe(true)
   await fireEvent.press(view.getByText('Xem thêm'))
-  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/places/search', params: { moods: 'cozy' } })
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/places/search', params: { suggestions: '1', suggestionScope: JSON.stringify(mockScope), moods: 'cozy' } })
   await fireEvent.press(view.getByLabelText(label))
   expect(mockQueries.at(-1)?.moods).toBeUndefined()
-  // Select again, then exercise the separate reset action.
+  // A selected chip remains removable after the taxonomy disappears.
   mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
   await view.rerender(<HomeScreen />)
   await fireEvent.press(view.getByLabelText('Ấm cúng'))
   mockKinds = {}
   await view.rerender(<HomeScreen />)
-  await fireEvent.press(view.getByText('Tất cả'))
+  await fireEvent.press(view.getByLabelText('Bỏ tâm trạng đã chọn 1'))
   expect(mockQueries.at(-1)?.moods).toBeUndefined()
 })
 
@@ -366,7 +390,7 @@ describe('owner verification round 1 — O-1..O-3/O-5 entry', () => {
   it('keeps Open now in a content-sized chip row and toggles its selected state', async () => {
     const view = await renderScreen(<SearchScreen />)
     await fireEvent.press(view.getByLabelText('Bộ lọc'))
-    expect(StyleSheet.flatten(view.getByTestId('open-now-options').props.style)).toMatchObject({ flexDirection: 'row' })
+    expect(StyleSheet.flatten(view.getByTestId('amenity-status-options').props.style)).toMatchObject({ flexDirection: 'row' })
     const chip = view.getByLabelText('Mở cửa ngay')
     expect(chip.props.accessibilityState.selected).toBe(false)
     await fireEvent.press(chip)
@@ -381,8 +405,8 @@ describe('owner verification round 1 — O-1..O-3/O-5 entry', () => {
       expect(view.getAllByText(heading)).toHaveLength(1)
       expect(view.queryByText(i18n.t('discovery.priceUnit'))).toBeNull()
       expect(view.getAllByText('k')).toHaveLength(2)
-      await fireEvent.changeText(view.getByPlaceholderText(i18n.t('search.priceFrom')), '150')
-      await fireEvent.changeText(view.getByPlaceholderText(i18n.t('search.priceTo')), '250')
+      await fireEvent.changeText(view.getByLabelText(i18n.t('search.priceFromLabel')), '150')
+      await fireEvent.changeText(view.getByLabelText(i18n.t('search.priceToLabel')), '250')
       await fireEvent.press(view.getByText(i18n.t('discovery.apply')))
       expect(mockQueries.at(-1)).toMatchObject({ priceMinPerPerson: 150000, priceMaxPerPerson: 250000 })
     } finally {
@@ -390,14 +414,14 @@ describe('owner verification round 1 — O-1..O-3/O-5 entry', () => {
     }
   })
 
-  it('pushes account above search and opens the public location route', async () => {
+  it('pushes account above search and opens the public location sheet', async () => {
     const view = await renderScreen(<SearchScreen />)
     await fireEvent.changeText(view.getByLabelText('Tìm địa điểm'), 'retained query')
     await fireEvent.press(view.getByLabelText(i18n.t('profile.title')))
     expect(mockPush).toHaveBeenCalledWith('/settings/account')
     expect(view.getByLabelText('Tìm địa điểm').props.value).toBe('retained query')
     await fireEvent.press(view.getByLabelText(i18n.t('home.chooseArea')))
-    expect(mockPush).toHaveBeenCalledWith('/places/location')
+    expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
   })
 })
 
@@ -415,6 +439,333 @@ it.each(['guest', 'anonymous'])('opens location without sign-in from search for 
   mockSessionStatus = status
   const view = await renderScreen(<SearchScreen />)
   await fireEvent.press(view.getByLabelText(i18n.t('home.chooseArea')))
-  expect(mockPush).toHaveBeenCalledWith('/places/location')
+  expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
   expect(mockPush).not.toHaveBeenCalledWith('/auth/sign-in')
+})
+
+
+const mapPlaces = [
+  { id: 'top', name: 'Top place', isLodging: false, lat: 10, lng: 106 },
+  { id: 'second', name: 'Second place', isLodging: false, lat: 21, lng: 105 },
+]
+function mapPages() {
+  return { ...emptyPage(), data: { pages: mapPlaces.map(place => ({ results: [place], meta: {} })) } }
+}
+
+describe('owner verification round 2 — O-4 full-content map', () => {
+  it.each(['vi', 'en'])('shows all loaded-page markers, no cards/caption, and opens a selected place in %s', async locale => {
+    await act(async () => { await i18n.changeLanguage(locale) })
+    try {
+      mockSearch.value = mapPages()
+      const view = await renderScreen(<SearchScreen />)
+      await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+      expect(StyleSheet.flatten(view.getByTestId('search-map').props.style)).toMatchObject({ flex: 1 })
+      const map = view.getByTestId('discovery-native-map')
+      expect(StyleSheet.flatten(map.props.style)).toMatchObject({ flex: 1 })
+      expect(map.props.cameraRegion).toMatchObject({ latitude: 21, longitude: 105 })
+      expect(map.props.showsUserLocation).toBe(true)
+      for (const place of mapPlaces) expect(view.getAllByLabelText(place.name)).toHaveLength(1)
+      expect(view.queryByTestId('place-card-open-target')).toBeNull()
+      expect(view.queryByTestId('search-results')).toBeNull()
+      expect(view.queryByText('Bản đồ đánh dấu địa điểm đầu tiên trong danh sách.')).toBeNull()
+      expect(view.queryByText('The map marks the first place in the list.')).toBeNull()
+      await fireEvent.press(view.getByLabelText('Second place'))
+      expect(view.getAllByText('Second place').length).toBeGreaterThan(0)
+      await fireEvent.press(view.getByText(i18n.t('discovery.openPlace')))
+      expect(mockPush).toHaveBeenLastCalledWith('/places/second')
+      await fireEvent.press(view.getByText(i18n.t('discovery.list')))
+      expect(view.getAllByTestId('place-card-open-target')).toHaveLength(2)
+    } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+  })
+
+  it('updates markers and clears selection when search/filter results or area change', async () => {
+    mockSearch.value = mapPages()
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+    await fireEvent.press(view.getByLabelText('Top place'))
+    mockScope = { status: 'ready', source: 'none', reason: 'no_area' }
+    mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [mapPlaces[1]], meta: {} }] } }
+    await view.rerender(<SearchScreen />)
+    expect(view.queryByLabelText('Top place')).toBeNull()
+    expect(view.getByLabelText('Second place')).toBeTruthy()
+    expect(view.queryByText(i18n.t('discovery.openPlace'))).toBeNull()
+    expect(view.getByTestId('discovery-native-map').props.cameraRegion).toMatchObject({ latitude: 21, longitude: 105 })
+    expect(view.getByTestId('discovery-native-map').props.showsUserLocation).toBe(false)
+  })
+
+  it('falls back to cards and working external directions only when the provider fails', async () => {
+    mockSearch.value = mapPages()
+    mockMapUnavailable = true
+    const { Linking } = jest.requireActual('react-native')
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+    expect(view.getAllByTestId('place-card-open-target')).toHaveLength(2)
+    expect(view.getByText(i18n.t('discovery.mapFallback'))).toBeTruthy()
+    await fireEvent.press(view.getAllByText(i18n.t('common.directions'))[1])
+    expect(openURL).toHaveBeenCalledWith('https://www.google.com/maps/dir/?api=1&destination=21%2C105')
+    await fireEvent.press(view.getAllByTestId('place-card-open-target')[1])
+    expect(mockPush).toHaveBeenLastCalledWith('/places/second')
+  })
+
+  it('keeps the existing verified-empty state instead of mounting a GPS-only map', async () => {
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+    expect(view.getByText(i18n.t('discovery.emptyTitle'))).toBeTruthy()
+    expect(view.queryByTestId('discovery-native-map')).toBeNull()
+  })
+
+  it.each([{ isPending: true, isSuccess: false }, { isPaused: true }, { isError: true, error: new Error('failed') }])('keeps loading/offline/error states out of the map (%j)', async state => {
+    mockSearch.value = { ...emptyPage(), ...state }
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+    expect(view.queryByTestId('discovery-native-map')).toBeNull()
+    expect(view.queryByText(i18n.t('discovery.emptyTitle'))).toBeNull()
+  })
+})
+
+
+describe('#515 owner round 2 — Home notifications and suggestions', () => {
+  it.each([0, 3])('has one header notification entry, no avatar, and preserves unread behaviour (%s)', async count => {
+    mockUnread = { count, more: false }
+    const view = await renderScreen(<HomeScreen />)
+    const bell = within(view.getByTestId('home-header')).getByTestId('home-bell')
+    expect(view.getAllByTestId('home-bell')).toHaveLength(1)
+    const label = count ? i18n.t('home.bellUnread', { count: String(count) }) : i18n.t('notifications.title')
+    expect(view.getAllByRole('button', { name: label })).toHaveLength(1)
+    expect(view.queryByRole('button', { name: i18n.t('profile.title') })).toBeNull()
+    const target = StyleSheet.flatten(bell.props.style)
+    expect(target.width).toBeGreaterThanOrEqual(44)
+    expect(target.height).toBeGreaterThanOrEqual(44)
+    expect(view.queryByTestId('home-unread-dot') !== null).toBe(count > 0)
+    await fireEvent.press(bell)
+    expect(mockPush).toHaveBeenCalledWith('/notifications')
+  })
+
+  it('renders only the first five suggestions with no Home pagination', async () => {
+    const places = Array.from({ length: 7 }, (_, index) => ({ id: `place-${index}`, name: `Place ${index}`, isLodging: false }))
+    mockSearch.value = { ...emptyPage(), hasNextPage: true, data: { pages: [{ results: places, nextCursor: 'next' }, { results: [{ id: 'extra', name: 'Extra page', isLodging: false }] }] } }
+    const view = await renderScreen(<HomeScreen />)
+    expect(mockQueries.at(-1)).toMatchObject({ limit: 5, lat: 21, lng: 105 })
+    expect(mockQueries.at(-1)?.sort).toBeUndefined()
+    expect(view.getAllByTestId('place-card-open-target')).toHaveLength(5)
+    expect(view.queryByText('Place 5')).toBeNull()
+    expect(view.queryByText('Extra page')).toBeNull()
+    await fireEvent.scroll(view.getByTestId('home-list'), { nativeEvent: { contentOffset: { y: 2000 }, contentSize: { height: 2200 }, layoutMeasurement: { height: 800 } } })
+    expect(mockSearch.value.fetchNextPage).not.toHaveBeenCalled()
+  })
+
+  it('requests five on Home, then ten per cursor page from Xem thêm, stopping at null', async () => {
+    mockRealSearch = true
+    mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    notifyManager.setScheduler(callback => callback())
+    let failNextPage = true
+    const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = new URL(String(input))
+      if (url.searchParams.has('cursor') && failNextPage) {
+        failNextPage = false
+        return httpResponse({ code: 'INTERNAL_ERROR', message: 'Page failed' }, 500)
+      }
+      const limit = Number(url.searchParams.get('limit'))
+      const offset = url.searchParams.has('cursor') ? 10 : 0
+      return httpResponse({ results: Array.from({ length: limit }, (_, index) => ({ id: `place-${offset + index}`, name: `Place ${offset + index}`, isLodging: false })), nextCursor: offset ? null : 'page-2', meta: {} })
+    })
+    try {
+      const home = await renderScreen(<QueryClientProvider client={client}><HomeScreen /></QueryClientProvider>)
+      await waitFor(() => expect(home.getAllByTestId('place-card-open-target')).toHaveLength(5))
+      await fireEvent.press(home.getByLabelText('Ấm cúng'))
+      await waitFor(() => expect(client.isFetching()).toBe(0))
+      await fireEvent.press(home.getByText('Xem thêm'))
+      mockParams = mockPush.mock.calls.at(-1)?.[0].params
+      expect(mockParams).toMatchObject({ suggestions: '1', moods: 'cozy', suggestionScope: JSON.stringify(mockScope) })
+      await home.unmount()
+      // Discovery now resolves somewhere else; the Home entry must retain its scope.
+      mockScope = { status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } }
+      const list = await renderScreen(<QueryClientProvider client={client}><SearchScreen /></QueryClientProvider>)
+      await waitFor(() => expect(list.getByText('Place 0')).toBeTruthy())
+      const urls = () => fetch.mock.calls.map(([input]) => new URL(String(input)))
+      expect(urls().filter(url => url.searchParams.get('limit') === '5').length).toBeGreaterThan(0)
+      const first = urls().find(url => url.searchParams.get('limit') === '10')!
+      expect(first.searchParams.get('lat')).toBe('21')
+      expect(first.searchParams.get('lng')).toBe('105')
+      expect(first.searchParams.get('moods')).toBe('cozy')
+      expect(first.searchParams.has('sort')).toBe(false)
+      await fireEvent(list.getByTestId('search-results'), 'onEndReached')
+      await waitFor(() => expect(list.getByRole('button', { name: i18n.t('common.retry') })).toBeTruthy())
+      expect(list.getByTestId('search-results').props.data).toHaveLength(10)
+      await fireEvent.press(list.getByRole('button', { name: i18n.t('common.retry') }))
+      await waitFor(() => expect(list.getByTestId('search-results').props.data).toHaveLength(20))
+      const pages = urls().filter(url => url.searchParams.get('limit') === '10')
+      expect(pages).toHaveLength(3)
+      expect(pages.slice(1).map(url => url.searchParams.get('cursor'))).toEqual(['page-2', 'page-2'])
+      expect(pages[1].searchParams.get('moods')).toBe('cozy')
+      expect(pages[1].searchParams.get('lat')).toBe('21')
+      expect(pages[1].searchParams.has('includeTotal')).toBe(false)
+      const count = fetch.mock.calls.length
+      await fireEvent(list.getByTestId('search-results'), 'onEndReached')
+      expect(fetch).toHaveBeenCalledTimes(count)
+      await list.unmount()
+    } finally {
+      client.clear()
+      notifyManager.setScheduler(callback => setTimeout(callback, 0))
+    }
+  })
+
+  it('preserves the Home administrative scope until the user explicitly chooses another area', async () => {
+    const area = { datasetVersion: 'v1', provinceCode: 'home-province', provinceName: 'Home province', communeCode: 'home-commune', communeName: 'Home commune' }
+    const previousArea = { ...area, provinceCode: 'previous-province' }
+    useDiscoveryAreaStore.setState({ area: previousArea })
+    mockParams = { suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'default_area', area }) }
+    await renderScreen(<SearchScreen />)
+    expect(mockQueries.at(-1)).toMatchObject({ limit: 10, datasetVersion: 'v1', provinceCode: 'home-province', communeCode: 'home-commune' })
+    expect(mockQueries.at(-1)?.lat).toBeUndefined()
+    mockScope = { status: 'ready', source: 'selected_area', area: previousArea }
+    await act(async () => { useDiscoveryAreaStore.setState({ area: { ...previousArea } }) })
+    expect(mockQueries.at(-1)?.provinceCode).toBe('previous-province')
+  })
+
+  it('keeps cards and exposes a retry footer after a next-page failure', async () => {
+    mockParams = { suggestions: '1', suggestionScope: JSON.stringify(mockScope) }
+    const fetchNextPage = jest.fn()
+    mockSearch.value = { ...emptyPage(), isError: true, isSuccess: false, isFetchNextPageError: true, hasNextPage: true, error: new Error('Page failed'), fetchNextPage, data: { pages: [{ results: [{ id: 'kept', name: 'Kept place', isLodging: false }], nextCursor: 'page-2' }] } }
+    const view = await renderScreen(<SearchScreen />)
+    expect(view.getByText('Kept place')).toBeTruthy()
+    await fireEvent(view.getByTestId('search-results'), 'onEndReached')
+    expect(fetchNextPage).not.toHaveBeenCalled()
+    await fireEvent.press(view.getByRole('button', { name: i18n.t('common.retry') }))
+    expect(fetchNextPage).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a loading footer and blocks duplicate requests while fetching', async () => {
+    mockParams = { suggestions: '1' }
+    mockSearch.value = { ...emptyPage(), hasNextPage: true, isFetching: true, isFetchingNextPage: true }
+    const view = await renderScreen(<SearchScreen />)
+    expect(view.getByTestId('search-loading-more')).toBeTruthy()
+    await fireEvent(view.getByTestId('search-results'), 'onEndReached')
+    expect(mockSearch.value.fetchNextPage).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('#515 refreshed Stitch Home', () => {
+  it('places the horizontal mood filters in the single suggestions section, with no mood section or footer note', async () => {
+    mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
+    const view = await renderScreen(<HomeScreen />)
+    const section = within(view.getByTestId('home-suggestions'))
+    expect(view.getAllByText('Gợi ý dành cho bạn')).toHaveLength(1)
+    expect(section.getByText('Xem thêm')).toBeTruthy()
+    expect(section.getByTestId('home-mood-chips').props.horizontal).toBe(true)
+    expect(view.queryByText('Khám phá theo tâm trạng')).toBeNull()
+    expect(view.queryByText('Gợi ý thịnh hành')).toBeNull()
+    expect(view.queryByText('Tất cả')).toBeNull()
+    expect(view.queryByText(/thời gian thực|real.time/i)).toBeNull()
+    const chip = section.getByLabelText('Ấm cúng')
+    expect(chip.props.accessibilityState.selected).toBe(false)
+    await fireEvent.press(chip)
+    expect(mockQueries.at(-1)?.moods).toBe('cozy')
+    expect(section.getByText('✓ Ấm cúng')).toBeTruthy()
+    expect(mockPush).not.toHaveBeenCalled()
+    await fireEvent.press(section.getByLabelText('Ấm cúng'))
+    expect(mockQueries.at(-1)?.moods).toBeUndefined()
+  })
+
+  it('renders API card facts through the shared discovery card and omits missing facts', async () => {
+    mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
+    mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{
+      id: 'venue', name: 'Địa điểm từ API', isLodging: false,
+      addressText: '12 Nguyễn Huệ', areaSummary: { label: 'Quận 1' }, distanceM: 2100,
+      verification: { status: 'verified' }, taxonomies: [{ kind: 'mood', key: 'cozy' }],
+      rating: 4.6, ratingCount: 980, gogoRating: 4.9, gogoRatingCount: 20,
+      pricePerPerson: { min: 45000, max: 90000, currency: 'VND', confidence: 1 },
+      open: { openNow: true, closesAtMinute: 1200 },
+    }, { id: 'sparse', name: 'Chỉ có tên', isLodging: false }], meta: {} }] } }
+    const view = await renderScreen(<HomeScreen />)
+    const [full, sparse] = view.getAllByTestId('place-card-discovery').map(card => within(card))
+    expect(full.getByText('Xác minh')).toBeTruthy()
+    expect(full.getByText('2,1 km • Quận 1')).toBeTruthy()
+    expect(full.getByText('● Mở đến 20:00')).toBeTruthy()
+    expect(full.getByText('45k–90k/người')).toBeTruthy()
+    expect(full.getByText('12 Nguyễn Huệ').props.numberOfLines).toBe(2)
+    expect(full.getByText('Địa điểm từ API').props.numberOfLines).toBe(1)
+    expect(full.getByText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(full.getByText('★ 4,9 (20) GoGo')).toBeTruthy()
+    expect(full.getByText('Ấm cúng')).toBeTruthy()
+    expect(sparse.queryByText('Chưa có thông tin giá')).toBeNull()
+    expect(sparse.queryByTestId('place-card-photo-badges')).toBeNull()
+    expect(sparse.queryByTestId('place-card-meta')).toBeNull()
+    expect(sparse.queryByText(/Google|GoGo|Xác minh/)).toBeNull()
+  })
+})
+
+
+describe('owner verification round 3', () => {
+  it.each(['user', 'guest', 'anonymous'])('opens and closes the Home area sheet for %s', async status => {
+    mockSessionStatus = status
+    const view = await renderScreen(<HomeScreen />)
+    await fireEvent.press(view.getByTestId('home-location'))
+    expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+    await fireEvent.press(view.getAllByLabelText(i18n.t('common.close')).at(-1)!)
+    expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('keeps amenity/status chips in one wrapping group and wraps all price presets', async () => {
+    mockKinds = { amenity: [{ key: 'wifi', labels: { vi: 'Wi-Fi' } }, { key: 'parking', labels: { vi: 'Đậu xe' } }] }
+    const view = await renderScreen(<SearchScreen />)
+    await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
+    const group = view.getByTestId('amenity-status-options')
+    expect(within(group).getAllByRole('button').map(chip => chip.props.accessibilityLabel)).toEqual(['Mở cửa ngay', 'Wi-Fi', 'Đậu xe'])
+    expect(StyleSheet.flatten(group.props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap', gap: 8 })
+    const presets = view.getByTestId('price-presets')
+    expect(within(presets).getAllByRole('button')).toHaveLength(3)
+    expect(StyleSheet.flatten(presets.props.style)).toMatchObject({ flexWrap: 'wrap', gap: 8 })
+    expect(view.getByLabelText(i18n.t('search.priceFromLabel')).props.placeholder).toBeUndefined()
+    expect(view.getByLabelText(i18n.t('search.priceToLabel')).props.placeholder).toBeUndefined()
+  })
+
+  it('shows a selected mood with a leading check and the Stitch chip surface', async () => {
+    mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
+    const view = await renderScreen(<HomeScreen />)
+    const chip = () => view.getByLabelText('Ấm cúng')
+    const surface = () => StyleSheet.flatten(chip().queryAll(node => node.type === 'View' && StyleSheet.flatten(node.props.style)?.height === 36)[0].props.style)
+    expect(chip().props.accessibilityState.selected).toBe(false)
+    expect(surface()).toMatchObject({ height: 36, paddingHorizontal: 14, backgroundColor: '#FFFFFF' })
+    expect(chip().props.hitSlop.top + surface().height + chip().props.hitSlop.bottom).toBeGreaterThanOrEqual(44)
+    await fireEvent.press(chip())
+    expect(chip().props.accessibilityState.selected).toBe(true)
+    expect(view.getByText('✓ Ấm cúng')).toBeTruthy()
+    expect(surface()).toMatchObject({ backgroundColor: '#FFE3DA' })
+  })
+
+  it('renders See more as a plain link with a 44pt target', async () => {
+    const view = await renderScreen(<HomeScreen />)
+    const more = view.getByLabelText(i18n.t('discovery.more'))
+    expect(StyleSheet.flatten(more.props.style)).toMatchObject({ minHeight: 44, alignItems: 'center' })
+    expect(StyleSheet.flatten(more.props.style).backgroundColor).toBeUndefined()
+    await fireEvent.press(more)
+    expect(mockPush).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/places/search' }))
+  })
+
+  it.each(['vi', 'en'])('shows the approval reward without a credit conversion explanation (%s)', async locale => {
+    await act(async () => { await i18n.changeLanguage(locale) })
+    try {
+      mockCredits = { creditBalance: 0 }
+      const view = await renderScreen(<SearchScreen />)
+      expect(view.getByText(locale === 'vi' ? '+50 credit GoGo AI sau khi được duyệt' : '+50 GoGo AI credits after approval')).toBeTruthy()
+      expect(view.queryByText(/1 (tin nhắn|message) = 1 credit/)).toBeNull()
+    } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+  })
+})
+
+
+it('lets an explicit location-sheet apply replace the carried Home scope even when no area was stored', async () => {
+  mockParams = { suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } }) }
+  mockScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
+  const view = await renderScreen(<SearchScreen />)
+  expect(mockQueries.at(-1)).toMatchObject({ lat: 10, lng: 106 })
+  await fireEvent.press(view.getByLabelText(i18n.t('home.chooseArea')))
+  await fireEvent.press(view.getByText(i18n.t('discovery.useArea')))
+  expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
+  expect(mockQueries.at(-1)).toMatchObject({ lat: 21, lng: 105 })
 })

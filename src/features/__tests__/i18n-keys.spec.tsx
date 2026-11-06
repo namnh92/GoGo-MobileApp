@@ -98,6 +98,7 @@ const COMPUTED_KEYS: Record<string, readonly string[]> = {
   'src/features/create-date/group-setup.view.tsx': ['option.labelKey'], // typed as key literals
   'src/features/date-plan/place-detail.view.tsx': ['priceUnitKey(price.unit)'], // priceUnitKey returns MessageKey
   'src/features/date-plan/place-reviews.view.tsx': ['option.labelKey'], // ORDERS satisfies { labelKey: MessageKey }
+  'src/features/home/home.view.tsx': ['banner.status', 'banner.secondary', 'banner.cta'], // roomBanner returns MessageKey
   'src/features/gogo-room/gogo-room.view.tsx': ['chip.key'], // STATUS_CHIP key: MessageKey
   'src/features/matching/match-result.view.tsx': [
     'priceUnitKey(winnerPrice.unit)', // priceUnitKey returns MessageKey

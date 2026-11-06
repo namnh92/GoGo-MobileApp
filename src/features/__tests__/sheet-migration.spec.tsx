@@ -17,6 +17,9 @@ import { scriptedTime } from './scripted-time'
  */
 
 const mockPush = jest.fn()
+// TanStack keeps unchanged query data stable across local screen updates.
+// Reallocating it on every render repeatedly resets the map selection.
+const mockSearchData = { pages: [{ results: [] }] }
 // This suite exercises filter-sheet behaviour, independently of location lookup.
 jest.mock('@/shared/location/use-discovery-scope', () => ({
   ...jest.requireActual('@/shared/location/use-discovery-scope'),
@@ -46,7 +49,7 @@ jest.mock('@/shared/api', () => ({
   useMe: () => mockLoaded({}),
   useTaxonomies: () => mockLoaded({ kinds: { category: [] } }),
   usePlaceSearch: () => ({
-    ...mockLoaded({ pages: [{ results: [] }] }),
+    ...mockLoaded(mockSearchData),
     hasNextPage: false,
     isFetchingNextPage: false,
     fetchNextPage: jest.fn(),

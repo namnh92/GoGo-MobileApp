@@ -395,12 +395,12 @@ describe('PlaceCard lines (#295, #293 §3)', () => {
     expect(placeCardRatingPriceLine(card({ rating: undefined }), units).rating).toBeNull()
   })
 
-  it('free and unknown are the whole price part — never an amount with no unit', () => {
+  it('shows free and omits unknown prices, including an amount with no unit', () => {
     expect(placeCardRatingPriceLine(card({ priceUnit: 'free' }), units).price).toBe('Miễn phí')
-    expect(placeCardRatingPriceLine(card({ priceMin: null, priceMax: null }), units).price).toBe('Chưa có thông tin giá')
+    expect(placeCardRatingPriceLine(card({ priceMin: null, priceMax: null }), units).price).toBe('')
     // A range whose scope nobody stated is not a price anyone can act on —
     // "45k–90k" with no unit is what RULE-CORE-013 forbids.
-    expect(placeCardRatingPriceLine(card({ priceUnit: 'unknown' }), units).price).toBe('Chưa có thông tin giá')
+    expect(placeCardRatingPriceLine(card({ priceUnit: 'unknown' }), units).price).toBe('')
   })
 
   it('keeps the unit it was given and marks an estimate', () => {

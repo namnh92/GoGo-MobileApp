@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Keyboard, Pressable, ScrollView, View } from 'react-native'
+import { ActivityIndicator, FlatList, Keyboard, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import {
@@ -11,7 +11,8 @@ import {
 import { assistantHref } from '@/features/assistant/assistant-entry'
 import { isAssistantEntryOn } from '@/shared/config/features'
 import { track } from '@/shared/analytics'
-import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
+import { openGoogleMapsDirections } from '@/shared/navigation/directions'
+import { scopeSearchParams, useDiscoveryScope, type DiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
@@ -29,22 +30,47 @@ import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { useDiscoveryAreaStore } from './discovery-area-store'
 import { discoveryMap } from './discovery-map'
 import { styles } from './search.style'
+import { DiscoveryLocationSheet } from './discovery-location.view'
 import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } from './discovery-filters'
 
 const SEARCH_DEBOUNCE_MS = 300
+
+// The Home entry carries its resolved scope, rather than Search's previous area choice.
+function readSuggestionScope(value: string | undefined): DiscoveryScope | null {
+  if (!value) return null
+  try {
+    const scope = JSON.parse(value)
+    if (scope?.status !== 'ready') return null
+    if (scope.source === 'gps'
+      && typeof scope.position?.lat === 'number' && Number.isFinite(scope.position.lat)
+      && typeof scope.position?.lng === 'number' && Number.isFinite(scope.position.lng)) return scope
+    if (['profile_area', 'selected_area', 'default_area'].includes(scope.source)
+      && typeof scope.area?.datasetVersion === 'string' && typeof scope.area?.provinceCode === 'string'
+      && typeof scope.area?.provinceName === 'string'
+      && (scope.area.communeCode === null || typeof scope.area.communeCode === 'string')
+      && (scope.area.communeName === null || typeof scope.area.communeName === 'string')) return scope
+    if (scope.source === 'none' && ['no_area', 'area_needs_reselection'].includes(scope.reason)) return scope
+  } catch { /* Invalid route data falls back to ordinary discovery. */ }
+  return null
+}
 
 export default function SearchScreen() {
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { picker, q, filters, roomId, moods } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string }>()
+  const { picker, q, filters, roomId, moods, suggestions, suggestionScope } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; suggestions?: string; suggestionScope?: string }>()
   const { status } = useSession()
   const isPicker = picker === '1'
   const canSave = status === 'user'
   const me = useMe({ enabled: status === 'user' || status === 'guest' })
   const selectedArea = useDiscoveryAreaStore(state => state.area)
-  const { scope, recheck, retry: retryScope } = useDiscoveryScope({ selectedArea, profileArea: status === 'user' ? me.data?.homeAdministrativeArea : null, profilePending: status === 'hydrating' || (status === 'user' && me.isPending) })
+  const { scope: resolvedScope, recheck, retry: retryScope } = useDiscoveryScope({ selectedArea, profileArea: status === 'user' ? me.data?.homeAdministrativeArea : null, profilePending: status === 'hydrating' || (status === 'user' && me.isPending) })
+  const [scopeOverridden, setScopeOverridden] = useState(false)
+  const [entryArea] = useState(selectedArea)
+  const homeScope = useMemo(() => suggestions === '1' ? readSuggestionScope(suggestionScope) : null, [suggestions, suggestionScope])
+  // A subsequent explicit area selection takes over from the Home entry scope.
+  const scope = !isPicker && !scopeOverridden && homeScope && selectedArea === entryArea ? homeScope : resolvedScope
   const originLat = useRoomStore(state => state.originLat)
   const originLng = useRoomStore(state => state.originLng)
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
@@ -53,6 +79,7 @@ export default function SearchScreen() {
   const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [] }))
   const [draft, setDraft] = useState<DiscoveryFilters>(emptyFilters)
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
+  const [locationOpen, setLocationOpen] = useState(false)
   const [mode, setMode] = useState<'list' | 'map'>('list')
   const taxonomies = useTaxonomies({ kinds: 'category,mood,setting,amenity,suitability' })
   const labels = useMemo(() => discoveryLabels(taxonomies.data, i18n.language), [taxonomies.data, i18n.language])
@@ -71,9 +98,9 @@ export default function SearchScreen() {
   const activeFilterCount = Object.keys(applied).length
   const searchQuery: PlaceSearchQuery = useMemo(() => ({
     ...(!isPicker ? scopeSearchParams(scope) : originLat != null && originLng != null ? { lat: originLat, lng: originLng } : {}),
-    locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true,
+    locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true, ...(suggestions === '1' && !isPicker ? { limit: 10 } : {}),
     ...applied, ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
-  }), [isPicker, scope, originLat, originLng, applied, debouncedQuery, i18n.language])
+  }), [isPicker, scope, originLat, originLng, applied, debouncedQuery, i18n.language, suggestions])
   const search = usePlaceSearch(searchQuery, { enabled: isPicker || scope.status === 'ready' })
   const saved = useSaved({ enabled: canSave })
   const toggleSaved = useToggleSaved()
@@ -99,9 +126,18 @@ export default function SearchScreen() {
   const preview = useDiscoveryPreview(previewQuery, previewEnabled)
   const previewTotal = previewEnabled && preview.isSuccess && !preview.isFetching && !preview.isPaused && !preview.isPlaceholderData ? preview.data?.meta?.totalCount : undefined
   const mapScope = isPicker && originLat != null && originLng != null ? { status: 'ready' as const, source: 'gps' as const, position: { lat: originLat, lng: originLng } } : isPicker ? { status: 'ready' as const, source: 'none' as const, reason: 'no_area' as const } : scope
-  const map = discoveryMap(mapScope, results, t('createLocation.current'))
+  const map = discoveryMap(mapScope, results)
+  const mapScopeKey = JSON.stringify(mapScope)
+  const [markerSelection, setMarkerSelection] = useState({ data: search.data, scopeKey: mapScopeKey, mode, id: null as string | null })
+  const selectionIsCurrent = markerSelection.data === search.data && markerSelection.scopeKey === mapScopeKey && markerSelection.mode === mode
+  // Reset before rendering children when the results, scope, or display mode changes.
+  if (!selectionIsCurrent) {
+    setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id: null })
+  }
+  const selectedMarker = selectionIsCurrent ? markerSelection.id : null
+  const selectedPlace = results.find(place => place.id === selectedMarker && map.pins.some(pin => pin.id === place.id))
   const served = search.data?.pages[0]?.meta?.location
-  const scopeLabel = served?.source === 'gps' ? t('home.scopeGps') : served?.source === 'administrative_area' && served.area ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ') : t('home.chooseArea')
+  const scopeLabel = served?.source === 'administrative_area' && served.area ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ') : t('home.chooseArea')
   function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
   function clearFilters() { setCommitted(emptyFilters()); setDraft(emptyFilters()) }
   function onPlacePress(place: PlaceCardModel) {
@@ -131,15 +167,48 @@ export default function SearchScreen() {
     <SecondaryBtn label={t('search.addPlace')} onPress={() => router.push('/places/import')} leadingIcon="plus" />
     {canSave && credits.data?.creditBalance !== undefined ? <Text variant="introSmall" color="redesign.secondary" style={styles.centerText}>{t('discovery.approvalReward')}</Text> : null}
   </View>
+  function renderResults(mapFallback = false) {
+    return <FlatList
+      testID="search-results" data={results} keyExtractor={place => place.id}
+      contentContainerStyle={[styles.results, { paddingBottom: insets.bottom + 24 }]}
+      keyboardShouldPersistTaps="handled" onTouchStart={() => Keyboard.dismiss()}
+      onEndReachedThreshold={0.5} onEndReached={() => { if (search.hasNextPage && !search.isFetching && !search.isFetchingNextPage && !search.isFetchNextPageError) void search.fetchNextPage({ cancelRefetch: false }) }}
+      ListHeaderComponent={mapFallback ? <Text variant="introSmall" color="redesign.secondary">{t('discovery.mapFallback')}</Text> : null}
+      ListEmptyComponent={search.isPending ? <PlaceListSkeleton count={4} /> : verifiedEmpty ? <View style={styles.empty}>
+        <View style={styles.emptyIcon}><MaterialIcon name="explore" size={38} color="redesign.primaryText" /></View>
+        <Text variant="discoveryHeading" color="redesign.ink" style={styles.centerText}>{t('discovery.emptyTitle')}</Text>
+        <Text variant="introCaption" color="redesign.secondary" style={styles.emptyHint}>{t('discovery.emptyBody')}</Text>
+      </View> : null}
+      ListFooterComponent={<>{search.isFetchingNextPage ? <ActivityIndicator testID="search-loading-more" /> : search.isFetchNextPageError ? <ErrorState error={search.error} onRetry={() => void search.fetchNextPage({ cancelRefetch: false })} /> : null}{contribution}</>}
+      renderItem={({ item: place }) => {
+        const card = <PlaceCard appearance="discovery" place={place} onPress={() => onPlacePress(place)} saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined} onToggleSave={canSave ? () => onBookmark(place) : undefined} style={styles.place} />
+        return mapFallback ? <View>{card}<GhostBtn label={t('common.directions')} accessibilityHint={place.name} onPress={() => openGoogleMapsDirections(map.pins.find(pin => pin.id === place.id) ? `${place.lat},${place.lng}` : place.name)} /></View> : card
+      }}
+    />
+  }
+  function renderContent() {
+    if (!isPicker && scope.status === 'unavailable') return scope.offline ? <OfflineState /> : <ErrorState error={scope.error} onRetry={() => void retryScope()} />
+    if (mode === 'map' && search.isPaused) return <OfflineState />
+    if (search.isError && !search.isFetchNextPageError) return <ErrorState error={search.error} onRetry={() => void search.refetch()} />
+    if (mode !== 'map' || verifiedEmpty) return renderResults()
+    if (search.isPending || (!isPicker && scope.status !== 'ready')) return <PlaceListSkeleton count={4} />
+    return <View testID="search-map" style={styles.mapBlock}>
+      <MapCanvas pins={map.pins} cameraRegion={map.region} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => router.push(`/places/${id}`)} style={styles.map} fallback={renderResults(true)} />
+      {selectedPlace ? <View style={[styles.mapPreview, { bottom: insets.bottom }]}>
+        <Text variant="introHeading" color="redesign.ink">{selectedPlace.name}</Text>
+        <GhostBtn label={t('discovery.openPlace')} onPress={() => router.push(`/places/${selectedPlace.id}`)} />
+      </View> : null}
+    </View>
+  }
   return <Atmosphere redesign>
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} style={styles.back} onPress={() => router.back()}><MaterialIcon name="arrowBack" /></Pressable>
         {isPicker ? <View style={styles.scope}>
           <Text variant="discoveryHeader" color="redesign.ink">{t('discovery.searchTitle')}</Text>
-        </View> : <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => router.push('/places/location')}>
+        </View> : <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setLocationOpen(true)}>
           <Text variant="discoveryHeader" color="redesign.ink">{t('discovery.searchTitle')}</Text>
-          <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text></View>
+          <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text><MaterialIcon name="expandMore" size={16} color="redesign.secondary" /></View>
         </Pressable>}
         <Pressable accessibilityRole="button" accessibilityLabel={t('profile.title')} style={styles.avatar} onPress={() => router.push('/settings/account')}>
           {me.data?.displayName?.trim() ? <AvatarCircle label={me.data.displayName.trim().charAt(0).toUpperCase()} size={32} imageUri={me.data.avatarUrl} /> : <MaterialIcon name="user" />}
@@ -157,23 +226,7 @@ export default function SearchScreen() {
       <Text variant="introSmall" color="redesign.secondary">{total !== undefined ? t('discovery.totalCount', { count: total }) : verifiedEmpty ? t('discovery.zeroCount') : t('discovery.results')}</Text>
       <SegmentedControl compact options={[{ value: 'list', label: t('discovery.list'), icon: 'list' }, { value: 'map', label: t('discovery.map'), icon: 'map' }]} value={mode} onChange={setMode} />
     </View>
-    {!isPicker && scope.status === 'unavailable' ? scope.offline ? <OfflineState /> : <ErrorState error={scope.error} onRetry={() => void retryScope()} /> : search.isError ? <ErrorState error={search.error} onRetry={() => void search.refetch()} /> : <FlatList
-      testID="search-results" data={results} keyExtractor={place => place.id}
-      contentContainerStyle={[styles.results, { paddingBottom: insets.bottom + 24 }]}
-      keyboardShouldPersistTaps="handled" onTouchStart={() => Keyboard.dismiss()}
-      onEndReachedThreshold={0.5} onEndReached={() => { if (search.hasNextPage && !search.isFetchingNextPage) void search.fetchNextPage() }}
-      ListHeaderComponent={mode === 'map' ? <View style={styles.mapBlock}>
-        <MapCanvas pins={map.pins} cameraRegion={map.region} onSelect={id => { const place = results.find(item => item.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={<Text variant="introSmall" color="redesign.secondary">{t('discovery.mapFallback')}</Text>} />
-        {map.region ? <Text variant="introCaption" color="redesign.secondary">{t(mapScope.status === 'ready' && mapScope.source === 'gps' ? 'discovery.mapCurrentLocation' : 'discovery.mapTopPlace')}</Text> : null}
-      </View> : null}
-      ListEmptyComponent={search.isPending ? <PlaceListSkeleton count={4} /> : verifiedEmpty ? <View style={styles.empty}>
-        <View style={styles.emptyIcon}><MaterialIcon name="explore" size={38} color="redesign.primaryText" /></View>
-        <Text variant="discoveryHeading" color="redesign.ink" style={styles.centerText}>{t('discovery.emptyTitle')}</Text>
-        <Text variant="introCaption" color="redesign.secondary" style={styles.emptyHint}>{t('discovery.emptyBody')}</Text>
-      </View> : null}
-      ListFooterComponent={<>{search.isFetchingNextPage ? <ActivityIndicator /> : null}{contribution}</>}
-      renderItem={({ item: place }) => <PlaceCard appearance="discovery" place={place} onPress={() => onPlacePress(place)} saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined} onToggleSave={canSave ? () => onBookmark(place) : undefined} style={styles.place} />}
-    />}
+    {renderContent()}
     {verifiedEmpty ? <View style={[styles.emptyActions, { paddingBottom: insets.bottom + 8 }]}>
       <PrimaryBtn variant="discovery" label={t('discovery.resetSearch')} leadingIcon="tune" onPress={() => { clearFilters(); setQuery('') }} />
       {isAssistantEntryOn() ? <SecondaryBtn label={t('discovery.askAI')} leadingIcon="sparkle" onPress={() => router.push(assistantHref())} /> : null}
@@ -182,17 +235,16 @@ export default function SearchScreen() {
       header={<View style={styles.sheetHeader}><View style={styles.sheetTitle}><MaterialIcon name="tune" color="redesign.primaryText" size={22} /><Text variant="introHeading">{t('discovery.filterTitle')}</Text></View><GhostBtn label={t('search.clearFilters')} onPress={() => setDraft(emptyFilters())} /></View>}
       footer={<View style={styles.sheetFooter}><IconBtn accessibilityLabel={t('discovery.resetDefaults')} onPress={() => setDraft(emptyFilters())}><MaterialIcon name="restart" /></IconBtn><PrimaryBtn variant="discovery" label={previewTotal !== undefined ? t('discovery.previewCount', { count: previewTotal }) : t('discovery.apply')} disabled={!valid} style={{ flex: 1 }} onPress={() => { if (valid) { Keyboard.dismiss(); setCommitted(draft); setSheetOpen(false) } }} /></View>}>
       <Text variant="introHeading" style={styles.sheetSection}>{t('discovery.amenities')}</Text>
-      <View testID="open-now-options" style={styles.sheetOptionRow}><Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} /></View>
-      {supports774 ? <View style={styles.sheetOptionRow}>{options('amenity', 'amenities')}</View> : null}
+      <View testID="amenity-status-options" style={styles.sheetOptionRow}><Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} />{supports774 ? options('amenity', 'amenities') : null}</View>
       <View style={styles.priceHeading}><Text variant="introHeading">{t('discovery.priceRange')}</Text></View>
       <FieldFocusGroup>
       <View style={styles.priceRow}>
-        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceFrom')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceFrom} onChangeText={priceFrom => setDraft(prev => ({ ...prev, priceFrom }))} accessibilityLabel={t('search.priceFromLabel')} keyboardType="numeric" placeholder={t('search.priceFrom')} placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
-        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceTo')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceTo} onChangeText={priceTo => setDraft(prev => ({ ...prev, priceTo }))} accessibilityLabel={t('search.priceToLabel')} keyboardType="numeric" placeholder={t('search.priceTo')} placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
+        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceFrom')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceFrom} onChangeText={priceFrom => setDraft(prev => ({ ...prev, priceFrom }))} accessibilityLabel={t('search.priceFromLabel')} keyboardType="numeric" placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
+        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceTo')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceTo} onChangeText={priceTo => setDraft(prev => ({ ...prev, priceTo }))} accessibilityLabel={t('search.priceToLabel')} keyboardType="numeric" placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
       </View>
       {!valid ? <Text variant="introSmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('discovery.invalidPrice')}</Text> : null}
       </FieldFocusGroup>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sheetOptionRow}>{[{ label: t('discovery.priceLow'), from: '30', to: '80' }, { label: t('discovery.priceMid'), from: '80', to: '250' }, { label: t('discovery.priceHigh'), from: '250', to: '600' }].map(preset => <Chip appearance="discovery" key={preset.label} label={preset.label} variant={draft.priceFrom === preset.from && draft.priceTo === preset.to ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, priceFrom: preset.from, priceTo: preset.to }))} />)}</ScrollView>
+      <View testID="price-presets" style={styles.sheetOptionRow}>{[{ label: t('discovery.priceLow'), from: '30', to: '80' }, { label: t('discovery.priceMid'), from: '80', to: '250' }, { label: t('discovery.priceHigh'), from: '250', to: '600' }].map(preset => <Chip appearance="discovery" key={preset.label} label={preset.label} variant={draft.priceFrom === preset.from && draft.priceTo === preset.to ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, priceFrom: preset.from, priceTo: preset.to }))} />)}</View>
       <Text variant="introHeading" style={styles.sheetSection}>{t('search.filterSuited')}</Text>
       <View style={styles.sheetOptionRow}>{supports774 ? options('suitability', 'suited') : (['couple', 'group'] as const).map(option => <Chip appearance="discovery" key={option} label={option === 'couple' ? t('discovery.couple') : t('discovery.group')} variant={draft.suited.includes(option) ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, suited: prev.suited.includes(option) ? [] : [option] }))} />)}</View>
       {(Object.keys(labels.mood ?? {}).length || draft.moods.length) ? <><Text variant="introHeading" style={styles.sheetSection}>{t('discovery.moods')}</Text><View style={styles.sheetOptionRow}>{options('mood', 'moods')}</View></> : null}
@@ -201,5 +253,6 @@ export default function SearchScreen() {
       <View style={styles.sheetOptionRow}>{Object.entries(labels.category ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={draft.categories.includes(key) ? 'selected' : draft.categories.length >= 10 ? 'disabled' : 'default'} onPress={() => toggleCategory(key)} />)}</View>
       <View style={styles.smartBanner}><MaterialIcon name="sparkle" size={24} color="redesign.violetText" /><View style={{ flex: 1 }}><Text variant="introLabel">{t('discovery.smartTitle')}</Text><Text variant="introSmall" color="redesign.secondary">{t('discovery.smartBody')}</Text></View></View>
     </Sheet>
+    {locationOpen ? <DiscoveryLocationSheet onClose={() => setLocationOpen(false)} onApplied={() => { setScopeOverridden(true); void recheck() }} /> : null}
   </Atmosphere>
 }
