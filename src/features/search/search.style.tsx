@@ -19,6 +19,7 @@ export const styles = StyleSheet.create(theme => ({
   contributionIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.redesign.primarySoft },
   centerText: { textAlign: 'center' },
   mapBlock: { flex: 1, minHeight: 0 },
+  mapFeedback: { position: 'absolute', top: spacing[4], left: spacing[4], right: spacing[4], borderRadius: 16, backgroundColor: theme.redesign.card },
   mapPagination: { position: 'absolute', right: spacing[4], borderRadius: 16, padding: spacing[2], backgroundColor: theme.redesign.card },
   mapPreview: { position: 'absolute', left: spacing[4], right: spacing[4], padding: spacing[4], backgroundColor: theme.redesign.card, borderRadius: spacing[4] },
   map: { flex: 1 },

@@ -84,6 +84,7 @@ import SearchScreen from '@/features/search/search.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { createQueryClient } from '@/shared/api/query-client'
+import { NetworkError } from '@/shared/api/errors'
 import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
 
 function emptyPage() {
@@ -1176,6 +1177,41 @@ it.each([
   expect(view.getByTestId('search-map')).toBeTruthy()
   expect(view.queryByTestId('search-map-fullscreen')).toBeNull()
   expect(view.getByTestId('search-header')).toBeTruthy()
+})
+
+it.each([
+  { isError: true, isPending: false, error: new Error('Viewport failed'), message: 'common.errorTitle' },
+  { isError: true, isPending: false, error: new NetworkError(), message: 'common.offlineTitle' },
+  { isPaused: true, isPending: true, error: null, message: 'common.offlineTitle' },
+])('retains map markers with viewport feedback and the correct retry (%j)', async ({ message, ...state }) => {
+  mockSearch.value = mapPages()
+  const refetch = jest.fn()
+  const fetchNextPage = jest.fn()
+  mockRegionSearch = { ...emptyPage(), data: undefined, isSuccess: false, ...state, refetch, fetchNextPage }
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+  await fireEvent.press(view.getByText(i18n.t('discovery.expandMap')))
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', { latitude: 10, longitude: 106, latitudeDelta: 0.02, longitudeDelta: 0.02 })
+  await act(async () => { await jest.advanceTimersByTimeAsync(400) })
+  expect(view.getByTestId('search-map-fullscreen')).toBeTruthy()
+  for (const place of mapPlaces) expect(view.getByLabelText(place.name)).toBeTruthy()
+  expect(view.getByText(i18n.t(message))).toBeTruthy()
+  const retry = view.queryByRole('button', { name: i18n.t('common.retry') })
+  if (state.isPaused) expect(retry).toBeNull()
+  else {
+    await fireEvent.press(retry!)
+    expect(refetch).toHaveBeenCalledTimes(1)
+    mockRegionSearch = { ...mockRegionSearch, isFetching: true }
+    await view.rerender(<SearchScreen />)
+    expect(view.queryByRole('button', { name: i18n.t('common.retry') })).toBeNull()
+  }
+  expect(fetchNextPage).not.toHaveBeenCalled()
+  expect(mockSearch.value.refetch).not.toHaveBeenCalled()
+  mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [], meta: {} }] } }
+  await view.rerender(<SearchScreen />)
+  expect(view.queryByText(i18n.t(message))).toBeNull()
+  for (const place of mapPlaces) expect(view.getByLabelText(place.name)).toBeTruthy()
 })
 
 it('debounces visible-region search, keeps filters/keyword and header area, merges markers and preserves selection', async () => {

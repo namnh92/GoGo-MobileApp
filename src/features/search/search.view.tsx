@@ -255,6 +255,9 @@ export default function SearchScreen() {
           <GhostBtn label={t('discovery.openPlace')} onPress={() => onPlacePress(selectedPlace)} />
         </View> : null}
       </View>
+      {viewport && (search.isPaused || (search.isError && !search.isFetchNextPageError)) ? <View testID="search-map-feedback" style={styles.mapFeedback}>
+        {search.isPaused ? <OfflineState /> : <ErrorState error={search.error} onRetry={search.isFetching ? undefined : () => { if (!search.isFetching && !search.isPaused) void search.refetch() }} />}
+      </View> : null}
       {search.isFetching || search.isFetchNextPageError ? <View testID="search-map-pagination" style={[styles.mapPagination, { bottom: insets.bottom + 8 }]}>
         {search.isFetching ? <ActivityIndicator testID="search-loading-more" size="small" color={theme.redesign.primaryText} /> : <GhostBtn label={t('common.retry')} disabled={search.isFetching || search.isPaused} onPress={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />}
       </View> : null}

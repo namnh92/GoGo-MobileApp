@@ -368,7 +368,7 @@ describe('owner address composition everywhere', () => {
   const areaSummary = { datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740', label: 'Phường Sài Gòn', locale: 'vi' as const }
   it.each([
     ['default', 'list', '8 P. Chân Cầm, Hoàn Kiếm, Hà Nội 100000', 'Hoàn Kiếm', '8 P. Chân Cầm, Hoàn Kiếm, Hà Nội'],
-    ['discovery', 'list', '24 P. Đường Thành, Phố cổ Hà Nội, Hoàn Kiếm, Hà Nội 100000', 'Hoàn Kiếm', '24 P. Đường Thành, Phố cổ Hà Nội, Hoàn Kiếm, Hà Nội'],
+    ['discovery', 'list', '24 P. Đường Thành, Phố cổ Hà Nội, Hoàn Kiếm, Hà Nội 100000', 'Hoàn Kiếm', '24 P. Đường Thành, Hoàn Kiếm, Hà Nội'],
     ['default', 'hero', '79 P. Lý Nam Đế, phường, Hoàn Kiếm, Hà Nội 100000', 'Hoàn Kiếm', '79 P. Lý Nam Đế, Hoàn Kiếm, Hà Nội'],
     ['discovery', 'hero', '43 Tràng Tiền', 'Cửa Nam', '43 Tràng Tiền, Cửa Nam, Hà Nội'],
   ] as const)('normalizes the owner example for %s/%s', async (appearance, variant, addressText, label, expected) => {

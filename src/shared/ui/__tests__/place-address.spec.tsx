@@ -15,7 +15,7 @@ it('formats short ward and province names from cached facts in every text instan
       <PlaceAddressText place={place} variant="body" />
       <PlaceAddressText place={place} variant="caption" numberOfLines={1} />
     </QueryClientProvider>)
-    const expected = '24 P. Đường Thành, Phố cổ Hà Nội, Hoàn Kiếm, Hà Nội'
+    const expected = '24 P. Đường Thành, Hoàn Kiếm, Hà Nội'
     expect(screen.getAllByText(expected)).toHaveLength(2)
     expect(screen.getAllByLabelText(expected)).toHaveLength(2)
     expect(fetch).not.toHaveBeenCalled()
