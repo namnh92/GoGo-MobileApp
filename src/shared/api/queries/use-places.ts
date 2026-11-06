@@ -7,6 +7,7 @@ import * as placesApi from '../endpoints/places'
 import type { PlaceSearchQuery } from '../endpoints/places'
 import { newIdempotencyKey } from '../idempotency'
 import { queryKeys } from '../query-keys'
+import { useIntentKey } from './use-intent-key'
 import type { OpBody, ReviewOrder } from '../types'
 
 /** Server caps `limit` at 50 regardless of what the spec's 100 suggests. */
@@ -33,7 +34,7 @@ export function usePlaceDetail(placeId: string | undefined) {
     queryKey: queryKeys.place(placeId ?? ''),
     queryFn: () => placesApi.getPlaceDetail(placeId as string),
     enabled: Boolean(placeId),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   })
 }
 
@@ -43,11 +44,26 @@ export function usePlaceDetail(placeId: string | undefined) {
  * short stale time: a moderator's takedown should not linger on screen.
  */
 export function usePlaceReviews(placeId: string | undefined, order: ReviewOrder = 'latest') {
-  return useQuery({
+  const client = useQueryClient()
+  return useInfiniteQuery({
     queryKey: queryKeys.placeReviews(placeId ?? '', order),
-    queryFn: () => placesApi.listPlaceReviews(placeId as string, order),
+    queryFn: async ({ pageParam }) => {
+      const page = await placesApi.listPlaceReviews(placeId as string, order, { limit: 10, cursor: pageParam })
+      // The public review read is the freshest moderated aggregate. Header and
+      // list must use that same source, never compute a mean from loaded rows.
+      const gogoRatingCount = page.gogoRatingCount
+      if (!pageParam && gogoRatingCount != null) {
+        client.setQueryData<Awaited<ReturnType<typeof placesApi.getPlaceDetail>>>(queryKeys.place(placeId as string), detail => detail ? {
+          ...detail, gogoRating: page.gogoRating, gogoRatingCount,
+        } : detail)
+      }
+      return page
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: page => page.nextCursor ?? undefined,
     enabled: Boolean(placeId),
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    gcTime: 0,
   })
 }
 
@@ -118,7 +134,7 @@ export function usePlaceSubmission(id: string | undefined) {
       return submission
     },
     enabled: Boolean(id),
-    refetchInterval: query => (query.state.data?.status === 'pending' ? 10_000 : false),
+    refetchInterval: query => (isApiError(query.state.error) && query.state.error.status === 403 ? false : query.state.data?.status === 'pending' ? 10_000 : false),
   })
 }
 
@@ -151,5 +167,26 @@ export function useContributionCredits(enabled: boolean) {
     queryFn: getAssistantStatus,
     enabled,
     staleTime: 0,
+  })
+}
+
+export function usePlaceProviderPhotos(placeId: string | undefined) {
+  return useQuery({
+    queryKey: ['place-provider-photos', placeId],
+    queryFn: () => placesApi.getPlaceProviderPhotos(placeId as string),
+    enabled: Boolean(placeId),
+    gcTime: 0,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function useReportPlace(placeId: string) {
+  const intent = useIntentKey()
+  return useMutation({
+    mutationFn: (body: OpBody<'reportPlace'>) => placesApi.reportPlace(placeId, body, intent.keyFor(body)),
+    onSettled: (_data, _error, body) => intent.release(body),
   })
 }

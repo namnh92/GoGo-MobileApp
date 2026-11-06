@@ -19,7 +19,8 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded(mockDetail.value),
-  usePlaceReviews: () => mockLoaded({ source: 'gogo', order: 'latest', reviews: [] }),
+  usePlaceProviderPhotos: () => ({ data: undefined }),
+  usePlaceReviews: () => mockLoaded({ pages: [{ source: 'gogo', order: 'latest', reviews: [], items: [] }], pageParams: [undefined] }),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
   useSaved: () => mockLoaded([]),
@@ -39,7 +40,7 @@ it('leaves the visit-time fact out when the place has none', async () => {
   // A card left with no rows is hidden, not drawn empty.
   expect(view.queryByTestId('place-detail-info')).toBeNull()
   // The facts that do exist still render: no rating is said in words.
-  expect(within(view.getByTestId('place-detail-facts')).getByText('Chưa có đánh giá')).toBeTruthy()
+  expect(within(view.getByTestId('place-detail-facts')).queryByText('Chưa có đánh giá')).toBeNull()
 })
 
 it('shows the visit time with its caption when the place has one', async () => {
@@ -49,11 +50,11 @@ it('shows the visit time with its caption when the place has one', async () => {
 
   expect(card.getByText('45 phút')).toBeTruthy()
   expect(card.getByText('Thời gian ghé gợi ý')).toBeTruthy()
-  expect(within(view.getByTestId('place-detail-facts')).getByText('★ 4.5')).toBeTruthy()
+  expect(within(view.getByTestId('place-detail-facts')).getByText('★ 4,5')).toBeTruthy()
 })
 
 it('draws price, the two rating sources and the AI card as separate blocks, with a gap before the card', async () => {
-  mockDetail.value = { ...PLACE, rating: 4.5, ratingCount: 1280 }
+  mockDetail.value = { ...PLACE, rating: 4.5, ratingCount: 1280, gogoRating: 4.2, gogoRatingCount: 7 }
   const view = await renderScreen(<PlaceDetailScreen />)
   const facts = within(view.getByTestId('place-detail-facts'))
   expect(facts.getByText('(1.280)')).toBeTruthy()

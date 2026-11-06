@@ -30,7 +30,9 @@ jest.mock('@/shared/storage/onboarding', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded(mockDetail.value),
-  usePlaceReviews: () => mockLoaded({ source: 'gogo', order: 'latest', reviews: [] }),
+  useReportPlace: () => ({ mutate: jest.fn(), isPending: false }),
+  usePlaceProviderPhotos: () => ({ data: undefined }),
+  usePlaceReviews: () => mockLoaded({ pages: [{ source: 'gogo', order: 'latest', reviews: [], items: [] }], pageParams: [undefined] }),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
   useSaved: () => mockLoaded([]),
@@ -106,18 +108,14 @@ describe('place sheet (#382 §2, §4, §7)', () => {
     mockDetail.value = PLACE
     const view = await renderScreen(<PlaceDetailScreen />)
     expect(view.queryByText('Đánh giá từ các cặp đôi')).toBeNull()
-    expect(view.getByText('Phù hợp với')).toBeTruthy()
+    expect(view.queryByText('Phù hợp với')).toBeNull()
   })
 
-  it('the unavailable Report is a header icon in text.secondary; a tap shows the existing notice', async () => {
+  it('opens the live Report sheet from the header', async () => {
     mockDetail.value = PLACE
     const view = await renderScreen(<PlaceDetailScreen />)
-    const report = view.getByTestId('place-detail-report')
-    expect(report.props.accessibilityState).toEqual({ disabled: true })
-    expect(report.props.accessibilityLabel).toBe('Báo thông tin sai')
-    expect(view.queryByText('Kênh báo lỗi đang được hoàn thiện.')).toBeNull()
-    await fireEvent.press(report)
-    expect(view.getByText('Kênh báo lỗi đang được hoàn thiện.')).toBeTruthy()
+    await fireEvent.press(view.getByTestId('place-detail-report'))
+    expect(view.getByTestId('place-report-sheet')).toBeTruthy()
   })
 })
 

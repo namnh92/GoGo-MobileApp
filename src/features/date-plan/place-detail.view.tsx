@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWindowDimensions, Pressable, ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
@@ -7,15 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   detailToPlaceCard,
-  formatCount,
   formatMinuteOfDay,
   isSaved,
   openStateFromHours,
+  vietnamClock,
   parseApiDate,
   placePriceParts,
-  ratingParts,
-  toNumber,
   usePlaceDetail,
+  usePlaceProviderPhotos,
   useSaved,
   useTaxonomyLabel,
   useToggleSaved,
@@ -42,12 +41,13 @@ import { hitSlop } from '@/shared/ui/tokens'
 import { GALLERY_MARGIN, styles } from './place-detail.style'
 import { AssistantPlaceCard } from '@/features/assistant/assistant-place-card.view'
 import { PlaceDetailEmptyHero } from './place-detail-empty-hero.view'
+import { usePlaceClock } from '@/shared/ui/use-place-clock'
+import { PlaceReport } from './place-report.view'
+import { Sheet } from '@/shared/ui/sheet.view'
+import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { PlaceReviews } from './place-reviews.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
-/** Suitability scores are 0..1 from the ranking pipeline. */
-const SUITABILITY_MAX = 1
-const SUITABILITY_STARS = 5
 /** Monday-first day order for the opening-hours table; `Date#getDay` is 0=Sun. */
 const WEEK = [1, 2, 3, 4, 5, 6, 0]
 
@@ -58,11 +58,19 @@ export default function PlaceDetailScreen() {
   const { width } = useWindowDimensions()
   const [actionHeight, setActionHeight] = useState(0)
   const actionInset = useBottomBarInset(actionHeight)
-  const { placeId } = useLocalSearchParams<{ placeId: string }>()
+  const { placeId, section } = useLocalSearchParams<{ placeId: string; section?: string }>()
+  const scroll = useRef<ScrollView>(null)
+  const [bodyY, setBodyY] = useState<number | null>(null)
+  const [reviewsY, setReviewsY] = useState<number | null>(null)
+  useEffect(() => {
+    if (section === 'reviews' && bodyY != null && reviewsY != null) scroll.current?.scrollTo({ y: bodyY + reviewsY, animated: false })
+  }, [section, bodyY, reviewsY])
   const { status } = useSession()
 
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
+  const now = usePlaceClock()
   const place = usePlaceDetail(placeId)
+  const providerPhotos = usePlaceProviderPhotos(place.data?.id ?? (place.data ? placeId : undefined))
   const waitingForNetwork = useWaitingForNetwork(place)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
   const canSave = status === 'user'
@@ -71,6 +79,7 @@ export default function PlaceDetailScreen() {
 
   const [photoIndex, setPhotoIndex] = useState(0)
   const [hoursOpen, setHoursOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
   // The draft's top bar: back, the screen's name, report and save on the right.
@@ -127,20 +136,24 @@ export default function PlaceDetailScreen() {
   const card = detailToPlaceCard(detail)
   const id = detail.id ?? placeId
   const name = detail.name ?? ''
-  const open = openStateFromHours(detail.hours)
-  const photos = detail.photos ?? []
+  const open = openStateFromHours(detail.hours, now)
+  const photos = [
+    ...(detail.photos ?? []).map(photo => ({ ...photo, transient: false })),
+    ...(providerPhotos.data?.status === 'ok' ? providerPhotos.data.photos.map((photo, index) => ({
+      id: `provider-${index}`,
+      url: `data:${photo.contentType};base64,${photo.dataBase64}`,
+      attribution: [providerPhotos.data?.attribution, ...photo.authorAttributions.map(author => author.displayName)].join(' · '),
+      transient: true,
+    })) : []),
+  ]
   const checkedAt = parseApiDate(detail.freshnessCheckedAt)
-  const { google } = ratingParts(card)
   const price = placePriceParts(card)
-  const today = new Date().getDay()
+  const today = vietnamClock(now).day
 
   const tags = (detail.taxonomies ?? []).filter(entry => entry.kind && entry.key)
   const categories = tags.filter(tag => tag.kind === 'category')
-  const accessibility = tags.filter(entry => entry.kind === 'accessibility')
-  const vibes = tags.filter(entry => entry.kind !== 'accessibility' && entry.kind !== 'category')
-  const suitability = Object.entries(detail.suitability ?? {})
-    .map(([key, value]) => [key, toNumber(value) ?? 0] as const)
-    .sort((a, b) => b[1] - a[1])
+  const accessibility = tags.filter(entry => entry.kind === 'accessibility' || entry.kind === 'amenity')
+  const vibes = tags.filter(entry => entry.kind === 'mood' || entry.kind === 'setting')
 
   const categoryLine = categories.map(tag => taxonomyLabel('category', tag.key as string)).join(' · ')
   const destination = detail.addressText ?? (detail.lat != null && detail.lng != null ? `${detail.lat},${detail.lng}` : name)
@@ -176,7 +189,7 @@ export default function PlaceDetailScreen() {
     const ok = await launch()
     setNotice(ok ? null : t('placeDetail.linkFailed'))
   }
-  if (detail.addressText) {
+  if (detail.addressText?.trim() || (detail.areaSummary?.communeCode && detail.areaSummary.label?.trim() && detail.areaSummary.provinceCode)) {
     infoRows.push({
       key: 'address',
       node: (
@@ -243,7 +256,7 @@ export default function PlaceDetailScreen() {
         <>
           <View style={styles.infoIcon}><Icon name="users" size={20} color="text.secondary" /></View>
           <View style={styles.infoBody}>
-            <Text variant="caption" color="text.secondary">{t('placeDetail.goodFor')}</Text>
+            <Text variant="caption" color="text.secondary">{t('placeDetail.atmosphere')}</Text>
             <View style={styles.tagRow}>
               {vibes.map(tag => (
                 <Chip key={`${tag.kind}:${tag.key}`} label={taxonomyLabel(tag.kind as string, tag.key as string)} />
@@ -265,7 +278,7 @@ export default function PlaceDetailScreen() {
             <Text variant="caption" color="text.secondary">{t('placeDetail.attributes')}</Text>
             <View style={styles.tagRow}>
               {accessibility.map(entry => (
-                <Chip key={entry.key} label={taxonomyLabel('accessibility', entry.key as string)} />
+                <Chip key={entry.key} label={taxonomyLabel(entry.kind as string, entry.key as string)} />
               ))}
             </View>
           </View>
@@ -317,14 +330,11 @@ export default function PlaceDetailScreen() {
     </Pressable>
   ) : null
 
-  // No report endpoint exists on `/v1` yet: the control stays unavailable and a
-  // tap only shows the existing notice, as the page-body button did.
   const reportToggle = (
     <Pressable
       testID="place-detail-report"
-      onPress={() => setNotice(t('placeDetail.reportUnavailable'))}
+      onPress={() => setReportOpen(true)}
       accessibilityRole="button"
-      accessibilityState={{ disabled: true }}
       accessibilityLabel={t('placeDetail.report')}
       hitSlop={hitSlop}
       style={styles.headerBtn}
@@ -337,6 +347,7 @@ export default function PlaceDetailScreen() {
     <Atmosphere>
       {header(saveToggle, reportToggle)}
       <ScrollView
+        ref={scroll}
         testID="place-detail-scroll"
         contentContainerStyle={{ paddingBottom: actionInset }}
         snapToEnd={false}
@@ -366,12 +377,13 @@ export default function PlaceDetailScreen() {
                   placeId={id}
                   name={name}
                   uri={photo.url}
+                  cachePolicy={photo.transient ? 'none' : undefined}
                   style={[styles.galleryPage, { width: galleryWidth }]}
                 />
               ))}
             </ScrollView>
           ) : (
-            <PlacePhoto placeId={id} name={name} uri={photos[0].url} style={StyleSheet.absoluteFill} />
+            <PlacePhoto placeId={id} name={name} uri={photos[0].url} cachePolicy={photos[0].transient ? 'none' : undefined} style={StyleSheet.absoluteFill} />
           )}
           {photos.length > 0 ? <View pointerEvents="none" style={styles.imageScrim} /> : null}
 
@@ -394,7 +406,9 @@ export default function PlaceDetailScreen() {
           ) : null}
         </View>
 
-        <View testID="place-detail-sheet" style={styles.body}>
+        {photos[photoIndex]?.attribution ? <Text variant="caption" color="text.secondary" style={styles.attribution}>{photos[photoIndex].attribution}</Text> : null}
+
+        <View testID="place-detail-sheet" style={styles.body} onLayout={event => setBodyY(event.nativeEvent.layout.y)}>
           {notice ? (
             <Text
               variant="caption"
@@ -414,7 +428,7 @@ export default function PlaceDetailScreen() {
           {categoryLine ? <Text color="text.secondary" style={styles.meta}>{categoryLine}</Text> : null}
 
           {/* Colour is never the only signal — the dot repeats what the words say. */}
-          <View style={styles.openRow}>
+          {open.openNow != null ? <View style={styles.openRow}>
             <View style={[styles.openDot, open.openNow ? styles.openDotOn : styles.openDotOff]} />
             <Text variant="label" color={open.openNow ? 'status.successText' : 'text.secondary'}>{openLabel()}</Text>
             {(detail.hours ?? []).length > 0 ? (
@@ -429,9 +443,9 @@ export default function PlaceDetailScreen() {
                 </Text>
               </Pressable>
             ) : null}
-          </View>
+          </View> : null}
 
-          {hoursOpen ? (
+          <Sheet visible={hoursOpen} onClose={() => setHoursOpen(false)} header={<Text variant="title2">{t('placeDetail.weeklyHours')}</Text>}>
             <View style={styles.hoursTable}>
               {WEEK.map(day => {
                 const entries = (detail.hours ?? []).filter(entry => entry.dayOfWeek === day)
@@ -454,8 +468,7 @@ export default function PlaceDetailScreen() {
                 )
               })}
             </View>
-          ) : null}
-
+          </Sheet>
           {/* Price, then the two rating sources side by side and never merged
               (spec §6). A fact with no data is left out rather than drawn as a
               dash (RULE-CORE-015). */}
@@ -473,31 +486,8 @@ export default function PlaceDetailScreen() {
                 </Text>
               </View>
             )}
-            <View style={styles.ratingRow}>
-              <View style={styles.ratingChip}>
-                {google ? (
-                  <>
-                    <Text variant="label">★ {google.value.toFixed(1)}</Text>
-                    {google.count != null ? (
-                      <Text variant="caption" color="text.secondary">({formatCount(google.count, i18n.language)})</Text>
-                    ) : null}
-                    <Text variant="label">{t('rating.google')}</Text>
-                  </>
-                ) : (
-                  <Text variant="label" color="text.secondary" numberOfLines={1}>{t('placeDetail.noRating')}</Text>
-                )}
-              </View>
-              {/* The contract carries no GoGo aggregate yet, so the chip says so
-                  in words instead of inventing a number. */}
-              <View
-                accessible
-                accessibilityLabel={`${t('rating.gogo')}: ${t('rating.gogoInsufficient')}`}
-                style={[styles.ratingChip, styles.ratingChipGogo]}
-              >
-                <Text variant="label" color="status.infoText">{t('rating.gogo')}</Text>
-                <Text variant="caption" color="status.infoText" numberOfLines={1}>{t('placeDetail.gogoNone')}</Text>
-              </View>
-            </View>
+            <RatingChips place={card} />
+            {card.gogoRatingCount != null && card.gogoRatingCount < 5 ? <Text variant="caption" color="text.secondary">{t('placeDetail.gogoBelowThreshold', { count: card.gogoRatingCount ?? 0 })}</Text> : null}
           </View>
 
           {/* Questions about this place (#379): the contextual way into GoGo
@@ -581,34 +571,13 @@ export default function PlaceDetailScreen() {
               {source.attribution ?? source.provider}
             </Text>
           ))}
-          {photos[photoIndex]?.attribution ? (
-            <Text variant="caption" color="text.secondary" style={styles.attribution}>{photos[photoIndex].attribution}</Text>
-          ) : null}
-
-          {/* Real suitability scores from the ranking pipeline, not invented bars. */}
-          {suitability.length > 0 ? (
-            <>
-              <Text variant="title2" style={styles.sectionTitle}>{t('placeDetail.suitability')}</Text>
-              <View style={styles.suitCard}>
-                {suitability.map(([key, value]) => (
-                  <View key={key} style={styles.suitRow}>
-                    <Text variant="bodySmall" style={styles.suitLabel}>{taxonomyLabel('suitability', key)}</Text>
-                    <View style={styles.suitTrack}>
-                      <View style={[styles.suitFill, { width: `${Math.round((value / SUITABILITY_MAX) * 100)}%` }]} />
-                    </View>
-                    <Text variant="label" style={styles.suitValue}>{(value * SUITABILITY_STARS).toFixed(1)}</Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          ) : null}
-
           {/* APP-056 — real, moderated GoGo reviews with their own loading and
               error states, so the facts above never wait on them. */}
-          <PlaceReviews placeId={id} showPageLink />
+          <PlaceReviews placeId={id} onLayout={event => setReviewsY(event.nativeEvent.layout.y)} />
         </View>
       </ScrollView>
 
+      {reportOpen ? <PlaceReport placeId={id} onClose={() => setReportOpen(false)} /> : null}
       <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight}>
         <PrimaryBtn label={t('placeDetail.createRoom')} onPress={addToPlan} icon="plus" style={styles.addBtn} />
       </GlassBar>

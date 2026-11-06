@@ -55,6 +55,8 @@ const mockSubmit = {
 
 const mockTrack = jest.fn()
 
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
+jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
@@ -95,8 +97,8 @@ const staleToken = () =>
     retryable: true,
   })
 
-async function openWithPreview(): Promise<void> {
-  mockResolve.data = RESOLVED
+async function openWithPreview(result: Omit<typeof RESOLVED, 'resolutionToken'> & { resolutionToken?: string } = RESOLVED): Promise<void> {
+  mockResolve.data = result
   await renderScreen(<PlaceImportScreen />)
   // The screen re-resolves from its own input, so the link has to be in it.
   // Both the typing and the press go through `act`: an unwrapped state update
@@ -105,9 +107,9 @@ async function openWithPreview(): Promise<void> {
   await act(async () => {
     await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), LINK)
   })
+  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
 }
 
-describe('APP-042 — the resolve proof reaches submit', () => {
   beforeEach(() => {
     mockResolve.mutate.mockClear()
     mockResolve.mutateAsync.mockReset()
@@ -121,6 +123,9 @@ describe('APP-042 — the resolve proof reaches submit', () => {
     mockSubmit.mutateAsync.mockResolvedValue({ status: 'PENDING', submissionId: 'sub-1' })
     mockResolve.mutateAsync.mockResolvedValue(RESOLVED)
   })
+
+describe('APP-042 — the resolve proof reaches submit', () => {
+
 
   it('sends the token the preview returned', async () => {
     await openWithPreview()
@@ -193,8 +198,7 @@ describe('APP-042 — the resolve proof reaches submit', () => {
   })
 
   it('submits without a token rather than failing, when the preview issued none', async () => {
-    mockResolve.data = { ...RESOLVED, resolutionToken: undefined }
-    await renderScreen(<PlaceImportScreen />)
+    await openWithPreview({ ...RESOLVED, resolutionToken: undefined })
 
     await pressSubmit()
 
@@ -216,4 +220,24 @@ describe('APP-042 — the resolve proof reaches submit', () => {
       expect(JSON.stringify(call)).not.toContain('token-from-the-preview')
     }
   })
+})
+
+
+it('invalidates A preview when the user edits the link to B', async () => {
+  await openWithPreview()
+  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/B')
+  expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
+  expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
+})
+
+it('does not retry A after a stale-token resolve returns while the user is on B', async () => {
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+  let finish: (value: unknown) => void = () => {}
+  mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await openWithPreview()
+  await pressSubmit()
+  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/B')
+  await act(async () => { finish(RESOLVED) })
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('Quán Thử')).toBeNull()
 })

@@ -1,0 +1,129 @@
+# GoGo-MobileApp #482 — nhóm 03
+
+Ngày 2026-11-07. Branch `feature/GOGO-482-redesign-g03-places`, base/head ban đầu
+`abe784c` (`origin/re-design`). Thay đổi chưa commit. Refs #482.
+
+## Trạng thái và thiết kế
+
+Đã triển khai phần hành vi/dữ liệu bên dưới theo plan đã duyệt và quyết định
+owner 2026-11-07. **Chưa hoàn tất nghiệm thu visual.** Không tuyên bố khớp Stitch.
+
+Nguồn scope: `dev/handoffs/mobile-g03-plan.md` và phần `codex` cuối của
+`dev/handoffs/codex-advise-mobile-g03.astra.out` trong workspace GoGo.
+Các ID Light trong plan thuộc project `17315762413421369447`:
+
+| Màn | Light node | Diff đã viết |
+| --- | --- | --- |
+| 3.1 detail | `1593725092880141532` | Gallery ghép GoGo trước, Google transient sau; credit ảnh theo ảnh đang xem; rating dùng formatter chung, GoGo aggregate thật; giờ tuần trong Sheet; report qua API; reviews phân trang trong detail; bỏ suitability bars. Giữ contact, map/directions, AI gate/context và CTA seed tạo kèo. |
+| 3.2 không ảnh | `11113939438694287499` | Dùng chung detail; empty hero khi cả hai nguồn không có ảnh; không có gallery controls giả; lỗi ảnh vẫn qua fallback của PlacePhoto. |
+| 3.3 import | `10756253768045112131` | Header “Thêm địa điểm mới” + bell; intro/nhãn link/kết quả; clipboard chỉ đọc khi bấm; preview variant không có canonical ID; giờ/rating/category thật; save khóa có lý do; metadata mở rộng; credit chỉ cho registered user và chỉ sau approval; link Google dùng googleMapsUri. |
+| 3.4 trạng thái | `11596318734062514103` | Resolve hoặc submit ALREADY_EXISTS mở card canonical có loading/error/retry/save; copy “Địa điểm này đã có trên GoGo”; approved/merged mở được đích; polling 403 owner-only có thông báo riêng, không biến thành rejected; link nhập mang nhãn riêng; reset xóa dữ liệu form. |
+
+Đọc Stitch trực tiếp bị chặn trong phiên: browser inventory báo
+`The browser access host is unavailable`; cả lần bind Chrome bằng bundle ID và
+tên app đều báo `cgWindowNotFound`. Công cụ từ chối mở Finder để khôi phục.
+Không sửa Stitch. Không có Dark IDs/HTML parity mới hay ảnh app–Stitch của phiên
+này: **0/8 đối chiếu Light/Dark**. Geometry/crop/typography/color/spacing và parity
+của bốn màn vẫn cần đọc trực tiếp và đo; các mô tả visual trong plan không thay
+thế bằng chứng này. Giữ category ở vị trí hiện hữu; mọi khác biệt so với Stitch
+cần đi vào bảng lệch workspace khi công cụ hoạt động lại.
+
+## Các điểm Astra
+
+1. Provider photos chỉ fetch ở detail; `gcTime=0`, không refetch theo focus/reconnect,
+   không retry tự động, query root không được persist. Ảnh inline dùng
+   `cachePolicy="none"`. Disabled/not-linked/budget-exhausted/unavailable/unknown
+   không thêm ảnh; không gọi endpoint này cho import/card.
+2. Reviews gửi `limit=10`, cursor thật; dùng items, giữ compatibility reviews.
+   Helpful sửa mọi page và cả hai mảng, rollback snapshot, nhận count server rồi
+   invalidate cả latest/helpful và marks. UI loại duplicate IDs và có retry trang sau.
+3. Submit ALREADY_EXISTS không phụ thuộc submissionId; canonical ID được mở/lưu
+   ngay. Candidate-selection cũng hiển thị kết quả submit/polling.
+4. Save/helpful cần user; report cho user hoặc room guest. Không award credit
+   cục bộ, không suy ra credit từ merged/balance/deduped.
+5. Giờ Việt Nam độc lập timezone thiết bị; thiếu giờ là unknown, không closed.
+   Clock cập nhật mỗi 30 giây và khi resume; giữ overnight. Matching/swipe dùng
+   cùng clock/helper.
+6. Preview gắn URL đã resolve. Sửa link bỏ preview/token/selection/metadata;
+   submit kiểm tra lại URL bằng ref. Retry chỉ resolve URL đã xác minh, tối đa
+   một lần, bỏ kết quả về muộn khi URL thay đổi. Lock chặn double submit.
+7. Copy 3.3 “Đã tìm thấy trên Google Maps” dùng màu trung tính; 3.4 chỉ khẳng định
+   catalog existence. Không có menu/photos/100%/giới hạn loại địa điểm giả.
+8. PlaceCard preview nhận generated candidate, không gán googlePlaceId vào place.id,
+   không có navigation/save handler canonical. Canonical result dùng PlaceCard
+   hiện hữu. Không dựng ảnh/price/verification/số nhóm từ mẫu.
+9. Full detail đổi sang key có discriminator detail, không persist, staleTime=0.
+   Public review aggregate cập nhật lại header từ response trang đầu, không tính
+   từ sample. Reviews/marks không persist. Cache buster alpha.3 bỏ cache cũ đã chứa
+   aggregate. **Hệ quả:** lần nâng cấp đầu tiên cần online để nạp lại cả cache plan;
+   sau đó plan/stop summaries vẫn được persist, full detail chỉ có memory fallback.
+10. Chưa đóng visual/device acceptance: cần direct Stitch, HTML parity, hai theme,
+    iOS/Android, vi/en, anonymous/guest/user và kiểm tra thủ công/a11y. Các unit/UI
+    tests bên dưới chỉ là bằng chứng trong phạm vi đó.
+
+## Contract và dữ liệu
+
+Dùng nguyên `openapi/gogo.v1.yaml` và generated `schema.d.ts` hiện có:
+
+| Operation | Client dùng |
+| --- | --- |
+| getPlaceDetail / getPlaceProviderPhotos | canonical facts và transient base64 + author credits |
+| listPlaceReviews | order, limit, cursor; items, nextCursor, gogoRating/count, verifiedVisit |
+| reportPlace | stable reasonCode, note tối đa 500 ký tự, Idempotency-Key giữ nguyên qua retry |
+| resolveGoogleMapsLink / submitPlace / getPlaceSubmission | token theo URL, canonical ID, moderation status, 403 owner-only |
+| saved / helpful hiện hữu | chỉ canonical place ID hoặc review ID thật |
+
+Không thay public contract, không sinh lại types, không thêm migration/package.
+Report form dùng RHF + Zod, normalize CRLF và chặn control characters. Event mới
+`place_report_submitted` chỉ gửi sau API success, props `placeId` và reason key;
+không chứa note, link hoặc resolution token. Chưa gọi DEV hay provider thật.
+
+## Phần chờ BE — không stub, không render
+
+| Issue | Phần chưa làm |
+| --- | --- |
+| GoGo-BE#784 | Detail chưa có areaSummary: `formatPlaceAddress(detail)` giữ raw addressText; helper ưu tiên verified short label khi contract thật có field. Sau BE cần cập nhật contract/types và adapter canonical card. |
+| GoGo-BE#785 | Không render checked-in group count ở detail/status. |
+| GoGo-BE#786 | Không render candidate photo; không dùng ảnh mẫu hay gọi provider-photos để lấp chỗ trống. |
+| GoGo-BE#787 | Submission rejected chỉ có status chung; không dựng reason key/câu lý do cụ thể. UNRESOLVED vẫn dùng reasonCodes đã có trong contract. |
+| GoGo-BE#788 | Không tạo my-submissions list hay entry “Đóng góp của tôi” trong Cá nhân. Chờ contract và Stitch màn mới. |
+
+## Điểm đọc code
+
+- `src/features/date-plan/place-detail.view.tsx`: gallery, ratings, hours, address seam, report, legacy review anchor.
+- `src/features/date-plan/place-reviews.view.tsx`: pages, retry, total, verified visit, helpful.
+- `src/features/date-plan/place-report.{view,style}.tsx`: report form và shared Sheet.
+- `src/features/date-plan/place-reviews-page.view.tsx`: redirect deep link cũ về detail section reviews.
+- `src/features/place-import/import.view.tsx`: URL proof, clipboard, form, moderation branches.
+- `src/features/place-import/existing-place-result.view.tsx`: canonical read/save/error states.
+- `src/shared/ui/place-card.view.tsx`: preview model không canonical ID; rating-chips/place-photo dùng chung.
+- `src/shared/api/queries/use-places.ts`, `review-reactions.ts`, `queries/use-me.ts`: endpoints/hooks, paging, optimistic cache.
+- `src/shared/api/persist-policy.ts`, `query-keys.ts`, providers/app-providers: cache boundary và cold-start invalidation.
+- `src/shared/api/view-models.ts`, `src/shared/ui/use-place-clock.ts`, matching callers: giờ Việt Nam/resume.
+- `src/shared/administrative/place-address.ts`: raw-address fallback và short-label seam.
+
+## Kiểm chứng
+
+Kết quả cuối trên working tree hiện tại:
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| Jest scoped (23 suites) | **182/182 PASS**, exit 0; log `/tmp/g03-scoped-final.log` |
+| Vitest review-reactions / view-models / offline-cache | **58/58 PASS**; chạy với TZ=UTC và TZ=America/Los_Angeles |
+| `pnpm exec tsc --noEmit --pretty false` | PASS, exit 0 |
+| ESLint tất cả file .ts/.tsx modified/untracked của task | PASS, exit 0; log `/tmp/g03-eslint-final.log` |
+| `git diff --check` | PASS |
+| `git diff --name-only -- ios` | Rỗng |
+
+Jest scoped bao gồm: reviews/helpful/rollback; import token, URL A→B, retry về
+muộn, provider outage, FUTURE_OPENING, submit ALREADY_EXISTS và owner-only 403;
+canonical detail 404/503; report user/guest/anonymous và note validation;
+pagination limit/cursor/order/aggregate; provider query disposal và image
+cachePolicy; clock closing-time/resume; detail facts/offline/sheets; vi/en date
+pins; shared PlaceCard/RatingChips; AI context; matching/swipe regression.
+Các endpoint trong test được mock; không có DEV/network acceptance.
+
+Full repo gates, HTML parity và device visual, independent review, commit/push
+thuộc Claude theo lệnh owner. Không chạy DEV, không sửa ios/, không commit/push.
+Rollback code: revert patch này cùng cache policy/buster; không có DB migration.
+Không hạ cache buster trên thiết bị như cách phục hồi dữ liệu cache cũ.

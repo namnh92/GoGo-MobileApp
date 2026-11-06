@@ -1,8 +1,11 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import {
+  openStateFromHours,
+  type ResolveLinkResult,
   formatMinuteOfDay,
   formatRating,
   formatCount,
@@ -20,6 +23,8 @@ import { Chip, TagChip } from '@/shared/ui/primitives'
 import { MaterialIcon } from './material-icon'
 import { Text } from '@/shared/ui/text'
 
+import { usePlaceClock } from './use-place-clock'
+import { RatingChips } from './rating-chips.view'
 import { styles } from './place-card.style'
 
 /**
@@ -177,7 +182,7 @@ function MetaLine({ place, appearance = 'default', hero = false }: {
   }}</FormattedPlaceAddress>
 }
 
-export function PlaceCard({
+function CanonicalPlaceCard({
   place,
   variant = 'list',
   appearance = 'default',
@@ -287,4 +292,38 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
     </Pressable>
     {save}
   </View>
+}
+
+/** A resolved provider identity has no canonical GoGo ID and no place actions. */
+export interface PlacePreviewProps {
+  variant: 'preview'
+  preview: NonNullable<ResolveLinkResult['candidate']>
+  categoryLabel?: string | null
+  children?: ReactNode
+  style?: StyleProp<ViewStyle>
+}
+
+export function PlaceCard(props: PlaceCardProps | PlacePreviewProps) {
+  return 'preview' in props ? <PreviewCard {...props} /> : <CanonicalPlaceCard {...props} />
+}
+
+function PreviewCard({ preview, categoryLabel, children, style }: PlacePreviewProps) {
+  const { t } = useTranslation()
+  const now = usePlaceClock()
+  const open = openStateFromHours(preview.openingHours, now)
+  const closing = formatMinuteOfDay(open.closesAtMinute)
+  return (
+    <Card padded={false} style={[styles.listCard, style]}>
+      <View style={styles.listBody}>
+        <Text variant="caption" color="text.secondary">{t('placeImport.verifiedBadge')}</Text>
+        <Text variant="title1">{preview.name}</Text>
+        {preview.address ? <Text color="text.secondary">{preview.address}</Text> : null}
+        {categoryLabel ? <Text variant="bodySmall">{categoryLabel}</Text> : null}
+        <RatingChips place={{ rating: preview.googleRating ?? undefined, ratingCount: preview.googleRatingCount ?? undefined, ratingSource: 'google' }} />
+        {open.openNow != null ? <Text variant="bodySmall">{open.openNow ? closing ? t('search.openUntil', { time: closing }) : t('common.open') : t('common.closed')}</Text> : null}
+        {children}
+        {(preview.attributions ?? []).map(attribution => <Text key={attribution} variant="caption" color="text.secondary">{attribution}</Text>)}
+      </View>
+    </Card>
+  )
 }

@@ -25,6 +25,7 @@ const mockUseMine = jest.fn((_placeId: string, _options: { enabled: boolean }) =
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded({ id: 'place-1', name: 'Quán thử', photos: [] }),
+  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: (placeId: string, order: string) => mockUsePlaceReviews(placeId, order),
   useMyReviewReactions: (placeId: string, options: { enabled: boolean }) => mockUseMine(placeId, options),
   useToggleReviewHelpful: () => mockToggle,
@@ -48,7 +49,7 @@ function review(n: number, helpfulCount = 0) {
 }
 
 const preview = (order: 'latest' | 'helpful', ...reviews: ReturnType<typeof review>[]) =>
-  mockLoaded({ source: 'gogo', order, reviews })
+  mockLoaded({ pages: [{ source: 'gogo', order, reviews, items: reviews }], pageParams: [undefined] })
 const row = (n: number) => within(screen.getByTestId(`place-review-review-${n}`))
 const section = () => within(screen.getByTestId('place-reviews'))
 

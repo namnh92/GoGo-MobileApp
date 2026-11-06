@@ -2,9 +2,11 @@ import type { Persister } from '@tanstack/react-query-persist-client'
 
 /**
  * Offline cache for the active date: the current plan and the place summaries
- * it references must stay readable with a flaky connection. Profile and public
- * reference datasets (administrative units and taxonomies) persist too; search
- * results and suggestion runs do not.
+ * embedded in it stay readable with a flaky connection. Profile and public
+ * reference datasets (administrative units and taxonomies) persist too. Full
+ * PlaceDetail is excluded: it contains moderated aggregates and provider facts.
+ * Search results, suggestion runs, review pages and transient provider bytes
+ * never persist.
  *
  * Kept free of React Native imports so the policy can be tested on its own; the
  * persister that uses it lives in `query-client.ts`.
@@ -23,7 +25,7 @@ const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me',
  * come back from disk on the next cold start. `review-reactions` (APP-060) is
  * the caller's own helpful marks, which follow the same reviews.
  */
-const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'public-reviews', 'review-reactions']
+const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'detail', 'public-reviews', 'review-reactions']
 
 export function shouldPersistQuery(queryKey: readonly unknown[]): boolean {
   const [root] = queryKey

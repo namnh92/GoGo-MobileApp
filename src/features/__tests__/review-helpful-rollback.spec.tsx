@@ -145,3 +145,20 @@ it('removes a mark optimistically and restores it when removal fails', async () 
   await waitFor(() => expect(myMarks()).toEqual(['r1']))
   expect(countIn(latestKey)).toBe(2)
 })
+
+
+it('rolls back every paginated items array as well as the legacy preview', async () => {
+  const snapshot = { pages: [
+    { source: 'gogo', order: 'latest', reviews: [review('r1', 2)], items: [review('r1', 2)] },
+    { source: 'gogo', order: 'latest', reviews: [], items: [review('r2', 7)] },
+  ], pageParams: [undefined, 'next'] }
+  queryClient.setQueryData(latestKey, snapshot)
+  const call = deferred()
+  mockMark.mockReturnValue(call.promise)
+  const { result } = await renderHook(() => useToggleReviewHelpful(placeId), { wrapper })
+  await act(async () => { result.current.mutate({ reviewId: 'r2', helpful: true }) })
+  await waitFor(() => expect(queryClient.getQueryData<typeof snapshot>(latestKey)?.pages[1].items[0].helpfulCount).toBe(8))
+  await act(async () => { call.reject(new Error('offline')) })
+  await waitFor(() => expect(queryClient.getQueryData(latestKey)).toEqual(snapshot))
+  expect(snapshot.pages[1].items[0].helpfulCount).toBe(7)
+})

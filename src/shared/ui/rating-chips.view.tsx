@@ -10,7 +10,7 @@ import { Text } from './text'
  * The two rating sources side by side, never merged: Google, and GoGo only when
  * the API returns it. Nothing renders when neither exists (no placeholder).
  */
-export function RatingChips({ place }: { place: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource'> }) {
+export function RatingChips({ place }: { place: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'> }) {
   const { t, i18n } = useTranslation()
   const { google, gogo } = ratingParts(place)
   if (!google && !gogo) return null

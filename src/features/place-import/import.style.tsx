@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  introTitle: { marginTop: spacing[5] },
   body: { marginTop: spacing[2], marginBottom: spacing[5] },
   // The paste field, its button and the result sit on white cards over the canvas.
   inputCard: {
@@ -55,7 +56,7 @@ export const styles = StyleSheet.create(theme => ({
   resultBody: { padding: spacing[4] },
   verifiedBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: theme.status.successSoft,
+    backgroundColor: theme.surface.subtle,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.pill,

@@ -17,17 +17,17 @@ export function getPlaceDetail(placeId: string): Promise<OpResponse<'getPlaceDet
 }
 
 /**
- * BE-BFF-018 — at most three published GoGo reviews, newest first. Public like
- * Place Detail; carries no provider rating. BE-BFF-019 adds `order=helpful`,
- * which falls back to newest when nothing has a mark.
+ * Moderated GoGo reviews. limit/cursor requests return items and nextCursor;
+ * the legacy reviews array remains a three-row preview. Neither carries a provider rating.
  */
 export function listPlaceReviews(
   placeId: string,
   order: ReviewOrder = 'latest',
+  page?: Pick<OpQuery<'listPlaceReviews'>, 'limit' | 'cursor'>,
 ): Promise<OpResponse<'listPlaceReviews'>> {
   return api.get<OpResponse<'listPlaceReviews'>>('/places/{id}/reviews', {
     pathParams: { id: placeId },
-    query: { order },
+    query: { order, ...page },
     anonymous: true,
   })
 }
@@ -78,4 +78,13 @@ export function submitPlace(body: OpBody<'submitPlace'>): Promise<OpResponse<'su
 
 export function getPlaceSubmission(id: string): Promise<OpResponse<'getPlaceSubmission'>> {
   return api.get<OpResponse<'getPlaceSubmission'>>('/place-submissions/{id}', { pathParams: { id } })
+}
+
+/** Detail-only provider bytes; never called from import or list cards. */
+export function getPlaceProviderPhotos(id: string) {
+  return api.get<OpResponse<'getPlaceProviderPhotos'>>('/places/{id}/provider-photos', { pathParams: { id }, anonymous: true })
+}
+
+export function reportPlace(id: string, body: OpBody<'reportPlace'>, idempotencyKey: string) {
+  return api.post<OpResponse<'reportPlace'>>('/places/{id}/reports', body, { pathParams: { id }, idempotencyKey })
 }

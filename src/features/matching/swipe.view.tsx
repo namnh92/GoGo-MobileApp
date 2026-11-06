@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { usePlaceClock } from '@/shared/ui/use-place-clock'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
@@ -71,6 +72,7 @@ const ACTION_VOTES: Record<'pass' | 'yes' | 'star', VoteValue> = {
 type Action = keyof typeof ACTION_VOTES
 
 export default function SwipeScreen() {
+  const now = usePlaceClock()
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
@@ -409,7 +411,7 @@ export default function SwipeScreen() {
 
   const place = detail.data ? detailToPlaceCard(detail.data) : null
   const price = place ? placePriceParts(place) : null
-  const open = openStateFromHours(detail.data?.hours)
+  const open = openStateFromHours(detail.data?.hours, now)
   const hasHours = (detail.data?.hours ?? []).length > 0
   const categoryKey = (detail.data?.taxonomies ?? []).find(entry => entry.kind === 'category')?.key
   const categoryLabel = categoryKey ? taxonomyLabel('category', categoryKey) : null

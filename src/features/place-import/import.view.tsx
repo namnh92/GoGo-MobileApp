@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
@@ -16,12 +16,17 @@ import {
   type ResolveLinkResult,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { Icon, IconMapPin } from '@/shared/ui/icons'
-import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, BackHeader, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Icon } from '@/shared/ui/icons'
+import { PlaceCard } from '@/shared/ui/place-card.view'
+import { openWebsite } from '@/shared/navigation/external-links'
+import { useSession } from '@/shared/providers/session-provider'
+import { ExistingPlaceResult } from './existing-place-result.view'
+import { Atmosphere, BackHeader, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
+import * as Clipboard from 'expo-clipboard'
+import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { styles } from './import.style'
 
 // Accepted Google Maps link shapes (SRS FR-PLACE-001). The server validates
@@ -100,14 +105,20 @@ export default function PlaceImportScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { status: actorStatus } = useSession()
   const { roomId } = useLocalSearchParams<{ roomId?: string }>()
 
   const [url, setUrl] = useState('')
+  const currentUrl = useRef('')
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null)
+  const [metadataOpen, setMetadataOpen] = useState(false)
   const [invalid, setInvalid] = useState(false)
+  const [linkFailed, setLinkFailed] = useState(false)
   const [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState<string | null>(null)
   // True only during the silent re-resolve of a stale attestation, so the CTA
   // keeps its loading state across the two requests instead of flickering back
   // to idle between them (APP-042).
+  const submitLock = useRef(false)
   const [revalidating, setRevalidating] = useState(false)
 
   // Optional metadata (PI-APP-004) — everything here may be left blank.
@@ -121,7 +132,7 @@ export default function PlaceImportScreen() {
   const resolve = useResolveGoogleMapsLink()
   const submit = useSubmitPlace()
   // A proposal is queued for moderation, so its status is polled after sending.
-  const submission = usePlaceSubmission(submit.data?.submissionId)
+  const submission = usePlaceSubmission(submit.data?.status === 'ALREADY_EXISTS' ? undefined : submit.data?.submissionId)
 
   function taxonomyOptions(kind: string) {
     return (taxonomies.data?.kinds?.[kind] ?? []).map(entry => ({
@@ -159,7 +170,8 @@ export default function PlaceImportScreen() {
     }
   }
 
-  const result = resolve.data
+  const previewMatchesUrl = resolvedUrl !== null && resolvedUrl === url.trim()
+  const result = previewMatchesUrl ? resolve.data : undefined
   const candidate = result?.candidate as Candidate | undefined
   // #131: Google lists it as opening soon; the server refuses the submit.
   const notOpenYet = candidate?.businessStatus === 'FUTURE_OPENING'
@@ -171,6 +183,7 @@ export default function PlaceImportScreen() {
       return
     }
     setInvalid(false)
+    setResolvedUrl(parsed.data)
     setSelectedGooglePlaceId(null)
     submit.reset()
     track('place_import_submitted')
@@ -202,6 +215,8 @@ export default function PlaceImportScreen() {
     : null
 
   async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false) {
+    if (!previewMatchesUrl || currentUrl.current.trim() !== resolvedUrl || submit.isSuccess || submit.isPending || (submitLock.current && !retried)) return
+    submitLock.current = true
     const resolutionToken = token ?? resolve.data?.resolutionToken
     try {
       const submission = await submit.mutateAsync({
@@ -214,12 +229,16 @@ export default function PlaceImportScreen() {
     } catch (error) {
       if (retried || !staleResolution(error)) return
       await revalidateAndResubmit(googlePlaceId)
+    } finally {
+      submitLock.current = false
     }
   }
 
   /** One silent re-resolve, then one retry — never a loop. */
   async function revalidateAndResubmit(googlePlaceId: string) {
-    const parsed = mapsUrlSchema.safeParse(url)
+    const verifiedUrl = resolvedUrl
+    if (!verifiedUrl || currentUrl.current.trim() !== verifiedUrl) return
+    const parsed = mapsUrlSchema.safeParse(verifiedUrl)
     if (!parsed.success) return
     setRevalidating(true)
     // The stale-token refusal is spent; if the re-resolve comes back with a new
@@ -231,6 +250,7 @@ export default function PlaceImportScreen() {
       // several branches — is a new answer for the user to see, not something
       // to resubmit behind their back. `resolve.data` already carries it into
       // the view.
+      if (currentUrl.current.trim() !== verifiedUrl) return
       if (fresh.status !== 'RESOLVED' || !fresh.resolutionToken) return
       await onSubmitPlace(fresh.candidate?.googlePlaceId ?? googlePlaceId, fresh.resolutionToken, true)
     } catch {
@@ -243,6 +263,11 @@ export default function PlaceImportScreen() {
   function reset() {
     resolve.reset()
     submit.reset()
+    currentUrl.current = ''
+    setResolvedUrl(null)
+    setInvalid(false)
+    setMetadataOpen(false)
+    setLinkFailed(false)
     setUrl('')
     setSelectedGooglePlaceId(null)
     setCategory(null)
@@ -252,22 +277,35 @@ export default function PlaceImportScreen() {
     setNote('')
   }
 
+  const VerifyButton = result ? GhostBtn : PrimaryBtn
   return (
     <Atmosphere>
       <View style={{ paddingTop: insets.top }}>
-        <BackHeader title={t('placeImport.title')} onBack={() => router.back()} />
+        <BackHeader title={t('placeImport.title')} onBack={() => router.back()} right={<HeaderNotificationButton testID="import-bell" unreadDotTestID="import-unread-dot" />} />
       </View>
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
+        <Text variant="title1" style={styles.introTitle}>{t('placeImport.syncTitle')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('placeImport.body')}</Text>
 
         <View style={styles.inputCard}>
+          <Text variant="label">{t('placeImport.linkLabel')}</Text>
           <TextInput
             value={url}
             onChangeText={value => {
+              currentUrl.current = value
               setUrl(value)
+              setResolvedUrl(null)
+              resolve.reset()
+              submit.reset()
+              setSelectedGooglePlaceId(null)
+              setCategory(null)
+              setVibes([])
+              setPriceMin('')
+              setPriceMax('')
+              setNote('')
               setInvalid(false)
             }}
             placeholder={t('placeImport.placeholder')}
@@ -278,6 +316,13 @@ export default function PlaceImportScreen() {
             accessibilityLabel={t('placeImport.title')}
             style={[styles.input, invalid && styles.inputError]}
           />
+          <GhostBtn label={t('placeImport.pasteLink')} onPress={() => {
+            void Clipboard.getStringAsync().then(value => {
+              reset()
+              currentUrl.current = value
+              setUrl(value)
+            }).catch(() => setInvalid(true))
+          }} />
           {invalid && <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.invalidUrl')}</Text>}
 
           {resolve.isPending ? (
@@ -286,7 +331,7 @@ export default function PlaceImportScreen() {
               <Text variant="bodySmall" color="text.secondary">{t('placeImport.verifying')}</Text>
             </View>
           ) : (
-            <PrimaryBtn
+            <VerifyButton
               label={t('placeImport.verify')}
               icon="search"
               onPress={onResolve}
@@ -322,28 +367,14 @@ export default function PlaceImportScreen() {
           </View>
         ) : null}
 
+        {result ? <Text variant="title2" style={styles.introTitle}>{t('placeImport.analysisTitle')}</Text> : null}
+        {result?.status === 'ALREADY_EXISTS' ? <GhostBtn label={t('placeImport.enteredLink')} onPress={() => { void openWebsite(url).then(ok => setLinkFailed(!ok)) }} /> : null}
+        {linkFailed && result?.status === 'ALREADY_EXISTS' ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
+
         {/* Already in the catalog — send the user to it instead of creating a
             duplicate submission. */}
-        {result?.status === 'ALREADY_EXISTS' ? (
-          <Card padded={false} style={styles.resultCard}>
-            <View style={styles.existsBanner}>
-              <View style={styles.existsIcon}>
-                <Icon name="check" size={20} color="accent.onAccent" />
-              </View>
-              <Text variant="title2" style={styles.existsTitle}>{candidate?.name ?? t('placeImport.existsTitle')}</Text>
-            </View>
-            <View style={styles.resultBody}>
-              <Text variant="bodySmall" color="text.secondary" style={styles.placeAddress}>{t('placeImport.existsBody')}</Text>
-              {result.existingPlaceId ? (
-                <PrimaryBtn
-                  label={t('placeImport.openPlace')}
-                  icon="arrowRight"
-                  onPress={() => router.replace(`/places/${result.existingPlaceId}`)}
-                  style={styles.addBtn}
-                />
-              ) : null}
-            </View>
-          </Card>
+        {result?.status === 'ALREADY_EXISTS' && result.existingPlaceId ? (
+          <ExistingPlaceResult placeId={result.existingPlaceId} onReset={reset} />
         ) : null}
 
         {/* The link matched more than one place; the user picks which. */}
@@ -371,7 +402,7 @@ export default function PlaceImportScreen() {
               onPress={() => {
                 if (selectedGooglePlaceId) void onSubmitPlace(selectedGooglePlaceId)
               }}
-              disabled={!selectedGooglePlaceId}
+              disabled={!selectedGooglePlaceId || submit.isSuccess}
               loading={submit.isPending || revalidating}
               style={styles.addBtn}
             />
@@ -379,37 +410,9 @@ export default function PlaceImportScreen() {
           </View>
         ) : null}
 
-        {result?.status === 'RESOLVED' && candidate ? (
-          <Card padded={false} style={styles.resultCard}>
-            <PlacePhoto
-              placeId={candidate.googlePlaceId ?? url}
-              name={candidate.name}
-              uri={null}
-              style={styles.resultImage}
-            />
-            <View style={styles.resultBody}>
-              <View style={styles.verifiedBadge}>
-                <Text variant="label" color="status.successText">{t('placeImport.verifiedBadge')}</Text>
-              </View>
-              <Text variant="title1">{candidate.name}</Text>
-              <View style={styles.addressRow}>
-                <IconMapPin color={theme.text.secondary} />
-                <Text variant="bodySmall" color="text.secondary" style={styles.addressText}>{candidate.address}</Text>
-              </View>
-
-              {candidate.googleRating != null ? (
-                <View style={styles.ratingChip}>
-                <Text variant="label">
-                  {t('placeImport.reviews', {
-                    rating: candidate.googleRating,
-                    // `n` is the display string; `count` picks the plural form (#270).
-                    count: candidate.googleRatingCount ?? 0,
-                    n: (candidate.googleRatingCount ?? 0).toLocaleString(i18n.language),
-                  })}
-                </Text>
-                </View>
-              ) : null}
-
+        {result?.status === 'RESOLVED' && candidate && !submit.data?.placeId ? (
+          <PlaceCard variant="preview" preview={candidate} style={styles.resultCard}
+            categoryLabel={candidate.categoryKey ? taxonomyOptions('category').find(option => option.key === candidate.categoryKey)?.label : null}>
               {/* Google's business status is a fact worth surfacing: submitting a
                   closed place wastes a moderator's time and the user's. */}
               {candidate.businessStatus && candidate.businessStatus !== 'OPERATIONAL' ? (
@@ -423,11 +426,16 @@ export default function PlaceImportScreen() {
                 </View>
               ) : null}
 
+              <GhostBtn label={t('placeDetail.save')} disabled onPress={() => {}} accessibilityHint={t('placeImport.saveLocked')} />
+              <Text variant="caption" color="text.secondary">{t('placeImport.saveLocked')}</Text>
+              {actorStatus === 'user' && !submit.isSuccess ? <Text variant="bodySmall">{t('placeImport.approvalCredit')}</Text> : null}
+              {candidate.googleMapsUri ? <GhostBtn label={t('placeImport.googleLink')} onPress={() => { void openWebsite(candidate.googleMapsUri as string).then(ok => setLinkFailed(!ok)) }} /> : null}
+              {linkFailed ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
               {/* Optional metadata (PI-APP-004) — moderators get better context
                   when the submitter fills it in, and nothing here is required. */}
-              {!submit.isSuccess ? (
+              {!submit.isSuccess ? <GhostBtn label={t('placeImport.metaTitle')} onPress={() => setMetadataOpen(value => !value)} /> : null}
+              {!submit.isSuccess && metadataOpen ? (
                 <View style={styles.metaSection}>
-                  <Text variant="label">{t('placeImport.metaTitle')}</Text>
 
                   <Text variant="label" style={styles.metaLabel}>{t('placeImport.metaCategory')}</Text>
                   <View style={styles.chipRow}>
@@ -496,30 +504,7 @@ export default function PlaceImportScreen() {
                 </View>
               ) : null}
 
-              {submit.isSuccess ? (
-                <View>
-                  <Text variant="label" color="status.successText" style={styles.addedLabel}>
-                    {submit.data?.status === 'ALREADY_EXISTS'
-                      ? t('placeImport.existsBody')
-                      : t('placeImport.pendingReview')}
-                  </Text>
-                  {/* Polled until a moderator decides. */}
-                  {submission.data?.status ? (
-                    <Text variant="bodySmall" color="text.secondary" style={styles.submissionStatus}>
-                      {t(`placeImport.submissionStatus.${submission.data.status}`, {
-                        defaultValue: submission.data.status,
-                      })}
-                    </Text>
-                  ) : null}
-                  {submission.data?.status === 'approved' && submission.data.placeId ? (
-                    <GhostBtn
-                      label={t('placeImport.openPlace')}
-                      icon="arrowRight"
-                      onPress={() => router.replace(`/places/${submission.data?.placeId}`)}
-                    />
-                  ) : null}
-                </View>
-              ) : (
+              {!submit.isSuccess ? (
                 <>
                   <PrimaryBtn
                     label={t('placeImport.submit')}
@@ -537,18 +522,25 @@ export default function PlaceImportScreen() {
                   />
                   {notOpenYet ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{t('placeImport.notYetOpen')}</Text> : null}
                 </>
-              )}
+              ) : null}
 
               {submitError && !notOpenYet ? <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>{submitError}</Text> : null}
 
-              {/* Provider data must be shown with its attribution. */}
-              {(candidate.attributions ?? []).map(attribution => (
-                <Text variant="caption" color="text.secondary" key={attribution} style={styles.attribution}>
-                  {attribution}
-                </Text>
-              ))}
+          </PlaceCard>
+        ) : null}
+
+        {previewMatchesUrl && submit.isSuccess ? (
+          submit.data?.placeId ? <ExistingPlaceResult placeId={submit.data.placeId} onReset={reset} /> : (
+            <View style={styles.resultBody}>
+              {!submission.data?.status || submission.data.status === 'pending' ? <Text variant="label">{t('placeImport.pendingReview')}</Text> : null}
+              {submission.data?.status ? <Text>{t(`placeImport.submissionStatus.${submission.data.status}`)}</Text> : null}
+              {(submission.data?.status === 'approved' || submission.data?.status === 'merged') && submission.data.placeId ? <ExistingPlaceResult placeId={submission.data.placeId} onReset={reset} /> : null}
+              {submission.isError ? <>
+                <Text>{t(isApiError(submission.error) && submission.error.status === 403 ? 'placeImport.ownerOnlyStatus' : 'placeImport.statusFailed')}</Text>
+                {!(isApiError(submission.error) && submission.error.status === 403) ? <GhostBtn label={t('common.retry')} onPress={() => { void submission.refetch() }} /> : null}
+              </> : null}
             </View>
-          </Card>
+          )
         ) : null}
 
         {result?.status === 'UNRESOLVED' ? (

@@ -197,7 +197,7 @@ export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
 type OpeningHour = NonNullable<PlaceDetail['hours']>[number]
 
 export interface DerivedOpenState {
-  openNow: boolean
+  openNow?: boolean
   closesAtMinute?: number
   opensAtMinute?: number
   /** 0 = today, 1 = tomorrow — lets copy say "mở lại 09:00 mai". */
@@ -215,11 +215,16 @@ const DAYS_PER_WEEK = 7
  * `isOvernight` means the entry closes after midnight, so a place open
  * 18:00–02:00 is still open at 01:00 — under *yesterday's* entry.
  */
-export function openStateFromHours(hours: OpeningHour[] | undefined, now = new Date()): DerivedOpenState {
-  if (!hours || hours.length === 0) return { openNow: false }
+export function vietnamClock(now: Date) {
+  // Vietnam has one time zone and no daylight saving. Never use the device zone.
+  const local = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  return { day: local.getUTCDay(), minute: local.getUTCHours() * 60 + local.getUTCMinutes() }
+}
 
-  const day = now.getDay()
-  const minute = now.getHours() * 60 + now.getMinutes()
+export function openStateFromHours(hours: OpeningHour[] | undefined, now = new Date()): DerivedOpenState {
+  if (!hours || hours.length === 0) return {}
+
+  const { day, minute } = vietnamClock(now)
 
   for (const entry of hours) {
     if (entry.dayOfWeek !== day || entry.openMinute == null || entry.closeMinute == null) continue

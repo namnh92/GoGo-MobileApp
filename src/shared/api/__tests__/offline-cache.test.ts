@@ -20,8 +20,9 @@ describe('shouldPersistQuery', () => {
     expect(shouldPersistQuery(queryKeys.roomMembers('room-1'))).toBe(true)
   })
 
-  it('keeps the place summaries a plan stop points at', () => {
-    expect(shouldPersistQuery(queryKeys.place('place-1'))).toBe(true)
+  it('drops full place detail with moderated aggregates; the plan retains its stop summaries', () => {
+    expect(shouldPersistQuery(queryKeys.place('place-1'))).toBe(false)
+    expect(shouldPersistQuery(['place-provider-photos', 'place-1'])).toBe(false)
   })
 
   it('keeps the signed-in profile and saved list', () => {

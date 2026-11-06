@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { usePlaceClock } from '@/shared/ui/use-place-clock'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
@@ -50,6 +51,7 @@ import { SuggestionRunNotice } from './suggestion-run-notice.view'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 export default function MatchResultScreen() {
+  const now = usePlaceClock()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -209,7 +211,7 @@ export default function MatchResultScreen() {
 
   const winnerPlace = winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : null
   const winnerPhoto = winnerPlace?.photoUrl ?? null
-  const winnerOpen = openStateFromHours(winnerDetail.data?.hours)
+  const winnerOpen = openStateFromHours(winnerDetail.data?.hours, now)
   const winnerPrice = winnerPlace ? placePriceParts(winnerPlace) : null
   const winnerPriceText = winnerPrice && winnerPrice.unit !== 'unknown'
     ? isStandalonePrice(winnerPrice.unit)

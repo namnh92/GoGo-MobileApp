@@ -1,7 +1,7 @@
 import { useRouter, type Href } from 'expo-router'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View } from 'react-native'
+import { Pressable, View, type LayoutChangeEvent } from 'react-native'
 
 import {
   isApiError,
@@ -27,7 +27,7 @@ import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './place-reviews.style'
 
-/** Rows the loading state stands in for; the preview itself holds at most three. */
+/** Two rows preserve the list layout while its first page loads. */
 const SKELETON_ROWS = 2
 
 const ORDERS = [
@@ -39,7 +39,7 @@ type MarkFailure = 'own' | 'failed'
 
 /**
  * APP-056 (#212) — the latest published GoGo reviews on Place Detail.
- * APP-060 (#219) — or the most helpful three, with a helpful mark per review.
+ * APP-060 (#219), #482 — latest/helpful pages, with a helpful mark per review.
  *
  * Its own queries and its own states: a slow or failed review read shows here
  * and nowhere else, so the place facts above never wait on it or break with
@@ -49,7 +49,7 @@ type MarkFailure = 'own' | 'failed'
  * accounts (ADR-0026, proposal), so a guest reads the counts and is asked to
  * sign in rather than shown a control that would fail.
  */
-export function PlaceReviews({ placeId, showPageLink = false }: { placeId: string; showPageLink?: boolean }) {
+export function PlaceReviews({ placeId, onLayout }: { placeId: string; onLayout?: (event: LayoutChangeEvent) => void }) {
   const { t } = useTranslation()
   const router = useRouter()
   const { status } = useSession()
@@ -60,6 +60,8 @@ export function PlaceReviews({ placeId, showPageLink = false }: { placeId: strin
   const [failure, setFailure] = useState<{ reviewId: string; kind: MarkFailure } | null>(null)
 
   const reviews = usePlaceReviews(placeId, order)
+  const firstPage = reviews.data?.pages[0]
+  const rows = [...new Map(reviews.data?.pages.flatMap(page => page.items ?? page.reviews).map(review => [review.id, review])).values()]
   const mine = useMyReviewReactions(placeId, { enabled: canReact })
   const toggle = useToggleReviewHelpful(placeId)
   const pendingReviewId = toggle.isPending ? toggle.variables?.reviewId : undefined
@@ -109,7 +111,7 @@ export function PlaceReviews({ placeId, showPageLink = false }: { placeId: strin
         <GhostBtn label={t('common.retry')} onPress={() => void reviews.refetch()} />
       </View>
     )
-  } else if (reviews.data.reviews.length === 0) {
+  } else if (rows.length === 0) {
     body = <Text variant="bodySmall" color="text.secondary" style={styles.empty}>{t('placeReviews.empty')}</Text>
   } else {
     body = (
@@ -121,11 +123,11 @@ export function PlaceReviews({ placeId, showPageLink = false }: { placeId: strin
           reportOffline={false}
           onRetry={() => void reviews.refetch()}
         />
-        {isHelpfulFallback(reviews.data) ? (
+        {isHelpfulFallback(firstPage) ? (
           <Text variant="caption" color="text.secondary" style={styles.fallback}>{t('placeReviews.helpfulFallback')}</Text>
         ) : null}
         <View style={styles.list}>
-          {reviews.data.reviews.map(review => (
+          {rows.map(review => (
             <ReviewRow
               key={review.id}
               review={review}
@@ -141,12 +143,12 @@ export function PlaceReviews({ placeId, showPageLink = false }: { placeId: strin
   }
 
   // Ordering an empty place changes nothing, so the switch waits for reviews.
-  const showOrder = !(order === 'latest' && reviews.data?.reviews.length === 0)
+  const showOrder = !(order === 'latest' && rows.length === 0)
 
   return (
-    <View testID="place-reviews" style={styles.section}>
+    <View testID="place-reviews" style={styles.section} onLayout={onLayout}>
       <Text variant="title2" accessibilityRole="header">
-        {t('placeReviews.title')}
+        {t('placeReviews.title')}{firstPage?.gogoRatingCount != null ? ` (${firstPage.gogoRatingCount})` : ''}
       </Text>
       {/* The source line is a banner: GoGo's reviews are never merged with Google's. */}
       <View style={styles.sourceBanner}>
@@ -166,10 +168,11 @@ export function PlaceReviews({ placeId, showPageLink = false }: { placeId: strin
         </View>
       ) : null}
       {body}
-      {showPageLink && reviews.data && reviews.data.reviews.length > 0 ? (
+      {reviews.hasNextPage ? (
         <GhostBtn
-          label={t('placeReviews.openPage')}
-          onPress={() => router.push(`/places/reviews/${placeId}` as Href)}
+          label={t(reviews.isFetchNextPageError ? 'common.retry' : 'placeReviews.loadMore')}
+          loading={reviews.isFetchingNextPage}
+          onPress={() => { if (!reviews.isFetchingNextPage) void reviews.fetchNextPage() }}
         />
       ) : null}
       {askSignIn ? (
@@ -226,6 +229,7 @@ function ReviewRow({
             <Text variant="label" color="accent.primary">{t('placeReviews.rating', { rating: review.rating })}</Text>
           </View>
         </View>
+        {review.verifiedVisit ? <Text variant="caption" color="status.successText">{t('placeReviews.verifiedVisit')}</Text> : null}
         {review.text ? <Text style={styles.reviewText}>{review.text}</Text> : null}
       </View>
       <View style={styles.divider} />
