@@ -1,4 +1,6 @@
-import { act, fireEvent } from '@testing-library/react-native'
+import { QueryClient, QueryClientProvider, notifyManager } from '@tanstack/react-query'
+import i18n from '@/shared/i18n'
+import { act, fireEvent, waitFor } from '@testing-library/react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
 import { scriptedTime } from './scripted-time'
@@ -8,6 +10,7 @@ import { scriptedTime } from './scripted-time'
 const mockPush = jest.fn()
 const mockBack = jest.fn()
 const mockAddSeed = jest.fn()
+let mockRealSearch = false
 let mockParams: Record<string, string> = {}
 let mockScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
 const mockQueries: Record<string, unknown>[] = []
@@ -38,7 +41,7 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useHomeRoom: () => mockLoaded(mockHomeRoom),
   useContributionCredits: () => mockLoaded(mockCredits),
-  useDiscoveryPreview: (query: Record<string, unknown>, enabled: boolean) => { mockPreviewCalls.push({ query, enabled }); return mockPreview.value },
+  useDiscoveryPreview: (query: Record<string, unknown>, enabled: boolean) => { mockPreviewCalls.push({ query, enabled }); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').useDiscoveryPreview(query, enabled) : mockPreview.value },
   useJoinRoom: () => ({ mutateAsync: jest.fn() }),
   useMe: () => mockLoaded({ homeAdministrativeArea: null }),
   useSaved: () => mockLoaded([]),
@@ -46,7 +49,7 @@ jest.mock('@/shared/api', () => ({
   useAddRoomSeedPlaces: () => ({ mutate: mockAddSeed }),
   useTaxonomies: () =>
     mockLoaded({ kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }], ...mockKinds } }),
-  usePlaceSearch: (query: Record<string, unknown>) => { mockQueries.push(query); return mockSearch.value },
+  usePlaceSearch: (query: Record<string, unknown>) => { mockQueries.push(query); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').usePlaceSearch(query) : mockSearch.value },
 }))
 
 import HomeScreen from '@/features/home/home.view'
@@ -71,6 +74,7 @@ function emptyPage() {
 scriptedTime()
 
 beforeEach(() => {
+  mockRealSearch = false
   mockKinds = {}
   mockHomeRoom = undefined
   mockCredits = undefined
@@ -203,12 +207,12 @@ describe('#774 integration', () => {
     expect(mockQueries.at(-1)?.moods).toBeUndefined()
   })
   it('renders the server-selected Home room and canonical link only with new schedule facts', async () => {
-    mockHomeRoom = { items: [{ id: 'nearest', title: 'Đi chơi', status: 'active', startAt: null, endAt: null }] }
+    mockHomeRoom = { items: [{ id: 'nearest', title: '  Đi chơi  ', type: 'group', participantCount: 4, status: 'active', startAt: null, endAt: null }] }
     const view = await renderScreen(<HomeScreen />)
     expect(view.getByText('Đang diễn ra')).toBeTruthy()
     await fireEvent.press(view.getByText('Đi chơi'))
     expect(mockPush).toHaveBeenCalledWith('/room/nearest')
-    mockHomeRoom = { items: [{ id: 'old', title: 'Old response', status: 'active' }] }
+    mockHomeRoom = { items: [{ id: 'old', title: 'Old response', type: 'couple', participantCount: 2, status: 'active' }] }
     await view.rerender(<HomeScreen />)
     expect(view.queryByText('Old response')).toBeNull()
   })
@@ -219,4 +223,132 @@ describe('#774 integration', () => {
     await view.rerender(<SearchScreen />)
     expect(view.getByText('+50 credit GoGo AI sau khi được duyệt (1 tin nhắn = 1 credit)')).toBeTruthy()
   })
+})
+
+const roomFacts = { id: 'nearest', status: 'ready', startAt: null, endAt: null }
+it.each(['vi', 'en'])('keeps untitled couple/group banners with localized room facts (%s)', async locale => {
+  await act(async () => { await i18n.changeLanguage(locale) })
+  try {
+    const view = await renderScreen(<HomeScreen />)
+    for (const type of ['couple', 'group']) {
+      for (const title of [undefined, '', '   ']) {
+        mockHomeRoom = { items: [{ ...roomFacts, type, participantCount: type === 'group' ? 7 : 2, title }] }
+        await view.rerender(<HomeScreen />)
+        const expected = locale === 'vi' ? type === 'group' ? 'Kèo nhóm 7 người' : 'Kèo hẹn hò' : type === 'group' ? 'Group outing for 7 people' : 'Couple outing'
+        expect(view.getByText(locale === 'vi' ? 'Đã có kế hoạch' : 'Plan ready')).toBeTruthy()
+        await fireEvent.press(view.getByText(expected))
+        expect(mockPush).toHaveBeenLastCalledWith('/room/nearest')
+      }
+    }
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+})
+it.each(['completed', 'cancelled', 'expired', 'draft'])('omits an ineligible nearest room (%s)', async status => {
+  mockHomeRoom = { items: [{ ...roomFacts, type: 'group', participantCount: 3, title: 'Excluded room', status }] }
+  const view = await renderScreen(<HomeScreen />)
+  expect(view.queryByText('Excluded room')).toBeNull()
+})
+
+it.each(['count only', 'all taxonomy', 'selected entry'])('keeps Home mood removal, reset and See more after losing %s', async loss => {
+  mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }, { key: 'quiet', labels: { vi: 'Yên tĩnh' } }] }
+  mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [], meta: { totalCount: 2 } }] } }
+  const view = await renderScreen(<HomeScreen />)
+  await fireEvent.press(view.getByLabelText('Ấm cúng'))
+  mockSearch.value = emptyPage()
+  if (loss !== 'count only') mockKinds = loss === 'all taxonomy' ? {} : { mood: [{ key: 'quiet', labels: { vi: 'Yên tĩnh' } }] }
+  await view.rerender(<HomeScreen />)
+  const label = loss === 'count only' ? 'Ấm cúng' : 'Bỏ tâm trạng đã chọn 1'
+  expect(view.getByLabelText(label).props.accessibilityState.selected).toBe(true)
+  await fireEvent.press(view.getByText('Xem thêm'))
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/places/search', params: { moods: 'cozy' } })
+  await fireEvent.press(view.getByLabelText(label))
+  expect(mockQueries.at(-1)?.moods).toBeUndefined()
+  // Select again, then exercise the separate reset action.
+  mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
+  await view.rerender(<HomeScreen />)
+  await fireEvent.press(view.getByLabelText('Ấm cúng'))
+  mockKinds = {}
+  await view.rerender(<HomeScreen />)
+  await fireEvent.press(view.getByText('Tất cả'))
+  expect(mockQueries.at(-1)?.moods).toBeUndefined()
+})
+
+it.each([true, false])('keeps a carried mood removable on an uncounted empty Search (taxonomy available=%s)', async available => {
+  mockParams = { moods: 'cozy' }
+  mockKinds = available ? { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] } : {}
+  const view = await renderScreen(<SearchScreen />)
+  expect(mockQueries.at(-1)?.moods).toBe('cozy')
+  await fireEvent.press(view.getByLabelText('Bộ lọc'))
+  await fireEvent.press(view.getByLabelText(available ? 'Ấm cúng' : 'Bỏ tâm trạng đã chọn 1'))
+  await fireEvent.press(view.getByText('Áp dụng bộ lọc'))
+  expect(mockQueries.at(-1)?.moods).toBeUndefined()
+  // A fresh navigation carries the selection again; reset must clear it too.
+  await view.unmount()
+  const resetView = await renderScreen(<SearchScreen />)
+  expect(mockQueries.at(-1)?.moods).toBe('cozy')
+  await fireEvent.press(resetView.getByLabelText('Bộ lọc'))
+  await fireEvent.press(resetView.getByLabelText('Đặt lại về mặc định'))
+  await fireEvent.press(resetView.getByText('Áp dụng bộ lọc'))
+  expect(mockQueries.at(-1)?.moods).toBeUndefined()
+})
+
+function httpResponse(body: unknown, status = 200): Response {
+  return { ok: status < 400, status, headers: new Headers({ 'content-type': 'application/json' }), json: async () => body, text: async () => JSON.stringify(body) } as Response
+}
+
+it.each(['SEARCH_COUNT_UNAVAILABLE', 'RATE_LIMITED'])('typing and preview use real hooks through HTTP count failures (%s)', async code => {
+  mockRealSearch = true
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  notifyManager.setScheduler(callback => callback())
+  const page = { results: [{ id: 'place-1', name: 'Quán còn đây', isLodging: false }], nextCursor: null, meta: {} }
+  const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+    const url = new URL(String(input))
+    const preview = url.searchParams.get('limit') === '1'
+    const changed = url.searchParams.get('q') === 'tea' || url.searchParams.has('openAt')
+    if (changed && url.searchParams.has('includeTotal')) return httpResponse({ code: preview ? code : 'SEARCH_COUNT_UNAVAILABLE', message: 'Count unavailable' }, 429)
+    return httpResponse({ ...page, meta: url.searchParams.has('includeTotal') ? { totalCount: preview ? 7 : 42 } : {} })
+  })
+  const element = <QueryClientProvider client={client}><SearchScreen /></QueryClientProvider>
+  try {
+    const view = await renderScreen(element)
+    await waitFor(() => expect(view.getByText('Tìm thấy 42 địa điểm')).toBeTruthy())
+    await fireEvent.changeText(view.getByLabelText('Tìm địa điểm'), 'tea')
+    expect(view.queryByText('Tìm thấy 42 địa điểm')).toBeNull()
+    await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+    await waitFor(() => expect(client.isFetching()).toBe(0))
+    expect(view.getByText('Quán còn đây')).toBeTruthy()
+    expect(view.queryByText('Tìm thấy 42 địa điểm')).toBeNull()
+    expect(view.queryByText('Tìm thấy 0 địa điểm')).toBeNull()
+    // Restore a current applied total before failing a previously successful preview.
+    await fireEvent.changeText(view.getByLabelText('Tìm địa điểm'), '')
+    await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+    await waitFor(() => expect(view.getByText('Tìm thấy 42 địa điểm')).toBeTruthy())
+    await fireEvent.press(view.getByLabelText('Bộ lọc'))
+    await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+    await waitFor(() => expect(view.getByText('Xem 7 địa điểm')).toBeTruthy())
+    await fireEvent.press(view.getByLabelText('Mở cửa ngay'))
+    expect(view.queryByText('Xem 7 địa điểm')).toBeNull()
+    await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+    await waitFor(() => expect(client.isFetching()).toBe(0))
+    expect(view.queryByText('Xem 7 địa điểm')).toBeNull()
+    expect(view.getByRole('button', { name: 'Áp dụng bộ lọc' }).props.accessibilityState.disabled).toBe(false)
+    await fireEvent.press(view.getByLabelText('Đóng'))
+    expect(view.getByText('Tìm thấy 42 địa điểm')).toBeTruthy()
+    expect(view.getByTestId('search-results')).toBeTruthy()
+    expect(view.getByText('Quán còn đây')).toBeTruthy()
+    expect(view.queryByText('Có lỗi xảy ra')).toBeNull()
+    const previewCalls = fetch.mock.calls.map(([input]) => new URL(String(input))).filter(url => url.searchParams.get('limit') === '1' && url.searchParams.has('openAt'))
+    expect(previewCalls).toHaveLength(code === 'RATE_LIMITED' ? 1 : 2)
+    expect(previewCalls.at(-1)?.searchParams.has('includeTotal')).toBe(code === 'RATE_LIMITED')
+    await fireEvent.press(view.getByLabelText('Bộ lọc'))
+    await fireEvent.press(view.getByLabelText('Mở cửa ngay'))
+    await fireEvent.press(view.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+    await waitFor(() => expect(client.isFetching()).toBe(0))
+    expect(fetch.mock.calls.map(([input]) => new URL(String(input))).some(url => url.searchParams.get('limit') !== '1' && url.searchParams.get('openAt') === 'now')).toBe(true)
+    expect(view.getByText('Quán còn đây')).toBeTruthy()
+    expect(view.queryByText('Có lỗi xảy ra')).toBeNull()
+    await view.unmount()
+  } finally {
+    client.clear()
+    notifyManager.setScheduler(callback => setTimeout(callback, 0))
+  }
 })

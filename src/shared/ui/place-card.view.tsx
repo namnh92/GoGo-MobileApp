@@ -273,8 +273,10 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
         <View style={styles.listPhoto}>
           <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
           {place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="redesign.white" /><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.verified')}</Text></View> : null}
-          {distance || place.discovery?.areaLabel ? <View style={styles.distanceBadge}><Text variant="introCaptionMedium" color="redesign.ink">{[distance, place.discovery?.areaLabel].filter(Boolean).join(' • ')}</Text></View> : null}
-          {open ? <View style={styles.openBadge}><Text variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.label}</Text></View> : null}
+          {distance || place.discovery?.areaLabel || open ? <View testID="place-card-photo-badges" pointerEvents="none" style={styles.photoBadges}>
+          {distance || place.discovery?.areaLabel ? <View testID="place-card-area-badge" style={styles.photoBadge}><Text numberOfLines={2} style={styles.photoBadgeText} variant="introCaptionMedium" color="redesign.ink">{[distance, place.discovery?.areaLabel].filter(Boolean).join(' • ')}</Text></View> : null}
+          {open ? <View testID="place-card-hours-badge" style={styles.photoBadge}><Text numberOfLines={2} style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.label}</Text></View> : null}
+          </View> : null}
         </View>
         <View style={styles.listBody}>
           <View style={styles.discoveryHead}>

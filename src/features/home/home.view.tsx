@@ -77,7 +77,12 @@ export default function HomeScreen() {
   const nearest = useHomeRoom(status === 'user' || status === 'guest')
   const homeRoom = nearest.data?.items[0]
   // New schedule fields prove this is the server selection contract, even if null.
-  const showRoom = homeRoom && 'startAt' in homeRoom && 'endAt' in homeRoom && homeRoom.title?.trim()
+  const showRoom = homeRoom && 'startAt' in homeRoom && 'endAt' in homeRoom
+  const roomTitle = homeRoom?.title?.trim() || (homeRoom?.type === 'group'
+    ? t('discovery.groupRoomTitle', { count: homeRoom.participantCount })
+    : t('discovery.coupleRoomTitle'))
+  // Taxonomy is the deployed mood-filter signal; active keys always stay removable.
+  const moodOptions = { ...labels.mood, ...Object.fromEntries(moods.filter(key => !labels.mood?.[key]).map((key, index) => [key, t('discovery.selectedMood', { number: index + 1 })])) }
   const roomStatus = homeRoom?.status === 'active' ? t('plans.status.active') : homeRoom?.status === 'collecting' ? t('plans.status.collecting') : homeRoom?.status === 'matching' ? t('plans.status.matching') : homeRoom?.status === 'ready' ? t('plans.status.ready') : null
 
   const search = usePlaceSearch(
@@ -214,13 +219,13 @@ export default function HomeScreen() {
         <QuickJoin knownName={me.data?.displayName} />
         {showRoom && roomStatus ? <Pressable accessibilityRole="button" style={styles.nearestRoom} onPress={() => router.push(`/room/${homeRoom.id}`)}>
           <View style={styles.roomIcon}><MaterialIcon name="groups" color="redesign.white" size={20} /></View>
-          <View style={styles.roomCopy}><Text variant="introCaptionMedium" color="redesign.violetText">{roomStatus}</Text><Text variant="introLabel">{homeRoom.title}</Text></View>
+          <View style={styles.roomCopy}><Text variant="introCaptionMedium" color="redesign.violetText">{roomStatus}</Text><Text variant="introLabel">{roomTitle}</Text></View>
           <View style={styles.roomAction}><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.enterRoom')}</Text></View>
         </Pressable> : null}
-        {search.data?.pages[0]?.meta?.totalCount !== undefined && Object.keys(labels.mood ?? {}).length ? <View style={styles.moodSection}>
+        {Object.keys(moodOptions).length ? <View style={styles.moodSection}>
           <View style={styles.moodHeading}><Text variant="introHeading">{t('discovery.exploreMood')}</Text><GhostBtn label={t('discovery.allMoods')} onPress={() => setMoods([])} /></View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moods}>
-            {Object.entries(labels.mood ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={moods.includes(key) ? 'selected' : moods.length >= 10 ? 'disabled' : 'default'} onPress={() => setMoods(prev => prev.includes(key) ? prev.filter(value => value !== key) : [...prev, key])} />)}
+            {Object.entries(moodOptions).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={moods.includes(key) ? 'selected' : moods.length >= 10 ? 'disabled' : 'default'} onPress={() => setMoods(prev => prev.includes(key) ? prev.filter(value => value !== key) : [...prev, key])} />)}
           </ScrollView>
         </View> : null}
         <View style={{ paddingHorizontal: 16, marginTop: 24 }}>

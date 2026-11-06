@@ -11,8 +11,11 @@ export const styles = StyleSheet.create(theme => ({
   ratingBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   googleBadge: { backgroundColor: theme.redesign.container, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   gogoBadge: { backgroundColor: theme.redesign.violetSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  distanceBadge: { position: 'absolute', left: 12, bottom: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
-  openBadge: { position: 'absolute', right: 12, bottom: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
+  // Stitch Search: one inset bottom overlay. Reserve the top 44pt save/verified
+  // row; badges wrap within the photo rather than occupying opposing corners.
+  photoBadges: { position: 'absolute', left: 12, right: 12, top: 64, bottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  photoBadge: { maxWidth: '100%', minWidth: 0, flexShrink: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
+  photoBadgeText: { flexShrink: 1 },
   wrap: { position: 'relative' },
 
   // --- list (default): the Stitch card, photo over body ---------------------

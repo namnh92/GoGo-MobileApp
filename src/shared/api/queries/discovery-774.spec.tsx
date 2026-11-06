@@ -94,3 +94,48 @@ it('refetches server balances after an approved submission, without adding credi
   expect(client.getQueryData(queryKeys.assistantStatus())).toEqual({ creditBalance: 4 })
   expect(client.getQueryState(queryKeys.assistantStatus())?.isInvalidated).toBe(true)
 })
+
+/** Fetch boundary: exercise HTTP status/envelope decoding, not a thrown ApiError. */
+function response(body: unknown, status = 200): Response {
+  return { ok: status < 400, status, headers: new Headers({ 'content-type': 'application/json' }), json: async () => body, text: async () => JSON.stringify(body) } as Response
+}
+
+it.each(['search', 'preview'] as const)('decodes HTTP 429 count-unavailable and preserves every %s request parameter on fallback', async kind => {
+  const page = { results: [], nextCursor: 'next', meta: {} }
+  const fetch = jest.spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(response({ code: 'SEARCH_COUNT_UNAVAILABLE', message: 'Count quota exceeded' }, 429))
+    .mockResolvedValueOnce(response(page))
+    .mockResolvedValueOnce(response({ ...page, nextCursor: null }))
+  const query = { lat: 10, lng: 106, radiusM: 3000, q: 'cà phê', moods: 'cozy', amenities: 'wifi', categories: 'cafe', locale: 'vi' as const, sort: 'curated' as const, includeTotal: true, limit: 5 }
+  const { wrapper } = harness()
+  const hook = await renderHook(() => kind === 'search' ? usePlaceSearch(query) : useDiscoveryPreview(query, true), { wrapper })
+  await settleQueries()
+  expect(hook.result.current.isSuccess).toBe(true)
+  const urls = fetch.mock.calls.map(([url]) => new URL(String(url)))
+  expect(urls[0].searchParams.get('includeTotal')).toBe('true')
+  expect(urls[1].searchParams.has('includeTotal')).toBe(false)
+  urls[0].searchParams.delete('includeTotal')
+  expect(urls[1].origin + urls[1].pathname).toBe(urls[0].origin + urls[0].pathname)
+  expect([...urls[1].searchParams]).toEqual([...urls[0].searchParams])
+  expect(Object.fromEntries(urls[1].searchParams)).toMatchObject({ lat: '10', lng: '106', q: 'cà phê', moods: 'cozy', amenities: 'wifi', categories: 'cafe', locale: 'vi', sort: 'curated', limit: kind === 'preview' ? '1' : '5' })
+  if ('fetchNextPage' in hook.result.current) {
+    const fetchNextPage = hook.result.current.fetchNextPage
+    await act(async () => { await fetchNextPage() })
+    await settleQueries()
+    const next = new URL(String(fetch.mock.calls[2][0]))
+    expect(next.searchParams.get('cursor')).toBe('next')
+    expect(next.searchParams.has('includeTotal')).toBe(false)
+    next.searchParams.delete('cursor')
+    expect([...next.searchParams]).toEqual([...urls[1].searchParams])
+  }
+})
+
+it.each(['search', 'preview'] as const)('does not retry generic HTTP RATE_LIMITED without totals (%s)', async kind => {
+  const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(response({ code: 'RATE_LIMITED', message: 'Too many requests' }, 429))
+  const { wrapper } = harness()
+  const hook = await renderHook(() => kind === 'search' ? usePlaceSearch({ q: 'tea', includeTotal: true }) : useDiscoveryPreview({ q: 'tea' }, true), { wrapper })
+  await settleQueries()
+  expect(hook.result.current.error).toMatchObject({ status: 429, code: 'RATE_LIMITED' })
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(new URL(String(fetch.mock.calls[0][0])).searchParams.get('includeTotal')).toBe('true')
+})

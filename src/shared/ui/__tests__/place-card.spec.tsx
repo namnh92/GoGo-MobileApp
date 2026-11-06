@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
+import { themes, type AppTheme } from '@/shared/ui/theme'
 
 import type { PlaceCard as PlaceCardModel } from '@/shared/api'
 import i18n from '@/shared/i18n'
@@ -250,5 +252,46 @@ describe('discovery appearance protects Saved/default', () => {
     expect(screen.getByText('Chưa có thông tin giá')).toBeTruthy()
     await fireEvent.press(screen.getByTestId('place-card-save'))
     expect(remove).toHaveBeenCalledTimes(1)
+  })
+})
+
+/** Structural evidence only: RNTL/Jest do not perform Yoga text measurement. */
+describe('F-06 bounded discovery photo badges', () => {
+  it.each(['orange', 'orangeDark'] as const)('shares a 264pt wrapping overlay inside a 288pt card on a 320pt phone (%s)', async themeName => {
+    const create = jest.spyOn(UnistylesStyleSheet, 'create')
+    jest.isolateModules(() => { jest.requireActual('../place-card.style') })
+    const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
+    const styles = factory(themes[themeName])
+    create.mockRestore()
+    await render(<PlaceCard appearance="discovery" style={{ width: 320 - 2 * 16 }} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu', verified: true }, distanceM: 2100 })} saved onToggleSave={jest.fn()} />)
+    const overlay = screen.getByTestId('place-card-photo-badges')
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-discovery').parent!.parent!.props.style).width).toBe(288)
+    expect(styles.photoBadges).toMatchObject({ position: 'absolute', left: 12, right: 12, top: 64, bottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', gap: 8 })
+    expect(288 - styles.photoBadges.left - styles.photoBadges.right).toBe(264)
+    expect(288 / styles.listPhoto.aspectRatio - styles.photoBadges.top - styles.photoBadges.bottom).toBe(104)
+    expect(overlay.children).toHaveLength(2)
+    for (const id of ['place-card-area-badge', 'place-card-hours-badge']) {
+      expect(screen.getByTestId(id).parent).toBe(overlay)
+      expect(styles.photoBadge).toMatchObject({ maxWidth: '100%', minWidth: 0, flexShrink: 1, backgroundColor: themes[themeName].redesign.card })
+      expect(styles.photoBadge.position).toBeUndefined()
+      expect(screen.getByText(id === 'place-card-area-badge' ? '2,1 km • Tỉnh Bà Rịa - Vũng Tàu' : 'Đang mở · Đóng 20:00').props.numberOfLines).toBe(2)
+    }
+    expect(screen.getByText('2,1 km • Tỉnh Bà Rịa - Vũng Tàu')).toBeTruthy()
+    expect(screen.getByText('Đang mở · Đóng 20:00')).toBeTruthy()
+    expect(flat('place-card-save')).toMatchObject({ width: 44, height: 44 })
+    // Even if both badges use two lines and wrap to separate rows, 80pt fits
+    // in the 104pt reserved region below the top actions at default text size.
+    expect(2 * (2 * type.introCaptionMedium.lineHeight + 8) + 8).toBeLessThanOrEqual(104)
+  })
+  it.each([[false, false], [true, false], [false, true], [true, true]])('renders only supplied area/hours badges (%s/%s)', async (area, hours) => {
+    await render(<PlaceCard appearance="discovery" place={fixture({ distanceM: undefined, discovery: area ? { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } : undefined, openNow: hours ? true : undefined })} />)
+    expect(Boolean(screen.queryByTestId('place-card-area-badge'))).toBe(area)
+    expect(Boolean(screen.queryByTestId('place-card-hours-badge'))).toBe(hours)
+    expect(Boolean(screen.queryByTestId('place-card-photo-badges'))).toBe(area || hours)
+  })
+  it.each(['list', 'hero'] as const)('does not add the discovery overlay to the default %s variant', async variant => {
+    await render(<PlaceCard variant={variant} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } })} />)
+    expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
+    expect(screen.getByText('Cà phê Đỗ Phủ')).toBeTruthy()
   })
 })
