@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWindowDimensions, View, type ViewProps } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -149,25 +149,31 @@ function Plan() {
 }
 
 /** The art has its own coordinate space; the entire drawing scales, never stretches or clips. */
-export function OnboardingVisual({ slide }: { slide: number }) {
+type VisualProps = { slide: number; remainingArtHeight?: number; viewport?: { width: number; height: number }; onNaturalSize?: (size: { width: number; height: number }) => void }
+export function OnboardingVisual(props: VisualProps) {
   const window = useWindowDimensions()
+  const insets = useSafeAreaInsets()
   const { i18n } = useTranslation()
   // Re-measure at the unscaled design widths after a layout/content change.
   // A slide return must never reuse measurements from its previous mount.
-  return <FittedOnboardingVisual key={`${slide}:${window.width}:${window.height}:${window.fontScale}:${i18n.resolvedLanguage}`} slide={slide} window={window} />
+  return <FittedOnboardingVisual key={`${props.slide}:${window.width}:${window.height}:${window.fontScale}:${insets.top}:${insets.bottom}:${insets.left}:${insets.right}:${props.viewport?.width}:${props.viewport?.height}:${i18n.resolvedLanguage}`} {...props} window={window} />
 }
 
-function FittedOnboardingVisual({ slide, window }: { slide: number; window: ReturnType<typeof useWindowDimensions> }) {
+function FittedOnboardingVisual({ slide, window, viewport = window, remainingArtHeight, onNaturalSize }: VisualProps & { window: ReturnType<typeof useWindowDimensions> }) {
   const insets = useSafeAreaInsets()
+  const active = useRef(true)
+  useLayoutEffect(() => { active.current = true; return () => { active.current = false } }, [])
   const [heights, setHeights] = useState<Record<number, number>>({})
   const [rectangles, setRectangles] = useState<Partial<Record<SwipeCard, IllustrationRect>>>({})
   const bounds = illustrationEnvelope(rectangles.left && rectangles.right && rectangles.main ? Object.values(rectangles) : [])
   const height = slide === 1 ? bounds.height : heights[slide] ?? (slide === 0 ? 320 : 400)
   const width = slide === 1 ? bounds.width : 350
-  const fit = fitIllustration(window.width, window.height, insets.top, insets.bottom, height, width)
+  const fit = fitIllustration(viewport.width - insets.left - insets.right, viewport.height, insets.top, insets.bottom, height, width, remainingArtHeight)
+  const measured = slide === 1 ? !!(rectangles.left && rectangles.right && rectangles.main) : heights[slide] !== undefined
+  useLayoutEffect(() => { if (measured) onNaturalSize?.({ width, height }) }, [measured, width, height, onNaturalSize])
   const measure = (card: SwipeCard): ViewProps['onLayout'] => event => {
     const rect = event.nativeEvent.layout
-    if (rect.width <= 0 || rect.height <= 0) return
+    if (!active.current || rect.width <= 0 || rect.height <= 0) return
     setRectangles(previous => {
       const old = previous[card]
       if (old && old.x === rect.x && old.y === rect.y && old.width === rect.width && old.height === rect.height) return previous
@@ -175,7 +181,7 @@ function FittedOnboardingVisual({ slide, window }: { slide: number; window: Retu
     })
   }
   return <View testID="onboarding-visual" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.visual, { width: fit.width, height: fit.height }]}>
-    <View onLayout={event => { const h = event.nativeEvent.layout.height; if (slide !== 1 && h > 0 && heights[slide] !== h) setHeights(previous => ({ ...previous, [slide]: h })) }} style={[styles.art, { width, transform: [{ scale: fit.scale }] }]}>
+    <View onLayout={event => { const h = event.nativeEvent.layout.height; if (active.current && slide !== 1 && h > 0 && heights[slide] !== h) setHeights(previous => ({ ...previous, [slide]: h })) }} style={[styles.art, { width, transform: [{ scale: fit.scale }] }]}>
       {slide === 0 ? <Debate /> : slide === 1 ? <Swipe bounds={bounds} measure={measure} /> : <Plan />}
     </View>
   </View>

@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, View } from 'react-native'
+import { ScrollView, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { MessageKey } from '@/shared/i18n/types'
 import { pushPermission } from '@/shared/notifications/permission-bootstrap'
@@ -12,6 +12,7 @@ import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { OnboardingVisual } from './onboarding-visual.view'
 import { styles } from './onboarding.style'
+import { fitIllustration, onboardingArrangement, onboardingSpacing } from './onboarding-layout'
 
 const slides = [
   { titleKey: 'onboarding.slide1.title', bodyKey: 'onboarding.slide1.body', dots: 'debate' },
@@ -20,13 +21,22 @@ const slides = [
 ] as const satisfies readonly { titleKey: MessageKey; bodyKey: MessageKey; dots: 'debate' | 'swipe' | 'plan' }[]
 
 export default function OnboardingScreen() {
-  const { t } = useTranslation()
+  const { i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const window = useWindowDimensions()
   const [slide, setSlide] = useState(0)
   const [finishing, setFinishing] = useState(false)
-  const current = slides[slide]
-  const isLast = slide === 2
+  const environment = `${window.width}:${window.height}:${window.fontScale}:${insets.top}:${insets.bottom}:${insets.left}:${insets.right}:${i18n.resolvedLanguage}`
+  const [viewport, setViewport] = useState<{ environment: string; width: number; height: number }>()
+  const measured = viewport?.environment === environment
+  const size = measured ? viewport : window
+  const generation = useMemo(() => ({ environment, width: size.width, height: size.height }), [environment, size.width, size.height])
+  const activeEnvironment = useRef<typeof generation | null>(generation)
+  useLayoutEffect(() => {
+    activeEnvironment.current = generation
+    return () => { activeEnvironment.current = null }
+  }, [generation])
 
   async function finish() {
     if (finishing) return
@@ -46,8 +56,58 @@ export default function OnboardingScreen() {
 
   return (
     <Atmosphere redesign>
-      <ScrollView contentContainerStyle={[styles.content, isLast && styles.lastContent, { paddingTop: insets.top, paddingBottom: insets.bottom + 20 }]}>
-        <View style={[styles.header, slide > 0 && styles.headerSpaced]}>
+      <View testID="onboarding-viewport" style={styles.fill} onLayout={event => {
+        if (activeEnvironment.current !== generation) return
+        const { width, height } = event.nativeEvent.layout
+        if (width <= 0 || height <= 0) return
+        setViewport(previous => previous?.environment === environment && previous.width === width && previous.height === height ? previous : { environment, width, height })
+      }}>
+        <OnboardingBody key={`${slide}:${environment}:${size.width}:${size.height}`} slide={slide} setSlide={setSlide} finishing={finishing} finish={finish} start={start} viewport={size} viewportMeasured={measured} fontScale={window.fontScale} insets={insets} />
+      </View>
+    </Atmosphere>
+  )
+}
+
+type Block = 'header' | 'narrative' | 'dots' | 'actions'
+function OnboardingBody({ slide, setSlide, finishing, finish, start, viewport, viewportMeasured, fontScale, insets }: {
+  slide: number; setSlide: (slide: number) => void; finishing: boolean; finish: () => Promise<void>; start: () => Promise<void>
+  viewport: { width: number; height: number }; viewportMeasured: boolean; fontScale: number; insets: ReturnType<typeof useSafeAreaInsets>
+}) {
+  const { t } = useTranslation()
+  const current = slides[slide]
+  const isLast = slide === 2
+  const scroll = useRef<ScrollView>(null)
+  const active = useRef(true)
+  const [blocks, setBlocks] = useState<Partial<Record<Block, number>>>({})
+  const [art, setArt] = useState<{ width: number; height: number }>()
+  useLayoutEffect(() => {
+    active.current = true
+    // This body remounts on Next/Back and any geometry/language change. Native
+    // scroll state and all intrinsic measurements belong to that mount only.
+    scroll.current?.scrollTo({ y: 0, animated: false })
+    return () => { active.current = false }
+  }, [])
+  const measure = (block: Block) => (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout
+    if (!active.current || height <= 0 || Math.abs(width - (viewport.width - insets.left - insets.right - 40)) > 0.5) return
+    setBlocks(previous => previous[block] === height ? previous : { ...previous, [block]: height })
+  }
+  const measureArt = useCallback((size: { width: number; height: number }) => {
+    if (active.current) setArt(previous => previous?.width === size.width && previous.height === size.height ? previous : size)
+  }, [])
+  const gaps = onboardingSpacing(slide)
+  const margins = gaps.header * 2 + gaps.visualTop + gaps.visualBottom + gaps.narrative + gaps.dotsTop + gaps.dotsBottom + gaps.actions + gaps.bottom
+  const nonArt = Object.values(blocks).reduce((sum, height) => sum + height, 0) + margins + insets.top + insets.bottom
+  const fit = art && fitIllustration(viewport.width - insets.left - insets.right, viewport.height, insets.top, insets.bottom, art.height, art.width)
+  const complete = viewportMeasured && !!art && (['header', 'narrative', 'dots', 'actions'] as const).every(block => blocks[block] !== undefined)
+  const arrangement = onboardingArrangement(viewport.height, nonArt, fit?.height ?? 0, fontScale, complete)
+  // The former final-slide space-between had four intervals. Distribute only
+  // spare space, without measuring stretched blocks or feeding back fitted art.
+  const distributedGap = isLast ? arrangement.spare / 4 : 0
+  return (
+    <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + gaps.bottom, paddingLeft: 20 + insets.left, paddingRight: 20 + insets.right }]}>
+      <ScrollView ref={scroll} testID="onboarding-upper" style={arrangement.footer ? styles.scrollingUpper : styles.upper} contentContainerStyle={{ gap: distributedGap }} scrollEnabled={arrangement.footer} contentOffset={{ x: 0, y: 0 }}>
+        <View testID="onboarding-header" onLayout={measure('header')} style={[styles.header, slide > 0 && styles.headerSpaced]}>
           {isLast && <IconBtn accessibilityLabel={t('common.back')} disabled={finishing} onPress={() => setSlide(1)} style={styles.back}>
             <MaterialIcon name="arrowBack" size={24} />
           </IconBtn>}
@@ -55,19 +115,19 @@ export default function OnboardingScreen() {
           <GhostBtn variant={slide === 1 ? 'stitchSkipPill' : 'stitchSkip'} disabled={finishing} label={t('onboarding.skip')} onPress={finish} />
         </View>
         <View style={[styles.visual, isLast && styles.lastVisual]}>
-          <OnboardingVisual slide={slide} />
+          <OnboardingVisual slide={slide} viewport={viewport} remainingArtHeight={arrangement.artBudget} onNaturalSize={measureArt} />
         </View>
-        {isLast && <View style={styles.lastDots}><ProgressDots total={3} current={slide} variant={current.dots} /></View>}
-        <View style={[styles.narrative, slide === 1 && styles.swipeNarrative]}>
+        {isLast && <View testID="onboarding-dots" onLayout={measure('dots')} style={styles.lastDots}><ProgressDots total={3} current={slide} variant={current.dots} /></View>}
+        <View testID="onboarding-narrative" onLayout={measure('narrative')} style={[styles.narrative, slide === 1 && styles.swipeNarrative]}>
           <Text variant={slide === 1 ? 'introCompact' : 'introTitle'} color={slide === 1 ? 'redesign.mutedTitle' : 'redesign.ink'} style={styles.title}>{t(current.titleKey)}</Text>
           <Text variant={slide > 0 ? 'introRelaxed' : 'introBody'} color={slide === 1 ? 'redesign.mutedBody' : 'redesign.secondary'} style={styles.body}>{t(current.bodyKey)}</Text>
         </View>
-        {!isLast && <View style={[styles.dots, slide === 1 && styles.swipeDots]}><ProgressDots total={3} current={slide} variant={current.dots} /></View>}
-        <View style={[styles.actions, isLast && styles.lastActions]}>
-          <PrimaryBtn variant={slide === 1 ? 'stitchSubtle' : 'stitch'} loading={finishing} label={t(isLast ? 'onboarding.start' : 'onboarding.next')} icon={isLast ? undefined : 'arrowRight'} onPress={() => { if (isLast) void start(); else setSlide(slide + 1) }} />
-          {isLast && <GhostBtn variant="stitchGuest" disabled={finishing} label={t('onboarding.guest')} onPress={finish} />}
-        </View>
+        {!isLast && <View testID="onboarding-dots" onLayout={measure('dots')} style={[styles.dots, slide === 1 && styles.swipeDots]}><ProgressDots total={3} current={slide} variant={current.dots} /></View>}
       </ScrollView>
-    </Atmosphere>
+      <View testID="onboarding-actions" onLayout={measure('actions')} style={[styles.actions, isLast && styles.lastActions, { marginTop: gaps.actions + distributedGap }]}>
+        <PrimaryBtn variant={slide === 1 ? 'stitchSubtle' : 'stitch'} loading={finishing} label={t(isLast ? 'onboarding.start' : 'onboarding.next')} icon={isLast ? undefined : 'arrowRight'} onPress={() => { if (isLast) void start(); else setSlide(slide + 1) }} />
+        {isLast && <GhostBtn variant="stitchGuest" disabled={finishing} label={t('onboarding.guest')} onPress={finish} />}
+      </View>
+    </View>
   )
 }

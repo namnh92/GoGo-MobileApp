@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitIllustration, illustrationEnvelope, rotatedBounds, type IllustrationRect } from './onboarding-layout'
+import { fitIllustration, illustrationEnvelope, onboardingArrangement, rotatedBounds, type IllustrationRect } from './onboarding-layout'
 describe('R3/D7 illustration fit', () => {
   it.each([[320, 568], [360, 640], [390, 884], [430, 932]])('fits complete art inside %ix%i safe areas without changing aspect', (width, height) => {
     for (const artHeight of [320, 340, 400, 480]) {
@@ -12,6 +12,26 @@ describe('R3/D7 illustration fit', () => {
   })
   it('never overflows when safe areas consume the available screen', () => {
     expect(fitIllustration(320, 81, 47, 34, 400)).toEqual({ scale: 0, width: 0, height: 0 })
+  })
+})
+
+describe('whole-screen budget policy', () => {
+  it('retains an independently fitting reference and uniformly shrinks default-size art to the remainder', () => {
+    const reference = fitIllustration(390, 884, 47, 34, 440)
+    expect(fitIllustration(390, 884, 47, 34, 440, 350, 500)).toEqual(reference)
+    const se = fitIllustration(375, 667, 20, 0, 440, 350, 241)
+    expect(se.height).toBeCloseTo(241)
+    expect(se.width / se.height).toBeCloseTo(350 / 440)
+  })
+  it('uses the enlarged independent fit as the exact overflow boundary, even with a positive remainder', () => {
+    expect(onboardingArrangement(667, 400, 267, 1.35, true)).toMatchObject({ footer: false, artBudget: 267 })
+    expect(onboardingArrangement(667, 400, 268, 1.35, true)).toMatchObject({ footer: true, artBudget: undefined })
+    expect(onboardingArrangement(667, 400, 268, 1, true)).toMatchObject({ footer: false, artBudget: 267 })
+  })
+  it('reserves provisional actions and never claims zero-height art as a complete composition', () => {
+    expect(onboardingArrangement(667, 400, 200, 1, false).footer).toBe(true)
+    expect(onboardingArrangement(667, 667, 200, 1, true).footer).toBe(true)
+    expect(onboardingArrangement(667, 700, 200, 2, true).footer).toBe(true)
   })
 })
 

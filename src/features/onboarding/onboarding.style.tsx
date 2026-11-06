@@ -1,20 +1,26 @@
 import { StyleSheet } from 'react-native-unistyles'
+import { onboardingSpacing } from './onboarding-layout'
+const first = onboardingSpacing(0)
+const swipe = onboardingSpacing(1)
+const last = onboardingSpacing(2)
 export const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20 },
-  lastContent: { flexGrow: 1, justifyContent: 'space-between' },
-  header: { minHeight: 44, flexDirection: 'row', alignItems: 'center' },
-  headerSpaced: { marginVertical: 12 },
+  fill: { flex: 1 },
+  content: { flex: 1, paddingHorizontal: 20 },
+  upper: { flexGrow: 0, flexShrink: 1 },
+  scrollingUpper: { flex: 1 },
+  header: { minHeight: 44, flexShrink: 0, flexDirection: 'row', alignItems: 'center' },
+  headerSpaced: { marginVertical: swipe.header },
   headerSpace: { flex: 1 },
   back: { width: 44, height: 44, borderWidth: 0, backgroundColor: 'transparent' },
-  visual: { marginTop: 6 },
-  lastVisual: { marginVertical: 12 },
-  narrative: { alignItems: 'center', marginTop: 24, paddingHorizontal: 4 },
-  swipeNarrative: { marginTop: 8, paddingHorizontal: 8 },
+  visual: { flexShrink: 0, marginTop: first.visualTop },
+  lastVisual: { marginTop: last.visualTop, marginBottom: last.visualBottom },
+  narrative: { flexShrink: 0, alignItems: 'center', marginTop: first.narrative, paddingHorizontal: 4 },
+  swipeNarrative: { marginTop: swipe.narrative, paddingHorizontal: 8 },
   title: { textAlign: 'center', letterSpacing: -0.56, marginBottom: 8 },
   body: { textAlign: 'center', maxWidth: 320 },
-  dots: { alignItems: 'center', marginTop: 24, paddingVertical: 4 },
-  swipeDots: { marginTop: 16 },
-  lastDots: { alignItems: 'center', marginTop: 8, marginBottom: 16 },
-  actions: { marginTop: 24 },
-  lastActions: { marginTop: 16, gap: 8 },
+  dots: { flexShrink: 0, alignItems: 'center', marginTop: first.dotsTop, paddingVertical: 4 },
+  swipeDots: { marginTop: swipe.dotsTop },
+  lastDots: { flexShrink: 0, alignItems: 'center', marginTop: last.dotsTop, marginBottom: last.dotsBottom },
+  actions: { flexShrink: 0, marginTop: first.actions },
+  lastActions: { marginTop: last.actions, gap: 8 },
 })
