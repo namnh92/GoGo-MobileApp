@@ -26,6 +26,8 @@ import { styles } from './button.style'
 export interface ButtonProps {
   variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
+  /** Allow full action labels to wrap in narrow shared layouts. */
+  wrapLabel?: boolean
   onPress: () => void
   /** Why the button is unavailable, or what it does, read after the label. */
   accessibilityHint?: string
@@ -75,7 +77,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && styles[`${kind}Pressed`], disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, variant = 'default' }: ButtonProps & {
+function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel = false, variant = 'default' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -120,7 +122,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       <Text
         variant={variant === 'area' ? 'introLabel' : stitch ? (kind === 'primary' || variant === 'discovery' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
         color={greyed ? look.disabledLabel : variant === 'area' && kind === 'secondary' ? 'redesign.secondary' : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
-        numberOfLines={stitch ? undefined : 1}
+        numberOfLines={stitch || wrapLabel ? undefined : 1}
         ellipsizeMode="tail"
         style={styles.label}
       >

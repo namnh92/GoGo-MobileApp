@@ -1,0 +1,44 @@
+Review basis: rs-d63be9c52d2d
+Baseline HEAD: b4ca8b3 (unchanged)
+Branch: feature/GOGO-518-place-wizard
+Source snapshot scope: src
+Snapshot manifest: /tmp/mobile522-lifecycle-rs-d63be9c52d2d/MANIFEST.txt
+Snapshot verification after gates: MATCH rs-d63be9c52d2d
+
+Commands and final results:
+- pnpm typecheck: exit 0, PASS (typecheck.log)
+- pnpm lint: exit 0, PASS, no diagnostics (lint.log)
+- pnpm test: exit 1; 1404 passed / 3 failed / 39 skipped, 122 files (unit.log)
+  All three failures are in unchanged src/shared/config/__tests__/distribute-wrapper.test.ts.
+  Lines 208, 234 and 258 depend on process inspection. Sandbox denies /bin/ps
+  (direct probe: zsh: operation not permitted: /bin/ps). These scenarios are
+  BLOCKED by the execution environment; the unit command is not green.
+  No distribution code/test was changed, skipped or weakened.
+- pnpm test:ui --runInBand: exit 0; 189 suites, 2253 tests PASS (ui-summary.log)
+- git diff --check: exit 0
+
+Before regression command:
+pnpm test:ui --runInBand src/features/__tests__/import-lifecycle.spec.tsx src/features/__tests__/contribution-wizard.spec.tsx -t 'SA T1-T12|M01|M11|M12|M15 local'
+Original b4ca8b3 production screen/wizard/form helper were restored only for this
+baseline invocation, then the implementation was restored in a finally block.
+Result: 14 failed / 3 passed / 40 skipped. See before.log. All 17 selected probes
+pass in the final full UI run. M01, M04 and M05 already passed on the baseline;
+they are preserved invariants, not manufactured FAIL-before claims.
+
+M13: simulated independent device/crash exposes the BE atomic-consumption gap;
+no global F-07 closure. M14/T13: NOT RUN, intentionally deferred to #525.
+Deployed BE identity/media survival: BLOCKED; API host could not resolve in the
+sandbox, external web reader could not access it. Local clean be-806 cce6b67f
+source supports ownership transfer + draft-only release, not deployment proof.
+
+Full raw command logs:
+/tmp/mobile522-final-before.log
+/tmp/mobile522-gate-typecheck.log
+/tmp/mobile522-gate-lint.log
+/tmp/mobile522-gate-test.log
+/tmp/mobile522-gate-ui.log
+
+Source snapshot copies were moved out of the worktree after the broad TypeScript
+include picked up copied .ts files. Typecheck/lint were then re-run and passed.
+No source/test bytes changed; snapshot verification MATCH remained unchanged.
+No install, workspace commit, push, backend modification, build or deployment.

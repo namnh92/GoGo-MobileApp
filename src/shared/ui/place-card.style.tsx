@@ -3,6 +3,9 @@ import { StyleSheet } from 'react-native-unistyles'
 import { overlay, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  compactRow: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' },
+  compactPhoto: { width: 48, height: 48, borderRadius: 8 },
+  compactCopy: { flex: 1, minWidth: 0, gap: 4 },
   importCard: { borderRadius: 12, overflow: 'hidden', backgroundColor: theme.redesign.card, ...theme.shadows.card },
   importBody: { padding: 16, gap: 12 },
   importFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

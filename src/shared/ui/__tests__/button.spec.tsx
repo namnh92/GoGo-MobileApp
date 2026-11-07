@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/button.view'
-import { accents, glassFx, shadows, status, surface, text, type } from '@/shared/ui/tokens'
+import { accents, glassFx, redesignLight, shadows, status, surface, text, type } from '@/shared/ui/tokens'
 import * as feedback from '@/shared/ui/feedback'
 
 /**
@@ -15,6 +15,35 @@ const orange = accents.orange
 const flat = (node: { props: Record<string, any> }): Record<string, any> => StyleSheet.flatten(node.props.style)
 const button = (name: string) => screen.getByRole('button', { name })
 const labelColor = (label: string) => flat(screen.getByText(label)).color
+
+describe.each([PrimaryBtn, SecondaryBtn, GhostBtn, DangerBtn])('wrapped action labels', Btn => {
+  it('opts default buttons into wrapping without changing their typography', async () => {
+    await render(<Btn label="View all contributions" wrapLabel onPress={jest.fn()} />)
+    expect(screen.getByText('View all contributions').props.numberOfLines).toBeUndefined()
+    expect(flat(screen.getByText('View all contributions'))).toMatchObject(type.label)
+  })
+})
+
+describe.each([false, true])('area buttons with wrapLabel=%s', wrapLabel => {
+  it('preserves area typography, colors, wrapping and disabled state', async () => {
+    const onPress = jest.fn()
+    const view = await render(<>
+      <PrimaryBtn variant="area" label="Confirm area" wrapLabel={wrapLabel} onPress={onPress} />
+      <SecondaryBtn variant="area" label="Clear area" wrapLabel={wrapLabel} onPress={onPress} />
+    </>)
+    for (const label of ['Confirm area', 'Clear area']) {
+      expect(screen.getByText(label).props.numberOfLines).toBeUndefined()
+      expect(flat(screen.getByText(label))).toMatchObject(type.introLabel)
+    }
+    expect(flat(button('Confirm area')).backgroundColor).toBe(redesignLight.primaryFill)
+    expect(labelColor('Clear area')).toBe(redesignLight.secondary)
+    await view.rerender(<PrimaryBtn variant="area" label="Confirm area" wrapLabel={wrapLabel} disabled onPress={onPress} />)
+    expect(flat(button('Confirm area')).backgroundColor).toBe(surface.subtle)
+    expect(labelColor('Confirm area')).toBe(text.secondary)
+    await fireEvent.press(button('Confirm area'))
+    expect(onPress).not.toHaveBeenCalled()
+  })
+})
 
 describe('owner D1 Stitch buttons', () => {
   it('gives discovery primary and secondary CTAs the same size and typography with one filled action', async () => {

@@ -1,0 +1,510 @@
+Baseline production: a20b8e7, final regression tests copied into isolated archive. No install.
+
+> gogo-mobile@0.1.0 test /private/tmp/mobile-522-r6-baseline-pk8on_o5
+> vitest run src/features/place-import/import-flow.test.ts
+
+
+ RUN  v4.1.11 /private/tmp/mobile-522-r6-baseline-pk8on_o5
+
+ ❯ src/features/place-import/import-flow.test.ts (70 tests | 14 failed) 45ms
+     × M10 timeout after server commit reconciles same UUID/request before further writes, without duplicate create 5ms
+     × F-09 uncertain create reconciliation preserves later text and bill removal until explicit replacement 11ms
+     × F-09 uncertain update reconciliation preserves later text and bill removal until explicit replacement 1ms
+     × F-10 reconciled uncertain create conflict allows start-new and a fresh save without deleting remote data 1ms
+     × F-10 reconciled uncertain update conflict allows start-new and a fresh save without deleting remote data 0ms
+     × F-09 confirmation also protects form edits omitted from the wire payload 1ms
+     × uncertain create GET foreign preserves inputs and never blindly writes or detaches uncertainty 1ms
+     × F-10 list reconciliation cannot strand an uncertain update in a non-detachable conflict 1ms
+     × F-10 reconciled create conflict reload expired detaches all ownership and returns to editing 1ms
+     × DELETE mismatch -> expired GET detaches active ownership without deleting the discovered version 2ms
+     × F-11 failed re-resolution after explicit token rejection stays editable (NetworkError: NETWORK_UNREACHABLE) 1ms
+     × F-11 failed re-resolution after explicit token rejection stays editable (ApiError: private server message) 1ms
+     × expired-token bounded POST retry lost is classified by the actual POST outcome 1ms
+     × start-new choice survives list refresh and resets on explicit resume or a different flow 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > M10 timeout after server commit reconciles same UUID/request before further writes, without duplicate create
+AssertionError: expected 'frozen' to be 'later' // Object.is equality
+
+Expected: "later"
+Received: "frozen"
+
+ ❯ src/features/place-import/import-flow.test.ts:153:78
+    151|     deps.read.mockResolvedValueOnce({ ...draft, id: pending.id, enrich…
+    152|     expect(deps.read).toHaveBeenCalledWith(pending.id); expect(deps.sa…
+    153|     expect(state().draft?.version).toBe(1); expect(state().fields.visi…
+       |                                                                              ^
+    154|   })
+    155|   it.each(['create', 'update'] as const)('F-09 uncertain %s reconcilia…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-09 uncertain create reconciliation preserves later text and bill removal until explicit replacement
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'editing', …(6) }
+(37 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "acknowledgement": null,
+-   "dirty": true,
++   "acknowledgement": {
++     "bills": "bill",
++     "flowGeneration": 1,
++     "sessionEpoch": 0,
++   },
++   "dirty": false,
+    "draft": {
+      "id": "new-uuid",
+      "version": 1,
+    },
+    "fields": {
+-     "visitTips": "later",
++     "visitTips": "frozen",
+    },
+    "media": [
+      {
+        "kind": "menu",
+        "mediaId": "menu",
++     },
++     {
++       "kind": "bill",
++       "mediaId": "bill",
+      },
+    ],
+    "pendingCreate": null,
+    "phase": "editing",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:163:21
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-09 uncertain update reconciliation preserves later text and bill removal until explicit replacement
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'editing', …(6) }
+(37 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "acknowledgement": null,
+-   "dirty": true,
++   "acknowledgement": {
++     "bills": "bill",
++     "flowGeneration": 1,
++     "sessionEpoch": 0,
++   },
++   "dirty": false,
+    "draft": {
+      "id": "draft-a",
+      "version": 4,
+    },
+    "fields": {
+-     "visitTips": "later",
++     "visitTips": "frozen",
+    },
+    "media": [
+      {
+        "kind": "menu",
+        "mediaId": "menu",
++     },
++     {
++       "kind": "bill",
++       "mediaId": "bill",
+      },
+    ],
+    "pendingCreate": null,
+    "phase": "editing",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:163:21
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-10 reconciled uncertain create conflict allows start-new and a fresh save without deleting remote data
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'conflict', …(2) }
+(42 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "conflict": {
+      "id": "new-uuid",
+      "version": 8,
+    },
+-   "pendingCreate": null,
++   "pendingCreate": {
++     "id": "new-uuid",
++     "request": {
++       "enrichment": {
++         "visitTips": "keep",
++       },
++       "expectedVersion": 0,
++       "googlePlaceId": "place-a",
++     },
++     "uncertain": true,
++   },
+    "phase": "conflict",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:176:49
+    174|     const pending = state().pendingCreate!
+    175|     deps.read.mockResolvedValueOnce({ ...draft, id: pending.id, versio…
+    176|     await flow.reconcileSave(); expect(state()).toMatchObject({ phase:…
+       |                                                 ^
+    177|     flow.startNew(); detached(flow); expect(state().fields.visitTips).…
+    178|     deps.uuid.mockReturnValueOnce('fresh-uuid'); await flow.save()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-10 reconciled uncertain update conflict allows start-new and a fresh save without deleting remote data
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'conflict', …(2) }
+(48 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "conflict": {
+      "id": "draft-a",
+      "version": 8,
+    },
+-   "pendingCreate": null,
++   "pendingCreate": {
++     "id": "draft-a",
++     "request": {
++       "enrichment": {
++         "billPhotoPublicConsent": true,
++         "photos": [
++           {
++             "kind": "menu",
++             "mediaId": "menu",
++           },
++           {
++             "kind": "bill",
++             "mediaId": "bill",
++           },
++         ],
++         "purposeKeys": [
++           "couple",
++         ],
++         "vibeKeys": [
++           "festive",
++         ],
++         "visitTips": "keep",
++       },
++       "expectedVersion": 3,
++       "googlePlaceId": "place-a",
++     },
++     "uncertain": true,
++   },
+    "phase": "conflict",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:176:49
+    174|     const pending = state().pendingCreate!
+    175|     deps.read.mockResolvedValueOnce({ ...draft, id: pending.id, versio…
+    176|     await flow.reconcileSave(); expect(state()).toMatchObject({ phase:…
+       |                                                 ^
+    177|     flow.startNew(); detached(flow); expect(state().fields.visitTips).…
+    178|     deps.uuid.mockReturnValueOnce('fresh-uuid'); await flow.save()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-09 confirmation also protects form edits omitted from the wire payload
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { dirty: true, …(2) }
+(46 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "dirty": true,
++   "dirty": false,
+    "fields": {
+-     "min": "123",
+-     "visitTips": "server ",
++     "min": "",
++     "visitTips": "server",
+    },
+-   "replacement": "draft-a",
++   "replacement": null,
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:189:21
+    187|     deps.read.mockResolvedValueOnce({ ...draft, version: 4, enrichment…
+    188|     await flow.reconcileSave(); await flow.requestResume(draft.id)
+    189|     expect(state()).toMatchObject({ dirty: true, replacement: draft.id…
+       |                     ^
+    190|     expect(deps.read).toHaveBeenCalledTimes(2)
+    191|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > uncertain create GET foreign preserves inputs and never blindly writes or detaches uncertainty
+AssertionError: expected 'conflict' to be 'editing' // Object.is equality
+
+Expected: "editing"
+Received: "conflict"
+
+ ❯ src/features/place-import/import-flow.test.ts:209:82
+    207|     await flow.reconcileSave(); expect(state().fields.visitTips).toBe(…
+    208|     if (outcome === '404' || outcome === 'expired') { detached(flow); …
+    209|     else { expect(state().pendingCreate).toEqual(pending); expect(stat…
+       |                                                                                  ^
+    210|   })
+    211|   it('F-10 list reconciliation cannot strand an uncertain update in a …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-10 list reconciliation cannot strand an uncertain update in a non-detachable conflict
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'conflict', …(1) }
+(51 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "pendingCreate": null,
++   "pendingCreate": {
++     "id": "draft-a",
++     "request": {
++       "enrichment": {
++         "billPhotoPublicConsent": true,
++         "photos": [
++           {
++             "kind": "menu",
++             "mediaId": "menu",
++           },
++           {
++             "kind": "bill",
++             "mediaId": "bill",
++           },
++         ],
++         "purposeKeys": [
++           "couple",
++         ],
++         "vibeKeys": [
++           "festive",
++         ],
++         "visitTips": "keep",
++       },
++       "expectedVersion": 3,
++       "googlePlaceId": "place-a",
++     },
++     "uncertain": true,
++   },
+    "phase": "conflict",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:215:47
+    213|     flow.edit({ visitTips: 'keep' }); deps.save.mockRejectedValueOnce(…
+    214|     deps.list.mockResolvedValueOnce({ items: [{ ...draft, version: 8 }…
+    215|     await flow.refreshList(); expect(state()).toMatchObject({ phase: '…
+       |                                               ^
+    216|     expect(deps.read).toHaveBeenCalledTimes(2)
+    217|     flow.startNew(); detached(flow); expect(deps.remove).not.toHaveBee…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-10 reconciled create conflict reload expired detaches all ownership and returns to editing
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'editing', …(1) }
+(30 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "fields": {
+      "visitTips": "keep",
+    },
+-   "phase": "editing",
++   "phase": "conflict",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:226:21
+    224|     else deps.read.mockResolvedValueOnce({ ...draft, id: 'new-uuid', e…
+    225|     await flow.requestResume('new-uuid'); await flow.confirmReplacemen…
+    226|     expect(state()).toMatchObject({ phase: 'editing', fields: { visitT…
+       |                     ^
+    227|   })
+    228|   it('DELETE mismatch -> expired GET detaches active ownership without…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > DELETE mismatch -> expired GET detaches active ownership without deleting the discovered version
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { draft: null, …(5) }
+(41 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "acknowledgement": null,
++   "acknowledgement": {
++     "bills": "bill",
++     "flowGeneration": 1,
++     "sessionEpoch": 0,
++   },
+    "captured": null,
+-   "conflict": null,
+-   "draft": null,
+-   "media": [],
++   "conflict": {
++     "id": "draft-a",
++     "version": 8,
++   },
++   "draft": {
++     "expiresAt": "2026-12-07T00:00:00Z",
++     "id": "draft-a",
++     "version": 3,
++   },
++   "media": [
++     {
++       "kind": "menu",
++       "mediaId": "menu",
++     },
++     {
++       "kind": "bill",
++       "mediaId": "bill",
++     },
++   ],
+    "pendingCreate": null,
+  }
+
+ ❯ detached src/features/place-import/import-flow.test.ts:28:13
+     26| const detached = (flow: ImportFlowController) => {
+     27|   const s = flow.getSnapshot()
+     28|   expect(s).toMatchObject({ draft: null, pendingCreate: null, media: […
+       |             ^
+     29|   expect(serializeFlow(s)).not.toHaveProperty('photos')
+     30|   expect(serializeFlow(s)).not.toHaveProperty('billPhotoPublicConsent')
+ ❯ src/features/place-import/import-flow.test.ts:231:31
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-11 failed re-resolution after explicit token rejection stays editable (NetworkError: NETWORK_UNREACHABLE)
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > F-11 failed re-resolution after explicit token rejection stays editable (ApiError: private server message)
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'editing', …(6) }
+(25 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -2,11 +2,34 @@
+    "acknowledgement": {
+      "bills": "bill",
+      "flowGeneration": 1,
+      "sessionEpoch": 0,
+    },
+-   "captured": null,
++   "captured": {
++     "enrichment": {
++       "billPhotoPublicConsent": true,
++       "photos": [
++         {
++           "kind": "menu",
++           "mediaId": "menu",
++         },
++         {
++           "kind": "bill",
++           "mediaId": "bill",
++         },
++       ],
++       "purposeKeys": [
++         "couple",
++       ],
++       "vibeKeys": [
++         "festive",
++       ],
++       "visitTips": "server",
++     },
++     "googlePlaceId": "place-a",
++     "resolutionToken": "old",
++   },
+    "draft": {
+      "expiresAt": "2026-12-07T00:00:00Z",
+      "id": "draft-a",
+      "version": 3,
+    },
+@@ -37,8 +60,8 @@
+      {
+        "kind": "bill",
+        "mediaId": "bill",
+      },
+    ],
+-   "message": "temporarilyUnavailable",
+-   "phase": "editing",
++   "message": "submissionUnconfirmed",
++   "phase": "submissionUnknown",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:294:21
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > expired-token bounded POST retry lost is classified by the actual POST outcome
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { phase: 'submissionUnknown', …(1) }
+(49 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -19,9 +19,9 @@
+          "festive",
+        ],
+        "visitTips": "server",
+      },
+      "googlePlaceId": "place-a",
+-     "resolutionToken": "fresh-proof",
++     "resolutionToken": "old",
+    },
+    "phase": "submissionUnknown",
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:307:23
+    305|     await flow.submit(); expect(deps.resolve).toHaveBeenCalledTimes(1)…
+    306|     if (outcome === 'lost') {
+    307|       expect(state()).toMatchObject({ phase: 'submissionUnknown', capt…
+       |                       ^
+    308|       await flow.submit(); await flow.save(); await flow.deleteDraft()…
+    309|       expect(deps.submit).toHaveBeenCalledTimes(2); expect(deps.remove…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/14]⎯
+
+ FAIL  src/features/place-import/import-flow.test.ts > SA lifecycle matrix T1-T12 > start-new choice survives list refresh and resets on explicit resume or a different flow
+AssertionError: expected { sessionEpoch: +0, …(31) } to match object { newDraftChosen: true, draft: null }
+(44 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "draft": null,
+-   "newDraftChosen": true,
+  }
+
+ ❯ src/features/place-import/import-flow.test.ts:327:21
+    325|     const { flow, deps, state } = await resumed()
+    326|     deps.save.mockRejectedValueOnce(error(409, 'DRAFT_MODIFIED')); awa…
+    327|     expect(state()).toMatchObject({ newDraftChosen: true, draft: null …
+       |                     ^
+    328|     await flow.requestResume(draft.id); expect(state().newDraftChosen)…
+    329|     flow.startNew(); flow.selectPlace('place-b'); expect(state().newDr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/14]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  14 failed | 56 passed (70)
+   Start at  19:52:56
+   Duration  293ms (transform 63ms, setup 0ms, import 99ms, tests 45ms, environment 0ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

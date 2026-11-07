@@ -1,0 +1,13 @@
+
+> gogo-mobile@0.1.0 test /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518
+> vitest run src/features/place-import/import-flow.test.ts
+
+
+ RUN  v4.1.11 /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518
+
+
+ Test Files  1 passed (1)
+      Tests  70 passed (70)
+   Start at  19:54:28
+   Duration  348ms (transform 95ms, setup 0ms, import 147ms, tests 34ms, environment 0ms)
+

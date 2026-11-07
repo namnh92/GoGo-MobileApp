@@ -1,4 +1,5 @@
-import { act, fireEvent, screen } from '@testing-library/react-native'
+import { completeWizard } from './contribution-fixtures'
+import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import { ApiError } from '@/shared/api/errors'
 
@@ -33,7 +34,7 @@ const RESOLVED = {
 }
 
 const mockResolve = {
-  mutate: jest.fn(),
+  mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }),
   mutateAsync: jest.fn(),
   reset: jest.fn(),
   isPending: false,
@@ -70,9 +71,11 @@ jest.mock('@/shared/analytics', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useResolveGoogleMapsLink: () => mockResolve,
+  resolveGoogleMapsLink: (body: unknown) => mockResolve.mutateAsync(body),
   useSubmitPlace: () => mockSubmit,
+  submitPlace: (body: unknown) => mockSubmit.mutateAsync(body),
   usePlaceSubmission: () => ({ data: undefined }),
-  useTaxonomies: () => ({ data: undefined }),
+  ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
 
 import PlaceImportScreen from '@/features/place-import/import.view'
@@ -85,6 +88,7 @@ const LINK = 'https://maps.google.com/maps?place_id=ChIJtest'
  * `act()` scopes, and the renderer does not recover for the rest of the file.
  */
 async function pressSubmit(): Promise<void> {
+  await completeWizard()
   await act(async () => {
     await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   })
@@ -118,6 +122,7 @@ async function openWithPreview(result: Omit<typeof RESOLVED, 'resolutionToken'> 
     mockTrack.mockClear()
     mockResolve.data = undefined
     mockSubmit.isError = false
+    mockSubmit.isPending = false
     mockSubmit.isSuccess = false
     mockSubmit.data = undefined
     mockSubmit.mutateAsync.mockResolvedValue({ status: 'PENDING', submissionId: 'sub-1' })
@@ -151,15 +156,15 @@ describe('APP-042 — the resolve proof reaches submit', () => {
     })
 
     await openWithPreview()
-    await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
-    await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Keep this note')
+    await completeWizard()
+    await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep this note')
     await pressSubmit()
 
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
     // The user is never asked to paste the link again.
     expect(mockResolve.mutateAsync).toHaveBeenCalledWith({ url: LINK })
     expect(mockSubmit.mutateAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({ resolutionToken: 'token-from-the-retry', note: 'Keep this note' }),
+      expect.objectContaining({ resolutionToken: 'token-from-the-retry', enrichment: expect.objectContaining({ visitTips: 'Keep this note' }) }),
     )
   })
 
@@ -191,12 +196,8 @@ describe('APP-042 — the resolve proof reaches submit', () => {
 
     expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(1)
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
-    // #316 F-03: the stale-token refusal is cleared before the re-resolve, so
-    // the new candidate list does not open beside a failure that no longer applies.
-    expect(mockSubmit.reset).toHaveBeenCalled()
-    expect(mockSubmit.reset.mock.invocationCallOrder[0]).toBeLessThan(
-      mockResolve.mutateAsync.mock.invocationCallOrder[0],
-    )
+    // Re-resolve is an imperative guarded request; no mutation cache can retain the refusal.
+    expect(screen.queryByText('Chưa gửi được')).toBeNull()
   })
 
   it('submits without a token rather than failing, when the preview issued none', async () => {
@@ -255,8 +256,8 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
     mockSubmit.mutateAsync.mockImplementationOnce(() => new Promise((_resolve, reject) => { finish = () => reject(staleToken()) }))
   }
   await openWithPreview()
-  await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
-  await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Old A note')
+  await completeWizard()
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Old A note')
   await pressSubmit()
   await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   const input = screen.getByPlaceholderText('Dán link Google Maps tại đây...')
@@ -265,7 +266,7 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
   await act(async () => { finish() })
 
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
-  expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ note: 'Old A note' }))
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Old A note' }) }))
   expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(pendingStep === 'resolve' ? 1 : 0)
   expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
 })
@@ -288,4 +289,95 @@ it('keeps a new attempt locked when an outdated retry finishes', async () => {
   await pressSubmit()
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
   await act(async () => { finishNew({ status: 'PENDING', submissionId: 'new' }) })
+})
+
+it('does not attach an existing contribution to a different provider identity after revalidation', async () => {
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+  mockResolve.mutateAsync.mockResolvedValue({ ...RESOLVED, candidate: { ...RESOLVED.candidate, googlePlaceId: 'ChIJdifferent' }, resolutionToken: 'different-proof' })
+  await openWithPreview()
+  await pressSubmit()
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+  expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(1)
+})
+
+
+it('keeps entered form values when stale-token revalidation loses the network', async () => {
+  await openWithPreview()
+  await completeWizard()
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep on revalidation failure')
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+  mockResolve.mutateAsync.mockImplementationOnce(async () => {
+    mockResolve.data = undefined
+    throw new Error('network unavailable')
+  })
+  await pressSubmit()
+  expect(screen.getByText('Chưa gửi được')).toBeTruthy()
+  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Keep on revalidation failure')
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+})
+
+const BRANCHES = {
+  status: 'CANDIDATE_SELECTION',
+  candidates: [
+    { ...RESOLVED.candidate, googlePlaceId: 'branch-A', name: 'Branch A' },
+    { ...RESOLVED.candidate, googlePlaceId: 'branch-B', name: 'Branch B' },
+  ],
+}
+
+async function openBranches() {
+  mockResolve.data = BRANCHES
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  await fireEvent.press(screen.getByText('Branch A'))
+}
+
+it.each(['submit', 'revalidation'] as const)('F-01 locks branch selection during %s', async (phase) => {
+  let finish: () => void = () => {}
+  if (phase === 'submit') {
+    mockSubmit.mutateAsync.mockImplementationOnce(() => {
+      mockSubmit.isPending = true
+      return new Promise(resolve => { finish = () => {
+        mockSubmit.isPending = false
+        resolve({ status: 'PENDING', submissionId: 'A' })
+      } })
+    })
+  } else {
+    mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+    mockResolve.mutateAsync.mockImplementationOnce(() => new Promise(resolve => {
+      finish = () => resolve({ status: 'CANDIDATE_SELECTION', candidates: BRANCHES.candidates })
+    }))
+  }
+  await openBranches()
+  await pressSubmit()
+  await screen.rerender(<PlaceImportScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: /Branch B/ }))
+  expect(screen.getByRole('button', { name: /Branch A/ }).props.accessibilityState).toMatchObject({ selected: true, disabled: true })
+  expect(screen.getByRole('button', { name: /Branch B/ }).props.accessibilityState).toMatchObject({ selected: false, disabled: true })
+  await act(async () => { finish() })
+  if (phase === 'submit') {
+    expect(within(screen.getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
+  } else {
+    expect(screen.getByRole('button', { name: /Branch B/ }).props.accessibilityState.disabled).toBe(false)
+    await fireEvent.press(screen.getByRole('button', { name: /Branch B/ }))
+    await pressSubmit()
+    expect(mockSubmit.mutateAsync).toHaveBeenLastCalledWith(expect.objectContaining({ googlePlaceId: 'branch-B' }))
+  }
+})
+
+it('F-01 binds success identity to the captured submission when the preview changes', async () => {
+  let finish: () => void = () => {}
+  mockSubmit.mutateAsync.mockImplementationOnce(() => new Promise(resolve => {
+    finish = () => resolve({ status: 'PENDING', submissionId: 'A' })
+  }))
+  await openBranches()
+  await pressSubmit()
+  mockResolve.data = { ...BRANCHES, candidates: [
+    { ...BRANCHES.candidates[0], name: 'Changed preview' }, BRANCHES.candidates[1],
+  ] }
+  await screen.rerender(<PlaceImportScreen />)
+  await act(async () => { finish() })
+  const result = within(screen.getByTestId('result-sheet'))
+  expect(result.getByText('Branch A đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()
+  expect(within(screen.getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
 })
