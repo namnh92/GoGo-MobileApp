@@ -52,7 +52,7 @@ export function createAreaController(deps: AreaDependencies) {
         try { area = await deps.locate(result, explicit) } catch { /* Keep GPS useful offline. */ }
         if (currentRevision !== revision) return result
         store.setState({ area, manual: false, scope: { status: 'ready', source: 'gps', position: { lat: result.lat, lng: result.lng } } })
-        if (area) persist({ area, manual: false })
+        persist(area ? { area, manual: false } : null)
       } else {
         const saved = store.getState().area
         const scope = saved ? { status: 'ready' as const, source: 'selected_area' as const, area: saved } : await deps.fallback()

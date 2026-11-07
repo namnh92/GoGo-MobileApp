@@ -56,6 +56,49 @@ describe('app-wide current area', () => {
     expect(deps.fallback).not.toHaveBeenCalled()
   })
 
+  it.each(['no area', 'offline'] as const)('removes the saved manual override when GPS locate returns %s, and reads GPS on relaunch', async failure => {
+    await saveCurrentArea({ area: OTHER, manual: true })
+    const save = vi.fn(saveCurrentArea)
+    const { app } = setup({
+      load: loadCurrentArea, save,
+      locate: async () => { if (failure === 'offline') throw new Error('offline'); return null },
+    })
+    try {
+      await app.initialize()
+      await app.request()
+      await app.flushed()
+      expect(app.store.getState()).toMatchObject({ area: null, manual: false, scope: { status: 'ready', source: 'gps' } })
+      expect(await loadCurrentArea()).toBeNull()
+      expect(JSON.stringify(save.mock.calls)).not.toMatch(/"lat"|"lng"/)
+
+      const next = setup({ load: loadCurrentArea })
+      await next.app.initialize()
+      expect(next.deps.position).toHaveBeenCalledExactlyOnceWith(false)
+      expect(next.app.store.getState()).toMatchObject({ manual: false, scope: { source: 'gps' } })
+    } finally {
+      await saveCurrentArea(null)
+    }
+  })
+
+  it('keeps a newer manual choice on disk when an older GPS locate completes without an area', async () => {
+    await saveCurrentArea({ area: AREA, manual: true })
+    let finish!: (area: null) => void
+    const { app } = setup({ load: loadCurrentArea, save: saveCurrentArea, locate: () => new Promise(resolve => { finish = resolve }) })
+    try {
+      await app.initialize()
+      const request = app.request()
+      await vi.waitFor(() => expect(finish).toBeDefined())
+      app.store.getState().setArea(OTHER)
+      finish(null)
+      await request
+      await app.flushed()
+      expect(app.store.getState()).toMatchObject({ area: OTHER, manual: true, scope: { source: 'selected_area' } })
+      expect(await loadCurrentArea()).toEqual({ area: OTHER, manual: true })
+    } finally {
+      await saveCurrentArea(null)
+    }
+  })
+
   it('falls back with denied permission and no saved choice, without administrative locate', async () => {
     const { app, deps } = setup({ permission: async () => 'denied', position: async () => ({ status: 'denied' }) })
     await app.initialize()
