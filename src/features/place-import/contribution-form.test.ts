@@ -6,6 +6,7 @@ import {
   resumeContribution,
   stepValid,
   submissionEnrichment,
+  type EnrichmentDraft,
 } from './contribution-form'
 
 const complete = () => ({
@@ -73,6 +74,21 @@ describe('#518 contribution contract', () => {
     }
     expect(draftEnrichment(resumeContribution(enrichment))).toEqual(enrichment)
     expect(JSON.stringify(draftEnrichment(complete()))).not.toMatch(/photo|token|Google|file:/)
+  })
+  it.each<EnrichmentDraft>([
+    { photos: [{ mediaId: '22222222-2222-4222-8222-222222222222', kind: 'menu' }] },
+    {
+      photos: [
+        { mediaId: '22222222-2222-4222-8222-222222222222', kind: 'menu' },
+        { mediaId: '33333333-3333-4333-8333-333333333333', kind: 'bill' },
+      ],
+      billPhotoPublicConsent: true,
+    },
+  ])('preserves uploaded photos and their acknowledgement through snapshot saves and submission: %j', (attachments) => {
+    const enrichment = { purposeKeys: ['date'], vibeKeys: ['quiet'], ...attachments }
+    const resumed = resumeContribution(enrichment)
+    expect(draftEnrichment({ ...resumed, visitTips: 'Updated tip' })).toEqual({ ...enrichment, visitTips: 'Updated tip' })
+    expect(submissionEnrichment(resumed)).toEqual(enrichment)
   })
 })
 

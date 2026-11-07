@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
 import type { MyPlaceSubmission } from '@/shared/api/endpoints/my-place-submissions'
 import { useSession } from '@/shared/providers/session-provider'
+import { openWebsite } from '@/shared/navigation/external-links'
 import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
@@ -70,6 +71,13 @@ export default function MyContributionsScreen() {
                 {item.photoUrl ? <Image source={{ uri: item.photoUrl }} style={styles.photo} accessibilityLabel={item.name ?? t('myContributions.unknownPlace')} cachePolicy="none" /> : <View testID="contribution-photo-placeholder" style={styles.photo}><MaterialIcon name="storefront" size={32} /></View>}
                 <View style={styles.details}>
                   <Text variant="title2">{item.name ?? t('myContributions.unknownPlace')}</Text>
+                  {[...new Set(item.providerDisplay?.attributions ?? [])].map(attribution => (
+                    <Text key={attribution} variant="caption" color="text.secondary"
+                      accessibilityRole={item.providerDisplay?.googleMapsUri ? 'link' : undefined}
+                      onPress={item.providerDisplay?.googleMapsUri ? () => { void openWebsite(item.providerDisplay!.googleMapsUri!) } : undefined}>
+                      {attribution}
+                    </Text>
+                  ))}
                   <Text variant="caption" color="text.secondary">{t('myContributions.sentDate', { date: submissionDate(item.createdAt) })}</Text>
                   <View style={styles.status}><MaterialIcon name={tone.icon} color={tone.color} /><Text variant="caption" color={tone.color}>{t(`myContributions.status.${item.status}`)}</Text></View>
                 </View>

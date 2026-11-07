@@ -5,10 +5,12 @@ import MyContributionsScreen from '../contributions/my-contributions.view'
 const mockRouter = { back: jest.fn(), push: jest.fn() }
 const mockFetch = jest.fn()
 const mockRefresh = jest.fn()
+const mockOpenWebsite = jest.fn()
 let mockStatus = 'user'
 let mockQuery: any
 const mockEnabled = jest.fn()
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }))
+jest.mock('@/shared/navigation/external-links', () => ({ openWebsite: (uri: string) => mockOpenWebsite(uri) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockStatus }) }))
 jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: (enabled: boolean) => { mockEnabled(enabled); return mockQuery } }))
 const row = (id: string, status: string, extra = {}) => ({ id, status, name: id, createdAt: '2026-11-07T03:00:00Z', updatedAt: '2026-11-07T03:00:00Z', ...extra })
@@ -42,6 +44,24 @@ it('keeps cursor loading available under an empty filter and refreshes on pull',
   expect(mockFetch).toHaveBeenCalledTimes(1)
   await screen.getByTestId('my-contributions-list').props.refreshControl.props.onRefresh()
   expect(mockRefresh).toHaveBeenCalledTimes(1)
+})
+it.each(['pending', 'approved', 'merged', 'rejected'])('credits Google snapshot names on %s rows and opens the supplied source', async (status) => {
+  const googleMapsUri = 'https://maps.google.com/?cid=123'
+  mockQuery.data.pages[0].items = [row('Snapshot café', status, {
+    providerDisplay: {
+      source: 'google_places', fetchedAt: '2026-11-07T03:00:00Z',
+      name: 'Snapshot café', addressShort: 'Ward 1',
+      attributions: ['Google Maps', 'Additional provider credit'], googleMapsUri,
+      googleRating: null, googleRatingCount: 0, openingHours: [],
+    },
+  }), row('Catalogue café', 'approved')]
+  await renderScreen(<MyContributionsScreen />)
+  expect(screen.getByText('Snapshot café')).toBeTruthy()
+  expect(screen.getByText('Catalogue café')).toBeTruthy()
+  expect(screen.getAllByText('Google Maps')).toHaveLength(1)
+  expect(screen.getByText('Additional provider credit')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('link', { name: 'Google Maps' }))
+  expect(mockOpenWebsite).toHaveBeenCalledWith(googleMapsUri)
 })
 it('shows loading, empty, error/retry and a sign-in gate', async () => {
   mockQuery.data = undefined
