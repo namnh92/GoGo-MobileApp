@@ -82,14 +82,14 @@ it('keeps a long URL single-line with a 44pt clear control; changing a verified 
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(screen.queryByTestId('import-link-input')).toBeNull()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)'), 'old note')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'old note')
   await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   expect(screen.queryByText('Preview')).toBeNull()
   expect(screen.getByTestId('import-link-input').props.value).toBe('')
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   await completeWizard()
-  expect(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)').props.value).toBe('')
+  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('')
 })
 
 it('spaces the card/actions and individual buttons, and removes the lone entered-link control', async () => {
@@ -104,7 +104,7 @@ it('spaces the card/actions and individual buttons, and removes the lone entered
 it('shows the menu/bill upload visibly unavailable and never requests picker permission', async () => {
   await preview()
   await completeWizard()
-  const button = screen.getByRole('button', { name: 'Tải ảnh menu/hoá đơn (tối đa 5 ảnh)' })
+  const button = screen.getByRole('button', { name: '+ Tải thêm ảnh menu/bill (Tối đa 5 ảnh)' })
   expect(button.props.accessibilityState.disabled).toBe(true)
   await fireEvent.press(button)
   expect(mockPermission).not.toHaveBeenCalled()
@@ -154,7 +154,7 @@ it.each(['denied', 'failed', 'empty'])('omits unavailable candidate photos (%s) 
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJtest', enrichment: expect.any(Object) }))
 })
 
-it.each(['Giá thấp nhất (VND)', 'Giá cao nhất (VND)', 'Mẹo khi ghé (không bắt buộc)'])(
+it.each(['Giá cao nhất (VND)', 'Món ngon phải thử & Mẹo khi ghé'])(
   'scrolls the focused %s and its helper above a resized keyboard viewport and dismisses outside',
   async label => {
     let keyboard: (() => void) | undefined
@@ -168,7 +168,7 @@ it.each(['Giá thấp nhất (VND)', 'Giá cao nhất (VND)', 'Mẹo khi ghé (k
     const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {})
     jest.useFakeTimers()
     await preview()
-    if (label.startsWith('Giá')) await fireEvent.press(screen.getByRole('button', { name: 'Nhập mức giá' }))
+    if (label.startsWith('Giá')) await fireEvent.press(screen.getByRole('button', { name: 'Trên 200k / người' }))
     else await completeWizard()
     await fireEvent(screen.getByTestId('import-scroll'), 'layout', { nativeEvent: { layout: { height: 400 } } })
     const input = screen.getByLabelText(label)
@@ -624,11 +624,11 @@ it('requires the wizard after branch selection and clears another branch’s con
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)'), 'A only')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'A only')
   await fireEvent.press(screen.getByText('Branch B'))
   expect(screen.getByText('Tiếp tục sang Bước 2')).toBeTruthy()
   await completeWizard()
-  expect(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)').props.value).toBe('')
+  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('')
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJbranchB', enrichment: expect.not.objectContaining({ visitTips: expect.anything() }) }))

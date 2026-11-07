@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View } from 'react-native'
+import { ActivityIndicator, Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import {
   discoveryLabels,
   isApiError,
   newIdempotencyKey,
   useContributionDrafts,
-  useContributionCredits,
   useDeleteContributionDraft,
   useReadContributionDraft,
   useSaveContributionDraft,
@@ -24,7 +23,6 @@ import {
   amenityFields,
   draftEnrichment,
   emptyContribution,
-  priceUnits,
   priceValid,
   resumeContribution,
   stepValid,
@@ -33,7 +31,16 @@ import {
   type ContributionForm,
   type Enrichment,
 } from './contribution-form'
+import { purposeOptions, vibeOptions, ratingOptions } from './contribution-options'
 import { styles } from './contribution-wizard.style'
+const amenityIcons = {
+  car_parking: 'parking',
+  power_at_each_table: 'power',
+  pets_allowed: 'pets',
+  separate_smoking_area: 'smoking',
+  open_after_23: 'night',
+  tables_over_six: 'groups',
+} as const
 
 export function ContributionWizard({
   googlePlaceId,
@@ -56,7 +63,9 @@ export function ContributionWizard({
 }) {
   const { t, i18n } = useTranslation()
   const { theme } = useUnistyles()
-  const { control, setValue, reset } = useForm<ContributionForm>({ defaultValues: emptyContribution() })
+  const { control, setValue, reset } = useForm<ContributionForm>({
+    defaultValues: emptyContribution(),
+  })
   const form = useWatch({ control }) as ContributionForm
   const [step, setStep] = useState(1)
   const [saved, setSaved] = useState<ContributionDraft | null>(null)
@@ -71,9 +80,10 @@ export function ContributionWizard({
       mounted.current = false
     }
   }, [])
-  const taxonomies = useTaxonomies({ kinds: 'suitability,mood,amenity,checkin_tag' })
+  const taxonomies = useTaxonomies({
+    kinds: 'suitability,mood,amenity,checkin_tag',
+  })
   const labels = discoveryLabels(taxonomies.data, i18n.language)
-  const credits = useContributionCredits(registered)
   const drafts = useContributionDrafts(registered)
   const save = useSaveContributionDraft()
   const read = useReadContributionDraft()
@@ -81,52 +91,74 @@ export function ContributionWizard({
   const busy = submitting || save.isPending || read.isPending || remove.isPending
   const disabled = busy || !online
   const existing = drafts.data?.items.filter((d) => d.googlePlaceId === googlePlaceId) ?? []
+  const supported = (kind: string, keys: readonly string[]) => keys.filter((key) => !!labels[kind]?.[key])
+  const purposes = supported('suitability', purposeOptions)
+  const vibes = supported('mood', vibeOptions)
+  const amenities = supported('amenity', amenityFields)
   const taxonomyReady =
-    !taxonomies.isPending &&
-    !taxonomies.isError &&
-    !!labels.suitability &&
-    Object.keys(labels.suitability).length > 0 &&
-    !!labels.mood &&
-    Object.keys(labels.mood).length > 0
+    !taxonomies.isPending && !taxonomies.isError && purposes.length > 0 && vibes.length > 0
   const validKeys =
-    form.purposeKeys.every((k) => !!labels.suitability?.[k]) &&
-    form.vibeKeys.every((k) => !!labels.mood?.[k]) &&
-    Object.keys(form.amenities).every((k) => !!labels.amenity?.[k]) &&
-    form.serviceChips.every((k) => k.startsWith('service_') && !!labels.checkin_tag?.[k]) &&
-    form.spaceChips.every((k) => k.startsWith('space_') && !!labels.checkin_tag?.[k])
+    form.purposeKeys.every((k) => purposes.includes(k)) &&
+    form.vibeKeys.every((k) => vibes.includes(k)) &&
+    Object.keys(form.amenities).every((k) => amenities.includes(k))
 
-  function choices(
-    kind: string,
-    field: 'purposeKeys' | 'vibeKeys' | 'serviceChips' | 'spaceChips',
-    max: number,
-    prefix = '',
-  ) {
+  const serializableForm = {
+    ...form,
+    serviceChips: form.serviceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
+    spaceChips: form.spaceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
+  }
+
+  function choices(field: 'purposeKeys' | 'vibeKeys', keys: string[], max: number) {
     return (
       <View style={styles.row}>
-        {Object.entries(labels[kind] ?? {})
-          .filter(([key]) => key.startsWith(prefix))
-          .map(([key, label]) => {
-            const selected = form[field].includes(key)
-            const unavailable =
-              disabled ||
-              (field === 'serviceChips' && !form.serviceRating) ||
-              (field === 'spaceChips' && !form.spaceRating)
-            return (
-              <Chip
-                key={key}
-                label={label}
-                appearance="mood"
-                variant={
-                  unavailable || (!selected && form[field].length >= max)
-                    ? 'disabled'
-                    : selected
-                      ? 'selected'
-                      : 'default'
-                }
-                onPress={() => setValue(field, selected ? form[field].filter((k) => k !== key) : [...form[field], key])}
-              />
-            )
-          })}
+        {keys.map((key) => {
+          const selected = form[field].includes(key)
+          return (
+            <Chip
+              key={key}
+              label={t(`placeWizard.option.${key}`)}
+              appearance="mood"
+              style={[styles.option, selected && styles.selectedOption]}
+              variant={
+                disabled || (!selected && form[field].length >= max)
+                  ? 'disabled'
+                  : selected
+                    ? 'selected'
+                    : 'default'
+              }
+              onPress={() =>
+                setValue(field, selected ? form[field].filter((k) => k !== key) : [...form[field], key])
+              }
+            />
+          )
+        })}
+      </View>
+    )
+  }
+  function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string) {
+    return (
+      <View style={styles.heading}>
+        <MaterialIcon name={icon} size={18} color="redesign.primaryText" />
+        <Text variant="introHeading" style={styles.headingText}>
+          {title}
+        </Text>
+        {tag ? (
+          <Text variant="introCaption" color="redesign.secondary" style={styles.sectionTag}>
+            {tag}
+          </Text>
+        ) : null}
+      </View>
+    )
+  }
+  function reward(amount: number, bonus = false) {
+    return (
+      <View style={[styles.reward, bonus && styles.bonus]}>
+        <Text variant="introCaption" color={bonus ? 'redesign.greenText' : 'redesign.white'}>
+          {t('placeWizard.reward', { amount })}
+        </Text>
+        <Text variant="introCaption" color={bonus ? 'redesign.greenText' : 'redesign.white'}>
+          {t('placeWizard.onApproval')}
+        </Text>
       </View>
     )
   }
@@ -136,53 +168,72 @@ export function ContributionWizard({
     label: string,
     maxLength: number,
     numeric = false,
+    placeholder?: string,
   ) {
     return (
       <FieldFocusGroup style={styles.field}>
-        <Text variant="introSmall" color="redesign.secondary">
-          {label}
-        </Text>
+        {field !== 'visitTips' ? (
+          <Text variant="introSmall" color="redesign.secondary">
+            {label}
+          </Text>
+        ) : null}
         <TextInput
           accessibilityLabel={label}
-          value={form[field]}
+          value={
+            field === 'visitTips'
+              ? [form.recommendedDishes, form.visitTips].filter(Boolean).join(' — ')
+              : form[field]
+          }
           editable={!disabled}
-          onChangeText={(value) => setValue(field, value)}
+          onChangeText={(value) => {
+            if (field === 'visitTips') setValue('recommendedDishes', '')
+            setValue(field, value)
+          }}
           onFocus={onFocus}
           keyboardType={numeric ? 'number-pad' : 'default'}
-          multiline={!numeric}
+          placeholder={placeholder}
+          multiline={false}
           maxLength={maxLength}
           placeholderTextColor={theme.redesign.secondary}
-          style={[styles.input, !numeric && styles.multiline]}
+          style={styles.input}
         />
       </FieldFocusGroup>
     )
   }
 
-  function rating(kind: 'service' | 'space') {
-    const field = kind === 'service' ? 'serviceRating' : 'spaceRating'
+  function rating() {
+    const value = form.serviceRating === form.spaceRating ? form.serviceRating : 0
     return (
-      <View style={styles.section}>
-        <Text variant="introLabel">{t(`placeWizard.${kind}`)}</Text>
-        <View style={styles.row}>
-          {[1, 2, 3, 4, 5].map((value) => (
+      <View style={styles.ratingRow}>
+        <View style={styles.stars} accessibilityRole="radiogroup">
+          {[1, 2, 3, 4, 5].map((n) => (
             <Pressable
-              key={value}
+              key={n}
               accessibilityRole="radio"
-              accessibilityLabel={t('placeWizard.stars', { category: t(`placeWizard.${kind}`), count: value })}
-              accessibilityState={{ checked: form[field] === value, disabled }}
+              accessibilityLabel={t('placeWizard.stars', {
+                category: t('placeWizard.ratings'),
+                count: n,
+              })}
+              accessibilityState={{ checked: value === n, disabled }}
               disabled={disabled}
-              onPress={() => setValue(field, value)}
-              style={[styles.star, form[field] >= value && styles.starSelected]}
+              style={styles.star}
+              onPress={() => {
+                const next = value === n ? 0 : n
+                setValue('serviceRating', next)
+                setValue('spaceRating', next)
+              }}
             >
               <MaterialIcon
-                name="star"
+                name={value >= n ? 'star' : 'starOutline'}
                 size={26}
-                color={form[field] >= value ? 'redesign.primaryText' : 'redesign.outline'}
+                color={value >= n ? 'status.warningText' : 'redesign.outline'}
               />
             </Pressable>
           ))}
         </View>
-        {choices('checkin_tag', kind === 'service' ? 'serviceChips' : 'spaceChips', 5, `${kind}_`)}
+        <Text variant="introSmall">
+          {value ? t(`placeWizard.score${value}`, { score: value.toFixed(1) }) : t('placeWizard.unrated')}
+        </Text>
       </View>
     )
   }
@@ -190,7 +241,9 @@ export function ContributionWizard({
   function fail(error: unknown) {
     const conflict = isApiError(error) && error.code === 'DRAFT_MODIFIED'
     setNeedsReload(conflict)
-    setMessage(conflict ? 'conflict' : isApiError(error) && error.code === 'DRAFT_LIMIT_REACHED' ? 'limit' : 'failed')
+    setMessage(
+      conflict ? 'conflict' : isApiError(error) && error.code === 'DRAFT_LIMIT_REACHED' ? 'limit' : 'failed',
+    )
   }
   async function load(draft: Pick<ContributionDraft, 'id'>) {
     if (lock.current || disabled) return
@@ -220,7 +273,11 @@ export function ContributionWizard({
     try {
       const result = await save.mutateAsync({
         id: idToSave,
-        body: { googlePlaceId, expectedVersion: saved?.version ?? 0, enrichment: draftEnrichment(form) },
+        body: {
+          googlePlaceId,
+          expectedVersion: saved?.version ?? 0,
+          enrichment: draftEnrichment(serializableForm),
+        },
       })
       if (!mounted.current) return
       setSaved(result)
@@ -256,21 +313,20 @@ export function ContributionWizard({
     setStep(next)
     track('place_contribution_step_viewed', { step: next })
   }
-  const complete = submissionEnrichment(form)
+  const complete = submissionEnrichment(serializableForm)
+  const submitDisabled = disabled || blocked || !complete || !taxonomyReady || !validKeys
   return (
     <View testID="contribution-wizard" style={styles.root}>
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.heading}>
-            <MaterialIcon name="editNote" color="redesign.primaryText" />
+            <View style={styles.headerIcon}>
+              <MaterialIcon name="editNote" size={18} color="redesign.primaryText" />
+            </View>
             <Text variant="introHeading" style={styles.headingText}>
               {t('placeWizard.title')}
             </Text>
-            {registered && !credits.isError && typeof credits.data?.creditBalance === 'number' ? (
-              <Text variant="introCaption" color="redesign.primaryText">
-                {t('placeWizard.creditBalance', { count: credits.data.creditBalance })}
-              </Text>
-            ) : null}
+            {reward(50)}
           </View>
           <View style={styles.progress}>
             {[1, 2, 3].map((n) => (
@@ -280,30 +336,41 @@ export function ContributionWizard({
                 accessibilityLabel={t('placeWizard.progress', {
                   step: n,
                   status: t(
-                    stepValid(form, n)
+                    n < step && stepValid(form, n)
                       ? 'placeWizard.complete'
                       : n === step
                         ? 'placeWizard.current'
-                        : 'placeWizard.pending',
+                        : n === 3
+                          ? 'placeWizard.photoBonus'
+                          : n === 2
+                            ? 'placeWizard.experience'
+                            : 'placeWizard.mandatory',
                   ),
                 })}
               >
                 <View
                   style={[
                     styles.progressLine,
-                    stepValid(form, n) ? styles.completeLine : n === step && styles.currentLine,
+                    n < step ? styles.completeLine : n === step && styles.currentLine,
                   ]}
                 />
-                <Text variant="introCaption" color={n === step ? 'redesign.primaryText' : 'redesign.secondary'}>
+                <Text
+                  variant="introCaption"
+                  color={n === step ? 'redesign.primaryText' : 'redesign.secondary'}
+                >
                   {t(`placeWizard.step${n}`)}
                 </Text>
                 <Text variant="introCaption">
                   {t(
-                    stepValid(form, n)
+                    n < step && stepValid(form, n)
                       ? 'placeWizard.complete'
                       : n === step
                         ? 'placeWizard.current'
-                        : 'placeWizard.pending',
+                        : n === 3
+                          ? 'placeWizard.photoBonus'
+                          : n === 2
+                            ? 'placeWizard.experience'
+                            : 'placeWizard.mandatory',
                   )}
                 </Text>
               </View>
@@ -311,7 +378,27 @@ export function ContributionWizard({
           </View>
         </View>
         <View style={styles.body}>
-          <Text variant="introHeading">{t(`placeWizard.heading${step as 1 | 2 | 3}`)}</Text>
+          <View style={[styles.heading, styles.stepHeading]}>
+            <Text variant="introSmall" color="redesign.primaryText" style={styles.stepNumber}>
+              {step}
+            </Text>
+            <Text variant="introHeading" style={styles.headingText}>
+              {t(`placeWizard.heading${step as 1 | 2 | 3}`)}
+            </Text>
+            {step === 3 ? (
+              reward(20, true)
+            ) : (
+              <Text variant="introCaption" color="redesign.primaryText" style={styles.tag}>
+                {t(
+                  step === 2
+                    ? 'placeWizard.experience'
+                    : stepValid(form, 1)
+                      ? 'placeWizard.filled'
+                      : 'placeWizard.mandatory',
+                )}
+              </Text>
+            )}
+          </View>
           {!online ? <Text color="status.warningText">{t('placeWizard.offline')}</Text> : null}
           {taxonomies.isPending ? <Text>{t('common.loading')}</Text> : null}
           {taxonomies.isError || (!taxonomies.isPending && !taxonomyReady) ? (
@@ -335,23 +422,23 @@ export function ContributionWizard({
                 onPress={() => {
                   setValue(
                     'purposeKeys',
-                    form.purposeKeys.filter((k) => !!labels.suitability?.[k]),
+                    form.purposeKeys.filter((k) => purposes.includes(k)),
                   )
                   setValue(
                     'vibeKeys',
-                    form.vibeKeys.filter((k) => !!labels.mood?.[k]),
+                    form.vibeKeys.filter((k) => vibes.includes(k)),
                   )
                   setValue(
                     'amenities',
-                    Object.fromEntries(Object.entries(form.amenities).filter(([k]) => !!labels.amenity?.[k])),
+                    Object.fromEntries(Object.entries(form.amenities).filter(([k]) => amenities.includes(k))),
                   )
                   setValue(
                     'serviceChips',
-                    form.serviceChips.filter((k) => k.startsWith('service_') && !!labels.checkin_tag?.[k]),
+                    form.serviceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
                   )
                   setValue(
                     'spaceChips',
-                    form.spaceChips.filter((k) => k.startsWith('space_') && !!labels.checkin_tag?.[k]),
+                    form.spaceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
                   )
                 }}
               />
@@ -360,87 +447,74 @@ export function ContributionWizard({
           {step === 1 ? (
             <>
               <View style={styles.section}>
-                <Text variant="introLabel">{t('placeWizard.price')}</Text>
+                {sectionTitle(t('placeWizard.price'), 'payments')}
                 <Text variant="introCaption" color="redesign.secondary">
                   {t('placeWizard.priceHelp')}
                 </Text>
-                <View style={styles.row}>
-                  <Chip
-                    label={t('placeWizard.unknownPrice')}
-                    appearance="mood"
-                    variant={!form.priceKnown ? 'selected' : disabled ? 'disabled' : 'default'}
-                    onPress={() => {
-                      if (!disabled) setValue('priceKnown', false)
-                    }}
-                  />
-                  {(['under50', '50to100', '100to200', 'over200'] as const).map((range, index) => (
-                    <Chip
-                      key={range}
-                      label={t(`placeWizard.${range}`)}
-                      appearance="mood"
-                      variant={disabled ? 'disabled' : 'default'}
-                      onPress={() => {
-                        setValue('priceKnown', true)
-                        setValue('unit', 'per_person')
-                        setValue('min', ['0', '50000', '100000', '200001'][index]!)
-                        setValue('max', ['49999', '100000', '200000', ''][index]!)
-                      }}
-                    />
-                  ))}
+                <View style={styles.priceGrid}>
+                  {(['under50', '50to100', '100to200', 'over200'] as const).map((range, index) => {
+                    const min = ['0', '50000', '100000', '200001'][index]!
+                    const selected = form.priceKnown && form.min === min && form.unit === 'per_person'
+                    return (
+                      <Pressable
+                        key={range}
+                        accessibilityRole="button"
+                        accessibilityLabel={t(`placeWizard.${range}`)}
+                        accessibilityState={{ selected, disabled }}
+                        disabled={disabled}
+                        style={[styles.priceOption, selected && styles.selectedPrice]}
+                        onPress={() => {
+                          setValue('priceKnown', !selected)
+                          setValue('unit', 'per_person')
+                          setValue('min', min)
+                          setValue('max', ['49999', '100000', '200000', ''][index]!)
+                        }}
+                      >
+                        {selected ? (
+                          <MaterialIcon name="check" size={15} color="redesign.primaryText" />
+                        ) : null}
+                        <Text variant="introSmall">{t(`placeWizard.${range}`)}</Text>
+                      </Pressable>
+                    )
+                  })}
                 </View>
-                <GhostBtn
-                  label={t('placeWizard.enterPrice')}
-                  disabled={disabled}
-                  onPress={() => setValue('priceKnown', true)}
-                />
-                {form.priceKnown ? (
-                  <>
-                    <View style={styles.row}>
-                      {priceUnits.map((unit) => (
-                        <Chip
-                          key={unit}
-                          appearance="mood"
-                          label={t(`placeWizard.unit.${unit}`)}
-                          variant={disabled ? 'disabled' : form.unit === unit ? 'selected' : 'default'}
-                          onPress={() => setValue('unit', unit)}
-                        />
-                      ))}
-                    </View>
-                    {form.unit !== 'free' ? (
-                      <View style={styles.row}>
-                        {textField('min', t('placeWizard.min'), 16, true)}
-                        {textField('max', t('placeWizard.max'), 16, true)}
-                      </View>
-                    ) : null}
-                  </>
+                {form.priceKnown && form.min === '200001'
+                  ? textField('max', t('placeWizard.max'), 16, true)
+                  : null}
+                {!priceValid(form) ? (
+                  <Text color="status.dangerText">{t('placeWizard.priceInvalid')}</Text>
                 ) : null}
-                {!priceValid(form) ? <Text color="status.dangerText">{t('placeWizard.priceInvalid')}</Text> : null}
               </View>
               <View style={[styles.section, styles.divider]}>
-                <Text variant="introLabel">{t('placeWizard.purposes')}</Text>
-                <Text variant="introCaption">{t('placeWizard.purposesHelp')}</Text>
-                {choices('suitability', 'purposeKeys', 10)}
+                {sectionTitle(t('placeWizard.purposes'), 'target', t('placeWizard.multiple'))}
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.purposesHelp')}
+                </Text>
+                {choices('purposeKeys', purposes, 10)}
               </View>
             </>
           ) : null}
           {step === 2 ? (
             <>
               <View style={styles.section}>
-                <Text variant="introLabel">{t('placeWizard.vibes')}</Text>
+                {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'))}
                 <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
-                {choices('mood', 'vibeKeys', 3)}
+                {choices('vibeKeys', vibes, 3)}
               </View>
               <View style={[styles.section, styles.divider]}>
-                <Text variant="introLabel">{t('placeWizard.amenities')}</Text>
+                {sectionTitle(t('placeWizard.amenities'), 'activity', t('placeWizard.tick'))}
                 <Text variant="introCaption">{t('placeWizard.amenitiesHelp')}</Text>
                 {amenityFields
-                  .filter((key) => labels.amenity?.[key])
+                  .filter((key) => amenities.includes(key))
                   .map((key) => (
                     <Pressable
                       key={key}
                       accessibilityRole="checkbox"
-                      accessibilityLabel={labels.amenity![key]}
-                      accessibilityState={{ checked: form.amenities[key] === true, disabled }}
+                      accessibilityLabel={t(`placeWizard.option.${key}`)}
+                      accessibilityState={{
+                        checked: form.amenities[key] === true,
+                        disabled,
+                      }}
                       disabled={disabled}
                       onPress={() => {
                         const next = { ...form.amenities }
@@ -450,8 +524,9 @@ export function ContributionWizard({
                       }}
                       style={[styles.amenity, form.amenities[key] && styles.selectedAmenity]}
                     >
+                      <MaterialIcon name={amenityIcons[key]} size={18} color="redesign.primaryText" />
                       <Text variant="introSmall" style={styles.amenityLabel}>
-                        {labels.amenity![key]}
+                        {t(`placeWizard.option.${key}`)}
                       </Text>
                       <MaterialIcon
                         name={form.amenities[key] ? 'checkbox' : 'checkboxBlank'}
@@ -470,12 +545,16 @@ export function ContributionWizard({
           {step === 3 ? (
             <>
               <View style={styles.section}>
-                <Text variant="introLabel">{t('placeWizard.photos')}</Text>
-                <Text variant="introCaption">{t('placeWizard.photosHelp')}</Text>
+                {sectionTitle(t('placeWizard.photos'), 'receipt', t('placeWizard.optional'))}
+                {reward(20, true)}
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.photosHelp')}
+                </Text>
                 <GhostBtn
                   label={t('placeWizard.uploadPhotos')}
                   disabled
                   onPress={() => {}}
+                  leadingIcon="camera"
                   accessibilityHint={t('placeWizard.photosBlocked')}
                   style={styles.photo}
                 />
@@ -484,23 +563,34 @@ export function ContributionWizard({
                 </Text>
               </View>
               <View style={[styles.section, styles.divider]}>
-                <Text variant="introLabel">{t('placeWizard.tipsHeading')}</Text>
-                {textField('recommendedDishes', t('placeWizard.dishes'), 1000)}
-                {textField('visitTips', t('placeWizard.tips'), 2000)}
+                {sectionTitle(t('placeWizard.tipsHeading'), 'tips', t('placeWizard.optional'))}
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.tipsHelp')}
+                </Text>
+                {textField(
+                  'visitTips',
+                  t('placeWizard.tipsHeading'),
+                  2000,
+                  false,
+                  t('placeWizard.tipsPlaceholder'),
+                )}
               </View>
               <View style={[styles.section, styles.divider]}>
-                <Text variant="introLabel">{t('placeWizard.ratings')}</Text>
-                {rating('service')}
-                {rating('space')}
+                {sectionTitle(t('placeWizard.ratings'), 'reviews', t('placeWizard.optional'))}
+                {rating()}
               </View>
             </>
           ) : null}
           <View style={styles.navigation}>
-            <GhostBtn
-              label={t('common.back')}
-              disabled={busy}
-              onPress={() => (step === 1 ? onBack() : move(step - 1))}
-            />
+            {step > 1 ? (
+              <GhostBtn
+                label={t('common.back')}
+                leadingIcon="arrowBack"
+                disabled={busy}
+                onPress={() => move(step - 1)}
+                style={styles.back}
+              />
+            ) : null}
             <Text variant="introCaption">{t('placeWizard.stepCount', { step })}</Text>
             {step < 3 ? (
               <PrimaryBtn
@@ -511,23 +601,41 @@ export function ContributionWizard({
                 style={styles.next}
               />
             ) : (
-              <Text variant="introCaption">{t(complete ? 'placeWizard.ready' : 'placeWizard.ratingsRequired')}</Text>
+              <PrimaryBtn
+                label={t('placeWizard.finish')}
+                icon="check"
+                variant="discovery"
+                disabled={disabled || blocked || !complete || !taxonomyReady || !validKeys}
+                onPress={() => {
+                  if (complete) onSubmit(complete)
+                }}
+                style={styles.next}
+              />
             )}
           </View>
         </View>
       </View>
-      <PrimaryBtn
-        label={t('placeImport.submit')}
-        variant="discovery"
-        icon="send"
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('placeImport.submit')}
         accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
-        loading={submitting}
-        disabled={disabled || blocked || !complete || !taxonomyReady || !validKeys}
+        accessibilityState={{ disabled: submitDisabled, busy: submitting }}
+        disabled={submitDisabled}
+        style={({ pressed }) => [styles.submit, submitDisabled && styles.disabled, pressed && styles.pressed]}
         onPress={() => {
           if (complete) onSubmit(complete)
         }}
-      />
-      {!complete ? <Text variant="introCaption">{t('placeWizard.required')}</Text> : null}
+      >
+        {submitting ? (
+          <ActivityIndicator color={theme.redesign.white} />
+        ) : (
+          <MaterialIcon name="send" color="redesign.white" />
+        )}
+        <Text variant="introHeading" color="redesign.white" style={styles.headingText}>
+          {t('placeImport.submit')}
+        </Text>
+        {reward(50, true)}
+      </Pressable>
       <GhostBtn
         label={t('placeWizard.save')}
         icon="bookmark"
