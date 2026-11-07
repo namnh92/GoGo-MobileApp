@@ -130,7 +130,7 @@ export const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     gap: 8,
   },
-  stars: { flexDirection: 'row' },
+  stars: { flexDirection: 'row', width: '100%', justifyContent: 'space-between' },
   star: {
     width: 44,
     minHeight: 44,

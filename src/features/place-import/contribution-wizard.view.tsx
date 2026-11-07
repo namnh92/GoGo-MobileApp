@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
@@ -34,6 +34,7 @@ import { ContributionChoices } from './contribution-choices.view'
 import { styles } from './contribution-wizard.style'
 
 export function ContributionWizard({
+  ref,
   googlePlaceId,
   registered,
   online,
@@ -43,6 +44,7 @@ export function ContributionWizard({
   onBack,
   onFocus,
 }: {
+  ref?: Ref<{ saveDraft: () => void }>
   googlePlaceId: string
   registered: boolean
   online: boolean
@@ -234,7 +236,7 @@ export function ContributionWizard({
     }
   }
   async function saveDraft() {
-    if (lock.current || disabled || !registered || needsReload || !priceValid(form) || !validKeys) return
+    if (lock.current || disabled || !registered || needsReload || !priceValid(form) || !validKeys || drafts.isPending || (!saved && existing.length > 0)) return
     lock.current = true
     const idToSave = draftId ?? newIdempotencyKey()
     setDraftId(idToSave)
@@ -283,6 +285,8 @@ export function ContributionWizard({
       lock.current = false
     }
   }
+  useImperativeHandle(ref, () => ({ saveDraft: () => { void saveDraft() } }))
+
   function move(next: number) {
     setStep(next)
     track('place_contribution_step_viewed', { step: next })

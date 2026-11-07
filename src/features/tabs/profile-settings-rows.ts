@@ -11,6 +11,7 @@ import type { IconName } from '@/shared/ui/icons'
 export const SETTINGS_ROWS: readonly { key: string; route?: string; icon: IconName }[] = [
   { key: 'inbox', route: '/notifications', icon: 'inbox' },
   { key: 'notificationsLocation', route: '/settings/notifications', icon: 'bell' },
+  { key: 'contributions', route: '/me/contributions', icon: 'star' },
   { key: 'reviews', route: '/settings/reviews', icon: 'star' },
   { key: 'account', route: '/settings/account', icon: 'settings' },
 ]

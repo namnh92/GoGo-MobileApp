@@ -300,3 +300,19 @@ it('does not attach an existing contribution to a different provider identity af
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(1)
 })
+
+
+it('keeps entered form values when stale-token revalidation loses the network', async () => {
+  await openWithPreview()
+  await completeWizard()
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep on revalidation failure')
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+  mockResolve.mutateAsync.mockImplementationOnce(async () => {
+    mockResolve.data = undefined
+    throw new Error('network unavailable')
+  })
+  await pressSubmit()
+  expect(screen.getByText('Chưa gửi được')).toBeTruthy()
+  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Keep on revalidation failure')
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+})
