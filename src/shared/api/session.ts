@@ -43,6 +43,9 @@ let current: Session | null = null
 let generation = 0
 let hydrated = false
 let hydration: Promise<Session | null> | null = null
+// A late native write cannot be cancelled. Drain every key before allowing an
+// account transition to write, including when another key failed early.
+let credentialOperation: Promise<void> = Promise.resolve()
 const listeners = new Set<(session: Session | null) => void>()
 
 function emit(): void {
@@ -67,12 +70,45 @@ export function assertSessionGeneration(expected: number): void {
   if (generation !== expected) throw new Error('Session changed before mutation completed')
 }
 
+function sameAccount(session: Session): boolean {
+  return current?.kind === session.kind && current?.userId === session.userId
+    && current?.roomId === session.roomId && current?.guestSessionId === session.guestSessionId
+}
+
 function setCurrent(session: Session | null): void {
-  if (!session || current?.kind !== session.kind || current?.userId !== session.userId
-    || current?.roomId !== session.roomId || current?.guestSessionId !== session.guestSessionId) {
-    generation += 1
-  }
   current = session
+  hydrated = true
+  emit()
+}
+
+function beginAccountTransition(): number {
+  const epoch = ++generation
+  // Invalidate queued work before the first storage await. Until the new
+  // credentials are durable no caller may obtain the old account's tokens.
+  setCurrent(null)
+  return epoch
+}
+
+function serializeCredentials<T>(operation: () => Promise<T>): Promise<T> {
+  const result = credentialOperation.then(operation)
+  credentialOperation = result.then(() => {}, () => {})
+  return result
+}
+
+async function settleCredentialWrites(writes: Promise<void>[]): Promise<void> {
+  const results = await Promise.allSettled(writes)
+  for (const result of results) {
+    if (result.status === 'rejected') throw result.reason
+  }
+}
+
+function deleteCredentials(strict: boolean): Promise<void> {
+  return settleCredentialWrites([
+    deleteSecureItem(KEY_ACCESS, strict),
+    deleteSecureItem(KEY_REFRESH, strict),
+    deleteSecureItem(KEY_GUEST, strict),
+    deleteSecureItem(KEY_META, strict),
+  ])
 }
 
 export function isHydrated(): boolean {
@@ -81,26 +117,36 @@ export function isHydrated(): boolean {
 
 /** Read persisted credentials once at app start. Safe to call repeatedly. */
 export async function hydrateSession(): Promise<Session | null> {
-  if (hydration) return hydration
   if (hydrated) return current
-  hydration = hydratePersistedSession().finally(() => { hydration = null })
+  if (hydration) return hydration
+  const expected = generation
+  hydration = serializeCredentials(async () => {
+    // Hydration may have been queued before sign-in/sign-out. It must not
+    // restore an obsolete snapshot or erase the transition's credentials.
+    if (generation !== expected) return current
+    return hydratePersistedSession(expected)
+  }).finally(() => { hydration = null })
   return hydration
 }
 
-async function hydratePersistedSession(): Promise<Session | null> {
+async function hydratePersistedSession(expected: number): Promise<Session | null> {
 
   // Keychain survives iOS uninstall; the app-container marker does not.
   // Fail closed if local storage cannot confirm this installation.
   try {
-    if (await AsyncStorage.getItem(INSTALL_KEY) !== '1') {
-      await clearSession(true)
+    const installed = await AsyncStorage.getItem(INSTALL_KEY)
+    if (generation !== expected) return current
+    if (installed !== '1') {
+      await deleteCredentials(true)
+      if (generation !== expected) return current
       await AsyncStorage.setItem(INSTALL_KEY, '1')
+      if (generation !== expected) return current
+      setCurrent(null)
       return null
     }
   } catch {
+    if (generation !== expected) return current
     setCurrent(null)
-    hydrated = true
-    emit()
     return null
   }
 
@@ -111,11 +157,10 @@ async function hydratePersistedSession(): Promise<Session | null> {
     getSecureItem(KEY_META),
   ])
 
-  hydrated = true
+  if (generation !== expected) return current
 
   if (!accessToken || !rawMeta) {
     setCurrent(null)
-    emit()
     return null
   }
 
@@ -123,48 +168,55 @@ async function hydratePersistedSession(): Promise<Session | null> {
   try {
     meta = JSON.parse(rawMeta) as SessionMeta
   } catch {
-    await clearSession()
+    await deleteCredentials(false)
+    if (generation !== expected) return current
+    setCurrent(null)
     return null
   }
 
+  generation += 1
   setCurrent({
     ...meta,
     accessToken,
     refreshToken: refreshToken ?? undefined,
     guestToken: guestToken ?? undefined,
   })
-  emit()
   return current
 }
 
-export async function persistSession(session: Session): Promise<Session> {
-  const { accessToken, refreshToken, guestToken, ...meta } = session
-  await Promise.all([
-    setSecureItem(KEY_ACCESS, accessToken),
-    setOrDeleteSecureItem(KEY_REFRESH, refreshToken),
-    setOrDeleteSecureItem(KEY_GUEST, guestToken),
-    setSecureItem(KEY_META, JSON.stringify(meta)),
-  ])
-  // The authenticated session is already valid at this point. A temporary
-  // app-container storage failure must not turn a successful server login into
-  // a client error; hydration still fails closed on the next launch.
-  await AsyncStorage.setItem(INSTALL_KEY, '1').catch(() => {})
-  setCurrent(session)
-  hydrated = true
-  emit()
+/** Renewal passes its captured generation; account replacement reserves a new one synchronously. */
+export async function persistSession(session: Session, expected = generation): Promise<Session> {
+  assertSessionGeneration(expected)
+  const epoch = sameAccount(session) ? generation : beginAccountTransition()
+  await serializeCredentials(async () => {
+    assertSessionGeneration(epoch)
+    const { accessToken, refreshToken, guestToken, ...meta } = session
+    await settleCredentialWrites([
+      setSecureItem(KEY_ACCESS, accessToken),
+      setOrDeleteSecureItem(KEY_REFRESH, refreshToken),
+      setOrDeleteSecureItem(KEY_GUEST, guestToken),
+      setSecureItem(KEY_META, JSON.stringify(meta)),
+    ])
+    assertSessionGeneration(epoch)
+    // Marker failure does not turn a valid server login into a client error;
+    // hydration still fails closed on the next launch.
+    await AsyncStorage.setItem(INSTALL_KEY, '1').catch(() => {})
+    assertSessionGeneration(epoch)
+    setCurrent(session)
+  })
+  assertSessionGeneration(epoch)
   return session
 }
 
-export async function clearSession(strict = false): Promise<void> {
-  await Promise.all([
-    deleteSecureItem(KEY_ACCESS, strict),
-    deleteSecureItem(KEY_REFRESH, strict),
-    deleteSecureItem(KEY_GUEST, strict),
-    deleteSecureItem(KEY_META, strict),
-  ])
-  setCurrent(null)
-  hydrated = true
-  emit()
+export async function clearSession(strict = false, expected = generation): Promise<void> {
+  assertSessionGeneration(expected)
+  const epoch = beginAccountTransition()
+  await serializeCredentials(async () => {
+    assertSessionGeneration(epoch)
+    await deleteCredentials(strict)
+    assertSessionGeneration(epoch)
+  })
+  assertSessionGeneration(epoch)
 }
 
 /**
