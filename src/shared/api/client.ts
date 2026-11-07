@@ -2,8 +2,10 @@ import { env } from '@/shared/config/env'
 
 import { ApiError, NetworkError, TimeoutError } from './errors'
 import {
+  assertSessionGeneration,
   clearSession,
   getSession,
+  getSessionGeneration,
   hydrateSession,
   isAccessTokenExpired,
   persistSession,
@@ -37,6 +39,8 @@ export interface RequestOptions {
   revalidate?: boolean
   timeoutMs?: number
   signal?: AbortSignal
+  /** Reject account-bound work after any sign-out or actor change, including HTTP replay. */
+  sessionGeneration?: number
 }
 
 /**
@@ -77,7 +81,7 @@ function buildUrl(options: RequestOptions): string {
 // Refresh tokens are single-use: a parallel second call would revoke the family.
 // ---------------------------------------------------------------------------
 
-let refreshInFlight: Promise<Session | null> | null = null
+let refreshInFlight: { generation: number; promise: Promise<Session | null> } | null = null
 
 async function requestTokenGrant(body: { refreshToken: string } | { guestToken: string }): Promise<TokenGrant> {
   // Same transport contract as `send()`: a refresh that cannot reach the server
@@ -107,9 +111,10 @@ async function requestTokenGrant(body: { refreshToken: string } | { guestToken: 
 }
 
 async function refreshSession(): Promise<Session | null> {
-  if (refreshInFlight) return refreshInFlight
+  const generation = getSessionGeneration()
+  if (refreshInFlight?.generation === generation) return refreshInFlight.promise
 
-  refreshInFlight = (async () => {
+  const promise = (async () => {
     const session = getSession()
     if (!session) return null
 
@@ -121,33 +126,41 @@ async function refreshSession(): Promise<Session | null> {
           : null
 
     if (!credential) {
-      await endSessionLocally()
+      await endSessionLocally(generation)
       return null
     }
 
     try {
       const grant = await requestTokenGrant(credential)
-      return await persistSession(sessionFromGrant(grant, session))
+      assertSessionGeneration(generation)
+      const renewed = await persistSession(sessionFromGrant(grant, session), generation)
+      assertSessionGeneration(generation)
+      return renewed
     } catch (error) {
+      // A late refresh must neither replace nor sign out a newer account.
+      assertSessionGeneration(generation)
       // 401 means the credential is dead (rotated, revoked, expired) — sign out.
       // A network blip must NOT destroy a still-valid refresh token.
       if (error instanceof ApiError && error.status === 401) {
-        await endSessionLocally()
+        await endSessionLocally(generation)
         return null
       }
       throw error
     }
   })()
+  const flight = { generation, promise }
+  refreshInFlight = flight
 
   try {
-    return await refreshInFlight
+    return await promise
   } finally {
-    refreshInFlight = null
+    if (refreshInFlight === flight) refreshInFlight = null
   }
 }
 
-async function endSessionLocally(): Promise<void> {
-  await clearSession()
+async function endSessionLocally(generation: number): Promise<void> {
+  await clearSession(false, generation)
+  assertSessionGeneration(generation + 1)
   onSessionExpired?.()
 }
 
@@ -186,6 +199,7 @@ async function parseBody<T>(response: Response): Promise<T> {
 // ---------------------------------------------------------------------------
 
 async function send(options: RequestOptions, accessToken: string | null): Promise<Response> {
+  if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
   // Built before the try below: a missing path param or an unserialisable body
   // is a programming error, and must not be disguised as a network failure.
   const url = buildUrl(options)
@@ -234,23 +248,33 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
 export async function currentAccessGrant(
   options: { force?: boolean } = {},
 ): Promise<{ token: string; expiresAt: number } | null> {
-  let session = getSession() ?? (await hydrateSession())
+  if (!getSession()) await hydrateSession()
+  let session = getSession()
+  const generation = getSessionGeneration()
   // `force` is for a caller the server has just refused. Age is no guide there:
   // the token can be minutes from expiry and still be the one that earned the
   // 401, so asking again without renewing would resend exactly what was
   // rejected (GoGo-MobileApp#286).
   if (session && (options.force || isAccessTokenExpired(session))) session = await refreshSession()
+  // Ending this account is allowed to return null. Returning a token requires
+  // the exact account lifetime that requested it, even across await continuations.
+  if (session) assertSessionGeneration(generation)
   if (!session) return null
   return { token: session.accessToken, expiresAt: session.expiresAt }
 }
 
 export async function request<T>(options: RequestOptions): Promise<T> {
+  if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
   let accessToken: string | null = null
 
   if (!options.anonymous && !options.deviceCredential) {
-    let session = getSession() ?? (await hydrateSession())
+    if (!getSession()) await hydrateSession()
+    let session = getSession()
+    const generation = getSessionGeneration()
+    if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
     if (session && isAccessTokenExpired(session)) {
       session = await refreshSession()
+      if (session) assertSessionGeneration(generation)
     }
     accessToken = session?.accessToken ?? null
   }
@@ -258,8 +282,11 @@ export async function request<T>(options: RequestOptions): Promise<T> {
   let response = await send(options, accessToken)
 
   if (response.status === 401 && !options.anonymous && accessToken) {
+    if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
+    const generation = getSessionGeneration()
     const renewed = await refreshSession()
     if (!renewed) throw await toApiError(response)
+    assertSessionGeneration(generation)
     response = await send(options, renewed.accessToken)
   }
 
