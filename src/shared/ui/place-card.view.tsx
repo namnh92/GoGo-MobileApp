@@ -318,17 +318,17 @@ function PreviewCard({ preview, categoryLabel, children, headerAction, style }: 
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null)
   const photo = candidatePhoto.photo?.uri !== failedPhoto ? candidatePhoto.photo : null
   const open = openStateFromHours(preview.openingHours, now)
-  const closing = formatMinuteOfDay(open.closesAtMinute)
-  const openLabel = open.openNow == null ? null : open.openNow
-    ? closing ? t('discovery.openUntil', { time: closing }) : t('common.open')
-    : t('common.closed')
   const hours = preview.openingHours ?? []
   const daily = hours.length === 7 && new Set(hours.map(hour => hour.dayOfWeek)).size === 7
     && hours.every(hour => hour.openMinute === hours[0].openMinute && hour.closeMinute === hours[0].closeMinute && hour.isOvernight === hours[0].isOvernight)
-  const schedules = (daily ? hours.slice(0, 1) : hours).map(hour => ({
-    key: `${hour.dayOfWeek}-${hour.openMinute}`,
-    label: `${formatMinuteOfDay(hour.openMinute)} - ${formatMinuteOfDay(hour.closeMinute)} ${t(daily ? 'placeImport.daily' : `common.weekday.${hour.dayOfWeek}`)}`,
-  }))
+  const schedule = (daily ? hours.slice(0, 1) : hours).map(hour =>
+    `${formatMinuteOfDay(hour.openMinute)}–${formatMinuteOfDay(hour.closeMinute)} ${t(daily ? 'placeImport.daily' : `common.weekday.${hour.dayOfWeek}`)}`,
+  ).join(' · ')
+  const opens = formatMinuteOfDay(open.opensAtMinute)
+  const openLabel = open.openNow == null ? null : open.openNow
+    ? `${t('common.open')} · ${schedule}`
+    : opens ? t(open.opensDayOffset === 1 ? 'discovery.closedTomorrow' : (open.opensDayOffset ?? 0) > 1 ? 'discovery.closedLater' : 'search.closedOpens', { time: opens, days: open.opensDayOffset }) : t('common.closed')
+  const photoCredit = photo ? `${t('placeImport.photoCredit')}${photo.authors.map(author => author.displayName).join(', ')} · ${photo.attribution}` : undefined
   const hasPhoto = candidatePhoto.status === 'loading' || !!photo
   return (
     <View style={style}>
@@ -342,10 +342,9 @@ function PreviewCard({ preview, categoryLabel, children, headerAction, style }: 
           {photo ? <Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /> : null}
           {headerAction ? <View style={styles.importHeaderAction}>{headerAction}</View> : null}
           <View testID="import-photo-overlays" style={styles.importPhotoOverlays}>
-            {photo ? <Text testID="import-photo-credit" variant="introCaption" color="redesign.white" style={styles.importPhotoCredit}>
+            {photo ? <Text testID="import-photo-credit" numberOfLines={1} ellipsizeMode="tail" accessibilityLabel={photoCredit} variant="introCaption" color="redesign.white" style={styles.importPhotoCredit}>
               {t('placeImport.photoCredit')}{photo.authors.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="introCaption" color="redesign.white" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)} · {photo.attribution}
             </Text> : null}
-            {openLabel ? <View testID="import-photo-hours" style={styles.importHoursOverlay}><Text variant="introCaption" color="redesign.white">{open.openNow ? '● ' : ''}{openLabel}</Text></View> : null}
           </View>
         </View> : null}
         <View style={styles.importBody}>
@@ -355,9 +354,9 @@ function PreviewCard({ preview, categoryLabel, children, headerAction, style }: 
             {preview.address ? <View style={styles.addressRow}><MaterialIcon name="location" size={18} color="redesign.outline" /><Text variant="introBody" color="redesign.secondary" style={styles.addressText}>{preview.address}</Text></View> : null}
           </View>
           {categoryLabel ? <Text variant="introSmall" color="redesign.secondary">{categoryLabel}</Text> : null}
-          {preview.googleRating != null || schedules.length > 0 ? <View style={styles.importFacts}>
+          {preview.googleRating != null || openLabel ? <View style={styles.importFacts}>
             {preview.googleRating != null ? <View style={styles.importFact}><Text variant="introLabel" color="redesign.ink">★ {formatRating(preview.googleRating, i18n.language)}</Text><Text variant="introCaption" color="redesign.secondary">{preview.googleRatingCount != null ? `(${formatCount(preview.googleRatingCount, i18n.language)}) ` : ''}Google</Text></View> : null}
-            {schedules.map(schedule => <View key={schedule.key} style={styles.importFact}><MaterialIcon name="clock" size={15} color="redesign.secondary" /><Text variant="introSmall" color="redesign.secondary">{schedule.label}</Text></View>)}
+            {openLabel ? <View testID="import-body-hours" style={styles.importFact}><Text variant="introSmall" color={open.openNow ? 'status.successText' : 'status.dangerText'}>●</Text><Text variant="introSmall" color="redesign.secondary" style={styles.importHoursLabel}>{openLabel}</Text></View> : null}
           </View> : null}
           {[...new Set(preview.attributions ?? [])].filter(attribution => !photo || attribution.trim() !== photo.attribution.trim()).map(attribution => <Text key={attribution} variant="introCaption" color="redesign.secondary">{attribution}</Text>)}
         </View>

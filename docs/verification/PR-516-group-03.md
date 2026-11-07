@@ -1,8 +1,50 @@
 # PR #516 group 03 — Nhập link → Bổ sung thông tin
 
-Updated 2026-11-07 in `mobile-g03`, latest owner fix starting at clean HEAD `fcf3059`.
+Updated 2026-11-07 in `mobile-g03`, latest owner fix starting at clean HEAD `fd40f3d`.
 Owner scope: file edits and local checks only; no install, commit, push, build or deployment.
 The owner’s current scoped fix supersedes the earlier migration pause for this task.
+
+## Current owner fix — duplicate hours and long photo credit (fd40f3d + working edits)
+
+Owner simulator feedback on Kem Tràng Tiền, 2026-11-07, supersedes the
+historical bottom-left wrapping credit / photo-hours treatment below.
+
+- Shared `PlaceCard` preview variant now shows opening facts once, in one body
+  chip: a semantic green/red state dot plus localized state text and API hours.
+  Open example: **● Đang mở · 08:00–23:00 hàng ngày**. Closed example:
+  **● Đã đóng · Mở 08:00**; next-day/later openings keep their day qualifier.
+  Seven identical API day schedules retain the daily shorthand; other schedules
+  retain weekday labels. Missing hours produce no invented state or schedule.
+- Removed the photo-hours overlay. The photo credit is alone at top-left,
+  12pt from the top/left. Its container ends 60pt from the right edge, reserving
+  the Maps action's 44pt target, 8pt right inset and 8pt gap. The credit has
+  `maxWidth: 100%` inside that reserved slot, one line and tail ellipsis; its
+  accessibility label contains the complete authors/provider text. Existing
+  author links and the top-right Maps action remain functional.
+- The same preview component renders extracted and supplement stages; no
+  screen-specific copy was introduced. Photo failures still remove credit.
+- API contract, photo fetch/no-cache behavior and canonical GoGo cards unchanged.
+
+Verification in this run:
+
+- `pnpm typecheck`: **PASS**.
+- `pnpm lint`: **PASS**, zero warnings.
+- `pnpm test:ui --runInBand src/features/__tests__/place-import*.spec.tsx src/shared/ui/__tests__/place-card.spec.tsx`:
+  **PASS, 6 suites, 144 tests** (58 owner tests).
+- Regression proof: single body hours with no hours anywhere in photo, open,
+  closed and next-day states at fixed Vietnam times, both import stages,
+  unknown-hours omission, long-name single-line ellipsis/full accessible credit,
+  reserved Maps gap, Light/Dark scrims, profile links and image-error removal.
+- `pnpm test`: **FAIL, 111 files passed, 1 failed, 1 skipped; 1311 tests
+  passed, 3 failed, 39 skipped**. The only failures are the previously documented
+  process-liveness cases in unchanged `src/shared/config/__tests__/distribute-wrapper.test.ts`
+  at lines 208, 234 and 258. Confirmed again: `/bin/ps -o lstart= -p $$`
+  returns `operation not permitted` under this managed sandbox. A green full
+  unit gate requires process-inspection access; no tests or distribution logic
+  were changed or skipped to conceal the failures.
+- `git diff --check`: **PASS**.
+- File edits/checks only. No install, commit, push, build, deployment or simulator
+  run. Structural bounds and text props do not establish native visual acceptance.
 
 ## Live Stitch evidence
 
@@ -53,7 +95,7 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
 | Compact synced-link row, Đã đồng bộ, Đổi link | Implemented: actual URL/name, one-line truncation, one checked status pill (the only verification confirmation). Đổi link clears resolution, metadata, selection, local photos and submission state; focuses input | `src/features/place-import/import.view.tsx:319`, `:343`, `:414` |
 | Dữ liệu đã trích xuất + synced badge | Owner 2026-11-07: plain section heading; removed verified icon and synced pill | `src/features/place-import/import.view.tsx:509`, `src/features/place-import/import.style.tsx:15` |
 | ONE Google image, 16:10, 12pt radius, hours/save overlays | Existing shared preview retained and checked against current source; transient BFF photo with loading/decode/error handling, no stock/sample fallback | `src/shared/ui/place-card.view.tsx:315`, `src/shared/ui/place-card.style.tsx:6` |
-| Photo attribution | Owner 2026-11-07: localized Ảnh: <authors> · Google Maps pill on the photo at bottom-left, opposite hours; response author URI remains linkable; no below-photo credit line. Repeated provider credit omitted, distinct credits retained. No-store/cachePolicy=none unchanged | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:345` |
+| Photo attribution | Owner 2026-11-07: localized Ảnh: <authors> · Google Maps pill alone at photo top-left, single-line/tail ellipsis with full accessible text and reserved Maps gap; response author URI remains linkable; no below-photo credit line. Repeated provider credit omitted, distinct credits retained. No-store/cachePolicy=none unchanged | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:345` |
 | Name, address, Google rating/count, actual hours | Existing verified facts retained; actual seven-day identical hours may use hàng ngày. Unknown facts/price omitted | `src/shared/ui/place-card.view.tsx:324`, `:348` |
 | Candidate Maps / save actions | Owner 2026-11-07: Maps icon inside extracted card, 44×44 touch target; candidate bookmark and save-lock explanation absent. Existing GoGo place saving retained | `src/features/place-import/import.view.tsx:559`, `src/shared/ui/place-card.view.tsx:343` |
 | Existing GoGo place + short address | Preserved shared canonical PlaceCard and operational actions; administrative formatter remains authoritative | `src/features/place-import/existing-place-result.view.tsx:29`, `src/shared/ui/place-address.view.tsx:9`, `src/shared/administrative/place-address.ts:1` |
@@ -141,7 +183,7 @@ starting HEAD `8d40125`) supersedes the source bookmark and reward repetition:
 Photo-credit requirements checked against [Google Places photo guidance](https://developers.google.com/maps/documentation/places/web-service/place-photos):
 retain photo authors alongside the image and provider attribution.
 
-Latest simulator feedback (owner **2026-11-07**, starting clean HEAD `fcf3059`)
+Historical simulator feedback (owner **2026-11-07**, starting clean HEAD `fcf3059`)
 supersedes the earlier below-photo credit and disabled footer treatment:
 
 - Moved **Ảnh: <authors> · Google Maps** into a small rounded pill on the
@@ -157,7 +199,7 @@ supersedes the earlier below-photo credit and disabled footer treatment:
   #518 owns the contributions screen and future link wiring. Link-taking help
   and the existing explanatory benefits remain.
 
-## Verification — latest owner fix at fcf3059 + working edits
+## Historical verification — owner fix at fcf3059 + working edits
 
 - `pnpm typecheck`: **PASS**.
 - `pnpm lint`: **PASS**, zero warnings.

@@ -35,6 +35,8 @@ jest.mock('@/shared/api', () => ({
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 import PlaceImportScreen from '@/features/place-import/import.view'
+const mockNow = { value: new Date('2026-11-07T05:00:00Z') }
+jest.mock('@/shared/ui/use-place-clock', () => ({ usePlaceClock: () => mockNow.value }))
 const LINK = 'https://maps.google.com/maps?place_id=ChIJtest'
 const candidate = { googlePlaceId: 'ChIJtest', name: 'Preview' }
 async function preview(value: unknown = candidate) {
@@ -45,6 +47,7 @@ async function preview(value: unknown = candidate) {
 }
 beforeEach(() => {
   jest.clearAllMocks()
+  mockNow.value = new Date('2026-11-07T05:00:00Z')
   mockUnread.count = 0
   onlineManager.setOnline(true)
   mockClipboard.mockResolvedValue('')
@@ -336,7 +339,7 @@ it('uses the directly downloaded Stitch photo/body hierarchy with real hours and
   expect(screen.queryByText('✓ Đã đồng bộ từ Google Maps')).toBeNull()
   expect(screen.getAllByTestId('import-verified-confirmation')).toHaveLength(1)
   expect(screen.getByText('Đã đồng bộ')).toBeTruthy()
-  expect(screen.getByText('07:30 - 22:30 hàng ngày')).toBeTruthy()
+  expect(screen.getByText('Đang mở · 07:30–22:30 hàng ngày')).toBeTruthy()
   expect(screen.getByText('(123) Google')).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Lưu' })).toBeNull()
   expect(screen.queryByText(/Chỉ lưu được sau khi|\+50/)).toBeNull()
@@ -587,24 +590,62 @@ it('keeps canonical saving available for an existing GoGo place', async () => {
   expect(mockToggleSaved).toHaveBeenCalledWith({ type: 'place', id: 'canonical', saved: false })
 })
 
-// Structural proof; native text wrapping still needs simulator confirmation.
-it.each(['orange', 'orangeDark'] as const)('uses bounded wrapping photo pills and readable theme scrims (%s)', async themeName => {
+// Structural proof; native truncation still needs simulator confirmation.
+it.each(['orange', 'orangeDark'] as const)('bounds a single-line top-left credit away from Maps and removes photo hours (%s)', async themeName => {
   const create = jest.spyOn(UnistylesStyleSheet, 'create')
   jest.isolateModules(() => { jest.requireActual('@/shared/ui/place-card.style') })
   const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
   const styles = factory(themes[themeName])
   create.mockRestore()
-  expect(styles.importPhotoOverlays).toMatchObject({ position: 'absolute', bottom: 12, left: 12, right: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 })
-  for (const pill of [styles.importPhotoCredit, styles.importHoursOverlay]) {
-    expect(pill).toMatchObject({ maxWidth: '100%', borderRadius: 999, backgroundColor: themes[themeName].redesign.scrimStart })
-    expect(pill.position).toBeUndefined()
-  }
-  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'A long photographer name without truncation' }] }] })
-  await preview({ ...candidate, openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 0, closeMinute: 1440 })), photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  expect(styles.importPhotoOverlays).toMatchObject({ position: 'absolute', top: 12, left: 12, right: 60, alignItems: 'flex-start' })
+  expect(styles.importPhotoOverlays.bottom).toBeUndefined()
+  expect(styles.importHeaderAction).toMatchObject({ top: 8, right: 8 })
+  // Right edge is 60pt from frame edge; Maps occupies 8 + 44pt, leaving 8pt.
+  expect(styles.importPhotoOverlays.right - (styles.importHeaderAction.right + 44)).toBeGreaterThanOrEqual(8)
+  expect(styles.importPhotoCredit).toMatchObject({ maxWidth: '100%', borderRadius: 999, backgroundColor: themes[themeName].redesign.scrimStart })
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'A very long photographer name '.repeat(20) }] }] })
+  await preview({ ...candidate, googleMapsUri: LINK, openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 0, closeMinute: 1440 })), photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await waitFor(() => expect(screen.getByTestId('import-photo-credit')).toBeTruthy())
   const row = within(screen.getByTestId('import-photo-overlays'))
-  expect(row.getByTestId('import-photo-credit').props.numberOfLines).toBeUndefined()
-  expect(row.getByTestId('import-photo-hours')).toBeTruthy()
+  expect(row.getByTestId('import-photo-credit').props).toMatchObject({
+    numberOfLines: 1, ellipsizeMode: 'tail',
+    accessibilityLabel: `Ảnh: ${'A very long photographer name '.repeat(20).trim()} · Google Maps`,
+  })
+  expect(row.queryByTestId('import-photo-hours')).toBeNull()
+  expect(screen.getAllByTestId('import-body-hours')).toHaveLength(1)
+  expect(screen.getByRole('button', { name: 'Mở trên Google Maps' })).toBeTruthy()
   await fireEvent(screen.getByTestId('import-candidate-photo'), 'error', { nativeEvent: { error: 'decode failed' } })
   expect(screen.queryByTestId('import-photo-credit')).toBeNull()
+})
+
+
+it.each([
+  ['2026-11-07T05:00:00Z', 'Đang mở · 08:00–23:00 hàng ngày', true],
+  ['2026-11-07T00:00:00Z', 'Đã đóng · Mở 08:00', false],
+  ['2026-11-07T16:30:00Z', 'Đã đóng · Mở 08:00 ngày mai', false],
+] as const)('renders API hours once in the body across extracted and supplement stages (%s)', async (now, label, isOpen) => {
+  mockNow.value = new Date(now)
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan' }] }] })
+  await preview({ ...candidate,
+    openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 480, closeMinute: 1380 })),
+    photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' },
+  })
+  await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
+  const checkHours = () => {
+    expect(screen.getAllByText(label)).toHaveLength(1)
+    expect(screen.getAllByTestId('import-body-hours')).toHaveLength(1)
+    expect(within(screen.getByTestId('import-preview-photo-frame')).queryByText(/08:00|23:00|Đang mở|Đã đóng/)).toBeNull()
+    expect(screen.queryByTestId('import-photo-hours')).toBeNull()
+    expect(StyleSheet.flatten(within(screen.getByTestId('import-body-hours')).getByText('●').props.style).color)
+      .toBe(isOpen ? themes.orange.status.successText : themes.orange.status.dangerText)
+  }
+  checkHours()
+  await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
+  checkHours()
+})
+
+it('omits unknown opening facts rather than inventing a state or schedule', async () => {
+  await preview()
+  expect(screen.queryByTestId('import-body-hours')).toBeNull()
+  expect(screen.queryByTestId('import-photo-hours')).toBeNull()
 })
