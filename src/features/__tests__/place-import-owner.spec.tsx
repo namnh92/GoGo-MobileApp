@@ -626,7 +626,7 @@ it('requires the wizard after branch selection and clears another branch’s con
   await completeWizard()
   await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'A only')
   await fireEvent.press(screen.getByText('Branch B'))
-  expect(screen.getByText('Tiếp tục sang Bước 2')).toBeTruthy()
+  expect(screen.getByText('Tiếp tục')).toBeTruthy()
   await completeWizard()
   expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('')
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
