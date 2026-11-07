@@ -13,12 +13,13 @@ const mockPick = jest.fn()
 const mockPermission = jest.fn()
 const mockGet = jest.fn()
 const mockToggleSaved = jest.fn()
+const mockSaveDraft = jest.fn()
 jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: (...args: unknown[]) => mockPermission(...args),
   launchImageLibraryAsync: (...args: unknown[]) => mockPick(...args),
 }))
 jest.mock('@/shared/api/client', () => ({ api: { get: (...args: unknown[]) => mockGet(...args) } }))
-const mockRouter = { back: jest.fn(), push: jest.fn() }
+const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn() }
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 const mockUnread = { count: 0, more: false }
@@ -29,6 +30,7 @@ jest.mock('@/shared/api', () => ({
   useSubmitPlace: () => mockSubmit,
   usePlaceSubmission: () => ({}),
   ...jest.requireActual('./contribution-fixtures').contributionHooks(),
+  useSaveContributionDraft: () => ({ mutateAsync: mockSaveDraft }),
   usePlaceDetail: () => ({ data: { id: 'canonical', name: 'Existing' } }),
   useSaved: () => ({ data: [] }),
   useToggleSaved: () => ({ mutate: mockToggleSaved }),
@@ -52,6 +54,7 @@ beforeEach(() => {
   mockUnread.count = 0
   onlineManager.setOnline(true)
   mockClipboard.mockResolvedValue('')
+  mockSaveDraft.mockResolvedValue({ id: 'saved-draft', version: 1 })
   mockResolve.isError = false
   mockResolve.isPaused = false
   mockResolve.error = null
@@ -632,4 +635,50 @@ it('requires the wizard after branch selection and clears another branch’s con
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJbranchB', enrichment: expect.not.objectContaining({ visitTips: expect.anything() }) }))
+})
+
+
+it('shows a success result for the place and replaces the submitted form with contributions after dismissal', async () => {
+  await preview()
+  await completeWizard()
+  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  expect(screen.getByText('Đã gửi cho GoGo duyệt')).toBeTruthy()
+  expect(screen.getByText('Preview đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()
+  expect(screen.getByText('+50 GoGo Credit khi được duyệt')).toBeTruthy()
+  expect(screen.queryByText('✓ Đã gửi — GoGo sẽ duyệt trước khi hiển thị.')).toBeNull()
+  await fireEvent.press(screen.getByText('Xem đóng góp của tôi'))
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/me/contributions'))
+})
+it('resets a successful flow to Nhập link through the secondary action', async () => {
+  await preview()
+  await completeWizard()
+  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Thêm địa điểm khác'))
+  await waitFor(() => expect(screen.getByTestId('import-link-input').props.value).toBe(''))
+  expect(screen.queryByTestId('contribution-wizard')).toBeNull()
+})
+it('retains entered values after a submission error and retries the same enrichment', async () => {
+  await preview()
+  await completeWizard()
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep these tips')
+  mockSubmit.mutateAsync.mockRejectedValueOnce(new Error('private server detail'))
+  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  expect(screen.getByText('Chưa gửi được')).toBeTruthy()
+  expect(screen.queryByText('private server detail')).toBeNull()
+  const firstBody = mockSubmit.mutateAsync.mock.calls[0][0]
+  await fireEvent.press(screen.getByText('Thử lại'))
+  await waitFor(() => expect(mockSubmit.mutateAsync).toHaveBeenNthCalledWith(2, firstBody))
+  expect(screen.getByText('Đã gửi cho GoGo duyệt')).toBeTruthy()
+})
+
+
+it('saves the retained form as a draft from the error sheet', async () => {
+  await preview()
+  await completeWizard()
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Saved after failure')
+  mockSubmit.mutateAsync.mockRejectedValueOnce(new Error('offline'))
+  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(within(screen.getByTestId('result-sheet')).getByRole('button', { name: 'Lưu nháp' }))
+  await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Saved after failure' }) }) })))
+  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Saved after failure')
 })

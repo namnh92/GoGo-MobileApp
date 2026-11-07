@@ -177,6 +177,7 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
   return (
     <FocusedFieldGroup.Provider value={focusedGroup}>
     <Modal
+      testID={testID ? `${testID}-modal` : undefined}
       visible={mounted}
       transparent
       animationType="none"

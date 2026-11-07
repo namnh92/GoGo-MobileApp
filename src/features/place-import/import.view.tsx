@@ -10,7 +10,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { NetworkError } from '@/shared/api/errors'
 import { ImportGuide } from './import-guide.view'
 
-import { discoveryLabels, isApiError, usePlaceSubmission, useResolveGoogleMapsLink, useSubmitPlace, useTaxonomies, type ResolveLinkResult } from '@/shared/api'
+import { discoveryLabels, isApiError, useResolveGoogleMapsLink, useSubmitPlace, useTaxonomies, type ResolveLinkResult } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
@@ -18,6 +18,7 @@ import { HeaderNotificationButton } from '@/shared/ui/header-notification-button
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { ContributionWizard } from './contribution-wizard.view'
 import type { Enrichment } from './contribution-form'
 import { FieldFocusGroup, FocusedFieldGroup } from '@/shared/ui/field-focus-group'
@@ -155,15 +156,29 @@ export default function PlaceImportScreen() {
   const taxonomies = useTaxonomies({ kinds: 'category' })
   const resolve = useResolveGoogleMapsLink()
   const submit = useSubmitPlace()
-  // A proposal is queued for moderation, so its status is polled after sending.
-  const submission = usePlaceSubmission(submit.data?.status === 'ALREADY_EXISTS' ? undefined : submit.data?.submissionId)
+  const wizard = useRef<{ saveDraft: () => void }>(null)
+  const [outcome, setOutcome] = useState<'success' | 'error' | null>(null)
+  const [resultVisible, setResultVisible] = useState(false)
+  const afterResultClose = useRef<(() => void) | null>(null)
+  function closeResult(action?: () => void) {
+    afterResultClose.current = action ?? null
+    setResultVisible(false)
+  }
+  function viewContributions() {
+    closeResult(() => router.replace('/me/contributions'))
+  }
 
   function taxonomyOptions(kind: string) {
     return Object.entries(discoveryLabels(taxonomies.data, i18n.language)[kind] ?? {}).map(([key, label]) => ({ key, label }))
   }
 
+  const [retainedPreview, setRetainedPreview] = useState<ResolveLinkResult | undefined>(undefined)
   const previewMatchesUrl = resolvedUrl !== null && resolvedUrl === url.trim()
-  const result = previewMatchesUrl ? resolve.data : undefined
+  // A failed stale-token revalidation must not unmount and erase the form.
+  if (previewMatchesUrl && resolve.data && resolve.data !== retainedPreview) {
+    setRetainedPreview(resolve.data)
+  }
+  const result = previewMatchesUrl ? resolve.data ?? retainedPreview : undefined
   const candidate = result?.candidate as Candidate | undefined
   // #131: Google lists it as opening soon; the server refuses the submit.
   useEffect(() => {
@@ -172,10 +187,13 @@ export default function PlaceImportScreen() {
   const notOpenYet = candidate?.businessStatus === 'FUTURE_OPENING'
 
   function invalidateAttempt() {
+    setRetainedPreview(undefined)
     attemptGeneration.current += 1
     setFormGeneration(value => value + 1)
     submitLock.current = false
     setRevalidating(false)
+    setOutcome(null)
+    setResultVisible(false)
   }
 
   function onResolve() {
@@ -216,8 +234,6 @@ export default function PlaceImportScreen() {
    * A client that sends nothing still works; the server just pays for the extra
    * fetch, which is the rollback.
    */
-  // One reading of a submit refusal, shown beside whichever CTA sent it (#316 F-01).
-  const submitError = submit.isError ? t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') : null
 
   async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false, generation = attemptGeneration.current) {
     if (
@@ -242,9 +258,11 @@ export default function PlaceImportScreen() {
       })
       if (generation !== attemptGeneration.current) return
       track('place_import_added', { placeId: submission.placeId ?? googlePlaceId })
+      if (!submission.placeId) { Keyboard.dismiss(); setOutcome('success'); setResultVisible(true) }
     } catch (error) {
-      if (generation !== attemptGeneration.current || retried || !staleResolution(error)) return
-      await revalidateAndResubmit(googlePlaceId, generation)
+      if (generation !== attemptGeneration.current) return
+      if (!retried && staleResolution(error)) await revalidateAndResubmit(googlePlaceId, generation)
+      else { Keyboard.dismiss(); setOutcome('error'); setResultVisible(true) }
     } finally {
       if (generation === attemptGeneration.current) submitLock.current = false
     }
@@ -271,7 +289,7 @@ export default function PlaceImportScreen() {
       if (fresh.status !== 'RESOLVED' || !fresh.resolutionToken || fresh.candidate?.googlePlaceId !== googlePlaceId) return
       await onSubmitPlace(fresh.candidate?.googlePlaceId ?? googlePlaceId, fresh.resolutionToken, true, generation)
     } catch {
-      // The retry failed on its own terms; `submit.isError` already says so.
+      if (generation === attemptGeneration.current) { setOutcome('error'); setResultVisible(true) }
     } finally {
       if (generation === attemptGeneration.current) setRevalidating(false)
     }
@@ -482,11 +500,6 @@ export default function PlaceImportScreen() {
                         </Pressable>
                       )
                     })}
-                    {submitError ? (
-                      <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>
-                        {submitError}
-                      </Text>
-                    ) : null}
                   </View>
                 ) : null}
 
@@ -523,22 +536,18 @@ export default function PlaceImportScreen() {
                     ) : null}
 
                     {linkFailed ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
-                    {submitError && !notOpenYet ? (
-                      <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>
-                        {submitError}
-                      </Text>
-                    ) : null}
                   </PlaceCard>
                 ) : null}
 
-                {contributionPlaceId && !submit.isSuccess ? (
+                {contributionPlaceId && !submit.data?.placeId ? (
                   <ContributionWizard
+                    ref={wizard}
                     key={`${formGeneration}:${contributionPlaceId}`}
                     googlePlaceId={contributionPlaceId}
                     registered={actorStatus === 'user'}
                     online={online}
                     submitting={submit.isPending || revalidating}
-                    blocked={notOpenYet}
+                    blocked={notOpenYet || submit.isSuccess}
                     onBack={changeLink}
                     onFocus={revealFocused}
                     onSubmit={(value) => {
@@ -549,33 +558,8 @@ export default function PlaceImportScreen() {
                 ) : null}
                 {verified && notOpenYet ? <Text color="status.dangerText">{t('placeImport.notYetOpen')}</Text> : null}
 
-                {previewMatchesUrl && submit.isSuccess ? (
-                  submit.data?.placeId ? (
-                    <ExistingPlaceResult placeId={submit.data.placeId} onReset={reset} />
-                  ) : (
-                    <View style={styles.resultBody}>
-                      {!submission.data?.status || submission.data.status === 'pending' ? <Text variant="label">{t('placeImport.pendingReview')}</Text> : null}
-                      {submission.data?.status ? <Text>{t(`placeImport.submissionStatus.${submission.data.status}`)}</Text> : null}
-                      {(submission.data?.status === 'approved' || submission.data?.status === 'merged') && submission.data.placeId ? (
-                        <ExistingPlaceResult placeId={submission.data.placeId} onReset={reset} />
-                      ) : null}
-                      {submission.isError ? (
-                        <>
-                          <Text>
-                            {t(isApiError(submission.error) && submission.error.status === 403 ? 'placeImport.ownerOnlyStatus' : 'placeImport.statusFailed')}
-                          </Text>
-                          {!(isApiError(submission.error) && submission.error.status === 403) ? (
-                            <GhostBtn
-                              label={t('common.retry')}
-                              onPress={() => {
-                                void submission.refetch()
-                              }}
-                            />
-                          ) : null}
-                        </>
-                      ) : null}
-                    </View>
-                  )
+                {previewMatchesUrl && submit.isSuccess && submit.data?.placeId ? (
+                  <ExistingPlaceResult placeId={submit.data.placeId} onReset={reset} />
                 ) : null}
 
                 {result?.status === 'UNRESOLVED' ? (
@@ -596,6 +580,19 @@ export default function PlaceImportScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </FocusedFieldGroup.Provider>
+      <ResultSheet
+        visible={resultVisible}
+        variant={outcome === 'success' ? 'success' : 'error'}
+        title={t(outcome === 'success' ? 'placeResult.successTitle' : 'placeResult.errorTitle')}
+        body={outcome === 'success'
+          ? t('placeResult.successBody', { name: candidate?.name ?? result?.candidates?.find(item => item.googlePlaceId === contributionPlaceId)?.name ?? t('myContributions.unknownPlace') })
+          : t('placeResult.errorBody', { reason: t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') })}
+        note={outcome === 'success' ? t('placeResult.credit') : undefined}
+        primaryAction={{ label: t(outcome === 'success' ? 'placeResult.viewContributions' : 'common.retry'), onPress: outcome === 'success' ? viewContributions : () => closeResult(() => { if (contributionPlaceId) void onSubmitPlace(contributionPlaceId) }) }}
+        secondaryAction={{ label: t(outcome === 'success' ? 'placeResult.addAnother' : 'placeWizard.save'), onPress: outcome === 'success' ? () => closeResult(changeLink) : () => closeResult(() => wizard.current?.saveDraft()), disabled: outcome === 'error' && actorStatus !== 'user' }}
+        onClose={outcome === 'success' ? viewContributions : () => closeResult()}
+        onClosed={() => { const action = afterResultClose.current; afterResultClose.current = null; action?.() }}
+      />
     </Atmosphere>
   )
 }
