@@ -178,8 +178,8 @@ function MetaLine({ place, appearance = 'default', hero = false }: {
   return <FormattedPlaceAddress place={place}>{address => {
     if (!address.trim()) return null
     const line = <Text testID="place-card-meta" style={appearance === 'discovery' ? styles.addressText : undefined}
-      variant={appearance === 'discovery' ? 'introSmall' : 'bodySmall'} color={hero ? 'onDark.medium' : appearance === 'discovery' ? 'redesign.secondary' : 'text.secondary'}
-      numberOfLines={2} ellipsizeMode="tail" accessibilityLabel={address}>{address}</Text>
+      variant={appearance === 'saved' ? 'savedMeta' : appearance === 'discovery' ? 'introSmall' : 'bodySmall'} color={hero ? 'onDark.medium' : appearance === 'discovery' ? 'redesign.secondary' : 'text.secondary'}
+      numberOfLines={appearance === 'saved' ? 1 : 2} ellipsizeMode="tail" accessibilityLabel={address}>{address}</Text>
     return appearance === 'discovery' ? <View style={styles.addressRow}><MaterialIcon name="location" size={16} color="redesign.secondary" />{line}</View> : line
   }}</FormattedPlaceAddress>
 }
@@ -273,31 +273,35 @@ function DiscoveryCard({ place, onPress, save, style, appearance, unavailableLab
   photoCategoryLabel = photoCategoryLabel ?? place.discovery?.categoryLabel
   const saved = appearance === 'saved'
   const distance = saved ? formatDistance(place.distanceM) : null
-  return <View style={[styles.wrap, saved ? styles.discoveryCard : undefined, style]}>
+  return <View style={[styles.wrap, saved ? styles.savedCard : undefined, style]}>
     <Pressable testID="place-card-open-target" accessibilityRole={onPress ? 'button' : undefined} onPress={onPress}>
       <View testID={appearance === 'saved' ? 'place-card-saved' : 'place-card-discovery'} style={saved ? undefined : styles.discoveryCard}>
-        <View style={[styles.listPhoto, unavailableLabel ? styles.unavailablePhoto : undefined]}>
+        <View style={[saved ? styles.savedPhoto : styles.listPhoto, unavailableLabel ? styles.unavailablePhoto : undefined]}>
           <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
-          {place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="redesign.white" /><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.verified')}</Text></View> : null}
-          {open || (saved && (photoCategoryLabel || distance)) ? <View testID="place-card-photo-badges" pointerEvents="none" style={styles.photoBadges}>
-          {open ? <View testID="place-card-hours-badge" style={styles.photoBadge}><Text numberOfLines={saved ? 1 : 2} style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.open ? '● ' : ''}{open.label}</Text></View> : null}
-          {saved && photoCategoryLabel ? <View style={styles.photoBadge}><Text numberOfLines={1} variant="caption">{photoCategoryLabel}</Text></View> : null}
-          {distance ? <View style={styles.photoBadge}><Text numberOfLines={1} variant="caption">{t('saved.straightDistance', { distance })}</Text></View> : null}
+          {!saved && place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="redesign.white" /><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.verified')}</Text></View> : null}
+          {open || (saved && (photoCategoryLabel || distance)) ? <View testID="place-card-photo-badges" pointerEvents="none" style={saved ? styles.savedPhotoBadges : styles.photoBadges}>
+          {open ? <View testID="place-card-hours-badge" style={saved ? styles.savedPhotoBadge : styles.photoBadge}>{saved && open.open ? <View style={styles.savedOpenDot} /> : null}<Text numberOfLines={saved ? 1 : 2} style={styles.photoBadgeText} variant="introCaptionMedium" color={saved ? 'redesign.white' : open.open ? 'redesign.greenText' : 'redesign.secondary'}>{saved ? null : open.open ? '● ' : ''}{open.label}</Text></View> : null}
+          {saved && photoCategoryLabel ? <View style={saved ? styles.savedPhotoBadge : styles.photoBadge}><Text numberOfLines={1} variant="caption" color="redesign.white">{photoCategoryLabel}</Text></View> : null}
+          {distance ? <View style={saved ? styles.savedPhotoBadge : styles.photoBadge}><MaterialIcon name="nearMe" size={10} color="redesign.white" /><Text numberOfLines={1} variant="caption" color="redesign.white" accessibilityLabel={t('saved.straightDistance', { distance })}>{distance}</Text></View> : null}
           </View> : null}
         </View>
-        <View style={styles.listBody}>
-          <View style={styles.discoveryHead}>
-            <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={[styles.discoveryName, unavailableLabel ? styles.unavailableName : undefined]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
-            {price ? <Text variant="introLabel" color="redesign.primaryText" style={styles.discoveryPrice}>{price}</Text> : null}
+        <View style={saved ? styles.savedBody : styles.listBody}>
+          <View style={saved ? styles.savedHeading : styles.discoveryHead}>
+            <Text testID="place-card-name" variant={saved ? "savedCardTitle" : "discoveryHeading"} color="redesign.ink" style={[saved ? styles.savedName : styles.discoveryName, unavailableLabel ? styles.unavailableName : undefined]} numberOfLines={saved ? 2 : 1} ellipsizeMode="tail">{place.name}</Text>
+            {!saved && price ? <Text variant="introLabel" color="redesign.primaryText" style={styles.discoveryPrice}>{price}</Text> : null}
+            {saved ? <MetaLine place={place} appearance="saved" /> : null}
           </View>
-          <MetaLine place={place} appearance="discovery" />
+          {!saved ? <MetaLine place={place} appearance="discovery" /> : null}
           {google || gogo || place.gogoRatingCount != null ? <View style={styles.ratingBadges}>
-            {google ? <View style={styles.googleBadge}><Text accessibilityLabel={t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })} variant="introCaptionMedium" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
-            {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}{` (${formatCount(place.gogoRatingCount, i18n.language)})`}</Text></View> : null}
+            {google ? <View style={saved ? styles.savedGoogleBadge : styles.googleBadge}><Text accessibilityLabel={t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })} variant={saved ? "savedMeta" : "introCaptionMedium"} color={saved ? "redesign.savedGoogleText" : "redesign.ink"}>{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
+            {gogo ? <View style={saved ? styles.savedNeutralBadge : styles.gogoBadge}><Text variant={saved ? "savedMeta" : "introSmall"} color={saved ? "text.secondary" : "redesign.violetText"}>{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={saved ? styles.savedNeutralBadge : styles.gogoBadge}><Text variant={saved ? "savedMeta" : "introCaption"} color={saved ? "text.secondary" : "redesign.violetText"}>{t('discovery.gogoFewReviews')}{` (${formatCount(place.gogoRatingCount, i18n.language)})`}</Text></View> : null}
           </View> : null}
 
           {unavailableLabel ? <Text variant="bodySmall" color="status.warningText">{unavailableLabel}</Text> : null}
-          {place.discovery?.tagLabels?.length ? <View style={styles.discoveryTags}>{place.discovery.tagLabels.map(label => <View key={label} style={styles.googleBadge}><Text numberOfLines={1} variant="introCaptionMedium" color="redesign.secondary">{label}</Text></View>)}</View> : null}
+          {saved ? (place.discovery?.tagLabels?.length || price ? <View style={styles.savedTaxonomyRow}>
+            <View style={styles.savedTags}>{place.discovery?.tagLabels?.map(label => <View key={label} style={styles.savedNeutralBadge}><Text numberOfLines={1} variant="caption" color="text.secondary">{label}</Text></View>)}</View>
+            {price ? <Text variant="savedMeta" color="redesign.savedAccent">{price}</Text> : null}
+          </View> : null) : place.discovery?.tagLabels?.length ? <View style={styles.discoveryTags}>{place.discovery.tagLabels.map(label => <View key={label} style={styles.googleBadge}><Text numberOfLines={1} variant="introCaptionMedium" color="redesign.secondary">{label}</Text></View>)}</View> : null}
         </View>
       </View>
     </Pressable>

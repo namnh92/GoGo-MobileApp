@@ -401,6 +401,11 @@ export const fontFamily = {
  * code uses `body` — the spec's `mono` style was dropped (owner, 2026-09-24).
  */
 export const type = {
+  // Saved city Stitch 5cd4c60b: header, ward, card and metadata hierarchy.
+  savedCityTitle: { fontFamily: fontFamily.bold, fontSize: 18, lineHeight: 23 },
+  savedWardTitle: { fontFamily: fontFamily.bold, fontSize: 15, lineHeight: 20 },
+  savedCardTitle: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 22 },
+  savedMeta: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
   brand: { fontFamily: fontFamily.bold, fontSize: 38, lineHeight: 44 },
   discoveryTitle: { fontFamily: fontFamily.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.33 },
   discoveryHeading: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22, letterSpacing: -0.17 },
@@ -501,6 +506,10 @@ export const motion = {
 
 /** Approved project 17315762413421369447. Screen-specific material roles. */
 export const redesignLight = {
+  savedCanvas: '#FAF7F2', savedLine: '#E5E5E5', savedMuted: '#737373',
+  savedChip: '#F5F5F5', savedCount: '#E5E5E5', savedAccentSoft: '#FDF4F2', savedAccent: '#B82F15',
+  savedGoogleFill: '#FFFBEB', savedGoogleText: '#92400E', savedGoogleLine: '#FDE68A',
+  savedPhotoScrim: 'rgba(0,0,0,0.6)', savedOpenDot: '#34D399',
   importInputCanvas: '#FAF7F2', importInputLine: '#E5E5E5', importInputDim: '#F3EEE7', importInputPrimary: '#C2351D',
   importSyncedFill: '#9EF5C0', importSyncedText: '#002111', importPhotoBadgeText: '#C0FFD6',
   verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#A71E07', heroStart: '#FFE8E2', heroMiddle: '#FFF3EE', heroEnd: '#EAE6FE',
@@ -519,6 +528,10 @@ export const redesignLight = {
 
 /** Undrawn dark materials derived from S70's canvas/card/accent/status roles. */
 export const redesignDark = {
+  savedCanvas: darkSurface.canvas, savedLine: darkBorder.hairline, savedMuted: darkText.secondary,
+  savedChip: darkSurface.subtle, savedCount: '#333333', savedAccentSoft: '#2A2A2A', savedAccent: '#FF746C',
+  savedGoogleFill: '#392C18', savedGoogleText: '#FDE68A', savedGoogleLine: '#69502B',
+  savedPhotoScrim: redesignLight.savedPhotoScrim, savedOpenDot: redesignLight.savedOpenDot,
   importInputCanvas: darkSurface.canvas, importInputLine: darkBorder.hairline, importInputDim: darkSurface.subtle, importInputPrimary: '#CA381F',
   importSyncedFill: darkStatus.successSoft, importSyncedText: darkStatus.successText, importPhotoBadgeText: '#C0FFD6',
   verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#FF746C', heroStart: '#2A2A2A', heroMiddle: '#222222', heroEnd: '#2F2A55',
