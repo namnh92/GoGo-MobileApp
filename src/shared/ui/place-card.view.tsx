@@ -341,7 +341,12 @@ function PreviewCard({ preview, categoryLabel, children, headerAction, style }: 
           ) : null}
           {photo ? <Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /> : null}
           {headerAction ? <View style={styles.importHeaderAction}>{headerAction}</View> : null}
-          {openLabel ? <View style={styles.importHoursOverlay}><Text variant="introCaption" color="redesign.white">{open.openNow ? '● ' : ''}{openLabel}</Text></View> : null}
+          <View testID="import-photo-overlays" style={styles.importPhotoOverlays}>
+            {photo ? <Text testID="import-photo-credit" variant="introCaption" color="redesign.white" style={styles.importPhotoCredit}>
+              {t('placeImport.photoCredit')}{photo.authors.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="introCaption" color="redesign.white" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)} · {photo.attribution}
+            </Text> : null}
+            {openLabel ? <View testID="import-photo-hours" style={styles.importHoursOverlay}><Text variant="introCaption" color="redesign.white">{open.openNow ? '● ' : ''}{openLabel}</Text></View> : null}
+          </View>
         </View> : null}
         <View style={styles.importBody}>
           {!hasPhoto && headerAction ? <View style={styles.importNoPhotoHead}>{headerAction}</View> : null}
@@ -354,9 +359,6 @@ function PreviewCard({ preview, categoryLabel, children, headerAction, style }: 
             {preview.googleRating != null ? <View style={styles.importFact}><Text variant="introLabel" color="redesign.ink">★ {formatRating(preview.googleRating, i18n.language)}</Text><Text variant="introCaption" color="redesign.secondary">{preview.googleRatingCount != null ? `(${formatCount(preview.googleRatingCount, i18n.language)}) ` : ''}Google</Text></View> : null}
             {schedules.map(schedule => <View key={schedule.key} style={styles.importFact}><MaterialIcon name="clock" size={15} color="redesign.secondary" /><Text variant="introSmall" color="redesign.secondary">{schedule.label}</Text></View>)}
           </View> : null}
-          {photo ? <Text testID="import-photo-credit" variant="introCaption" color="redesign.secondary">
-            {t('placeImport.photoCredit')}{photo.authors.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="introCaption" color="redesign.secondary" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)} · {photo.attribution}
-          </Text> : null}
           {[...new Set(preview.attributions ?? [])].filter(attribution => !photo || attribution.trim() !== photo.attribution.trim()).map(attribution => <Text key={attribution} variant="introCaption" color="redesign.secondary">{attribution}</Text>)}
         </View>
       </View>

@@ -9,7 +9,10 @@ export const styles = StyleSheet.create(theme => ({
   importFact: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: theme.redesign.container },
   importNoPhotoHead: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
   importHeaderAction: { position: 'absolute', top: 8, right: 8 },
-  importHoursOverlay: { position: 'absolute', bottom: 12, right: 12, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 8, paddingVertical: 2 },
+  // Share a wrapping row so long author credits cannot overlap the hours pill.
+  importPhotoOverlays: { position: 'absolute', bottom: 12, left: 12, right: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
+  importPhotoCredit: { maxWidth: '100%', minWidth: 0, flexShrink: 1, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 10, paddingVertical: 4 },
+  importHoursOverlay: { maxWidth: '100%', marginLeft: 'auto', borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 8, paddingVertical: 2 },
   importActions: { marginTop: 24, gap: 12 },
   /** Holds the card and, beside it, the save toggle positioned over it. */
   verifiedBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: theme.redesign.verifiedFill },

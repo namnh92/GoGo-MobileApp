@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -467,18 +467,6 @@ export default function PlaceImportScreen() {
                   <View style={styles.inputActions}>
                     {offline ? <View accessibilityLiveRegion="polite" style={styles.offline}><MaterialIcon name="info" color="status.warningText" /><Text variant="introSmall" style={styles.flex}>{t('placeImport.offline')}</Text></View> : null}
                     <PrimaryBtn label={t(resolve.isPending && !offline ? 'placeImport.verifying' : 'placeImport.verify')} variant="discovery" trailingIcon="arrowRight" onPress={onResolve} loading={resolve.isPending && !offline} disabled={!url.trim() || !online || resolve.isPaused} style={url.trim() && online && !resolve.isPaused ? styles.inputPrimary : undefined} />
-                    {!result ? <>
-                      <View style={styles.footerLinks}>
-                        <Pressable accessibilityRole="button" accessibilityState={{ disabled: true }} disabled accessibilityHint={t('placeImport.contributionsUnavailable')} style={styles.footerLink}>
-                          <Text variant="introSmall" color="redesign.outline">{t('placeImport.viewContributions')}</Text>
-                        </Pressable>
-                        <Text color="redesign.outline">•</Text>
-                        <Pressable accessibilityRole="button" onPress={() => Alert.alert(t('placeImport.creditPolicy'), t('placeImport.approvalCredit'))} style={({ pressed }) => [styles.footerLink, pressed && styles.pressed]}>
-                          <Text variant="introSmall" color="redesign.secondary">{t('placeImport.creditPolicy')}</Text>
-                        </Pressable>
-                      </View>
-                      <Text variant="introCaption" color="redesign.secondary">{t('placeImport.contributionsUnavailable')}</Text>
-                    </> : null}
                   </View>
                 </>}
 

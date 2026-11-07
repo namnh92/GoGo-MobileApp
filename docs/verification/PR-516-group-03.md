@@ -1,6 +1,6 @@
 # PR #516 group 03 — Nhập link → Bổ sung thông tin
 
-Updated 2026-11-07 in `mobile-g03`, latest owner fix starting at clean HEAD `8d40125`.
+Updated 2026-11-07 in `mobile-g03`, latest owner fix starting at clean HEAD `fcf3059`.
 Owner scope: file edits and local checks only; no install, commit, push, build or deployment.
 The owner’s current scoped fix supersedes the earlier migration pause for this task.
 
@@ -47,13 +47,13 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
 | Bottom Tiếp tục trích xuất thông tin | Implemented below input guidance; calls existing resolver, in-button spinner/disabled state uses source Đang kết nối Google Maps... | `src/features/place-import/import.view.tsx:222`, `:470` |
 | Error / rate limit / provider outage | Preserved distinct server/provider messages; retry keeps entered URL and reuses resolver | `src/features/place-import/import.view.tsx:488` |
 | Offline / paused network | Immediate connectivity gate prevents paid resolve from being queued while offline; paused mutation and NetworkError show offline explanation; network-error retry remains available | `src/features/place-import/import.view.tsx:110`, `:339`, `:471` |
-| Input secondary footer | Existing credit policy opens a real explanation. Contribution list is visibly disabled with reason: no supported list screen/contract wired here | `src/features/place-import/import.view.tsx:473` |
+| Input secondary footer | Owner 2026-11-07: removed credit-policy link; contributions link and unavailable message hidden until #518 provides a route | `src/features/place-import/import.view.tsx:473` |
 | Post-verify header: Bổ sung thông tin, notification bell | Owner 2026-11-07: removed share/avatar; shared Home/Search notification bell on both import stages, unread dot and inbox navigation; back returns to input | `src/features/place-import/import.view.tsx:367` |
 | Đã kết nối Google Maps / Hoàn thiện hồ sơ địa điểm / intro | Owner 2026-11-07: removed connected chip; title and supporting copy remain after RESOLVED | `src/features/place-import/import.view.tsx:402` |
 | Compact synced-link row, Đã đồng bộ, Đổi link | Implemented: actual URL/name, one-line truncation, one checked status pill (the only verification confirmation). Đổi link clears resolution, metadata, selection, local photos and submission state; focuses input | `src/features/place-import/import.view.tsx:319`, `:343`, `:414` |
 | Dữ liệu đã trích xuất + synced badge | Owner 2026-11-07: plain section heading; removed verified icon and synced pill | `src/features/place-import/import.view.tsx:509`, `src/features/place-import/import.style.tsx:15` |
 | ONE Google image, 16:10, 12pt radius, hours/save overlays | Existing shared preview retained and checked against current source; transient BFF photo with loading/decode/error handling, no stock/sample fallback | `src/shared/ui/place-card.view.tsx:315`, `src/shared/ui/place-card.style.tsx:6` |
-| Photo attribution | One localized line: Ảnh: <authors> · Google Maps; response author URI remains linkable; repeated provider credit omitted, distinct credits retained. No-store/cachePolicy=none unchanged | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:357` |
+| Photo attribution | Owner 2026-11-07: localized Ảnh: <authors> · Google Maps pill on the photo at bottom-left, opposite hours; response author URI remains linkable; no below-photo credit line. Repeated provider credit omitted, distinct credits retained. No-store/cachePolicy=none unchanged | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:345` |
 | Name, address, Google rating/count, actual hours | Existing verified facts retained; actual seven-day identical hours may use hàng ngày. Unknown facts/price omitted | `src/shared/ui/place-card.view.tsx:324`, `:348` |
 | Candidate Maps / save actions | Owner 2026-11-07: Maps icon inside extracted card, 44×44 touch target; candidate bookmark and save-lock explanation absent. Existing GoGo place saving retained | `src/features/place-import/import.view.tsx:559`, `src/shared/ui/place-card.view.tsx:343` |
 | Existing GoGo place + short address | Preserved shared canonical PlaceCard and operational actions; administrative formatter remains authoritative | `src/features/place-import/existing-place-result.view.tsx:29`, `src/shared/ui/place-address.view.tsx:9`, `src/shared/administrative/place-address.ts:1` |
@@ -68,11 +68,11 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
   and `3d9ed7f6…` are downstream references, not targets of this patch. Existing
   optional metadata and existing moderation-submit contract remain unchanged.
 - Source +50–70 banner / +20 bill-menu rewards are omitted under that owner scope.
-  The input-stage policy explanation is retained. On Bổ sung thông tin, #516
+  The input-stage credit-policy footer link is removed per latest owner feedback. On Bổ sung thông tin, #516
   renders no +50 reward copy; the single header pill belongs to #518 and is
   absent from this branch. No new reward calculation or duplicate pill is added.
-- Source contribution-list button has no supported destination here. It is
-  disabled and explained, rather than using the source’s demo toast as behavior.
+- Source contribution-list button has no supported destination here. Per owner
+  2026-11-07, hide the link and unavailable message until #518 wires the screen.
   No remote issue/comment was created under the file-edit-only authorization.
 - Photo selection remains optional 0–5. The inherited attachment capability is
   local preview only (GoGo-BE#793): local URIs are never uploaded or sent to the
@@ -133,15 +133,51 @@ starting HEAD `8d40125`) supersedes the source bookmark and reward repetition:
 - Removed **+50 credit GoGo AI sau khi đóng góp của bạn được duyệt.** from
   the extracted-data actions. The only intended reward message on this screen
   is the wizard header pill owned by #518; that wizard is absent from this
-  branch and is not implemented here. Input-stage help/policy remains scoped
-  to the earlier Nhập link screen.
+  branch and is not implemented here. Input-stage link-taking help remains; the latest owner feedback below removes
+  its credit-policy footer link.
 - Renamed the preview-only `saveAction` slot to `headerAction` to describe the
   Maps action; canonical PlaceCard saving is unchanged.
 
 Photo-credit requirements checked against [Google Places photo guidance](https://developers.google.com/maps/documentation/places/web-service/place-photos):
 retain photo authors alongside the image and provider attribution.
 
-## Verification — latest owner fix at 8d40125 + working edits
+Latest simulator feedback (owner **2026-11-07**, starting clean HEAD `fcf3059`)
+supersedes the earlier below-photo credit and disabled footer treatment:
+
+- Moved **Ảnh: <authors> · Google Maps** into a small rounded pill on the
+  photo, bottom-left opposite the hours pill. White caption text uses the
+  design-system `redesign.scrimStart` background in Light and Dark. Both pills
+  share a bounded wrapping row, allowing longer author names without overlap;
+  author profile links and full attribution remain available. Removed the
+  credit from the card body; no photo-credit line remains below the photo/card.
+  Failed or unavailable images have no photo-credit pill.
+- Removed **Cách tính điểm GoGo Credit** from the Nhập link footer. No
+  contributions route exists under `src/app` in this branch, so also hid
+  **Xem địa điểm đã đóng góp** and **Danh sách đóng góp chưa khả dụng.**
+  #518 owns the contributions screen and future link wiring. Link-taking help
+  and the existing explanatory benefits remain.
+
+## Verification — latest owner fix at fcf3059 + working edits
+
+- `pnpm typecheck`: **PASS**.
+- `pnpm lint`: **PASS**, zero warnings.
+- `pnpm test:ui --runInBand` for the five place-import suites plus shared
+  place-card: **PASS, 6 suites, 140 tests**.
+- Regression covers photo-frame ancestry, one localized credit, link handoff
+  for HTTPS/protocol-relative author URIs, bounded wrapping pills, Light/Dark
+  scrim roles, long author text without truncation, credit removal on photo
+  decode failure, hidden footer links/message, and preserved link-taking help.
+- `pnpm test`: **FAIL, 111 files passed, 1 failed, 1 skipped; 1311 tests
+  passed, 3 failed, 39 skipped**. The failures are unchanged process-liveness
+  cases in `src/shared/config/__tests__/distribute-wrapper.test.ts:208`, `:234`,
+  `:258`. Directly confirmed in this run: `/bin/ps -o lstart= -p $$` returns
+  `operation not permitted` under this managed sandbox. No unrelated test or
+  distribution logic was changed or skipped to manufacture a green gate.
+- `git diff --check`: **PASS**.
+- No install, commit, push, build, deployment or simulator verification.
+  Component structure/style checks do not establish native visual acceptance.
+
+## Historical verification — owner fix at 8d40125 + working edits
 
 - `pnpm typecheck`: **PASS**.
 - `pnpm lint`: **PASS**, zero warnings.

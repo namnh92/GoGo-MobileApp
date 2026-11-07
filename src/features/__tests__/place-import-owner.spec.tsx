@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
-import { Alert, Keyboard, Linking, ScrollView, StyleSheet, View } from 'react-native'
+import { Keyboard, Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { renderScreen } from './harness'
@@ -32,6 +32,8 @@ jest.mock('@/shared/api', () => ({
   useSaved: () => ({ data: [] }),
   useToggleSaved: () => ({ mutate: mockToggleSaved }),
 }))
+import { themes, type AppTheme } from '@/shared/ui/theme'
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 import PlaceImportScreen from '@/features/place-import/import.view'
 const LINK = 'https://maps.google.com/maps?place_id=ChIJtest'
 const candidate = { googlePlaceId: 'ChIJtest', name: 'Preview' }
@@ -469,16 +471,14 @@ it('omits the notification dot when the inbox has no unread items', async () => 
   expect(screen.queryByTestId('import-unread-dot')).toBeNull()
 })
 
-it('opens link-taking help and the existing credit policy while explaining the unavailable contribution list', async () => {
-  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+it('keeps link-taking help and hides footer links until contributions has a route', async () => {
   const scroll = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {})
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.press(screen.getByRole('button', { name: 'Hướng dẫn trợ giúp' }))
   expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ animated: true }))
-  await fireEvent.press(screen.getByRole('button', { name: 'Cách tính điểm GoGo Credit' }))
-  expect(alert).toHaveBeenCalledWith('Cách tính điểm GoGo Credit', '+50 credit GoGo AI sau khi đóng góp của bạn được duyệt.')
-  expect(screen.getByRole('button', { name: 'Xem địa điểm đã đóng góp' }).props.accessibilityState.disabled).toBe(true)
-  expect(screen.getByText('Danh sách đóng góp chưa khả dụng.')).toBeTruthy()
+  expect(screen.queryByText('Cách tính điểm GoGo Credit')).toBeNull()
+  expect(screen.queryByText('Xem địa điểm đã đóng góp')).toBeNull()
+  expect(screen.queryByText('Danh sách đóng góp chưa khả dụng.')).toBeNull()
 })
 
 
@@ -532,7 +532,12 @@ it.each(['https://www.google.com/maps/contrib/123', '//maps.google.com/maps/cont
   mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan', uri }, { displayName: 'Minh' }] }] })
   await preview({ ...candidate, attributions: ['Google Maps', 'Other credit'], photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await waitFor(() => expect(screen.getByTestId('import-photo-credit')).toBeTruthy())
-  expect(screen.getByText('Ảnh: Lan, Minh · Google Maps')).toBeTruthy()
+  const frame = within(screen.getByTestId('import-preview-photo-frame'))
+  expect(frame.getByText('Ảnh: Lan, Minh · Google Maps')).toBeTruthy()
+  expect(screen.getAllByTestId('import-photo-credit')).toHaveLength(1)
+  expect(StyleSheet.flatten(frame.getByTestId('import-photo-credit').props.style)).toMatchObject({
+    borderRadius: 999, maxWidth: '100%', flexShrink: 1, color: themes.orange.redesign.white, backgroundColor: themes.orange.redesign.scrimStart,
+  })
   expect(screen.queryByText('Google Maps')).toBeNull()
   expect(screen.getByText('Other credit')).toBeTruthy()
   await fireEvent.press(screen.getByRole('link', { name: 'Lan' }))
@@ -580,4 +585,26 @@ it('keeps canonical saving available for an existing GoGo place', async () => {
   expect(save.props.accessibilityState.disabled).toBe(false)
   await fireEvent.press(save)
   expect(mockToggleSaved).toHaveBeenCalledWith({ type: 'place', id: 'canonical', saved: false })
+})
+
+// Structural proof; native text wrapping still needs simulator confirmation.
+it.each(['orange', 'orangeDark'] as const)('uses bounded wrapping photo pills and readable theme scrims (%s)', async themeName => {
+  const create = jest.spyOn(UnistylesStyleSheet, 'create')
+  jest.isolateModules(() => { jest.requireActual('@/shared/ui/place-card.style') })
+  const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
+  const styles = factory(themes[themeName])
+  create.mockRestore()
+  expect(styles.importPhotoOverlays).toMatchObject({ position: 'absolute', bottom: 12, left: 12, right: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 })
+  for (const pill of [styles.importPhotoCredit, styles.importHoursOverlay]) {
+    expect(pill).toMatchObject({ maxWidth: '100%', borderRadius: 999, backgroundColor: themes[themeName].redesign.scrimStart })
+    expect(pill.position).toBeUndefined()
+  }
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'A long photographer name without truncation' }] }] })
+  await preview({ ...candidate, openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 0, closeMinute: 1440 })), photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  await waitFor(() => expect(screen.getByTestId('import-photo-credit')).toBeTruthy())
+  const row = within(screen.getByTestId('import-photo-overlays'))
+  expect(row.getByTestId('import-photo-credit').props.numberOfLines).toBeUndefined()
+  expect(row.getByTestId('import-photo-hours')).toBeTruthy()
+  await fireEvent(screen.getByTestId('import-candidate-photo'), 'error', { nativeEvent: { error: 'decode failed' } })
+  expect(screen.queryByTestId('import-photo-credit')).toBeNull()
 })
