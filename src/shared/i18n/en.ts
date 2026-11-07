@@ -1060,6 +1060,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'placeImport.daily': 'daily',
   'placeImport.photoHeading': 'Place photos',
   'placeImport.extractedTitle': 'Extracted place data',
+  'placeImport.photoCredit': 'Photo: ',
   'placeImport.extractedBadge': '✓ Verified Google Maps data',
   'placeImport.analysisTitle': 'Analysis result',
   'placeImport.enteredLink': 'Entered link',

@@ -15,6 +15,7 @@ import {
   placeCardRatingPriceLine,
   type PlaceCard as PlaceCardModel,
 } from '@/shared/api'
+import { openWebsite } from '@/shared/navigation/external-links'
 import { FormattedPlaceAddress } from '@/shared/ui/place-address.view'
 import { priceUnitKey } from '@/shared/pricing/price-unit'
 import { Card } from '@/shared/ui/card.view'
@@ -339,12 +340,11 @@ function PreviewCard({ preview, categoryLabel, children, saveAction, style }: Pl
             </View>
           ) : null}
           {photo ? <Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /> : null}
-          <View style={styles.importVerified}><MaterialIcon name="checkCircle" size={16} color="redesign.importPhotoBadgeText" /><Text numberOfLines={1} variant="introLabel" color="redesign.importPhotoBadgeText">{t('placeImport.extractedBadge')}</Text></View>
           {saveAction ? <View style={styles.importSave}>{saveAction}</View> : null}
           {openLabel ? <View style={styles.importHoursOverlay}><Text variant="introCaption" color="redesign.white">{open.openNow ? '● ' : ''}{openLabel}</Text></View> : null}
         </View> : null}
         <View style={styles.importBody}>
-          {!hasPhoto ? <View style={styles.importNoPhotoHead}><View style={styles.importVerifiedInline}><MaterialIcon name="checkCircle" size={16} color="redesign.greenText" /><Text numberOfLines={1} variant="introLabel" color="redesign.greenText">{t('placeImport.extractedBadge')}</Text></View>{saveAction}</View> : null}
+          {!hasPhoto && saveAction ? <View style={styles.importNoPhotoHead}>{saveAction}</View> : null}
           <View style={styles.listHead}>
             <Text variant="introSection" color="redesign.ink">{preview.name}</Text>
             {preview.address ? <View style={styles.addressRow}><MaterialIcon name="location" size={18} color="redesign.outline" /><Text variant="introBody" color="redesign.secondary" style={styles.addressText}>{preview.address}</Text></View> : null}
@@ -354,8 +354,10 @@ function PreviewCard({ preview, categoryLabel, children, saveAction, style }: Pl
             {preview.googleRating != null ? <View style={styles.importFact}><Text variant="introLabel" color="redesign.ink">★ {formatRating(preview.googleRating, i18n.language)}</Text><Text variant="introCaption" color="redesign.secondary">{preview.googleRatingCount != null ? `(${formatCount(preview.googleRatingCount, i18n.language)}) ` : ''}Google</Text></View> : null}
             {schedules.map(schedule => <View key={schedule.key} style={styles.importFact}><MaterialIcon name="clock" size={15} color="redesign.secondary" /><Text variant="introSmall" color="redesign.secondary">{schedule.label}</Text></View>)}
           </View> : null}
-          {photo ? <Text variant="introCaption" color="redesign.secondary">{photo.credit}</Text> : null}
-          {(preview.attributions ?? []).map(attribution => <Text key={attribution} variant="introCaption" color="redesign.secondary">{attribution}</Text>)}
+          {photo ? <Text testID="import-photo-credit" variant="introCaption" color="redesign.secondary">
+            {t('placeImport.photoCredit')}{photo.authors.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="introCaption" color="redesign.secondary" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)} · {photo.attribution}
+          </Text> : null}
+          {[...new Set(preview.attributions ?? [])].filter(attribution => !photo || attribution.trim() !== photo.attribution.trim()).map(attribution => <Text key={attribution} variant="introCaption" color="redesign.secondary">{attribution}</Text>)}
         </View>
       </View>
       {children ? <View style={styles.importActions}>{children}</View> : null}

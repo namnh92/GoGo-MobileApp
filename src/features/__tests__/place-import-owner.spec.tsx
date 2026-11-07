@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
-import { Alert, Keyboard, ScrollView, Share, StyleSheet, View } from 'react-native'
+import { Alert, Keyboard, Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { renderScreen } from './harness'
@@ -19,7 +19,8 @@ jest.mock('@/shared/api/client', () => ({ api: { get: (...args: unknown[]) => mo
 const mockRouter = { back: jest.fn(), push: jest.fn() }
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
-jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
+const mockUnread = { count: 0, more: false }
+jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useResolveGoogleMapsLink: () => mockResolve,
@@ -41,6 +42,7 @@ async function preview(value: unknown = candidate) {
 }
 beforeEach(() => {
   jest.clearAllMocks()
+  mockUnread.count = 0
   onlineManager.setOnline(true)
   mockClipboard.mockResolvedValue('')
   mockResolve.isError = false
@@ -149,7 +151,7 @@ it('fetches the contract photo reference as JSON, displays returned bytes/credit
   expect(mockGet).toHaveBeenCalledTimes(1)
   expect(mockGet).toHaveBeenCalledWith('/places/google-provider-photo/ChIJtest', expect.objectContaining({ anonymous: true }))
   expect(screen.getByTestId('import-candidate-photo').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,aGVsbG8=' }], cachePolicy: 'none' })
-  expect(screen.getByText('Google Maps · Lan')).toBeTruthy()
+  expect(screen.getByText('Ảnh: Lan · Google Maps')).toBeTruthy()
   await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&new=1')
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
@@ -237,7 +239,7 @@ it('hides a failed candidate image and its credits without placeholder art', asy
   await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
   await fireEvent(screen.getByTestId('import-candidate-photo'), 'error', { nativeEvent: { error: 'decode failed' } })
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
-  expect(screen.queryByText('Google Maps · Lan')).toBeNull()
+  expect(screen.queryByText('Ảnh: Lan · Google Maps')).toBeNull()
   expect(screen.queryByTestId('place-photo-placeholder')).toBeNull()
 })
 
@@ -285,7 +287,7 @@ it('renders only the first Google photo with its own response credits', async ()
   })
   await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest', attribution: 'Outdated credit' } })
   await waitFor(() => expect(screen.getAllByTestId('import-candidate-photo')).toHaveLength(1))
-  expect(screen.getByText('Google Maps · First author')).toBeTruthy()
+  expect(screen.getByText('Ảnh: First author · Google Maps')).toBeTruthy()
   expect(screen.queryByText(/Second author|Outdated credit/)).toBeNull()
   expect(mockGet).toHaveBeenCalledTimes(1)
 })
@@ -327,7 +329,10 @@ it('uses the directly downloaded Stitch photo/body hierarchy with real hours and
   expect(StyleSheet.flatten(screen.getByTestId('import-preview-photo-frame').props.style)).toMatchObject({ aspectRatio: 1.6 })
   expect(StyleSheet.flatten(screen.getByTestId('import-preview-card').props.style)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
   expect(screen.getByText('Dữ liệu đã trích xuất')).toBeTruthy()
-  expect(screen.getByText('✓ Dữ liệu Google Maps xác thực')).toBeTruthy()
+  expect(screen.queryByText('✓ Dữ liệu Google Maps xác thực')).toBeNull()
+  expect(screen.queryByText('✓ Đã đồng bộ từ Google Maps')).toBeNull()
+  expect(screen.getAllByTestId('import-verified-confirmation')).toHaveLength(1)
+  expect(screen.getByText('Đã đồng bộ')).toBeTruthy()
   expect(screen.getByText('07:30 - 22:30 hàng ngày')).toBeTruthy()
   expect(screen.getByText('(123) Google')).toBeTruthy()
   const save = screen.getByRole('button', { name: 'Lưu' })
@@ -422,7 +427,7 @@ it('retries a server error with the original URL', async () => {
 it('shows the post-verify header and actual synced URL without the deferred wizard', async () => {
   await preview()
   expect(screen.getByTestId('import-synced-link')).toBeTruthy()
-  expect(screen.getByText('Đã kết nối Google Maps')).toBeTruthy()
+  expect(screen.queryByText('Đã kết nối Google Maps')).toBeNull()
   expect(screen.getByText('Hoàn thiện hồ sơ địa điểm')).toBeTruthy()
   expect(screen.getByText(LINK.replace('https://', ''))).toBeTruthy()
   expect(screen.getByText('Preview • Đã xác minh vị trí')).toBeTruthy()
@@ -444,15 +449,24 @@ it('reveals the input and validation helper above the keyboard', async () => {
 })
 
 
-it('wires header share/profile and sends only the actual verified URL to the native share sheet', async () => {
-  const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction })
-  await preview()
-  await fireEvent.press(screen.getByRole('button', { name: 'Chia sẻ' }))
-  expect(share).toHaveBeenCalledWith({ message: LINK })
-  await fireEvent.press(screen.getByRole('button', { name: 'Cá nhân' }))
-  expect(mockRouter.push).toHaveBeenCalledWith('/(tabs)/profile')
+it.each(['input', 'verified'] as const)('uses the shared notification bell in the %s header without share/avatar', async (state) => {
+  mockUnread.count = 2
+  if (state === 'verified') await preview()
+  else await renderScreen(<PlaceImportScreen />)
+  expect(screen.queryByRole('button', { name: 'Chia sẻ' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Cá nhân' })).toBeNull()
+  expect(screen.getByTestId('import-unread-dot')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('import-bell'))
+  expect(mockRouter.push).toHaveBeenCalledWith('/notifications')
   await fireEvent.press(screen.getByRole('button', { name: 'Quay lại' }))
-  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  if (state === 'verified') expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  else expect(mockRouter.back).toHaveBeenCalledTimes(1)
+})
+
+it('omits the notification dot when the inbox has no unread items', async () => {
+  await preview()
+  expect(screen.getByRole('button', { name: 'Thông báo' })).toBeTruthy()
+  expect(screen.queryByTestId('import-unread-dot')).toBeNull()
 })
 
 it('opens link-taking help and the existing credit policy while explaining the unavailable contribution list', async () => {
@@ -465,4 +479,29 @@ it('opens link-taking help and the existing credit policy while explaining the u
   expect(alert).toHaveBeenCalledWith('Cách tính điểm GoGo Credit', '+50 credit GoGo AI sau khi đóng góp của bạn được duyệt.')
   expect(screen.getByRole('button', { name: 'Xem địa điểm đã đóng góp' }).props.accessibilityState.disabled).toBe(true)
   expect(screen.getByText('Danh sách đóng góp chưa khả dụng.')).toBeTruthy()
+})
+
+
+it('keeps a long clipboard URL in a fixed single-line scrolling input with clear x', async () => {
+  const longLink = LINK + '&query=' + 'KemTrangTien'.repeat(100)
+  mockClipboard.mockResolvedValue(longLink)
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Dán link' }))
+  const input = screen.getByTestId('import-link-input')
+  expect(input.props).toMatchObject({ value: longLink, multiline: false, numberOfLines: 1, scrollEnabled: true })
+  expect(StyleSheet.flatten(input.props.style)).toMatchObject({ height: 52, width: '100%', minWidth: 0, flexShrink: 1, paddingRight: 48 })
+  await fireEvent.press(screen.getByRole('button', { name: 'Xóa liên kết' }))
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+})
+
+it.each(['https://www.google.com/maps/contrib/123', '//maps.google.com/maps/contrib/123'])('combines photo authors and Google Maps once, preserving profile link %s and distinct credits', async (uri) => {
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan', uri }, { displayName: 'Minh' }] }] })
+  await preview({ ...candidate, attributions: ['Google Maps', 'Other credit'], photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  await waitFor(() => expect(screen.getByTestId('import-photo-credit')).toBeTruthy())
+  expect(screen.getByText('Ảnh: Lan, Minh · Google Maps')).toBeTruthy()
+  expect(screen.queryByText('Google Maps')).toBeNull()
+  expect(screen.getByText('Other credit')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('link', { name: 'Lan' }))
+  expect(open).toHaveBeenCalledWith(uri.startsWith('//') ? `https:${uri}` : uri)
 })

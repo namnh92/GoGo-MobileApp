@@ -7,8 +7,6 @@ export const styles = StyleSheet.create(theme => ({
   importBody: { padding: 16, gap: 12 },
   importFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   importFact: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: theme.redesign.container },
-  importVerified: { position: 'absolute', top: 12, left: 12, right: 64, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: theme.redesign.verifiedFill },
-  importVerifiedInline: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
   importNoPhotoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   importSave: { position: 'absolute', top: 8, right: 8 },
   importHoursOverlay: { position: 'absolute', bottom: 12, right: 12, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 8, paddingVertical: 2 },

@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, TouchableWithoutFeedback, View } from 'react-native'
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -14,6 +14,7 @@ import { isApiError, usePlaceSubmission, useResolveGoogleMapsLink, useSubmitPlac
 import { track } from '@/shared/analytics'
 import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
+import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
@@ -370,16 +371,10 @@ export default function PlaceImportScreen() {
             <Icon name="chevronLeft" size={24} />
           </Pressable>
           <Text variant="introHeading" color="redesign.ink" style={[styles.headerTitle, !verified && styles.headerTitleCentered]}>{t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}</Text>
-          {verified ? <>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('placeImport.share')} onPress={() => { void Share.share({ message: candidate.googleMapsUri || resolvedUrl || '' }).catch(() => setLinkFailed(true)) }} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-              <Icon name="share" size={22} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('tabs.profile')} onPress={() => router.push('/(tabs)/profile')} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-              <View style={styles.profileDisc}><MaterialIcon name="user" size={18} color="redesign.white" /></View>
-            </Pressable>
-          </> : <Pressable accessibilityRole="button" accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
+          {!verified ? <Pressable accessibilityRole="button" accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
             <MaterialIcon name="help" size={24} color="redesign.secondary" />
-          </Pressable>}
+          </Pressable> : null}
+          <HeaderNotificationButton testID="import-bell" unreadDotTestID="import-unread-dot" />
         </View>
       </View>
       <FocusedFieldGroup.Provider value={focusedGroup}>
@@ -403,10 +398,10 @@ export default function PlaceImportScreen() {
             <TouchableWithoutFeedback testID="import-dismiss-keyboard" onPress={Keyboard.dismiss} accessible={false}>
               <View ref={contentRef} collapsable={false}>
                 <View style={styles.intro}>
-                  <View style={[styles.introBadge, verified && styles.connectedBadge]}>
-                    <MaterialIcon name={verified ? 'sparkle' : 'groups'} size={16} color={verified ? 'redesign.violetText' : 'redesign.primaryText'} />
-                    <Text variant="introLabel" color={verified ? 'redesign.violetText' : 'redesign.primaryText'}>{t(verified ? 'placeImport.connected' : 'placeImport.community')}</Text>
-                  </View>
+                  {!verified ? <View style={styles.introBadge}>
+                    <MaterialIcon name="groups" size={16} color="redesign.primaryText" />
+                    <Text variant="introLabel" color="redesign.primaryText">{t('placeImport.community')}</Text>
+                  </View> : null}
                   <Text variant={verified ? 'introSection' : 'display'} color="redesign.ink">{t(verified ? 'placeImport.completeTitle' : 'placeImport.syncTitle')}</Text>
                   <Text variant={verified ? "introBody" : "bodySmall"} color="redesign.secondary" style={styles.introBody}>{t(verified ? 'placeImport.completeBody' : 'placeImport.body')}</Text>
                 </View>
@@ -416,7 +411,7 @@ export default function PlaceImportScreen() {
                   <View style={styles.syncedText}>
                     <View style={styles.syncedTitleRow}>
                       <Text numberOfLines={1} variant="introLabel" color="redesign.ink" style={styles.syncedUrl}>{resolvedUrl?.replace(/^https?:\/\//, '')}</Text>
-                      <View style={styles.syncedBadge}><Text variant="introCaptionMedium" color="redesign.importSyncedText">{t('placeImport.synced')}</Text></View>
+                      <View testID="import-verified-confirmation" style={styles.syncedBadge}><MaterialIcon name="checkCircle" size={14} color="redesign.importSyncedText" /><Text variant="introCaptionMedium" color="redesign.importSyncedText">{t('placeImport.synced')}</Text></View>
                     </View>
                     <Text numberOfLines={1} variant="introCaption" color="redesign.secondary">{t('placeImport.verifiedLocation', { name: candidate.name })}</Text>
                   </View>
@@ -438,6 +433,7 @@ export default function PlaceImportScreen() {
                         testID="import-link-input"
                         multiline={false}
                         numberOfLines={1}
+                        scrollEnabled
                         onFocus={() => { setLinkFocused(true); revealFocused() }}
                         onBlur={() => setLinkFocused(false)}
                         value={url}
@@ -507,9 +503,7 @@ export default function PlaceImportScreen() {
 
                 {result ? (
                   <View style={styles.analysisHeading}>
-                    <MaterialIcon name="verified" size={18} color="redesign.greenText" />
                     <Text variant="introHeading" color="redesign.ink" style={styles.analysisLabel}>{t(result.status === 'RESOLVED' ? 'placeImport.extractedTitle' : 'placeImport.analysisTitle')}</Text>
-                    {result.status === 'RESOLVED' ? <View style={styles.syncedBadge}><Text variant="introCaptionMedium" color="redesign.importSyncedText">{t('placeImport.syncedBadge')}</Text></View> : null}
                   </View>
                 ) : null}
 

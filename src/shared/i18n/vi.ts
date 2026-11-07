@@ -1054,6 +1054,7 @@ export const viMessages = {
   'placeImport.daily': 'hàng ngày',
   'placeImport.photoHeading': 'Ảnh địa điểm',
   'placeImport.extractedTitle': 'Dữ liệu đã trích xuất',
+  'placeImport.photoCredit': 'Ảnh: ',
   'placeImport.extractedBadge': '✓ Dữ liệu Google Maps xác thực',
   'placeImport.analysisTitle': 'Kết quả phân tích',
   'placeImport.enteredLink': 'Liên kết đã nhập',

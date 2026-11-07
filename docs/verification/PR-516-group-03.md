@@ -1,6 +1,6 @@
 # PR #516 group 03 — Nhập link → Bổ sung thông tin
 
-Updated 2026-11-07 in `mobile-g03`, starting at clean HEAD `fe411a4`.
+Updated 2026-11-07 in `mobile-g03`, latest owner fix starting at clean HEAD `c01b1ff`.
 Owner scope: file edits and local checks only; no install, commit, push, build or deployment.
 The owner’s current scoped fix supersedes the earlier migration pause for this task.
 
@@ -48,12 +48,12 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
 | Error / rate limit / provider outage | Preserved distinct server/provider messages; retry keeps entered URL and reuses resolver | `src/features/place-import/import.view.tsx:488` |
 | Offline / paused network | Immediate connectivity gate prevents paid resolve from being queued while offline; paused mutation and NetworkError show offline explanation; network-error retry remains available | `src/features/place-import/import.view.tsx:110`, `:339`, `:471` |
 | Input secondary footer | Existing credit policy opens a real explanation. Contribution list is visibly disabled with reason: no supported list screen/contract wired here | `src/features/place-import/import.view.tsx:473` |
-| Post-verify header: Bổ sung thông tin, share, profile | Implemented: share uses actual provider/input URL; profile navigates to existing profile tab; back returns to input | `src/features/place-import/import.view.tsx:367` |
-| Đã kết nối Google Maps / Hoàn thiện hồ sơ địa điểm / intro | Implemented: source badge, title and supporting copy replace input intro only after RESOLVED | `src/features/place-import/import.view.tsx:402` |
-| Compact synced-link row, Đã đồng bộ, Đổi link | Implemented: actual URL/name, one-line truncation, status pill. Đổi link clears resolution, metadata, selection, local photos and submission state; focuses input | `src/features/place-import/import.view.tsx:319`, `:343`, `:414` |
-| Dữ liệu đã trích xuất + synced badge | Implemented: verified icon, source heading, green status pill | `src/features/place-import/import.view.tsx:509`, `src/features/place-import/import.style.tsx:15` |
-| ONE Google image, 16:10, 12pt radius, overlay badges | Existing shared preview retained and checked against current source; transient BFF photo with loading/decode/error handling, no stock/sample fallback | `src/shared/ui/place-card.view.tsx:315`, `src/shared/ui/place-card.style.tsx:6` |
-| Photo attribution | Existing response Google + first photo’s own author credits; no-store request, cachePolicy=none; unusable/missing photo or attribution omitted | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:357` |
+| Post-verify header: Bổ sung thông tin, notification bell | Owner 2026-11-07: removed share/avatar; shared Home/Search notification bell on both import stages, unread dot and inbox navigation; back returns to input | `src/features/place-import/import.view.tsx:367` |
+| Đã kết nối Google Maps / Hoàn thiện hồ sơ địa điểm / intro | Owner 2026-11-07: removed connected chip; title and supporting copy remain after RESOLVED | `src/features/place-import/import.view.tsx:402` |
+| Compact synced-link row, Đã đồng bộ, Đổi link | Implemented: actual URL/name, one-line truncation, one checked status pill (the only verification confirmation). Đổi link clears resolution, metadata, selection, local photos and submission state; focuses input | `src/features/place-import/import.view.tsx:319`, `:343`, `:414` |
+| Dữ liệu đã trích xuất + synced badge | Owner 2026-11-07: plain section heading; removed verified icon and synced pill | `src/features/place-import/import.view.tsx:509`, `src/features/place-import/import.style.tsx:15` |
+| ONE Google image, 16:10, 12pt radius, hours/save overlays | Existing shared preview retained and checked against current source; transient BFF photo with loading/decode/error handling, no stock/sample fallback | `src/shared/ui/place-card.view.tsx:315`, `src/shared/ui/place-card.style.tsx:6` |
+| Photo attribution | One localized line: Ảnh: <authors> · Google Maps; response author URI remains linkable; repeated provider credit omitted, distinct credits retained. No-store/cachePolicy=none unchanged | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:357` |
 | Name, address, Google rating/count, actual hours | Existing verified facts retained; actual seven-day identical hours may use hàng ngày. Unknown facts/price omitted | `src/shared/ui/place-card.view.tsx:324`, `:348` |
 | Bookmark for unresolved candidate | Preserved visibly disabled canonical-save control and reason; no fake draft/save endpoint | `src/features/place-import/import.view.tsx:567` |
 | Existing GoGo place + short address | Preserved shared canonical PlaceCard and operational actions; administrative formatter remains authoritative | `src/features/place-import/existing-place-result.view.tsx:29`, `src/shared/ui/place-address.view.tsx:9`, `src/shared/administrative/place-address.ts:1` |
@@ -91,23 +91,55 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
   edit-only task ran no simulator/build or screenshot capture. Source inspection
   and component assertions do not establish 100% visual acceptance.
 
-## Verification
+## Owner-dated deviations from Stitch — 2026-11-07
+
+Owner feedback on the Kem Tràng Tiền simulator screenshot supersedes the repeated
+verification decorations in the Stitch source:
+
+- Removed the header share button and replaced the avatar with the shared
+  Home/Search `HeaderNotificationButton`, following the 2026-11-05 bell decision.
+  Both **Nhập link** and **Bổ sung thông tin** use its unread dot and real
+  `/notifications` navigation; input-stage help remains available.
+- Removed the intro/header chip **Đã kết nối Google Maps**.
+- Removed the section pill **✓ Đã đồng bộ từ Google Maps** and its separate
+  verified heading icon.
+- Removed the photo-overlay **Dữ liệu Google Maps xác thực** badge, including
+  both its icon tick and literal ✓; also removed its no-photo inline fallback.
+- Kept only the synced-link row **Đã đồng bộ / Đã xác minh vị trí** context,
+  with exactly one check-circle icon and no literal ✓. This ties confirmation
+  to the actual submitted link and preserves Đổi link.
+- Combined photo credit into **Ảnh: <authors> · Google Maps** (English: Photo:),
+  retaining every first-photo author and HTTP(S) author profile link supplied by
+  the response (protocol-relative Google profile links normalize to HTTPS). Omitted the duplicate candidate Google Maps credit while
+  retaining distinct required attribution text.
+- Input stays 52pt high, single-line with horizontal scrolling, explicit width
+  constraints and reserved space for the 44pt clear-x control. Regression covers
+  pasting a long URL from the clipboard and clearing the full value.
+
+Photo-credit requirements checked against [Google Places photo guidance](https://developers.google.com/maps/documentation/places/web-service/place-photos):
+retain photo authors alongside the image and provider attribution.
+
+## Verification — owner fix at c01b1ff + working edits
 
 - `pnpm typecheck`: PASS.
-- `pnpm lint`: PASS.
-- `pnpm test:ui --runInBand` with five place-import suites, shared place-card,
-  shared place-address UI and administrative place-address: **PASS, 8 suites,
-  211 tests**.
-- `pnpm test src/shared/api/__tests__/view-models.test.ts src/shared/ui/__tests__/theme-dark.test.ts`:
-  **PASS, 2 suites, 71 tests**.
+- `pnpm lint`: PASS, zero warnings.
+- `pnpm test:ui --runInBand` for all five place-import suites plus shared
+  place-card: **PASS, 6 suites, 132 tests**.
+- `pnpm test`: **FAIL, 111 files passed, 1 failed, 1 skipped; 1311 tests passed,
+  3 failed, 39 skipped**. All three failures are in unchanged
+  `src/shared/config/__tests__/distribute-wrapper.test.ts` (lines 208, 234, 258),
+  whose process-liveness checks need `ps`. This managed sandbox rejects `ps`
+  with `operation not permitted`; the owner-liveness test receives no stdout,
+  and the two process-group checks cannot detect the live child. No unrelated
+  distribution code/tests were altered or skipped to manufacture a green gate.
 - `git diff --check`: PASS.
-- No contract/schema change or new endpoint. Existing resolver/submission
-  telemetry retained; URLs and opaque resolution proofs stay out of analytics.
-- Regression checks include valid/invalid/empty input, clipboard denied/empty/
-  stale, verifying, offline/reconnect/paused/NetworkError, retry, header actions,
-  change-link reset, stale resolution A→B→A, future opening, provider outage,
-  polling, first-photo attribution/no cache, late photo/picker cancellation,
-  optional photo limits, missing facts and short-form addresses.
-- Full repository suites, CI, independent review, device keyboard checks and
-  owner acceptance were not run/claimed. HEAD remains `fe411a4`; only working
-  files changed. No install, commit or push.
+- Regression includes single verification confirmation, removed photo/section/
+  header badges, combined first-photo credits, multiple authors and author-link
+  handoff, distinct credit retention, unavailable/failed photos, no caching,
+  long clipboard paste/clear, input lifecycle, resolver token reset, outages,
+  future hours, shared header bell navigation/unread-dot/zero-unread behavior
+  on both import stages, and existing shared PlaceCard behavior.
+- No contract/schema change, install, commit, push, build or deployment. No
+  simulator rendering or owner visual acceptance claimed; native horizontal
+  scrolling still needs device confirmation. Full repository test gate remains
+  blocked by sandbox process-inspection access as detailed above.

@@ -13,13 +13,13 @@ const photoResponse = z.object({
       z.object({
         contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
         dataBase64: z.string().min(1),
-        authorAttributions: z.array(z.object({ displayName: z.string().trim().min(1) })).min(1),
+        authorAttributions: z.array(z.object({ displayName: z.string().trim().min(1), uri: z.string().nullish() })).min(1),
       }),
     )
     .min(1),
 })
 
-type LoadedPhoto = { path: string; uri: string; credit: string }
+type LoadedPhoto = { path: string; uri: string; attribution: string; authors: { displayName: string; uri?: string | null }[] }
 type PhotoState = { path: string; status: 'ready'; photo: LoadedPhoto } | { path: string; status: 'absent' | 'error' }
 
 export function useCandidatePhoto(candidate: NonNullable<ResolveLinkResult['candidate']>) {
@@ -53,7 +53,13 @@ export function useCandidatePhoto(candidate: NonNullable<ResolveLinkResult['cand
           photo: {
             path,
             uri: `data:${photo.contentType};base64,${photo.dataBase64}`,
-            credit: [result.data.attribution, ...photo.authorAttributions.map(author => author.displayName)].join(' · '),
+            attribution: result.data.attribution,
+            authors: photo.authorAttributions.map(author => {
+              const uri = author.uri?.trim()
+              // Google may return protocol-relative profile links.
+              const profile = uri?.startsWith('//') ? `https:${uri}` : uri
+              return { displayName: author.displayName, uri: profile && /^https?:\/\/[^\s/]+/i.test(profile) ? profile : undefined }
+            }),
           },
         })
       })
