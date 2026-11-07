@@ -32,6 +32,9 @@ export interface RequestOptions {
   deviceCredential?: string
   /** Sent as `Idempotency-Key` — required for retryable mutations (RULE-API-004). */
   idempotencyKey?: string
+  /** Conditional public reference-data reads. */
+  ifNoneMatch?: string
+  revalidate?: boolean
   timeoutMs?: number
   signal?: AbortSignal
 }
@@ -200,6 +203,8 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
   if (options.deviceCredential) headers.authorization = `Device ${options.deviceCredential}`
   else if (accessToken) headers.authorization = `Bearer ${accessToken}`
   if (options.idempotencyKey) headers['idempotency-key'] = options.idempotencyKey
+  if (options.ifNoneMatch) headers['if-none-match'] = options.ifNoneMatch
+  if (options.revalidate) headers['cache-control'] = 'no-cache'
 
   try {
     return await fetch(url, {
@@ -273,4 +278,16 @@ export const api = {
     request<T>({ ...options, method: 'PATCH', path, body }),
   delete: <T>(path: string, body?: unknown, options: Omit<RequestOptions, 'method' | 'path' | 'body'> = {}) =>
     request<T>({ ...options, method: 'DELETE', path, body }),
+}
+
+/** Public conditional GET: a 304 must never enter the JSON/error body parsers. */
+export async function conditionalGet<T>(
+  path: string,
+  options: Pick<RequestOptions, 'query' | 'ifNoneMatch' | 'signal'> = {},
+): Promise<{ status: 304; etag: string | null } | { status: 200; etag: string | null; data: T }> {
+  const response = await send({ ...options, method: 'GET', path, anonymous: true, revalidate: true }, null)
+  const etag = response.headers.get('etag')
+  if (response.status === 304) return { status: 304, etag }
+  if (!response.ok) throw await toApiError(response)
+  return { status: 200, etag, data: await parseBody<T>(response) }
 }

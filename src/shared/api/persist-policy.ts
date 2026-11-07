@@ -1,12 +1,15 @@
+import type { Persister } from '@tanstack/react-query-persist-client'
+
 /**
  * Offline cache for the active date: the current plan and the place summaries
- * it references must stay readable with a flaky connection. Only those keys are
- * persisted — search results and suggestion runs are deliberately not.
+ * it references must stay readable with a flaky connection. Profile and public
+ * reference datasets (administrative units and taxonomies) persist too; search
+ * results and suggestion runs do not.
  *
  * Kept free of React Native imports so the policy can be tested on its own; the
  * persister that uses it lives in `query-client.ts`.
  */
-const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me', 'administrative']
+const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me', 'administrative', 'taxonomies']
 
 /**
  * List keys put their discriminator right after the root — `['places',
@@ -28,4 +31,25 @@ export function shouldPersistQuery(queryKey: readonly unknown[]): boolean {
   return !queryKey.some(
     segment => typeof segment === 'string' && EXCLUDED_SEGMENTS.includes(segment),
   )
+}
+
+/** Public taxonomy generations outlive the 24-hour account-data cache. */
+export function retainTaxonomies(persister: Persister): Persister {
+  return {
+    persistClient: client => persister.persistClient(client),
+    removeClient: () => persister.removeClient(),
+    restoreClient: async () => {
+      const saved = await persister.restoreClient()
+      if (!saved || Date.now() - saved.timestamp <= 24 * 60 * 60 * 1000) return saved
+      // Keep the original timestamp and buster: the provider still checks the
+      // cache format, while only public taxonomy data is exempt from expiry.
+      return {
+        ...saved,
+        clientState: {
+          mutations: [],
+          queries: saved.clientState.queries.filter(query => query.queryKey[0] === 'taxonomies'),
+        },
+      }
+    },
+  }
 }

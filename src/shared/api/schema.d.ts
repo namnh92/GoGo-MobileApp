@@ -626,13 +626,13 @@ export interface paths {
          * Presigned upload for moderated user media
          * @description Check-in accepts `photoKeys` and `billPhotoKey` — keys of already uploaded objects — and until this endpoint existed nothing in the contract could produce one, so the mobile check-in sheet shipped without photos or the verified bill (FR-PLAN-009 was unreachable).
          *
-         *     Presigned rather than multipart: the client PUTs the bytes straight to storage with the returned URL and sends only the `key` back. Image bytes never cross the API.
+         *     Presigned rather than multipart: the client PUTs the bytes straight to storage with the returned URL and sends its key or media id back. The API reads avatar/place-photo bytes server-side only to sanitise them.
          *
          *     The returned key is bound to the actor that created it. Attaching a key belonging to another actor, an expired one, or one issued for a different purpose is rejected — the server does not distinguish those cases in its answer.
          *
          *     Content type and size are enforced server-side and the content type is part of what is signed, so storage refuses an upload that does not match what was authorized.
          *
-         *     Purpose `avatar` (ADR-0022): users only, `image/jpeg`, `image/png` or `image/webp` — never HEIC, which the client converts first. The key lands in a private, one-day-lifetime prefix and is attached with `PUT /me/avatar`, which processes it and publishes the result. Answers 503 where `GET /me` reports `capabilities.avatarUpload: unavailable`.
+         *     Purpose `avatar` (ADR-0022): users only, `image/jpeg`, `image/png` or `image/webp` — never HEIC, which the client converts first. The key lands in a private, one-day-lifetime prefix and is attached with `PUT /me/avatar`, which processes it and publishes the result. Answers 503 where `GET /me` reports `capabilities.avatarUpload: unavailable`. Purpose `place_photo`: original keys use the private one-day `tmp/` lifecycle, including abandoned uploads. Send the returned `id` (not key) in `POST /place-submissions.mediaIds`. This path accepts JPEG/PNG/WebP; convert HEIC before attaching. Originals are never served by the BFF.
          */
         post: operations["createUpload"];
         delete?: never;
@@ -1620,6 +1620,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/taxonomies/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cheap global taxonomy generation check
+         * @description One singleton-row read. Compare version before downloading lists; locale independent.
+         */
+        get: operations["getTaxonomyVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/taxonomies": {
         parameters: {
             query?: never;
@@ -1627,7 +1647,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stable taxonomy keys + i18n labels (clients never hard-code ids) */
+        /**
+         * Stable taxonomy keys + i18n labels (clients never hard-code ids)
+         * @description Version and rows share a database snapshot. Persist by locale and kinds; use cached data immediately, including offline, then revalidate. Weak ETag includes global version, canonical kinds and locale. Validators support lists, weak comparison and wildcard. A version change invalidates every locale/kinds variant, including search synonym changes.
+         */
         get: operations["listTaxonomies"];
         put?: never;
         post?: never;
@@ -1666,7 +1689,7 @@ export interface paths {
         };
         /**
          * Place detail with sources, freshness, hours, verified prices
-         * @description GoGo-BE#217 (ADR-0028): carries the GoGo community rating (`gogoRating`, `gogoRatingCount`) beside the provider's (`rating`, `ratingCount`, attributed through `sources`). The two are separate facts from separate populations and are never merged into one score. The GoGo rating is computed on every read from the place's moderator-published reviews, so the response is served `Cache-Control: no-store` and a publish, rejection, edit back to moderation or emergency hide shows on the next read.
+         * @description GoGo-BE#217 (ADR-0028): carries the GoGo community rating (`gogoRating`, `gogoRatingCount`) beside the provider's (`rating`, `ratingCount`, attributed through `sources`). The two are separate facts from separate populations and are never merged into one score. The GoGo rating is computed on every read from the place's moderator-published reviews, so the response is served `Cache-Control: no-store` and a publish, rejection, edit back to moderation or emergency hide shows on the next read. GoGo-BE#784: optional `areaSummary` uses the same current VERIFIED administrative mapping as search (commune preferred, province fallback), with Vietnamese labels like search with `locale=vi`. Omitted when no eligible mapping exists; `addressText` remains a separate postal address.
          */
         get: operations["getPlaceDetail"];
         put?: never;
@@ -1691,6 +1714,26 @@ export interface paths {
          *     BE-BFF-019 (ADR-0026, proposal): `order=helpful` ranks by `helpfulCount` descending, then the same newest-first order, so with no reactions it answers exactly what `latest` does. Counts only; no response names who reacted.
          */
         get: operations["listPlaceReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/places/google-provider-photo/{googlePlaceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch at most one transient Google candidate photo through the BFF
+         * @description Public, 10/min/IP. Fetch the candidate photo reference as JSON and render its base64 bytes with its Google Maps and author attribution; the URL is not a directly loadable image. No Google key/name/URL for image retrieval is exposed. Fresh first photo at fetch time; response credits are authoritative. Flag place_provider_photos, google.places.display budgets, 800px/400KiB, 6s overall deadline and bounded expired-reference retry apply. Nothing is stored.
+         */
+        get: operations["getCandidateProviderPhoto"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2240,6 +2283,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/place-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the signed-in account's place submissions
+         * @description Registered users only; guest and CMS admin actors receive 403.
+         *     Contribution access is selected server-side from the authenticated account, on
+         *     every page. Newest first by immutable `(createdAt, id)` descending.
+         *     Reopen from the first page to see current decisions; no client-held
+         *     submission IDs are needed. Cursors preserve timestamp microseconds.
+         *
+         *     All registered contributors recorded on a deduplicated proposal see
+         *     that same proposal and its current decision once per account. Original
+         *     submitters remain included. Earlier deduplicated contributors whose
+         *     identities were never stored cannot be backfilled. No provider calls.
+         *     Names come from the result place or review draft when available;
+         *     missing names and photos are omitted. Photos are approved editorial
+         *     or community catalogue media only. Raw moderator reasons, contributor
+         *     notes, reviewer identities, room IDs and other users' PII are excluded.
+         */
+        get: operations["listMyPlaceSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/place-submissions/{id}": {
         parameters: {
             query?: never;
@@ -2247,7 +2323,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Poll a submission (owner only) */
+        /**
+         * Poll a submission (recorded contributor or original submitter only)
+         * @description Original submitter (registered user or guest) or recorded registered contributor only. `rejectionReason` is a stable public key when rejected; absent for historical decisions without a key and for other statuses. Internal moderation notes are never returned.
+         */
         get: operations["getPlaceSubmission"];
         put?: never;
         post?: never;
@@ -2360,11 +2439,13 @@ export interface paths {
         put?: never;
         /**
          * Moderator/editor: approve, reject or merge a submission (PI-CMS-007)
-         * @description `approved` creates the catalogue place and applies whatever a reviewer supplemented through `PUT /cms/place-submissions/{id}/review` over the provider's answer (GoGo-BE#528). Fields the reviewer typed are recorded `editorial` in `place_field_provenance` and carry their id; fields left as Google answered them are `google_derived` and carry the Place ID — so a later provider refresh can tell what it may overwrite.
+         * @description GoGo-BE#787: `rejected` requires `rejectionReason` from the fixed key list. Missing/unknown keys return 400 VALIDATION_FAILED with field_errors on rejectionReason. This key is public; `reason` remains internal. `approved` creates the catalogue place and applies whatever a reviewer supplemented through `PUT /cms/place-submissions/{id}/review` over the provider's answer (GoGo-BE#528). Fields the reviewer typed are recorded `editorial` in `place_field_provenance` and carry their id; fields left as Google answered them are `google_derived` and carry the Place ID — so a later provider refresh can tell what it may overwrite.
          *
          *     **Address, phone and website (GoGo-BE#280)** are GoGo-owned and come only from the review draft, each with the evidence in its `provenance`. The provider's formatted address is no longer a fallback: a place approved with no reviewer address has none. A draft saved before #280 that carries one of these values without evidence is refused `409 REVIEW_EVIDENCE_REQUIRED`, naming the fields in `field_errors`; re-save the draft with its sources and approve again.
          *
-         *     `rejected` creates no place. `merged` points the proposal at an existing one and writes nothing to it.
+         *     #786 / ADR-0043: with provider photos enabled, approval retains at most one current first Google photo with provider provenance and per-photo credits. No image or references were stored while pending. Disabled or confirmed no-photo results permit approval without imagery; photo budget, provider or storage failures return retryable `503 SUBMISSION_PHOTO_UNAVAILABLE` and leave the submission pending. Google may change photo order since preview.
+         *
+         *     `rejected` creates no place. `merged` points the proposal at an existing one and attaches the explicitly selected photos to it.
          *
          *     Approval is not verification and not publication: the administrative mapping is resolved from the new place's own coordinate and is never `VERIFIED`, and the publication blocker stays until somebody confirms it (ADM-017, GoGo-BE#525).
          */
@@ -3163,6 +3244,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/users/{id}/assistant-credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops: user AI credit balance and ledger
+         * @description GoGo-BE#778. Read-only credit facts for ops_admin and super_admin only; editor, moderator, consumer and guest actors cannot read this endpoint. Each successful read is audited as user.assistant_credits_viewed without copying the name, balance or ledger into the audit entry. User identity is limited to id and displayName; no email or conversation data. Balance and page share one database statement snapshot. Balance is the full current account balance on each request, not the sum of the returned page. Newest first by (created_at DESC, id DESC), retaining microsecond precision. A later grant/spend may change balance between pages; this is not a frozen export. Cursor is opaque, scoped to this user and must be passed unchanged. An account without credits returns zero and an empty page. Erasure removes the balance and ledger user linkage; retained anonymized rows are not returned. An unknown user returns USER_NOT_FOUND. Malformed or wrong-user cursors return INVALID_CURSOR; invalid path/query values return VALIDATION_FAILED.
+         */
+        get: operations["cmsUserAssistantCredits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cms/users/{id}/suspend": {
         parameters: {
             query?: never;
@@ -3525,6 +3626,7 @@ export interface paths {
         /**
          * Editor/ops: catalog list with server-side filter, sort and cursor paging
          * @description Keyset pagination, not offset: the catalog is written to while editors browse it (background imports), so an offset would repeat or skip rows. Pass the returned `nextCursor` back to get the next page; `nextCursor` is null only when there is genuinely nothing more. Text search runs on the normalized name — accent-insensitive, same behaviour as the consumer-facing search.
+         *     `amenities` uses the public search semantics: ALL selected active amenity keys must match; `cashless_payment` expands to card OR QR. It intersects with every other filter before sorting and cursor pagination.
          *
          *     **Archived places are excluded unless `status=archived` asks for them** (ADM-018). This endpoint previously had no default status filter, so an archived place — the closest thing this schema has to a soft delete — appeared in the ordinary catalogue and in anything that counted it. Every other status behaves as before.
          */
@@ -3886,6 +3988,23 @@ export interface paths {
          *     A query term is only named once at least 5 searches produced it. Below that floor the rows are still counted, in `hiddenBelowFloor`, but the text is withheld: a query one person typed is effectively that person's query. Hiding the rows entirely would understate how much of search is failing, which is the opposite of the point.
          */
         get: operations["cmsSearchAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/taxonomies/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Editor/Ops: current taxonomy version and last successful write time */
+        get: operations["cmsGetTaxonomyVersion"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5596,6 +5715,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/place-submissions/{id}/photos/{photoId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a sanitised pending submission photo
+         * @description Requires CMS moderator/editor read permission. The submission and photo must still be pending. Always returns the processed WebP, never an original. Responses are private, no-store.
+         */
+        get: operations["cmsReadSubmissionPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/places/{id}/photos/{photoId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an approved sanitised GoGo photo
+         * @description Public only while the photo is approved and the place is published or community_submitted. Always returns the processed WebP, never an original. Responses are private, no-store.
+         */
+        get: operations["readCommunityPlacePhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cms/place-submissions/{id}/photos/{photoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Reject one pending submission photo
+         * @description Moderator/editor only. Audited; immediately unreadable, cleaned after seven days. Changes the submission revision.
+         */
+        delete: operations["cmsRemoveSubmissionPhoto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6548,15 +6727,7 @@ export interface components {
                 kind: "category" | "mood" | "setting" | "amenity";
                 key: string;
             }[];
-            /** @description Current VERIFIED administrative mapping only; commune preferred, province fallback; actual label locale reported. */
-            areaSummary?: {
-                datasetVersion: string;
-                provinceCode: string;
-                communeCode: string | null;
-                label: string;
-                /** @enum {string} */
-                locale: "vi" | "en";
-            };
+            areaSummary?: components["schemas"]["PlaceAreaSummary"];
             verification: components["schemas"]["VenueVerification"];
             /** Format: uuid */
             id: string;
@@ -7495,6 +7666,46 @@ export interface components {
             billableUnitsToday: number;
             billableUnitsMonthToDate: number;
         };
+        CmsAssistantCredits: {
+            user: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            };
+            /** @description Full current no-expiry AI credit balance; zero when no account row exists. */
+            balance: number;
+            items: components["schemas"]["CmsAssistantCreditEntry"][];
+            /** @description Opaque user-scoped keyset cursor; null when no more rows exist. */
+            nextCursor: string | null;
+        };
+        CmsAssistantCreditEntry: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description UTC ledger timestamp, including all six fractional digits.
+             */
+            createdAt: string;
+            /**
+             * @description Signed credits; +50 for submission_approved, -1 for message_spent.
+             * @enum {integer}
+             */
+            delta: 50 | -1;
+            /** @enum {string} */
+            reason: "submission_approved" | "message_spent";
+            /**
+             * Format: uuid
+             * @description Immutable contribution reference, even after source deletion; null for spending.
+             */
+            submissionId: string | null;
+            /** @description Immutable venue deduplication reference recorded by the grant (currently google:<placeId>), retained after source deletion. Null for spending. This is an identifier, not provider place content or a GoGo place UUID. */
+            venueIdentity: string | null;
+            /**
+             * Format: uuid
+             * @description Current GoGo place reference from the source submission, when it still exists and has a result place. Null for spending or removed sources/places.
+             */
+            placeId: string | null;
+        };
         CmsAppUser: {
             /** Format: uuid */
             id: string;
@@ -7978,6 +8189,17 @@ export interface components {
             currency?: string;
             confidence?: number;
         };
+        /** @description Optional single-photo BFF reference, only from a live resolved candidate with a provider photo and the flag/budget configured. Resolve buys no photo media and persists nothing. Fetch url as JSON, not an image src. Omitted for disabled/no-photo/provider-error/DB-first/ambiguous results. Approval re-fetches the current first Google photo; Google can change photo order between preview and moderation. */
+        CandidateProviderPhotoReference: {
+            /** @description Relative BFF path; no provider key or photo name */
+            url: string;
+            /** @constant */
+            provider: "google";
+            attribution: string;
+            authorAttributions: components["schemas"]["ProviderPhotoAuthor"][];
+            /** Format: uri */
+            googleMapsUri: string | null;
+        };
         /** @description GoGo-BE#509 — transient provider photos. Display once, never persist. */
         PlaceProviderPhotos: {
             /** @description Why `photos` may be empty. Unknown values mean "no photos". */
@@ -8019,6 +8241,15 @@ export interface components {
              */
             photoUri: string | null;
         };
+        /** @description Current VERIFIED administrative mapping only; commune preferred, province fallback; actual label locale reported. */
+        PlaceAreaSummary: {
+            datasetVersion: string;
+            provinceCode: string;
+            communeCode: string | null;
+            label: string;
+            /** @enum {string} */
+            locale: "vi" | "en";
+        };
         PlaceDetail: {
             verification?: components["schemas"]["VenueVerification"];
             /** Format: uuid */
@@ -8028,6 +8259,7 @@ export interface components {
             status?: string;
             /** @description GoGo-owned postal address (GoGo-BE#280). Absent when unknown — never an empty string. Render as plain text. */
             addressText?: string;
+            areaSummary?: components["schemas"]["PlaceAreaSummary"];
             areaKey?: string;
             lat?: number;
             lng?: number;
@@ -8043,6 +8275,8 @@ export interface components {
             gogoRating?: number;
             /** @description GoGo-BE#217 (ADR-0028) — how many moderator-published GoGo reviews of this place `gogoRating` is computed from; always present, including 0. Counts reviews, not people: one author may have several. Pending, rejected, removed and hidden reviews, plan reviews, check-ins and provider reviews are never counted. Below 5 the client says in words that there are not enough GoGo reviews yet, beside this count, and renders no score. */
             gogoRatingCount: number;
+            /** @description GoGo-BE#785 — all-time distinct rooms with at least one stored stop check-in at this place, across members, stops and plan versions. Always null below 5 rooms (including zero); otherwise an integer. Completed stops, plans, votes, saves and reviews alone do not count. Check-in content moderation does not change visit participation. No room or member identities are returned. Read from a transactionally precomputed database count for each request without process value or in-flight promise caching; deletions, cascades and place merges committed before that read are reflected immediately across API processes. Hide this fact when null. */
+            checkedInGroupCount: number | null;
             priceLevel?: number;
             avgVisitMinutes?: number;
             suitability?: {
@@ -8307,7 +8541,18 @@ export interface components {
             /** @enum {string} */
             moderation?: "pending" | "approved" | "rejected";
         };
+        TaxonomyVersion: {
+            /** @description Global monotonically increasing taxonomy generation. */
+            version: number;
+            /**
+             * Format: date-time
+             * @description Last successful CMS write; initial migration time before any write.
+             */
+            updatedAt: string;
+        };
         TaxonomyList: {
+            /** @description Global taxonomy generation of this snapshot. */
+            version?: number;
             /** @description Kind → entries. Store the stable `key`, resolve labels via `labels[locale]`. */
             kinds?: {
                 [key: string]: {
@@ -8363,6 +8608,7 @@ export interface components {
              */
             administrative?: components["schemas"]["ImportAdministrativeIdentity"] | null;
             candidate?: {
+                photo?: components["schemas"]["CandidateProviderPhotoReference"];
                 googlePlaceId?: string;
                 name?: string;
                 address?: string;
@@ -8714,6 +8960,45 @@ export interface components {
             /** @description #248. True when a `super_admin` issued a temporary password that has not been replaced. The console must route to the change screen; the obligation itself is enforced server-side — every other CMS route answers 403 `PASSWORD_CHANGE_REQUIRED` until it is cleared. */
             mustChangePassword?: boolean;
         };
+        /**
+         * @description Public reason key (GoGo-BE#787); clients translate labels. In order: trùng địa điểm, sai vị trí, đã đóng cửa, không phải địa điểm công khai, nội dung không phù hợp, khác. No free-text note, including for other.
+         * @enum {string}
+         */
+        SubmissionRejectionReason: "duplicate_place" | "incorrect_location" | "permanently_closed" | "not_public_place" | "inappropriate_content" | "other";
+        MyPlaceSubmissionsPage: {
+            items: components["schemas"]["MyPlaceSubmission"][];
+            /** @description Null at the end of the list. */
+            nextCursor: string | null;
+        };
+        MyPlaceSubmission: {
+            /** Format: uuid */
+            id: string;
+            /** @description Available stored name, omitted when unknown. */
+            name?: string;
+            /**
+             * Format: uri
+             * @description Approved GoGo catalogue photo, omitted when unavailable or hosting is unconfigured.
+             */
+            photoUrl?: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "merged";
+            /** @description Stored public key for rejected submissions; omitted for historical rows without a key. Raw CMS reasons are private. */
+            rejectionReason?: components["schemas"]["SubmissionRejectionReason"];
+            /**
+             * Format: uuid
+             * @description Result place for approved or merged submissions, omitted if the place has been deleted.
+             */
+            placeId?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /**
+             * Format: date-time
+             * @description Decision timestamp, omitted before a decision.
+             */
+            decidedAt?: string;
+        };
         PlaceSubmissionSummary: {
             /** Format: uuid */
             id: string;
@@ -8747,6 +9032,7 @@ export interface components {
             /** Format: date-time */
             decidedAt?: string;
             decisionReason?: string;
+            rejectionReason?: components["schemas"]["SubmissionRejectionReason"];
             /**
              * @description A human-readable name for the row, when GoGo has one (GoGo-BE#528).
              *
@@ -8800,6 +9086,18 @@ export interface components {
             /** @description GoGo-BE#280 — evidence for `addressText`, `phone` and `website`, under the same rule as `cmsUpdatePlace`: a non-null value needs its entry, `null` needs none. Values and evidence are stored normalized (E.164, `https://`, `collectedAt` in UTC) and returned that way. */
             provenance?: components["schemas"]["PlaceContactProvenanceInput"];
         };
+        SubmissionPhoto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            mediaId: string;
+            width: number;
+            height: number;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** @description Root-relative API URL for an authenticated CMS fetch; null after decision or removal. */
+            url: string | null;
+        };
         /** @description PI-BE-031 (GoGo-BE#528) — everything a decision needs that GoGo already holds. No provider request: this endpoint costs nothing to open, and `POST /cms/place-submissions/{id}/provider-preview` is the explicit, separately-counted way to ask Google. */
         PlaceSubmissionDetail: {
             /** Format: uuid */
@@ -8820,6 +9118,9 @@ export interface components {
             /** Format: date-time */
             decidedAt?: string;
             decisionReason?: string;
+            rejectionReason?: components["schemas"]["SubmissionRejectionReason"];
+            /** @description Sanitised photos with bearer-authenticated CMS preview URLs. Fetch with the CMS Authorization header; never load from the public asset host. No original keys. */
+            photos?: components["schemas"]["SubmissionPhoto"][];
             /** @description What the contributor sent, untouched by any review. */
             contribution: {
                 categoryKey?: string;
@@ -8938,7 +9239,7 @@ export interface components {
         PlacePhoto: {
             /** Format: uuid */
             id: string;
-            /** @description Directly loadable. Photos are omitted entirely rather than sent with a URL that will not load — a broken image is worse than the neutral placeholder a client falls back to. */
+            /** @description CDN URL or root-relative BFF URL (resolve against the API origin, without adding another /v1). Photos are omitted entirely rather than sent with a URL that will not load — a broken image is worse than the neutral placeholder a client falls back to. */
             url: string;
             width?: number;
             height?: number;
@@ -8947,8 +9248,16 @@ export interface components {
              * @enum {string}
              */
             source: "google" | "community" | "manual";
+            /** @description Actual registered uploader credit, omitted for guest or erased accounts. */
+            contributor?: {
+                displayName: string;
+            };
             /** @description Present for provider imagery, which must be displayed with it. Community photos are only returned once approved in moderation. */
             attribution?: string;
+            /** @description Per-photo provider credits that must be rendered with this image. */
+            authorAttributions?: components["schemas"]["ProviderPhotoAuthor"][];
+            /** Format: uri */
+            googleMapsUri?: string | null;
         };
         RoomListItem: {
             /** Format: uuid */
@@ -9015,6 +9324,13 @@ export interface components {
             caption?: string | null;
             /** @description Provider terms survive an editor touching the list (FR-INGEST-014). */
             attribution?: string | null;
+            /** @description Per-photo provider credits that must be rendered with this image. */
+            authorAttributions?: components["schemas"]["ProviderPhotoAuthor"][];
+            /**
+             * Format: uri
+             * @description Provider source link for this photo, when supplied.
+             */
+            googleMapsUri?: string | null;
             /** @description At most one per place. */
             isCover: boolean;
             /** @enum {string} */
@@ -10487,6 +10803,17 @@ export interface components {
             assistantCreditBalance?: number;
             /** Format: date-time */
             exportedAt?: string;
+            /** @description The account's original and attributed shared place proposals, once per proposal. Excludes contributor notes, provider IDs, moderator free text and other contributors' identities. */
+            placeSubmissions?: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "pending" | "approved" | "rejected" | "merged";
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                decidedAt: string | null;
+            }[];
             /**
              * @description 2.0.0-alpha.3 (GoGo-BE#713, owner-delegated SA decision Q2). The account's retained GoGo AI conversations (90-day retention, so only what still exists). Populated since 2.0.0-alpha.4, when the module landed; a client must still treat absent and `[]` alike.
              *
@@ -12189,6 +12516,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description Media id for place-submissions.mediaIds
+                         */
+                        id: string;
                         /** @description Send this back in the check-in; it is only usable by this actor. */
                         key: string;
                         uploadUrl: string;
@@ -13886,13 +14218,51 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
+    getTaxonomyVersion: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-None-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current global version and last successful CMS write time */
+            200: {
+                headers: {
+                    ETag?: string;
+                    /** @description public, max-age=0, must-revalidate */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxonomyVersion"];
+                };
+            };
+            /** @description Unchanged; empty body */
+            304: {
+                headers: {
+                    ETag?: string;
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listTaxonomies: {
         parameters: {
             query?: {
                 /** @description Comma-separated kind filter (mood,category,setting,dietary,accessibility,spending_style,suitability,checkin_tag,amenity) */
                 kinds?: string;
+                /** @description Optional exact label locale; omitted returns all locales as before. No fallback; a missing translation is omitted. */
+                locale?: string;
             };
-            header?: never;
+            header?: {
+                "If-None-Match"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13901,11 +14271,23 @@ export interface operations {
             /** @description Taxonomy keys with i18n labels */
             200: {
                 headers: {
+                    ETag?: string;
+                    /** @description public, max-age=60, stale-while-revalidate=300 */
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["TaxonomyList"];
                 };
+            };
+            /** @description Unchanged; empty body */
+            304: {
+                headers: {
+                    ETag?: string;
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -14040,6 +14422,33 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getCandidateProviderPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                googlePlaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Photo or an empty degraded response; never prevents link submission */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceProviderPhotos"] & {
+                        photos?: components["schemas"]["PlaceProviderPhoto"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
             429: components["responses"]["RateLimited"];
         };
     };
@@ -15020,6 +15429,8 @@ export interface operations {
                     };
                     vibes?: string[];
                     note?: string;
+                    /** @description Optional media ids from POST /uploads purpose place_photo, owned by this actor. JPEG/PNG/WebP only, at most 10 MiB each; actual bytes and size are verified. HEIC must be converted by the client. Originals are never served. Photos stay private until explicitly selected by staff at the submission decision. Deduplicated submissions retain each photo's actual uploader; at most five non-rejected photos per pending submission, including concurrent requests. */
+                    mediaIds?: string[];
                     /** @description The `resolutionToken` from the preceding `POST /places/resolve-google-maps-link` (#337). Optional — without it the server verifies the place with the provider again, which is the behaviour before this field existed. */
                     resolutionToken?: string;
                 };
@@ -15035,7 +15446,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubmissionResult"];
                 };
             };
-            /** @description `RESOLUTION_TOKEN_INVALID` — the `resolutionToken` was expired, edited, or minted for another place. `retryable: true`: resolve the link again and resubmit. */
+            /** @description `INVALID_SUBMISSION_PHOTOS` rejects foreign or invalid media; `INVALID_UPLOAD_KEY` rejects expired or already claimed uploads. `FILE_TOO_LARGE` rejects oversized files. `RESOLUTION_TOKEN_INVALID` — the `resolutionToken` was expired, edited, or minted for another place. `retryable: true`: resolve the link again and resubmit. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15045,8 +15456,17 @@ export interface operations {
                 };
             };
             403: components["responses"]["Forbidden"];
-            /** @description Place is closed/suspended and cannot be added */
+            /** @description Place is closed/suspended; UPLOAD_NOT_RECEIVED, SUBMISSION_PHOTO_LIMIT or SUBMISSION_CHANGED. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description PHOTO_UNPROCESSABLE - invalid, mismatched, animated, or undecodable image. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15056,6 +15476,34 @@ export interface operations {
             };
             429: components["responses"]["RateLimited"];
             503: components["responses"]["SessionLookupUnavailable"];
+        };
+    };
+    listMyPlaceSubmissions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque nextCursor from a previous page. Invalid cursors return 400 INVALID_CURSOR. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account contributions; an empty list is a successful response. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyPlaceSubmissionsPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getPlaceSubmission: {
@@ -15086,6 +15534,7 @@ export interface operations {
                         submissionCount?: number;
                         /** Format: date-time */
                         createdAt?: string;
+                        rejectionReason?: components["schemas"]["SubmissionRejectionReason"];
                         /** Format: date-time */
                         decidedAt?: string;
                     };
@@ -15247,11 +15696,24 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    decision: "approved" | "rejected" | "merged";
+                    decision: "rejected";
+                    rejectionReason: components["schemas"]["SubmissionRejectionReason"];
+                    /** @description Optional internal note. Never returned by public polling. */
+                    reason?: string;
+                    /** @description Required when approving or merging a submission with pending photos; absent means 409 PHOTO_REVIEW_REQUIRED. Select only photo ids shown by the CMS detail. An explicit empty array rejects every photo. Unselected photos are rejected and cleaned after seven days. */
+                    approvedPhotoIds?: string[];
+                    /** Format: uuid */
+                    mergeIntoPlaceId?: string;
+                } | {
+                    /** @enum {string} */
+                    decision: "approved" | "merged";
                     reason: string;
+                    rejectionReason?: components["schemas"]["SubmissionRejectionReason"];
+                    /** @description Required when approving or merging a submission with pending photos; absent means 409 PHOTO_REVIEW_REQUIRED. Select only photo ids shown by the CMS detail. An explicit empty array rejects every photo. Unselected photos are rejected and cleaned after seven days. */
+                    approvedPhotoIds?: string[];
                     /**
                      * Format: uuid
-                     * @description Required for `merged`, and the place must exist — `404 MERGE_TARGET_NOT_FOUND` otherwise (GoGo-BE#528). Merging records where this proposal went; nothing about the target place is written.
+                     * @description Required for `merged`, and the place must exist — `404 MERGE_TARGET_NOT_FOUND` otherwise (GoGo-BE#528). Merging records where this proposal went and attaches only explicitly approved photos to the target, retaining their uploader credits.
                      */
                     mergeIntoPlaceId?: string;
                 };
@@ -15265,6 +15727,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description VALIDATION_FAILED for invalid decision fields, including missing/unknown rejectionReason when rejecting; INVALID_SUBMISSION_PHOTOS when the selection contains a photo outside this pending submission. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             /** @description `SUBMISSION_NOT_FOUND`, or `MERGE_TARGET_NOT_FOUND` for a merge. */
             404: {
@@ -15275,7 +15746,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            409: components["responses"]["Conflict"];
+            /** @description ALREADY_DECIDED, SUBMISSION_CHANGED, or PHOTO_REVIEW_REQUIRED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Retryable provider verification or photo/storage/budget outage. SUBMISSION_PHOTO_UNAVAILABLE leaves the submission pending. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     listPlaceImports: {
@@ -16765,6 +17253,37 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    cmsUserAssistantCredits: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current balance and one ledger page, including an empty or exhausted page */
+            200: {
+                headers: {
+                    /** @description Credit history must not be cached. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CmsAssistantCredits"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     cmsSuspendUser: {
         parameters: {
             query?: never;
@@ -17460,6 +17979,8 @@ export interface operations {
                 areaKey?: string;
                 /** @description Taxonomy key of kind `category` */
                 category?: string;
+                /** @description Comma-separated taxonomy keys of kind `amenity`, ALL required. Whitespace and empty entries are ignored; duplicates are removed; at most 10 distinct keys, each at most 64 characters. `cashless_payment` means `card_payment` OR `qr_payment`. Unknown, inactive or wrong-kind keys return 400 INVALID_TAXONOMY_KEYS in ErrorEnvelope, with field_errors naming selections.amenity, as on public /places/search. Omitted or empty applies no amenity filter. */
+                amenities?: string;
                 /** @description Where the place came from, derived from provider/submission links. */
                 source?: "google" | "community" | "manual";
                 /** @description Freshness last verified more than N days ago, or never. */
@@ -17501,7 +18022,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description INVALID_CURSOR or a rejected filter value */
+            /** @description INVALID_CURSOR, INVALID_TAXONOMY_KEYS or VALIDATION_FAILED for a rejected filter value */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18311,6 +18832,26 @@ export interface operations {
             };
         };
     };
+    cmsGetTaxonomyVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Global taxonomy generation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxonomyVersion"];
+                };
+            };
+        };
+    };
     cmsListTaxonomies: {
         parameters: {
             query?: {
@@ -18356,12 +18897,17 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created */
+            /** @description Created atomically with version increment and audit */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TaxonomyVersion"] & {
+                        /** Format: uuid */
+                        id?: string;
+                    };
+                };
             };
         };
     };
@@ -18387,12 +18933,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated */
+            /** @description Updated atomically with version increment and audit */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TaxonomyVersion"] & {
+                        updated?: boolean;
+                    };
+                };
             };
             404: components["responses"]["NotFound"];
         };
@@ -18416,12 +18966,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Synonym added (feeds query expansion) */
+            /** @description Synonym added atomically with version increment and audit (feeds query expansion) */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TaxonomyVersion"] & {
+                        added?: boolean;
+                    };
+                };
             };
         };
     };
@@ -21580,6 +22134,101 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    cmsReadSubmissionPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sanitised WebP bytes (EXIF/GPS removed) */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["SessionLookupUnavailable"];
+        };
+    };
+    readCommunityPlacePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sanitised WebP bytes (EXIF/GPS removed) */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["SessionLookupUnavailable"];
+        };
+    };
+    cmsRemoveSubmissionPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Photo removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        removed: true;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
 }

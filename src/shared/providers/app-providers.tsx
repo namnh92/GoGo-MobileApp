@@ -11,6 +11,9 @@ import {
   shouldPersistQuery,
 } from '@/shared/api/query-client'
 
+import { useTaxonomies } from '@/shared/api/queries/use-preferences'
+import { retainTaxonomies } from '@/shared/api/persist-policy'
+
 import { SessionProvider } from './session-provider'
 import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
 import { initializePushSdk } from '@/shared/notifications/bootstrap'
@@ -24,6 +27,12 @@ import { ToastProvider } from '@/shared/ui/toast.view'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
 const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
+
+/** Runs after persistence hydration; every screen shares this locale query. */
+function TaxonomyBootstrap() {
+  useTaxonomies()
+  return null
+}
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient)
@@ -69,9 +78,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <PersistQueryClientProvider
           client={queryClient}
           persistOptions={{
-            persister: queryPersister,
+            persister: retainTaxonomies(queryPersister),
             buster: CACHE_BUSTER,
-            maxAge: 24 * 60 * 60 * 1000,
+            // The persister expires account data after 24h, retaining public
+            // taxonomy labels and ETags until their generation is replaced.
+            maxAge: Infinity,
             dehydrateOptions: {
               // Anything that HAS data, not only what succeeded most recently:
               // requiring `success` meant one failed refetch while offline
@@ -82,6 +93,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
             },
           }}
         >
+          <TaxonomyBootstrap />
           <SessionProvider>
             {/* One toast queue for the app (#381); inside the safe area it positions against. */}
             <ToastProvider>{children}</ToastProvider>

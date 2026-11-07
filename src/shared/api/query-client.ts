@@ -14,7 +14,7 @@ import { closeAssistantStreams } from './queries/use-assistant'
 const MAX_RETRIES = 3
 
 export function createQueryClient(): QueryClient {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: {
         // Room, suggestion and plan state changes on other devices; a short
@@ -48,6 +48,9 @@ export function createQueryClient(): QueryClient {
       },
     },
   })
+  // Includes hydrated version snapshots, which have no mounted observer.
+  client.setQueryDefaults(['taxonomies'], { gcTime: Infinity })
+  return client
 }
 
 /**
