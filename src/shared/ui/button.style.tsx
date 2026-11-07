@@ -19,11 +19,11 @@ export const styles = StyleSheet.create(theme => ({
   pill: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 999, gap: 8 },
   area: { minHeight: 50, height: undefined, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.border.hairline, backgroundColor: theme.redesign.high, gap: 8 },
   areaPressed: { backgroundColor: theme.redesign.container },
-  areaPrimary: { backgroundColor: theme.redesign.primaryFill, borderColor: 'transparent' },
+  areaPrimary: { backgroundColor: theme.accent.primary, borderColor: 'transparent' },
   discoveryJoin: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 12, gap: 4, borderWidth: 0, backgroundColor: theme.redesign.high },
   // Reserve the same border space for filled and outlined discovery CTAs.
   discovery: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 999, gap: 4, borderWidth: 1 },
-  discoveryPrimary: { backgroundColor: theme.redesign.primaryFill, borderColor: 'transparent' },
+  discoveryPrimary: { backgroundColor: theme.accent.primary, borderColor: 'transparent' },
   stitch: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
   stitchSubtle: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
   stitchGuest: { minHeight: 44, height: undefined, borderRadius: 12 },

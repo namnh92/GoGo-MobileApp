@@ -74,6 +74,12 @@ export const text = {
   inverse: colors.neutral[0],
 } as const
 
+/** Foreground on an opaque accent fill, independent of surface text/mode.
+ * Every palette exposes this single semantic role as `accent.onAccent`.
+ * Keep primary AND pressed fills at AA against it in both modes.
+ */
+export const onAccent = colors.neutral[0]
+
 /**
  * Status colours. The base colour is a fill or a dot; `*Soft` is its pill
  * background; `*Text` is the only one of the three allowed to carry a label on
@@ -129,10 +135,10 @@ export const status = {
  * lighter tint that clears AA there.
  */
 export const accents = {
-  orange: { primary: '#CA381F', text: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onSoft: '#A72E19', onAccent: '#FFFFFF' },
-  green: { primary: '#247D52', text: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onSoft: '#1B5E3E', onAccent: '#FFFFFF' },
-  blue: { primary: '#1A6CD5', text: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onSoft: '#2565BF', onAccent: '#FFFFFF' },
-  purple: { primary: '#7250F4', text: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onSoft: '#6247CC', onAccent: '#FFFFFF' },
+  orange: { primary: '#CA381F', text: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onSoft: '#A72E19', onAccent },
+  green: { primary: '#247D52', text: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onSoft: '#1B5E3E', onAccent },
+  blue: { primary: '#1A6CD5', text: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onSoft: '#2565BF', onAccent },
+  purple: { primary: '#7250F4', text: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onSoft: '#6247CC', onAccent },
 } as const
 
 // ---------------------------------------------------------------------------
@@ -572,9 +578,9 @@ export type AccentName = keyof typeof accents
  * Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120.
  */
 export const darkAccents = {
-  orange: { primary: '#CA381F', text: '#FF746C', pressed: '#A72E19', soft: '#2A2A2A', onSoft: '#FF746C', onAccent: '#FFFFFF' },
+  orange: { primary: '#CA381F', text: '#FF746C', pressed: '#A72E19', soft: '#2A2A2A', onSoft: '#FF746C', onAccent },
   // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
-  green: { primary: '#247D52', text: '#79D9AD', pressed: '#1A5E3D', soft: '#16402F', onSoft: '#79D9AD', onAccent: '#FFFFFF' },
-  blue: { primary: '#1E68D7', text: '#94BEF7', pressed: '#164EB0', soft: '#192B45', onSoft: '#94BEF7', onAccent: '#FFFFFF' },
-  purple: { primary: '#7161E2', text: '#C7BFFF', pressed: '#5747C8', soft: '#2F2A55', onSoft: '#C7BFFF', onAccent: '#FFFFFF' },
+  green: { primary: '#247D52', text: '#79D9AD', pressed: '#1A5E3D', soft: '#16402F', onSoft: '#79D9AD', onAccent },
+  blue: { primary: '#1E68D7', text: '#94BEF7', pressed: '#164EB0', soft: '#192B45', onSoft: '#94BEF7', onAccent },
+  purple: { primary: '#7161E2', text: '#C7BFFF', pressed: '#5747C8', soft: '#2F2A55', onSoft: '#C7BFFF', onAccent },
 } as const satisfies Record<AccentName, Record<keyof (typeof accents)['orange'], string>>

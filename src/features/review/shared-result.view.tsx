@@ -119,9 +119,9 @@ export default function SharedResultScreen() {
         {/* The pipeline's match score, labelled as such — not a user rating. */}
         {matchScore ? (
           <View style={styles.scoreCard}>
-            <Text variant="display" color="text.inverse">{matchScore}</Text>
-            <Text color="onDark.medium">/ {SCORE_MAX}</Text>
-            <Text variant="caption" color="onDark.soft" style={styles.scoreCaption}>{t('sharedResult.matchScore')}</Text>
+            <Text variant="display" color="accent.onAccent">{matchScore}</Text>
+            <Text color="accent.onAccent">/ {SCORE_MAX}</Text>
+            <Text variant="caption" color="accent.onAccent" style={styles.scoreCaption}>{t('sharedResult.matchScore')}</Text>
           </View>
         ) : null}
 

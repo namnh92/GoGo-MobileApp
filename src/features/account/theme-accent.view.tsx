@@ -11,7 +11,7 @@ import { Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
-import { ACCENTS, DEFAULT_ACCENT, accentOf, themes, type Accent } from '@/shared/ui/theme'
+import { ACCENTS, DEFAULT_ACCENT, accentOf, themeName, themes, type Accent } from '@/shared/ui/theme'
 import type { MessageKey } from '@/shared/i18n/types'
 import { styles } from './theme-accent.style'
 
@@ -21,7 +21,7 @@ const DESCRIPTION: Record<Accent, MessageKey> = { orange: 'g11.orange', green: '
 /** Draft colours affect only the illustrative preview. Apply commits to runtime and storage. */
 export function ThemeAccentCard() {
   const { t } = useTranslation()
-  const { rt } = useUnistyles()
+  const { theme, rt } = useUnistyles()
   const active = accentOf(rt.themeName) ?? DEFAULT_ACCENT
   const [chosen, setChosen] = useState<{ accent: Accent; over: Accent } | null>(null)
   const current = chosen?.over === active ? chosen.accent : active
@@ -57,7 +57,7 @@ export function ThemeAccentCard() {
       <View accessibilityRole="radiogroup" accessibilityLabel={t('account.themeTitle')} style={styles.swatches}>
         {ACCENTS.map(accent => {
           const selected = accent === current
-          const { primary, onAccent, soft } = themes[accent].accent
+          const { primary, onAccent, soft } = themes[themeName(accent, theme.mode)].accent
           return <Pressable key={accent} testID={`theme-swatch-${accent}`} disabled={saving}
             onPress={() => setChosen({ accent, over: active })} accessibilityRole="radio" accessibilityLabel={t(LABEL[accent])}
             accessibilityState={{ selected, checked: selected, disabled: saving }} style={({ pressed }) => [styles.option, pressed && styles.pressed]}>

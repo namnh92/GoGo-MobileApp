@@ -95,13 +95,14 @@ export function Chip({ label, variant = 'default', icon, emoji, onPress, accessi
 }) {
   const selected = variant === 'selected'
   const disabled = variant === 'disabled'
+  const labelColor: TextColor = appearance === 'soft' ? selected ? 'accent.onSoft' : 'redesign.secondary' : appearance === 'mood' ? selected ? 'redesign.primaryText' : 'redesign.secondary' : appearance === 'discovery' ? 'redesign.primaryText' : CHIP_LABEL[variant]
 
   const body = (pressed: boolean) => (
     <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], appearance === 'discovery' && styles.discoveryChip, appearance === 'discovery' && selected && styles.discoveryChipSelected, appearance === 'soft' && styles.softChip, appearance === 'soft' && selected && styles.softChipSelected, appearance === 'soft' && pressed && styles.chip_defaultPressed, appearance === 'mood' && styles.moodChip, appearance === 'mood' && selected && styles.moodChipSelected, style]}>
-      {icon ? <Icon name={icon} size={14} color={CHIP_LABEL[variant]} /> : null}
+      {icon ? <Icon name={icon} size={14} color={labelColor} /> : null}
       {!icon && emoji ? <Text variant="bodySmall">{emoji}</Text> : null}
       {/* Shrinks with a chip its row constrains, so the label ellipsises (#332). */}
-      <Text variant={appearance === 'soft' ? 'introSmall' : appearance === 'mood' ? selected ? 'introLabel' : 'introSmall' : appearance === 'discovery' ? 'introSmall' : 'label'} color={appearance === 'soft' ? selected ? 'accent.onSoft' : 'redesign.secondary' : appearance === 'mood' ? selected ? 'redesign.primaryText' : 'redesign.secondary' : appearance === 'discovery' ? 'redesign.primaryText' : CHIP_LABEL[variant]} numberOfLines={appearance === 'discovery' ? undefined : 1} style={styles.chipLabel}>
+      <Text variant={appearance === 'soft' ? 'introSmall' : appearance === 'mood' ? selected ? 'introLabel' : 'introSmall' : appearance === 'discovery' ? 'introSmall' : 'label'} color={labelColor} numberOfLines={appearance === 'discovery' ? undefined : 1} style={styles.chipLabel}>
         {selected ? `✓ ${label}` : label}
       </Text>
     </View>
@@ -208,7 +209,7 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri, ic
         { backgroundColor: icon ? theme.redesign.primary : emoji ? theme.surface.subtle : background ?? theme.accent.primary },
       ]}
     >
-      {icon ? <MaterialIcon name={icon} size={18} color="redesign.white" /> : <>
+      {icon ? <MaterialIcon name={icon} size={18} color="accent.onAccent" /> : <>
         {!uri || loadedUri !== uri ? (emoji ? <ScaledText box={size} kind="emoji">{emoji}</ScaledText> : <ScaledText box={size} kind="initials">{label}</ScaledText>) : null}
         {uri ? <Image
           testID="avatar-image"

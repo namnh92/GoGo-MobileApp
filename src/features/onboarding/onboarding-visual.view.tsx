@@ -38,7 +38,7 @@ function Debate() {
       </View>
       <View style={styles.suggestion}>
         <FrostedMaterial />
-        <View style={styles.suggestionDisc}><MaterialIcon name="bolt" size={18} color="redesign.white" /></View>
+        <View style={styles.suggestionDisc}><MaterialIcon name="bolt" size={18} color="accent.onAccent" /></View>
         <View style={styles.fill}>
           <Text variant="introLabel" color="redesign.ink">{t('onboarding.art.debatePlace')}</Text>
           <Text variant="introCaption" color="accent.primary">{t('onboarding.art.quick')}</Text>

@@ -1,6 +1,43 @@
 # G11 — Hồ sơ & cài đặt · PR #530
 
-## Phạm vi và nguồn evidence
+## F-01 P1 — OPEN · kiểm tra lại tại `18554d3` + patch local
+
+Lượt sửa **2026-11-08, Sol 6.1 HIGH**, không commit/push. Rút lại kết luận **đóng F-01 / hoàn tất foreground native** của báo cáo cũ bên dưới. Các ảnh cũ không phải capture của patch local này; chưa có fresh native acceptance trên build xác định.
+
+Kiểm tra trực tiếp ba PNG hiện có trên đĩa: Save có nhãn/icon trắng, Profile có chữ **M** và mặt/nhãn FAB, Theme có selected check và nhãn/mũi tên CTA. SHA-256 đều khớp manifest bổ sung:
+
+| File | SHA-256 |
+|---|---|
+| `settings-defaults-dark-save-enabled.png` | `6e3039f8da5d9563364c9f34f2724fc1286430a12c1bb9c5082d2f8a8b2b5d99` |
+| `profile-dark-top.png` | `38e34ea7e1b0f7475f5b7f40d708eccd7c9ab820f7892730e46bbed5cdcc73dc` |
+| `settings-theme-dark-top.png` | `5f2f61e10bf58352e72f0eb54d35d51897c3265b35c14084c3dce698f70adc99` |
+
+Quan sát này **mâu thuẫn với mô tả mất foreground trong F-01**, chưa tái hiện được từ các artifact hiện tại. Không kết luận cache/Metro/build cũ là nguyên nhân khi chưa có bằng chứng. HEAD đã có `accent.onAccent` ở cả tám theme và ở Save/avatar/FAB/preview. Test cũ spy trên namespace copy của Babel nên component vẫn dùng mock orange; chỉ đổi đối tượng truyền vào resolver và so màu trắng không chứng minh component đã dùng Dark hay đúng semantic role.
+
+Patch local gom giá trị foreground vào một role `onAccent`, vẫn cung cấp qua `theme.accent.onAccent` cho cả 4 accent × Light/Dark. Sửa lỗi có thể tái hiện: icon của primary `variant="area"` dùng `redesign.primaryText` trên accent fill; test mới FAIL trước sửa ở cả tám theme. Primary area/discovery nay dùng fill của accent đang chọn. Swatches Theme lấy palette theo mode hiện tại thay vì luôn palette Light.
+
+Audit bằng `rg` toàn `src` cho accent primary/pressed/primaryFill backgrounds và foreground `text.*` / `redesign.white` / `onDark.*`: chuyển room budget tier selected, shared-result score/caption/share icon, Home brand/create CTA, onboarding suggestion disc và avatar icon sang `accent.onAccent`. Button primary, avatar initial, FAB, selected filled chips, Defaults save bar, calendar/time/type/budget selected controls, tabs, composer send và user-message đã dùng role này. Các chấm/progress/switch track không có nội dung; foreground trên status fill/photo/night surface giữ role tương ứng. Chip có soft/mood/discovery fill dùng cùng một foreground cho icon và label, không lấy foreground của filled-selected chip.
+
+Regression test dùng đúng module mock và chạy lại stylesheet factories theo theme đang kiểm tra; probe `#FEFEFE` phân biệt `onAccent` với các token trắng trùng giá trị. **24 tests / 8 theme combinations** đo AA ≥ 4.5 cho primary/pressed và foreground thực tế của primary/save bar (disabled → enabled qua đổi budget), avatar initial, FAB, selected chip và Theme preview; kiểm tra palette swatch đúng mode. Đây là component/contrast proof, **không mô phỏng native theme switching**.
+
+Fresh capture bị chặn: `xcrun simctl list devices booted` không kết nối được CoreSimulator trong sandbox (`Operation not permitted` / `Connection refused`); Computer Use trả `Computer Use was not approved to use Simulator`. Không tạo capture mới, không gán ảnh cũ cho patch này. **F-01 vẫn OPEN** cho đến khi tái hiện/đối chiếu sai khác và chụp lại Profile, Defaults Save enabled, Theme ở Light/Dark trên build chứa đúng source patch, kèm build/bundle identity và manifest mới.
+
+### Gates của patch local
+
+Source identity: HEAD `18554d366d8f7d085993f5190e4c5903ad28615a` + `git diff -- src`, SHA-256 **`e4ae9b8d4dbafa669d27ee95d4e6056157a2665e6448c35df18609165db4d754`**; patch lưu tại `/tmp/g11-source.patch`. Không gán identity này cho các PNG cũ.
+
+| Lệnh | Kết quả hiện tại | Log |
+|---|---|---|
+| `pnpm typecheck` | PASS, exit 0 | [/tmp/g11-typecheck.log](/tmp/g11-typecheck.log) |
+| `pnpm lint` | PASS, exit 0; không warnings/errors | [/tmp/g11-lint.log](/tmp/g11-lint.log) |
+| `pnpm test` | FAIL, exit 1: 134 files PASS / 1 FAIL / 1 skipped; 1.573 tests PASS / 3 FAIL / 39 skipped. Ba test `distribute-wrapper.test.ts` phụ thuộc `ps`/process groups; `/bin/ps` trả `Operation not permitted` trong sandbox. Không sửa test/script ngoài scope | [/tmp/g11-test.log](/tmp/g11-test.log) |
+| `pnpm test:ui --runInBand` | PASS, exit 0; **195 suites / 2.362 tests** | [/tmp/g11-test-ui.log](/tmp/g11-test-ui.log) |
+| `pnpm test src/shared/ui/__tests__` | PASS, exit 0; **14 files / 208 tests** cho UI tokens/contrast và các unit liên quan | [/tmp/g11-ui-unit.log](/tmp/g11-ui-unit.log) |
+| `git diff --check` | PASS, exit 0 | local |
+
+Regression có thể tái hiện trước sửa: test actual controls FAIL **8/8** do icon primary area dùng sai foreground, log [/tmp/g11-accent-before.log](/tmp/g11-accent-before.log). Sau sửa matrix PASS **24/24**, log [/tmp/g11-accent-after.log](/tmp/g11-accent-after.log). Không dùng failure này để khẳng định đã tái hiện mất nội dung G11 trong native Dark.
+
+## Phạm vi và nguồn evidence (lịch sử, trước patch local)
 
 - Ngày **2026-11-08** (Asia/Ho_Chi_Minh), role theo owner: **Sol 6.1 medium**. Worktree `mobile-g11`, branch `feature/GOGO-529-redesign-g11-profile`, HEAD **`7aa33505790fa0f653b8fc50c037a97f4abd69fb`**; source/build capture **`d899e476685cac48b78bee3bde6fefe29392bf27`**. Đã xác nhận `git diff d899e47 HEAD --stat` chỉ có tài liệu này; source không đổi. Lượt bổ sung chỉ sửa tài liệu và tạo artifact evidence; không install/commit/push.
 - Claude cung cấp PNG tại `d899e47/`: **32 ảnh gốc + 20 ảnh bổ sung đã kiểm tra** (8 `-top`, 10 Defaults `-s1..s5`, 2 Defaults `-save-enabled`). Các file `-s0`/`-s6` không nằm trong tập 52 ảnh được viện dẫn. SHA build theo owner, không suy từ bytes ảnh. Native `1206×2622 px` = `402×874 pt @3x`.
@@ -21,16 +58,16 @@ Tên file không thay cho nội dung ảnh: `profile-light-0.png` gốc là **Tr
 | 11.2 Cá nhân | Light | [top](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/profile-light-top.png); identity/avatar, city/mood chips, ba shortcuts, đầu settings (inbox/reviews/permissions/account/contributions). Vùng cuối tiếp nối trong [ảnh gốc 1](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/profile-light-1.png) | COMPARED; E01/E02/E03/E05/E06/U02. Banner upcoming không xuất hiện trong tài khoản capture; không đo trạng thái có banner |
 | 11.2 Cá nhân | Dark | [top](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/profile-dark-top.png); identity/avatar, city/mood chips, ba shortcuts, đầu settings (inbox/reviews/permissions/account/contributions). Vùng cuối tiếp nối trong [ảnh gốc 1](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/profile-dark-1.png) | COMPARED; E01/E02/E03/E05/E06/U02/E07. Banner upcoming không xuất hiện trong tài khoản capture; không đo trạng thái có banner |
 | 11.3 Mặc định | Light | [đầu trang gốc](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-0.png) + [top (thực tế vùng dưới)](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-top.png) + [s1](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-s1.png) · [s2](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-s2.png) · [s3](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-s3.png) · [s4](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-s4.png) · [s5](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-s5.png); cuối budget, heading/count, toàn bộ mood chips và guidance | COMPARED; E03/U01/H01. Đã chọn 3, ba chip có check; guidance nằm trên Save cố định, chữ/chip không bị che ở cuối trang |
-| 11.3 Save enabled | Light | [Save enabled sau chọn budget (theo Claude)](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-save-enabled.png) | COMPARED; nền accent, icon save và chữ “Lưu thiết lập mặc định” đều rõ. Đóng gap foreground enabled; ảnh không chứng minh request/persistence thành công |
+| 11.3 Save enabled | Light | [Save enabled sau chọn budget (theo Claude)](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-light-save-enabled.png) | COMPARED; nền accent, icon save và chữ “Lưu thiết lập mặc định” đều rõ. Chưa đóng F-01; ảnh lịch sử không chứng minh patch local hay request/persistence thành công |
 | 11.3 Mặc định | Dark | [đầu trang gốc](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-0.png) + [top (thực tế vùng dưới)](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-top.png) + [s1](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-s1.png) · [s2](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-s2.png) · [s3](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-s3.png) · [s4](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-s4.png) · [s5](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-s5.png); cuối budget, heading/count, toàn bộ mood chips và guidance | COMPARED; E03/U01/H01/E07. Đã chọn 3, ba chip có check; guidance nằm trên Save cố định, chữ/chip không bị che ở cuối trang |
-| 11.3 Save enabled | Dark | [Save enabled sau chọn budget (theo Claude)](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-save-enabled.png) | COMPARED; nền accent, icon save và chữ “Lưu thiết lập mặc định” đều rõ. Đóng gap foreground enabled; ảnh không chứng minh request/persistence thành công |
+| 11.3 Save enabled | Dark | [Save enabled sau chọn budget (theo Claude)](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-defaults-dark-save-enabled.png) | COMPARED; nền accent, icon save và chữ “Lưu thiết lập mặc định” đều rõ. Chưa đóng F-01; ảnh lịch sử không chứng minh patch local hay request/persistence thành công |
 | 11.4 Màu | Light | [top](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-theme-light-top.png); pill/intro/title, palette heading/current accent, swatches → preview/sample tabs. [ảnh gốc 0](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-theme-light-0.png) có Apply/helper phía dưới | COMPARED; E04/E07/U01/H01. Đủ vùng intro/palette trước đây thiếu; check/CTA foreground thấy rõ |
 | 11.4 Màu | Dark | [top](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-theme-dark-top.png); pill/intro/title, palette heading/current accent, swatches → preview/sample tabs. [ảnh gốc 0](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-theme-dark-0.png) có Apply/helper phía dưới | COMPARED; E04/E07/U01/H01. Đủ vùng intro/palette trước đây thiếu; check/CTA foreground thấy rõ |
 | 11.5 Quyền | Light | [top](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-notifications-light-top.png); intro → device heading, account push switch/OS fact, location controls → đầu tracking. [ảnh gốc 0](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-notifications-light-0.png) có tracking/system CTA/version | COMPARED; E05/E08/U01/H01. Đủ vùng intro/device/notification trước đây thiếu |
 | 11.5 Quyền | Dark | [top](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-notifications-dark-top.png); intro → device heading, account push switch/OS fact, location controls → đầu tracking. [ảnh gốc 0](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/d899e47/settings-notifications-dark-0.png) có tracking/system CTA/version | COMPARED; E05/E08/U01/H01/E07. Đủ vùng intro/device/notification trước đây thiếu |
 | 11.1 Khách | Light/Dark | Không có capture guest trong tập này | Owner sim-check; NOT MEASURED native; UI-test covered, không tính native parity |
 
-## Đóng năm gap Astra nêu — đối chiếu Stitch
+## Năm gap Astra nêu — đối chiếu Stitch lịch sử (rút kết luận đóng F-01)
 
 | Gap | Quan sát Light/Dark bổ sung | Kết luận |
 |---|---|---|
@@ -38,9 +75,9 @@ Tên file không thay cho nội dung ảnh: `profile-light-0.png` gốc là **Tr
 | Defaults moods/guidance | Sau budget là heading “Sở thích ưu tiên”, “Đã chọn 3”, card chips wrap nguyên chip; check ở Thư giãn/Lãng mạn/Sôi động. Panel tím có sparkle và lời nhắc tinh chỉnh tiêu chí trước gửi lời mời, đúng vai trò/thứ tự Stitch | COMPARED; E03 cho taxonomy thật, tối đa 5 và copy phù hợp. Guidance không bị Save che ở cuối trang; Dark giữ đủ chữ/icon. Không dùng các frame lặp làm bằng chứng swipe thêm |
 | Theme top | Pill “Cá nhân hóa giao diện”, title “Màu sắc cảm xúc”, intro, “Bảng màu điểm nhấn”/“Cam GoGo”, bốn swatches và selected check trước live preview, cùng cấu trúc Stitch | COMPARED; E04/E07/H01/U01. Bản native ở 402 pt nên ngắt dòng có thể khác ảnh Stitch 390 pt; không kéo giãn để suy khớp pixel |
 | Permissions top | Intro card có shield, “Quyền và dữ liệu trên thiết bị”; tiếp device heading, account push switch + OS fact, location status/disclosure/Settings/manual-area. Không badge “Đã đồng bộ” mẫu | COMPARED; E05/E08 cho copy có nguồn, tách account/OS/device facts và control thực tế. Card/section hierarchy giữ theo Stitch; không dùng trạng thái OS chụp được để claim mọi permission state |
-| Defaults enabled Save | Cả hai ảnh mới có CTA accent enabled, icon save và toàn bộ nhãn trắng rõ, so với CTA cố định của Stitch và disabled state trong series | COMPARED; đóng gap enabled foreground. Chỉ xác nhận hiển thị enabled sau chọn budget theo Claude; không claim đã bấm/lưu thành công |
+| Defaults enabled Save | Cả hai ảnh mới có CTA accent enabled, icon save và toàn bộ nhãn trắng rõ, so với CTA cố định của Stitch và disabled state trong series | Quan sát artifact lịch sử; chưa đóng F-01. Không phải capture của patch local; không claim đã bấm/lưu thành công |
 
-Không phát hiện visual defect mới trong các vùng bổ sung đã so; **không sửa source**. Sai tên Defaults `-top` là lưu ý provenance, không phải bằng chứng lỗi cuộn runtime.
+Kết luận lượt cũ chỉ mô tả artifact lịch sử; rút kết luận đã đóng foreground native. Lượt sửa hiện tại thay source như phần F-01 đầu báo cáo. Sai tên Defaults `-top` là lưu ý provenance, không phải bằng chứng lỗi cuộn runtime.
 
 ## Deviations và ngoại lệ đã duyệt
 
@@ -60,7 +97,7 @@ Các quyết định giữ nguyên từ [owner 2026-11-08 / #529](https://github
 | U01 | Header 11.3–11.5 L/D | Bỏ nút `…` không có chức năng được định nghĩa | Owner 2026-11-08 / #529, chỉ thị áp dụng PR #530: giữ header không menu chết |
 | U02 | 11.2 L/D và ba subpages | Giữ entry/FAB GoGo AI trên Profile theo feature gate; ẩn FAB trên Defaults/Theme/Permissions (kể cả alias Location) | Owner 2026-11-08 / #529, chỉ thị áp dụng PR #530; AI là feature hiện có, không thay FAQ/góp ý CMS |
 
-Các xác nhận từ bộ gốc vẫn giữ nguyên: system gear ở 11.5 Light/Dark đúng glyph `settings` của Stitch; Theme helper ở 11.4 Light/Dark căn giữa theo `text-center`; selected swatch check, sample CTA/mũi tên, Apply chữ/icon, system CTA chữ/icon và mặt AI FAB đều có foreground. Bộ bổ sung đóng thêm avatar chữ Dark và Defaults Save enabled; không thay đổi các kết luận vùng gốc.
+Các xác nhận từ bộ gốc vẫn giữ nguyên: system gear ở 11.5 Light/Dark đúng glyph `settings` của Stitch; Theme helper ở 11.4 Light/Dark căn giữa theo `text-center`; selected swatch check, sample CTA/mũi tên, Apply chữ/icon, system CTA chữ/icon và mặt AI FAB đều có foreground. Các quan sát này không đóng F-01 và không thay thế capture trên build chứa patch local.
 
 ## Kiểm chứng tự động và provenance
 
@@ -77,4 +114,4 @@ UI suite lượt trước còn phủ defaults payload/draft/error, theme preview
 
 ## Acceptance còn lại
 
-Năm gap evidence được yêu cầu đã đóng bằng ảnh Light/Dark và so với Stitch, với ngoại lệ owner ở bảng trên: **4/5 compared + guest owner sim-check**. Chưa có native guest, trạng thái có upcoming banner/ảnh avatar, save persistence hoặc mọi loading/error/permission state trong bộ capture; không claim full-state acceptance. Không claim pixel parity, SE/chữ lớn/screen-reader/contrast đo trên thiết bị hoặc DEV acceptance. Không commit/push.
+**F-01 P1 vẫn OPEN**, rút kết luận năm gap đã đóng. Phạm vi so ảnh lịch sử là **4/5 compared + guest owner sim-check**; cần fresh native Light/Dark trên build chứa patch local để xác nhận foreground runtime. Chưa có native guest, trạng thái có upcoming banner/ảnh avatar, save persistence hoặc mọi loading/error/permission state trong bộ capture; không claim full-state acceptance. Không claim pixel parity, SE/chữ lớn/screen-reader/contrast đo trên thiết bị hoặc DEV acceptance. Không commit/push.
