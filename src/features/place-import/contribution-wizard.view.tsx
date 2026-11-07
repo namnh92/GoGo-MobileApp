@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import {
   isApiError,
@@ -13,7 +13,7 @@ import {
   useTaxonomies,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { TextInput } from '@/shared/ui/text-input'
@@ -80,7 +80,13 @@ export function ContributionWizard({
   const remove = useDeleteContributionDraft()
   const busy = submitting || save.isPending || read.isPending || remove.isPending
   const disabled = busy || !online
-  const existing = drafts.data?.items.filter((d) => d.googlePlaceId === googlePlaceId) ?? []
+  const [missingDraftIds, setMissingDraftIds] = useState<string[]>([])
+  const draftListMissing = drafts.isError && isApiError(drafts.error) && drafts.error.status === 404
+  const existing = draftListMissing ? [] : drafts.data?.items.filter((d) =>
+    d.googlePlaceId === googlePlaceId && !missingDraftIds.includes(d.id)) ?? []
+  useEffect(() => {
+    if (registered && drafts.isError) reportDraftReadFailure(drafts.error, 'list')
+  }, [registered, drafts.isError, drafts.error])
   const purposes = taxonomyOptions(taxonomies.data, 'suitability')
   const vibes = taxonomyOptions(taxonomies.data, 'mood')
   const amenities = taxonomyOptions(taxonomies.data, 'amenity')
@@ -111,13 +117,13 @@ export function ContributionWizard({
       </View>
     )
   }
-  function reward(amount: number, bonus = false) {
+  function reward() {
     return (
-      <View style={[styles.reward, bonus && styles.bonus]}>
-        <Text variant="introCaption" color={bonus ? 'redesign.greenText' : 'redesign.white'}>
-          {t('placeWizard.reward', { amount })}
+      <View style={styles.reward}>
+        <Text variant="introCaption" color="redesign.white">
+          {t('placeWizard.reward', { amount: 50 })}
         </Text>
-        <Text variant="introCaption" color={bonus ? 'redesign.greenText' : 'redesign.white'}>
+        <Text variant="introCaption" color="redesign.white">
           {t('placeWizard.onApproval')}
         </Text>
       </View>
@@ -192,9 +198,6 @@ export function ContributionWizard({
             </Pressable>
           ))}
         </View>
-        <Text variant="introSmall">
-          {value ? t(`placeWizard.score${value}`, { score: value.toFixed(1) }) : t('placeWizard.unrated')}
-        </Text>
       </View>
     )
   }
@@ -220,7 +223,12 @@ export function ContributionWizard({
       setNeedsReload(false)
       track('place_contribution_draft_resumed')
     } catch (error) {
-      if (mounted.current) fail(error)
+      if (mounted.current) {
+        reportDraftReadFailure(error, 'resume')
+        if (isApiError(error) && error.status === 404) {
+          setMissingDraftIds((ids) => [...ids, draft.id])
+        }
+      }
     } finally {
       lock.current = false
     }
@@ -265,7 +273,12 @@ export function ContributionWizard({
       setMessage('deleted')
       track('place_contribution_draft_deleted')
     } catch (error) {
-      if (mounted.current) fail(error)
+      if (mounted.current) {
+        setNeedsReload(isApiError(error) && error.code === 'DRAFT_MODIFIED')
+        track('place_contribution_draft_delete_failed', {
+          status: isApiError(error) ? error.status : 0,
+        })
+      }
     } finally {
       lock.current = false
     }
@@ -287,7 +300,7 @@ export function ContributionWizard({
             <Text variant="introHeading" style={styles.headingText}>
               {t('placeWizard.title')}
             </Text>
-            {reward(50)}
+            {reward()}
           </View>
           <View style={styles.progress}>
             {[1, 2, 3].map((n) => (
@@ -346,9 +359,7 @@ export function ContributionWizard({
             <Text variant="introHeading" style={styles.headingText}>
               {t(`placeWizard.heading${step as 1 | 2 | 3}`)}
             </Text>
-            {step === 3 ? (
-              reward(20, true)
-            ) : (
+            {step !== 3 ? (
               <Text variant="introCaption" color="redesign.primaryText" style={styles.tag}>
                 {t(
                   step === 2
@@ -358,7 +369,7 @@ export function ContributionWizard({
                       : 'placeWizard.mandatory',
                 )}
               </Text>
-            )}
+            ) : null}
           </View>
           {!online ? <Text color="status.warningText">{t('placeWizard.offline')}</Text> : null}
           {taxonomies.isPending ? <Text>{t('common.loading')}</Text> : null}
@@ -480,7 +491,6 @@ export function ContributionWizard({
             <>
               <View style={styles.section}>
                 {sectionTitle(t('placeWizard.photos'), 'receipt', t('placeWizard.optional'))}
-                {reward(20, true)}
                 <Text variant="introCaption" color="redesign.secondary">
                   {t('placeWizard.photosHelp')}
                 </Text>
@@ -522,17 +532,14 @@ export function ContributionWizard({
             {step > 1 ? (
               <GhostBtn
                 label={t('common.back')}
-                leadingIcon="arrowBack"
                 disabled={busy}
                 onPress={() => move(step - 1)}
-                style={styles.back}
+                style={styles.next}
               />
             ) : null}
-            <Text variant="introCaption">{t('placeWizard.stepCount', { step })}</Text>
             {step < 3 ? (
               <PrimaryBtn
-                label={t('placeWizard.next', { step: step + 1 })}
-                variant="discovery"
+                label={t('placeWizard.next')}
                 disabled={disabled || !stepValid(form, step) || !taxonomyReady || !validKeys}
                 onPress={() => move(step + 1)}
                 style={styles.next}
@@ -540,8 +547,6 @@ export function ContributionWizard({
             ) : (
               <PrimaryBtn
                 label={t('placeWizard.finish')}
-                icon="check"
-                variant="discovery"
                 disabled={disabled || blocked || !complete || !taxonomyReady || !validKeys}
                 onPress={() => {
                   if (complete) onSubmit(complete)
@@ -552,28 +557,18 @@ export function ContributionWizard({
           </View>
         </View>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('placeImport.submit')}
+      <PrimaryBtn
+        label={t('placeImport.submit')}
         accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
-        accessibilityState={{ disabled: submitDisabled, busy: submitting }}
         disabled={submitDisabled}
-        style={({ pressed }) => [styles.submit, submitDisabled && styles.disabled, pressed && styles.pressed]}
+        loading={submitting}
+        leadingIcon="send"
+        style={styles.action}
         onPress={() => {
           if (complete) onSubmit(complete)
         }}
-      >
-        {submitting ? (
-          <ActivityIndicator color={theme.redesign.white} />
-        ) : (
-          <MaterialIcon name="send" color="redesign.white" />
-        )}
-        <Text variant="introHeading" color="redesign.white" style={styles.headingText}>
-          {t('placeImport.submit')}
-        </Text>
-        {reward(50, true)}
-      </Pressable>
-      <GhostBtn
+      />
+      <SecondaryBtn
         label={t('placeWizard.save')}
         icon="bookmark"
         loading={save.isPending}
@@ -584,28 +579,14 @@ export function ContributionWizard({
           !priceValid(form) ||
           !validKeys ||
           drafts.isPending ||
-          drafts.isError ||
           (!saved && existing.length > 0)
         }
         onPress={() => {
           void saveDraft()
         }}
-        style={styles.draft}
+        style={styles.action}
       />
       {!registered ? <Text variant="introCaption">{t('placeWizard.signInDraft')}</Text> : null}
-      {registered && drafts.isPending ? <Text>{t('common.loading')}</Text> : null}
-      {registered && drafts.isError ? (
-        <View>
-          <Text color="status.warningText">{t('placeWizard.draftsUnavailable')}</Text>
-          <GhostBtn
-            label={t('common.retry')}
-            disabled={disabled}
-            onPress={() => {
-              void drafts.refetch()
-            }}
-          />
-        </View>
-      ) : null}
       {registered
         ? existing.map((draft) => (
             <View key={draft.id} style={styles.note}>
@@ -655,4 +636,14 @@ export function ContributionWizard({
       </View>
     </View>
   )
+}
+
+// Expected absence (including an undeployed endpoint) is silent. Telemetry never
+// includes server messages, place IDs, draft IDs, or contribution content.
+function reportDraftReadFailure(error: unknown, operation: 'list' | 'resume') {
+  if (isApiError(error) && error.status === 404) return
+  track('place_contribution_draft_read_failed', {
+    operation,
+    status: isApiError(error) ? error.status : 0,
+  })
 }
