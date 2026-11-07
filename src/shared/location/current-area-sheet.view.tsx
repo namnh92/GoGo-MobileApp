@@ -1,0 +1,63 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { View } from 'react-native'
+import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
+import { useCurrentLocation } from '@/shared/location/use-current-location'
+import { IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Text } from '@/shared/ui/text'
+import { Sheet } from '@/shared/ui/sheet.view'
+import { MaterialIcon } from '@/shared/ui/material-icon'
+import { useAppAreaStore } from './app-area'
+import { styles } from './current-area-sheet.style'
+
+/** One public picker for the persisted app-wide area, including guest sessions. */
+export function CurrentAreaSheet({ visible, onClose, onApplied }: { visible: boolean; onClose: () => void; onApplied: () => void }) {
+  const { t } = useTranslation()
+  const location = useCurrentLocation()
+  const { area, setArea } = useAppAreaStore()
+  const [valid, setValid] = useState(false)
+  const [choosing, setChoosing] = useState(false)
+  const [draftArea, setDraftArea] = useState(area)
+  const [draftSource, setDraftSource] = useState({ visible, area })
+  if (draftSource.visible !== visible || draftSource.area !== area) {
+    setDraftSource({ visible, area })
+    if (visible) { setDraftArea(area); setValid(false); setChoosing(false) }
+  }
+  const mounted = useRef(true)
+  const visibleRef = useRef(visible)
+  useLayoutEffect(() => {
+    visibleRef.current = visible
+  }, [visible])
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  async function requestDeviceLocation() {
+    const result = await location.request()
+    if (mounted.current && visibleRef.current && result.status === 'granted') { onApplied(); onClose() }
+  }
+  function confirm() {
+    if (!draftArea || !valid) return
+    setArea(draftArea)
+    onApplied()
+    onClose()
+  }
+  return <Sheet swipeToClose appearance="discovery" visible={visible} onClose={onClose} testID="discovery-location-sheet"
+    size={choosing ? 'full' : 'content'} scroll={false}
+    footer={!choosing ? <View style={styles.footer}>
+      <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} style={styles.clear} onPress={() => { setDraftArea(null); setArea(null) }} />
+      <PrimaryBtn variant="area" label={t('areaPicker.confirm')} style={styles.confirm} disabled={!draftArea || !valid || location.state.status === 'asking'} onPress={confirm} />
+    </View> : undefined}
+    header={!choosing ? <View style={styles.header}>
+      <Text variant="introSection">{t('home.chooseArea')}</Text>
+      <IconBtn accessibilityLabel={t('common.close')} onPress={onClose} style={styles.close}><MaterialIcon name="close" /></IconBtn>
+    </View> : undefined}>
+    <View style={choosing ? styles.list : styles.content}>
+      {!choosing ? <>
+        <SecondaryBtn variant="area" leadingIcon="location" label={t('home.useLocation')} onPress={() => void requestDeviceLocation()} loading={location.state.status === 'asking'} />
+        {location.state.status === 'denied' || location.state.status === 'unavailable' ? <Text accessibilityLiveRegion="polite" color="text.secondary">{t(location.state.status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable')}</Text> : null}
+      </> : null}
+      {visible ? <AdministrativePicker embedded value={draftArea} onChange={setDraftArea} onValidityChange={setValid} onChoosingChange={setChoosing} /> : null}
+    </View>
+  </Sheet>
+}

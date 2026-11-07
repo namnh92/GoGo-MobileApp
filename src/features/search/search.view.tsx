@@ -5,14 +5,14 @@ import { ActivityIndicator, FlatList, Keyboard, Pressable, View } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import {
-  useAddRoomSeedPlaces, isSaved, toPlaceCard, useSaved, useTaxonomies, useToggleSaved, usePlaceSearch, useMe, useDiscoveryPreview, useContributionCredits, discoveryLabels,
+  useAddRoomSeedPlaces, isSaved, toPlaceCard, useSaved, useTaxonomies, useToggleSaved, usePlaceSearch, useDiscoveryPreview, useContributionCredits, discoveryLabels,
   type PlaceCard as PlaceCardModel, type PlaceSearchQuery,
 } from '@/shared/api'
 import { assistantHref } from '@/features/assistant/assistant-entry'
 import { isAssistantEntryOn } from '@/shared/config/features'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
-import { scopeSearchParams, useDiscoveryScope, type DiscoveryScope } from '@/shared/location/use-discovery-scope'
+import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
@@ -28,7 +28,8 @@ import { TextInput } from '@/shared/ui/text-input'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { SegmentedControl } from '@/shared/ui/segmented-control.view'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
-import { useDiscoveryAreaStore } from './discovery-area-store'
+import { useAppAreaStore } from '@/shared/location/app-area'
+import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import { SearchMapPanel } from './search-map-panel.view'
 import { discoveryMap, viewportSearchScope } from './discovery-map'
 import { styles } from './search.style'
@@ -38,50 +39,24 @@ import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } fr
 
 const SEARCH_DEBOUNCE_MS = 300
 
-// The Home entry carries its resolved scope, rather than Search's previous area choice.
-function readSuggestionScope(value: string | undefined): DiscoveryScope | null {
-  if (!value) return null
-  try {
-    const scope = JSON.parse(value)
-    if (scope?.status !== 'ready') return null
-    if (scope.source === 'gps'
-      && typeof scope.position?.lat === 'number' && Number.isFinite(scope.position.lat)
-      && typeof scope.position?.lng === 'number' && Number.isFinite(scope.position.lng)) return scope
-    if (['profile_area', 'selected_area', 'default_area'].includes(scope.source)
-      && typeof scope.area?.datasetVersion === 'string' && typeof scope.area?.provinceCode === 'string'
-      && typeof scope.area?.provinceName === 'string'
-      && (scope.area.communeCode === null || typeof scope.area.communeCode === 'string')
-      && (scope.area.communeName === null || typeof scope.area.communeName === 'string')) return scope
-    if (scope.source === 'none' && ['no_area', 'area_needs_reselection'].includes(scope.reason)) return scope
-  } catch { /* Invalid route data falls back to ordinary discovery. */ }
-  return null
-}
-
 export default function SearchScreen() {
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { picker, q, filters, roomId, moods, suggestions, suggestionScope } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; suggestions?: string; suggestionScope?: string }>()
+  const { picker, q, filters, roomId, moods, suggestions } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; suggestions?: string }>()
   const { status } = useSession()
   const isPicker = picker === '1'
   const canSave = status === 'user'
-  const me = useMe({ enabled: status === 'user' || status === 'guest' })
-  const selectedArea = useDiscoveryAreaStore(state => state.area)
-  const { scope: resolvedScope, recheck, retry: retryScope } = useDiscoveryScope({ selectedArea, profileArea: status === 'user' ? me.data?.homeAdministrativeArea : null, profilePending: status === 'hydrating' || (status === 'user' && me.isPending) })
-  const [scopeOverridden, setScopeOverridden] = useState(false)
-  const [entryArea] = useState(selectedArea)
-  const homeScope = useMemo(() => suggestions === '1' ? readSuggestionScope(suggestionScope) : null, [suggestions, suggestionScope])
-  // A subsequent explicit area selection takes over from the Home entry scope.
-  const scope = !isPicker && !scopeOverridden && homeScope && selectedArea === entryArea ? homeScope : resolvedScope
-  const originLat = useRoomStore(state => state.originLat)
-  const originLng = useRoomStore(state => state.originLng)
+  const area = useAppAreaStore(state => state.area)
+  const { scope, retry: retryScope } = useDiscoveryScope()
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const [query, setQuery] = useState(q ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(q ?? '')
   const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [] }))
   const [draft, setDraft] = useState<DiscoveryFilters>(emptyFilters)
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
+  const openAreaAfterFilters = useRef(false)
   const [locationOpen, setLocationOpen] = useState(false)
   const [mode, setMode] = useState<'list' | 'map'>('list')
   const taxonomies = useTaxonomies({ kinds: 'category,mood,setting,amenity,suitability' })
@@ -90,9 +65,8 @@ export default function SearchScreen() {
 
   useEffect(() => { track('place_search_opened', { picker: isPicker }) }, [isPicker])
   useFocusEffect(useCallback(() => {
-    void recheck()
     return () => { setTimeout(() => setSheetOpen(false), 0) }
-  }, [recheck]))
+  }, []))
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
@@ -100,22 +74,22 @@ export default function SearchScreen() {
   const applied = useMemo(() => filterParams(committed), [committed])
   const activeFilterCount = Object.keys(applied).length
   const searchQuery: PlaceSearchQuery = useMemo(() => ({
-    ...(!isPicker ? scopeSearchParams(scope) : originLat != null && originLng != null ? { lat: originLat, lng: originLng } : {}),
+    ...scopeSearchParams(scope),
     locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true, ...(suggestions === '1' && !isPicker ? { limit: 10 } : {}),
     ...applied, ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
-  }), [isPicker, scope, originLat, originLng, applied, debouncedQuery, i18n.language, suggestions])
+  }), [isPicker, scope, applied, debouncedQuery, i18n.language, suggestions])
   const baseKey = JSON.stringify(searchQuery)
   const [exploration, setExploration] = useState<{ key: string; region: NonNullable<ReturnType<typeof discoveryMap>['region']> } | null>(null)
   const viewport = mode === 'map' && exploration?.key === baseKey ? exploration.region : null
   const regionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (regionTimer.current) clearTimeout(regionTimer.current) }, [baseKey, mode])
   const [mapExpanded, setMapExpanded] = useState(false)
-  const baseSearch = usePlaceSearch(searchQuery, { enabled: isPicker || scope.status === 'ready' })
+  const baseSearch = usePlaceSearch(searchQuery, { enabled: scope.status === 'ready' })
   const viewportScope = viewport && viewportSearchScope(viewport)
   // Scope is transient: do not write the area store or send canonical area codes.
   const { datasetVersion: _dataset, provinceCode: _province, communeCode: _commune, ...positionQuery } = searchQuery
   const mapSearchQuery = viewportScope ? { ...positionQuery, ...viewportScope } : searchQuery
-  const regionSearch = usePlaceSearch(mapSearchQuery, { enabled: !!viewportScope && (isPicker || scope.status === 'ready') })
+  const regionSearch = usePlaceSearch(mapSearchQuery, { enabled: !!viewportScope && (scope.status === 'ready') })
   const search = viewportScope ? regionSearch : baseSearch
   function exploreRegion(region: NonNullable<ReturnType<typeof discoveryMap>['region']>) {
     if (!viewportSearchScope(region)) return
@@ -147,14 +121,14 @@ export default function SearchScreen() {
   else if (viewport && explored.data !== regionSearch.data) setExplored({ key: baseKey, places: [...new Map([...explored.places, ...regionResults].map(place => [place.id, place])).values()], data: regionSearch.data })
   const results = viewport ? [...new Map([...baseResults, ...(explored.key === baseKey ? explored.places : []), ...regionResults].map(place => [place.id, place])).values()] : baseResults
   // A fresh cache belongs to this exact query, even before a fetch after mount.
-  const current = (isPicker || scope.status === 'ready') && search.isSuccess && (search.isFetchedAfterMount || search.isStale === false) && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim()
+  const current = (scope.status === 'ready') && search.isSuccess && (search.isFetchedAfterMount || search.isStale === false) && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim()
   const verifiedEmpty = current && results.length === 0
   const total = current ? search.data?.pages[0]?.meta?.totalCount : undefined
   // Rollout assumes returned discovery taxonomies and search filters ship together.
   // Count availability and an empty result set cannot revoke filter controls.
   const supports774 = ['mood', 'amenity', 'setting', 'suitability'].some(kind => Object.keys(labels[kind] ?? {}).length > 0) || search.data?.pages[0]?.meta?.totalCount !== undefined || results.some(place => place.discovery !== undefined) || [committed, draft].some(value => value.moods.length + value.amenities.length + value.settings.length > 0)
   const valid = validateFilters(draft)
-  const previewQuery: PlaceSearchQuery = { ...(!isPicker ? scopeSearchParams(scope) : originLat != null && originLng != null ? { lat: originLat, lng: originLng } : {}), locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...filterParams(draft), q: query.trim() || undefined }
+  const previewQuery: PlaceSearchQuery = { ...scopeSearchParams(scope), locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...filterParams(draft), q: query.trim() || undefined }
   const previewKey = JSON.stringify(previewQuery)
   const [settledPreviewKey, setSettledPreviewKey] = useState('')
   useEffect(() => {
@@ -162,10 +136,10 @@ export default function SearchScreen() {
     const timer = setTimeout(() => setSettledPreviewKey(previewKey), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [previewKey, sheetOpen, valid])
-  const previewEnabled = sheetOpen && valid && previewKey === settledPreviewKey && (isPicker || scope.status === 'ready')
+  const previewEnabled = sheetOpen && valid && previewKey === settledPreviewKey && (scope.status === 'ready')
   const preview = useDiscoveryPreview(previewQuery, previewEnabled)
   const previewTotal = previewEnabled && preview.isSuccess && !preview.isFetching && !preview.isPaused && !preview.isPlaceholderData ? preview.data?.meta?.totalCount : undefined
-  const mapScope = isPicker && originLat != null && originLng != null ? { status: 'ready' as const, source: 'gps' as const, position: { lat: originLat, lng: originLng } } : isPicker ? { status: 'ready' as const, source: 'none' as const, reason: 'no_area' as const } : scope
+  const mapScope = scope
   const map = discoveryMap(mapScope, results)
   const mapScopeKey = JSON.stringify([mapScope, baseKey])
   const [markerSelection, setMarkerSelection] = useState({ data: search.data, scopeKey: mapScopeKey, mode, id: null as string | null })
@@ -180,8 +154,7 @@ export default function SearchScreen() {
   }
   const selectedMarker = selectionIsCurrent ? markerSelection.id : null
   const selectedPlace = results.find(place => place.id === selectedMarker && map.pins.some(pin => pin.id === place.id))
-  const served = baseSearch.data?.pages[0]?.meta?.location
-  const scopeLabel = served?.source === 'administrative_area' && served.area ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ') : t('home.chooseArea')
+  const scopeLabel = area ? administrativeAreaLabel(area) : t('home.chooseArea')
   function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
   function clearFilters() { setCommitted(emptyFilters()); setDraft(emptyFilters()) }
   function onPlacePress(place: PlaceCardModel) {
@@ -229,7 +202,7 @@ export default function SearchScreen() {
       ListHeaderComponent={mapFallback ? <Text variant="introSmall" color="redesign.secondary">{t('discovery.mapFallback')}</Text> : null}
       ListEmptyComponent={search.isPending ? <PlaceListSkeleton count={4} /> : verifiedEmpty && !sheetOpen ? <SearchEmpty
         key={JSON.stringify(searchQuery)} filters={committed} labels={labels}
-        query={{ ...(!isPicker ? scopeSearchParams(scope) : originLat != null && originLng != null ? { lat: originLat, lng: originLng } : {}), locale: searchQuery.locale, q: debouncedQuery.trim() || undefined }}
+        query={{ ...scopeSearchParams(scope), locale: searchQuery.locale, q: debouncedQuery.trim() || undefined }}
         onApply={next => { setCommitted(next); setDraft(next) }}
         onMore={() => { clearFilters(); setQuery(''); setDebouncedQuery(''); setMode('list') }}
         onPlacePress={onPlacePress}
@@ -293,9 +266,10 @@ export default function SearchScreen() {
       <PrimaryBtn variant="discovery" label={t('discovery.resetSearch')} leadingIcon="tune" onPress={() => { clearFilters(); setQuery('') }} />
       {isAssistantEntryOn() ? <SecondaryBtn variant="discovery" label={t('discovery.askAI')} leadingIcon="sparkle" onPress={() => router.push(assistantHref())} /> : null}
     </View> : null}
-    <Sheet appearance="discovery" visible={sheetOpen} onClose={() => { setSheetOpen(false); setDraft(committed) }}
+    <Sheet appearance="discovery" visible={sheetOpen} onClosed={() => { if (openAreaAfterFilters.current) { openAreaAfterFilters.current = false; setLocationOpen(true) } }} onClose={() => { setSheetOpen(false); setDraft(committed) }}
       header={<View style={styles.sheetHeader}><View style={styles.sheetTitle}><MaterialIcon name="tune" color="redesign.primaryText" size={22} /><Text variant="introHeading">{t('discovery.filterTitle')}</Text></View><GhostBtn label={t('search.clearFilters')} onPress={() => setDraft(emptyFilters())} /></View>}
       footer={<View style={styles.sheetFooter}><IconBtn accessibilityLabel={t('discovery.resetDefaults')} onPress={() => setDraft(emptyFilters())}><MaterialIcon name="restart" /></IconBtn><PrimaryBtn variant="discovery" label={previewTotal !== undefined ? t('discovery.previewCount', { count: previewTotal }) : t('discovery.apply')} disabled={!valid} style={{ flex: 1 }} onPress={() => { if (valid) { Keyboard.dismiss(); setCommitted(draft); setSheetOpen(false) } }} /></View>}>
+      <SecondaryBtn variant="area" label={`${t('home.chooseArea')}: ${scopeLabel}`} trailingIcon="expandMore" onPress={() => { Keyboard.dismiss(); openAreaAfterFilters.current = true; setSheetOpen(false) }} />
       <Text variant="introHeading" style={styles.sheetSection}>{t('discovery.amenities')}</Text>
       <View testID="amenity-status-options" style={styles.sheetOptionRow}><Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} />{supports774 ? options('amenity', 'amenities') : null}</View>
       <View style={styles.priceHeading}><Text variant="introHeading">{t('discovery.priceRange')}</Text></View>
@@ -315,6 +289,6 @@ export default function SearchScreen() {
       <View style={styles.sheetOptionRow}>{Object.entries(labels.category ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={draft.categories.includes(key) ? 'selected' : draft.categories.length >= 10 ? 'disabled' : 'default'} onPress={() => toggleCategory(key)} />)}</View>
       <View style={styles.smartBanner}><MaterialIcon name="sparkle" size={24} color="redesign.violetText" /><View style={{ flex: 1 }}><Text variant="introLabel">{t('discovery.smartTitle')}</Text><Text variant="introSmall" color="redesign.secondary">{t('discovery.smartBody')}</Text></View></View>
     </Sheet>
-    <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => { setScopeOverridden(true); void recheck() }} />
+    <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => {}} />
   </Atmosphere>
 }

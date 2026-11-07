@@ -60,3 +60,22 @@ the Vietnamese usage string, granting resolves the area into the row, and the
 manual picker opens on refusal. Two bugs surfaced only there — the import-time
 crash above, and a label that read "An Khanh, An Khanh" because the geocoder
 returned the same name for district and city. Both are fixed and covered.
+
+## App-wide area ownership (#520, 2026-11-07)
+
+`AppAreaProvider` initialises one Zustand selection at the root. Startup reads
+existing permission without prompting: a saved manual choice wins; otherwise
+an already-granted permission supplies one position and one administrative
+locate. Denial keeps the saved area, then the account area, then the published
+Hồ Chí Minh fallback. Manual choices use the existing secure-storage helpers
+and survive launches and session changes. No coordinates are persisted by the
+area store.
+
+Home, Search (including suggestions, filter previews and seed pickers), Saved,
+and the create location picker subscribe to this selection. Opening or focusing
+a screen never resolves location. Foreground returns check permission only;
+a changed permission or an explicit “Dùng vị trí hiện tại” action can resolve
+again. Administrative locate responses stay in TanStack Query under the
+non-persisted `location` prefix, with a 24-hour stale time. Explicit location
+requests invalidate that answer before locating again. Place import resolves
+the pasted place itself and does not consume a current-area scope.

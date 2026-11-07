@@ -1,3 +1,4 @@
+import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
@@ -30,6 +31,7 @@ jest.mock('@/shared/location/use-current-location', () => {
       return {
         state,
         request: async () => {
+          if (mockLocation.result.status === 'granted') mockAreaStore.setState({ area: null, scope: { status: 'ready', source: 'gps', position: { lat: mockLocation.result.lat!, lng: mockLocation.result.lng! } } })
           setState(mockLocation.result)
           return mockLocation.result
         },
@@ -64,8 +66,9 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => {
   const React = jest.requireActual<typeof import('react')>('react')
   const { Pressable, Text } = jest.requireActual<typeof import('react-native')>('react-native')
   return {
-    AdministrativePicker: ({ onChange }: { onChange: (next: unknown) => void }) =>
-      React.createElement(
+    AdministrativePicker: ({ value, onChange, onValidityChange }: { value: unknown; onChange: (next: unknown) => void; onValidityChange?: (valid: boolean) => void }) => {
+      React.useEffect(() => onValidityChange?.(Boolean(value)), [value, onValidityChange])
+      return React.createElement(
         Pressable,
         {
           accessibilityRole: 'button',
@@ -79,7 +82,8 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => {
             }),
         },
         React.createElement(Text, null, 'Chọn tỉnh/thành phố'),
-      ),
+      )
+    },
   }
 })
 
@@ -96,6 +100,7 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 beforeEach(() => {
+  mockAreaStore.setState({ area: null, manual: false, scope: { status: 'resolving' }, location: { status: 'idle' } })
   useRoomStore.getState().resetDraft()
   mockLocation.result = { status: 'granted', lat: 21.04, lng: 105.76, label: FIX }
 })
@@ -108,7 +113,9 @@ it('shows the fix while the position is selected, and the offer again once an ar
   expect(view.getByText(FIX)).toBeTruthy()
   expect(card().props.accessibilityState).toMatchObject({ selected: true })
 
-  await press(view.getByText('Chọn tỉnh/thành phố'))
+  await press(view.getByText('Chọn khu vực'))
+    await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
   expect(useRoomStore.getState().originLat).toBeNull()
   expect(view.queryByText(FIX)).toBeNull()
   expect(view.getByText(OFFER)).toBeTruthy()
@@ -127,7 +134,9 @@ it('falls back to the generic fix line when the position has no label', async ()
   await press(view.getByText(OFFER))
   expect(view.getByText('Đã lấy được vị trí của bạn')).toBeTruthy()
 
-  await press(view.getByText('Chọn tỉnh/thành phố'))
+  await press(view.getByText('Chọn khu vực'))
+    await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
   expect(view.queryByText('Đã lấy được vị trí của bạn')).toBeNull()
   expect(view.getByText(OFFER)).toBeTruthy()
 })

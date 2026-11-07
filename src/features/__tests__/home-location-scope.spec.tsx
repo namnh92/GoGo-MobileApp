@@ -150,7 +150,8 @@ describe('Home discovery scope', () => {
     expect(view.queryByText('Gần vị trí hiện tại của bạn')).toBeNull()
   })
 
-  it('searches in the account area and names it from the server answer', async () => {
+  it('searches in the shared account area and names it', async () => {
+    useDiscoveryAreaStore.setState({ area: AREA })
     mockScope.value = { status: 'ready', source: 'profile_area', area: AREA }
     mockSearch.value = page({ source: 'administrative_area', area: AREA })
     const view = await renderScreen(<HomeScreen />)
@@ -161,10 +162,12 @@ describe('Home discovery scope', () => {
     expect(view.queryByText(/Theo khu vực tài khoản/)).toBeNull()
   })
 
-  it('claims no scope when the server does not report one', async () => {
+  it('keeps the shared area visible when the server does not echo it', async () => {
+    useDiscoveryAreaStore.setState({ area: AREA })
     mockScope.value = { status: 'ready', source: 'profile_area', area: AREA }
     mockSearch.value = page(undefined)
     const view = await renderScreen(<HomeScreen />)
+    expect(view.getByText('Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
     expect(view.getByTestId('home-location')).toBeTruthy()
     expect(view.queryByText(/Theo khu vực tài khoản/)).toBeNull()
   })
@@ -179,7 +182,7 @@ describe('Home discovery scope', () => {
     await press(view.getAllByLabelText('Đóng').at(-1)!)
     await press(view.getByText('Dùng vị trí hiện tại'))
     expect(mockRequest).toHaveBeenCalledTimes(1)
-    expect(mockRecheck).toHaveBeenCalledTimes(1)
+    expect(mockRecheck).not.toHaveBeenCalled()
   })
 
   it('lets a guest choose an area and explains a replaced area', async () => {
@@ -335,7 +338,8 @@ it('offers a retry for a failed default-area lookup without running an unscoped 
 })
 
 
-it.each(['gps', 'administrative_area'])('shows only a returned area name for %s', async source => {
+it.each(['gps', 'administrative_area'])('shows the shared area independently of the search response source %s', async source => {
+  useDiscoveryAreaStore.setState({ area: { ...AREA, provinceName: 'Thành phố Hà Nội', communeName: null } })
   mockScope.value = { status: 'ready', source: 'profile_area', area: AREA }
   mockSearch.value = page({ source, area: { ...AREA, provinceName: 'Thành phố Hà Nội', communeName: null } })
   const view = await renderScreen(<HomeScreen />)

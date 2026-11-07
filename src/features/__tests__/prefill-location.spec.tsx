@@ -1,3 +1,4 @@
+import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
@@ -26,7 +27,10 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('@/shared/location/use-current-location', () => ({
-  useCurrentLocation: () => ({ state: { status: 'idle' }, request: async () => mockLocation.result }),
+  useCurrentLocation: () => ({ state: { status: 'idle' }, request: async () => {
+    if (mockLocation.result.status === 'granted') mockAreaStore.setState({ area: null, scope: { status: 'ready', source: 'gps', position: { lat: mockLocation.result.lat!, lng: mockLocation.result.lng! } } })
+    return mockLocation.result
+  } }),
 }))
 
 jest.mock('@/shared/providers/session-provider', () => ({
@@ -57,15 +61,19 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => {
     AdministrativePicker: ({
       value,
       onChange,
+      onValidityChange,
     }: {
       value: { provinceName: string; communeName: string | null } | null
       onChange: (next: unknown) => void
-    }) =>
-      React.createElement(
+      onValidityChange?: (valid: boolean) => void
+    }) => {
+      React.useEffect(() => onValidityChange?.(Boolean(value)), [value, onValidityChange])
+      return React.createElement(
         Pressable,
         { accessibilityRole: 'button', onPress: () => onChange(mockPick.value) },
         React.createElement(Text, null, value ? `Đã chọn: ${value.communeName ?? value.provinceName}` : 'Chọn tỉnh/thành phố'),
-      ),
+      )
+    },
   }
 })
 
@@ -88,6 +96,7 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 beforeEach(() => {
+  mockAreaStore.setState({ area: null, manual: false, scope: { status: 'resolving' }, location: { status: 'idle' } })
   useRoomStore.getState().resetDraft()
   mockSession.status = 'user'
   mockVersion.value = 'ds-2026'
@@ -156,7 +165,9 @@ describe('position and area exclude each other', () => {
     const view = await renderScreen(<CreateLocationScreen />)
     expect(view.getByText('Khoảng cách tối đa')).toBeTruthy()
 
+    await press(view.getByText('Chọn khu vực'))
     await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
     expect(useRoomStore.getState()).toMatchObject({ administrativeArea: AREA, originLat: null, originLng: null })
     // A distance only means something from a position.
     expect(view.queryByText('Khoảng cách tối đa')).toBeNull()
@@ -168,7 +179,9 @@ describe('position and area exclude each other', () => {
 
   it('continues with codes only and no distance for an area', async () => {
     const view = await renderScreen(<CreateLocationScreen />)
+    await press(view.getByText('Chọn khu vực'))
     await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
     await press(view.getByText('Tiếp tục'))
     expect(mockPush).toHaveBeenCalledWith('/create/time')
     expect(useRoomStore.getState().radiusM).toBeNull()

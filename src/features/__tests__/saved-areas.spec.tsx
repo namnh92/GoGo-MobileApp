@@ -1,3 +1,4 @@
+import { useAppAreaStore } from '@/shared/location/app-area'
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
@@ -78,6 +79,7 @@ const headers = (view: Awaited<ReturnType<typeof renderScreen>>) =>
   })
 
 beforeEach(() => {
+  useAppAreaStore.setState({ area: null })
   mockPush.mockClear()
   mockMutate.mockClear()
   mockSession.status = 'user'
@@ -98,6 +100,7 @@ describe('Saved by area', () => {
   it('puts the located commune and its province first, then alphabetical, unknown last', async () => {
     mockScope.value = { status: 'ready', source: 'gps', position: { lat: 10.77, lng: 106.7 } }
     mockLocated.value = { data: { datasetVersion: 'ds-2026', area: area(HCM[0], HCM[1], '26734', 'Phường Bến Thành', 'commune') } }
+    useAppAreaStore.setState({ area: { datasetVersion: 'ds-2026', provinceCode: HCM[0], provinceName: HCM[1], communeCode: '26734', communeName: 'Phường Bến Thành' } })
     const view = await renderScreen(<SavedScreen />)
     expect(headers(view)).toEqual([
       'Thành phố Hồ Chí Minh',
@@ -110,7 +113,8 @@ describe('Saved by area', () => {
     expect(view.getAllByText('Khu vực hiện tại')).toHaveLength(2)
   })
 
-  it('falls back to the account area when no position is located', async () => {
+  it('uses the shared account fallback area when no position is located', async () => {
+    useAppAreaStore.setState({ area: { datasetVersion: 'ds-2026', provinceCode: HN[0], provinceName: HN[1], communeCode: null, communeName: null } })
     mockMe.query = mockLoaded({
       homeAdministrativeArea: { datasetVersion: 'ds-2026', provinceCode: HN[0], provinceName: HN[1], communeCode: null, communeName: null, status: 'current' },
     })

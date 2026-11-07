@@ -1,19 +1,20 @@
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
-import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
+import { CurrentAreaSheet } from '@/shared/location/current-area-sheet.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
 import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { useAppAreaStore } from '@/shared/location/app-area'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon, IconCheck, IconMapPin } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, glassStyles, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -32,9 +33,13 @@ const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 export default function CreateLocationScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const [areaOpen, setAreaOpen] = useState(false)
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
   const { area: gpsLabel, setArea } = useRoom()
+  const sharedArea = useAppAreaStore(state => state.area)
+  const sharedScope = useAppAreaStore(state => state.scope)
+  const selectArea = useAppAreaStore(state => state.setArea)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const administrativeArea = useRoomStore(state => state.administrativeArea)
   const originLat = useRoomStore(state => state.originLat)
@@ -54,7 +59,20 @@ export default function CreateLocationScreen() {
   const offerHomeArea =
     homeArea !== null && homeArea.status === 'current' && administrativeArea === null && originLat === null
 
+  const currentLabel = location.state.status === 'granted' ? location.state.label : gpsLabel || null
+  useEffect(() => {
+    if (sharedScope.status !== 'ready') return
+    if (sharedScope.source === 'gps') {
+      setArea(sharedArea ? administrativeAreaLabel(sharedArea) : currentLabel ?? '')
+      patchDraft({ administrativeArea: null, originLat: sharedScope.position.lat, originLng: sharedScope.position.lng })
+    } else {
+      setArea('')
+      patchDraft({ administrativeArea: sharedArea, originLat: null, originLng: null })
+    }
+  }, [sharedArea, sharedScope, patchDraft, setArea, currentLabel])
+
   function chooseArea(value: AdministrativeSelection | null) {
+    selectArea(value)
     setStaleArea(false)
     setArea('')
     patchDraft({ administrativeArea: value, originLat: null, originLng: null })
@@ -73,11 +91,7 @@ export default function CreateLocationScreen() {
   }
 
   async function useDeviceLocation() {
-    const result = await location.request()
-    if (result.status !== 'granted') return // the copy below points at the area picker
-    setStaleArea(false)
-    setArea(result.label ?? '')
-    patchDraft({ administrativeArea: null, originLat: result.lat, originLng: result.lng })
+    await location.request()
   }
 
   function next() {
@@ -181,13 +195,14 @@ export default function CreateLocationScreen() {
             />
           </View>
         ) : null}
-        <AdministrativePicker value={administrativeArea} onChange={chooseArea} />
-        {staleArea ? (
+        <SecondaryBtn label={sharedArea ? administrativeAreaLabel(sharedArea) : t('home.chooseArea')} onPress={() => setAreaOpen(true)} />
+        {staleArea && administrativeArea && administrativeArea.datasetVersion !== version.data?.datasetVersion ? (
           <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
             {t('administrative.changed')}
           </Text>
         ) : null}
       </ScrollView>
+      <CurrentAreaSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={() => setStaleArea(false)} />
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>

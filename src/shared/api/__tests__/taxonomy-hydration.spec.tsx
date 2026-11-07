@@ -31,7 +31,17 @@ jest.mock('../query-client', () => ({
   shouldPersistQuery: (key: readonly unknown[]) =>
     jest.requireActual<typeof import('../persist-policy')>('../persist-policy').shouldPersistQuery(key),
 }))
-jest.mock('@/shared/providers/session-provider', () => ({ SessionProvider: ({ children }: { children: unknown }) => children }))
+jest.mock('@/shared/providers/session-provider', () => ({
+  SessionProvider: ({ children }: { children: unknown }) => children,
+  useSession: () => ({ status: 'anonymous' }),
+}))
+// Keep AppAreaProvider in the tree: both startup paths must wait for disk
+// hydration. Only its location controller is outside this suite's scope.
+const mockInitializeAppArea = jest.fn()
+jest.mock('@/shared/location/app-area', () => ({
+  initializeAppArea: (...args: unknown[]) => mockInitializeAppArea(...args),
+  appArea: { permissionChanged: jest.fn() },
+}))
 jest.mock('@/shared/acquisition/bootstrap', () => ({ initializeAcquisitionSdk: () => {} }))
 jest.mock('@/shared/notifications/bootstrap', () => ({ initializePushSdk: async () => 'unconfigured' }))
 jest.mock('@/shared/notifications/device-promotions-store', () => ({ devicePromotionsStore: { load: async () => {} } }))
@@ -47,6 +57,7 @@ afterEach(() => {
   mockConditionalGet.mockReset()
   mockRestoreClient.mockReset()
   mockRemoveClient.mockReset()
+  mockInitializeAppArea.mockReset()
   onlineManager.setOnline(true)
 })
 
@@ -75,8 +86,11 @@ it('waits for disk hydration, shows cache while validating, and shares launch va
     </AppProviders>,
   )
   expect(mockConditionalGet).not.toHaveBeenCalled()
+  expect(mockInitializeAppArea).not.toHaveBeenCalled()
   await act(async () => restore(JSON.parse(JSON.stringify(saved))))
   await waitFor(() => expect(view.getAllByText('Ấm cúng')).toHaveLength(2))
+  expect(mockInitializeAppArea).toHaveBeenCalledTimes(1)
+  expect(mockInitializeAppArea).toHaveBeenCalledWith(mockClients[0], null)
   expect(mockConditionalGet).toHaveBeenCalledTimes(1)
   expect(mockConditionalGet).toHaveBeenCalledWith('/taxonomies', expect.objectContaining({
     query: { locale: 'vi' }, ifNoneMatch: 'W/"vi-1"',

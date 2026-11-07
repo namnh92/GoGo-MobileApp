@@ -16,6 +16,9 @@ import { motion, touchTarget } from '@/shared/ui/tokens'
 const noShadow = { shadowOpacity: 0, elevation: 0 } as const
 
 export const styles = StyleSheet.create(theme => ({
+  area: { minHeight: 50, height: undefined, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.border.hairline, backgroundColor: theme.redesign.high, gap: 8 },
+  areaPressed: { backgroundColor: theme.redesign.container },
+  areaPrimary: { backgroundColor: theme.redesign.primaryFill, borderColor: 'transparent' },
   discoveryJoin: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 12, gap: 4, borderWidth: 0, backgroundColor: theme.redesign.high },
   // Reserve the same border space for filled and outlined discovery CTAs.
   discovery: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 999, gap: 4, borderWidth: 1 },

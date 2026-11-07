@@ -199,7 +199,7 @@ it.each([false, true])('preserves wizard/existing-room picker callbacks (%s)', a
   useRoomStore.setState({ originLat: 10, originLng: 106 })
   mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'place-1', name: 'Place', isLodging: false, lat: 10, lng: 106 }], meta: {} }] } }
   const view = await renderScreen(<SearchScreen />)
-  expect(mockQueries.at(-1)).toMatchObject({ lat: 10, lng: 106 })
+  expect(mockQueries.at(-1)).toMatchObject({ lat: 21, lng: 105 })
   expect(view.getByText(i18n.t('discovery.searchTitle'))).toBeTruthy()
   expect(view.queryByLabelText(i18n.t('home.chooseArea'))).toBeNull()
   await fireEvent.press(view.getByTestId('place-card-open-target'))
@@ -245,7 +245,7 @@ describe('#774 integration', () => {
     await fireEvent.changeText(view.getByLabelText('Giá đến (nghìn đồng / người)'), '100')
     expect(mockPreviewCalls.at(-1)?.enabled).toBe(false)
     await act(async () => { await jest.advanceTimersByTimeAsync(300) })
-    expect(mockPreviewCalls.at(-1)).toMatchObject({ query: { lat: 10, lng: 106, q: 'tea', priceMaxPerPerson: 100000 }, enabled: true })
+    expect(mockPreviewCalls.at(-1)).toMatchObject({ query: { lat: 21, lng: 105, q: 'tea', priceMaxPerPerson: 100000 }, enabled: true })
     expect(mockQueries.at(-1)?.priceMaxPerPerson).toBeUndefined()
     mockPreview.value = { isSuccess: true, data: { meta: { totalCount: 7 } } }
     await view.rerender(<SearchScreen />)
@@ -273,7 +273,7 @@ describe('#774 integration', () => {
     await fireEvent.press(view.getByLabelText('Ấm cúng'))
     expect(mockQueries.at(-1)?.moods).toBe('cozy')
     await fireEvent.press(view.getByText('Xem thêm'))
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: { suggestions: '1', suggestionScope: JSON.stringify(mockScope), moods: 'cozy' } })
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: { suggestions: '1', moods: 'cozy' } })
     await fireEvent.press(view.getByLabelText('Ấm cúng'))
     expect(mockQueries.at(-1)?.moods).toBeUndefined()
   })
@@ -429,7 +429,7 @@ it.each(['count only', 'all taxonomy', 'selected entry'])('keeps Home mood remov
   const label = loss === 'count only' ? 'Ấm cúng' : 'Bỏ tâm trạng đã chọn 1'
   expect(view.getByLabelText(label).props.accessibilityState.selected).toBe(true)
   await fireEvent.press(view.getByText('Xem thêm'))
-  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/places/search', params: { suggestions: '1', suggestionScope: JSON.stringify(mockScope), moods: 'cozy' } })
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/places/search', params: { suggestions: '1', moods: 'cozy' } })
   await fireEvent.press(view.getByLabelText(label))
   expect(mockQueries.at(-1)?.moods).toBeUndefined()
   // A selected chip remains removable after the taxonomy disappears.
@@ -773,10 +773,9 @@ describe('#515 owner — shared Home/Search notifications and Home suggestions',
       await waitFor(() => expect(client.isFetching()).toBe(0))
       await fireEvent.press(home.getByText('Xem thêm'))
       mockParams = mockPush.mock.calls.at(-1)?.[0].params
-      expect(mockParams).toMatchObject({ suggestions: '1', moods: 'cozy', suggestionScope: JSON.stringify(mockScope) })
+      expect(mockParams).toMatchObject({ suggestions: '1', moods: 'cozy' })
       await home.unmount()
-      // Discovery now resolves somewhere else; the Home entry must retain its scope.
-      mockScope = { status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } }
+      // Home and Search subscribe to the same resolved scope.
       const list = await renderScreen(<QueryClientProvider client={client}><SearchScreen /></QueryClientProvider>)
       await waitFor(() => expect(list.getByText('Place 0')).toBeTruthy())
       const urls = () => fetch.mock.calls.map(([input]) => new URL(String(input)))
@@ -811,7 +810,9 @@ describe('#515 owner — shared Home/Search notifications and Home suggestions',
     const area = { datasetVersion: 'v1', provinceCode: 'home-province', provinceName: 'Home province', communeCode: 'home-commune', communeName: 'Home commune' }
     const previousArea = { ...area, provinceCode: 'previous-province' }
     useDiscoveryAreaStore.setState({ area: previousArea })
-    mockParams = { suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'default_area', area }) }
+    mockScope = { status: 'ready', source: 'default_area', area }
+    useDiscoveryAreaStore.setState({ area })
+    mockParams = { suggestions: '1' }
     await renderScreen(<SearchScreen />)
     expect(mockQueries.at(-1)).toMatchObject({ limit: 10, datasetVersion: 'v1', provinceCode: 'home-province', communeCode: 'home-commune' })
     expect(mockQueries.at(-1)?.lat).toBeUndefined()
@@ -821,7 +822,7 @@ describe('#515 owner — shared Home/Search notifications and Home suggestions',
   })
 
   it('keeps cards and exposes a retry footer after a next-page failure', async () => {
-    mockParams = { suggestions: '1', suggestionScope: JSON.stringify(mockScope) }
+    mockParams = { suggestions: '1' }
     const fetchNextPage = jest.fn()
     mockSearch.value = { ...emptyPage(), isError: true, isSuccess: false, isFetchNextPageError: true, hasNextPage: true, error: new Error('Page failed'), fetchNextPage, data: { pages: [{ results: [{ id: 'kept', name: 'Kept place', isLodging: false }], nextCursor: 'page-2' }] } }
     const view = await renderScreen(<SearchScreen />)
@@ -954,15 +955,14 @@ describe('owner verification round 3', () => {
 })
 
 
-it('lets an explicit location-sheet apply replace the carried Home scope even when no area was stored', async () => {
+it('ignores stale route scope and follows the app-wide area for suggestions', async () => {
   mockParams = { suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } }) }
   mockScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
   const view = await renderScreen(<SearchScreen />)
-  expect(mockQueries.at(-1)).toMatchObject({ lat: 10, lng: 106 })
-  await fireEvent.press(view.getByLabelText(i18n.t('home.chooseArea')))
-  await fireEvent.press(view.getByText(i18n.t('discovery.useArea')))
-  expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
   expect(mockQueries.at(-1)).toMatchObject({ lat: 21, lng: 105 })
+  mockScope = { status: 'ready', source: 'gps', position: { lat: 11, lng: 107 } }
+  await view.rerender(<SearchScreen />)
+  expect(mockQueries.at(-1)).toMatchObject({ lat: 11, lng: 107 })
 })
 
 describe('#515 Astra F-12..F-14', () => {
@@ -1226,6 +1226,7 @@ it.each([
 it('debounces visible-region search, keeps filters/keyword and header area, merges markers and preserves selection', async () => {
   mockParams = { q: 'tea', moods: 'cozy' }
   mockScope = { status: 'ready', source: 'selected_area', area: { datasetVersion: 'ds', provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null } }
+  useDiscoveryAreaStore.setState({ area: mockScope.area })
   mockSearch.value = mapPages()
   mockSearch.value.data = { pages: [{ results: mapPlaces, meta: { location: { source: 'administrative_area', area: { provinceName: 'Hà Nội' } } } }] }
   const view = await renderScreen(<SearchScreen />)
@@ -1254,7 +1255,7 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   for (const title of ['Top place', 'Second place', 'Visible place']) expect(view.getAllByLabelText(title)).toHaveLength(1)
   expect(view.getByText(i18n.t('discovery.openPlace'))).toBeTruthy()
   expect(view.getByText('Hà Nội')).toBeTruthy()
-  expect(useDiscoveryAreaStore.getState().area).toBeNull()
+  expect(useDiscoveryAreaStore.getState().area).toEqual(mockScope.status === 'ready' && 'area' in mockScope ? mockScope.area : null)
   await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', { ...region, latitudeDelta: 90, longitudeDelta: 180 })
   await act(async () => { await jest.advanceTimersByTimeAsync(400) })
   expect(mockQueries.at(-1)?.radiusM).toBe(100000)
@@ -1270,4 +1271,14 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   expect(mockQueries.at(-1)).not.toHaveProperty('radiusM')
   expect(view.queryByLabelText('Visible place')).toBeNull()
   expect(view.queryByText(i18n.t('discovery.openPlace'))).toBeNull()
+})
+
+
+it('waits for filter dismissal before opening the shared current-area sheet', async () => {
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
+  await fireEvent.press(view.getByRole('button', { name: /^Chọn khu vực:/ }))
+  expect(view.queryByTestId('amenity-status-options')).toBeNull()
+  expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+  expect(view.getAllByTestId('sheet-drag-handle')).toHaveLength(1)
 })

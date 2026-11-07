@@ -20,9 +20,11 @@ jest.mock('expo-location', () => ({
 jest.mock('@/shared/administrative/administrative-picker.view', () => {
   const React = jest.requireActual<typeof import('react')>('react')
   const { Pressable, Text } = jest.requireActual<typeof import('react-native')>('react-native')
-  return { AdministrativePicker: ({ onChange }: { onChange: (value: unknown) => void }) => React.createElement(Pressable, {
+  return { AdministrativePicker: ({ value, onChange, onValidityChange }: { value: unknown; onChange: (value: unknown) => void; onValidityChange: (valid: boolean) => void }) => {
+    React.useEffect(() => onValidityChange(Boolean(value)), [value, onValidityChange])
+    return React.createElement(Pressable, {
     onPress: () => onChange({ datasetVersion: 'published', provinceCode: 'other-city', provinceName: 'Other city', communeCode: null, communeName: null }),
-  }, React.createElement(Text, null, 'Pick another city')) }
+  }, React.createElement(Text, null, 'Pick another city')) } }
 })
 
 import { DiscoveryLocationSheet } from './discovery-location.view'
@@ -61,7 +63,7 @@ describe('O-5 public current location', () => {
     expect(mockBack).not.toHaveBeenCalled()
     await fireEvent.press(view.getByText('Pick another city'))
     expect(useDiscoveryAreaStore.getState().area).toBeNull()
-    await fireEvent.press(view.getByText('Dùng khu vực này'))
+    await fireEvent.press(view.getByText('Xác nhận'))
     expect(useDiscoveryAreaStore.getState().area?.provinceCode).toBe('other-city')
     expect(mockBack).toHaveBeenCalledTimes(1)
     expect(mockApplied).toHaveBeenCalledTimes(1)
@@ -77,7 +79,7 @@ it('discards an uncommitted area when the close button is pressed', async () => 
   expect(mockBack).toHaveBeenCalledTimes(1)
   await view.rerender(<DiscoveryLocationSheet visible={false} onClose={mockBack} onApplied={mockApplied} />)
   await view.rerender(<DiscoveryLocationSheet visible onClose={mockBack} onApplied={mockApplied} />)
-  await fireEvent.press(view.getByText('Dùng khu vực này'))
+  await fireEvent.press(view.getByText('Xác nhận'))
   expect(useDiscoveryAreaStore.getState().area).toBeNull()
-  expect(mockApplied).toHaveBeenCalledTimes(1)
+  expect(mockApplied).not.toHaveBeenCalled()
 })

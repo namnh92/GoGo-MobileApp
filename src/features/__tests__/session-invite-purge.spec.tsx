@@ -4,8 +4,8 @@ import { act, render, screen, waitFor } from '@testing-library/react-native'
 /**
  * GoGo-MobileApp#199: a host's stored invite codes belong to that account. The
  * purge that clears room data — logout, account deletion, signing in or up,
- * joining as a guest, and an expired session — clears them too, together with
- * the discovery area (#515 F-09).
+ * joining as a guest, and an expired session — clears them too. The device area choice now survives these session
+ * boundaries (#520).
  */
 
 const mockExpiry: { callback: (() => void) | null } = { callback: null }
@@ -73,7 +73,7 @@ async function seedAndMount() {
 }
 
 async function expectPurgedThenUnmount() {
-  expect(useDiscoveryAreaStore.getState().area).toBeNull()
+  expect(useDiscoveryAreaStore.getState().area).toEqual(AREA)
   await waitFor(async () => {
     for (const roomId of ROOMS) expect(await loadInviteCode(roomId, USER)).toBeNull()
   })
@@ -87,13 +87,13 @@ it.each([
   ['signIn', (session: SessionApi) => session.signIn({ email: 'host@example.com', password: 'not-a-real-password' } as never)],
   ['signUp', (session: SessionApi) => session.signUp({ email: 'new@example.com', password: 'not-a-real-password' } as never)],
   ['joinAsGuest', (session: SessionApi) => session.joinAsGuest({ inviteCode: 'not-a-code', displayName: 'Khách' } as never)],
-] as const)('%s removes every stored invite code and the discovery area', async (_name, action) => {
+] as const)('%s removes every stored invite code and preserves the device area choice', async (_name, action) => {
   await seedAndMount()
   await act(async () => { await action(session as SessionApi) })
   await expectPurgedThenUnmount()
 })
 
-it('an expired session removes every stored invite code and the discovery area', async () => {
+it('an expired session removes every stored invite code and preserves the device area choice', async () => {
   await seedAndMount()
   expect(mockExpiry.callback).not.toBeNull()
   await act(async () => { mockExpiry.callback?.() })
@@ -115,7 +115,7 @@ it('a rejected guest join preserves the current room cache and invite codes', as
   useDiscoveryAreaStore.getState().setArea(null)
 })
 
-it.each([false, true])('clears A’s area before B signs in (sign out first: %s)', async signOutFirst => {
+it.each([false, true])('keeps the device area when B signs in (sign out first: %s)', async signOutFirst => {
   const userA: Session = { kind: 'user', userId: USER, accessToken: 'token-a', expiresAt: Date.now() + 900_000 }
   const userB: Session = { ...userA, userId: 'user-2', accessToken: 'token-b' }
   await persistSession(userA)
@@ -127,11 +127,11 @@ it.each([false, true])('clears A’s area before B signs in (sign out first: %s)
     jest.mocked(sessions.logout).mockImplementationOnce(() => clearSession())
     await act(async () => { await session!.signOut() })
     expect(session!.status).toBe('anonymous')
-    expect(useDiscoveryAreaStore.getState().area).toBeNull()
+    expect(useDiscoveryAreaStore.getState().area).toEqual(AREA)
   }
 
   jest.mocked(sessions.login).mockImplementationOnce(() => {
-    expect(useDiscoveryAreaStore.getState().area).toBeNull()
+    expect(useDiscoveryAreaStore.getState().area).toEqual(AREA)
     return persistSession(userB)
   })
   await act(async () => { await session!.signIn({ email: 'b@example.com', password: 'not-a-real-password' }) })

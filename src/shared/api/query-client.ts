@@ -6,7 +6,6 @@ import { AppState, Platform, type AppStateStatus } from 'react-native'
 
 import { isRetryable, isUnauthorized } from './errors'
 import { shouldPersistQuery } from './persist-policy'
-import { queryKeys } from './query-keys'
 import { forgetRoomSteps } from '@/shared/navigation/room-steps'
 import { resetAssistantDrafts } from '@/shared/store/assistantDraftStore'
 import { closeAssistantStreams } from './queries/use-assistant'
@@ -139,7 +138,8 @@ export const queryPersister = createAsyncStoragePersister({
 
 /**
  * Logout must leave no room data behind (RULE-MOB-OFFLINE). Clears the
- * in-memory cache and the persisted copy.
+ * account cache and the persisted copy. Public administrative queries survive
+ * so observers keep the startup version check across session boundaries.
  */
 export async function purgeCachedUserData(queryClient: QueryClient): Promise<void> {
   // Which rooms' runs and plans were already shown belongs to the account too:
@@ -150,10 +150,7 @@ export async function purgeCachedUserData(queryClient: QueryClient): Promise<voi
   // stays in memory (none is ever written to disk).
   closeAssistantStreams()
   resetAssistantDrafts()
-  queryClient.removeQueries({ queryKey: queryKeys.assistant() })
-  queryClient.removeQueries({ queryKey: queryKeys.rooms() })
-  queryClient.removeQueries({ queryKey: ['plans'] })
-  queryClient.removeQueries({ queryKey: ['me'] })
-  queryClient.clear()
+  queryClient.removeQueries({ predicate: query => query.queryKey[0] !== 'administrative' })
+  queryClient.getMutationCache().clear()
   await queryPersister.removeClient()
 }
