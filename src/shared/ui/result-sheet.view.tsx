@@ -1,7 +1,7 @@
-import { useEffect, useRef, type ComponentRef } from 'react'
+import { useEffect, useRef, type ReactNode, type ComponentRef } from 'react'
 import { AccessibilityInfo, findNodeHandle, View } from 'react-native'
 import { Icon, type IconName } from './icons'
-import { PrimaryBtn, GhostBtn } from './button.view'
+import { PrimaryBtn, SecondaryBtn } from './button.view'
 import { Sheet } from './sheet.view'
 import { Text, type TextColor } from './text'
 import { useReducedMotionPreference } from './feedback'
@@ -15,6 +15,8 @@ export interface ResultSheetProps {
   icon?: IconName
   title: string
   body: string
+  /** Optional result context, rendered above the message. */
+  media?: ReactNode
   note?: string
   primaryAction: Action
   secondaryAction?: Action
@@ -29,7 +31,7 @@ const icons: Record<ResultSheetProps['variant'], IconName> = {
 }
 
 /** App-wide result feedback. Sheet owns modal lifecycle, animation and reduced motion. */
-export function ResultSheet({ visible, variant, icon, title, body, note, primaryAction, secondaryAction, onClose, onClosed }: ResultSheetProps) {
+export function ResultSheet({ visible, variant, icon, title, body, media, note, primaryAction, secondaryAction, onClose, onClosed }: ResultSheetProps) {
   const titleRef = useRef<ComponentRef<typeof Text>>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const reduced = useReducedMotionPreference()
@@ -38,8 +40,8 @@ export function ResultSheet({ visible, variant, icon, title, body, note, primary
   return (
     <Sheet visible={visible} onClose={onClose} onClosed={onClosed} testID="result-sheet"
       footer={<View style={styles.actions}>
-        <PrimaryBtn {...primaryAction} />
-        {secondaryAction ? <GhostBtn {...secondaryAction} /> : null}
+        <PrimaryBtn {...primaryAction} style={styles.action} wrapLabel />
+        {secondaryAction ? <SecondaryBtn {...secondaryAction} style={styles.action} wrapLabel /> : null}
       </View>}>
       <View style={styles.content}>
         <Icon name={icon ?? icons[variant]} color={tones[variant]} size={spacing[8]} />
@@ -53,6 +55,7 @@ export function ResultSheet({ visible, variant, icon, title, body, note, primary
               AccessibilityInfo.announceForAccessibility([title, body, note].filter(Boolean).join('. '))
             }, reduced ? 0 : motion.standard)
           }}>{title}</Text>
+        {media}
         <Text style={styles.copy}>{body}</Text>
         {note ? <Text variant="caption" color="text.secondary" style={styles.copy}>{note}</Text> : null}
       </View>

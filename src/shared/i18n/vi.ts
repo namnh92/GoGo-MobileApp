@@ -6,6 +6,7 @@ export const viMessages = {
   'placeResult.successBody': '{{name}} đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả',
   'placeResult.errorTitle': 'Chưa gửi được',
   'placeResult.errorBody': '{{reason}} Thông tin bạn nhập vẫn được giữ.',
+  'placeWizard.rewardCompact': '+{{amount}}',
   'placeResult.credit': '+50 GoGo Credit khi được duyệt',
   'placeResult.viewContributions': 'Xem đóng góp của tôi',
   'placeResult.addAnother': 'Thêm địa điểm khác',

@@ -293,3 +293,58 @@ loading/empty/error/sign-in states, private API transport, and persistence
 exclusion. The earlier backend-validator and device/design acceptance items
 remain open; the sandbox process-inspection limitation prevents claiming that
 all of `pnpm test` is green.
+
+## Owner simulator corrections — 2026-11-07
+
+Owner feedback in this worktree (`f9676b3`, initially clean) authorizes these
+focused changes:
+
+- The header reward is a single-line `+50` pill with the existing `sparkle`
+  credit-benefit icon from `ImportGuide`. Its accessibility label and the
+  success sheet note retain `+50 GoGo Credit khi được duyệt` (localized in EN).
+- There is one primary wizard action: `Tiếp tục` on steps 1–2, gated by the
+  current required fields, then `Gửi địa điểm cho GoGo` on optional step 3,
+  gated by both required steps and the existing online/taxonomy/submit guards.
+  The outer submit and `Hoàn tất` duplicates are removed. `Lưu nháp` stays
+  secondary; `Quay lại` appears from step 2 as a text action on its own row,
+  leaving the primary label full width.
+- `ResultSheet.media` is an optional generic React content slot before the
+  message. Success supplies the selected/resolved place through the existing
+  `PlaceCard` preview's compact presentation: thumbnail when available, name,
+  single-line address, and provider photo attribution. Missing or failed photos
+  are omitted; provider bytes use the existing validated photo loader and
+  `cachePolicy="none"`. No add-place fields were added to `ResultSheet`.
+- Result actions share one row with equal flexible widths, primary/secondary
+  hierarchy, wrapping labels, and a minimum height that can grow with text.
+  Success still navigates through sheet dismissal; retry/draft data is retained.
+
+Regression coverage: one primary action at each step, required-field gating,
+back-navigation retention, empty optional-step submission, compact accessible
+reward, arbitrary media ordering, equal-width result actions, submitted identity
+and address, photo attribution/thumbnail/error fallback, branch changes, and the
+existing retry/draft behavior. Device/simulator, VoiceOver, large-text and
+Light/Dark visual acceptance have not been rerun in this edit-only task.
+
+### Verification for the owner corrections (2026-11-07)
+
+- FAIL-before: the updated regression cases for the sole primary action,
+  generic media slot/action layout, and submitted-place row all fail against
+  `f9676b3` (3/3), for the expected missing/duplicate UI. Implementation files
+  were temporarily read from HEAD for this check and restored byte-for-byte;
+  no checkout, commit, install, or push was performed.
+- `pnpm typecheck`: PASS, exit 0.
+- `pnpm lint`: PASS, exit 0, no diagnostics.
+- `pnpm test:ui --runInBand`: PASS, **184 suites / 2,202 tests** on the final
+  implementation and tests, including the three FAIL-before regressions.
+- `pnpm test`: **115 suites passed, 1 failed, 1 skipped; 1,329 tests passed,
+  3 failed, 39 skipped**. The same unchanged process-inspection cases in
+  `src/shared/config/__tests__/distribute-wrapper.test.ts:208/234/258` fail
+  because this sandbox denies `ps` (`ps -p $$ -o pid=` returns
+  `operation not permitted`). The distribution tests and scripts have no diff
+  from HEAD. This environment blocker prevents claiming the command is green;
+  no tests were skipped or weakened to hide it.
+- `git diff --check`: PASS.
+
+Local logs: `/tmp/mobile518-regression-before.log`,
+`/tmp/mobile518-typecheck-final.log`, `/tmp/mobile518-lint-final.log`,
+`/tmp/mobile518-ui-final.log`, `/tmp/mobile518-test.log`.

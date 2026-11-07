@@ -231,7 +231,8 @@ it('hides a failed candidate image and its credits without placeholder art', asy
 
 it('shows photo loading without blocking submit, then removes the image slot when the BFF has no photo', async () => {
   let finish: (response: unknown) => void = () => {}
-  mockGet.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  mockGet.mockResolvedValue({ status: 'unavailable', photos: [] })
+  mockGet.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
   await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   expect(screen.getByTestId('import-candidate-photo-loading').props.accessibilityRole).toBe('progressbar')
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
@@ -624,7 +625,8 @@ it('requires the wizard after branch selection and clears another branch’s con
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(screen.queryByTestId('contribution-wizard')).toBeNull()
   await fireEvent.press(screen.getByText('Branch A'))
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
   await completeWizard()
   await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'A only')
@@ -639,9 +641,13 @@ it('requires the wizard after branch selection and clears another branch’s con
 
 
 it('shows a success result for the place and replaces the submitted form with contributions after dismissal', async () => {
-  await preview()
+  await preview({ ...candidate, address: '12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh' })
   await completeWizard()
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  const row = within(screen.getByTestId('place-preview-compact'))
+  expect(row.getByText('Preview')).toBeTruthy()
+  expect(row.getByText('12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh').props.numberOfLines).toBe(1)
+  expect(row.queryByTestId('place-preview-thumbnail')).toBeNull()
   expect(screen.getByText('Đã gửi cho GoGo duyệt')).toBeTruthy()
   expect(screen.getByText('Preview đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()
   expect(screen.getByText('+50 GoGo Credit khi được duyệt')).toBeTruthy()
@@ -681,4 +687,20 @@ it('saves the retained form as a draft from the error sheet', async () => {
   await fireEvent.press(within(screen.getByTestId('result-sheet')).getByRole('button', { name: 'Lưu nháp' }))
   await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Saved after failure' }) }) })))
   expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Saved after failure')
+})
+
+it('shows the submitted photo thumbnail with attribution and omits it on image failure', async () => {
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [
+    { contentType: 'image/jpeg', dataBase64: 'AA==', authorAttributions: [{ displayName: 'Photo author' }] },
+  ] })
+  await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  await completeWizard()
+  await fireEvent.press(screen.getByRole('button', { name: 'Gửi địa điểm cho GoGo' }))
+  const row = within(screen.getByTestId('place-preview-compact'))
+  await waitFor(() => expect(row.getByTestId('place-preview-thumbnail')).toBeTruthy())
+  expect(row.getByTestId('place-preview-thumbnail').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,AA==' }], cachePolicy: 'none' })
+  expect(row.getByText('Ảnh: Photo author · Google Maps')).toBeTruthy()
+  await fireEvent(row.getByTestId('place-preview-thumbnail'), 'error', { nativeEvent: { error: 'decode failed' } })
+  expect(row.queryByTestId('place-preview-thumbnail')).toBeNull()
+  expect(row.queryByText('Ảnh: Photo author · Google Maps')).toBeNull()
 })
