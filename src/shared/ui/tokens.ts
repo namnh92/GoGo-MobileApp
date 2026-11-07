@@ -501,6 +501,7 @@ export const motion = {
 
 /** Approved project 17315762413421369447. Screen-specific material roles. */
 export const redesignLight = {
+  importSyncedFill: '#9EF5C0', importSyncedText: '#002111', importPhotoBadgeText: '#C0FFD6',
   verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#A71E07', heroStart: '#FFE8E2', heroMiddle: '#FFF3EE', heroEnd: '#EAE6FE',
   canvas: '#FFF8F3', card: '#FFFFFF', low: '#F9F2ED', container: '#F3EDE8',
   high: '#EDE7E2', highest: '#E7E1DC', dim: '#DFD9D4',
@@ -517,6 +518,7 @@ export const redesignLight = {
 
 /** Undrawn dark materials derived from S70's canvas/card/accent/status roles. */
 export const redesignDark = {
+  importSyncedFill: darkStatus.successSoft, importSyncedText: darkStatus.successText, importPhotoBadgeText: '#C0FFD6',
   verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#FF746C', heroStart: '#2A2A2A', heroMiddle: '#222222', heroEnd: '#2F2A55',
   canvas: darkSurface.canvas, card: darkSurface.card, low: darkSurface.subtle,
   container: darkSurface.subtle, high: '#333333', highest: '#333333', dim: '#333333',

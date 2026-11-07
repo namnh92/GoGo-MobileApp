@@ -460,6 +460,7 @@ describe('#754 discovery ratings', () => {
 describe('place address seam', () => {
   it('keeps the detail raw address until both verified ward and province are available', () => {
     const detail: PlaceDetail = {
+      checkedInGroupCount: 0,
       gogoRatingCount: 0,
       addressText: ' 12 Đường A, Phường B ',
       areaSummary: { datasetVersion: 'v1', provinceCode: '79', communeCode: 'x', locale: 'vi', label: 'Phường B' },

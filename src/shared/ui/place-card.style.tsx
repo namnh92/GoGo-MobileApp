@@ -3,6 +3,16 @@ import { StyleSheet } from 'react-native-unistyles'
 import { overlay, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  importCard: { borderRadius: 12, overflow: 'hidden', backgroundColor: theme.redesign.card, ...theme.shadows.card },
+  importBody: { padding: 16, gap: 12 },
+  importFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  importFact: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: theme.redesign.container },
+  importVerified: { position: 'absolute', top: 12, left: 12, right: 64, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: theme.redesign.verifiedFill },
+  importVerifiedInline: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
+  importNoPhotoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  importSave: { position: 'absolute', top: 8, right: 8 },
+  importHoursOverlay: { position: 'absolute', bottom: 12, right: 12, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 8, paddingVertical: 2 },
+  importActions: { marginTop: 24, borderRadius: 12, padding: 12, gap: 12, backgroundColor: theme.redesign.card, borderWidth: 1, borderColor: theme.redesign.line },
   /** Holds the card and, beside it, the save toggle positioned over it. */
   verifiedBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: theme.redesign.verifiedFill },
   discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -25,6 +35,7 @@ export const styles = StyleSheet.create(theme => ({
   // --- list (default): the Stitch card, photo over body ---------------------
   listCard: { overflow: 'hidden' },
   listPhoto: { aspectRatio: 1.6, backgroundColor: theme.surface.subtle },
+  photoSkeleton: { height: '100%' },
   // `minWidth: 0` lets the text column shrink below its content, which is what
   // makes `numberOfLines={1}` ellipsise instead of pushing the card wider.
   listBody: { minWidth: 0, padding: theme.spacing[4], gap: theme.spacing[2] },

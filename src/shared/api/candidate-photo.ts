@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { api } from './client'
+import type { OpResponse, ResolveLinkResult } from './types'
 
-// Additive read adapter for BE#792 @4ca9b46. The bundled generated contract
-// stays unchanged until that PR lands. An absent reference buys no request.
-const reference = z.object({ googlePlaceId: z.string(), photo: z.object({ provider: z.literal('google'), url: z.string() }) })
+// Validate untrusted JSON as well as compiling against the vendored BFF contract.
+// An absent reference buys no request. Bytes stay in this mounted view only.
 const photoResponse = z.object({
   status: z.literal('ok'),
   attribution: z.string().min(1),
@@ -13,18 +13,20 @@ const photoResponse = z.object({
       z.object({
         contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
         dataBase64: z.string().min(1),
-        authorAttributions: z.array(z.object({ displayName: z.string() })),
+        authorAttributions: z.array(z.object({ displayName: z.string().trim().min(1) })).min(1),
       }),
     )
     .min(1),
 })
 
-export function useCandidatePhoto(candidate: unknown) {
-  const parsed = reference.safeParse(candidate)
-  const id = parsed.success ? parsed.data.googlePlaceId : null
+type LoadedPhoto = { path: string; uri: string; credit: string }
+type PhotoState = { path: string; status: 'ready'; photo: LoadedPhoto } | { path: string; status: 'absent' | 'error' }
+
+export function useCandidatePhoto(candidate: NonNullable<ResolveLinkResult['candidate']>) {
+  const id = candidate.googlePlaceId
   const expected = id && /^[A-Za-z0-9_-]{5,255}$/.test(id) ? `/places/google-provider-photo/${id}` : null
-  const path = parsed.success && parsed.data.photo.url === `/v1${expected}` ? expected : null
-  const [loaded, setLoaded] = useState<{ path: string; uri: string; credit: string } | null>(null)
+  const path = expected && candidate.photo?.provider === 'google' && candidate.photo.url === `/v1${expected}` ? expected : null
+  const [loaded, setLoaded] = useState<PhotoState | null>(null)
   const [previousPath, setPreviousPath] = useState(path)
   // Clear during render so revisiting a reference never revives old photo bytes.
   if (previousPath !== path) {
@@ -36,22 +38,34 @@ export function useCandidatePhoto(candidate: unknown) {
     let active = true
     const controller = new AbortController()
     void api
-      .get<unknown>(path, { anonymous: true, signal: controller.signal })
+      .get<OpResponse<'getCandidateProviderPhoto'>>(path, { anonymous: true, signal: controller.signal })
       .then(response => {
         const result = photoResponse.safeParse(response)
-        if (!active || !result.success) return
+        if (!active) return
+        if (!result.success) {
+          setLoaded({ path, status: 'absent' })
+          return
+        }
         const photo = result.data.photos[0]
         setLoaded({
           path,
-          uri: `data:${photo.contentType};base64,${photo.dataBase64}`,
-          credit: [result.data.attribution, ...photo.authorAttributions.map(author => author.displayName)].join(' · '),
+          status: 'ready',
+          photo: {
+            path,
+            uri: `data:${photo.contentType};base64,${photo.dataBase64}`,
+            credit: [result.data.attribution, ...photo.authorAttributions.map(author => author.displayName)].join(' · '),
+          },
         })
       })
-      .catch(() => {}) // Photo failure never blocks place submission.
+      .catch(() => {
+        if (active) setLoaded({ path, status: 'error' })
+      }) // Photo failure never blocks place submission.
     return () => {
       active = false
       controller.abort()
     }
   }, [path])
-  return path && loaded?.path === path ? loaded : null
+  if (!path) return { status: 'absent' as const, photo: null }
+  if (loaded?.path !== path) return { status: 'loading' as const, photo: null }
+  return { status: loaded.status, photo: loaded.status === 'ready' ? loaded.photo : null }
 }

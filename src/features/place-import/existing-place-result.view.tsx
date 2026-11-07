@@ -5,6 +5,7 @@ import { View } from 'react-native'
 import { detailToPlaceCard, isSaved, openStateFromHours, usePlaceDetail, useSaved, useToggleSaved } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { ErrorState } from '@/shared/ui/async-state.view'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
@@ -26,13 +27,17 @@ export function ExistingPlaceResult({ placeId, onReset }: { placeId: string; onR
   const canSave = status === 'user'
   return (
     <View style={styles.resultCard}>
-      <Text variant="title2">{t('placeImport.existsBody')}</Text>
+      <View style={styles.existingHeading}>
+        <MaterialIcon name="checkCircle" color="redesign.greenText" />
+        <Text variant="introHeading" color="redesign.ink" style={styles.existsTitle}>{t('placeImport.existsBody')}</Text>
+      </View>
       {detail.isPending ? (
         <Skeleton height={200} />
       ) : !detail.data ? (
         <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
       ) : (
         <PlaceCard
+          appearance="discovery"
           place={{ ...detailToPlaceCard(detail.data), ...openStateFromHours(detail.data.hours, now) }}
           onPress={() => router.replace(`/places/${placeId}`)}
         />

@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
 import { Keyboard, ScrollView, StyleSheet, View } from 'react-native'
 import { renderScreen } from './harness'
 
-const mockResolve = { data: undefined as unknown, mutate: jest.fn(), reset: jest.fn() }
+const mockResolve = { data: undefined as unknown, mutate: jest.fn(), reset: jest.fn(), isPending: false }
 const mockSubmit = { mutateAsync: jest.fn(), reset: jest.fn() }
 const mockPick = jest.fn()
 const mockPermission = jest.fn()
@@ -36,6 +36,7 @@ async function preview(value: unknown = candidate) {
 }
 beforeEach(() => {
   jest.clearAllMocks()
+  mockResolve.isPending = false
   mockResolve.data = undefined
   mockPermission.mockResolvedValue({ granted: true })
   mockPick.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///one.jpg' }] })
@@ -237,4 +238,79 @@ it('does not restore local photos from a picker finishing after the link was cle
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
   await fireEvent.press(screen.getByText('Xác minh địa điểm'))
   expect(screen.queryAllByTestId('import-local-photo')).toHaveLength(0)
+})
+
+it('shows photo loading without blocking submit, then removes the image slot when the BFF has no photo', async () => {
+  let finish: (response: unknown) => void = () => {}
+  mockGet.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  expect(screen.getByTestId('import-candidate-photo-loading').props.accessibilityRole).toBe('progressbar')
+  expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
+  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledWith({ googlePlaceId: 'ChIJtest' })
+  await act(async () => { finish({ status: 'unavailable', photos: [] }) })
+  expect(screen.queryByTestId('import-candidate-photo-loading')).toBeNull()
+  expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
+  expect(screen.queryByTestId('place-photo-placeholder')).toBeNull()
+})
+
+it('renders only the first Google photo with its own response credits', async () => {
+  mockGet.mockResolvedValue({
+    status: 'ok', attribution: 'Google Maps',
+    photos: [
+      { contentType: 'image/jpeg', dataBase64: 'Zmlyc3Q=', authorAttributions: [{ displayName: 'First author' }] },
+      { contentType: 'image/png', dataBase64: 'c2Vjb25k', authorAttributions: [{ displayName: 'Second author' }] },
+    ],
+  })
+  await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest', attribution: 'Outdated credit' } })
+  await waitFor(() => expect(screen.getAllByTestId('import-candidate-photo')).toHaveLength(1))
+  expect(screen.getByText('Google Maps · First author')).toBeTruthy()
+  expect(screen.queryByText(/Second author|Outdated credit/)).toBeNull()
+  expect(mockGet).toHaveBeenCalledTimes(1)
+})
+
+it.each([{ authorAttributions: [] }, { authorAttributions: [{ displayName: '' }] }])('omits a photo without usable author attribution (%j)', async ({ authorAttributions }) => {
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions }] })
+  await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  await act(async () => {})
+  expect(screen.queryByTestId('import-candidate-photo-loading')).toBeNull()
+  expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
+})
+
+it('does not buy a Google photo for an existing GoGo place even if a candidate reference is present', async () => {
+  mockResolve.data = { status: 'ALREADY_EXISTS', existingPlaceId: 'canonical', candidate: { ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } } }
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  expect(screen.getByText('Existing')).toBeTruthy()
+  expect(mockGet).not.toHaveBeenCalled()
+})
+
+
+it('keeps verification loading inside the same disabled button and preserves the link controls', async () => {
+  mockResolve.isPending = true
+  await renderScreen(<PlaceImportScreen />)
+  const button = screen.getByRole('button', { name: 'Đang xác minh trên Google Maps…' })
+  expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+  expect(screen.getByTestId('button-spinner')).toBeTruthy()
+  expect(screen.getByTestId('import-link-input').props.multiline).toBe(false)
+  expect(screen.getByRole('button', { name: 'Dán link' })).toBeTruthy()
+})
+
+it('uses the directly downloaded Stitch photo/body hierarchy with real hours and sourced rating', async () => {
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan' }] }] })
+  await preview({ ...candidate, address: 'Real street', googleRating: 4.8, googleRatingCount: 123,
+    openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 450, closeMinute: 1350, isOvernight: false })),
+    photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
+  expect(StyleSheet.flatten(screen.getByTestId('import-preview-photo-frame').props.style)).toMatchObject({ aspectRatio: 1.6 })
+  expect(StyleSheet.flatten(screen.getByTestId('import-preview-card').props.style)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+  expect(screen.getByText('Dữ liệu đã trích xuất')).toBeTruthy()
+  expect(screen.getByText('✓ Dữ liệu Google Maps xác thực')).toBeTruthy()
+  expect(screen.getByText('07:30 - 22:30 hàng ngày')).toBeTruthy()
+  expect(screen.getByText('(123) Google')).toBeTruthy()
+  const save = screen.getByRole('button', { name: 'Lưu' })
+  expect(save.props.accessibilityState.disabled).toBe(true)
+  expect(save.props.accessibilityHint).toBe('Chỉ lưu được sau khi địa điểm được duyệt và có trên GoGo.')
+  expect(screen.queryByText('Mơ Concept & Roastery')).toBeNull()
 })

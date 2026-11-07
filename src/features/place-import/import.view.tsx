@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { isApiError, usePlaceSubmission, useResolveGoogleMapsLink, useSubmitPlace, useTaxonomies, type ResolveLinkResult } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { Icon } from '@/shared/ui/icons'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
@@ -324,7 +325,7 @@ export default function PlaceImportScreen() {
 
   const VerifyButton = result ? GhostBtn : PrimaryBtn
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       <View testID="import-header" style={[styles.header, { paddingTop: insets.top }]}>
         <BackHeader
           title={t('placeImport.title')}
@@ -347,7 +348,7 @@ export default function PlaceImportScreen() {
             }}
             scrollEventThrottle={16}
             keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
+            contentContainerStyle={{ paddingHorizontal: spacing[4], paddingBottom: insets.bottom + spacing[6] }}
             keyboardShouldPersistTaps="handled"
           >
             <TouchableWithoutFeedback testID="import-dismiss-keyboard" onPress={Keyboard.dismiss} accessible={false}>
@@ -421,16 +422,15 @@ export default function PlaceImportScreen() {
                     </Text>
                   )}
 
-                  {resolve.isPending ? (
-                    <View style={styles.verifyingRow}>
-                      <ActivityIndicator color={theme.accent.primary} />
-                      <Text variant="bodySmall" color="text.secondary">
-                        {t('placeImport.verifying')}
-                      </Text>
-                    </View>
-                  ) : (
-                    <VerifyButton label={t('placeImport.verify')} icon="search" onPress={onResolve} disabled={url.trim() === ''} style={styles.verifyBtn} />
-                  )}
+                  <VerifyButton
+                    label={t(resolve.isPending ? 'placeImport.verifying' : 'placeImport.verify')}
+                    variant="discovery"
+                    leadingIcon="verified"
+                    onPress={onResolve}
+                    loading={resolve.isPending}
+                    disabled={url.trim() === ''}
+                    style={styles.verifyBtn}
+                  />
                 </View>
 
                 {resolve.isError ? (
@@ -454,9 +454,11 @@ export default function PlaceImportScreen() {
                 ) : null}
 
                 {result ? (
-                  <Text variant="title2" style={styles.introTitle}>
-                    {t('placeImport.analysisTitle')}
-                  </Text>
+                  <View style={styles.analysisHeading}>
+                    <MaterialIcon name="verified" size={18} color="redesign.greenText" />
+                    <Text variant="introHeading" color="redesign.ink" style={styles.analysisLabel}>{t(result.status === 'RESOLVED' ? 'placeImport.extractedTitle' : 'placeImport.analysisTitle')}</Text>
+                    {result.status === 'RESOLVED' ? <View style={styles.syncedBadge}><Text variant="introCaptionMedium" color="redesign.importSyncedText">{t('placeImport.syncedBadge')}</Text></View> : null}
+                  </View>
                 ) : null}
 
                 {/* Already in the catalog — send the user to it instead of creating a
@@ -510,6 +512,7 @@ export default function PlaceImportScreen() {
                   <PlaceCard
                     variant="preview"
                     preview={candidate}
+                    saveAction={<Pressable accessibilityRole="button" accessibilityLabel={t('placeDetail.save')} accessibilityHint={t('placeImport.saveLocked')} accessibilityState={{ disabled: true }} disabled style={styles.previewSave}><MaterialIcon name="bookmark" color="redesign.outline" /></Pressable>}
                     style={styles.resultCard}
                     categoryLabel={candidate.categoryKey ? taxonomyOptions('category').find((option) => option.key === candidate.categoryKey)?.label : null}
                   >
@@ -526,7 +529,6 @@ export default function PlaceImportScreen() {
                       </View>
                     ) : null}
 
-                    <GhostBtn label={t('placeDetail.save')} disabled onPress={() => {}} accessibilityHint={t('placeImport.saveLocked')} />
                     <Text variant="caption" color="text.secondary">
                       {t('placeImport.saveLocked')}
                     </Text>

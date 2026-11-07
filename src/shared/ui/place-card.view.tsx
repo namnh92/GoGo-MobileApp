@@ -26,8 +26,8 @@ import { MaterialIcon } from './material-icon'
 import { Text } from '@/shared/ui/text'
 
 import { usePlaceClock } from './use-place-clock'
-import { RatingChips } from './rating-chips.view'
 import { styles } from './place-card.style'
+import { Skeleton } from './skeleton.view'
 
 /**
  * The one Place Card (spec §21, #293 §3).
@@ -302,6 +302,7 @@ export interface PlacePreviewProps {
   preview: NonNullable<ResolveLinkResult['candidate']>
   categoryLabel?: string | null
   children?: ReactNode
+  saveAction?: ReactNode
   style?: StyleProp<ViewStyle>
 }
 
@@ -309,28 +310,55 @@ export function PlaceCard(props: PlaceCardProps | PlacePreviewProps) {
   return 'preview' in props ? <PreviewCard {...props} /> : <CanonicalPlaceCard {...props} />
 }
 
-function PreviewCard({ preview, categoryLabel, children, style }: PlacePreviewProps) {
-  const { t } = useTranslation()
+function PreviewCard({ preview, categoryLabel, children, saveAction, style }: PlacePreviewProps) {
+  const { t, i18n } = useTranslation()
   const now = usePlaceClock()
   const candidatePhoto = useCandidatePhoto(preview)
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null)
-  const photo = candidatePhoto?.uri !== failedPhoto ? candidatePhoto : null
+  const photo = candidatePhoto.photo?.uri !== failedPhoto ? candidatePhoto.photo : null
   const open = openStateFromHours(preview.openingHours, now)
   const closing = formatMinuteOfDay(open.closesAtMinute)
+  const openLabel = open.openNow == null ? null : open.openNow
+    ? closing ? t('discovery.openUntil', { time: closing }) : t('common.open')
+    : t('common.closed')
+  const hours = preview.openingHours ?? []
+  const daily = hours.length === 7 && new Set(hours.map(hour => hour.dayOfWeek)).size === 7
+    && hours.every(hour => hour.openMinute === hours[0].openMinute && hour.closeMinute === hours[0].closeMinute && hour.isOvernight === hours[0].isOvernight)
+  const schedules = (daily ? hours.slice(0, 1) : hours).map(hour => ({
+    key: `${hour.dayOfWeek}-${hour.openMinute}`,
+    label: `${formatMinuteOfDay(hour.openMinute)} - ${formatMinuteOfDay(hour.closeMinute)} ${t(daily ? 'placeImport.daily' : `common.weekday.${hour.dayOfWeek}`)}`,
+  }))
+  const hasPhoto = candidatePhoto.status === 'loading' || !!photo
   return (
-    <Card padded={false} style={[styles.listCard, style]}>
-      {photo ? <View style={styles.listPhoto}><Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /></View> : null}
-      <View style={styles.listBody}>
-        <Text variant="caption" color="text.secondary">{t('placeImport.verifiedBadge')}</Text>
-        <Text variant="title1">{preview.name}</Text>
-        {preview.address ? <Text color="text.secondary">{preview.address}</Text> : null}
-        {categoryLabel ? <Text variant="bodySmall">{categoryLabel}</Text> : null}
-        <RatingChips place={{ rating: preview.googleRating ?? undefined, ratingCount: preview.googleRatingCount ?? undefined, ratingSource: 'google' }} />
-        {open.openNow != null ? <Text variant="bodySmall">{open.openNow ? closing ? t('search.openUntil', { time: closing }) : t('common.open') : t('common.closed')}</Text> : null}
-        {photo ? <Text variant="caption" color="text.secondary">{photo.credit}</Text> : null}
-        {children}
-        {(preview.attributions ?? []).map(attribution => <Text key={attribution} variant="caption" color="text.secondary">{attribution}</Text>)}
+    <View style={style}>
+      <View testID="import-preview-card" style={styles.importCard}>
+        {hasPhoto ? <View testID="import-preview-photo-frame" style={styles.listPhoto}>
+          {candidatePhoto.status === 'loading' ? (
+            <View testID="import-candidate-photo-loading" style={styles.photoSkeleton} accessible accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}>
+              <Skeleton style={styles.photoSkeleton} />
+            </View>
+          ) : null}
+          {photo ? <Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /> : null}
+          <View style={styles.importVerified}><MaterialIcon name="checkCircle" size={16} color="redesign.importPhotoBadgeText" /><Text numberOfLines={1} variant="introLabel" color="redesign.importPhotoBadgeText">{t('placeImport.extractedBadge')}</Text></View>
+          {saveAction ? <View style={styles.importSave}>{saveAction}</View> : null}
+          {openLabel ? <View style={styles.importHoursOverlay}><Text variant="introCaption" color="redesign.white">{open.openNow ? '● ' : ''}{openLabel}</Text></View> : null}
+        </View> : null}
+        <View style={styles.importBody}>
+          {!hasPhoto ? <View style={styles.importNoPhotoHead}><View style={styles.importVerifiedInline}><MaterialIcon name="checkCircle" size={16} color="redesign.greenText" /><Text numberOfLines={1} variant="introLabel" color="redesign.greenText">{t('placeImport.extractedBadge')}</Text></View>{saveAction}</View> : null}
+          <View style={styles.listHead}>
+            <Text variant="introSection" color="redesign.ink">{preview.name}</Text>
+            {preview.address ? <View style={styles.addressRow}><MaterialIcon name="location" size={18} color="redesign.outline" /><Text variant="introBody" color="redesign.secondary" style={styles.addressText}>{preview.address}</Text></View> : null}
+          </View>
+          {categoryLabel ? <Text variant="introSmall" color="redesign.secondary">{categoryLabel}</Text> : null}
+          {preview.googleRating != null || schedules.length > 0 ? <View style={styles.importFacts}>
+            {preview.googleRating != null ? <View style={styles.importFact}><Text variant="introLabel" color="redesign.ink">★ {formatRating(preview.googleRating, i18n.language)}</Text><Text variant="introCaption" color="redesign.secondary">{preview.googleRatingCount != null ? `(${formatCount(preview.googleRatingCount, i18n.language)}) ` : ''}Google</Text></View> : null}
+            {schedules.map(schedule => <View key={schedule.key} style={styles.importFact}><MaterialIcon name="clock" size={15} color="redesign.secondary" /><Text variant="introSmall" color="redesign.secondary">{schedule.label}</Text></View>)}
+          </View> : null}
+          {photo ? <Text variant="introCaption" color="redesign.secondary">{photo.credit}</Text> : null}
+          {(preview.attributions ?? []).map(attribution => <Text key={attribution} variant="introCaption" color="redesign.secondary">{attribution}</Text>)}
+        </View>
       </View>
-    </Card>
+      {children ? <View style={styles.importActions}>{children}</View> : null}
+    </View>
   )
 }

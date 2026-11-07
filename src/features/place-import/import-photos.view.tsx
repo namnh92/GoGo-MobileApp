@@ -57,7 +57,11 @@ export function ImportPhotos({ photos, onChange }: { photos: string[]; onChange:
 
   return (
     <View style={styles.photoSection}>
-      <GhostBtn label={t('placeImport.addPhotos')} onPress={() => void pick()} loading={picking} disabled={photos.length >= MAX_PHOTOS} />
+      <View style={styles.photoHeading}>
+        <Text variant="introHeading" color="redesign.ink">{t('placeImport.photoHeading')}</Text>
+        <Text variant="introCaption" color="redesign.secondary">{photos.length}/{MAX_PHOTOS}</Text>
+      </View>
+      <GhostBtn label={t('placeImport.addPhotos')} onPress={() => void pick()} loading={picking} disabled={photos.length >= MAX_PHOTOS} style={styles.photoPicker} />
       <Text variant="caption" color="text.secondary">
         {t('placeImport.photosOptional', { count: photos.length, max: MAX_PHOTOS })}
       </Text>

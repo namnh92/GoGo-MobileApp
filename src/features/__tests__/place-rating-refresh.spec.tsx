@@ -29,7 +29,7 @@ jest.mock('@/shared/api', () => ({
 
 import PlaceDetailScreen from '@/features/date-plan/place-detail.view'
 
-const detail: PlaceDetail = { id: 'p', name: 'Quán thử', gogoRatingCount: 8, gogoRating: 4.8 }
+const detail: PlaceDetail = { id: 'p', name: 'Quán thử', gogoRatingCount: 8, gogoRating: 4.8, checkedInGroupCount: 0 }
 const page = (count: number, rating?: number): PlaceReviewPreview => ({
   source: 'gogo', order: 'latest', gogoRatingCount: count, gogoRating: rating,
   reviews: [], items: [{ id: 'r', rating: 5, helpfulCount: 0, author: { displayName: 'Lan' }, createdAt: '2026-11-07T00:00:00Z' }],
