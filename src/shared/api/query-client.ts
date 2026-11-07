@@ -177,8 +177,8 @@ export const queryPersister: Persister = {
 
 /**
  * Logout must leave no room data behind (RULE-MOB-OFFLINE). Clears the
- * account cache and the persisted copy. Public administrative and taxonomy queries survive
- * so observers keep the startup version check across session boundaries.
+ * account cache and the persisted copy. Public reference data, place details,
+ * summaries and provider photos survive in memory across session boundaries.
  */
 export async function purgeCachedUserData(queryClient: QueryClient, scope = captureSessionScope()): Promise<void> {
   scope.assert()

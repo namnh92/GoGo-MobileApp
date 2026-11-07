@@ -6,6 +6,7 @@ import { getCurrentPlan, getPlan } from '@/shared/api/endpoints/plans'
 import { getRoom } from '@/shared/api/endpoints/rooms'
 import { isApiError } from '@/shared/api/errors'
 import { queryKeys } from '@/shared/api/query-keys'
+import { captureSessionScope, SessionCancelledError } from '@/shared/api/session'
 import { isUuid, type DeepLinkAction } from '@/shared/navigation/deep-link'
 import { openDeepLinkAction } from '@/shared/navigation/open-deep-link'
 
@@ -62,8 +63,10 @@ type Read<T> = { state: 'fresh'; data: T } | { state: 'refused'; status: number 
  * request fails fast and the target opens in its own offline state.
  */
 async function read<T>(queryClient: QueryClient, queryKey: QueryKey, queryFn: () => Promise<T>): Promise<Read<T>> {
+  const scope = captureSessionScope()
   try {
     await queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
+    scope.assert()
     const data = await queryClient.fetchQuery({
       queryKey,
       queryFn,
@@ -71,8 +74,13 @@ async function read<T>(queryClient: QueryClient, queryKey: QueryKey, queryFn: ()
       retry: false,
       networkMode: 'always',
     })
+    scope.assert()
     return { state: 'fresh', data }
   } catch (error) {
+    // The query cache may surface TanStack's cancellation instead of the HTTP
+    // error. Preserve the ended session's cancellation in either case.
+    scope.assert()
+    if (error instanceof SessionCancelledError) throw error
     return isApiError(error) && REFUSED.has(error.status)
       ? { state: 'refused', status: error.status }
       : { state: 'unknown' }

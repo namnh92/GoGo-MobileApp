@@ -14,10 +14,10 @@ export function bindSessionCaches(client: QueryClient): void {
     const scope = captureSessionScope()
     scope.signal.addEventListener('abort', () => {
       watchLifetime()
-      // Stop old requests, retaining the last public snapshot and its observers.
-      // Startup checks the administrative version once per app lifetime.
+      // Retain public snapshots and observers, restoring a settled fetch state.
       for (const query of client.getQueryCache().getAll()) {
-        if (isPublicAppQuery(query.queryKey)) void query.cancel({ silent: true })
+        if (!isPublicAppQuery(query.queryKey)) continue
+        void query.cancel({ revert: true })
       }
       for (const [owner, work] of cancellations) {
         if (!work.scope.signal.aborted) continue
@@ -93,11 +93,23 @@ export function bindSessionCaches(client: QueryClient): void {
     if (event.type === 'removed') cancellations.delete(event.query)
     if (event.type !== 'added') return
     const query = event.query
-    // Public queries may fetch again in any session; never bind their fetch
-    // function to the account that happened to create the cache entry.
-    if (isPublicAppQuery(query.queryKey)) return
-    const scope = captureSessionScope()
     const fetch = query.fetch.bind(query)
+    // Initial public reads must resolve even if several session boundaries
+    // interrupt startup. Keep their original waiters, including disabled
+    // picker observers, attached until a new epoch supplies an answer.
+    if (isPublicAppQuery(query.queryKey)) {
+      query.fetch = async (options, fetchOptions) => {
+        for (;;) {
+          const scope = captureSessionScope()
+          try { return await fetch(options, fetchOptions) } catch (error) {
+            if (!scope.signal.aborted || query.state.data !== undefined
+              || queries.get(query.queryHash) !== query) throw error
+          }
+        }
+      }
+      return
+    }
+    const scope = captureSessionScope()
     query.fetch = async (options, fetchOptions) => {
       scope.assert()
       const source = options ?? query.options
