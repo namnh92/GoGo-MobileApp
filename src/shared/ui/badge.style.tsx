@@ -1,3 +1,4 @@
+import type { BadgeTone } from './badge.view'
 import { StyleSheet } from 'react-native-unistyles'
 
 /**
@@ -5,6 +6,14 @@ import { StyleSheet } from 'react-native-unistyles'
  * test measures at ≥ 4.5:1 (`__tests__/contrast.test.ts`).
  */
 export const styles = StyleSheet.create(theme => ({
+  solid: (tone: BadgeTone) => ({ backgroundColor: {
+    accent: theme.accent.primary,
+    neutral: theme.mode === 'dark' ? theme.surface.subtle : theme.text.secondary,
+    info: theme.mode === 'dark' ? theme.status.infoSoft : theme.status.infoText,
+    success: theme.mode === 'dark' ? theme.status.successSoft : theme.status.successText,
+    warning: theme.mode === 'dark' ? theme.status.warningSoft : theme.status.warningText,
+    danger: theme.mode === 'dark' ? theme.status.dangerSoft : theme.status.dangerText,
+  }[tone] }),
   stitchNeutral: { backgroundColor: theme.redesign.low, paddingVertical: 4, gap: 4 },
   stitchViolet: { backgroundColor: theme.redesign.violetSoft, paddingHorizontal: 12, paddingVertical: 4, gap: 4 },
   stitchGreen: { backgroundColor: theme.redesign.recommendationFill, gap: 4 },

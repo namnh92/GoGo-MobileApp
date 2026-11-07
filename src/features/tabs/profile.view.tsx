@@ -68,7 +68,7 @@ export default function ProfileScreen() {
   const shortcuts = [
     { key: 'saved', route: '/(tabs)/saved', count: canRead ? saved.data?.length : undefined, userOnly: true },
     { key: 'plans', route: '/(tabs)/plans', count: undefined, userOnly: false },
-    { key: 'reviews', route: '/settings/reviews', count: canRead ? reviews.data?.length : undefined, userOnly: true },
+    { key: 'reviews', route: '/me/contributions?tab=reviews', count: canRead ? reviews.data?.length : undefined, userOnly: true },
   ]
   async function signOutNow() {
     setSigningOut(true)

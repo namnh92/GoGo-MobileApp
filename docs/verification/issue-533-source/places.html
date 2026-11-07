@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Đóng góp của tôi v2 - GoGo</title>
+<!-- Tailwind CSS v3 with Forms & Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Font Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#CE391B',
+              dark: '#B32F15',
+              light: '#FDEEEB',
+            },
+            canvas: '#FAF8F5',
+            surface: '#FFFFFF',
+            warmgray: {
+              50: '#F9F8F6',
+              100: '#F2EFEB',
+              200: '#E5E0D8',
+              300: '#D3CCC1',
+              400: '#A39B8F',
+              500: '#736B60',
+              600: '#4D473E',
+            }
+          },
+          boxShadow: {
+            'card': '0 2px 10px rgba(0, 0, 0, 0.04)',
+            'nav': '0 -2px 12px rgba(0, 0, 0, 0.05)',
+            'float': '0 6px 18px rgba(206, 57, 27, 0.28)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="scrollbar-and-helpers">
+    /* Hide horizontal scrollbar for filter chips */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    body {
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body class="bg-[#ECE7E1] flex justify-center items-center min-h-screen py-0 sm:py-6 text-stone-900 antialiased selection:bg-brand/10 selection:text-brand">
+<!-- BEGIN: Mobile Container (iOS viewport standard) -->
+<main class="w-full max-w-[420px] bg-canvas min-h-screen sm:min-h-[900px] sm:max-h-[920px] sm:rounded-[40px] shadow-2xl flex flex-col relative overflow-hidden border border-stone-200/70" data-purpose="mobile-shell">
+<!-- BEGIN: iOS Status Bar Notch/Spacing Simulator -->
+<header class="pt-3 pb-1 px-7 flex justify-between items-center text-xs font-semibold text-stone-900 select-none bg-canvas z-30" data-purpose="ios-status-bar">
+<span>9:41</span>
+<div class="flex items-center space-x-1.5">
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"></path></svg>
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 24 24"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4z"></path></svg>
+<div class="w-5 h-2.5 border border-stone-800 rounded-sm p-0.5 flex items-center">
+<div class="w-full h-full bg-stone-800 rounded-2xs"></div>
+</div>
+</div>
+</header>
+<!-- END: iOS Status Bar Notch/Spacing Simulator -->
+<!-- BEGIN: Top Navigation Header -->
+<section class="px-5 py-3 flex items-center justify-between bg-canvas sticky top-0 z-20" data-purpose="top-navigation">
+<!-- Back Button -->
+<button aria-label="Quay lại" class="h-11 w-11 rounded-full flex items-center justify-center bg-white border border-stone-200/80 shadow-sm active:scale-95 transition-transform text-stone-800 hover:text-stone-950" type="button">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M15.75 19.5L8.25 12l7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Screen Title -->
+<h1 class="font-bold text-lg text-stone-900 tracking-tight text-center">Đóng góp của tôi</h1>
+<!-- Bell / Notification Button -->
+<button aria-label="Thông báo" class="h-11 w-11 rounded-full flex items-center justify-center bg-white border border-stone-200/80 shadow-sm relative active:scale-95 transition-transform text-stone-800 hover:text-stone-950" type="button">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<!-- Unread badge indicator -->
+<span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-brand ring-2 ring-white"></span>
+</button>
+</section>
+<!-- END: Top Navigation Header -->
+<!-- BEGIN: Primary Segmented Control (Tabs) -->
+<section class="px-5 pt-1 pb-3" data-purpose="segmented-tabs">
+<div class="bg-stone-200/70 p-1 rounded-2xl flex items-center text-sm font-medium">
+<button aria-selected="true" class="flex-1 py-2.5 rounded-xl text-center font-semibold text-white bg-brand shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5" id="tabPlacesBtn" onclick="switchMainTab('places')" type="button">
+<span>Địa điểm</span>
+<span class="text-xs bg-white/20 px-1.5 py-0.5 rounded-full font-medium">3</span>
+</button>
+<button aria-selected="false" class="flex-1 py-2.5 rounded-xl text-center font-medium text-stone-600 hover:text-stone-900 transition-all duration-200 flex items-center justify-center gap-1.5" id="tabReviewsBtn" onclick="switchMainTab('reviews')" type="button">
+<span>Đánh giá</span>
+<span class="text-xs bg-stone-300/80 text-stone-700 px-1.5 py-0.5 rounded-full font-medium">5</span>
+</button>
+</div>
+</section>
+<!-- END: Primary Segmented Control -->
+<!-- Scrollable Content Area -->
+<div class="flex-1 overflow-y-auto no-scrollbar pb-28" data-purpose="scrollable-container">
+<!-- ========================================================================= -->
+<!-- BEGIN: Segment 1 - Places Content Pane -->
+<!-- ========================================================================= -->
+<div class="space-y-4 px-5 pt-1" id="placesContentPane">
+<!-- Filter Chips Carousel for Places -->
+<div class="flex items-center space-x-2 overflow-x-auto no-scrollbar py-1" data-purpose="places-filter-chips">
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-semibold rounded-full bg-stone-900 text-white shadow-xs" type="button">
+            Tất cả (3)
+          </button>
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-medium rounded-full bg-white text-stone-700 border border-stone-200 hover:border-stone-300" type="button">
+            Đang chờ duyệt (1)
+          </button>
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-medium rounded-full bg-white text-stone-700 border border-stone-200 hover:border-stone-300" type="button">
+            Đã duyệt (1)
+          </button>
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-medium rounded-full bg-white text-stone-700 border border-stone-200 hover:border-stone-300" type="button">
+            Bị từ chối (1)
+          </button>
+</div>
+<!-- Place Cards List -->
+<div class="space-y-4" data-purpose="place-cards-list">
+<!-- Card 1: Đang chờ duyệt -->
+<article class="bg-white rounded-3xl overflow-hidden border border-stone-200/80 shadow-card transition-transform active:scale-[0.99] cursor-pointer" data-purpose="place-card-pending">
+<div class="relative h-44 w-full bg-stone-200">
+<img alt="Kem Tràng Tiền" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDwZM9CbS5E6TuO8j0NeRCcy3CCxVO7hDt9gUbQy1mNebpz-Ia2GGJaq6isJrjD1tDtd11sY1xGtQFuBDOxlYC5KGJ6dW3DbX1WwR_bpGDNV-dHFrt-85oBEJRKv_kmDIZJ3oZ5r-O_qJKnXRam_lkeSF2FTfd3welbB4SBv3t_1-olpaRmosQ4PT7gWn7dOV2goU9vYkumTlHvY63Ofwi4M1e4Qdq-YNVF6oVB4SuwcIGUQImC7dCtPY8uXwmlp6GQbyR85SMPOIW"/>
+<!-- Status Badge: Pending -->
+<div class="absolute top-3 left-3 bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Đang chờ duyệt</span>
+</div>
+<!-- Bookmark / Save Icon Affordance -->
+<div class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-stone-700 shadow-sm">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+</div>
+<!-- Card Content Body -->
+<div class="p-4">
+<div class="flex items-start justify-between">
+<div>
+<h2 class="font-bold text-base text-stone-900 leading-snug">Kem Tràng Tiền</h2>
+<p class="text-xs text-stone-500 flex items-center gap-1 mt-1 font-normal">
+<svg class="w-3.5 h-3.5 text-stone-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="truncate">35 Tràng Tiền, Hoàn Kiếm, Hà Nội</span>
+</p>
+</div>
+</div>
+<div class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
+<span>Gửi ngày 07/11/2026</span>
+<span class="font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">Đang kiểm duyệt nội dung</span>
+</div>
+</div>
+</article>
+<!-- Card 2: Đã duyệt -->
+<article class="bg-white rounded-3xl overflow-hidden border border-stone-200/80 shadow-card transition-transform active:scale-[0.99] cursor-pointer" data-purpose="place-card-approved">
+<div class="relative h-44 w-full bg-stone-200">
+<img alt="Cộng Cà Phê Hàng Bè" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCQN1-BOfYOnCb5dVZTIifzAA49zSnwYWTiiNbeUD4qh0D9SqwnhdBGiYmMPWqKIZp7Igg5Yfi0Yr35Xwe7P5aW44fUcR4Nvi7Rern3rn_axhuiHsZ_2LXZtf0W_qb5FC3akRdLNbrwKKDjTh2uCj0_NTYnjnxYs8mb05JsqndIZFu6e1QAj-D4MUSmDycZx5L3Et4KkoHfWO3PCVaBHOza6WdNeMOzbkMPpqPebJ5rhIr77hXallASAocqy70TcUspf0E-t3zdufp"/>
+<!-- Status Badge: Approved -->
+<div class="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Đã duyệt</span>
+</div>
+<div class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-stone-700 shadow-sm">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+</div>
+<!-- Card Content Body -->
+<div class="p-4">
+<div>
+<h2 class="font-bold text-base text-stone-900 leading-snug">Cộng Cà Phê Hàng Bè</h2>
+<p class="text-xs text-stone-500 flex items-center gap-1 mt-1 font-normal">
+<svg class="w-3.5 h-3.5 text-stone-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="truncate">35A Hàng Bè, Hàng Bạc, Hoàn Kiếm, Hà Nội</span>
+</p>
+</div>
+<div class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
+<span class="text-stone-500">Gửi ngày 07/11/2026</span>
+<span class="font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60 flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  Đã xuất hiện trên GoGo
+                </span>
+</div>
+</div>
+</article>
+<!-- Card 3: Bị từ chối -->
+<article class="bg-white rounded-3xl overflow-hidden border border-stone-200/80 shadow-card transition-transform active:scale-[0.99] cursor-pointer" data-purpose="place-card-rejected">
+<div class="relative h-44 w-full bg-stone-200">
+<img alt="Bún chả Hương Liên" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0NFhZ7ozk9Jz7m4-geAROnokvhHsYyjOxehq2qAplznh-1b-Dv2NtfPiU7aingXx4zRt33MWzptiApBk-vqZxM9iavSiG5_IyTQAE_4tj-JFMUK2kFMWKhqwLEq7wbT7CmwV4UC8GW1ZlpJ2qUQ7u665sQAu30_LTh32dcicrGGtFjuL3iQ0prvHGmViNF9Vcab02KwKy7bA9VZvIWqqs2S87dfxVW92lhiIPvEqCXCEyfMrevO6f4Gu1pOPSrWNgGOTaN7D1qgas"/>
+<!-- Status Badge: Rejected -->
+<div class="absolute top-3 left-3 bg-rose-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Bị từ chối</span>
+</div>
+<div class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-stone-700 shadow-sm">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+</div>
+<!-- Card Content Body -->
+<div class="p-4 space-y-2.5">
+<div>
+<h2 class="font-bold text-base text-stone-900 leading-snug">Bún chả Hương Liên</h2>
+<p class="text-xs text-stone-500 flex items-center gap-1 mt-1 font-normal">
+<svg class="w-3.5 h-3.5 text-stone-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="truncate">24 Lê Văn Hưu, Phan Chu Trinh, Hai Bà Trưng, Hà Nội</span>
+</p>
+</div>
+<!-- Rejection Reason Alert Box -->
+<div class="bg-rose-50 border border-rose-200/80 rounded-xl px-3 py-2 flex items-center gap-2 text-rose-800 text-xs">
+<svg class="w-4 h-4 shrink-0 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="font-medium truncate">Lý do: Trùng địa điểm đã có</span>
+</div>
+<div class="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
+<span class="text-stone-500">Gửi ngày 07/11/2026</span>
+<button class="text-brand font-semibold hover:underline" type="button">Bổ sung thông tin khác</button>
+</div>
+</div>
+</article>
+</div>
+</div>
+<!-- END: Segment 1 - Places Content Pane -->
+<!-- ========================================================================= -->
+<!-- BEGIN: Segment 2 - Reviews Content Pane (Hidden by Default) -->
+<!-- ========================================================================= -->
+<div class="space-y-4 px-5 pt-1 hidden" id="reviewsContentPane">
+<!-- Filter Chips for Reviews -->
+<div class="flex items-center space-x-2 overflow-x-auto no-scrollbar py-1" data-purpose="reviews-filter-chips">
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-semibold rounded-full bg-stone-900 text-white shadow-xs" type="button">
+            Tất cả (5)
+          </button>
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-medium rounded-full bg-white text-stone-700 border border-stone-200" type="button">
+            Đã hiển thị (3)
+          </button>
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-medium rounded-full bg-white text-stone-700 border border-stone-200" type="button">
+            Chờ duyệt (1)
+          </button>
+<button class="whitespace-nowrap px-3.5 py-1.5 text-xs font-medium rounded-full bg-white text-stone-700 border border-stone-200" type="button">
+            Bị từ chối (1)
+          </button>
+</div>
+<!-- Info Note Box for Reviews -->
+<div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3 flex items-start gap-2.5 text-xs text-indigo-900">
+<svg class="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<p class="leading-relaxed">Đánh giá sau khi sửa đổi sẽ được hệ thống kiểm duyệt lại trước khi hiển thị công khai.</p>
+</div>
+<!-- Review Cards List -->
+<div class="space-y-4" data-purpose="review-cards-list">
+<!-- Review Card 1: The Workshop Coffee (Đã hiển thị) -->
+<article class="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-card space-y-3" data-purpose="review-card-published">
+<!-- Header: thumbnail, name, status -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<img alt="The Workshop Coffee" class="w-12 h-12 rounded-2xl object-cover border border-stone-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUmGn-ws5ViiQ76sTYX2RtsRP1LgXZbQIPc9QpUOm1VtQZWcEZRSU0cdcZFc_uzIx_9mWb3jV927RvP4irQwIBqYsDdSHjfSbAYbe-xCcl-YzmOa8p8Ir6IyWKG62XibVA97U9EiCxiI-XVn7jvc2OyoYpXsZCkrtEkfYp0aWC7PJty1JvZ8SloiWLyr1RkL99BU5n9aIJ42FSqApBNd0MwuHW002z2x50m7vHtUE7O2m71l3E6uQt1PHj_MVuk0dgdY8W7CNe8ap0"/>
+<div>
+<h2 class="font-bold text-sm text-stone-900">The Workshop Coffee</h2>
+<p class="text-xs text-stone-500">Ngô Đức Kế, Bến Nghé, Quận 1</p>
+</div>
+</div>
+<span class="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60">Đã hiển thị</span>
+</div>
+<!-- Stars & Date -->
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-1 text-amber-500">
+<span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+<span class="font-bold text-stone-800 ml-1">5.0</span>
+</div>
+<span class="text-stone-400">12 thg 10, 2024</span>
+</div>
+<!-- Review Text Clamp -->
+<p class="text-xs text-stone-700 leading-relaxed line-clamp-2">
+              Không gian tầng 2 giữ nét công nghiệp mộc rất riêng ở Sài Gòn. Hạt Gesha pha V60 hương hoa cam rõ rệt, hậu vị ngọt thanh mát. Điểm...
+            </p>
+<!-- Review Image Thumbnails (up to 3) with overlay badge -->
+<div class="grid grid-cols-3 gap-2 pt-1">
+<div class="h-20 rounded-xl overflow-hidden bg-stone-100">
+<img alt="Review Photo 1" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSkx0ZWhv3BfPxjB8vHcX-pY6oufQTlDhXKYG4GAQSE4PCe28iHr7wf-L60qbb8i69y-am90fk0mI4tsVVxpQMAbth5BH5qT78ZhNlhryU_KwEV_NvnOnu4xA6IyBlCLUzGXawFhnTR-dgUCU-gIS9fNCgLL6EIIDCfLnRFioILFz1VOeCNQ7uD8gd79_-1yOXNmvc0EbHOE6UvTM_eifRu7_LNcl5xUFwEtn4p9zyfty1fb8ygCUkolNoc0a_shwlpAH7PTu0MytU"/>
+</div>
+<div class="h-20 rounded-xl overflow-hidden bg-stone-100">
+<img alt="Review Photo 2" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOO0CnEz1pCkn49ok9LJFZNk2HQsfpl0rYbbnIhsj9tKqFuq4Y3bRSgLX2r4331ZqwqTtg6gozhLe1FYZB8RlI-Gba4Ki-R2QN0jaLMULznS0GfdHDxMjGiesiMhLw7WKS1LyELffaidVwhUftEAZdPw5jBog7_4BKYzKYvLx_PBSc3Pai_CadgoRKKOVaNRSALKHg2t22TQVxqk9zk4pc0PMFuRHewGhYU4VA-GenspUCqXc17zRtGUiqLEAwjCyjJ-8TXppSXXh6"/>
+</div>
+<div class="h-20 rounded-xl overflow-hidden bg-stone-100 relative">
+<img alt="Review Photo 3" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdsdvjON42OpeSPoXcnCe-6CxYu9h0RNSiWK8HYGvkGHKXuA55L5-mz-AtcR0bHxVR4FICQZq-y9_AjidVqE66GhzOx9avF41YSkzUXH_U5YtmFISrbIQ_KV1xUn-4TYIuiZn25CghJAD38EQgahMLNIvAL-uRvnjMgLJ0QVwShvVuBG34WszadBgUMCHI0P8okhF5XevTWx4twHR02CvvovAsuSLrZzJgNhnWM0UIJ84n8Emj-Hmw4LuCxR6wO3MbX-CcT8kk_tVN"/>
+<div class="absolute inset-0 bg-stone-900/50 flex items-center justify-center text-white font-semibold text-xs backdrop-blur-2xs">
+                  +2 ảnh
+                </div>
+</div>
+</div>
+<!-- Footer Action Button -->
+<div class="pt-2 border-t border-stone-100 flex items-center justify-between">
+<span class="text-xs text-stone-500 flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-stone-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.25" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Hữu ích · 42
+              </span>
+<button class="text-xs font-semibold px-3 py-1.5 rounded-xl border border-stone-200 text-stone-700 hover:bg-stone-50 flex items-center gap-1" type="button">
+<svg class="w-3.5 h-3.5 text-stone-500" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Sửa đánh giá
+              </button>
+</div>
+</article>
+<!-- Review Card 2: Mơ Concept & Roastery (Chờ duyệt) -->
+<article class="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-card space-y-3" data-purpose="review-card-pending">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<img alt="Mơ Concept &amp; Roastery" class="w-12 h-12 rounded-2xl object-cover border border-stone-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHmz5u5M9URm91380u3oXGXSXbZniZuXdUovzW3BXfDIFELVlYdaHMWdJAMf11e54Z2ScOEg4gHUVxGTAQ5LNbToAehJ8khyKD6_TeVstbiheZWIGXxOy2JHFH5S6YrL7NmFGcz9DMr3PP6BbQnaLdHVSzXkpOl1bZf0Hc6r2JO8ZvlGh_IwNN60sZHKr59RQIFTlTYjTVZodzliA2zhslUNNrRKIlQtkjxsv00GNLaHUpYEhKUH3Mn3H3x8SAwfYzMf5RQv1C1RXW"/>
+<div>
+<h2 class="font-bold text-sm text-stone-900">Mơ Concept &amp; Roastery</h2>
+<p class="text-xs text-stone-500">Võ Thị Sáu, Quận 3</p>
+</div>
+</div>
+<span class="text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/60">Chờ duyệt</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-1 text-amber-500">
+<span>★</span><span>★</span><span>★</span><span>★</span><span class="text-stone-300">★</span>
+<span class="font-bold text-stone-800 ml-1">4.0</span>
+</div>
+<span class="text-stone-400">Hôm nay, 10:15</span>
+</div>
+<p class="text-xs text-stone-700 leading-relaxed line-clamp-2">
+              Quán thiết kế tone kem beige êm dịu, chỗ ngồi có nhiều ổ cắm tiện làm việc. Bánh...
+            </p>
+<div class="pt-2 border-t border-stone-100 flex items-center justify-end">
+<button class="text-xs font-semibold px-3 py-1.5 rounded-xl border border-stone-200 text-stone-700 hover:bg-stone-50 flex items-center gap-1" type="button">
+<svg class="w-3.5 h-3.5 text-stone-500" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Sửa đánh giá
+              </button>
+</div>
+</article>
+<!-- Review Card 3: Quán Cà Phê Cũ (Bị từ chối) -->
+<article class="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-card space-y-3" data-purpose="review-card-rejected">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<img alt="Quán Cà Phê Cũ" class="w-12 h-12 rounded-2xl object-cover border border-stone-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5YRFDaJ678LU8pN_nS-w6L0YHufJU-bKhAlujtJ_SMM3qsurPzwpHT158rva3ij8hlvFVxi414_nFQ3oaVt60XBtzQTOzWVYzXRavV9jk3VKPgJhDJJsOO3uQ9wXiHmsXl5givrotWOs-pF1u6bgU0vxOh2hRbFKrYRafrSD83mxy_P3dFZFIH_ARITxvmoZBZu1RC6JX5DJDiyZWG3Cy8aWcTJvZfDyr-2NUDyviUnaKIq7qnOse5usufioSwjuNJInNqQQGKbYp"/>
+<div>
+<h2 class="font-bold text-sm text-stone-900">Quán Cà Phê Cũ</h2>
+<p class="text-xs text-stone-500">Nguyễn Đình Chiểu, Quận 3</p>
+</div>
+</div>
+<span class="text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200/60">Bị từ chối</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-1 text-amber-500">
+<span>★</span><span>★</span><span class="text-stone-300">★</span><span class="text-stone-300">★</span><span class="text-stone-300">★</span>
+<span class="font-bold text-stone-800 ml-1">2.0</span>
+</div>
+<span class="text-stone-400">05 thg 10, 2024</span>
+</div>
+<!-- Rejection Alert Box -->
+<div class="bg-rose-50 border border-rose-200/80 rounded-xl p-2.5 text-xs text-rose-800 flex items-start gap-2">
+<svg class="w-4 h-4 text-rose-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<div>
+<p class="font-semibold">Lý do từ chối:</p>
+<p class="mt-0.5 text-rose-700">Nội dung chưa đủ chi tiết trải nghiệm thực tế. Vui lòng bổ sung thêm thông tin về nước uống hoặc dịch vụ.</p>
+</div>
+</div>
+<p class="text-xs text-stone-600 italic">“Nước uống bình thường, phục vụ chậm chạp.”</p>
+<div class="pt-1 flex items-center justify-end">
+<button class="text-xs font-semibold px-3.5 py-2 rounded-xl bg-brand text-white hover:bg-brand-dark flex items-center gap-1.5 shadow-sm active:scale-95 transition-all" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Sửa đánh giá
+              </button>
+</div>
+</article>
+</div>
+</div>
+<!-- END: Segment 2 - Reviews Content Pane -->
+<!-- ========================================================================= -->
+<!-- BEGIN: Empty States Preview Section (Collapsible Showcase) -->
+<!-- ========================================================================= -->
+<section class="mt-8 px-5" data-purpose="empty-states-demo">
+<details class="group bg-warmgray-50 border border-stone-200/80 rounded-2xl overflow-hidden">
+<summary class="p-3.5 text-xs font-semibold text-stone-600 flex justify-between items-center cursor-pointer select-none">
+<span class="flex items-center gap-1.5">
+<svg class="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              Xem trước trạng thái trống (Empty states)
+            </span>
+<span class="text-stone-400 group-open:rotate-180 transition-transform">▼</span>
+</summary>
+<div class="p-4 pt-1 space-y-4 border-t border-stone-200/60 bg-white">
+<!-- Empty State: Places -->
+<div class="py-6 px-4 text-center rounded-2xl bg-canvas border border-dashed border-stone-300">
+<div class="w-12 h-12 mx-auto rounded-full bg-stone-100 flex items-center justify-center text-stone-400 mb-2">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<p class="text-xs font-semibold text-stone-800">Bạn chưa có đóng góp nào</p>
+<p class="text-2xs text-stone-500 mt-0.5">Chia sẻ những địa điểm thú vị đến cộng đồng GoGo</p>
+<button class="mt-3 text-xs font-semibold px-4 py-2 bg-brand text-white rounded-xl hover:bg-brand-dark transition-colors inline-block" type="button">
+                Thêm địa điểm
+              </button>
+</div>
+<!-- Empty State: Reviews -->
+<div class="py-6 px-4 text-center rounded-2xl bg-canvas border border-dashed border-stone-300">
+<div class="w-12 h-12 mx-auto rounded-full bg-stone-100 flex items-center justify-center text-stone-400 mb-2">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<p class="text-xs font-semibold text-stone-800">Bạn chưa viết đánh giá nào</p>
+<p class="text-2xs text-stone-500 mt-0.5">Ghi lại cảm nhận của bạn sau mỗi chuyến đi</p>
+<button class="mt-3 text-xs font-semibold px-4 py-2 border border-stone-300 text-stone-800 bg-white rounded-xl hover:bg-stone-50 transition-colors inline-block" type="button">
+                Khám phá địa điểm
+              </button>
+</div>
+</div>
+</details>
+</section>
+<!-- END: Empty States Preview Section -->
+</div>
+<!-- END: Scrollable Content Area -->
+<!-- BEGIN: Primary Action Floating Button -->
+<div class="absolute bottom-20 left-0 right-0 px-5 pointer-events-none z-30" data-purpose="floating-cta" id="stickyFabContainer">
+<button class="pointer-events-auto w-full py-3.5 bg-brand hover:bg-brand-dark active:scale-[0.98] text-white font-semibold rounded-2xl shadow-float flex items-center justify-center space-x-2 transition-all" type="button">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewbox="0 0 24 24">
+<path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-sm">Thêm địa điểm mới</span>
+</button>
+</div>
+<!-- END: Primary Action Floating Button -->
+<!-- BEGIN: Bottom Tab Bar -->
+<nav class="absolute bottom-0 left-0 right-0 h-18 bg-white/95 backdrop-blur-md border-t border-stone-200/90 px-6 flex items-center justify-between z-40 select-none shadow-nav" data-purpose="bottom-tab-bar">
+<!-- Tab 1: Khám phá -->
+<a class="flex flex-col items-center justify-center flex-1 py-1 text-stone-400 hover:text-stone-600 transition-colors" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M12 21a9 9 0 100-18 9 9 0 000 18z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M14.828 9.172l-4 1.656-1.656 4 4-1.656 1.656-4z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-medium mt-1">Khám phá</span>
+</a>
+<!-- Tab 2: Kế hoạch -->
+<a class="flex flex-col items-center justify-center flex-1 py-1 text-stone-400 hover:text-stone-600 transition-colors" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-medium mt-1">Kế hoạch</span>
+</a>
+<!-- Tab 3: Đã lưu -->
+<a class="flex flex-col items-center justify-center flex-1 py-1 text-stone-400 hover:text-stone-600 transition-colors" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-medium mt-1">Đã lưu</span>
+</a>
+<!-- Tab 4: Cá nhân (ACTIVE) -->
+<a aria-current="page" class="flex flex-col items-center justify-center flex-1 py-1 text-brand font-semibold relative" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewbox="0 0 24 24">
+<path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-semibold mt-1">Cá nhân</span>
+<!-- Active indicator dot -->
+<span class="w-1.5 h-1.5 bg-brand rounded-full absolute -bottom-1"></span>
+</a>
+</nav>
+<!-- END: Bottom Tab Bar -->
+</main>
+<!-- END: Mobile Container -->
+<!-- BEGIN: Interactive Tab Switching Script -->
+<script data-purpose="tab-switcher">
+    function switchMainTab(tabName) {
+      const placesPane = document.getElementById('placesContentPane');
+      const reviewsPane = document.getElementById('reviewsContentPane');
+      const tabPlacesBtn = document.getElementById('tabPlacesBtn');
+      const tabReviewsBtn = document.getElementById('tabReviewsBtn');
+      const stickyFabContainer = document.getElementById('stickyFabContainer');
+
+      if (tabName === 'places') {
+        placesPane.classList.remove('hidden');
+        reviewsPane.classList.add('hidden');
+        stickyFabContainer.classList.remove('hidden');
+
+        // Style Tab 1 Active
+        tabPlacesBtn.className = "flex-1 py-2.5 rounded-xl text-center font-semibold text-white bg-brand shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5";
+        tabPlacesBtn.setAttribute('aria-selected', 'true');
+        tabPlacesBtn.querySelector('span:last-child').className = "text-xs bg-white/20 px-1.5 py-0.5 rounded-full font-medium";
+
+        // Style Tab 2 Inactive
+        tabReviewsBtn.className = "flex-1 py-2.5 rounded-xl text-center font-medium text-stone-600 hover:text-stone-900 transition-all duration-200 flex items-center justify-center gap-1.5";
+        tabReviewsBtn.setAttribute('aria-selected', 'false');
+        tabReviewsBtn.querySelector('span:last-child').className = "text-xs bg-stone-300/80 text-stone-700 px-1.5 py-0.5 rounded-full font-medium";
+      } else {
+        placesPane.classList.add('hidden');
+        reviewsPane.classList.remove('hidden');
+        stickyFabContainer.classList.add('hidden'); // Reviews typically don't show the "Add Place" bottom FAB
+
+        // Style Tab 2 Active
+        tabReviewsBtn.className = "flex-1 py-2.5 rounded-xl text-center font-semibold text-white bg-brand shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5";
+        tabReviewsBtn.setAttribute('aria-selected', 'true');
+        tabReviewsBtn.querySelector('span:last-child').className = "text-xs bg-white/20 px-1.5 py-0.5 rounded-full font-medium";
+
+        // Style Tab 1 Inactive
+        tabPlacesBtn.className = "flex-1 py-2.5 rounded-xl text-center font-medium text-stone-600 hover:text-stone-900 transition-all duration-200 flex items-center justify-center gap-1.5";
+        tabPlacesBtn.setAttribute('aria-selected', 'false');
+        tabPlacesBtn.querySelector('span:last-child').className = "text-xs bg-stone-300/80 text-stone-700 px-1.5 py-0.5 rounded-full font-medium";
+      }
+    }
+  </script>
+<!-- END: Interactive Tab Switching Script -->
+</body></html>

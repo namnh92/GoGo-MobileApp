@@ -1,3 +1,4 @@
+import { useUnistyles } from 'react-native-unistyles'
 import { View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { Text, type TextColor } from '@/shared/ui/text'
@@ -23,7 +24,7 @@ const LABEL: Record<BadgeTone, TextColor> = {
  * variant, and `label` cannot be empty.
  */
 export function Badge({ label, tone = 'accent', accessibilityLabel, style, appearance = 'default', icon }: {
-  appearance?: 'default' | 'stitchNeutral' | 'stitchViolet' | 'stitchGreen' | 'stitchWhite'
+  appearance?: 'solid' | 'default' | 'stitchNeutral' | 'stitchViolet' | 'stitchGreen' | 'stitchWhite'
   icon?: MaterialIconName
   label: string
   tone?: BadgeTone
@@ -31,10 +32,12 @@ export function Badge({ label, tone = 'accent', accessibilityLabel, style, appea
   accessibilityLabel?: string
   style?: StyleProp<ViewStyle>
 }) {
+  const { theme } = useUnistyles()
+  const solidColor = tone === 'accent' ? 'accent.onAccent' : theme.mode === 'dark' ? LABEL[tone] : 'text.inverse'
   return (
-    <View style={[styles.badge, styles[tone], appearance !== 'default' && styles.stitchBadge, appearance !== 'default' && styles[appearance], style]}>
-      {icon && <MaterialIcon name={icon} size={14} color={appearance === 'stitchViolet' ? 'redesign.violetInk' : appearance === 'stitchGreen' ? 'redesign.white' : 'redesign.greenText'} />}
-      <Text style={appearance !== 'default' ? styles.stitchLabel : undefined} variant={appearance === 'default' ? 'caption' : 'introCaption'} color={appearance === 'default' ? LABEL[tone] : appearance === 'stitchViolet' ? 'redesign.violetInk' : appearance === 'stitchGreen' ? 'redesign.white' : 'redesign.secondary'} numberOfLines={appearance === 'default' ? 1 : undefined} accessibilityLabel={accessibilityLabel}>
+    <View style={[styles.badge, styles[tone], appearance !== 'default' && styles.stitchBadge, appearance === 'solid' && styles.solid(tone), appearance !== 'default' && appearance !== 'solid' && styles[appearance], style]}>
+      {icon && <MaterialIcon name={icon} size={14} color={appearance === 'solid' ? solidColor : appearance === 'default' ? LABEL[tone] : appearance === 'stitchViolet' ? 'redesign.violetInk' : appearance === 'stitchGreen' ? 'redesign.white' : 'redesign.greenText'} />}
+      <Text style={appearance !== 'default' ? styles.stitchLabel : undefined} variant={appearance === 'default' ? 'caption' : 'introCaption'} color={appearance === 'solid' ? solidColor : appearance === 'default' ? LABEL[tone] : appearance === 'stitchViolet' ? 'redesign.violetInk' : appearance === 'stitchGreen' ? 'redesign.white' : 'redesign.secondary'} numberOfLines={appearance === 'default' || appearance === 'solid' ? 1 : undefined} accessibilityLabel={accessibilityLabel}>
         {label}
       </Text>
     </View>

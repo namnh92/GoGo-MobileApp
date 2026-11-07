@@ -54,7 +54,8 @@ export type PlaceCardVariant = 'list' | 'hero'
 
 export interface PlaceCardProps {
   place: PlaceCardModel
-  appearance?: 'default' | 'discovery' | 'saved'
+  appearance?: 'default' | 'discovery' | 'saved' | 'contribution'
+  contributionBadge?: ReactNode
   headerAction?: ReactNode
   unavailableLabel?: string
   photoCategoryLabel?: string
@@ -193,7 +194,7 @@ function CanonicalPlaceCard({
   saved,
   onToggleSave,
   style,
-  headerAction, unavailableLabel, footer, photoCategoryLabel,
+  headerAction, unavailableLabel, footer, photoCategoryLabel, contributionBadge,
 }: PlaceCardProps) {
   const canSave = saved != null && onToggleSave != null
   const visibleTags = tags.slice(0, 2)
@@ -229,6 +230,18 @@ function CanonicalPlaceCard({
       </View>
     )
   }
+
+  if (appearance === 'contribution') return <View style={[styles.discoveryCard, style]}>
+    <Pressable accessibilityRole={onPress ? 'button' : undefined} onPress={onPress}>
+      <View style={styles.contributionPhoto}><PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
+        <View style={styles.contributionBadge}>{contributionBadge}</View>
+      </View>
+      <View style={styles.listBody}><Text variant="discoveryHeading" numberOfLines={1}>{place.name}</Text><MetaLine place={place} appearance="discovery" /></View>
+    </Pressable>
+    {headerAction ?? save}
+    {place.photoAttribution ? <Text testID="saved-photo-attribution" variant="caption" color="text.secondary" style={styles.savedCredits}>{place.photoSource === 'google' ? 'Google · ' : ''}{place.photoAttribution}{place.photoAuthors?.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="caption" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}> · {author.displayName}</Text>)}</Text> : null}
+    {footer ? <View style={styles.contributionFooter}>{footer}</View> : null}
+  </View>
 
   if (appearance === 'discovery' || appearance === 'saved') return <DiscoveryCard place={place} onPress={onPress} save={headerAction ?? save} style={style} appearance={appearance} unavailableLabel={unavailableLabel} footer={footer} photoCategoryLabel={photoCategoryLabel} />
 

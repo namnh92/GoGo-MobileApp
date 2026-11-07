@@ -124,10 +124,11 @@ describe('place sheet (#382 §2, §4, §7)', () => {
 describe('Profile settings rows (#382 §1, §2)', () => {
   it('each row carries a shared Material icon and its label has no emoji', async () => {
     const view = await renderScreen(<ProfileScreen />)
+    expect(view.queryByTestId('profile-setting-Đánh giá của tôi')).toBeNull()
     for (const [label, visible, icon] of [
       ['Hộp thư', 'Hộp thư thông báo', 'material-icon-unreadMail'],
       ['Quyền và dữ liệu', 'Quyền và dữ liệu', 'material-icon-shield'],
-      ['Đánh giá của tôi', 'Đánh giá của tôi', 'material-icon-reviews'],
+      ['Đóng góp của tôi', 'Đóng góp của tôi', 'material-icon-star'],
       ['Tài khoản', 'Thông tin tài khoản', 'material-icon-manageAccounts'],
     ]) {
       const row = view.getByTestId(`profile-setting-${label}`)

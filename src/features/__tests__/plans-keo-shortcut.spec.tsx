@@ -114,11 +114,11 @@ it('keeps the last choice when Kế hoạch is opened from the tab bar', async (
   expect(mockPush).toHaveBeenCalledTimes(1)
 })
 
-it('leaves the other two shortcuts as they were', async () => {
+it('keeps Saved and opens reviews in the merged contributions screen', async () => {
   await render(<Tabs />)
   await chooseHistory()
   await fireEvent.press(screen.getByRole('button', { name: 'Đã lưu' }))
   await fireEvent.press(screen.getByRole('button', { name: 'Đánh giá' }))
-  expect(mockPush.mock.calls.map(c => c[0])).toEqual(['/(tabs)/saved', '/settings/reviews'])
+  expect(mockPush.mock.calls.map(c => c[0])).toEqual(['/(tabs)/saved', '/me/contributions?tab=reviews'])
   expect(selected('Lịch sử')).toBe(true)
 })
