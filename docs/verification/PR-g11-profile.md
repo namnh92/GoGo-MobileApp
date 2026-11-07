@@ -2,11 +2,60 @@
 
 ## Phạm vi và nguồn
 
-- Worktree `mobile-g11`, branch `feature/GOGO-529-redesign-g11-profile`, base `c9043b3` (`re-design`), HEAD `4366341` + dirty patch ghi nhận quyết định owner. Không install/commit/push.
+- Worktree `mobile-g11`, branch `feature/GOGO-529-redesign-g11-profile`, base `c9043b3` (`re-design`), HEAD `608ba45` + dirty patch below-fold (xem mục cập nhật hiện tại bên dưới). Không install/commit/push.
 - Nguồn giao diện: đã đọc cả HTML và PNG của `dev/handoffs/stitch-g11/11.1` đến `11.5`; kế hoạch `dev/handoffs/g11-plan.md` §1, §2, §4.
 - Quyết định owner **2026-11-08**: [#529 comment 6710656834](https://github.com/namnh92/GoGo-MobileApp/issues/529#issuecomment-6710656834), đã đọc lại trực tiếp từ GitHub trong lượt F-01.
 - Light theo bố cục Stitch và semantic tokens hiện có. Dark theo tokens, ngoại lệ owner **2026-11-07** tại [#529](https://github.com/namnh92/GoGo-MobileApp/issues/529). Không có cặp Dark riêng trong bộ local.
 - Không thay OpenAPI, endpoint, authorization hoặc cơ chế phiên/cache. Dùng các hook và DTO được sinh hiện có.
+
+## Cập nhật evidence hiện tại — PR #530, `608ba45`, 2026-11-08
+
+Mục này thay thế trạng thái “below-fold chưa có ảnh” của các lượt lịch sử bên dưới. Role theo chỉ thị owner: **Sol 6.1 medium**. Worktree sạch khi bắt đầu, HEAD `608ba45`; không install/commit/push. Nguồn: cả bốn PNG Stitch 11.2–11.5 và tám PNG native `below-*-608ba45.png` do Claude cung cấp. SHA ảnh theo owner; không tự suy SHA build từ bytes PNG. [Manifest kích thước/SHA-256 của ảnh](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-fold-fix/image-sources.json). Native `1206×2622 px` (`402×874 pt @3x`); đối chiếu thành phần/geometry, không kéo giãn để giả pixel parity. Dark đối chiếu layout Stitch Light + semantic tokens theo E07.
+
+### Screen × theme × above/below fold
+
+“COMPARED” chỉ xác nhận phần nhìn thấy đã được đọc và so với Stitch tương ứng; không đồng nghĩa toàn màn PASS. Cột above giữ rõ SHA ảnh cũ, không gán lại cho `608ba45`. Mỗi ảnh below chỉ là một viewport sau thao tác cuộn, không phải ảnh toàn trang.
+
+| Màn | Theme | Above fold | Below fold tại `608ba45` | Kết luận / phần thiếu |
+|---|---|---|---|---|
+| 11.1 Khách | Light | NOT MEASURED | NOT MEASURED | Guest render được phủ bằng UI test bên dưới, chưa có phép đo native |
+| 11.1 Khách | Dark | NOT MEASURED | NOT MEASURED | Chưa có phép đo native Dark |
+| 11.2 Cá nhân | Light | [COMPARED lịch sử `3c9c428`](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.2-ca-nhan-light.png); chưa recapture above ở HEAD mới | [COMPARED](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-profile-light-608ba45.png): cuối settings, experience, AI, logout, version, dock | E02/E03/E05/E06/U02 giải thích dữ liệu/rows thêm-bớt; không có deviation layout mới cần sửa trong vùng thấy |
+| 11.2 Cá nhân | Dark | [COMPARED lịch sử `3c9c428`](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.2-ca-nhan-dark.png); V09 avatar chưa đo lại | [COMPARED](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-profile-dark-608ba45.png): cùng vùng Light | Cùng ngoại lệ Light + E07; mặt trắng của AI FAB không thấy (B03) |
+| 11.3 Mặc định | Light | [COMPARED tại HEAD mới](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-settings-defaults-light-608ba45.png): intro, picker, đầu budget, fixed Save | NOT MEASURED cho cuối budget, moods, guidance | Tên file “below” không đủ làm bằng chứng: ảnh vẫn ở đầu trang, chưa cuộn tới moods/note; E03 giải thích picker/tiers thật |
+| 11.3 Mặc định | Dark | [COMPARED tại HEAD mới](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-settings-defaults-dark-608ba45.png): cùng vùng Light | NOT MEASURED cho cuối budget, moods, guidance | Save disabled ở capture, không chứng minh foreground khi enabled; E03/E07 |
+| 11.4 Màu | Light | [COMPARED lịch sử `3c9c428`](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.4-mau-light.png); ảnh mới chỉ thấy cuối palette | [COMPARED](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-settings-theme-light-608ba45.png): preview, tab mẫu, Apply, helper | E04/E07; B02 sửa căn giữa helper; chưa có native sau sửa |
+| 11.4 Màu | Dark | [COMPARED lịch sử `3c9c428`](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.4-mau-dark.png); ảnh mới chỉ thấy cuối palette | [COMPARED](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-settings-theme-dark-608ba45.png): cùng vùng Light | B02 source fixed; B03 còn mở: check swatch, chữ/mũi tên CTA mẫu và chữ/icon Apply không thấy |
+| 11.5 Quyền | Light | [COMPARED lịch sử `3c9c428`](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.5-quyen-light.png); chưa recapture above ở HEAD mới | [COMPARED](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-settings-notifications-light-608ba45.png): cuối location, tracking, system, version | E05/E08; B01 sửa sliders thành gear; chưa có native sau sửa |
+| 11.5 Quyền | Dark | [COMPARED lịch sử `3c9c428`](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.5-quyen-dark.png); chưa recapture above ở HEAD mới | [COMPARED](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-settings-notifications-dark-608ba45.png): cùng vùng Light | B01 source fixed; B03 còn mở: chữ/icon CTA mở Settings không thấy |
+
+### Sửa và còn lại
+
+| ID | Quan sát / căn cứ | Xử lý và trạng thái |
+|---|---|---|
+| B01 | 11.5 system card dùng sliders; Stitch dùng gear; không thuộc E05/E08 | Reuse `Icon name="settings" size={24}` thay `MaterialIcon tune`. Chỉ đổi glyph; giữ handler/error. FAIL-before có trong hai ảnh native; source đã sửa, **chưa đo native PASS-after** |
+| B02 | 11.4 helper dưới Apply căn trái; HTML Stitch `p.text-center` | Thêm style `helper.textAlign = center`, giữ copy thật. FAIL-before có trong hai ảnh; source đã sửa, **chưa đo native PASS-after** |
+| B03 | Dark mất foreground trên các fill cam (11.4 selected check, CTA mẫu/Apply; 11.5 system CTA; 11.2 mặt AI FAB); Light thấy đầy đủ | **OPEN, không phải ngoại lệ E07.** Source `themes.orangeDark.accent.onAccent` vẫn trắng; Text/Icon/MaterialIcon/AssistantGlyph và PrimaryBtn đọc đúng semantic role. Chưa xác lập nguyên nhân runtime từ ảnh; không đổi shared primitives/tokens bằng phỏng đoán. Cần tái hiện native Dark và sửa theo nguyên nhân, chụp lại; token/contrast/UI tests không thay phép đo này |
+| B04 | 11.3 chưa có cuối budget/moods/guidance trong cả hai ảnh | **NOT MEASURED**; cần cuộn thật tới cuối trong Light/Dark. Source review và UI suite defaults không thay ảnh native |
+
+**Guest 11.1 vẫn NOT MEASURED natively (Light/Dark, above/below).** Phủ render/hành vi bằng test hiện có [`profile-keo-count.spec.tsx:40`](/Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-g11/src/features/__tests__/profile-keo-count.spec.tsx:40), `guests have a sign-in card, locks with a reason and CTA, and accessible local theme settings`: render guest, có Đăng nhập/Đăng ký, không lộ tên từ profile cache, mở được Màu, Saved bị khoá có lý do/CTA, CTA dẫn sign-in. Test parametrized tại dòng 20 cũng phủ guest/anonymous Kèo mở upcoming mà không hiện tổng chưa hỗ trợ. Đây là UI render test, **không phải native visual parity**, cũng không chứng minh Dark trên thiết bị.
+
+### Gate của patch below-fold
+
+Review/test source basis: `608ba45` + snapshot [`rs-80aaa1ed64bc`](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-fold-fix/below-fold-source-rs-80aaa1ed64bc/MANIFEST.txt), scope `src`, có retrievable patch. Docs/evidence không nằm trong source snapshot; không có source edit sau khi bắt đầu gate. Kết quả mới ghi dưới đây; các bảng gate phía sau là lịch sử.
+
+| Lệnh | Kết quả hiện tại |
+|---|---|
+| `pnpm typecheck` | PASS, exit 0; [log](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-fold-fix/typecheck.log) |
+| `pnpm lint` | PASS, exit 0, không errors/warnings; [log](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-fold-fix/lint.log) |
+| `pnpm test` | FAIL, exit 1; 134 files pass / 1 fail / 1 skipped; 1.573 tests pass / 3 fail / 39 skipped; [log](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-fold-fix/test.log) |
+| `pnpm test:ui --runInBand` | PASS, exit 0; 194 suites / 2.338 tests, gồm guest render và defaults/theme/permissions; [log](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-fold-fix/test-ui.log) |
+| Source snapshot trước/sau gates | MATCH `rs-80aaa1ed64bc` |
+| `git diff --check` | PASS, exit 0 |
+
+Ba failure cùng file không đổi `src/shared/config/__tests__/distribute-wrapper.test.ts`: `refuses while the owner is alive` (dòng 208), `refuses recovery while a recorded build process group is still alive` (234), `keeps the lock and run files when a recorded build group is still alive after the child exits` (258). Probe hiện tại trả `spawnSync /bin/ps EPERM`, status null ([log](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/below-fold-fix/process-probe.log)). Đây là giới hạn host khi đo process liveness; không sửa/skip test để tạo xanh, không claim bốn gate PASS.
+
+**Còn lại để native acceptance:** B03, B04; native sau B01/B02; guest 11.1; recapture above-fold `608ba45` cho Profile/Theme/Permissions và avatar Dark V09. Không claim full-page parity, 5/5 acceptance, SE/chữ lớn/screen reader/contrast đo trên thiết bị hoặc DEV acceptance. Rollback chỉ bỏ đúng ba source edits B01/B02 trong snapshot; không reset branch hoặc patch khác.
 
 ## Stitch → app
 
@@ -120,7 +169,7 @@ Giới hạn host: CoreSimulatorService và Computer Use Simulator không truy c
 ## Theo dõi / rollback
 
 - Giữ events `profile_defaults_saved`, `theme_accent_changed`, `auth_signed_out`, `auth_sign_out_failed`; không gửi nội dung hồ sơ trong event mới. Thêm screen templates cho hai route mới.
-- Không dependency/migration/API mới. Rollback bản sửa F-01 bằng bỏ đúng dirty patch được lưu trong evidence; HEAD hiện tại `4366341`; lượt áp dụng quyết định owner chỉ có dirty patch, chưa commit và không tác động remote.
+- Không dependency/migration/API mới. Rollback bản sửa F-01 bằng bỏ đúng dirty patch được lưu trong evidence; HEAD lịch sử của lượt đó `4366341`; lượt áp dụng quyết định owner chỉ có dirty patch, chưa commit và không tác động remote.
 
 ## Áp dụng quyết định owner — 2026-11-08, PR #530
 
@@ -136,4 +185,4 @@ Giới hạn host: CoreSimulatorService và Computer Use Simulator không truy c
 
 Ba failure vẫn ở `src/shared/config/__tests__/distribute-wrapper.test.ts` không đổi (các kiểm tra process liveness đã nêu ở F-01); kiểm tra trực tiếp `/bin/ps -o lstart= -p $$` trong lượt này trả `operation not permitted`. Không sửa/skip test để làm xanh.
 
-Không commit/push. Guest profile và below-fold vẫn **NOT MEASURED**; không claim native acceptance.
+Kết luận lịch sử tại lượt owner: guest profile và below-fold chưa đo. Trạng thái hiện tại xem mục cập nhật `608ba45` phía trên; không commit/push, không claim native acceptance.

@@ -76,7 +76,7 @@ export function ThemeAccentCard() {
       <ScopedTheme name={deviceThemeName(current)}><ThemePreview /></ScopedTheme>
     </View>
     <PrimaryBtn variant="pill" label={t('g11.applyTheme')} leadingIcon="checkCircle" onPress={() => void apply()} loading={saving} disabled={saving} />
-    <Text variant="introCaption" color="redesign.secondary">{t('account.themeHelper')}</Text>
+    <Text variant="introCaption" color="redesign.secondary" style={styles.helper}>{t('account.themeHelper')}</Text>
     <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'g11.themeFailed' : 'g11.themeSaved')}
       body={t('account.themeHelper')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
   </>

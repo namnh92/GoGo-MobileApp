@@ -12,6 +12,7 @@ export const styles = StyleSheet.create(theme => ({
   live: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1] },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },
   title: { flex: 1 },
+  helper: { textAlign: 'center' },
   pressed: { backgroundColor: theme.surface.subtle },
   preview: { backgroundColor: theme.redesign.low, borderRadius: 12, ...shadows.stitch, padding: theme.spacing[4], gap: theme.spacing[4] },
   sampleCard: { padding: theme.spacing[3], gap: theme.spacing[4], borderRadius: 12, ...shadows.stitch },
