@@ -1,4 +1,4 @@
-import { type QueryClient, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, type UseMutationResult, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
@@ -7,7 +7,7 @@ import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
 import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState, type ReviewCache } from '../review-reactions'
-import { captureSessionScope } from '../session'
+import { captureSessionScope, getSessionGeneration } from '../session'
 import type { MyReviewReactions, OpBody, OpResponse, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 import { useIntentKey } from './use-intent-key'
@@ -158,22 +158,29 @@ function reserveSavedMutation(client: QueryClient, target: string) {
   }
 }
 
+type SavedMutation = { type: SavedTargetType; id: string; saved: boolean }
+type SavedMutationContext = { previous: SavedItem | undefined; release: () => void }
+
 /**
  * Optimistic save/unsave — bookmarking must feel instant. Server state wins on
  * settle, so a rejected save snaps back rather than lying.
  */
-export function useToggleSaved() {
+export function useToggleSaved(): UseMutationResult<void, Error, SavedMutation, SavedMutationContext> {
   const queryClient = useQueryClient()
   const key = queryKeys.saved()
 
-  return useMutation({
-    mutationFn: ({ type, id, saved }: { type: SavedTargetType; id: string; saved: boolean }) =>
-      saved ? meApi.unsaveItem(type, id) : meApi.saveItem(type, id),
+  const mutation = useMutation({
+    mutationFn: async ({ type, id, saved, generation }: SavedMutation & { generation: number }) => {
+      // TanStack re-enters here for every retry, even after its cache was cleared.
+      const scope = captureSessionScope(generation)
+      await (saved ? meApi.unsaveItem(type, id, generation) : meApi.saveItem(type, id, generation))
+      scope.assert()
+    },
 
-    onMutate: async ({ type, id, saved }) => {
-      const scope = captureSessionScope()
+    onMutate: async ({ type, id, saved, generation }) => {
+      const scope = captureSessionScope(generation)
       // Hold the turn through TanStack's automatic retries and final rollback.
-      const turn = reserveSavedMutation(queryClient, `${type}:${id}`)
+      const turn = reserveSavedMutation(queryClient, `${generation}:${type}:${id}`)
       const release = () => {
         scope.signal.removeEventListener('abort', release)
         turn.release()
@@ -199,8 +206,8 @@ export function useToggleSaved() {
       }
     },
 
-    onError: (_error, { type, id }, context) => {
-      if (!context) return
+    onError: (_error, { type, id, generation }, context) => {
+      if (!context || generation !== getSessionGeneration()) return
       // Other places can mutate concurrently; roll back only this target.
       queryClient.setQueryData<SavedItem[]>(key, current => {
         if (!current) return current
@@ -209,11 +216,20 @@ export function useToggleSaved() {
       })
     },
 
-    onSettled: (_data, _error, _variables, context) => {
-      try { void queryClient.invalidateQueries({ queryKey: key }) }
+    onSettled: (_data, _error, { generation }, context) => {
+      try {
+        if (generation === getSessionGeneration()) void queryClient.invalidateQueries({ queryKey: key })
+      }
       finally { context?.release() }
     },
   })
+
+  // Capture on invocation, before any async lifecycle callback or queue wait.
+  return {
+    ...mutation,
+    mutate: (variables, options) => mutation.mutate({ ...variables, generation: getSessionGeneration() }, options),
+    mutateAsync: (variables, options) => mutation.mutateAsync({ ...variables, generation: getSessionGeneration() }, options),
+  }
 }
 
 export function isSaved(items: SavedItem[] | undefined, type: SavedTargetType, id: string): boolean {
