@@ -1,11 +1,14 @@
 import { api } from '../client'
 import {
   clearSession,
+  captureSessionScope,
+  beginSessionEnd,
   getSession,
   persistSession,
   sessionFromGrant,
   sessionFromGuestGrant,
   type Session,
+  type SessionScope,
 } from '../session'
 import type { OpBody, OpResponse } from '../types'
 
@@ -14,20 +17,24 @@ import type { OpBody, OpResponse } from '../types'
  * `Session`, and secure storage is already updated when the promise resolves.
  */
 
-export async function register(body: OpBody<'register'>): Promise<Session> {
-  const grant = await api.post<OpResponse<'register'>>('/auth/register', body, { anonymous: true })
-  return persistSession(sessionFromGrant(grant, getSession()))
+export async function register(body: OpBody<'register'>, scope: SessionScope = captureSessionScope()): Promise<Session> {
+  scope.assert()
+  const previous = getSession()
+  const grant = await api.post<OpResponse<'register'>>('/auth/register', body, { anonymous: true, sessionGeneration: scope.generation })
+  return persistSession(sessionFromGrant(grant, previous), scope.generation, true)
 }
 
-export async function login(body: OpBody<'login'>): Promise<Session> {
-  const grant = await api.post<OpResponse<'login'>>('/auth/login', body, { anonymous: true })
-  return persistSession(sessionFromGrant(grant))
+export async function login(body: OpBody<'login'>, scope: SessionScope = captureSessionScope()): Promise<Session> {
+  scope.assert()
+  const grant = await api.post<OpResponse<'login'>>('/auth/login', body, { anonymous: true, sessionGeneration: scope.generation })
+  return persistSession(sessionFromGrant(grant), scope.generation, true)
 }
 
 /** Guest session by room share code (FR-AUTH-002) — no account, room-scoped. */
 export async function createGuestSession(body: OpBody<'createGuestSession'>): Promise<Session> {
-  const grant = await api.post<OpResponse<'createGuestSession'>>('/sessions/guest', body, { anonymous: true })
-  return persistSession(sessionFromGuestGrant(grant))
+  const scope = captureSessionScope()
+  const grant = await api.post<OpResponse<'createGuestSession'>>('/sessions/guest', body, { anonymous: true, sessionGeneration: scope.generation })
+  return persistSession(sessionFromGuestGrant(grant), scope.generation, true)
 }
 
 /**
@@ -40,9 +47,10 @@ export async function createGuestSession(body: OpBody<'createGuestSession'>): Pr
  * and it destroys the session that confirming the push unsubscribe depends on.
  * A logout that did not happen must be reported as one that did not happen.
  */
-export async function logout(allDevices = false): Promise<void> {
-  await api.delete<OpResponse<'endCurrentSession'>>('/sessions/current', { allDevices })
-  await clearSession()
+export async function logout(allDevices = false, scope: SessionScope = beginSessionEnd()): Promise<void> {
+  scope.assert()
+  await api.delete<OpResponse<'endCurrentSession'>>('/sessions/current', { allDevices }, { sessionGeneration: scope.generation })
+  await clearSession(false, scope.generation)
 }
 
 export function getMe(): Promise<OpResponse<'getMe'>> {
@@ -53,9 +61,10 @@ export function updateProfile(body: OpBody<'updateProfile'>): Promise<OpResponse
   return api.patch<OpResponse<'updateProfile'>>('/me', body)
 }
 
-export async function deleteAccount(): Promise<void> {
-  await api.delete<OpResponse<'deleteAccount'>>('/me')
-  await clearSession()
+export async function deleteAccount(scope: SessionScope = beginSessionEnd()): Promise<void> {
+  scope.assert()
+  await api.delete<OpResponse<'deleteAccount'>>('/me', undefined, { sessionGeneration: scope.generation })
+  await clearSession(false, scope.generation)
 }
 
 export function exportMyData(): Promise<OpResponse<'exportMyData'>> {

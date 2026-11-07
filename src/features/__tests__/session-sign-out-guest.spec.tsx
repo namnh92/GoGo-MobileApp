@@ -21,7 +21,10 @@ jest.mock('@/shared/notifications/identity-bootstrap', () => ({
   },
 }))
 jest.mock('@/shared/api/endpoints/sessions', () => ({
-  logout: () => mockServerLogout(),
+  logout: async () => {
+    await mockServerLogout()
+    await jest.requireActual('@/shared/api/session').clearSession()
+  },
 }))
 jest.mock('@/shared/api/session', () => ({
   ...jest.requireActual('@/shared/api/session'),

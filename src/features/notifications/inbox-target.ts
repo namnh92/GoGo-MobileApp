@@ -1,4 +1,5 @@
 import { getCurrentPlan, getPlan, getRoom, isApiError, type Notification } from '@/shared/api'
+import { captureSessionScope, SessionCancelledError } from '@/shared/api/session'
 import { isUuid } from '@/shared/navigation/deep-link'
 import { PLAN_KINDS, PLAN_RETRY_NOTICE, PLAN_UNAVAILABLE_NOTICE } from '@/shared/navigation/room-routing'
 
@@ -31,9 +32,14 @@ const REFUSED: ReadonlySet<number> = new Set([401, 403, 404, 410])
 type Read<T> = { state: 'fresh'; data: T } | { state: 'refused' } | { state: 'unknown' }
 
 async function read<T>(load: () => Promise<T>): Promise<Read<T>> {
+  const scope = captureSessionScope()
   try {
-    return { state: 'fresh', data: await load() }
+    const data = await load()
+    scope.assert()
+    return { state: 'fresh', data }
   } catch (error) {
+    scope.assert()
+    if (error instanceof SessionCancelledError) throw error
     return isApiError(error) && REFUSED.has(error.status) ? { state: 'refused' } : { state: 'unknown' }
   }
 }

@@ -2,6 +2,7 @@ import { OneSignal } from 'react-native-onesignal'
 
 import { api } from '@/shared/api/client'
 import type { OpResponse } from '@/shared/api/types'
+import { captureSessionScope } from '@/shared/api/session'
 
 import { logout as nativeLogout } from '../../../modules/onesignal-identity'
 import { createLogoutConfirmation } from './logout-confirmation'
@@ -14,10 +15,11 @@ import { createLogoutConfirmation } from './logout-confirmation'
  */
 
 /** `POST /v1/notifications/identity/logout` — read-only, caller-scoped. */
-export async function confirmUnsubscribed(subscriptionId: string): Promise<boolean> {
+export async function confirmUnsubscribed(subscriptionId: string, scope = captureSessionScope()): Promise<boolean> {
   const body = await api.post<OpResponse<'confirmDeviceUnsubscribed'>>(
     '/notifications/identity/logout',
     { subscriptionId },
+    { sessionGeneration: scope.generation },
   )
   return body.confirmed
 }

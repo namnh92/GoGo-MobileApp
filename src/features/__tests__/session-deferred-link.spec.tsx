@@ -17,9 +17,9 @@ jest.mock('@/shared/notifications/identity-bootstrap', () => ({
   pushIdentity: { beginSignOut: jest.fn(async () => undefined), cancelSignOut: jest.fn(async () => undefined) },
 }))
 jest.mock('@/shared/api/endpoints/sessions', () => ({
-  logout: jest.fn(async () => undefined),
+  logout: jest.fn(async () => { await jest.requireActual('@/shared/api/session').clearSession() }),
   login: jest.fn(async () => ({})),
-  deleteAccount: jest.fn(async () => undefined),
+  deleteAccount: jest.fn(async () => { await jest.requireActual('@/shared/api/session').clearSession() }),
 }))
 jest.mock('@/shared/api/session', () => ({
   ...jest.requireActual('@/shared/api/session'),

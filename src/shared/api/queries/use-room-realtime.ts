@@ -1,8 +1,9 @@
 import { onlineManager, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 import type { RoomPhase } from '../realtime/room-events'
 import { roomRealtimeTransport, type RoomRealtimeStatus } from '../realtime/transport'
+import { getSessionGeneration, subscribeToSession } from '../session'
 
 /**
  * Keeps one room fresh while a screen is open. Screens declare the phase they
@@ -21,6 +22,7 @@ export function useRoomRealtime(
   options?: { enabled?: boolean; planId?: string },
 ): { status: RoomRealtimeStatus } {
   const queryClient = useQueryClient()
+  const generation = useSyncExternalStore(subscribeToSession, getSessionGeneration)
   const [online, setOnline] = useState(() => onlineManager.isOnline())
   /**
    * What the transport last reported, tagged with the subscription it came
@@ -34,12 +36,12 @@ export function useRoomRealtime(
   // and `online` is a dependency so connectivity returning resubscribes.
   const active = (options?.enabled ?? true) && Boolean(roomId) && online
   const planId = options?.planId
-  const subscription = active && roomId ? subscriptionKey(roomId, phase, planId) : null
+  const subscription = active && roomId ? `${generation}:${subscriptionKey(roomId, phase, planId)}` : null
 
   useEffect(() => {
     if (!active || !roomId) return
 
-    const key = subscriptionKey(roomId, phase, planId)
+    const key = `${generation}:${subscriptionKey(roomId, phase, planId)}`
     // The transport replays its current status on a microtask after
     // `subscribe`, so a callback can land after this subscription is gone — the
     // previous room's "live" would otherwise become this room's (#292).
@@ -61,7 +63,7 @@ export function useRoomRealtime(
       setReported(null)
       unsubscribe()
     }
-  }, [active, roomId, phase, queryClient, planId])
+  }, [active, roomId, phase, queryClient, planId, generation])
 
   const own = reported && reported.subscription === subscription ? reported.status : null
   const status: RoomRealtimeStatus = !active

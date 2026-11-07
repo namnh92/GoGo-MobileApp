@@ -16,8 +16,8 @@ jest.mock('@/shared/notifications/identity-bootstrap', () => ({
 jest.mock('@/shared/api/endpoints/sessions', () => ({
   login: jest.fn(async () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-2' })),
   register: jest.fn(async () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-3' })),
-  logout: jest.fn(async () => undefined),
-  deleteAccount: jest.fn(async () => undefined),
+  logout: jest.fn(async () => { await jest.requireActual('@/shared/api/session').clearSession() }),
+  deleteAccount: jest.fn(async () => { await jest.requireActual('@/shared/api/session').clearSession() }),
 }))
 jest.mock('@/shared/api/endpoints/rooms', () => ({
   ...jest.requireActual('@/shared/api/endpoints/rooms'),
@@ -36,10 +36,20 @@ jest.mock('expo-network', () => ({
 
 import * as rooms from '@/shared/api/endpoints/rooms'
 import * as sessions from '@/shared/api/endpoints/sessions'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { getSecureItem } from '@/shared/storage/secure-store'
+import { createQueryClient } from '@/shared/api/query-client'
+import { useRoomStore } from '@/shared/store/roomStore'
+import { saveRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
+import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
+import { useAssistantDraftStore } from '@/shared/store/assistantDraftStore'
 import { clearSession, persistSession, type Session } from '@/shared/api/session'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { SessionProvider, useSession } from '@/shared/providers/session-provider'
 import { loadInviteCode, saveInviteCode } from '@/shared/storage/invite-codes'
+import * as inviteCodes from '@/shared/storage/invite-codes'
+import { pushIdentity } from '@/shared/notifications/identity-bootstrap'
+import { pendingDeepLinks } from '@/shared/acquisition/pending-deep-links'
 
 type SessionApi = ReturnType<typeof useSession>
 
@@ -56,13 +66,13 @@ function Probe({ onSession }: { onSession: (value: SessionApi) => void }) {
 
 let client: QueryClient
 
-async function seedAndMount() {
+async function seedAndMount(productionCache = false) {
   useDiscoveryAreaStore.getState().setArea(AREA)
   for (const roomId of ROOMS) {
     await saveInviteCode({ roomId, inviteId: `invite-${roomId}`, code: `code-${roomId}`, expiresAt: '2099-01-01T00:00:00.000Z', userId: USER, savedAt: 1 })
   }
   expect(await loadInviteCode(ROOMS[0], USER)).not.toBeNull()
-  client = new QueryClient()
+  client = productionCache ? createQueryClient() : new QueryClient()
   await render(
     <QueryClientProvider client={client}>
       <SessionProvider>
@@ -138,4 +148,115 @@ it.each([false, true])('keeps the device area when B signs in (sign out first: %
   expect(session!.session?.userId).toBe('user-2')
   await expectPurgedThenUnmount()
   await clearSession()
+})
+
+it.each(['signIn', 'signUp', 'signOut', 'deleteAccount', 'expiry'] as const)(
+  'cancels %s cleanup held across B login', async operation => {
+    const userA: Session = { kind: 'user', userId: USER, accessToken: 'A', expiresAt: Date.now() + 900_000 }
+    const userB: Session = { ...userA, userId: 'B', accessToken: 'B' }
+    await persistSession(userA)
+    await seedAndMount()
+    let entered!: () => void
+    let release!: () => void
+    const started = new Promise<void>(resolve => { entered = resolve })
+    const held = new Promise<void>(resolve => { release = resolve })
+    const spy = jest.spyOn(inviteCodes, 'purgeInviteCodes').mockImplementationOnce(async () => {
+      entered()
+      await held
+    })
+    const loginCalls = jest.mocked(sessions.login).mock.calls.length
+    const registerCalls = jest.mocked(sessions.register).mock.calls.length
+    let result: unknown
+    await act(async () => {
+      const api = session!
+      const work = operation === 'signIn' ? api.signIn({} as never)
+        : operation === 'signUp' ? api.signUp({} as never)
+          : operation === 'signOut' ? api.signOut()
+            : operation === 'deleteAccount' ? api.deleteAccount()
+              : Promise.resolve(mockExpiry.callback?.())
+      const outcome = work.catch(error => error)
+      await started
+      await persistSession(userB)
+      client.setQueryData(['me'], { id: 'B' })
+      useDiscoveryAreaStore.getState().setArea(AREA)
+      release()
+      result = await outcome
+      await new Promise<void>(resolve => setImmediate(resolve))
+    })
+    spy.mockRestore()
+    if (operation !== 'expiry') expect(result).toEqual(expect.objectContaining({ message: expect.stringContaining('Session changed') }))
+    expect(client.getQueryData(['me'])).toEqual({ id: 'B' })
+    expect(useDiscoveryAreaStore.getState().area).toEqual(AREA)
+    expect(jest.mocked(sessions.login).mock.calls.length).toBe(loginCalls)
+    expect(jest.mocked(sessions.register).mock.calls.length).toBe(registerCalls)
+    await act(async () => { await screen.unmount() })
+    client.clear()
+    await clearSession()
+  },
+)
+
+it.each(['push confirmation', 'deferred-link clear'] as const)('cancels sign-out held at %s before it can revoke B or rebind push', async stage => {
+  const userA: Session = { kind: 'user', userId: USER, accessToken: 'A', expiresAt: Date.now() + 900_000 }
+  await persistSession(userA)
+  await seedAndMount()
+  let entered!: () => void
+  let release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  const hold = async () => { entered(); await held }
+  const spy = stage === 'push confirmation'
+    ? jest.spyOn(pushIdentity, 'beginSignOut').mockImplementationOnce(hold)
+    : jest.spyOn(pendingDeepLinks, 'clear').mockImplementationOnce(hold)
+  const logoutCalls = jest.mocked(sessions.logout).mock.calls.length
+  const cancelCalls = jest.mocked(pushIdentity.cancelSignOut).mock.calls.length
+  await act(async () => {
+    const result = session!.signOut().catch(error => error)
+    await started
+    await persistSession({ ...userA, userId: 'B', accessToken: 'B' })
+    release()
+    expect(await result).toEqual(expect.objectContaining({ message: expect.stringContaining('Session changed') }))
+  })
+  spy.mockRestore()
+  expect(jest.mocked(sessions.logout).mock.calls.length).toBe(logoutCalls)
+  expect(jest.mocked(pushIdentity.cancelSignOut).mock.calls.length).toBe(cancelCalls)
+  await act(async () => { await screen.unmount() })
+  client.clear()
+  await clearSession()
+})
+
+
+it('logout clears all A account caches, persisted stores, drafts and secure credentials', async () => {
+  await persistSession({ kind: 'user', userId: USER, accessToken: 'A', refreshToken: 'refresh-A', expiresAt: Date.now() + 900_000 })
+  await seedAndMount(true)
+  await waitFor(() => expect(session!.status).toBe('user'))
+  const roots = ['me', 'rooms', 'plans', 'places', 'location', 'assistant']
+  for (const root of roots) client.setQueryData([root, 'A'], { owner: USER })
+  client.getMutationCache().build(client, { mutationKey: ['save-A'], gcTime: Infinity })
+  useRoomStore.setState({ title: 'A draft', preferenceSeed: { roomId: ROOMS[0], moodKeys: ['A'] } })
+  await saveRoomDraft(USER, 'type')
+  useRecentRoomsStore.setState({ rooms: [{ roomId: ROOMS[0], title: 'A room', type: 'couple', status: 'draft', participantCount: 2, lastOpenedAt: new Date().toISOString() }] })
+  useAssistantDraftStore.getState().setDraft('A', 'A question')
+  await AsyncStorage.setItem('gogo.query-cache', JSON.stringify({ private: USER }))
+  expect(useSavedRoomDraft.getState().draft?.ownerId).toBe(USER)
+  expect(await getSecureItem('gogo.access_token')).toBe('A')
+  const signOutCalls = jest.mocked(pushIdentity.beginSignOut).mock.calls.length
+
+  await act(async () => { await session!.signOut() })
+
+  expect(session!.status).toBe('anonymous')
+  expect(client.getQueryCache().getAll()).toEqual([])
+  expect(client.getMutationCache().getAll()).toEqual([])
+  expect(useRoomStore.getState()).toMatchObject({ title: '', preferenceSeed: null })
+  expect(useSavedRoomDraft.getState().draft).toBeNull()
+  expect(useRecentRoomsStore.getState().rooms).toEqual([])
+  expect(useAssistantDraftStore.getState()).toMatchObject({ drafts: {}, outgoing: [] })
+  expect(await AsyncStorage.getItem('gogo.room-draft.v1')).toBeNull()
+  expect(await AsyncStorage.getItem('gogo.query-cache')).toBeNull()
+  expect(JSON.parse((await AsyncStorage.getItem('gogo.recent-rooms'))!)).toMatchObject({ state: { rooms: [] } })
+  for (const key of ['gogo.access_token', 'gogo.refresh_token', 'gogo.guest_token', 'gogo.session_meta']) {
+    expect(await getSecureItem(key)).toBeNull()
+  }
+  expect(pushIdentity.beginSignOut).toHaveBeenCalledTimes(signOutCalls + 1)
+  expect(pushIdentity.beginSignOut).toHaveBeenLastCalledWith('user', expect.anything())
+  await expectPurgedThenUnmount()
 })

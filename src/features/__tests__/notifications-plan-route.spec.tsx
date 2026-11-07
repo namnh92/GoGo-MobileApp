@@ -3,6 +3,7 @@ import { act, fireEvent } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import { scriptedTime } from './scripted-time'
 import { ApiError } from '@/shared/api/errors'
+import { SessionCancelledError } from '@/shared/api/session'
 import { viMessages } from '@/shared/i18n/vi'
 
 /**
@@ -278,4 +279,17 @@ it('an invite opens its room without reading anything', async () => {
   expect(mockPush).toHaveBeenCalledWith(`/room/${ROOM_ID}`)
   expect(mockGetCurrentPlan).not.toHaveBeenCalled()
   expect(mockGetRoom).not.toHaveBeenCalled()
+})
+
+it('F-06: a cancelled inbox lookup stops quietly and releases the pending row', async () => {
+  mockGetCurrentPlan.mockRejectedValueOnce(new SessionCancelledError())
+    .mockResolvedValueOnce({ id: PLAN_ID, roomId: ROOM_ID, status: 'current' })
+  const view = await renderScreen(<NotificationsScreen />)
+  await tap(view, PLAN_READY)
+  expect(mockGetRoom).not.toHaveBeenCalled()
+  expect(mockPush).not.toHaveBeenCalled()
+  expect(view.queryByText(viMessages['notifications.openRetry'])).toBeNull()
+  await tap(view, PLAN_READY)
+  expect(mockGetCurrentPlan).toHaveBeenCalledTimes(2)
+  expect(mockPush).toHaveBeenCalledWith(`/plans/${PLAN_ID}`)
 })

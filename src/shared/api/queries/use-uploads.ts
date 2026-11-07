@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 
 import * as uploadsApi from '../endpoints/uploads'
+import { captureSessionScope, type SessionScope } from '../session'
 import type { OpBody } from '../types'
 
 type Purpose = OpBody<'createUpload'>['purpose']
@@ -26,9 +27,10 @@ const SIGNABLE: Record<string, ContentType> = {
  * `createUpload` refuses an oversized file before a URL exists, which is only
  * possible if the client is honest about `contentLength`.
  */
-async function readLocal(image: LocalImage): Promise<{ blob: Blob; contentType: ContentType }> {
-  const response = await fetch(image.uri)
-  const blob = await response.blob()
+async function readLocal(image: LocalImage, scope: SessionScope): Promise<{ blob: Blob; contentType: ContentType }> {
+  scope.assert()
+  const response = await scope.wait(fetch(image.uri, { signal: scope.signal }))
+  const blob = await scope.wait(response.blob())
   const declared = (image.mimeType ?? blob.type ?? '').toLowerCase()
   const contentType = SIGNABLE[declared]
   if (!contentType) throw new Error('UNSUPPORTED_IMAGE_TYPE')
@@ -45,16 +47,19 @@ async function readLocal(image: LocalImage): Promise<{ blob: Blob; contentType: 
 export function useUploadImage() {
   return useMutation({
     mutationFn: async ({ image, purpose }: { image: LocalImage; purpose: Purpose }): Promise<string> => {
-      const { blob, contentType } = await readLocal(image)
+      const scope = captureSessionScope()
+      const { blob, contentType } = await readLocal(image, scope)
+      scope.assert()
       const authorized = await uploadsApi.createUpload({
         purpose,
         contentType,
         contentLength: blob.size,
       })
+      scope.assert()
       if (!authorized?.uploadUrl || !authorized.key) throw new Error('UPLOAD_NOT_AUTHORIZED')
       if (authorized.maxBytes != null && blob.size > authorized.maxBytes) throw new Error('IMAGE_TOO_LARGE')
 
-      await uploadsApi.putPresigned(authorized.uploadUrl, blob, contentType)
+      await uploadsApi.putPresigned(authorized.uploadUrl, blob, contentType, scope)
       return authorized.key
     },
   })

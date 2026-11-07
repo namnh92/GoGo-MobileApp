@@ -27,6 +27,15 @@ const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me',
  */
 const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'detail', 'public-reviews', 'review-reactions']
 
+/** Public in-memory snapshots survive logout; disk persistence is a separate policy. */
+export function isPublicAppQuery(queryKey: readonly unknown[]): boolean {
+  const [root, id, kind] = queryKey
+  if (root === 'administrative' || root === 'taxonomies') return true
+  if (typeof id !== 'string' || !id) return false
+  if (root === 'place-provider-photos') return queryKey.length === 2
+  return root === 'places' && id !== 'imports' && queryKey.length === 3 && (kind === 'detail' || kind === 'plan-summary')
+}
+
 export function shouldPersistQuery(queryKey: readonly unknown[]): boolean {
   const [root] = queryKey
   if (typeof root !== 'string' || !PERSISTED_PREFIXES.includes(root)) return false
@@ -41,7 +50,10 @@ export function retainTaxonomies(persister: Persister): Persister {
     persistClient: client => persister.persistClient(client),
     removeClient: () => persister.removeClient(),
     restoreClient: async () => {
-      const saved = await persister.restoreClient()
+      const restored = await persister.restoreClient()
+      if (!restored) return restored
+      // A process restart ends the lifetime that owned every paused intent.
+      const saved = { ...restored, clientState: { ...restored.clientState, mutations: [] } }
       if (!saved || Date.now() - saved.timestamp <= 24 * 60 * 60 * 1000) return saved
       // Keep the original timestamp and buster: the provider still checks the
       // cache format, while only public taxonomy data is exempt from expiry.
