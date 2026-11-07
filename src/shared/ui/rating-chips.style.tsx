@@ -9,9 +9,8 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: theme.spacing[2] + 2,
     paddingVertical: 4,
     borderRadius: theme.radius.compact,
-    backgroundColor: theme.surface.canvas,
-    borderWidth: 1,
-    borderColor: theme.border.hairline,
+    maxWidth: '100%',
+    backgroundColor: theme.redesign.container,
   },
   chipGogo: { backgroundColor: theme.status.infoSoft, borderColor: theme.status.infoSoft },
 }))

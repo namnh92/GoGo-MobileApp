@@ -384,13 +384,14 @@ describe('#515 Stitch search row and empty recovery', () => {
 
   it('uses verification, rating provenance and price only when the nearby response supplies them', async () => {
     mockNearby.value = { ...emptyPage(), data: { pages: [{ results: [
-      { id: 'verified', name: 'Verified cafe', isLodging: false, verification: { status: 'verified' }, rating: 4.6, ratingCount: 980, pricePerPerson: { min: 65000, max: 65000, currency: 'VND', confidence: 1 } },
+      { id: 'verified', name: 'Verified cafe', isLodging: false, verification: { status: 'verified' }, rating: 4.6, ratingCount: 980, gogoRating: 4.8, gogoRatingCount: 20, pricePerPerson: { min: 65000, max: 65000, currency: 'VND', confidence: 1 } },
       { id: 'unknown', name: 'Unknown facts', isLodging: false },
     ] }] } }
     const view = await renderScreen(<SearchScreen />)
     const [known, unknown] = view.getAllByTestId('search-nearby-place').map(row => within(row))
     expect(known.getByText('Xác minh')).toBeTruthy()
     expect(known.getByText(/4,6 \(980\) Google/)).toBeTruthy()
+    expect(known.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
     expect(known.getByText(/65k/)).toBeTruthy()
     expect(unknown.queryByText(/Xác minh|Google|GoGo|65k|người/)).toBeNull()
   })

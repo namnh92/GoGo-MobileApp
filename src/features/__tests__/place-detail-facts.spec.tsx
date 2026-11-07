@@ -93,15 +93,15 @@ it('shows the visit time with its caption when the place has one', async () => {
 
   expect(card.getByText('45 phút')).toBeTruthy()
   expect(card.getByText('Thời gian ghé gợi ý')).toBeTruthy()
-  expect(within(view.getByTestId('place-detail-facts')).getByText('★ 4,5')).toBeTruthy()
+  expect(within(view.getByTestId('place-detail-facts')).getByText(/^★ 4,5.*Google$/)).toBeTruthy()
 })
 
 it('draws price, the two rating sources and the AI card as separate blocks, with a gap before the card', async () => {
   mockDetail.value = { ...PLACE, rating: 4.5, ratingCount: 1280, gogoRating: 4.2, gogoRatingCount: 7 }
   const view = await renderScreen(<PlaceDetailScreen />)
   const facts = within(view.getByTestId('place-detail-facts'))
-  expect(facts.getByText('(1.280)')).toBeTruthy()
-  expect(facts.getByText('GoGo')).toBeTruthy()
+  expect(facts.getByText('★ 4,5 (1.280) Google')).toBeTruthy()
+  expect(facts.getByText('★ 4,2 (7) GoGo')).toBeTruthy()
   expect(view.getByTestId('place-detail-action-bar')).toBeTruthy()
   // Directions is the map's job, not the action bar's or the info card's.
   expect(within(view.getByTestId('place-detail-action-bar')).queryByText('Chỉ đường')).toBeNull()
