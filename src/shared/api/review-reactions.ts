@@ -1,4 +1,11 @@
+import type { InfiniteData } from '@tanstack/react-query'
 import type { MyReviewReactions, PlaceReviewPreview, ReviewReactionState } from './types'
+
+export type ReviewCache = PlaceReviewPreview | InfiniteData<PlaceReviewPreview>
+
+function mapCache<T extends ReviewCache>(cache: T, update: (page: PlaceReviewPreview) => PlaceReviewPreview): T {
+  return ('pages' in cache ? { ...cache, pages: cache.pages.map(update) } : update(cache)) as T
+}
 
 /**
  * APP-060 (#219) — cache arithmetic for the optimistic helpful toggle. Kept
@@ -18,32 +25,30 @@ export function helpfulDelta(mine: MyReviewReactions | undefined, reviewId: stri
   return helpful ? 1 : -1
 }
 
-export function withHelpfulDelta(
-  preview: PlaceReviewPreview | undefined,
+export function withHelpfulDelta<T extends ReviewCache>(
+  preview: T | undefined,
   reviewId: string,
   delta: -1 | 0 | 1,
-): PlaceReviewPreview | undefined {
+): T | undefined {
   if (!preview || delta === 0) return preview
-  return {
-    ...preview,
-    reviews: preview.reviews.map(review =>
-      review.id === reviewId ? { ...review, helpfulCount: Math.max(0, review.helpfulCount + delta) } : review,
-    ),
-  }
+  return mapCache(preview, page => ({
+    ...page,
+    reviews: page.reviews.map(review => review.id === reviewId
+      ? { ...review, helpfulCount: Math.max(0, review.helpfulCount + delta) } : review),
+    ...(page.items ? { items: page.items.map(review => review.id === reviewId
+      ? { ...review, helpfulCount: Math.max(0, review.helpfulCount + delta) } : review) } : {}),
+  }))
 }
 
-/** The server's answer is the truth; it replaces whatever was guessed. */
-export function withServerState(
-  preview: PlaceReviewPreview | undefined,
-  state: ReviewReactionState,
-): PlaceReviewPreview | undefined {
+/** The server's answer replaces the guess in every loaded page and order. */
+export function withServerState<T extends ReviewCache>(preview: T | undefined, state: ReviewReactionState): T | undefined {
   if (!preview) return preview
-  return {
-    ...preview,
-    reviews: preview.reviews.map(review =>
-      review.id === state.reviewId ? { ...review, helpfulCount: state.helpfulCount } : review,
-    ),
-  }
+  return mapCache(preview, page => ({
+    ...page,
+    reviews: page.reviews.map(review => review.id === state.reviewId ? { ...review, helpfulCount: state.helpfulCount } : review),
+    ...(page.items ? { items: page.items.map(review => review.id === state.reviewId
+      ? { ...review, helpfulCount: state.helpfulCount } : review) } : {}),
+  }))
 }
 
 export function withMyMark(
@@ -58,10 +63,11 @@ export function withMyMark(
 
 /** `helpful` with no marks anywhere is the server's newest-first fallback. */
 export function isHelpfulFallback(preview: PlaceReviewPreview | undefined): boolean {
+  const rows = preview?.items ?? preview?.reviews ?? []
   return Boolean(
     preview &&
       preview.order === 'helpful' &&
-      preview.reviews.length > 0 &&
-      preview.reviews.every(review => review.helpfulCount === 0),
+      rows.length > 0 &&
+      rows.every(review => review.helpfulCount === 0),
   )
 }

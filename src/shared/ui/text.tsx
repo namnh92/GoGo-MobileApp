@@ -19,6 +19,8 @@ import { glyphText, type GlyphSize, type TypeStyle } from '@/shared/ui/tokens'
  */
 
 export type TextColor =
+  | 'redesign.importSyncedText'
+  | 'redesign.importPhotoBadgeText'
   | 'redesign.primaryText'
   | 'redesign.ink'
   | 'redesign.secondary'
@@ -54,6 +56,8 @@ export type TextColor =
  * runtime as `color: undefined`.
  */
 const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
+  'redesign.importSyncedText': theme => theme.redesign.importSyncedText,
+  'redesign.importPhotoBadgeText': theme => theme.redesign.importPhotoBadgeText,
   'redesign.primaryText': theme => theme.redesign.primaryText,
   'redesign.ink': theme => theme.redesign.ink,
   'redesign.secondary': theme => theme.redesign.secondary,

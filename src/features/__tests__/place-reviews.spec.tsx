@@ -21,6 +21,7 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () =>
     mockLoaded({ id: 'place-1', name: 'Quán thử', rating: 4.6, ratingCount: 812, photos: [] }),
+  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: (placeId: string, order?: string) => mockUsePlaceReviews(placeId, order),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
@@ -42,7 +43,7 @@ function review(n: number, over: { displayName?: string | null; rating?: number 
   }
 }
 
-const preview = (...reviews: ReturnType<typeof review>[]) => mockLoaded({ source: 'gogo', order: 'latest', reviews })
+const preview = (...reviews: ReturnType<typeof review>[]) => mockLoaded({ pages: [{ source: 'gogo', order: 'latest', reviews, items: reviews }], pageParams: [undefined] })
 const section = () => within(screen.getByTestId('place-reviews'))
 
 beforeEach(() => {
@@ -96,9 +97,9 @@ it('keeps GoGo reviews apart from the Google rating', async () => {
   // Google's number stays in Google's places; the GoGo card still has no
   // aggregate (its chip says so in words), because two reviews are not a
   // community rating.
-  expect(screen.getAllByText('★ 4.6').length).toBeGreaterThan(0)
-  expect(screen.getByText('Chưa đủ đánh giá')).toBeTruthy()
-  expect(section().queryByText('★ 4.6')).toBeNull()
+  expect(screen.getAllByText('★ 4,6').length).toBeGreaterThan(0)
+  expect(screen.queryByText('GoGo · 0 đánh giá · Chưa đủ 5 đánh giá')).toBeNull()
+  expect(section().queryByText('★ 4,6')).toBeNull()
   expect(section().getAllByText('★ 1/5')).toHaveLength(2)
 })
 
@@ -140,4 +141,21 @@ it('drops a review once the server stops listing it after moderation', async () 
   expect(section().getByText('Nội dung 3')).toBeTruthy()
   expect(section().getByText('Nội dung 1')).toBeTruthy()
   expect(section().queryByText('Nội dung 2')).toBeNull()
+})
+
+
+it('loads the next page inside detail, deduplicates rows, and has no separate page link', async () => {
+  const next = jest.fn()
+  mockReviews = Object.assign(preview(review(1)), { hasNextPage: true, isFetchingNextPage: false, fetchNextPage: next })
+  await renderScreen(<PlaceDetailScreen />)
+  await fireEvent.press(screen.getByText('Xem thêm'))
+  expect(next).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('Mở trang đánh giá')).toBeNull()
+  mockReviews = mockLoaded({ pages: [
+    { source: 'gogo', order: 'latest', items: [review(1)], reviews: [] },
+    { source: 'gogo', order: 'latest', items: [review(1), review(2)], reviews: [] },
+  ], pageParams: [undefined, 'next'] })
+  await renderScreen(<PlaceDetailScreen />)
+  expect(screen.getAllByText('Người viết 1')).toHaveLength(1)
+  expect(screen.getByText('Người viết 2')).toBeTruthy()
 })

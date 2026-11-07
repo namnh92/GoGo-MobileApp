@@ -26,7 +26,7 @@ import { markSplashHidden } from '@/shared/ui/splash-state'
 import { ToastProvider } from '@/shared/ui/toast.view'
 
 /** Bumping this discards every persisted cache — use it when a DTO shape changes. */
-const CACHE_BUSTER = 'gogo.v1.0.0-alpha.2'
+const CACHE_BUSTER = 'gogo.v1.0.0-alpha.3'
 
 /** Runs after persistence hydration; every screen shares this locale query. */
 function TaxonomyBootstrap() {

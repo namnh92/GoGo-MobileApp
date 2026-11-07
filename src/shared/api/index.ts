@@ -30,3 +30,5 @@ export type { AssistantBackend } from './assistant-backend'
 export type { AssistantReplyConnection, OpenAssistantStream, OpenAssistantStreamOptions } from './realtime/assistant-stream'
 export { applyAssistantEvent } from './realtime/assistant-stream'
 export { discoveryLabels } from './discovery-taxonomies'
+
+export { useCandidatePhoto } from './candidate-photo'

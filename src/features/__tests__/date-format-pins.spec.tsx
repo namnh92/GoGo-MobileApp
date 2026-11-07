@@ -26,12 +26,13 @@ jest.mock('@/shared/api', () => ({
   useUpdateReview: () => ({ mutateAsync: jest.fn(), isPending: false }),
   usePlaceDetail: () =>
     mockLoaded({ id: 'place-1', name: 'Quán thử', photos: [], freshnessCheckedAt: new Date(2026, 9, 9, 12).toISOString() }),
+  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: () =>
-    mockLoaded({
+    mockLoaded({ pages: [{
       source: 'gogo',
       order: 'latest',
       reviews: [{ id: 'review-1', rating: 5, createdAt: new Date(2026, 9, 9, 12).toISOString(), text: 'Ngon', author: { displayName: 'Người viết' }, helpfulCount: 0 }],
-    }),
+    }], pageParams: [undefined] }),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
   useSaved: () => mockLoaded([]),

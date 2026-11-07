@@ -39,6 +39,7 @@ let mockReviews: QueryLike
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockPlace,
+  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: () => mockReviews,
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
@@ -77,7 +78,7 @@ beforeEach(() => {
   mockReplace.mockClear()
   mockCanGoBack = true
   mockPlace = mockLoaded(PLACE)
-  mockReviews = mockLoaded(REVIEWS)
+  mockReviews = mockLoaded({ pages: [REVIEWS], pageParams: [undefined] })
 })
 
 afterEach(async () => {
@@ -113,7 +114,7 @@ describe('Place Detail × connectivity', () => {
   ])('reports a review refresh that %s while the device is online, with a retry', async (_, failure) => {
     // The place loaded and the device is online, so the screen shows no bar;
     // only the reviews section knows its refresh failed.
-    mockReviews = { ...mockLoaded(REVIEWS), isError: true, error: failure }
+    mockReviews = { ...mockLoaded({ pages: [REVIEWS], pageParams: [undefined] }), isError: true, error: failure }
     const view = await renderScreen(<PlaceDetailScreen />)
     const reviews = within(screen.getByTestId('place-reviews'))
     expect(reviews.getByText(OFFLINE)).toBeTruthy()
@@ -122,7 +123,7 @@ describe('Place Detail × connectivity', () => {
   })
 
   it('reports a failed review refresh inside the reviews section, once', async () => {
-    mockReviews = { ...mockLoaded(REVIEWS), isError: true, error: new Error('500') }
+    mockReviews = { ...mockLoaded({ pages: [REVIEWS], pageParams: [undefined] }), isError: true, error: new Error('500') }
     const view = await renderScreen(<PlaceDetailScreen />)
     expect(within(screen.getByTestId('place-reviews')).getByText(FAILED)).toBeTruthy()
     expect(view.getAllByText(FAILED)).toHaveLength(1)

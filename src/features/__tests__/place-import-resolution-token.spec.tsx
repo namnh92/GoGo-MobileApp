@@ -55,6 +55,8 @@ const mockSubmit = {
 
 const mockTrack = jest.fn()
 
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
+jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
@@ -95,19 +97,19 @@ const staleToken = () =>
     retryable: true,
   })
 
-async function openWithPreview(): Promise<void> {
-  mockResolve.data = RESOLVED
+async function openWithPreview(result: Omit<typeof RESOLVED, 'resolutionToken'> & { resolutionToken?: string } = RESOLVED): Promise<void> {
+  mockResolve.data = result
   await renderScreen(<PlaceImportScreen />)
   // The screen re-resolves from its own input, so the link has to be in it.
   // Both the typing and the press go through `act`: an unwrapped state update
   // here leaves React with an open act scope, and every later render in the
   // file comes back empty.
   await act(async () => {
-    await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), LINK)
+    await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), LINK)
   })
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 }
 
-describe('APP-042 — the resolve proof reaches submit', () => {
   beforeEach(() => {
     mockResolve.mutate.mockClear()
     mockResolve.mutateAsync.mockReset()
@@ -121,6 +123,9 @@ describe('APP-042 — the resolve proof reaches submit', () => {
     mockSubmit.mutateAsync.mockResolvedValue({ status: 'PENDING', submissionId: 'sub-1' })
     mockResolve.mutateAsync.mockResolvedValue(RESOLVED)
   })
+
+describe('APP-042 — the resolve proof reaches submit', () => {
+
 
   it('sends the token the preview returned', async () => {
     await openWithPreview()
@@ -146,13 +151,15 @@ describe('APP-042 — the resolve proof reaches submit', () => {
     })
 
     await openWithPreview()
+    await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
+    await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Keep this note')
     await pressSubmit()
 
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
     // The user is never asked to paste the link again.
     expect(mockResolve.mutateAsync).toHaveBeenCalledWith({ url: LINK })
     expect(mockSubmit.mutateAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({ resolutionToken: 'token-from-the-retry' }),
+      expect.objectContaining({ resolutionToken: 'token-from-the-retry', note: 'Keep this note' }),
     )
   })
 
@@ -193,8 +200,7 @@ describe('APP-042 — the resolve proof reaches submit', () => {
   })
 
   it('submits without a token rather than failing, when the preview issued none', async () => {
-    mockResolve.data = { ...RESOLVED, resolutionToken: undefined }
-    await renderScreen(<PlaceImportScreen />)
+    await openWithPreview({ ...RESOLVED, resolutionToken: undefined })
 
     await pressSubmit()
 
@@ -216,4 +222,70 @@ describe('APP-042 — the resolve proof reaches submit', () => {
       expect(JSON.stringify(call)).not.toContain('token-from-the-preview')
     }
   })
+})
+
+
+it('invalidates A preview when the user edits the link to B', async () => {
+  await openWithPreview()
+  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
+  expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
+  expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
+})
+
+it('does not retry A after a stale-token resolve returns while the user is on B', async () => {
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+  let finish: (value: unknown) => void = () => {}
+  mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await openWithPreview()
+  await pressSubmit()
+  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
+  await act(async () => { finish(RESOLVED) })
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('Quán Thử')).toBeNull()
+})
+
+it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after editing A→B→A', async pendingStep => {
+  let finish: () => void = () => {}
+  if (pendingStep === 'resolve') {
+    mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+    mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finish = () => resolve(RESOLVED) }))
+  } else {
+    mockSubmit.mutateAsync.mockImplementationOnce(() => new Promise((_resolve, reject) => { finish = () => reject(staleToken()) }))
+  }
+  await openWithPreview()
+  await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Old A note')
+  await pressSubmit()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  const input = screen.getByPlaceholderText('Dán link Google Maps tại đây...')
+  await fireEvent.changeText(input, 'https://maps.app.goo.gl/B')
+  await fireEvent.changeText(input, LINK)
+  await act(async () => { finish() })
+
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ note: 'Old A note' }))
+  expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(pendingStep === 'resolve' ? 1 : 0)
+  expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
+})
+
+it('keeps a new attempt locked when an outdated retry finishes', async () => {
+  let finishOld: (value: unknown) => void = () => {}
+  let finishNew: (value: unknown) => void = () => {}
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+    .mockImplementationOnce(() => new Promise(resolve => { finishNew = resolve }))
+  mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finishOld = resolve }))
+  await openWithPreview()
+  await pressSubmit()
+  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), LINK)
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  await pressSubmit()
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
+  await act(async () => { finishOld(RESOLVED) })
+  await pressSubmit()
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
+  await act(async () => { finishNew({ status: 'PENDING', submissionId: 'new' }) })
 })

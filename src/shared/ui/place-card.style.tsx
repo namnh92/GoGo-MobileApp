@@ -3,6 +3,17 @@ import { StyleSheet } from 'react-native-unistyles'
 import { overlay, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  importCard: { borderRadius: 12, overflow: 'hidden', backgroundColor: theme.redesign.card, ...theme.shadows.card },
+  importBody: { padding: 16, gap: 12 },
+  importFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  importFact: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: theme.redesign.container },
+  importNoPhotoHead: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
+  importHeaderAction: { position: 'absolute', top: 8, right: 8 },
+  // Reserve 44pt Maps target + 8pt right inset + 8pt gap, even without an action.
+  importPhotoOverlays: { position: 'absolute', top: 12, left: 12, right: 60, alignItems: 'flex-start' },
+  importPhotoCredit: { maxWidth: '100%', minWidth: 0, flexShrink: 1, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 10, paddingVertical: 4 },
+  importHoursLabel: { flexShrink: 1 },
+  importActions: { marginTop: 24, gap: 12 },
   /** Holds the card and, beside it, the save toggle positioned over it. */
   verifiedBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: theme.redesign.verifiedFill },
   discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -25,6 +36,7 @@ export const styles = StyleSheet.create(theme => ({
   // --- list (default): the Stitch card, photo over body ---------------------
   listCard: { overflow: 'hidden' },
   listPhoto: { aspectRatio: 1.6, backgroundColor: theme.surface.subtle },
+  photoSkeleton: { height: '100%' },
   // `minWidth: 0` lets the text column shrink below its content, which is what
   // makes `numberOfLines={1}` ellipsise instead of pushing the card wider.
   listBody: { minWidth: 0, padding: theme.spacing[4], gap: theme.spacing[2] },

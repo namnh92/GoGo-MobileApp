@@ -7,8 +7,8 @@ import * as plansApi from '../endpoints/plans'
 import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
-import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState } from '../review-reactions'
-import type { MyReviewReactions, OpBody, OpResponse, PlaceReviewPreview, Plan, SavedItem } from '../types'
+import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState, type ReviewCache } from '../review-reactions'
+import type { MyReviewReactions, OpBody, OpResponse, Plan, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 import { useIntentKey } from './use-intent-key'
 
@@ -300,7 +300,7 @@ export function useToggleReviewHelpful(placeId: string) {
         queryClient.cancelQueries({ queryKey: previewsKey }),
         queryClient.cancelQueries({ queryKey: mineKey }),
       ])
-      const previews = queryClient.getQueriesData<PlaceReviewPreview>({ queryKey: previewsKey })
+      const previews = queryClient.getQueriesData<ReviewCache>({ queryKey: previewsKey })
       const mine = queryClient.getQueryData<MyReviewReactions>(mineKey)
       const delta = helpfulDelta(mine, reviewId, helpful)
       if (delta !== 0) {
@@ -317,7 +317,7 @@ export function useToggleReviewHelpful(placeId: string) {
     },
 
     onSuccess: state => {
-      for (const [key, data] of queryClient.getQueriesData<PlaceReviewPreview>({ queryKey: previewsKey })) {
+      for (const [key, data] of queryClient.getQueriesData<ReviewCache>({ queryKey: previewsKey })) {
         queryClient.setQueryData(key, withServerState(data, state))
       }
       queryClient.setQueryData(

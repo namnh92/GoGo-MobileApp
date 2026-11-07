@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { formatPlaceAddress } from '../../administrative/place-address'
 
-import type { PlaceSearchResult, Plan, RoomSummary } from '../types'
+import type { PlaceDetail, PlaceSearchResult, Plan, RoomSummary } from '../types'
 import {
   areaLabel,
   detailToPlaceCard,
@@ -152,9 +153,9 @@ describe('regression: PlaceDetail numerics arrive as strings', () => {
 
 describe('openStateFromHours', () => {
   // 2026-08-27 is a Thursday (day 4).
-  const thursdayEvening = new Date(2026, 7, 27, 19, 0)
-  const thursdayMorning = new Date(2026, 7, 27, 8, 0)
-  const fridayNight = new Date(2026, 7, 28, 1, 0)
+  const thursdayEvening = new Date('2026-08-27T19:00:00+07:00')
+  const thursdayMorning = new Date('2026-08-27T08:00:00+07:00')
+  const fridayNight = new Date('2026-08-28T01:00:00+07:00')
 
   const weekday = [{ dayOfWeek: 4, openMinute: 9 * 60, closeMinute: 22 * 60, isOvernight: false }]
 
@@ -185,7 +186,7 @@ describe('openStateFromHours', () => {
 
   it('does not claim open after an overnight session has ended', () => {
     const overnight = [{ dayOfWeek: 4, openMinute: 18 * 60, closeMinute: 2 * 60, isOvernight: true }]
-    const fridayMorning = new Date(2026, 7, 28, 9, 0)
+    const fridayMorning = new Date('2026-08-28T09:00:00+07:00')
 
     expect(openStateFromHours(overnight, fridayMorning).openNow).toBe(false)
   })
@@ -203,8 +204,8 @@ describe('openStateFromHours', () => {
 
   it('says nothing rather than guessing when hours are unknown', () => {
     // No hours must never render as "open" (RULE-CORE-008).
-    expect(openStateFromHours(undefined, thursdayEvening)).toEqual({ openNow: false })
-    expect(openStateFromHours([], thursdayEvening)).toEqual({ openNow: false })
+    expect(openStateFromHours(undefined, thursdayEvening)).toEqual({})
+    expect(openStateFromHours([], thursdayEvening)).toEqual({})
   })
 })
 
@@ -452,5 +453,22 @@ describe('#754 discovery ratings', () => {
     expect(card.gogoRating).toBeUndefined()
     expect(card.gogoRatingCount).toBeUndefined()
     expect(card).not.toHaveProperty('verified')
+  })
+})
+
+
+describe('place address seam', () => {
+  it('keeps the detail raw address until both verified ward and province are available', () => {
+    const detail: PlaceDetail = {
+      checkedInGroupCount: 0,
+      gogoRatingCount: 0,
+      addressText: ' 12 Đường A, Phường B ',
+      areaSummary: { datasetVersion: 'v1', provinceCode: '79', communeCode: 'x', locale: 'vi', label: 'Phường B' },
+    }
+    expect(formatPlaceAddress({ addressText: detail.addressText })).toBe(detail.addressText)
+    expect(formatPlaceAddress({})).toBe('')
+    expect(formatPlaceAddress(detail)).toBe(detail.addressText)
+    expect(formatPlaceAddress(detail, 'Thành phố Hồ Chí Minh')).toBe('12 Đường A, B, Hồ Chí Minh')
+    expect(formatPlaceAddress({ ...detail, areaSummary: { ...detail.areaSummary!, communeCode: null } }, 'Thành phố Hồ Chí Minh')).toBe(detail.addressText)
   })
 })

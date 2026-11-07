@@ -31,6 +31,7 @@ const FILL = { width: '100%', height: '100%' } as const
 
 type Props = {
   /** The place's approved photo, when it has one. */
+  cachePolicy?: 'none'
   uri?: string | null
   /** Kept for callers; the placeholder no longer varies per place. */
   placeId: string
@@ -48,7 +49,7 @@ export function PlacePhoto({ uri, style, icon, ...rest }: Props) {
   return <PhotoAttempt key={uri} uri={uri} style={style} icon={icon} {...rest} />
 }
 
-function PhotoAttempt({ uri, name, icon, style, accessibilityLabel }: Props & { uri: string }) {
+function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy }: Props & { uri: string }) {
   const reduced = useReducedMotionPreference()
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading')
   const label = accessibilityLabel ?? name
@@ -66,6 +67,7 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel }: Props & { 
       <Image
         testID="place-photo-image"
         source={{ uri }}
+        cachePolicy={cachePolicy}
         // The view is not reused for another place's picture (Sol #348 F-01).
         recyclingKey={uri}
         style={FILL}

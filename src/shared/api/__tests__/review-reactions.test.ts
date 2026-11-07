@@ -62,3 +62,19 @@ describe('optimistic helpful marks (APP-060)', () => {
     expect(isHelpfulFallback(undefined)).toBe(false)
   })
 })
+
+
+describe('paginated helpful cache', () => {
+  it('updates both row representations on every page without mutating the rollback snapshot', () => {
+    const first = { ...preview('helpful', review('r1', 2)), items: [review('r1', 2)] }
+    const second = { ...preview('helpful', review('r2', 4)), items: [review('r2', 4)] }
+    const before = { pages: [first, second], pageParams: [undefined, 'cursor'] }
+    const changed = withHelpfulDelta(before, 'r2', 1)!
+    expect(changed.pages.map(p => p.items[0].helpfulCount)).toEqual([2, 5])
+    expect(changed.pages[1].reviews[0].helpfulCount).toBe(5)
+    expect(before.pages[1].items[0].helpfulCount).toBe(4)
+    const settled = withServerState(changed, { reviewId: 'r2', helpfulCount: 9, reactedByMe: true })!
+    expect(settled.pages[1].items[0].helpfulCount).toBe(9)
+    expect(settled.pageParams).toBe(before.pageParams)
+  })
+})

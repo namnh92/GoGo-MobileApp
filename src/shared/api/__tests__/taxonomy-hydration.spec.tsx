@@ -60,7 +60,7 @@ it('waits for disk hydration, shows cache while validating, and shares launch va
   previous.setQueryData(queryKeys.taxonomies('vi'), {
     data: { version: 1, kinds: { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] } }, etag: 'W/"vi-1"',
   })
-  const saved: PersistedClient = { timestamp: Date.now(), buster: 'gogo.v1.0.0-alpha.2', clientState: dehydrate(previous, {
+  const saved: PersistedClient = { timestamp: Date.now(), buster: 'gogo.v1.0.0-alpha.3', clientState: dehydrate(previous, {
     shouldDehydrateQuery: query => shouldPersistQuery(query.queryKey),
   }) }
   previous.clear()
@@ -105,7 +105,7 @@ it.each([
   previous.setQueryData(queryKeys.me(), { id: 'old-user' })
   const saved: PersistedClient = {
     timestamp: Date.now() - hours * 60 * 60 * 1000,
-    buster: 'gogo.v1.0.0-alpha.2',
+    buster: 'gogo.v1.0.0-alpha.3',
     clientState: dehydrate(previous, { shouldDehydrateQuery: query => shouldPersistQuery(query.queryKey) }),
   }
   previous.clear()

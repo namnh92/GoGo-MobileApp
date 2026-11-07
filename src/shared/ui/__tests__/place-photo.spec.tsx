@@ -138,3 +138,9 @@ describe('PlacePhoto', () => {
     expect(screen.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
   })
 })
+
+
+it('never hands transient provider bytes to the disk cache', async () => {
+  await render(<PlacePhoto placeId="p1" uri="data:image/jpeg;base64,YQ==" cachePolicy="none" />)
+  expect(screen.getByTestId('place-photo-image').props.cachePolicy).toBe('none')
+})

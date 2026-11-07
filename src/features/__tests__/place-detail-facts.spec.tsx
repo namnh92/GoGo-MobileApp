@@ -1,5 +1,5 @@
 import { fireEvent, within } from '@testing-library/react-native'
-import { Linking, StyleSheet } from 'react-native'
+import { Dimensions, Linking, StyleSheet } from 'react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
 
@@ -10,6 +10,8 @@ import { loaded as mockLoaded, renderScreen } from './harness'
  */
 
 const mockDetail: { value: Record<string, unknown> } = { value: {} }
+const mockProviderPhotos: { value: unknown } = { value: undefined }
+beforeEach(() => { mockProviderPhotos.value = undefined })
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
@@ -19,7 +21,8 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded(mockDetail.value),
-  usePlaceReviews: () => mockLoaded({ source: 'gogo', order: 'latest', reviews: [] }),
+  usePlaceProviderPhotos: () => ({ data: mockProviderPhotos.value }),
+  usePlaceReviews: () => mockLoaded({ pages: [{ source: 'gogo', order: 'latest', reviews: [], items: [] }], pageParams: [undefined] }),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
   useSaved: () => mockLoaded([]),
@@ -28,8 +31,49 @@ jest.mock('@/shared/api', () => ({
 }))
 
 import PlaceDetailScreen from '@/features/date-plan/place-detail.view'
+import { GALLERY_MARGIN } from '@/features/date-plan/place-detail.style'
 
 const PLACE = { id: 'place-1', name: 'Quán thử', photos: [] }
+
+it('F-04: opens the displayed provider photo source and each author profile beside its credit', async () => {
+  const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true)
+  mockDetail.value = { ...PLACE }
+  mockProviderPhotos.value = {
+    status: 'ok', attribution: 'Google Maps', photos: [{
+      contentType: 'image/jpeg', dataBase64: 'first', googleMapsUri: 'https://maps.google.com/photo/first',
+      authorAttributions: [
+        { displayName: 'Mai', uri: 'https://maps.google.com/user/mai' },
+        { displayName: 'Nam', uri: 'https://maps.google.com/user/nam' },
+      ],
+    }, {
+      contentType: 'image/jpeg', dataBase64: 'second', googleMapsUri: 'https://maps.google.com/photo/second',
+      authorAttributions: [{ displayName: 'Linh', uri: null }],
+    }],
+  }
+  try {
+    const view = await renderScreen(<PlaceDetailScreen />)
+    for (const [name, url] of [
+      ['Google Maps', 'https://maps.google.com/photo/first'],
+      ['Mai', 'https://maps.google.com/user/mai'],
+      ['Nam', 'https://maps.google.com/user/nam'],
+    ]) {
+      const link = view.getByRole('link', { name })
+      await fireEvent.press(link)
+      expect(openURL).toHaveBeenLastCalledWith(url)
+    }
+    const gallery = view.getByTestId('place-detail-gallery-pages')
+    // Use the actual page width, as the gallery does when calculating its index.
+    const pageWidth = Dimensions.get('window').width - GALLERY_MARGIN * 2
+    await fireEvent.scroll(gallery, { nativeEvent: { contentOffset: { x: pageWidth, y: 0 } } })
+    await fireEvent.press(view.getByRole('link', { name: 'Google Maps' }))
+    expect(openURL).toHaveBeenLastCalledWith('https://maps.google.com/photo/second')
+    expect(view.queryByRole('link', { name: 'Mai' })).toBeNull()
+    expect(view.getByText('Linh')).toBeTruthy()
+    expect(view.queryByRole('link', { name: 'Linh' })).toBeNull()
+  } finally {
+    openURL.mockRestore()
+  }
+})
 
 it('leaves the visit-time fact out when the place has none', async () => {
   mockDetail.value = { ...PLACE, avgVisitMinutes: null }
@@ -39,7 +83,7 @@ it('leaves the visit-time fact out when the place has none', async () => {
   // A card left with no rows is hidden, not drawn empty.
   expect(view.queryByTestId('place-detail-info')).toBeNull()
   // The facts that do exist still render: no rating is said in words.
-  expect(within(view.getByTestId('place-detail-facts')).getByText('Chưa có đánh giá')).toBeTruthy()
+  expect(within(view.getByTestId('place-detail-facts')).queryByText('Chưa có đánh giá')).toBeNull()
 })
 
 it('shows the visit time with its caption when the place has one', async () => {
@@ -49,11 +93,11 @@ it('shows the visit time with its caption when the place has one', async () => {
 
   expect(card.getByText('45 phút')).toBeTruthy()
   expect(card.getByText('Thời gian ghé gợi ý')).toBeTruthy()
-  expect(within(view.getByTestId('place-detail-facts')).getByText('★ 4.5')).toBeTruthy()
+  expect(within(view.getByTestId('place-detail-facts')).getByText('★ 4,5')).toBeTruthy()
 })
 
 it('draws price, the two rating sources and the AI card as separate blocks, with a gap before the card', async () => {
-  mockDetail.value = { ...PLACE, rating: 4.5, ratingCount: 1280 }
+  mockDetail.value = { ...PLACE, rating: 4.5, ratingCount: 1280, gogoRating: 4.2, gogoRatingCount: 7 }
   const view = await renderScreen(<PlaceDetailScreen />)
   const facts = within(view.getByTestId('place-detail-facts'))
   expect(facts.getByText('(1.280)')).toBeTruthy()
