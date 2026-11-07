@@ -13,6 +13,8 @@
  * has to use. That is why this lives in the repo (GoGo-MobileApp#286).
  */
 
+import { captureSessionScope } from '../session'
+
 /** One decoded event. `type` is the SSE `event:` field, `message` when absent. */
 export interface SseEvent {
   type: string
@@ -94,12 +96,19 @@ export function parseSseChunk(buffer: string): { events: SseEvent[]; rest: strin
  * transport with a fake and never touch a native module.
  */
 export const xhrSseConnector: SseConnector = ({ url, headers, onOpen, onEvent, onClose }) => {
+  const scope = captureSessionScope()
   const xhr = new XMLHttpRequest()
   let consumed = 0
   let buffer = ''
   let opened = false
   let finished = false
   let abandoned = false
+  const close = () => {
+    abandoned = true
+    scope.signal.removeEventListener('abort', close)
+    try { xhr.abort() } catch { /* Already finished on some native engines. */ }
+  }
+  scope.signal.addEventListener('abort', close, { once: true })
 
   /**
    * `Retry-After` is either a count of seconds or an HTTP date, and servers
@@ -126,6 +135,7 @@ export const xhrSseConnector: SseConnector = ({ url, headers, onOpen, onEvent, o
   const finish = (status: number | null) => {
     if (finished || abandoned) return
     finished = true
+    scope.signal.removeEventListener('abort', close)
     const wait = retryAfter()
     onClose(wait === undefined ? { status } : { status, retryAfterMs: wait })
   }
@@ -137,7 +147,10 @@ export const xhrSseConnector: SseConnector = ({ url, headers, onOpen, onEvent, o
     consumed = text.length
     const parsed = parseSseChunk(buffer)
     buffer = parsed.rest
-    for (const event of parsed.events) onEvent(event)
+    for (const event of parsed.events) {
+      if (abandoned) return
+      onEvent(event)
+    }
   }
 
   xhr.onreadystatechange = () => {
@@ -167,15 +180,5 @@ export const xhrSseConnector: SseConnector = ({ url, headers, onOpen, onEvent, o
   xhr.setRequestHeader('cache-control', 'no-cache')
   xhr.send()
 
-  return {
-    close() {
-      abandoned = true
-      try {
-        xhr.abort()
-      } catch {
-        // Aborting an already-finished request throws on some engines and
-        // means the same thing as succeeding here.
-      }
-    },
-  }
+  return { close }
 }

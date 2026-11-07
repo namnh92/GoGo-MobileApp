@@ -7,7 +7,7 @@ import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
 import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState, type ReviewCache } from '../review-reactions'
-import { assertSessionGeneration, getSessionGeneration } from '../session'
+import { captureSessionScope } from '../session'
 import type { MyReviewReactions, OpBody, OpResponse, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 import { useIntentKey } from './use-intent-key'
@@ -38,7 +38,9 @@ export function useUpdateDateOfBirth() {
     mutationFn: (dateOfBirth: string | null) => sessionsApi.updateProfile({ dateOfBirth }),
 
     onMutate: async dateOfBirth => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key })
+      scope.assert()
       const previous = queryClient.getQueryData<Profile>(key)
       if (previous) queryClient.setQueryData<Profile>(key, { ...previous, dateOfBirth })
       return { previous }
@@ -142,18 +144,20 @@ function reserveSavedMutation(client: QueryClient, target: string) {
     pending = new Map()
     savedMutations.set(client, pending)
   }
+  const scope = captureSessionScope()
+  target = `${scope.generation}:${target}`
   const queue = pending
   const ready = queue.get(target) ?? Promise.resolve()
   let unlock: () => void = () => {}
   const done = new Promise<void>(resolve => { unlock = resolve })
   queue.set(target, done)
-  return {
-    ready,
-    release: () => {
-      if (queue.get(target) === done) queue.delete(target)
-      unlock()
-    },
+  const release = () => {
+    scope.signal.removeEventListener('abort', release)
+    if (queue.get(target) === done) queue.delete(target)
+    unlock()
   }
+  scope.signal.addEventListener('abort', release, { once: true })
+  return { ready: scope.wait(ready), release }
 }
 
 type SavedMutation = { type: SavedTargetType; id: string; saved: boolean }
@@ -167,23 +171,19 @@ export function useToggleSaved(): UseMutationResult<void, Error, SavedMutation, 
   const queryClient = useQueryClient()
   const key = queryKeys.saved()
 
-  const mutation = useMutation({
-    mutationFn: async ({ type, id, saved, generation }: SavedMutation & { generation: number }) => {
-      // TanStack re-enters here for every retry, even after its cache was cleared.
-      assertSessionGeneration(generation)
-      await (saved ? meApi.unsaveItem(type, id, generation) : meApi.saveItem(type, id, generation))
-      assertSessionGeneration(generation)
-    },
+  return useMutation({
+    mutationFn: ({ type, id, saved }: SavedMutation) =>
+      saved ? meApi.unsaveItem(type, id) : meApi.saveItem(type, id),
 
-    onMutate: async ({ type, id, saved, generation }) => {
-      assertSessionGeneration(generation)
+    onMutate: async ({ type, id, saved }) => {
+      const scope = captureSessionScope()
       // Hold the turn through TanStack's automatic retries and final rollback.
-      const turn = reserveSavedMutation(queryClient, `${generation}:${type}:${id}`)
+      const turn = reserveSavedMutation(queryClient, `${type}:${id}`)
       await turn.ready
       try {
-        assertSessionGeneration(generation)
+        scope.assert()
         await queryClient.cancelQueries({ queryKey: key })
-        assertSessionGeneration(generation)
+        scope.assert()
         const matches = (item: SavedItem) => item.targetType === type && item.targetId === id
         const previous = queryClient.getQueryData<SavedItem[]>(key)?.find(matches)
         queryClient.setQueryData<SavedItem[]>(key, current => {
@@ -199,8 +199,8 @@ export function useToggleSaved(): UseMutationResult<void, Error, SavedMutation, 
       }
     },
 
-    onError: (_error, { type, id, generation }, context) => {
-      if (!context || generation !== getSessionGeneration()) return
+    onError: (_error, { type, id }, context) => {
+      if (!context) return
       // Other places can mutate concurrently; roll back only this target.
       queryClient.setQueryData<SavedItem[]>(key, current => {
         if (!current) return current
@@ -209,20 +209,13 @@ export function useToggleSaved(): UseMutationResult<void, Error, SavedMutation, 
       })
     },
 
-    onSettled: (_data, _error, { generation }, context) => {
+    onSettled: (_data, _error, _variables, context) => {
       try {
-        if (generation === getSessionGeneration()) void queryClient.invalidateQueries({ queryKey: key })
+        void queryClient.invalidateQueries({ queryKey: key })
       }
       finally { context?.release() }
     },
   })
-
-  // Capture on invocation, before any async lifecycle callback or queue wait.
-  return {
-    ...mutation,
-    mutate: (variables, options) => mutation.mutate({ ...variables, generation: getSessionGeneration() }, options),
-    mutateAsync: (variables, options) => mutation.mutateAsync({ ...variables, generation: getSessionGeneration() }, options),
-  }
 }
 
 export function isSaved(items: SavedItem[] | undefined, type: SavedTargetType, id: string): boolean {
@@ -336,10 +329,12 @@ export function useToggleReviewHelpful(placeId: string) {
       helpful ? meApi.markReviewHelpful(reviewId) : meApi.unmarkReviewHelpful(reviewId),
 
     onMutate: async ({ reviewId, helpful }) => {
+      const scope = captureSessionScope()
       await Promise.all([
         queryClient.cancelQueries({ queryKey: previewsKey }),
         queryClient.cancelQueries({ queryKey: mineKey }),
       ])
+      scope.assert()
       const previews = queryClient.getQueriesData<ReviewCache>({ queryKey: previewsKey })
       const mine = queryClient.getQueryData<MyReviewReactions>(mineKey)
       const delta = helpfulDelta(mine, reviewId, helpful)
@@ -424,7 +419,9 @@ export function useSetNotificationSettings() {
     mutationFn: (body: OpBody<'setNotificationSettings'>) => meApi.setNotificationSettings(body),
 
     onMutate: async body => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key, exact: true })
+      scope.assert()
       const previous = queryClient.getQueryData<OpResponse<'getNotificationSettings'>>(key)
       if (previous) {
         queryClient.setQueryData<OpResponse<'getNotificationSettings'>>(key, {

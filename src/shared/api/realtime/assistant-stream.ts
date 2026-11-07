@@ -1,6 +1,7 @@
 import { env } from '@/shared/config/env'
 
 import { currentAccessGrant } from '../client'
+import { captureSessionScope } from '../session'
 import type { AssistantMessage, AssistantStreamEvent } from '../types'
 import { xhrSseConnector, type SseConnector, type SseEvent } from './sse-connection'
 
@@ -127,11 +128,18 @@ export function createHttpAssistantStreamOpener(
   grant: typeof currentAccessGrant = currentAccessGrant,
 ): OpenAssistantStream {
   return options => {
+    const scope = captureSessionScope()
     let closed = false
     let connection: { close: () => void } | null = null
-    void grant({ force: options.forceRefresh === true })
+    const close = () => {
+      closed = true
+      scope.signal.removeEventListener('abort', close)
+      connection?.close()
+    }
+    scope.signal.addEventListener('abort', close, { once: true })
+    void scope.wait(grant({ force: options.forceRefresh === true }))
       .then(access => {
-        if (closed) return
+        if (closed || scope.signal.aborted) return
         if (!access) {
           options.onClose({ status: 401 })
           return
@@ -141,22 +149,20 @@ export function createHttpAssistantStreamOpener(
         connection = connector({
           url: assistantStreamUrl(options),
           headers,
-          onOpen: options.onOpen,
+          onOpen: () => { if (!closed) options.onOpen() },
           onEvent: frame => {
+            if (closed) return
             const event = decodeAssistantFrame(frame)
             if (event) options.onEvent(event, frame.id)
           },
-          onClose: options.onClose,
+          onClose: reason => { if (!closed) options.onClose(reason) },
         })
       })
       .catch(() => {
         if (!closed) options.onClose({ status: null })
       })
     return {
-      close() {
-        closed = true
-        connection?.close()
-      },
+      close,
     }
   }
 }
@@ -205,6 +211,7 @@ const defaultSchedule = (run: () => void, ms: number) => {
  * - A 401 renews the bearer once through the shared refresh and reconnects.
  */
 export function followAssistantReply(options: FollowAssistantReplyOptions): AssistantReplyFollower {
+  const scope = captureSessionScope()
   const schedule = options.schedule ?? defaultSchedule
   let lastEventId: string | null = null
   let lastSeq = 0
@@ -214,6 +221,15 @@ export function followAssistantReply(options: FollowAssistantReplyOptions): Assi
   let stopped = false
   let connection: { close: () => void } | null = null
   let cancelTimer: (() => void) | null = null
+  const close = () => {
+    stopped = true
+    scope.signal.removeEventListener('abort', close)
+    cancelTimer?.()
+    cancelTimer = null
+    connection?.close()
+    connection = null
+  }
+  scope.signal.addEventListener('abort', close, { once: true })
 
   const report = (state: AssistantReplyConnection) => {
     if (!stopped) options.onConnection?.(state)
@@ -238,6 +254,7 @@ export function followAssistantReply(options: FollowAssistantReplyOptions): Assi
         options.onEvent(event)
         if (isTerminalEvent(event)) {
           ended = true
+          scope.signal.removeEventListener('abort', close)
           connection?.close()
         }
       },
@@ -273,12 +290,7 @@ export function followAssistantReply(options: FollowAssistantReplyOptions): Assi
   connect()
 
   return {
-    close() {
-      stopped = true
-      cancelTimer?.()
-      connection?.close()
-      connection = null
-    },
+    close,
     retry() {
       if (stopped || ended || connection) return
       attempts = 0

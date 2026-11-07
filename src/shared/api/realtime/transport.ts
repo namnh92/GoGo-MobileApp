@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 
 import { track } from '../../analytics'
 import { currentAccessGrant } from '../client'
-import { EXPIRY_SKEW_MS, getSession, subscribeToSession, type Session } from '../session'
+import { captureSessionScope, EXPIRY_SKEW_MS, getSession, subscribeToSession, type Session } from '../session'
 import { env } from '@/shared/config/env'
 
 import { appActivity, type AppActivity } from './app-activity'
@@ -226,6 +226,20 @@ export function createPollingTransport(
             created.timer = null
           }
         })
+        const scope = captureSessionScope()
+        const unsubscribeActivity = created.unsubscribeActivity
+        const cancel = () => {
+          if (pollers.get(roomId) !== created) return
+          if (created.timer) clearTimeout(created.timer)
+          created.timer = null
+          created.unsubscribeActivity()
+          pollers.delete(roomId)
+        }
+        created.unsubscribeActivity = () => {
+          scope.signal.removeEventListener('abort', cancel)
+          unsubscribeActivity()
+        }
+        scope.signal.addEventListener('abort', cancel, { once: true })
         poller = created
         pollers.set(roomId, poller)
       }
@@ -237,9 +251,10 @@ export function createPollingTransport(
       poller.idleTicks = 0
       if (activity.isActive()) schedule(poller, baseInterval(poller))
 
+      const subscribed = poller
       return () => {
         const current = pollers.get(roomId)
-        if (!current) return
+        if (!current || current !== subscribed) return
         const remaining = (current.phases.get(phase) ?? 1) - 1
         if (remaining > 0) current.phases.set(phase, remaining)
         else current.phases.delete(phase)
@@ -1013,6 +1028,16 @@ export function createSseTransport(options: SseTransportOptions = {}): RoomRealt
             }
           }
         })
+        const scope = captureSessionScope()
+        const unsubscribeActivity = created.unsubscribeActivity
+        const cancel = () => {
+          if (streams.get(roomId) === created) dispose(created)
+        }
+        created.unsubscribeActivity = () => {
+          scope.signal.removeEventListener('abort', cancel)
+          unsubscribeActivity()
+        }
+        scope.signal.addEventListener('abort', cancel, { once: true })
         stream = created
         streams.set(roomId, created)
       }

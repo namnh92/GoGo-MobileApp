@@ -1,4 +1,6 @@
 import { queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+
+import { captureSessionScope } from '../session'
 import { useEffect } from 'react'
 
 import * as placesApi from '../endpoints/places'
@@ -129,7 +131,9 @@ export function useLockPlanStop(planId: string) {
       plansApi.lockPlanStop(planId, stopId, locked),
 
     onMutate: async ({ stopId, locked }) => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key })
+      scope.assert()
       const previous = queryClient.getQueryData<Plan>(key)
       if (previous) {
         queryClient.setQueryData<Plan>(key, {

@@ -29,6 +29,7 @@ jest.mock('@/shared/api/realtime/transport', () => ({
 }))
 
 import { useRoomRealtime } from '@/shared/api/queries/use-room-realtime'
+import { clearSession, persistSession } from '@/shared/api/session'
 
 const client = new QueryClient()
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -37,6 +38,24 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 beforeEach(() => {
   mockSubscriptions.length = 0
+})
+
+it('replaces the same-room subscription when a new session lifetime signs in', async () => {
+  await persistSession({ kind: 'guest', roomId: 'room-a', accessToken: 'guest-A', expiresAt: Date.now() + 900_000 })
+  const hook = await renderHook(() => useRoomRealtime('room-a', 'lobby'), { wrapper })
+  await report(0, 'live')
+  expect(hook.result.current.status).toBe('live')
+  await act(async () => {
+    await persistSession({ kind: 'user', userId: 'A', accessToken: 'user-A', expiresAt: Date.now() + 900_000 })
+  })
+  expect(mockSubscriptions[0].active).toBe(false)
+  expect(mockSubscriptions.length).toBeGreaterThan(1)
+  await report(0, 'live')
+  expect(hook.result.current.status).toBe('connecting')
+  await report(mockSubscriptions.length - 1, 'live')
+  expect(hook.result.current.status).toBe('live')
+  await hook.unmount()
+  await clearSession()
 })
 
 async function report(index: number, status: RoomRealtimeStatus) {

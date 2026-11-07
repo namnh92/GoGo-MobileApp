@@ -5,6 +5,7 @@ import { queryKeys } from '../query-keys'
 import { clearSession, getSession, persistSession } from '../session'
 import type { SavedItem } from '../types'
 import { useToggleSaved } from './use-me'
+import { bindSessionCaches } from '../session-query-cache'
 
 const mockSave = jest.fn()
 const mockUnsave = jest.fn()
@@ -38,8 +39,9 @@ beforeEach(async () => {
   mockSave.mockResolvedValue(undefined)
   mockUnsave.mockResolvedValue(undefined)
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
-  client.setQueryData(key, [item])
   await persistSession({ kind: 'user', userId: 'A', accessToken: 'access-A', expiresAt: Date.now() + 600_000 })
+  bindSessionCaches(client)
+  client.setQueryData(key, [item])
 })
 afterEach(() => client.clear())
 
@@ -113,7 +115,7 @@ it('holds the per-place turn through automatic retries before allowing PUT', asy
 it('confirms an already saved place without duplicating it or replacing its metadata', async () => {
   const { result } = await renderHook(() => useToggleSaved(), { wrapper })
   await act(async () => { await result.current.mutateAsync({ type: 'place', id: 'canonical', saved: false }) })
-  expect(mockSave).toHaveBeenCalledWith('place', 'canonical', expect.any(Number))
+  expect(mockSave).toHaveBeenCalledWith('place', 'canonical')
   expect(client.getQueryData(key)).toEqual([item])
 })
 
@@ -124,7 +126,7 @@ it('lets other places save independently and preserves them when an earlier remo
   await act(async () => { result.current.remove.mutate({ type: 'place', id: 'canonical', saved: true }) })
   await waitFor(() => expect(mockUnsave).toHaveBeenCalledTimes(1))
   await act(async () => { await result.current.other.mutateAsync({ type: 'place', id: 'other', saved: false }) })
-  expect(mockSave).toHaveBeenCalledWith('place', 'other', expect.any(Number))
+  expect(mockSave).toHaveBeenCalledWith('place', 'other')
   await act(async () => { removal.reject(new Error('offline')) })
   await waitFor(() => expect(result.current.remove.isError).toBe(true))
   expect(client.getQueryData<SavedItem[]>(key)?.map(entry => entry.targetId).sort()).toEqual(['canonical', 'other'])
@@ -153,8 +155,8 @@ it.each([false, true])('rejects A queued save after switching to B, with removal
   await waitFor(() => expect(result.current.quick.isPending).toBe(false))
   expect(writes).toEqual([])
   expect(mockSave).not.toHaveBeenCalled()
-  expect(result.current.quick.isError).toBe(true)
-  expect(result.current.remove.isError).toBe(true)
+  expect(result.current.quick.isIdle).toBe(true)
+  expect(result.current.remove.isIdle).toBe(true)
   expect(client.getQueryData(key)).toEqual([])
   expect(invalidate).not.toHaveBeenCalled()
 })
@@ -173,7 +175,7 @@ it('does not retry A removal or roll it back into B cache after a switch', async
     client.setQueryData(key, [])
     removal.reject(new Error('offline'))
   })
-  await waitFor(() => expect(result.current.isError).toBe(true))
+  await waitFor(() => expect(result.current.isIdle).toBe(true))
   expect(mockUnsave).toHaveBeenCalledTimes(1)
   expect(client.getQueryData(key)).toEqual([])
 })
@@ -211,9 +213,9 @@ it('allows B to save the same target while A removal is still pending', async ()
     result.current.quick.mutate({ type: 'place', id: 'canonical', saved: false })
   })
   await waitFor(() => expect(result.current.quick.isSuccess).toBe(true))
-  expect(result.current.remove.isPending).toBe(true)
+  expect(result.current.remove.isIdle).toBe(true)
   await act(async () => { removal.reject(new Error('offline')) })
-  await waitFor(() => expect(result.current.remove.isError).toBe(true))
+  await waitFor(() => expect(result.current.remove.isIdle).toBe(true))
   expect(client.getQueryData<SavedItem[]>(key)?.map(entry => entry.targetId)).toEqual(['canonical'])
 })
 
@@ -230,7 +232,7 @@ it('rejects a save if the session switches while cache cancellation is awaited',
     client.setQueryData(key, [])
     cancellation.resolve()
   })
-  await waitFor(() => expect(result.current.isError).toBe(true))
+  await waitFor(() => expect(result.current.isIdle).toBe(true))
   expect(mockSave).not.toHaveBeenCalled()
   expect(client.getQueryData(key)).toEqual([])
 })
