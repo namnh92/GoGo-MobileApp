@@ -16,7 +16,10 @@ export const styles = StyleSheet.create(theme => ({
   reviewCard: { padding: 16, gap: 12, borderRadius: 16, backgroundColor: theme.surface.card, borderWidth: 1, borderColor: theme.border.hairline, ...theme.shadows.card },
   reviewPhoto: { width: 64, height: 64, borderRadius: 12, overflow: 'hidden' },
   stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6 },
-  preview: { marginTop: 24, borderWidth: 1, borderColor: theme.border.hairline, borderRadius: 16 },
-  previewToggle: { minHeight: 44, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  footer: { paddingHorizontal: 20, paddingTop: 12 },
+  fab: {
+    position: 'absolute', right: 20, width: 56, height: 56,
+    borderRadius: theme.radius.pill, backgroundColor: theme.accent.primary,
+    alignItems: 'center', justifyContent: 'center', ...theme.shadows.cta,
+  },
+  fabPressed: { backgroundColor: theme.accent.pressed },
 }))

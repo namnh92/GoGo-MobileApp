@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { fireEvent, screen } from '@testing-library/react-native'
+import { act, fireEvent, screen } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import MyContributionsScreen from '../contributions/my-contributions.view'
 
@@ -33,6 +33,7 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmission: () => ({}), useMyPlaceSubmissions: (enabled: boolean) => { mockEnabled(enabled); return mockQuery } }))
 const row = (id: string, status: string, extra = {}) => ({ id, status, name: id, createdAt: '2026-11-07T03:00:00Z', updatedAt: '2026-11-07T03:00:00Z', ...extra })
 beforeEach(() => {
+  jest.useFakeTimers()
   jest.clearAllMocks()
   mockStatus = 'user'
   mockOnline = true
@@ -42,6 +43,10 @@ beforeEach(() => {
   mockMutation = { mutate: mockToggle, isPending: false, isError: false }
   mockReviews = { data: [{ id: 'r1', placeId: 'p1', placeName: 'Reviewed café', placeAddressText: 'Verified address', rating: 4, text: 'My experience', status: 'pending', createdAt: '2026-11-07T00:00:00Z' }, { id: 'r2', rating: 5, text: 'Published experience', status: 'published' }], refetch: mockReviewRefresh, isPending: false, isError: false }
   mockQuery = { data: { pages: [{ items: [row('Pending café', 'pending'), row('Approved café', 'approved', { placeId: 'p1', photoUrl: 'https://example.com/p.jpg' }), row('Merged café', 'merged', { placeId: 'p2' }), row('Rejected café', 'rejected', { rejectionReason: 'incorrect_location' })], nextCursor: null }] }, isPending: false, isError: false, isFetching: false, hasNextPage: false, fetchNextPage: mockFetch, refetch: mockRefresh }
+})
+afterEach(async () => {
+  await act(async () => { jest.runOnlyPendingTimers() })
+  jest.useRealTimers()
 })
 it('switches real lists, resets the filter and routes notifications and creation without a tab dock', async () => {
   await renderScreen(<MyContributionsScreen />)
@@ -54,11 +59,11 @@ it('switches real lists, resets the filter and routes notifications and creation
   expect(screen.getByText('Verified address')).toBeTruthy()
   expect(screen.getByText('Published experience')).toBeTruthy()
   expect(screen.getByText('Viết ngày 07/11/2026')).toBeTruthy()
-  expect(screen.queryByText('+ Thêm địa điểm mới')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Thêm địa điểm mới' })).toBeNull()
   await fireEvent.press(screen.getByRole('button', { name: 'Đã duyệt (1)' }))
   expect(screen.queryByText('My experience')).toBeNull()
   await fireEvent.press(screen.getByRole('tab', { name: /Địa điểm/ }))
-  await fireEvent.press(screen.getByText('+ Thêm địa điểm mới'))
+  await fireEvent.press(screen.getByRole('button', { name: 'Thêm địa điểm mới' }))
   expect(mockRouter.push).toHaveBeenCalledWith('/places/import')
   await fireEvent.press(screen.getByTestId('contributions-bell'))
   expect(mockRouter.push).toHaveBeenCalledWith('/notifications')
@@ -151,13 +156,57 @@ it('opens the review tab from Profile and retains rejected/removed statuses', as
   expect(screen.queryByText('My experience')).toBeNull()
 })
 
-it('uses the shared Plans segments with counts and places the sticky add action above the safe area', async () => {
+it('uses the shared Plans segments and a circular accessible FAB above the safe area', async () => {
   await renderScreen(<MyContributionsScreen />)
   expect(StyleSheet.flatten(screen.getByTestId('filled-segmented-control').props.style).gap).toBeGreaterThan(0)
   expect(screen.getByRole('tab', { name: 'Địa điểm (4)' }).props.accessibilityState.selected).toBe(true)
   expect(screen.getByRole('tab', { name: 'Đánh giá (2)' }).props.accessibilityState.selected).toBe(false)
-  expect(StyleSheet.flatten(screen.getByTestId('contributions-add-footer').props.style).paddingBottom).toBe(46)
+  const fab = screen.getByRole('button', { name: 'Thêm địa điểm mới' })
+  const fabStyle = StyleSheet.flatten(fab.props.style)
+  expect(fabStyle).toMatchObject({ position: 'absolute', right: 20, bottom: 50, width: 56, height: 56 })
+  expect(fabStyle.borderRadius).toBeGreaterThanOrEqual(28)
+  expect(StyleSheet.flatten(screen.getByTestId('my-contributions-list').props.contentContainerStyle).paddingBottom)
+    .toBeGreaterThanOrEqual(fabStyle.bottom + fabStyle.height + 16)
+  expect(screen.getByTestId('material-icon-plus', { includeHiddenElements: true })).toBeTruthy()
+  expect(screen.queryByText('Xem trước trạng thái trống (Empty states)')).toBeNull()
+  expect(screen.queryByText('Bạn chưa có đóng góp nào')).toBeNull()
+  expect(screen.queryByText('Bạn chưa viết đánh giá nào')).toBeNull()
   await fireEvent.press(screen.getByRole('tab', { name: 'Đánh giá (2)' }))
-  expect(screen.queryByTestId('contributions-add-footer')).toBeNull()
+  expect(screen.queryByTestId('contributions-add-fab')).toBeNull()
   expect(screen.getAllByRole('tab')).toHaveLength(2)
+})
+
+it.each([
+  ['Đang chờ duyệt', 'Bạn chưa có địa điểm nào đang chờ duyệt'],
+  ['Đã duyệt', 'Bạn chưa có địa điểm nào được duyệt'],
+  ['Bị từ chối', 'Bạn chưa có địa điểm nào bị từ chối'],
+])('shows the real Places empty state for %s even when there are no submissions', async (label, title) => {
+  mockQuery.data.pages[0].items = []
+  const view = await renderScreen(<MyContributionsScreen />)
+  expect(screen.getByText('Bạn chưa có đóng góp nào')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: `${label} (0)` }))
+  expect(screen.getByText(title)).toBeTruthy()
+  expect(screen.queryByText('Bạn chưa có đóng góp nào')).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Thêm địa điểm' }))
+  expect(mockRouter.push).toHaveBeenCalledWith('/places/import')
+  // A non-empty list with no matches uses the same filter-specific empty state.
+  mockQuery.data.pages[0].items = [row('Other café', label === 'Đang chờ duyệt' ? 'approved' : 'pending')]
+  await view.rerender(<MyContributionsScreen />)
+  expect(screen.getByText(title)).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Tất cả (1)' }))
+  expect(screen.getByText('Other café')).toBeTruthy()
+  expect(screen.queryByText(title)).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Thêm địa điểm' })).toBeNull()
+})
+it('shows a Reviews empty state only for the active filter with its explore action', async () => {
+  mockParams = { tab: 'reviews' }
+  mockReviews.data = [mockReviews.data[0]]
+  await renderScreen(<MyContributionsScreen />)
+  expect(screen.queryByText('Bạn chưa viết đánh giá nào')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Khám phá địa điểm' })).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đã duyệt (0)' }))
+  expect(screen.getByText('Bạn chưa có đánh giá nào được duyệt')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Khám phá địa điểm' }))
+  expect(mockRouter.push).toHaveBeenCalledWith('/(tabs)')
+  expect(screen.queryByTestId('contributions-add-fab')).toBeNull()
 })

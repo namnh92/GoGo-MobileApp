@@ -11,7 +11,7 @@ import { isSubmissionDetailRetryable, type MyPlaceSubmission } from '@/shared/ap
 import { useSession } from '@/shared/providers/session-provider'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, BackHeader, GhostBtn } from '@/shared/ui/primitives'
 import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { FilledSegmentedControl } from '@/shared/ui/filled-segmented-control.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
@@ -137,21 +137,22 @@ export default function MyContributionsScreen() {
   const online = useOnlineStatus()
   const [tab, setTab] = useState<Tab>(params.tab === 'reviews' ? 'reviews' : 'places')
   const [filter, setFilter] = useState<Filter>('all')
-  const [preview, setPreview] = useState(false)
   const items = [...new Map((query.data?.pages.flatMap(page => page.items) ?? []).map(item => [item.id, item])).values()]
   const reviewItems = reviews.data ?? []
   const active = tab === 'places' ? query : reviews
   const statuses = tab === 'places' ? items : reviewItems
   const options = [...filters.filter(value => tab === 'places' || value !== 'rejected' || reviewItems.some(row => row.status === 'rejected')), ...(tab === 'reviews' && reviewItems.some(row => row.status === 'removed') ? ['removed' as const] : [])]
   const loadMore = () => { if (query.hasNextPage && !query.isFetching && online) void query.fetchNextPage() }
-  const empty = (value: Tab) => <EmptyState title={t(`contributions.empty.${value}.title`)} body={t(`contributions.empty.${value}.body`)}
-    action={<GhostBtn label={t(value === 'places' ? 'contributions.emptyAdd' : 'contributions.explore')} onPress={() => router.push(value === 'places' ? '/places/import' : '/(tabs)')} />} />
+  const emptyAction = <GhostBtn label={t(tab === 'places' ? 'contributions.emptyAdd' : 'contributions.explore')}
+    onPress={() => router.push(tab === 'places' ? '/places/import' : '/(tabs)')} />
+  const emptyTitle = filter === 'all' ? t(`contributions.empty.${tab}.title`) :
+    t(`contributions.empty.${tab}.${filter}`)
   const emptyList = active.isPending ? (!online || active.isPaused ? <OfflineState /> : <LoadingState />) : active.isError ? null :
-    tab === 'places' && query.hasNextPage ? <EmptyState title={t('myContributions.emptyTitle')} body={t('myContributions.noLoadedMatches')} /> : filter !== 'all' && statuses.length > 0 ? <EmptyState title={t(tab === 'reviews' ? 'myReviews.filterEmptyTitle' : 'myContributions.emptyTitle')} body={t(tab === 'reviews' ? 'myReviews.filterEmptyBody' : 'myContributions.emptyBody')} /> : empty(tab)
+    tab === 'places' && query.hasNextPage ? <EmptyState title={t('myContributions.emptyTitle')} body={t('myContributions.noLoadedMatches')} action={emptyAction} /> :
+      <EmptyState title={emptyTitle} body={t(`contributions.empty.${tab}.body`)} action={emptyAction} />
   const footer = <>
     {active.isError ? <ErrorState error={active.error} onRetry={() => { if (tab === 'places' && query.isFetchNextPageError) loadMore(); else void active.refetch() }} /> : null}
     {tab === 'places' && query.isFetchingNextPage ? <LoadingState /> : tab === 'places' && query.hasNextPage && !query.isError ? <GhostBtn label={t('myContributions.loadMore')} onPress={loadMore} disabled={!online} /> : null}
-    {tab === 'places' ? <View style={styles.preview}><Pressable accessibilityRole="button" accessibilityState={{ expanded: preview }} onPress={() => setPreview(!preview)} style={styles.previewToggle}><Text variant="label" color="text.secondary">{t('contributions.preview')}</Text><MaterialIcon name="expandMore" /></Pressable>{preview ? <>{empty('places')}{empty('reviews')}</> : null}</View> : null}
   </>
   const refresh = <RefreshControl refreshing={!!active.isRefetching && !(tab === 'places' && query.isFetchingNextPage)} onRefresh={() => { void active.refetch() }} />
   return <Atmosphere>
@@ -169,12 +170,16 @@ export default function MyContributionsScreen() {
       </Pressable>)}</ScrollView></View>
       {!online && !active.isPending ? <OfflineState /> : null}
       {tab === 'places' ? <FlatList testID="my-contributions-list" data={items.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
-        contentContainerStyle={styles.list} refreshControl={refresh} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]} refreshControl={refresh} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
         ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionPlace item={item} />} /> :
         <FlatList testID="my-contributions-reviews" data={reviewItems.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
           contentContainerStyle={styles.list} refreshControl={refresh} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}
     </>}
-    {tab === 'places' ? <View testID="contributions-add-footer" style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}><PrimaryBtn label={t('myContributions.add')} onPress={() => router.push('/places/import')} /></View> : null}
+    {registered && tab === 'places' ? <Pressable testID="contributions-add-fab" accessibilityRole="button"
+      accessibilityLabel={t('myContributions.add')} onPress={() => router.push('/places/import')}
+      style={({ pressed }) => [styles.fab, { bottom: insets.bottom + 16 }, pressed && styles.fabPressed]}>
+      <MaterialIcon name="plus" size={28} color="accent.onAccent" />
+    </Pressable> : null}
 
   </Atmosphere>
 }

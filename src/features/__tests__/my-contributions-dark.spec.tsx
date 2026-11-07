@@ -1,7 +1,7 @@
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import { themes } from '@/shared/ui/theme'
 import { act, fireEvent, screen } from '@testing-library/react-native'
-import { StyleSheet } from 'react-native'
+import { processColor, StyleSheet } from 'react-native'
 import i18n from '@/shared/i18n'
 import { renderScreen } from './harness'
 
@@ -24,6 +24,13 @@ it('keeps English controls and empty review actions readable with dark tokens', 
   expect(StyleSheet.flatten(chip.props.style).backgroundColor).toBe(themes.orangeDark.text.primary)
   expect(StyleSheet.flatten(screen.getByText('All (1)').props.style).color).toBe(themes.orangeDark.surface.canvas)
   expect(screen.getByText('Only approved, public places can be saved.')).toBeTruthy()
+  const fab = screen.getByRole('button', { name: 'Add a new place' })
+  expect(StyleSheet.flatten(fab.props.style).backgroundColor).toBe(themes.orangeDark.accent.primary)
+  const icon = screen.getByTestId('material-icon-plus', { includeHiddenElements: true })
+  type Node = { props: { fill?: { payload?: number } }; children: (Node | string)[] }
+  const fills = (node: Node): (number | undefined)[] => [node.props.fill?.payload,
+    ...node.children.flatMap(child => typeof child === 'string' ? [] : fills(child))]
+  expect(fills(icon as unknown as Node)).toContain(processColor(themes.orangeDark.accent.onAccent))
   await fireEvent.press(screen.getByRole('tab', { name: /Reviews/ }))
   expect(screen.getByText('You have not written any reviews yet')).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Explore places' })).toBeTruthy()
