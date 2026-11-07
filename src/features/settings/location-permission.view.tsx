@@ -5,7 +5,7 @@ import { ActivityIndicator, AppState, Linking, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { IconMapPin } from '@/shared/ui/icons'
+import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './location-permission.style'
@@ -89,13 +89,13 @@ export function LocationPermissionSection() {
   const blocked = state === 'denied' || state === 'unavailable'
 
   return (
-    <Card padded={false} style={styles.card}>
+    <Card appearance="stitch" padded={false} style={styles.card}>
       <View style={styles.statusRow}>
         <View style={styles.statusIcon}>
-          <IconMapPin />
+          <Icon name="navigation" size={20} color="accent.onSoft" />
         </View>
         <View style={styles.statusText}>
-          <Text variant="title2">{t('locationSettings.statusTitle')}</Text>
+          <Text variant="introHeading">{t('locationSettings.statusTitle')}</Text>
           {state === 'checking' ? (
             <ActivityIndicator color={theme.accent.primary} style={{ alignSelf: 'flex-start' }} />
           ) : (
@@ -106,7 +106,7 @@ export function LocationPermissionSection() {
         </View>
       </View>
 
-      <Text>{t('locationSettings.body')}</Text>
+      <Text variant="introCaption" color="redesign.secondary">{t('locationSettings.body')}</Text>
 
       {state === 'denied' ? (
         <View style={styles.actions}>

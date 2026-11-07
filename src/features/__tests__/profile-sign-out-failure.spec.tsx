@@ -62,7 +62,7 @@ beforeEach(() => {
 
 async function tapSignOut() {
   await act(async () => {
-    await fireEvent.press(screen.getByText(viMessages['profile.logout'] as string))
+    await fireEvent.press(screen.getByText(viMessages['g11.logout'] as string))
   })
   await fireEvent.press(screen.getByText('Xác nhận đăng xuất'))
 }

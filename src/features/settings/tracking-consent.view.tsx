@@ -36,7 +36,8 @@ function AndroidSwitch() {
 
   if (!acquisitionConfigured()) {
     return (
-      <Card padded={false} style={styles.card}>
+      <Card appearance="stitch" padded={false} style={styles.card}>
+        <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
         <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.trackingUnavailable')}</Text>
       </Card>
     )
@@ -44,7 +45,8 @@ function AndroidSwitch() {
 
   if (!consent.loaded) {
     return (
-      <Card padded={false} style={styles.card}>
+      <Card appearance="stitch" padded={false} style={styles.card}>
+        <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
         <View accessible accessibilityLabel={t('common.loading')}>
           <Skeleton height={touchTarget.min} />
         </View>
@@ -55,7 +57,8 @@ function AndroidSwitch() {
   const on = consent.value === 'granted'
 
   return (
-    <Card padded={false} style={styles.card}>
+    <Card appearance="stitch" padded={false} style={styles.card}>
+        <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
       <View style={styles.row}>
         <View style={styles.rowText}>
           <Text variant="bodySmall">{t('permissionsSettings.trackingSwitch')}</Text>
@@ -96,7 +99,8 @@ function IosSettingsLink() {
   }
 
   return (
-    <Card padded={false} style={styles.card}>
+    <Card appearance="stitch" padded={false} style={styles.card}>
+        <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
       <Text variant="bodySmall">{t('permissionsSettings.trackingIos')}</Text>
       <SecondaryBtn label={t('permissionsSettings.openSettings')} onPress={() => void open()} icon="settings" />
       {failed ? (

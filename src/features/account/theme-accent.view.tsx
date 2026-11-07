@@ -9,6 +9,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { Icon, IconCheck } from '@/shared/ui/icons'
 import { Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { ACCENTS, DEFAULT_ACCENT, accentOf, themes, type Accent } from '@/shared/ui/theme'
 import type { MessageKey } from '@/shared/i18n/types'
@@ -43,22 +44,24 @@ export function ThemeAccentCard() {
 
   return <>
     <View style={styles.intro}>
-      <Text variant="title1" accessibilityRole="header">{t('g11.themeHeading')}</Text>
-      <Text color="text.secondary">{t('g11.themeIntro')}</Text>
+      <View style={styles.personalisation}><MaterialIcon name="palette" color="accent.primary" /><Text variant="introSmall" color="redesign.secondary">{t('g11.themePersonalise')}</Text></View>
+      <Text variant="introSection" color="redesign.ink" accessibilityRole="header">{t('g11.themeHeading')}</Text>
+      <Text variant="introBody" color="redesign.secondary">{t('g11.themeIntro')}</Text>
     </View>
+    <View style={styles.section}>
     <View style={styles.titleRow}>
-      <Text variant="title2" style={styles.title}>{t('g11.palette')}</Text>
-      <Text variant="bodySmall" color="text.secondary">{t(LABEL[current])}</Text>
+      <Text variant="introHeading" style={styles.title}>{t('g11.palette')}</Text>
+      <Text variant="bodySmall" color="text.secondary">{t(current === 'orange' ? 'g11.orangeName' : LABEL[current])}</Text>
     </View>
     <Card appearance="stitch" padded={false} style={styles.card}>
       <View accessibilityRole="radiogroup" accessibilityLabel={t('account.themeTitle')} style={styles.swatches}>
         {ACCENTS.map(accent => {
           const selected = accent === current
-          const { primary, onAccent } = themes[accent].accent
+          const { primary, onAccent, soft } = themes[accent].accent
           return <Pressable key={accent} testID={`theme-swatch-${accent}`} disabled={saving}
             onPress={() => setChosen({ accent, over: active })} accessibilityRole="radio" accessibilityLabel={t(LABEL[accent])}
             accessibilityState={{ selected, checked: selected, disabled: saving }} style={({ pressed }) => [styles.option, pressed && styles.pressed]}>
-            <View style={[styles.ring, selected && { borderColor: primary }]}><View style={[styles.swatch, { backgroundColor: primary }]}>
+            <View style={[styles.ring, selected && { backgroundColor: soft }]}><View style={[styles.swatch, { backgroundColor: primary }]}>
               {selected ? <IconCheck color={onAccent} size={20} /> : null}
             </View></View>
             <Text variant="label" style={styles.optionLabel}>{t(LABEL[accent])}</Text>
@@ -67,10 +70,13 @@ export function ThemeAccentCard() {
         })}
       </View>
     </Card>
-    <Text variant="title2" accessibilityRole="header">{t('g11.preview')}</Text>
-    <ScopedTheme name={deviceThemeName(current)}><ThemePreview /></ScopedTheme>
-    <PrimaryBtn label={t('g11.applyTheme')} icon="checkCircle" onPress={() => void apply()} loading={saving} disabled={saving} />
-    <Text variant="bodySmall" color="text.secondary">{t('account.themeHelper')}</Text>
+    </View>
+    <View style={styles.section}>
+      <View style={styles.titleRow}><Text variant="introHeading" style={styles.title} accessibilityRole="header">{t('g11.preview')}</Text><View style={styles.live}><View style={styles.liveDot} /><Text variant="introCaption" color="redesign.secondary">{t('g11.live')}</Text></View></View>
+      <ScopedTheme name={deviceThemeName(current)}><ThemePreview /></ScopedTheme>
+    </View>
+    <PrimaryBtn variant="pill" label={t('g11.applyTheme')} leadingIcon="checkCircle" onPress={() => void apply()} loading={saving} disabled={saving} />
+    <Text variant="introCaption" color="redesign.secondary">{t('account.themeHelper')}</Text>
     <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'g11.themeFailed' : 'g11.themeSaved')}
       body={t('account.themeHelper')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
   </>
@@ -84,19 +90,19 @@ function ThemePreview() {
       <Card appearance="stitch" padded={false} style={styles.sampleCard}>
         <View style={styles.titleRow}>
           <View style={styles.sampleIcon}><Icon name="mapPin" size={28} color="accent.onSoft" /></View>
-          <View style={styles.title}><Text variant="title2">{t('g11.sampleTitle')}</Text><Text variant="bodySmall" color="text.secondary">{t('g11.sampleBody')}</Text></View>
-          <Icon name="bookmark" size={22} color="accent.primary" />
+          <View style={styles.title}><Text variant="introHeading">{t('g11.sampleTitle')}</Text><Text variant="bodySmall" color="text.secondary">{t('g11.sampleBody')}</Text></View>
+          <View style={styles.sampleBookmark}><Icon name="bookmark" size={20} color="accent.primary" /></View>
         </View>
-        <View style={[styles.sampleButton, styles.samplePrimary]}><Text variant="label" color="accent.onAccent">{t('g11.sampleAction')}</Text><Icon name="arrowRight" color="accent.onAccent" /></View>
+        <View style={[styles.sampleButton, styles.samplePrimary]}><Text variant="introHeading" color="accent.onAccent">{t('g11.sampleAction')}</Text><Icon name="arrowRight" color="accent.onAccent" /></View>
         <View style={styles.titleRow}>
-          <View style={[styles.sampleButton, styles.title, styles.sampleSecondary]}><Text variant="label" color="accent.onSoft">{t('g11.sampleShare')}</Text></View>
-          <View style={[styles.sampleButton, styles.title, styles.sampleNeutral]}><Text variant="label">{t('g11.sampleDetail')}</Text></View>
+          <View style={[styles.sampleButton, styles.title, styles.sampleSecondary]}><Icon name="share" size={18} color="accent.onSoft" /><Text variant="introHeading" color="accent.onSoft">{t('g11.sampleShare')}</Text></View>
+          <View style={[styles.sampleButton, styles.title, styles.sampleNeutral]}><Icon name="info" size={18} /><Text variant="introHeading">{t('g11.sampleDetail')}</Text></View>
         </View>
       </Card>
-      <View style={styles.sampleTabs}>{(['compass', 'calendar', 'bookmark', 'user'] as const).map((icon, index) => <View key={icon} style={styles.sampleTab}>
+      <View><Text variant="introCaption" color="redesign.secondary">{t('g11.previewTabs')}</Text><View style={styles.sampleTabs}>{(['compass', 'calendar', 'bookmark', 'user'] as const).map((icon, index) => <View key={icon} style={styles.sampleTab}>
         <Icon name={icon} color={index === 1 ? 'accent.primary' : 'text.secondary'} />
-        <Text variant="caption" color={index === 1 ? 'accent.primary' : 'text.secondary'}>{t((['tabs.home', 'tabs.plans', 'tabs.saved', 'tabs.profile'] as const)[index])}</Text>
-      </View>)}</View>
+        <Text variant="caption" color={index === 1 ? 'accent.primary' : 'text.secondary'}>{t((['tabs.home', 'tabs.plans', 'tabs.saved', 'tabs.profile'] as const)[index])}</Text>{index === 1 ? <View style={styles.activeDot} /> : null}
+      </View>)}</View></View>
     </View>
   )
 }

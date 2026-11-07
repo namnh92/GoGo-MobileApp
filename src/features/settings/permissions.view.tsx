@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Linking } from 'react-native'
+import { Linking, View } from 'react-native'
 
 import { NotificationSwitchSection } from '@/features/notifications/notification-switch.view'
 import { useSession } from '@/shared/providers/session-provider'
-import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { SettingsPage, BuildVersion } from './settings-page.view'
 
@@ -38,12 +39,14 @@ export default function PermissionsSettingsScreen() {
   return (
     <SettingsPage title={t('permissionsSettings.title')}>
         <Card appearance="stitch" padded={false} style={styles.intro}>
-          <Text variant="title2">{t('g11.permissionsHeading')}</Text>
-          <Text color="text.secondary">{t('g11.permissionsIntro')}</Text>
+          <View style={styles.introRow}><View style={styles.icon}><MaterialIcon name="shield" size={24} color="redesign.violetText" /></View><View style={styles.introText}>
+            <Text variant="introHeading">{t('g11.permissionsHeading')}</Text>
+            <Text variant="introRelaxed" color="redesign.secondary">{t('g11.permissionsIntro')}</Text>
+          </View></View>
         </Card>
-        <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>
-          {t('permissionsSettings.notifications')}
-        </Text>
+        <View style={styles.section}>
+        <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.devicePermissions')}</Text>
+        <Card appearance="stitch" padded={false} style={styles.deviceCard}>
         {status === 'user' ? (
           <NotificationSwitchSection />
         ) : (
@@ -56,21 +59,22 @@ export default function PermissionsSettingsScreen() {
           </>
         )}
 
-        <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>
-          {t('permissionsSettings.location')}
-        </Text>
         <LocationPermissionSection />
+        </Card>
+        </View>
 
-        <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>
-          {t('permissionsSettings.tracking')}
-        </Text>
+        <View style={styles.section}>
+        <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.analytics')}</Text>
         <TrackingConsentSection />
-        <Text variant="label" color="text.secondary" style={styles.sectionTitle}>{t('g11.system')}</Text>
+        </View>
+        <View style={styles.section}>
+        <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.system')}</Text>
         <Card appearance="stitch" padded={false} style={styles.intro}>
-          <Text variant="title2">{t('g11.systemHeading')}</Text>
-          <SecondaryBtn label={t('g11.openSystem')} icon="settings" onPress={() => void openSystemSettings()} />
+          <View style={styles.introRow}><View style={styles.systemIcon}><MaterialIcon name="tune" size={24} /></View><Text variant="introHeading" style={styles.introText}>{t('g11.systemHeading')}</Text></View>
+          <PrimaryBtn variant="pill" label={t('g11.openSystem')} leadingIcon="external" onPress={() => void openSystemSettings()} />
           {settingsFailed ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
         </Card>
+        </View>
         <BuildVersion />
     </SettingsPage>
   )

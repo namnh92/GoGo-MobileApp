@@ -234,6 +234,7 @@ export const overlay = {
  * it in per theme.
  */
 export const shadows = {
+  stitch: { shadowColor: colors.neutral[900], shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 1, elevation: 1 },
   warm: '#362D26',
   black: '#000',
   /** Figma `0 4 16 rgba(33,31,28,0.06)`. */

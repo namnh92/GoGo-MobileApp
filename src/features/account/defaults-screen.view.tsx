@@ -14,10 +14,11 @@ export default function DefaultsScreen() {
   const { status } = useSession()
   const me = useMe({ enabled: status === 'user' })
   const waiting = useWaitingForNetwork(me)
+  if (status === 'user' && me.data && !me.isError) return <ProfileDefaultsCard key={me.data.id} profile={me.data} page />
   return <SettingsPage title={t('account.defaultsTitle')}>
     {status !== 'user' ? <EmptyState title={t('notifications.signInTitle')} body={t('account.signInBody')} action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} />
       : me.isPending ? (waiting ? <OfflineState /> : <LoadingState />)
       : me.isError ? <ErrorState error={me.error} onRetry={() => void me.refetch()} />
-      : me.data ? <ProfileDefaultsCard key={me.data.id} profile={me.data} /> : null}
+      : null}
   </SettingsPage>
 }

@@ -25,10 +25,13 @@ import { Text } from '@/shared/ui/text'
 
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 
+import { SettingsPage } from '@/features/settings/settings-page.view'
+import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { styles } from './profile-defaults.style'
 
 /** The profile keeps `mood` only (ADR-0022); the room screen offers three of them. */
 const INTEREST_KIND = 'mood'
+const BUDGET_ICON: Record<string, MaterialIconName> = { none: 'close', under300: 'savings', to500: 'coffee', to800: 'dining', to1500: 'payments', flexible: 'infinity' }
 export const MAX_INTERESTS = 5
 
 /** `Quận 1, TP.HCM` — the city only when the area is not itself the city. */
@@ -41,7 +44,7 @@ export const areaDisplayName = serviceAreaLabel
  * carries only what moved and `null` only where the person cleared a field.
  * Nothing here writes to a room.
  */
-export function ProfileDefaultsCard({ profile }: { profile: Me }) {
+export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; page?: boolean }) {
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const update = useUpdateProfile()
@@ -111,22 +114,24 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
     } finally { saving.current = false }
   }
 
-  return (
-    <>
+  const saveButton = <PrimaryBtn label={t(page ? 'g11.saveDefaults' : 'account.defaultsSave')} onPress={save}
+    variant="pill" leadingIcon="save" disabled={!dirty} loading={update.isPending} />
+  const content = <>
     <Card appearance="stitch" padded={false} style={styles.card}>
       <View style={styles.titleRow}>
         <View style={styles.icon}>
           <Icon name="sliders" size={20} color="accent.onSoft" />
         </View>
         <View style={styles.titleText}>
-          <Text variant="title2">{t('account.defaultsTitle')}</Text>
-          <Text variant="bodySmall" color="text.secondary">{t('account.defaultsBody')}</Text>
+          <Text variant="introHeading" color="redesign.ink">{t('g11.personalise')}</Text>
+          <Text variant="introRelaxed" color="redesign.secondary">{t('g11.personaliseBody')}</Text>
         </View>
       </View>
     </Card>
 
-    <Card appearance="stitch" padded={false} style={styles.field}>
-        <Text variant="label">{t('account.homeArea')}</Text>
+    <View style={styles.section}>
+      <View style={styles.heading}><MaterialIcon name="nearMe" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('account.homeArea')}</Text><Text variant="introCaption" color="redesign.secondary">{t('g11.homeAreaHint')}</Text></View>
+      <Card appearance="stitch" padded={false} style={styles.field}>
         {area === undefined && !profile.homeAdministrativeArea && profile.homeArea ? (
           <View>
             <Text style={styles.value}>{areaDisplayName(profile.homeArea)}</Text>
@@ -135,24 +140,26 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
           </View>
         ) : null}
         <AdministrativePicker value={currentArea} onChange={value => { if (!saving.current) setArea(value) }} />
-    </Card>
+      </Card>
+    </View>
 
-    <Card appearance="stitch" padded={false} style={styles.field}><View style={styles.budgetGroup} accessibilityRole="radiogroup" accessibilityLabel={t('account.usualBudget')}>
-        <Text variant="title2">{t('account.usualBudget')}</Text>
-        <Text variant="caption" color="text.secondary">{t('g11.perPerson')}</Text>
+    <View style={styles.section}>
+      <View style={styles.heading}><MaterialIcon name="payments" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('g11.budgetHeading')}</Text><Text variant="introCaption" color="redesign.secondary">{t('g11.perPerson')}</Text></View>
+      <Card appearance="stitch" padded={false} style={styles.field}><View style={styles.budgetGroup} accessibilityRole="radiogroup" accessibilityLabel={t('account.usualBudget')}>
         {[{ key: 'none', amount: null }, ...BUDGET_TIERS].map(tier => (
           <Pressable key={tier.key} accessibilityRole="radio" accessibilityState={{ checked: currentBudget === tier.amount }}
             onPress={() => { if (!saving.current) setBudget(tier.amount) }} style={({ pressed }) => [styles.budgetRow, currentBudget === tier.amount && styles.budgetSelected, pressed && styles.pressed]}>
-            <Text style={styles.titleText}>{tier.key === 'none' ? t('account.usualBudgetNone') : t(`createBudget.tier.${tier.key}`)}</Text>
+            <MaterialIcon name={BUDGET_ICON[tier.key] ?? 'payments'} color={currentBudget === tier.amount ? 'accent.onSoft' : 'redesign.secondary'} /><Text variant="introBody" color={currentBudget === tier.amount ? 'accent.onSoft' : 'redesign.ink'} style={styles.titleText}>{tier.key === 'none' ? t('account.usualBudgetNone') : t(`createBudget.tier.${tier.key}`)}</Text>
             <View style={[styles.radio, currentBudget === tier.amount && styles.radioSelected]}>{currentBudget === tier.amount ? <Icon name="check" size={16} color="accent.onSoft" /> : null}</View>
           </Pressable>
         ))}
         {currentBudget !== null && !BUDGET_TIERS.some(tier => tier.amount === currentBudget) ? <Text variant="bodySmall">{t('g11.currentBudget', { amount: new Intl.NumberFormat(i18n.language).format(currentBudget) })}</Text> : null}
       </View></Card>
+    </View>
 
-    <Card appearance="stitch" padded={false} style={styles.field}>
-        <Text variant="title2">{t('account.interests')}</Text>
-        <Text variant="caption" color="accent.onSoft">{t('g11.selected', { count: currentMoods.length })}</Text>
+    <View style={styles.section}>
+      <View style={styles.heading}><MaterialIcon name="interests" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('g11.interestsHeading')}</Text><Text variant="introCaption" color="accent.onSoft">{t('g11.selected', { count: currentMoods.length })}</Text></View>
+      <Card appearance="stitch" padded={false} style={styles.field}>
         <Text variant="caption" color="text.secondary">{t('account.interestsHint', { max: MAX_INTERESTS })}</Text>
         {taxonomies.isPending ? (
           waiting ? <OfflineState /> : <ActivityIndicator color={theme.accent.primary} />
@@ -165,6 +172,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
           <View style={styles.chips}>
             {moodOptions.map(option => (
               <Chip
+                appearance="soft"
                 key={option.key}
                 label={option.label}
                 {...(option.emoji ? { emoji: option.emoji } : {})}
@@ -174,16 +182,11 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
             ))}
           </View>
         )}
-    </Card>
+      </Card>
+    </View>
 
-      <Text variant="bodySmall" color="text.secondary">{t('g11.defaultsNote')}</Text>
-      <PrimaryBtn
-        label={t('account.defaultsSave')}
-        onPress={save}
-        icon="check"
-        disabled={!dirty}
-        loading={update.isPending}
-      />
+      <View style={styles.note}><MaterialIcon name="sparkle" size={24} color="redesign.violetText" /><Text variant="introCaption" color="redesign.secondary" style={styles.titleText}>{t('g11.defaultsNote')}</Text></View>
+      {page ? null : saveButton}
       {notice ? (
         <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
@@ -193,5 +196,5 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
     <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'account.defaultsFailed' : 'account.defaultsSaved')}
       body={t('account.defaultsBody')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
     </>
-  )
+  return page ? <SettingsPage title={t('account.defaultsTitle')} footer={saveButton}>{content}</SettingsPage> : content
 }

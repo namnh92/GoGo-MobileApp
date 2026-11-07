@@ -122,17 +122,17 @@ describe('place sheet (#382 §2, §4, §7)', () => {
 })
 
 describe('Profile settings rows (#382 §1, §2)', () => {
-  it('each row carries an icon from icons.tsx and its label has no emoji', async () => {
+  it('each row carries a shared Material icon and its label has no emoji', async () => {
     const view = await renderScreen(<ProfileScreen />)
-    for (const [label, icon] of [
-      ['Hộp thư', 'icon-inbox'],
-      ['Quyền và dữ liệu', 'icon-bell'],
-      ['Đánh giá của tôi', 'icon-star'],
-      ['Tài khoản', 'icon-settings'],
+    for (const [label, visible, icon] of [
+      ['Hộp thư', 'Hộp thư thông báo', 'material-icon-unreadMail'],
+      ['Quyền và dữ liệu', 'Quyền và dữ liệu', 'material-icon-shield'],
+      ['Đánh giá của tôi', 'Đánh giá của tôi', 'material-icon-reviews'],
+      ['Tài khoản', 'Thông tin tài khoản', 'material-icon-manageAccounts'],
     ]) {
       const row = view.getByTestId(`profile-setting-${label}`)
-      expect(within(row).getByText(label)).toBeTruthy()
-      expect(within(row).getByTestId(icon)).toBeTruthy()
+      expect(within(row).getByText(visible)).toBeTruthy()
+      expect(within(row).getByTestId(icon, { includeHiddenElements: true })).toBeTruthy()
     }
   })
 

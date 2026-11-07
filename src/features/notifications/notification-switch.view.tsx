@@ -80,14 +80,14 @@ export function NotificationSwitchSection() {
 
   return (
     <View>
-      <Card padded={false} style={styles.card}>
+      <Card appearance="stitch" padded={false} style={styles.card}>
         <View style={styles.row}>
           <View style={styles.iconTile}>
             <Icon name="bell" size={20} color="accent.onSoft" />
           </View>
           <View style={styles.rowText}>
-            <Text variant="label">{t('notificationSettings.switchLabel')}</Text>
-            <Text variant="bodySmall" color="text.secondary">{t('notificationSettings.switchHint')}</Text>
+            <Text variant="introHeading">{t('notificationSettings.switchLabel')}</Text>
+            <Text variant="introCaption" color="redesign.secondary">{t('notificationSettings.switchHint')}</Text>
           </View>
           <Switch
             // Until the first answer there is no truthful value: off and locked.
@@ -131,8 +131,7 @@ export function NotificationSwitchSection() {
         </View>
       ) : null}
 
-      <Text variant="label" color="text.secondary" style={styles.subTitle}>{t('notificationSettings.deviceTitle')}</Text>
-      <Card padded={false} style={styles.deviceCard}>
+      <Card appearance="stitch" padded={false} style={styles.deviceCard}>
         <View style={styles.deviceRow}>
           <Icon
             name={pushState === 'granted' ? 'checkCircle' : 'info'}

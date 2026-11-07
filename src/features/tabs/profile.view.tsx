@@ -15,9 +15,9 @@ import { Atmosphere, AvatarCircle, Card, GhostBtn, IconBtn, PrimaryBtn, Secondar
 import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { Sheet } from '@/shared/ui/sheet.view'
-import { Icon, IconChevronRight, type IconName } from '@/shared/ui/icons'
+import { IconChevronRight } from '@/shared/ui/icons'
+import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
-import { spacing } from '@/shared/ui/tokens'
 import { accentOf, DEFAULT_ACCENT } from '@/shared/ui/theme'
 import { useUnistyles } from 'react-native-unistyles'
 import { BuildVersion } from '@/features/settings/settings-page.view'
@@ -26,7 +26,7 @@ import { ProfileUpcoming } from './profile-upcoming.view'
 import { SETTINGS_ROWS } from './profile-settings-rows'
 import { styles } from './profile.style'
 
-const SHORTCUT_ICON: Record<string, IconName> = { saved: 'bookmark', plans: 'users', reviews: 'star' }
+const SHORTCUT_ICON: Record<string, MaterialIconName> = { saved: 'bookmarkFilled', plans: 'groups', reviews: 'hotelClass' }
 function actorKeyOf(session: Session | null): string {
   return session ? `${session.kind}:${session.userId ?? ''}:${session.guestSessionId ?? ''}` : ''
 }
@@ -100,25 +100,25 @@ export default function ProfileScreen() {
 
   return <Atmosphere redesign>
     <View style={[styles.pageHeader, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
-      <Text variant="title1" color="accent.onSoft">GoGo</Text><Text color="text.secondary">·</Text>
-      <Text variant="title2" style={styles.headerText}>{t('tabs.profile')}</Text>
+      <Text variant="discoveryTitle" color="redesign.primaryText">GoGo</Text><Text color="text.secondary">·</Text>
+      <Text variant="introHeading" style={styles.headerText}>{t('g11.profileHeading')}</Text>
       <HeaderNotificationButton testID="profile-bell" unreadDotTestID="profile-unread" showUnread={false} />
     </View>
     <ScrollView testID="profile-list" onScroll={fab.onScroll} scrollEventThrottle={fab.scrollEventThrottle}
-      contentContainerStyle={{ paddingTop: spacing[3], paddingBottom: fab.bottomInset }}>
+      contentContainerStyle={{ paddingTop: 0, paddingBottom: fab.bottomInset }}>
       {canRead && me.isPending ? (waiting ? <OfflineState /> : <LoadingState />) : canRead && me.isError ? <ErrorState error={me.error} onRetry={() => void me.refetch()} /> : (
         <Card appearance="stitch" padded={false} style={styles.headerCard}>
           <View style={styles.identity}>
             <AvatarCircle label={(profile?.displayName ?? t('profile.guestName')).trim().charAt(0).toUpperCase()} size={64} imageUri={profile?.avatarUrl} />
             <View style={styles.headerText}>
-              <Text variant="title1">{canRead ? profile?.displayName : t('profile.title')}</Text>
+              <Text variant="introHeading" color="redesign.ink">{canRead ? profile?.displayName : t('profile.title')}</Text>
               {!canRead ? <Text variant="bodySmall" color="text.secondary">{t('profile.guestSubtitle')}</Text> : null}
-              {profile?.email ? <Text variant="bodySmall" color="text.secondary">{profile.email}</Text> : null}
-              {profile?.homeAdministrativeArea?.provinceName ? <Text variant="bodySmall" color="text.secondary">{profile.homeAdministrativeArea.provinceName}</Text> : null}
+              {profile?.email ? <Text variant="introSmall" color="redesign.secondary" numberOfLines={1}>{profile.email}</Text> : null}
+              {profile?.homeAdministrativeArea?.provinceName ? <Text variant="introCaption" color="redesign.secondary" numberOfLines={1}>{profile.homeAdministrativeArea.provinceName}</Text> : null}
             </View>
-            {canRead ? <IconBtn accessibilityLabel={t('g11.editProfile')} onPress={() => router.push('/settings/account')}><Icon name="sliders" /></IconBtn> : null}
+            {canRead ? <IconBtn style={styles.edit} accessibilityLabel={t('g11.editProfile')} onPress={() => router.push('/settings/account')}><MaterialIcon name="edit" size={20} color="redesign.secondary" /></IconBtn> : null}
           </View>
-          {interests.length > 0 ? <View style={styles.interests}>{interests.map(label => <View key={label} style={styles.interest}><Text variant="caption">{label}</Text></View>)}</View> : null}
+          {interests.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.interests}>{interests.map(label => <View key={label} style={styles.interest}><Text variant="introCaption" color="redesign.secondary" numberOfLines={1}>{label}</Text></View>)}</ScrollView> : null}
         </Card>
       )}
       {!canRead ? <>
@@ -134,10 +134,10 @@ export default function ProfileScreen() {
           onPress={() => isLocked ? setLocked(true) : router.push(shortcut.key === 'plans' ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } } : shortcut.route)}
           style={({ pressed }) => [styles.shortcutPress, pressed && styles.settingRowPressed]}>
           <Card appearance="stitch" padded={false} style={styles.shortcut}>
-            <View style={styles.shortcutIcon}><Icon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color="accent.onSoft" /></View>
-            {shortcut.count !== undefined ? <Text variant="title1">{shortcut.count}</Text> : null}
-            <Text variant="caption" color="text.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
-            {isLocked ? <Text variant="caption" color="text.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
+            <View style={[styles.shortcutIcon, shortcut.key === 'plans' && styles.plansIcon, shortcut.key === 'reviews' && styles.reviewsIcon]}><MaterialIcon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color={shortcut.key === 'plans' ? 'redesign.violetText' : 'redesign.primaryText'} /></View>
+            {shortcut.count !== undefined ? <Text variant="introHeading" color="redesign.ink">{shortcut.count}</Text> : null}
+            <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
+            {isLocked ? <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
           </Card>
         </Pressable>
       })}</View>
@@ -147,19 +147,19 @@ export default function ProfileScreen() {
         const rows = SETTINGS_ROWS.filter(row => row.group === group && (canRead || !row.userOnly))
         if (!rows.length) return null
         return <View key={group}>
-          <Text variant="label" color="text.secondary" style={styles.groupTitle}>{t(group === 'settings' ? 'g11.settings' : 'g11.experience')}</Text>
+          <Text variant="introLabel" color="redesign.secondary" style={styles.groupTitle}>{t(group === 'settings' ? 'g11.settings' : 'g11.experienceHeading')}</Text>
           <Card appearance="stitch" padded={false} style={styles.settingsCard}>{rows.map((row, index) => <Pressable key={row.key} onPress={() => router.push(row.route)} accessibilityRole="button"
             testID={`profile-setting-${t(`profile.settings.${row.key}`)}`} style={({ pressed }) => [styles.settingRow, index === rows.length - 1 && styles.settingRowLast, pressed && styles.settingRowPressed]}>
-            <View style={styles.settingLead}><View style={styles.settingIconTile}><Icon name={row.icon} size={20} /></View><Text style={styles.settingLabel}>{t(`profile.settings.${row.key}`)}</Text></View>
-            {row.key === 'theme' ? <Text variant="caption" color="text.secondary">{t(`theme.${accentOf(rt.themeName) ?? DEFAULT_ACCENT}`)}</Text> : null}
+            <View style={styles.settingLead}><View style={styles.settingIconTile}><MaterialIcon name={row.icon} size={20} /></View><Text variant="introBody" color="redesign.ink" style={styles.settingLabel}>{t(row.key === 'inbox' ? 'g11.inbox' : row.key === 'account' ? 'g11.account' : `profile.settings.${row.key}`)}</Text></View>
+            {row.key === 'theme' ? <View style={styles.rowTail}><View style={styles.accentDot} /><Text variant="introCaption" color="redesign.secondary">{t(`theme.${accentOf(rt.themeName) ?? DEFAULT_ACCENT}`)}</Text></View> : null}
             {row.key === 'defaults' && profile?.homeAdministrativeArea?.provinceName ? <Text variant="caption" numberOfLines={1} style={styles.rowValue} color="text.secondary">{profile.homeAdministrativeArea.provinceName}</Text> : null}
-            {row.key === 'reviews' && reviews.data ? <Text variant="caption" color="text.secondary">{reviews.data.length}</Text> : null}
+            {row.key === 'reviews' && reviews.data ? <Text variant="introCaption" color="redesign.secondary">{t('g11.reviewCount', { count: reviews.data.length })}</Text> : null}
             <IconChevronRight />
           </Pressable>)}</Card>
         </View>
       })}
       <AssistantHelpSection />
-      {status !== 'anonymous' ? <SecondaryBtn label={signingOut ? t('profile.loggingOut') : t('profile.logout')} onPress={() => setLogoutConfirm(actor)} disabled={signingOut} loading={signingOut} style={styles.logout} /> : null}
+      {status !== 'anonymous' ? <SecondaryBtn label={signingOut ? t('profile.loggingOut') : t('g11.logout')} onPress={() => setLogoutConfirm(actor)} disabled={signingOut} loading={signingOut} style={styles.logout} leadingIcon="logout" /> : null}
       {signOutFailure ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.logoutError}>
         {t(({ offline: 'profile.logoutFailedOffline', timeout: 'profile.logoutFailedTimeout', push_unconfirmed: 'profile.logoutFailedPush', session_ended: 'profile.logoutSessionEnded', other: 'profile.logoutFailed' } as const satisfies Record<SignOutFailure, string>)[signOutFailure])}
       </Text> : null}

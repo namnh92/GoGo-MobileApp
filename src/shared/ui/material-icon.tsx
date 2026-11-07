@@ -4,6 +4,21 @@ import { resolveColor, type TextColor } from './text'
 
 /** Material Symbols, 24-unit outline grid, as used in the approved redesign. */
 const paths = {
+  bookmarkFilled: 'M6 2h12v20l-6-3-6 3z',
+  hotelClass: 'M10 3l2.5 5.1 5.6.8-4.1 4 .9 5.6-4.9-2.6-4.9 2.6.9-5.6-4.1-4 5.6-.8zm10 0 1 3 3 1-3 1-1 3-1-3-3-1 3-1zm0 12 1 2 2 1-2 1-1 2-1-2-2-1 2-1z',
+  edit: 'M3 17.3V21h3.7L20 7.7 16.3 4zM21.7 6a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0L16.9 3.4l3.7 3.7z',
+  shield: 'M12 1 3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5zm0 2.2L19 6v5c0 4.4-2.8 8.5-7 9.9C7.8 19.5 5 15.4 5 11V6zm-1 12.2-4-4 1.4-1.4 2.6 2.6 4.6-4.6L17 9.4z',
+  palette: 'M12 2a10 10 0 1 0 0 20h1.5a3.5 3.5 0 0 0 3.1-5.1.6.6 0 0 1 .5-.9H19a3 3 0 0 0 3-3v-1A10 10 0 0 0 12 2zm0 2a8 8 0 0 1 8 8v1a1 1 0 0 1-1 1h-1.9a2.6 2.6 0 0 0-2.3 3.8 1.5 1.5 0 0 1-1.3 2.2H12a8 8 0 1 1 0-16zM7 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm3-3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm3 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
+  manageAccounts: 'M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0-2a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-7 9v-2c0-2.7 4.7-4 7-4 1 0 2.2.2 3.3.5l-.8 1.8A11 11 0 0 0 9 15c-2.6 0-5 1.3-5 2v2zm16-7 1 2 2 .4-.4 2 .4 2-2 .6-1 2-2-1-2-1 .4-2-.4-2 2-.6zm0 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
+  unreadMail: 'M2 4h12v2H4v1l8 5 6-3.7V20H2zm2 5.4V18h12v-5.9l-4 2.5zm15-8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  save: 'M3 3h15l3 3v15H3zm2 2v14h14V7l-2-2v6H7V5zm4 0v4h6V5zm-1 9h8v5H8z',
+  savings: 'M5 7 3 4v7l-2 2v5h3l1 3h3v-2h8v2h3l1-5 3-2V9h-3a8 8 0 0 0-6-4H9zm0 3 2-2h7a6 6 0 0 1 5 3h2v2l-3 2-1 4h-1v-2H6v2H5l-1-3H3v-2l2-2zm4-8h6v2H9zm7 9h2v2h-2z',
+  dining: 'M3 2h2v7h2V2h2v7h2V2h2v8l-4 3v9H7v-9l-4-3zm15 0h3v20h-2v-8h-3V8z',
+  infinity: 'M7 6c-6 0-7 12 0 12 3 0 5-3 7-6s3-4 4-4c4 0 4 8 0 8-1 0-2-1-3-2l-1 2c1 1 2 2 4 2 7 0 7-12 0-12-3 0-5 3-7 6s-3 4-4 4c-4 0-4-8 0-8 1 0 2 1 3 2l1-2c-1-1-2-2-4-2z',
+  interests: 'M7 2 1 12h12zm0 4 2.4 4H4.6zM16 2h6v6h-6zm2 2v2h2V4zM3 16h8v6H3zm2 2v2h4v-2zm14-5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z',
+  logout: 'M3 2h10v2H5v16h8v2H3zm12 5 1.4-1.4L23 12l-6.6 6.4L15 17l4-4H9v-2h10z',
+  external: 'M14 2h8v8h-2V5.4L10.4 15 9 13.6 18.6 4H14zM2 4h9v2H4v14h14v-7h2v9H2z',
+
   send: 'M2 3l21 9-21 9v-7l15-2L2 10zm2 3v2l11 1.5zm0 10v2l11-4.5z',
   check: 'M9 16.2 4.8 12 3.4 13.4 9 19 21 7l-1.4-1.4z',
   starOutline: 'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1zm0 4.5-1.8 3.6-4 .6 2.9 2.8-.7 4 3.6-1.9 3.6 1.9-.7-4 2.9-2.8-4-.6z',
@@ -73,5 +88,5 @@ export function MaterialIcon({ name, size = 20, color = 'redesign.ink' }: {
   name: MaterialIconName; size?: number; color?: TextColor
 }) {
   const { theme } = useUnistyles()
-  return <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden><Path d={paths[name]} fill={resolveColor(theme, color)} fillRule="evenodd" /></Svg>
+  return <Svg testID={`material-icon-${name}`} width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden><Path d={paths[name]} fill={resolveColor(theme, color)} fillRule="evenodd" /></Svg>
 }

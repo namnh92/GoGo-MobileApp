@@ -53,14 +53,14 @@ it('guests have a sign-in card, locks with a reason and CTA, and accessible loca
 })
 it('logout asks first and cancel leaves the session intact', async () => {
   await render(<ProfileScreen />)
-  await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất' }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất tài khoản' }))
   expect(mockSignOut).not.toHaveBeenCalled()
   await fireEvent.press(screen.getByRole('button', { name: 'Huỷ' }))
   expect(mockSignOut).not.toHaveBeenCalled()
 })
 it('does not carry an open confirmation across account switches', async () => {
   const view = await render(<ProfileScreen />)
-  await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất' }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất tài khoản' }))
   mockSession.status = 'guest'
   await view.rerender(<ProfileScreen />)
   mockSession.status = 'user'

@@ -24,7 +24,7 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
-  variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
+  variant?: 'pill' | 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
   /** Allow full action labels to wrap in narrow shared layouts. */
   wrapLabel?: boolean

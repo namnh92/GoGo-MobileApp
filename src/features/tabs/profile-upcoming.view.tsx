@@ -35,8 +35,8 @@ export function ProfileUpcoming({ enabled }: { enabled: boolean }) {
   if (!room) return null
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(room.startAt ?? room.scheduledDate!))
   return <Pressable testID="profile-upcoming" accessibilityRole="button" onPress={() => router.push(room.planId && ['ready', 'active'].includes(room.status) ? `/plans/${room.planId}` : `/room/${room.id}`)} style={({ pressed }) => [styles.banner, pressed && styles.settingRowPressed]}>
-    <Icon name="sparkle" color="accent.onSoft" />
-    <View style={styles.headerText}><Text variant="label">{t('g11.upcoming')}</Text>{room.title ? <Text numberOfLines={2}>{room.title}</Text> : null}<Text variant="caption" color="text.secondary">{date}</Text></View>
-    <Icon name="chevronRight" />
+    <View style={styles.bannerIcon}><Icon name="sparkle" size={18} color="accent.onAccent" /></View>
+    <View style={styles.headerText}><Text variant="label">{t('g11.upcoming')}</Text>{room.title ? <Text variant="introCaption" numberOfLines={2}>{room.title}</Text> : null}<Text variant="caption" color="text.secondary">{date}</Text></View>
+    <Icon name="chevronRight" color="redesign.violetText" />
   </Pressable>
 }
