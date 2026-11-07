@@ -1,9 +1,13 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
-import { Keyboard, ScrollView, StyleSheet, View } from 'react-native'
+import { Alert, Keyboard, ScrollView, Share, StyleSheet, View } from 'react-native'
+import { onlineManager } from '@tanstack/react-query'
+import { ApiError, NetworkError } from '@/shared/api/errors'
 import { renderScreen } from './harness'
 
-const mockResolve = { data: undefined as unknown, mutate: jest.fn(), reset: jest.fn(), isPending: false }
+const mockResolve = { data: undefined as unknown, mutate: jest.fn(), reset: jest.fn(), isPending: false, isPaused: false, isError: false, error: null as unknown }
 const mockSubmit = { mutateAsync: jest.fn(), reset: jest.fn() }
+const mockClipboard = jest.fn()
+jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }))
 const mockPick = jest.fn()
 const mockPermission = jest.fn()
 const mockGet = jest.fn()
@@ -12,7 +16,8 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: (...args: unknown[]) => mockPick(...args),
 }))
 jest.mock('@/shared/api/client', () => ({ api: { get: (...args: unknown[]) => mockGet(...args) } }))
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn() }), useLocalSearchParams: () => ({}) }))
+const mockRouter = { back: jest.fn(), push: jest.fn() }
+jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
 jest.mock('@/shared/api', () => ({
@@ -32,10 +37,15 @@ async function preview(value: unknown = candidate) {
   mockResolve.data = { status: 'RESOLVED', candidate: value }
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 }
 beforeEach(() => {
   jest.clearAllMocks()
+  onlineManager.setOnline(true)
+  mockClipboard.mockResolvedValue('')
+  mockResolve.isError = false
+  mockResolve.isPaused = false
+  mockResolve.error = null
   mockResolve.isPending = false
   mockResolve.data = undefined
   mockPermission.mockResolvedValue({ granted: true })
@@ -47,10 +57,9 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-it('keeps a long URL single-line and clears the input, preview and metadata with a 44pt accessible control', async () => {
-  await preview()
-  await fireEvent.press(screen.getByText('Bổ sung thông tin'))
-  await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'old note')
+it('keeps a long URL single-line with a 44pt clear control; changing a verified link clears preview and metadata', async () => {
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&long=' + 'a'.repeat(400))
   const input = screen.getByTestId('import-link-input')
   expect(input.props.multiline).toBe(false)
   expect(input.props.numberOfLines).toBe(1)
@@ -58,17 +67,27 @@ it('keeps a long URL single-line and clears the input, preview and metadata with
   expect(StyleSheet.flatten(clear.props.style)).toMatchObject({ width: 44, height: 44 })
   await fireEvent.press(clear)
   expect(screen.getByTestId('import-link-input').props.value).toBe('')
-  expect(screen.queryByText('Preview')).toBeNull()
   expect(screen.queryByLabelText('Xóa liên kết')).toBeNull()
-  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&long=' + 'a'.repeat(400))
-  expect(screen.getByTestId('import-link-input').props.multiline).toBe(false)
+  mockResolve.data = { status: 'RESOLVED', candidate }
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  expect(screen.queryByTestId('import-link-input')).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'old note')
+  await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  expect(screen.queryByText('Preview')).toBeNull()
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
+  expect(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…').props.value).toBe('')
 })
 
 it('spaces the card/actions and individual buttons, and removes the lone entered-link control', async () => {
   mockResolve.data = { status: 'ALREADY_EXISTS', existingPlaceId: 'canonical' }
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(StyleSheet.flatten(screen.getByTestId('import-result-actions').props.style)).toMatchObject({ marginTop: 16, gap: 12 })
   expect(screen.queryByText('Liên kết đã nhập')).toBeNull()
 })
@@ -88,7 +107,7 @@ it('picks up to five optional photos, removes one, and never uploads or attaches
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith({ googlePlaceId: 'ChIJtest' })
   expect(mockGet).not.toHaveBeenCalled()
-  await fireEvent.press(screen.getByLabelText('Xóa liên kết'))
+  await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   expect(screen.queryAllByTestId('import-local-photo')).toHaveLength(0)
 })
 
@@ -131,6 +150,7 @@ it('fetches the contract photo reference as JSON, displays returned bytes/credit
   expect(mockGet).toHaveBeenCalledWith('/places/google-provider-photo/ChIJtest', expect.objectContaining({ anonymous: true }))
   expect(screen.getByTestId('import-candidate-photo').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,aGVsbG8=' }], cachePolicy: 'none' })
   expect(screen.getByText('Google Maps · Lan')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&new=1')
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
 })
@@ -164,7 +184,7 @@ it.each(['Từ', 'Đến', 'Ghi chú cho người kiểm duyệt…'])(
     const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {})
     jest.useFakeTimers()
     await preview()
-    await fireEvent.press(screen.getByText('Bổ sung thông tin'))
+    await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
     await fireEvent(screen.getByTestId('import-scroll'), 'layout', { nativeEvent: { layout: { height: 400 } } })
     const input = screen.getByLabelText(label)
     await fireEvent(input, 'focus', {})
@@ -198,6 +218,7 @@ it('drops a late candidate photo response after the link changes', async () => {
   )
   await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   const signal = mockGet.mock.calls[0][1].signal as AbortSignal
+  await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&new=1')
   expect(signal.aborted).toBe(true)
   await act(async () => {
@@ -230,13 +251,13 @@ it('does not restore local photos from a picker finishing after the link was cle
   )
   await preview()
   await fireEvent.press(screen.getByText('Thêm ảnh'))
-  await fireEvent.press(screen.getByLabelText('Xóa liên kết'))
+  await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   await act(async () => {
     finish({ canceled: false, assets: [{ uri: 'file:///old.jpg' }] })
   })
   expect(screen.queryAllByTestId('import-local-photo')).toHaveLength(0)
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(screen.queryAllByTestId('import-local-photo')).toHaveLength(0)
 })
 
@@ -281,7 +302,7 @@ it('does not buy a Google photo for an existing GoGo place even if a candidate r
   mockResolve.data = { status: 'ALREADY_EXISTS', existingPlaceId: 'canonical', candidate: { ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } } }
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(screen.getByText('Existing')).toBeTruthy()
   expect(mockGet).not.toHaveBeenCalled()
 })
@@ -290,7 +311,7 @@ it('does not buy a Google photo for an existing GoGo place even if a candidate r
 it('keeps verification loading inside the same disabled button and preserves the link controls', async () => {
   mockResolve.isPending = true
   await renderScreen(<PlaceImportScreen />)
-  const button = screen.getByRole('button', { name: 'Đang xác minh trên Google Maps…' })
+  const button = screen.getByRole('button', { name: 'Đang kết nối Google Maps...' })
   expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
   expect(screen.getByTestId('button-spinner')).toBeTruthy()
   expect(screen.getByTestId('import-link-input').props.multiline).toBe(false)
@@ -313,4 +334,135 @@ it('uses the directly downloaded Stitch photo/body hierarchy with real hours and
   expect(save.props.accessibilityState.disabled).toBe(true)
   expect(save.props.accessibilityHint).toBe('Chỉ lưu được sau khi địa điểm được duyệt và có trên GoGo.')
   expect(screen.queryByText('Mơ Concept & Roastery')).toBeNull()
+})
+
+
+it('renders the empty Stitch input and working paste without seeding a sample link', async () => {
+  await renderScreen(<PlaceImportScreen />)
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  expect(screen.getByRole('button', { name: 'Tiếp tục trích xuất thông tin' }).props.accessibilityState.disabled).toBe(true)
+  expect(screen.queryByText('Định dạng hợp lệ • Sẵn sàng đồng bộ')).toBeNull()
+  expect(screen.getByText('3 bước lấy link nhanh')).toBeTruthy()
+  expect(screen.queryByText(/70 Credit|20 Credit|Mơ Concept/)).toBeNull()
+  mockClipboard.mockResolvedValue('  ' + LINK + '  ')
+  await fireEvent.press(screen.getByRole('button', { name: 'Dán link' }))
+  expect(screen.getByTestId('import-link-input').props.value).toBe(LINK)
+  expect(screen.getByText('Định dạng hợp lệ • Sẵn sàng đồng bộ')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục trích xuất thông tin' }))
+  expect(mockResolve.mutate).toHaveBeenCalledWith({ url: LINK }, expect.any(Object))
+})
+
+it.each(['not a URL', 'https://maps.app.goo.gl.evil.test/place', 'https://mail.google.com/inbox', 'javascript://maps.app.goo.gl/place'])('flags invalid typing and never resolves %s', async value => {
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), value)
+  expect(screen.getByText('Vui lòng kiểm tra lại liên kết Google Maps')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục trích xuất thông tin' }))
+  expect(mockResolve.mutate).not.toHaveBeenCalled()
+})
+
+it('handles unavailable and empty clipboard without supplying a sample', async () => {
+  await renderScreen(<PlaceImportScreen />)
+  mockClipboard.mockRejectedValueOnce(new Error('denied'))
+  await fireEvent.press(screen.getByRole('button', { name: 'Dán link' }))
+  expect(screen.getByText('Không đọc hoặc mở được liên kết. Vui lòng thử lại hoặc nhập link trực tiếp.')).toBeTruthy()
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  mockClipboard.mockResolvedValueOnce(' ')
+  await fireEvent.press(screen.getByRole('button', { name: 'Dán link' }))
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  expect(mockResolve.mutate).not.toHaveBeenCalled()
+})
+
+it('does not overwrite an edit with a late clipboard read', async () => {
+  let finish: (value: string) => void = () => {}
+  mockClipboard.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Dán link' }))
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), 'new input')
+  await act(async () => { finish(LINK) })
+  expect(screen.getByTestId('import-link-input').props.value).toBe('new input')
+})
+
+it('blocks verification offline and recovers on reconnect without losing the input', async () => {
+  onlineManager.setOnline(false)
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  expect(screen.getByText('Bạn đang ngoại tuyến. Kết nối mạng để xác minh địa điểm.')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục trích xuất thông tin' }))
+  expect(mockResolve.mutate).not.toHaveBeenCalled()
+  await act(async () => { onlineManager.setOnline(true) })
+  expect(screen.getByTestId('import-link-input').props.value).toBe(LINK)
+  expect(screen.queryByText('Bạn đang ngoại tuyến. Kết nối mạng để xác minh địa điểm.')).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục trích xuất thông tin' }))
+  expect(mockResolve.mutate).toHaveBeenCalledTimes(1)
+})
+
+it.each(['paused', 'network'])('explains %s as offline instead of rejecting the place', async state => {
+  mockResolve.isPaused = state === 'paused'
+  mockResolve.isPending = state === 'paused'
+  mockResolve.isError = state === 'network'
+  mockResolve.error = new NetworkError()
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  expect(screen.getByText('Bạn đang ngoại tuyến. Kết nối mạng để xác minh địa điểm.')).toBeTruthy()
+  expect(screen.queryByText('Không thể thêm địa điểm này')).toBeNull()
+  expect(screen.queryByTestId('button-spinner')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Tiếp tục trích xuất thông tin' }).props.accessibilityState.disabled).toBe(state === 'paused')
+})
+
+it('retries a server error with the original URL', async () => {
+  mockResolve.isError = true
+  mockResolve.error = new ApiError(500, { code: 'ERROR', message: 'error' })
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+  expect(mockResolve.mutate).toHaveBeenCalledWith({ url: LINK }, expect.any(Object))
+  expect(screen.getByTestId('import-link-input').props.value).toBe(LINK)
+})
+
+it('shows the post-verify header and actual synced URL without the deferred wizard', async () => {
+  await preview()
+  expect(screen.getByTestId('import-synced-link')).toBeTruthy()
+  expect(screen.getByText('Đã kết nối Google Maps')).toBeTruthy()
+  expect(screen.getByText('Hoàn thiện hồ sơ địa điểm')).toBeTruthy()
+  expect(screen.getByText(LINK.replace('https://', ''))).toBeTruthy()
+  expect(screen.getByText('Preview • Đã xác minh vị trí')).toBeTruthy()
+  expect(screen.queryByTestId('import-link-input')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Tiếp tục trích xuất thông tin' })).toBeNull()
+  expect(screen.queryByText(/Lưu nháp|Giá & Mục đích|Menu & Bill/)).toBeNull()
+  expect(screen.getByText('0/5')).toBeTruthy()
+})
+
+it('reveals the input and validation helper above the keyboard', async () => {
+  const scroll = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {})
+  jest.spyOn(View.prototype, 'measureLayout').mockImplementation((_relative, callback) => callback(0, 700, 350, 150))
+  jest.useFakeTimers()
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent(screen.getByTestId('import-scroll'), 'layout', { nativeEvent: { layout: { height: 400 } } })
+  await fireEvent(screen.getByTestId('import-link-input'), 'focus', {})
+  await act(async () => { jest.runOnlyPendingTimers() })
+  expect(scroll).toHaveBeenLastCalledWith({ y: 466, animated: false })
+})
+
+
+it('wires header share/profile and sends only the actual verified URL to the native share sheet', async () => {
+  const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction })
+  await preview()
+  await fireEvent.press(screen.getByRole('button', { name: 'Chia sẻ' }))
+  expect(share).toHaveBeenCalledWith({ message: LINK })
+  await fireEvent.press(screen.getByRole('button', { name: 'Cá nhân' }))
+  expect(mockRouter.push).toHaveBeenCalledWith('/(tabs)/profile')
+  await fireEvent.press(screen.getByRole('button', { name: 'Quay lại' }))
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+})
+
+it('opens link-taking help and the existing credit policy while explaining the unavailable contribution list', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+  const scroll = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {})
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Hướng dẫn trợ giúp' }))
+  expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ animated: true }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Cách tính điểm GoGo Credit' }))
+  expect(alert).toHaveBeenCalledWith('Cách tính điểm GoGo Credit', '+50 credit GoGo AI sau khi đóng góp của bạn được duyệt.')
+  expect(screen.getByRole('button', { name: 'Xem địa điểm đã đóng góp' }).props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByText('Danh sách đóng góp chưa khả dụng.')).toBeTruthy()
 })

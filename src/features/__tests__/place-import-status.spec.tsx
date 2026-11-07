@@ -26,8 +26,8 @@ import PlaceImportScreen from '@/features/place-import/import.view'
 
 async function open() {
   await renderScreen(<PlaceImportScreen />)
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/A')
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/A')
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 }
 beforeEach(() => { mockStatus = 'user'; mockSubmissionId.mockClear(); mockSubmission = {}; mockSubmit.data = { status: 'PENDING', submissionId: 's' } })
 

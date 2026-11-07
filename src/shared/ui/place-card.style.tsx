@@ -12,7 +12,7 @@ export const styles = StyleSheet.create(theme => ({
   importNoPhotoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   importSave: { position: 'absolute', top: 8, right: 8 },
   importHoursOverlay: { position: 'absolute', bottom: 12, right: 12, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 8, paddingVertical: 2 },
-  importActions: { marginTop: 24, borderRadius: 12, padding: 12, gap: 12, backgroundColor: theme.redesign.card, borderWidth: 1, borderColor: theme.redesign.line },
+  importActions: { marginTop: 24, gap: 12 },
   /** Holds the card and, beside it, the save toggle positioned over it. */
   verifiedBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: theme.redesign.verifiedFill },
   discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

@@ -1,11 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, TouchableWithoutFeedback, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { z } from 'zod'
+import { onlineManager } from '@tanstack/react-query'
+import { NetworkError } from '@/shared/api/errors'
+import { ImportGuide } from './import-guide.view'
 
 import { isApiError, usePlaceSubmission, useResolveGoogleMapsLink, useSubmitPlace, useTaxonomies, type ResolveLinkResult } from '@/shared/api'
 import { track } from '@/shared/analytics'
@@ -17,12 +20,11 @@ import { useSession } from '@/shared/providers/session-provider'
 import { ImportPhotos } from './import-photos.view'
 import { FieldFocusGroup, FocusedFieldGroup } from '@/shared/ui/field-focus-group'
 import { ExistingPlaceResult } from './existing-place-result.view'
-import { Atmosphere, BackHeader, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import * as Clipboard from 'expo-clipboard'
-import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { styles } from './import.style'
 
 // Accepted Google Maps link shapes (SRS FR-PLACE-001). The server validates
@@ -37,11 +39,12 @@ const mapsUrlSchema = z
       const parsed = new URL(value)
       const host = parsed.hostname.replace(/^www\./, '')
       return (
-        host === 'maps.google.com' ||
-        host === 'maps.app.goo.gl' ||
-        host === 'goo.gl' ||
-        (host === 'google.com' && parsed.pathname.startsWith('/maps')) ||
-        host.endsWith('.google.com')
+        ['https:', 'http:'].includes(parsed.protocol) &&
+        (host === 'maps.google.com' ||
+          host === 'maps.app.goo.gl' ||
+          (host === 'goo.gl' && parsed.pathname.startsWith('/maps/')) ||
+          (host === 'google.com' && /^\/maps(?:\/|$)/.test(parsed.pathname)) ||
+          (host.endsWith('.google.com') && /^\/maps(?:\/|$)/.test(parsed.pathname)))
       )
     } catch {
       return false
@@ -104,8 +107,12 @@ export default function PlaceImportScreen() {
   const { status: actorStatus } = useSession()
   const { roomId } = useLocalSearchParams<{ roomId?: string }>()
 
+  const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
+  const inputRef = useRef<import('@/shared/ui/text-input').TextInputRef>(null)
+  const [linkFocused, setLinkFocused] = useState(false)
   const focusedGroup = useRef<View>(null)
   const scrollRef = useRef<ScrollView>(null)
+  const guideY = useRef(0)
   const contentRef = useRef<View>(null)
   const scrollY = useRef(0)
   const viewportHeight = useRef(0)
@@ -201,6 +208,9 @@ export default function PlaceImportScreen() {
   const result = previewMatchesUrl ? resolve.data : undefined
   const candidate = result?.candidate as Candidate | undefined
   // #131: Google lists it as opening soon; the server refuses the submit.
+  useEffect(() => {
+    if (result?.status === 'RESOLVED') scrollRef.current?.scrollTo({ y: 0, animated: false })
+  }, [result?.status])
   const notOpenYet = candidate?.businessStatus === 'FUTURE_OPENING'
 
   function invalidateAttempt() {
@@ -210,6 +220,8 @@ export default function PlaceImportScreen() {
   }
 
   function onResolve() {
+    if (!online || resolve.isPending) return
+    Keyboard.dismiss()
     const parsed = mapsUrlSchema.safeParse(url)
     if (!parsed.success) {
       setInvalid(true)
@@ -323,15 +335,52 @@ export default function PlaceImportScreen() {
     setPhotos([])
   }
 
-  const VerifyButton = result ? GhostBtn : PrimaryBtn
+  const verified = result?.status === 'RESOLVED' && !!candidate
+  const offline = !online || resolve.isPaused || (resolve.isError && resolve.error instanceof NetworkError)
+  const validFormat = mapsUrlSchema.safeParse(url).success
+  const showValidation = url.trim().length > 0 || invalid
+
+  function changeLink() {
+    reset()
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false })
+      inputRef.current?.focus()
+    })
+  }
+
+  async function pasteLink() {
+    const generation = attemptGeneration.current
+    try {
+      const value = await Clipboard.getStringAsync()
+      if (generation !== attemptGeneration.current) return
+      reset()
+      currentUrl.current = value.trim()
+      setUrl(value.trim())
+      inputRef.current?.focus()
+    } catch {
+      if (generation === attemptGeneration.current) setLinkFailed(true)
+    }
+  }
+
   return (
-    <Atmosphere redesign>
-      <View testID="import-header" style={[styles.header, { paddingTop: insets.top }]}>
-        <BackHeader
-          title={t('placeImport.title')}
-          onBack={() => router.back()}
-          right={<HeaderNotificationButton testID="import-bell" unreadDotTestID="import-unread-dot" />}
-        />
+    <Atmosphere redesign style={!verified ? styles.inputCanvas : undefined}>
+      <View testID="import-header" style={[styles.header, !verified && styles.inputCanvas, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={verified ? changeLink : () => router.back()} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
+            <Icon name="chevronLeft" size={24} />
+          </Pressable>
+          <Text variant="introHeading" color="redesign.ink" style={[styles.headerTitle, !verified && styles.headerTitleCentered]}>{t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}</Text>
+          {verified ? <>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('placeImport.share')} onPress={() => { void Share.share({ message: candidate.googleMapsUri || resolvedUrl || '' }).catch(() => setLinkFailed(true)) }} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
+              <Icon name="share" size={22} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('tabs.profile')} onPress={() => router.push('/(tabs)/profile')} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
+              <View style={styles.profileDisc}><MaterialIcon name="user" size={18} color="redesign.white" /></View>
+            </Pressable>
+          </> : <Pressable accessibilityRole="button" accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
+            <MaterialIcon name="help" size={24} color="redesign.secondary" />
+          </Pressable>}
+        </View>
       </View>
       <FocusedFieldGroup.Provider value={focusedGroup}>
         <KeyboardAvoidingView testID="import-keyboard-avoider" style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -353,87 +402,90 @@ export default function PlaceImportScreen() {
           >
             <TouchableWithoutFeedback testID="import-dismiss-keyboard" onPress={Keyboard.dismiss} accessible={false}>
               <View ref={contentRef} collapsable={false}>
-                <Text variant="title1" style={styles.introTitle}>
-                  {t('placeImport.syncTitle')}
-                </Text>
-                <Text color="text.secondary" style={styles.body}>
-                  {t('placeImport.body')}
-                </Text>
-
-                <View style={styles.inputCard}>
-                  <Text variant="label">{t('placeImport.linkLabel')}</Text>
-                  <View style={styles.linkInputRow}>
-                    <TextInput
-                      testID="import-link-input"
-                      multiline={false}
-                      numberOfLines={1}
-                      value={url}
-                      onChangeText={(value) => {
-                        invalidateAttempt()
-                        currentUrl.current = value
-                        setUrl(value)
-                        setResolvedUrl(null)
-                        resolve.reset()
-                        submit.reset()
-                        setSelectedGooglePlaceId(null)
-                        setCategory(null)
-                        setVibes([])
-                        setPriceMin('')
-                        setPriceMax('')
-                        setNote('')
-                        setPhotos([])
-                        setInvalid(false)
-                      }}
-                      placeholder={t('placeImport.placeholder')}
-                      placeholderTextColor={theme.text.secondary}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      keyboardType="url"
-                      accessibilityLabel={t('placeImport.title')}
-                      style={[styles.input, styles.linkInput, invalid && styles.inputError]}
-                    />
-                    {url ? (
-                      <Pressable
-                        testID="import-clear-link"
-                        accessibilityRole="button"
-                        accessibilityLabel={t('placeImport.clearLink')}
-                        onPress={reset}
-                        style={styles.clearLink}
-                      >
-                        <Icon name="x" size={20} />
-                      </Pressable>
-                    ) : null}
+                <View style={styles.intro}>
+                  <View style={[styles.introBadge, verified && styles.connectedBadge]}>
+                    <MaterialIcon name={verified ? 'sparkle' : 'groups'} size={16} color={verified ? 'redesign.violetText' : 'redesign.primaryText'} />
+                    <Text variant="introLabel" color={verified ? 'redesign.violetText' : 'redesign.primaryText'}>{t(verified ? 'placeImport.connected' : 'placeImport.community')}</Text>
                   </View>
-                  <GhostBtn
-                    label={t('placeImport.pasteLink')}
-                    onPress={() => {
-                      void Clipboard.getStringAsync()
-                        .then((value) => {
+                  <Text variant={verified ? 'introSection' : 'display'} color="redesign.ink">{t(verified ? 'placeImport.completeTitle' : 'placeImport.syncTitle')}</Text>
+                  <Text variant={verified ? "introBody" : "bodySmall"} color="redesign.secondary" style={styles.introBody}>{t(verified ? 'placeImport.completeBody' : 'placeImport.body')}</Text>
+                </View>
+
+                {verified ? <View testID="import-synced-link" style={styles.syncedRow}>
+                  <View style={styles.linkDisc}><MaterialIcon name="link" size={20} color="redesign.importSyncedText" /></View>
+                  <View style={styles.syncedText}>
+                    <View style={styles.syncedTitleRow}>
+                      <Text numberOfLines={1} variant="introLabel" color="redesign.ink" style={styles.syncedUrl}>{resolvedUrl?.replace(/^https?:\/\//, '')}</Text>
+                      <View style={styles.syncedBadge}><Text variant="introCaptionMedium" color="redesign.importSyncedText">{t('placeImport.synced')}</Text></View>
+                    </View>
+                    <Text numberOfLines={1} variant="introCaption" color="redesign.secondary">{t('placeImport.verifiedLocation', { name: candidate.name })}</Text>
+                  </View>
+                  <Pressable accessibilityRole="button" onPress={changeLink} style={({ pressed }) => [styles.changeLink, pressed && styles.pressed]}>
+                    <MaterialIcon name="restart" size={14} /><Text variant="introCaptionMedium" color="redesign.ink">{t('placeImport.changeLink')}</Text>
+                  </Pressable>
+                </View> : <>
+                  <FieldFocusGroup style={[styles.inputCard, linkFocused && styles.inputCardFocused]}>
+                    <View style={styles.inputHeading}>
+                      <View style={styles.inputLabel}><MaterialIcon name="link" size={18} color="redesign.primaryText" /><Text variant="introLabel" color="redesign.ink">{t('placeImport.linkLabel')}</Text></View>
+                      <Pressable accessibilityRole="button" onPress={() => void pasteLink()} style={({ pressed }) => [styles.pasteLink, pressed && styles.pressed]}>
+                        <Icon name="copy" size={14} color="redesign.primaryText" /><Text variant="introLabel" color="redesign.primaryText">{t('placeImport.pasteLink')}</Text>
+                      </Pressable>
+                    </View>
+                    <View style={styles.linkInputRow}>
+                      <View pointerEvents="none" style={styles.inputLocation}><MaterialIcon name="location" size={20} color="redesign.greenText" /></View>
+                      <TextInput
+                        ref={inputRef}
+                        testID="import-link-input"
+                        multiline={false}
+                        numberOfLines={1}
+                        onFocus={() => { setLinkFocused(true); revealFocused() }}
+                        onBlur={() => setLinkFocused(false)}
+                        value={url}
+                        onChangeText={(value) => {
                           reset()
                           currentUrl.current = value
                           setUrl(value)
-                        })
-                        .catch(() => setInvalid(true))
-                    }}
-                  />
-                  {invalid && (
-                    <Text variant="bodySmall" color="status.dangerText" style={styles.errorLabel}>
-                      {t('placeImport.invalidUrl')}
-                    </Text>
-                  )}
+                        }}
+                        placeholder={t('placeImport.placeholder')}
+                        placeholderTextColor={theme.redesign.outline}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                        returnKeyType="go"
+                        onSubmitEditing={onResolve}
+                        accessibilityLabel={t('placeImport.linkLabel')}
+                        accessibilityHint={showValidation && !validFormat ? t('placeImport.invalidUrl') : undefined}
+                        style={[styles.input, styles.linkInput, showValidation && !validFormat && styles.inputError]}
+                      />
+                      {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} onPress={changeLink} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
+                    </View>
+                    {showValidation ? <View accessibilityLiveRegion="polite" style={[styles.validationBadge, !validFormat && styles.validationInvalid]}>
+                      <MaterialIcon name={validFormat ? 'checkCircle' : 'info'} size={15} color={validFormat ? 'redesign.greenText' : 'status.warningText'} />
+                      <Text variant="introCaptionMedium" color={validFormat ? 'redesign.greenText' : 'status.warningText'} style={styles.flex}>{t(validFormat ? 'placeImport.validFormat' : 'placeImport.invalidUrl')}</Text>
+                    </View> : null}
+                    <View style={styles.formatHint}><MaterialIcon name="info" size={13} color="redesign.outline" /><Text variant="introCaption" color="redesign.secondary" style={styles.flex}>{t('placeImport.formatHint')}</Text></View>
+                    {linkFailed ? <Text variant="introSmall" color="status.dangerText">{t('placeImport.clipboardFailed')}</Text> : null}
+                  </FieldFocusGroup>
+                  {!result ? <View onLayout={event => { guideY.current = event.nativeEvent.layout.y }}><ImportGuide onLinkFailed={() => setLinkFailed(true)} /></View> : null}
+                  <View style={styles.inputActions}>
+                    {offline ? <View accessibilityLiveRegion="polite" style={styles.offline}><MaterialIcon name="info" color="status.warningText" /><Text variant="introSmall" style={styles.flex}>{t('placeImport.offline')}</Text></View> : null}
+                    <PrimaryBtn label={t(resolve.isPending && !offline ? 'placeImport.verifying' : 'placeImport.verify')} variant="discovery" trailingIcon="arrowRight" onPress={onResolve} loading={resolve.isPending && !offline} disabled={!url.trim() || !online || resolve.isPaused} style={url.trim() && online && !resolve.isPaused ? styles.inputPrimary : undefined} />
+                    {!result ? <>
+                      <View style={styles.footerLinks}>
+                        <Pressable accessibilityRole="button" accessibilityState={{ disabled: true }} disabled accessibilityHint={t('placeImport.contributionsUnavailable')} style={styles.footerLink}>
+                          <Text variant="introSmall" color="redesign.outline">{t('placeImport.viewContributions')}</Text>
+                        </Pressable>
+                        <Text color="redesign.outline">•</Text>
+                        <Pressable accessibilityRole="button" onPress={() => Alert.alert(t('placeImport.creditPolicy'), t('placeImport.approvalCredit'))} style={({ pressed }) => [styles.footerLink, pressed && styles.pressed]}>
+                          <Text variant="introSmall" color="redesign.secondary">{t('placeImport.creditPolicy')}</Text>
+                        </Pressable>
+                      </View>
+                      <Text variant="introCaption" color="redesign.secondary">{t('placeImport.contributionsUnavailable')}</Text>
+                    </> : null}
+                  </View>
+                </>}
 
-                  <VerifyButton
-                    label={t(resolve.isPending ? 'placeImport.verifying' : 'placeImport.verify')}
-                    variant="discovery"
-                    leadingIcon="verified"
-                    onPress={onResolve}
-                    loading={resolve.isPending}
-                    disabled={url.trim() === ''}
-                    style={styles.verifyBtn}
-                  />
-                </View>
-
-                {resolve.isError ? (
+                {resolve.isError && !offline ? (
                   <View style={styles.rejectedCard}>
                     <Text variant="title2" color="status.dangerText">
                       {t(providerUnavailable(resolve.error) ? 'placeImport.providerUnavailableTitle' : 'placeImport.rejectedTitle')}
@@ -445,9 +497,9 @@ export default function PlaceImportScreen() {
                           ? t('placeImport.rateLimited')
                           : t('common.errorBody')}
                     </Text>
-                    <Pressable accessibilityRole="button" onPress={reset} style={styles.tryAgain}>
+                    <Pressable accessibilityRole="button" onPress={onResolve} style={styles.tryAgain}>
                       <Text variant="label" color="text.secondary">
-                        {t('placeImport.tryAgain')}
+                        {t('common.retry')}
                       </Text>
                     </Pressable>
                   </View>
@@ -545,7 +597,6 @@ export default function PlaceImportScreen() {
                     {/* Optional metadata (PI-APP-004) — moderators get better context
                   when the submitter fills it in, and nothing here is required. */}
                     {!submit.isSuccess ? <GhostBtn label={t('placeImport.metaTitle')} onPress={() => setMetadataOpen((value) => !value)} /> : null}
-                    {!submit.isSuccess ? <ImportPhotos photos={photos} onChange={setPhotos} /> : null}
                     {!submit.isSuccess && metadataOpen ? (
                       <View style={styles.metaSection}>
                         <Text variant="label" style={styles.metaLabel}>
@@ -644,8 +695,10 @@ export default function PlaceImportScreen() {
 
                     {!submit.isSuccess ? (
                       <>
+                        <ImportPhotos photos={photos} onChange={setPhotos} />
                         <PrimaryBtn
                           label={t('placeImport.submit')}
+                          variant="discovery"
                           icon="send"
                           onPress={() => {
                             if (candidate.googlePlaceId) void onSubmitPlace(candidate.googlePlaceId)

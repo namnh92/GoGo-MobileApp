@@ -4,6 +4,8 @@ import { resolveColor, type TextColor } from './text'
 
 /** Material Symbols, 24-unit outline grid, as used in the approved redesign. */
 const paths = {
+  help: 'M11 18h2v-2h-2zm1-16a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14a4 4 0 0 0-4 4h2a2 2 0 1 1 3 1.7c-1.4.8-2 1.6-2 3.3h2c0-1 .2-1.3 1-1.8A4 4 0 0 0 12 6z',
+  link: 'M10 13a5 5 0 0 1 0-7l3-3a5 5 0 0 1 7 7l-2 2-1.4-1.4 2-2a3 3 0 0 0-4.2-4.2l-3 3a3 3 0 0 0 0 4.2zm4-2a5 5 0 0 1 0 7l-3 3a5 5 0 0 1-7-7l2-2L7.4 13l-2 2a3 3 0 0 0 4.2 4.2l3-3a3 3 0 0 0 0-4.2z',
   storefront: 'M3 2h18l2 7v2a4 4 0 0 1-2 3.5V22H3v-7.5A4 4 0 0 1 1 11V9zm1.5 2L3 9h18l-1.5-5zM3 11a2 2 0 0 0 4 0zm6 0a2 2 0 0 0 4 0zm6 0a2 2 0 0 0 4 0zM5 15v5h3v-4h8v4h3v-5a4 4 0 0 1-5-1 4 4 0 0 1-6 0 4 4 0 0 1-3 1z',
   addLocation: 'M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 2a5 5 0 0 1 5 5c0 3-3 7-5 10-2-3-5-7-5-10a5 5 0 0 1 5-5zm-1 2h2v2h2v2h-2v2h-2v-2H9V8h2z',
   filterList: 'M3 5h18v2H3zm3 6h12v2H6zm4 6h4v2h-4z',

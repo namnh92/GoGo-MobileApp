@@ -72,8 +72,8 @@ describe('APP-036 — Add Place separates a provider outage from a missing place
     )
 
     await renderScreen(<PlaceImportScreen />)
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/test')
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 
     expect(
       screen.getByText('GoGo đang tạm thời không thể xác minh địa điểm. Vui lòng thử lại sau.'),
@@ -88,8 +88,8 @@ describe('APP-036 — Add Place separates a provider outage from a missing place
     failWith(new ApiError(503, { code: 'SOMETHING_NEW', message: 'unavailable' }))
 
     await renderScreen(<PlaceImportScreen />)
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/test')
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 
     expect(
       screen.getByText('GoGo đang tạm thời không thể xác minh địa điểm. Vui lòng thử lại sau.'),
@@ -100,8 +100,8 @@ describe('APP-036 — Add Place separates a provider outage from a missing place
     failWith(new ApiError(429, { code: 'RATE_LIMITED', message: 'slow down' }))
 
     await renderScreen(<PlaceImportScreen />)
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/test')
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 
     expect(screen.getByText('Bạn thử hơi nhiều lần. Đợi một chút rồi thử lại.')).toBeTruthy()
   })
@@ -111,8 +111,8 @@ describe('APP-036 — Add Place separates a provider outage from a missing place
     mockResolve.data = { status: 'UNRESOLVED', reasonCodes: ['NOT_FOUND'] }
 
     await renderScreen(<PlaceImportScreen />)
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/test')
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 
     expect(screen.getByText('Không tìm thấy địa điểm trên Google Maps.')).toBeTruthy()
     expect(screen.getByText('Không thể thêm địa điểm này')).toBeTruthy()

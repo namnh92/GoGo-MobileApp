@@ -105,9 +105,9 @@ async function openWithPreview(result: Omit<typeof RESOLVED, 'resolutionToken'> 
   // here leaves React with an open act scope, and every later render in the
   // file comes back empty.
   await act(async () => {
-    await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), LINK)
+    await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), LINK)
   })
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
 }
 
   beforeEach(() => {
@@ -151,7 +151,7 @@ describe('APP-042 — the resolve proof reaches submit', () => {
     })
 
     await openWithPreview()
-    await fireEvent.press(screen.getByText('Bổ sung thông tin'))
+    await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
     await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Keep this note')
     await pressSubmit()
 
@@ -227,7 +227,8 @@ describe('APP-042 — the resolve proof reaches submit', () => {
 
 it('invalidates A preview when the user edits the link to B', async () => {
   await openWithPreview()
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/B')
+  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
   expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
 })
@@ -238,7 +239,8 @@ it('does not retry A after a stale-token resolve returns while the user is on B'
   mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finish = resolve }))
   await openWithPreview()
   await pressSubmit()
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/B')
+  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
   await act(async () => { finish(RESOLVED) })
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(screen.queryByText('Quán Thử')).toBeNull()
@@ -253,10 +255,11 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
     mockSubmit.mutateAsync.mockImplementationOnce(() => new Promise((_resolve, reject) => { finish = () => reject(staleToken()) }))
   }
   await openWithPreview()
-  await fireEvent.press(screen.getByText('Bổ sung thông tin'))
+  await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
   await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Old A note')
   await pressSubmit()
-  const input = screen.getByPlaceholderText('https://maps.app.goo.gl/…')
+  await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  const input = screen.getByPlaceholderText('Dán link Google Maps tại đây...')
   await fireEvent.changeText(input, 'https://maps.app.goo.gl/B')
   await fireEvent.changeText(input, LINK)
   await act(async () => { finish() })
@@ -275,9 +278,10 @@ it('keeps a new attempt locked when an outdated retry finishes', async () => {
   mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finishOld = resolve }))
   await openWithPreview()
   await pressSubmit()
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), 'https://maps.app.goo.gl/B')
-  await fireEvent.changeText(screen.getByPlaceholderText('https://maps.app.goo.gl/…'), LINK)
-  await fireEvent.press(screen.getByText('Xác minh địa điểm'))
+  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
+  await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), LINK)
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   await pressSubmit()
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
   await act(async () => { finishOld(RESOLVED) })

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<meta content="mobile_stack" name="shell-type"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "gogo-primary": "#c2351d",
+            "gogo-primary-hover": "#aa2b15",
+            "gogo-accent": "#ff6b4a",
+            "gogo-cream": "#faf7f2",
+            "surface-card": "#ffffff",
+            "surface-dim": "#f3eee7",
+            "secondary-fixed": "#e4dfff",
+            "on-secondary-fixed-variant": "#422db1",
+            "tertiary": "#00623c",
+            "tertiary-fixed": "#9ef5c0",
+            "on-tertiary-fixed": "#002111"
+          },
+          fontFamily: {
+            sans: ["Inter", "sans-serif"]
+          },
+          borderRadius: {
+            '2xl': '1rem',
+            '3xl': '1.5rem'
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    @layer base {
+      body {
+        margin: 0;
+        padding: 0;
+        overscroll-behavior-y: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom, 16px);
+      }
+      .pt-safe {
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-gogo-cream font-sans text-neutral-800 antialiased min-h-screen relative flex flex-col selection:bg-orange-100 selection:text-gogo-primary">
+<!-- 1. Header / Top Navigation -->
+<header class="fixed top-0 inset-x-0 z-50 pt-safe bg-gogo-cream/90 backdrop-blur-xl border-b border-neutral-200/50">
+<div class="h-14 px-4 flex items-center justify-between">
+<button aria-label="Quay lại" class="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-neutral-700 hover:bg-neutral-200/50 active:scale-95 transition-all" onclick="window.history.back()">
+<span class="material-symbols-outlined text-[24px]">chevron_left</span>
+</button>
+<h1 class="font-semibold text-[17px] text-neutral-900 tracking-tight text-center">Thêm địa điểm mới</h1>
+<button aria-label="Hướng dẫn trợ giúp" class="w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-neutral-600 hover:bg-neutral-200/50 active:scale-95 transition-all" id="btnHelp" type="button">
+<span class="material-symbols-outlined text-[22px]">help_outline</span>
+</button>
+</div>
+</header>
+<main class="flex-1 w-full pt-14 pb-safe flex flex-col justify-between">
+<div class="flex flex-col w-full px-4 pt-5 pb-6 space-y-5">
+<!-- 2. Header banner / Lợi ích đóng góp -->
+<div>
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 text-gogo-primary mb-3">
+<span class="material-symbols-outlined text-[16px] text-gogo-primary">toll</span>
+<span class="text-[12px] font-semibold tracking-wide">Cộng đồng GoGo • Nhận +50 đến +70 Credit</span>
+</div>
+<h2 class="text-[26px] font-bold text-neutral-900 tracking-tight leading-tight">Dán link Google Maps</h2>
+<p class="text-[14px] text-neutral-500 mt-1.5 leading-relaxed">
+          GoGo sẽ tự động trích xuất tên quán, địa chỉ chính xác, hình ảnh và giờ mở cửa trong 3 giây.
+        </p>
+</div>
+<!-- 3. Ô nhập liệu link Google Maps (Trọng tâm màn hình) -->
+<div class="bg-surface-card rounded-2xl p-4 shadow-sm border border-neutral-200/80 transition-all focus-within:ring-2 focus-within:ring-gogo-primary/30 focus-within:border-gogo-primary">
+<div class="flex items-center justify-between mb-2">
+<label class="text-[13px] font-semibold text-neutral-700 flex items-center gap-1.5" for="mapsUrlInput">
+<span class="material-symbols-outlined text-[18px] text-gogo-primary">link</span>
+            Đường dẫn Google Maps
+          </label>
+<div class="flex items-center gap-1">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-50 text-gogo-primary hover:bg-orange-100 text-[12px] font-semibold active:scale-95 transition-all" id="btnPaste" type="button">
+<span class="material-symbols-outlined text-[14px]">content_paste</span>
+              Dán link
+            </button>
+</div>
+</div>
+<div class="relative flex items-center">
+<div class="absolute left-3 flex items-center pointer-events-none text-neutral-400">
+<span class="material-symbols-outlined text-[20px] text-emerald-600">location_on</span>
+</div>
+<input class="w-full h-13 pl-10 pr-10 rounded-xl bg-neutral-50/80 border border-neutral-200 text-neutral-800 text-[14px] font-medium placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-gogo-primary transition-all" id="mapsUrlInput" placeholder="Dán link Google Maps tại đây..." type="text" value="https://maps.app.goo.gl/w9k1XvH29"/>
+<button aria-label="Xóa nội dung" class="absolute right-3 w-6 h-6 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center hover:bg-neutral-300 active:scale-90 transition-all" id="btnClear" type="button">
+<span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+</div>
+<!-- Trạng thái xác thực & chú thích định dạng -->
+<div class="mt-3 flex flex-col gap-1.5">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 w-fit text-[12px] font-medium border border-emerald-200/60" id="validationBadge">
+<span class="material-symbols-outlined text-[15px] text-emerald-600 font-bold">check_circle</span>
+<span>Định dạng hợp lệ • Sẵn sàng đồng bộ</span>
+</div>
+<p class="text-[11px] text-neutral-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">info</span>
+            Hỗ trợ định dạng maps.app.goo.gl hoặc google.com/maps/place/...
+          </p>
+</div>
+</div>
+<!-- 4. Hướng dẫn trực quan 3 bước lấy link -->
+<div class="bg-surface-card rounded-2xl p-4 shadow-sm border border-neutral-200/80">
+<div class="flex items-center justify-between mb-3.5 pb-2 border-b border-neutral-100">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[12px] font-bold">💡</span>
+<h3 class="text-[14px] font-bold text-neutral-800">3 bước lấy link nhanh</h3>
+</div>
+<button class="text-[12px] text-gogo-primary font-semibold hover:underline inline-flex items-center gap-0.5 active:scale-95 transition-all" id="btnOpenMaps" type="button">
+            Mở Google Maps <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+</button>
+</div>
+<div class="space-y-3">
+<div class="flex items-start gap-3">
+<div class="w-6 h-6 rounded-full bg-neutral-100 text-neutral-700 flex items-center justify-center text-[12px] font-bold flex-shrink-0 mt-0.5">1</div>
+<p class="text-[13px] text-neutral-600 leading-snug">
+              Mở app <strong class="text-neutral-900 font-semibold">Google Maps</strong> và tìm kiếm quán cafe/ăn uống bạn muốn thêm.
+            </p>
+</div>
+<div class="flex items-start gap-3">
+<div class="w-6 h-6 rounded-full bg-neutral-100 text-neutral-700 flex items-center justify-center text-[12px] font-bold flex-shrink-0 mt-0.5">2</div>
+<p class="text-[13px] text-neutral-600 leading-snug">
+              Bấm nút <strong class="text-neutral-900 font-semibold">"Chia sẻ"</strong> (Share icon) ngay tại thẻ thông tin địa điểm.
+            </p>
+</div>
+<div class="flex items-start gap-3">
+<div class="w-6 h-6 rounded-full bg-neutral-100 text-neutral-700 flex items-center justify-center text-[12px] font-bold flex-shrink-0 mt-0.5">3</div>
+<p class="text-[13px] text-neutral-600 leading-snug">
+              Chọn <strong class="text-neutral-900 font-semibold">"Sao chép liên kết"</strong> rồi quay lại dán vào ô bên trên.
+            </p>
+</div>
+</div>
+</div>
+<!-- 5. Khối cam kết & Quy chuẩn GoGo -->
+<div class="bg-surface-dim/70 rounded-2xl p-4 border border-neutral-200/60 space-y-3">
+<h4 class="text-[12px] font-bold uppercase tracking-wider text-neutral-500">Ưu điểm công nghệ GoGo</h4>
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-xl bg-orange-100 text-gogo-primary flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">bolt</span>
+</div>
+<div>
+<p class="text-[13px] font-semibold text-neutral-800">Tự động trích xuất thông tin</p>
+<p class="text-[12px] text-neutral-500">Không cần gõ tay tên quán, địa chỉ, hình ảnh và toạ độ GPS.</p>
+</div>
+</div>
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</div>
+<div>
+<p class="text-[13px] font-semibold text-neutral-800">Chống trùng lặp thông minh</p>
+<p class="text-[12px] text-neutral-500">Tự động phát hiện nếu quán đã có mặt trên GoGo để tránh tạo trùng.</p>
+</div>
+</div>
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">card_giftcard</span>
+</div>
+<div>
+<p class="text-[13px] font-semibold text-neutral-800">Điểm thưởng giá trị</p>
+<p class="text-[12px] text-neutral-500"><strong class="text-emerald-700 font-semibold">+50 Credit</strong> khi được duyệt • Thêm <strong class="text-emerald-700 font-semibold">+20 Credit</strong> nếu bổ sung ảnh menu/bill.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 6. Cụm nút hành động (Bottom Actions) -->
+<div class="px-4 pt-2 pb-6 bg-gogo-cream/95 backdrop-blur border-t border-neutral-200/50 space-y-2.5">
+<button class="w-full h-13 py-3.5 rounded-full bg-gogo-primary hover:bg-gogo-primary-hover active:scale-[0.98] text-white font-semibold text-[15px] flex items-center justify-center gap-2 shadow-lg shadow-gogo-primary/25 transition-all" id="btnContinue" type="button">
+<span>Tiếp tục trích xuất thông tin</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<div class="flex items-center justify-center gap-4 pt-1">
+<button class="text-[13px] text-neutral-600 font-medium hover:text-neutral-900 transition-colors" id="btnViewContributed" type="button">
+          Xem địa điểm đã đóng góp
+        </button>
+<span class="text-neutral-300">•</span>
+<button class="text-[13px] text-neutral-600 font-medium hover:text-neutral-900 transition-colors" id="btnCreditPolicy" type="button">
+          Cách tính điểm GoGo Credit
+        </button>
+</div>
+</div>
+</main>
+<!-- Toast Element for Micro-Feedback -->
+<div class="fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-neutral-900/90 text-white text-[13px] font-medium shadow-xl flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300 z-50" id="interactiveToast">
+<span class="material-symbols-outlined text-[17px] text-emerald-400" id="toastIcon">check_circle</span>
+<span id="toastMessage">Thông báo</span>
+</div>
+<script>
+    (function() {
+      const mapsInput = document.getElementById('mapsUrlInput');
+      const btnPaste = document.getElementById('btnPaste');
+      const btnClear = document.getElementById('btnClear');
+      const btnContinue = document.getElementById('btnContinue');
+      const btnOpenMaps = document.getElementById('btnOpenMaps');
+      const btnHelp = document.getElementById('btnHelp');
+      const btnViewContributed = document.getElementById('btnViewContributed');
+      const btnCreditPolicy = document.getElementById('btnCreditPolicy');
+      const toast = document.getElementById('interactiveToast');
+      const toastMessage = document.getElementById('toastMessage');
+      const toastIcon = document.getElementById('toastIcon');
+      const validationBadge = document.getElementById('validationBadge');
+
+      function showToast(text, icon = 'check_circle') {
+        toastMessage.textContent = text;
+        toastIcon.textContent = icon;
+        toast.classList.remove('opacity-0', 'pointer-events-none');
+        toast.classList.add('opacity-100');
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'pointer-events-none');
+          toast.classList.remove('opacity-100');
+        }, 2200);
+      }
+
+      function updateValidationState() {
+        const val = (mapsInput.value || '').trim();
+        if (val.includes('maps.app.goo.gl') || val.includes('google.com/maps')) {
+          validationBadge.classList.remove('hidden');
+          validationBadge.innerHTML = '<span class="material-symbols-outlined text-[15px] text-emerald-600 font-bold">check_circle</span><span>Định dạng hợp lệ • Sẵn sàng đồng bộ</span>';
+          validationBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 w-fit text-[12px] font-medium border border-emerald-200/60';
+        } else if (val.length === 0) {
+          validationBadge.classList.add('hidden');
+        } else {
+          validationBadge.classList.remove('hidden');
+          validationBadge.innerHTML = '<span class="material-symbols-outlined text-[15px] text-amber-600 font-bold">warning</span><span>Vui lòng kiểm tra lại liên kết Google Maps</span>';
+          validationBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 w-fit text-[12px] font-medium border border-amber-200/60';
+        }
+      }
+
+      if (mapsInput) {
+        mapsInput.addEventListener('input', updateValidationState);
+      }
+
+      if (btnPaste && mapsInput) {
+        btnPaste.addEventListener('click', async () => {
+          try {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+              const text = await navigator.clipboard.readText();
+              if (text && text.trim()) {
+                mapsInput.value = text.trim();
+                updateValidationState();
+                showToast('Đã dán liên kết từ bộ nhớ tạm', 'content_paste');
+                return;
+              }
+            }
+          } catch (_) {}
+          mapsInput.value = 'https://maps.app.goo.gl/k98zM9V2xQ';
+          updateValidationState();
+          showToast('Đã dán liên kết mẫu Google Maps', 'link');
+        });
+      }
+
+      if (btnClear && mapsInput) {
+        btnClear.addEventListener('click', () => {
+          mapsInput.value = '';
+          updateValidationState();
+          mapsInput.focus();
+          showToast('Đã xóa nội dung', 'backspace');
+        });
+      }
+
+      if (btnContinue) {
+        btnContinue.addEventListener('click', () => {
+          const val = (mapsInput.value || '').trim();
+          if (!val) {
+            showToast('Vui lòng dán link Google Maps trước', 'info');
+            mapsInput.focus();
+            return;
+          }
+          btnContinue.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span><span>Đang kết nối Google Maps...</span>';
+          btnContinue.disabled = true;
+          setTimeout(() => {
+            btnContinue.disabled = false;
+            btnContinue.innerHTML = '<span>Tiếp tục trích xuất thông tin</span><span class="material-symbols-outlined text-[18px]">arrow_forward</span>';
+            showToast('Đã trích xuất thông tin Mơ Concept & Roastery!', 'auto_awesome');
+          }, 1100);
+        });
+      }
+
+      if (btnOpenMaps) {
+        btnOpenMaps.addEventListener('click', () => {
+          showToast('Đang mở ứng dụng Google Maps...', 'map');
+        });
+      }
+
+      if (btnHelp) {
+        btnHelp.addEventListener('click', () => {
+          showToast('Chia sẻ liên kết Google Maps để nhận thưởng Credit', 'help');
+        });
+      }
+
+      if (btnViewContributed) {
+        btnViewContributed.addEventListener('click', () => {
+          showToast('Mở danh sách địa điểm bạn đã gửi', 'list_alt');
+        });
+      }
+
+      if (btnCreditPolicy) {
+        btnCreditPolicy.addEventListener('click', () => {
+          showToast('+50 điểm khi duyệt, +20 điểm với bill/menu', 'toll');
+        });
+      }
+    })();
+  </script>
+</body></html>
