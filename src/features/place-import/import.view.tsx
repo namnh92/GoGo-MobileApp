@@ -449,8 +449,11 @@ export default function PlaceImportScreen() {
                         onSubmitEditing={onResolve}
                         accessibilityLabel={t('placeImport.linkLabel')}
                         accessibilityHint={showValidation && !validFormat ? t('placeImport.invalidUrl') : undefined}
-                        style={[styles.input, styles.linkInput, showValidation && !validFormat && styles.inputError]}
+                        style={[styles.input, styles.linkInput, !linkFocused && !!url && styles.linkInputUnfocused, showValidation && !validFormat && styles.inputError]}
                       />
+                      {!linkFocused && !!url ? <View testID="import-link-display" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.linkDisplay}>
+                        <Text variant="bodySmall" numberOfLines={1} ellipsizeMode="tail">{url}</Text>
+                      </View> : null}
                       {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} onPress={changeLink} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
                     </View>
                     {showValidation ? <View accessibilityLiveRegion="polite" style={[styles.validationBadge, !validFormat && styles.validationInvalid]}>

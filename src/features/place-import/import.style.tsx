@@ -34,7 +34,11 @@ export const styles = StyleSheet.create((theme) => ({
   pasteLink: { minHeight: 44, paddingHorizontal: 10, borderRadius: 8, backgroundColor: theme.redesign.low, flexDirection: 'row', alignItems: 'center', gap: 4 },
   pressed: { backgroundColor: theme.redesign.container },
   linkInputRow: { position: 'relative', marginTop: 8 },
-  linkInput: { width: '100%', minWidth: 0, flexShrink: 1, paddingLeft: 40, paddingRight: 48, marginBottom: 0 },
+  // A lineHeight on iOS installs a word-wrapping NSParagraphStyle even on
+  // UITextField. Use native font metrics for this single-line editor.
+  linkInput: { width: '100%', minWidth: 0, flexShrink: 1, paddingLeft: 40, paddingRight: 48, paddingVertical: 0, lineHeight: undefined, textAlignVertical: 'center', marginBottom: 0 },
+  linkInputUnfocused: { color: 'transparent' },
+  linkDisplay: { position: 'absolute', top: 0, bottom: 0, left: 40, right: 48, justifyContent: 'center' },
   inputLocation: { position: 'absolute', left: 12, top: 16, zIndex: 1 },
   clearLink: { position: 'absolute', right: 0, top: 4, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   clearDisc: { width: 24, height: 24, borderRadius: 12, backgroundColor: theme.redesign.highest, alignItems: 'center', justifyContent: 'center' },

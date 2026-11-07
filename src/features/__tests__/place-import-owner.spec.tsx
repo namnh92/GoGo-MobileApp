@@ -494,6 +494,39 @@ it('keeps a long clipboard URL in a fixed single-line scrolling input with clear
   expect(screen.getByTestId('import-link-input').props.value).toBe('')
 })
 
+it('keeps the owner Maps URL on one centred line across paste, focus and blur', async () => {
+  const url = 'https://maps.app.goo.gl/nibnZC3FQLTtmBxM7'
+  mockClipboard.mockResolvedValue(url)
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Dán link' }))
+  const input = screen.getByTestId('import-link-input')
+  expect(input.props).toMatchObject({ value: url, multiline: false, numberOfLines: 1, scrollEnabled: true })
+  const inputStyle = StyleSheet.flatten(input.props.style)
+  // A fixed lineHeight creates an iOS paragraph style with word wrapping,
+  // even on UITextField. Let the native single-line editor use font metrics.
+  expect(inputStyle.lineHeight).toBeUndefined()
+  expect(inputStyle).toMatchObject({ height: 52, paddingVertical: 0, textAlignVertical: 'center' })
+  const expectTruncatedDisplay = () => {
+    const displays = screen.getAllByText(url, { includeHiddenElements: true })
+    for (const display of displays) {
+      expect(display.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
+    }
+    expect(StyleSheet.flatten(screen.getByTestId('import-link-display', { includeHiddenElements: true }).props.style)).toMatchObject({
+      top: 0, bottom: 0, left: 40, right: 48, justifyContent: 'center',
+    })
+  }
+  expectTruncatedDisplay()
+  await fireEvent(input, 'focus', {})
+  expect(screen.queryByTestId('import-link-display', { includeHiddenElements: true })).toBeNull()
+  expect(screen.queryByText(url, { includeHiddenElements: true })).toBeNull()
+  expect(StyleSheet.flatten(screen.getByTestId('import-link-input').props.style).color).not.toBe('transparent')
+  await fireEvent(input, 'blur', {})
+  expectTruncatedDisplay()
+  await fireEvent.press(screen.getByRole('button', { name: 'Xóa liên kết' }))
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  expect(screen.queryByTestId('import-link-display', { includeHiddenElements: true })).toBeNull()
+})
+
 it.each(['https://www.google.com/maps/contrib/123', '//maps.google.com/maps/contrib/123'])('combines photo authors and Google Maps once, preserving profile link %s and distinct credits', async (uri) => {
   const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
   mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan', uri }, { displayName: 'Minh' }] }] })
