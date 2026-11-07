@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native'
 import { fireEvent, screen } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import MyContributionsScreen from '../contributions/my-contributions.view'
@@ -29,7 +30,7 @@ jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () =
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => mockParams }))
 jest.mock('@/shared/navigation/external-links', () => ({ openWebsite: (uri: string) => mockOpenWebsite(uri) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockStatus }) }))
-jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: (enabled: boolean) => { mockEnabled(enabled); return mockQuery } }))
+jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmission: () => ({}), useMyPlaceSubmissions: (enabled: boolean) => { mockEnabled(enabled); return mockQuery } }))
 const row = (id: string, status: string, extra = {}) => ({ id, status, name: id, createdAt: '2026-11-07T03:00:00Z', updatedAt: '2026-11-07T03:00:00Z', ...extra })
 beforeEach(() => {
   jest.clearAllMocks()
@@ -42,7 +43,7 @@ beforeEach(() => {
   mockReviews = { data: [{ id: 'r1', placeId: 'p1', placeName: 'Reviewed café', placeAddressText: 'Verified address', rating: 4, text: 'My experience', status: 'pending', createdAt: '2026-11-07T00:00:00Z' }, { id: 'r2', rating: 5, text: 'Published experience', status: 'published' }], refetch: mockReviewRefresh, isPending: false, isError: false }
   mockQuery = { data: { pages: [{ items: [row('Pending café', 'pending'), row('Approved café', 'approved', { placeId: 'p1', photoUrl: 'https://example.com/p.jpg' }), row('Merged café', 'merged', { placeId: 'p2' }), row('Rejected café', 'rejected', { rejectionReason: 'incorrect_location' })], nextCursor: null }] }, isPending: false, isError: false, isFetching: false, hasNextPage: false, fetchNextPage: mockFetch, refetch: mockRefresh }
 })
-it('switches real lists, resets the filter and routes notifications, creation and dock', async () => {
+it('switches real lists, resets the filter and routes notifications and creation without a tab dock', async () => {
   await renderScreen(<MyContributionsScreen />)
   expect(screen.getAllByText('Gửi ngày 07/11/2026')).toHaveLength(4)
   expect(screen.getByText('Lý do: Sai vị trí')).toBeTruthy()
@@ -61,8 +62,8 @@ it('switches real lists, resets the filter and routes notifications, creation an
   expect(mockRouter.push).toHaveBeenCalledWith('/places/import')
   await fireEvent.press(screen.getByTestId('contributions-bell'))
   expect(mockRouter.push).toHaveBeenCalledWith('/notifications')
-  await fireEvent.press(screen.getByRole('tab', { name: 'Đã lưu' }))
-  expect(mockRouter.push).toHaveBeenCalledWith('/(tabs)/saved')
+  expect(screen.getAllByRole('tab')).toHaveLength(2)
+  expect(screen.queryByRole('tab', { name: 'Đã lưu' })).toBeNull()
 })
 it('saves and unsaves only verified public rows, with pending/error/offline guards', async () => {
   const view = await renderScreen(<MyContributionsScreen />)
@@ -101,7 +102,7 @@ it('keeps cursor loading available under an empty filter, deduplicates pages and
   mockQuery.data.pages = [{ items: [pending] }, { items: [pending] }]
   await renderScreen(<MyContributionsScreen />)
   expect(screen.getAllByText('Gửi ngày 07/11/2026')).toHaveLength(1)
-  expect(screen.getByText('1+')).toBeTruthy()
+  expect(screen.getByRole('tab', { name: 'Địa điểm (1+)' })).toBeTruthy()
   await fireEvent.press(screen.getByText('Bị từ chối (0+)'))
   expect(screen.getByText('Chưa có kết quả trong các đóng góp đã tải. Xem thêm để tìm tiếp.')).toBeTruthy()
   await fireEvent.press(screen.getByText('Xem thêm đóng góp'))
@@ -148,4 +149,15 @@ it('opens the review tab from Profile and retains rejected/removed statuses', as
   expect(screen.getByText('Lý do: Moderated reason')).toBeTruthy()
   await fireEvent.press(screen.getByRole('button', { name: 'Đã gỡ (1)' }))
   expect(screen.queryByText('My experience')).toBeNull()
+})
+
+it('uses the shared Plans segments with counts and places the sticky add action above the safe area', async () => {
+  await renderScreen(<MyContributionsScreen />)
+  expect(StyleSheet.flatten(screen.getByTestId('filled-segmented-control').props.style).gap).toBeGreaterThan(0)
+  expect(screen.getByRole('tab', { name: 'Địa điểm (4)' }).props.accessibilityState.selected).toBe(true)
+  expect(screen.getByRole('tab', { name: 'Đánh giá (2)' }).props.accessibilityState.selected).toBe(false)
+  expect(StyleSheet.flatten(screen.getByTestId('contributions-add-footer').props.style).paddingBottom).toBe(46)
+  await fireEvent.press(screen.getByRole('tab', { name: 'Đánh giá (2)' }))
+  expect(screen.queryByTestId('contributions-add-footer')).toBeNull()
+  expect(screen.getAllByRole('tab')).toHaveLength(2)
 })

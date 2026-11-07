@@ -3,10 +3,6 @@ import { StyleSheet } from 'react-native-unistyles'
 export const styles = StyleSheet.create(theme => ({
   list: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 24, gap: 16, flexGrow: 1 },
   filters: { gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
-  segments: { marginHorizontal: 20, marginTop: 4, marginBottom: 4, padding: 4, borderRadius: 16, flexDirection: 'row', backgroundColor: theme.redesign.container },
-  segment: { flex: 1, minHeight: 44, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
-  selectedSegment: { backgroundColor: theme.accent.primary },
-  count: { borderRadius: 99, paddingHorizontal: 6, paddingVertical: 2 },
   chip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 99, borderWidth: 1, borderColor: theme.border.hairline, backgroundColor: theme.surface.card },
   selectedChip: { backgroundColor: theme.text.primary, borderColor: theme.text.primary },
   pressed: { borderColor: theme.accent.primary, borderWidth: 1 },
@@ -22,7 +18,5 @@ export const styles = StyleSheet.create(theme => ({
   stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6 },
   preview: { marginTop: 24, borderWidth: 1, borderColor: theme.border.hairline, borderRadius: 16 },
   previewToggle: { minHeight: 44, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
-  dock: { flexDirection: 'row', paddingTop: 8 },
-  dockTab: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  footer: { paddingHorizontal: 20, paddingTop: 12 },
 }))

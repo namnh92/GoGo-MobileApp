@@ -1,13 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import '@/shared/i18n'
 
+let mockUnread = { count: 8, more: true }
 const mockPush = jest.fn()
 const mockSignOut = jest.fn()
 const mockSession = { status: 'user' }
 const mockProfile = { displayName: 'An', homeAdministrativeArea: { provinceName: 'Hà Nội' }, interests: { mood: ['chill', 'unknown'] } }
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ session: { kind: mockSession.status, userId: 'u' }, status: mockSession.status, signOut: mockSignOut }) }))
-jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => ({ count: 8, more: true }) }))
+jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
 jest.mock('@/shared/api', () => ({
   useMe: () => ({ data: mockProfile }),
   useSaved: () => ({ data: [{}, {}] }), useMyReviews: () => ({ data: [] }), useNotificationSettings: () => ({}),
@@ -16,7 +17,7 @@ jest.mock('@/shared/api', () => ({
 }))
 import ProfileScreen from '@/features/tabs/profile.view'
 
-beforeEach(() => { mockSession.status = 'user'; mockPush.mockReset(); mockSignOut.mockReset() })
+beforeEach(() => { mockUnread = { count: 8, more: true }; mockSession.status = 'user'; mockPush.mockReset(); mockSignOut.mockReset() })
 it.each(['user', 'guest', 'anonymous'])('%s: Kèo has no unsupported total and still opens upcoming', async status => {
   mockSession.status = status
   await render(<ProfileScreen />)
@@ -34,8 +35,8 @@ it('shows only real profile fields, resolved interests and full saved/review cou
   expect(screen.getByRole('button', { name: 'Đã lưu: 2' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Đánh giá: 0' })).toBeTruthy()
   expect(screen.getByTestId('profile-setting-Đóng góp của tôi')).toBeTruthy()
-  expect(screen.getByTestId('profile-bell').props.accessibilityLabel).toBe('Thông báo')
-  expect(screen.queryByTestId('profile-unread')).toBeNull()
+  expect(screen.getByTestId('profile-bell').props.accessibilityLabel).toBe('Thông báo, 8+ chưa đọc')
+  expect(screen.getByTestId('profile-unread')).toBeTruthy()
 })
 it('guests have a sign-in card, locks with a reason and CTA, and accessible local theme settings', async () => {
   mockSession.status = 'guest'
@@ -67,4 +68,15 @@ it('does not carry an open confirmation across account switches', async () => {
   await view.rerender(<ProfileScreen />)
   expect(screen.queryByText('Xác nhận đăng xuất')).toBeNull()
   expect(mockSignOut).not.toHaveBeenCalled()
+})
+
+it('uses shared unread updates and routes the bell to the inbox', async () => {
+  const view = await render(<ProfileScreen />)
+  expect(screen.getByTestId('profile-unread')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('profile-bell'))
+  expect(mockPush).toHaveBeenCalledWith('/notifications')
+  mockUnread = { count: 0, more: false }
+  await view.rerender(<ProfileScreen />)
+  expect(screen.queryByTestId('profile-unread')).toBeNull()
+  expect(screen.getByTestId('profile-bell').props.accessibilityLabel).toBe('Thông báo')
 })

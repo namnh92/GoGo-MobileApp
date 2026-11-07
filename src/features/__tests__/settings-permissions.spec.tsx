@@ -1,3 +1,5 @@
+import { act } from '@testing-library/react-native'
+import i18n from '@/shared/i18n'
 import { renderScreen } from './harness'
 
 /**
@@ -59,4 +61,15 @@ it('keeps location for a signed-out person and offers sign-in only for the accou
   expect(view.getByText('device-promotions-section')).toBeTruthy()
   expect(view.getByText('Đăng nhập')).toBeTruthy()
   expect(view.getByText('location-section')).toBeTruthy()
+})
+
+it.each([['vi', 'Quyền và dữ liệu'], ['en', 'Permissions and data']])('renders the visible permissions title in %s', async (locale, title) => {
+  await act(async () => { await i18n.changeLanguage(locale) })
+  try {
+    const view = await renderScreen(<PermissionsSettingsScreen />)
+    const header = view.getByRole('header', { name: title })
+    expect(header.props.children).toBe(title)
+  } finally {
+    await act(async () => { await i18n.changeLanguage('vi') })
+  }
 })

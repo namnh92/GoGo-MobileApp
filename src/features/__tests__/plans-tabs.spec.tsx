@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native'
 import { fireEvent } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 
@@ -22,6 +23,7 @@ import PlansScreen from '@/features/tabs/plans.view'
 
 it('filters by lifecycle, keeps overdue collecting rooms upcoming, and scopes each tab query', async () => {
   const view = await renderScreen(<PlansScreen />)
+  expect(StyleSheet.flatten(view.getByTestId('filled-segmented-control').props.style).gap).toBeGreaterThan(0)
   expect(view.getByText('Chưa hoàn tất')).toBeTruthy()
   // Its 2020 date is long gone, yet `collecting` keeps it here — flagged, not moved.
   expect(view.getByText('Đã qua ngày', { exact: false })).toBeTruthy()

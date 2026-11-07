@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { detailToPlaceCard, useMyReviews, usePlaceDetail, useSaved, useToggleSaved } from '@/shared/api'
-import { useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
+import { useMyPlaceSubmission, useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
 import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
 import type { components } from '@/shared/api/types'
 import type { MyPlaceSubmission } from '@/shared/api/endpoints/my-place-submissions'
@@ -13,8 +13,9 @@ import { openWebsite } from '@/shared/navigation/external-links'
 import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
 import { Atmosphere, BackHeader, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
-import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
+import { FilledSegmentedControl } from '@/shared/ui/filled-segmented-control.view'
+import { MaterialIcon } from '@/shared/ui/material-icon'
+import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { PlaceCard } from '@/shared/ui/place-card.view'
@@ -43,12 +44,21 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const saved = useSaved({ enabled: canonical && !!item.placeId })
   const toggle = useToggleSaved()
   const online = useOnlineStatus()
-  const card = detailToPlaceCard({ id: item.id, name: item.name ?? t('myContributions.unknownPlace'), addressText: item.addressShort, ...detail.data })
+  const needsHydration = !canonical && (item.providerStatus === 'deferred' || !item.name?.trim() || !item.addressShort?.trim())
+  const submission = useMyPlaceSubmission(item, needsHydration && online)
+  const display = needsHydration && submission.data ? { ...item, ...submission.data } : item
+  const provider = display.providerDisplay
+  const link = mapsUrlSchema.safeParse(provider?.googleMapsUri)
+  const url = link.success ? link.data : undefined
+  // A URL fallback identifies the submitted link without exposing its path/query
+  // (or mistaking the URI for a verified place name).
+  const name = display.name?.trim() || provider?.name?.trim() || (url ? new URL(url).hostname : '')
+  const address = display.addressShort?.trim() || provider?.addressShort?.trim()
+  const card = detailToPlaceCard({ id: item.id, name, addressText: address, ...detail.data })
   if (!card.photoUrl && item.photoUrl) card.photoUrl = item.photoUrl
   const canSave = canonical && !!item.placeId && !!detail.data && !detail.isError && saved.data != null && !saved.isError && online
   const isSaved = saved.data?.some(row => row.targetType === 'place' && row.targetId === item.placeId) ?? false
   const saveReason = !canonical ? t('contributions.saveLocked') : !online ? t('common.offlineBody') : t('contributions.saveUnavailable')
-  const url = item.providerDisplay?.googleMapsUri
   return <PlaceCard place={card} appearance="contribution"
     onPress={canonical && item.placeId ? () => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } }) : undefined}
     contributionBadge={<Badge appearance="solid" icon={item.status === 'pending' ? 'clock' : item.status === 'rejected' ? 'close' : 'checkCircle'}
@@ -60,8 +70,12 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
       <MaterialIcon name={!canSave ? 'lock' : isSaved ? 'bookmarkFilled' : 'bookmark'} size={22} color="text.secondary" />
     </Pressable>}
     footer={<>
-      {[...new Set(item.providerDisplay?.attributions ?? [])].map(attribution => <Text key={attribution} variant="caption" color="text.secondary"
+      {[...new Set(provider?.attributions ?? [])].map(attribution => <Text key={attribution} variant="caption" color="text.secondary"
         accessibilityRole={url ? 'link' : undefined} onPress={url ? () => { void openWebsite(url) } : undefined}>{attribution}</Text>)}
+      {needsHydration && submission.isFetching ? <LoadingState /> : null}
+      {needsHydration && submission.isError ? <ErrorState error={submission.error} /> : null}
+      {needsHydration && !submission.isFetching && (submission.isError || (submission.data && (!(display.name?.trim() || provider?.name?.trim()) || !address))) ?
+        <GhostBtn label={t('common.retry')} disabled={!online} onPress={() => { void submission.refetch() }} /> : null}
       {!canSave ? <Text variant="caption" color="text.secondary">{saveReason}</Text> : null}
       {toggle.isError ? <ErrorState error={toggle.error} onRetry={() => { if (canSave) toggle.mutate({ type: 'place', id: item.placeId!, saved: isSaved }) }} /> : null}
       {item.status === 'rejected' && item.rejectionReason ? <View style={styles.rejection}><MaterialIcon name="info" color="status.dangerText" size={18} /><Text variant="caption" color="status.dangerText" style={styles.flex}>{t('contributions.reason', { reason: t(`myContributions.rejection.${item.rejectionReason}`, { defaultValue: t('myContributions.rejection.other') }) })}</Text></View> : null}
@@ -139,11 +153,11 @@ export default function MyContributionsScreen() {
     <View style={{ paddingTop: insets.top }}><BackHeader title={t('myContributions.title')} onBack={() => router.back()}
       right={<HeaderNotificationButton testID="contributions-bell" unreadDotTestID="contributions-unread" />} /></View>
     {!registered ? <EmptyState title={t('notifications.signInTitle')} body={t('myContributions.signInBody')} action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} /> : <>
-      <View style={styles.segments}>{(['places', 'reviews'] as const).map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }}
-        onPress={() => { setTab(value); setFilter('all') }} style={({ pressed }) => [styles.segment, tab === value && styles.selectedSegment, pressed && styles.pressed]}>
-        <Text variant="label" color={tab === value ? 'accent.onAccent' : 'text.secondary'}>{t(`contributions.${value}`)}</Text>
-        {(value === 'places' ? query.data : reviews.data) != null ? <View style={styles.count}><Text variant="caption" color={tab === value ? 'accent.onAccent' : 'text.secondary'}>{value === 'places' ? `${items.length}${query.hasNextPage ? '+' : ''}` : reviewItems.length}</Text></View> : null}
-      </Pressable>)}</View>
+      <FilledSegmentedControl value={tab} onChange={value => { setTab(value); setFilter('all') }}
+        options={(['places', 'reviews'] as const).map(value => ({ value, label: (value === 'places' ? query.data : reviews.data) == null
+          ? t(`contributions.${value}`)
+          : t('myReviews.filterChip', { label: t(`contributions.${value}`), count: value === 'places' ? `${items.length}${query.hasNextPage ? '+' : ''}` : reviewItems.length }),
+        }))} />
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{options.map(value => <Pressable key={value}
         accessibilityRole="button" accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={({ pressed }) => [styles.chip, filter === value && styles.selectedChip, pressed && styles.pressed]}>
         <Text variant="caption" numberOfLines={1} color={filter === value ? 'surface.canvas' : 'text.primary'}>{active.data == null ? t(value === 'removed' ? 'myReviews.status.removed' : `myContributions.filter.${value}`) : t('myReviews.filterChip', { label: t(value === 'removed' ? 'myReviews.status.removed' : `myContributions.filter.${value}`), count: `${statuses.filter(row => matches(row.status, value)).length}${tab === 'places' && query.hasNextPage ? '+' : ''}` })}</Text>
@@ -155,11 +169,7 @@ export default function MyContributionsScreen() {
         <FlatList testID="my-contributions-reviews" data={reviewItems.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
           contentContainerStyle={styles.list} refreshControl={refresh} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}
     </>}
-    {tab === 'places' ? <View style={styles.footer}><PrimaryBtn label={t('myContributions.add')} onPress={() => router.push('/places/import')} /></View> : null}
-    <GlassBar><View style={[styles.dock, { paddingBottom: insets.bottom }]}>{([
-      ['home', '/(tabs)', 'explore'], ['plans', '/(tabs)/plans', 'calendar'], ['saved', '/(tabs)/saved', 'bookmark'], ['profile', '/(tabs)/profile', 'user'],
-    ] as const).map(([key, route, icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: key === 'profile' }} onPress={() => router.push(route)} style={styles.dockTab}>
-      <MaterialIcon name={icon as MaterialIconName} color={key === 'profile' ? 'accent.primary' : 'text.secondary'} /><Text variant="caption" color={key === 'profile' ? 'accent.primary' : 'text.secondary'}>{t(`tabs.${key}`)}</Text>
-    </Pressable>)}</View></GlassBar>
+    {tab === 'places' ? <View testID="contributions-add-footer" style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}><PrimaryBtn label={t('myContributions.add')} onPress={() => router.push('/places/import')} /></View> : null}
+
   </Atmosphere>
 }

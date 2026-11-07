@@ -101,7 +101,7 @@ export default function ProfileScreen() {
     <View style={[styles.pageHeader, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
       <Text variant="discoveryTitle" color="redesign.primaryText">GoGo</Text><Text color="text.secondary">·</Text>
       <Text variant="introHeading" style={styles.headerText}>{t('g11.profileHeading')}</Text>
-      <HeaderNotificationButton testID="profile-bell" unreadDotTestID="profile-unread" showUnread={false} />
+      <HeaderNotificationButton testID="profile-bell" unreadDotTestID="profile-unread" />
     </View>
     <ScrollView testID="profile-list" onScroll={fab.onScroll} scrollEventThrottle={fab.scrollEventThrottle}
       contentContainerStyle={{ paddingTop: 0, paddingBottom: fab.bottomInset }}>
