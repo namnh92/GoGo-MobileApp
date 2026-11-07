@@ -2,8 +2,10 @@ import { env } from '@/shared/config/env'
 
 import { ApiError, NetworkError, TimeoutError } from './errors'
 import {
+  assertSessionGeneration,
   clearSession,
   getSession,
+  getSessionGeneration,
   hydrateSession,
   isAccessTokenExpired,
   persistSession,
@@ -37,6 +39,8 @@ export interface RequestOptions {
   revalidate?: boolean
   timeoutMs?: number
   signal?: AbortSignal
+  /** Reject account-bound work after any sign-out or actor change, including HTTP replay. */
+  sessionGeneration?: number
 }
 
 /**
@@ -112,6 +116,7 @@ async function refreshSession(): Promise<Session | null> {
   refreshInFlight = (async () => {
     const session = getSession()
     if (!session) return null
+    const generation = getSessionGeneration()
 
     const credential =
       session.kind === 'guest' && session.guestToken
@@ -127,8 +132,11 @@ async function refreshSession(): Promise<Session | null> {
 
     try {
       const grant = await requestTokenGrant(credential)
+      assertSessionGeneration(generation)
       return await persistSession(sessionFromGrant(grant, session))
     } catch (error) {
+      // A late refresh must neither replace nor sign out a newer account.
+      assertSessionGeneration(generation)
       // 401 means the credential is dead (rotated, revoked, expired) — sign out.
       // A network blip must NOT destroy a still-valid refresh token.
       if (error instanceof ApiError && error.status === 401) {
@@ -186,6 +194,7 @@ async function parseBody<T>(response: Response): Promise<T> {
 // ---------------------------------------------------------------------------
 
 async function send(options: RequestOptions, accessToken: string | null): Promise<Response> {
+  if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
   // Built before the try below: a missing path param or an unserialisable body
   // is a programming error, and must not be disguised as a network failure.
   const url = buildUrl(options)
@@ -245,10 +254,12 @@ export async function currentAccessGrant(
 }
 
 export async function request<T>(options: RequestOptions): Promise<T> {
+  if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
   let accessToken: string | null = null
 
   if (!options.anonymous && !options.deviceCredential) {
     let session = getSession() ?? (await hydrateSession())
+    if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
     if (session && isAccessTokenExpired(session)) {
       session = await refreshSession()
     }
@@ -258,6 +269,7 @@ export async function request<T>(options: RequestOptions): Promise<T> {
   let response = await send(options, accessToken)
 
   if (response.status === 401 && !options.anonymous && accessToken) {
+    if (options.sessionGeneration !== undefined) assertSessionGeneration(options.sessionGeneration)
     const renewed = await refreshSession()
     if (!renewed) throw await toApiError(response)
     response = await send(options, renewed.accessToken)

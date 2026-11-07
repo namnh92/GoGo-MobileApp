@@ -40,6 +40,7 @@ const KEY_META = 'gogo.session_meta'
 type SessionMeta = Omit<Session, 'accessToken' | 'refreshToken' | 'guestToken'>
 
 let current: Session | null = null
+let generation = 0
 let hydrated = false
 let hydration: Promise<Session | null> | null = null
 const listeners = new Set<(session: Session | null) => void>()
@@ -55,6 +56,23 @@ export function subscribeToSession(listener: (session: Session | null) => void):
 
 export function getSession(): Session | null {
   return current
+}
+
+/** Account lifetime, unchanged by token rotation; sign-out also invalidates A → A work. */
+export function getSessionGeneration(): number {
+  return generation
+}
+
+export function assertSessionGeneration(expected: number): void {
+  if (generation !== expected) throw new Error('Session changed before mutation completed')
+}
+
+function setCurrent(session: Session | null): void {
+  if (!session || current?.kind !== session.kind || current?.userId !== session.userId
+    || current?.roomId !== session.roomId || current?.guestSessionId !== session.guestSessionId) {
+    generation += 1
+  }
+  current = session
 }
 
 export function isHydrated(): boolean {
@@ -80,7 +98,7 @@ async function hydratePersistedSession(): Promise<Session | null> {
       return null
     }
   } catch {
-    current = null
+    setCurrent(null)
     hydrated = true
     emit()
     return null
@@ -96,7 +114,7 @@ async function hydratePersistedSession(): Promise<Session | null> {
   hydrated = true
 
   if (!accessToken || !rawMeta) {
-    current = null
+    setCurrent(null)
     emit()
     return null
   }
@@ -109,12 +127,12 @@ async function hydratePersistedSession(): Promise<Session | null> {
     return null
   }
 
-  current = {
+  setCurrent({
     ...meta,
     accessToken,
     refreshToken: refreshToken ?? undefined,
     guestToken: guestToken ?? undefined,
-  }
+  })
   emit()
   return current
 }
@@ -131,7 +149,7 @@ export async function persistSession(session: Session): Promise<Session> {
   // app-container storage failure must not turn a successful server login into
   // a client error; hydration still fails closed on the next launch.
   await AsyncStorage.setItem(INSTALL_KEY, '1').catch(() => {})
-  current = session
+  setCurrent(session)
   hydrated = true
   emit()
   return session
@@ -144,7 +162,7 @@ export async function clearSession(strict = false): Promise<void> {
     deleteSecureItem(KEY_GUEST, strict),
     deleteSecureItem(KEY_META, strict),
   ])
-  current = null
+  setCurrent(null)
   hydrated = true
   emit()
 }
