@@ -211,6 +211,75 @@ it('retains acknowledged menu/bill uploads when a resumed draft is edited, saved
   await fireEvent.press(button('Gửi địa điểm cho GoGo'))
   expect(onSubmit).toHaveBeenCalledWith(enrichment)
 })
+describe('F-05 deleted draft media', () => {
+  const photoDraft: ContributionDraft = {
+    ...draft,
+    enrichment: {
+      ...draft.enrichment,
+      price: { min: 100000, max: 200000, currency: 'VND', unit: 'per_person' },
+      amenities: { car_parking: true },
+      service: { rating: 4, chipKeys: ['quiet'] },
+      space: { rating: 4, chipKeys: ['quiet'] },
+      photos: [
+        { mediaId: '22222222-2222-4222-8222-222222222222', kind: 'menu' },
+        { mediaId: '33333333-3333-4333-8333-333333333333', kind: 'bill' },
+      ],
+      billPhotoPublicConsent: true,
+    },
+  }
+  async function resumeAndEdit() {
+    mockDrafts = { data: { items: [photoDraft] } }
+    mockRead.mockResolvedValue(photoDraft)
+    await renderScreen(<ContributionWizard {...props} />)
+    await fireEvent.press(button('Tiếp tục bản nháp'))
+    await fireEvent.press(button('Tiếp tục'))
+    await fireEvent.press(button('Tiếp tục'))
+    await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep my edited tips')
+  }
+
+  it.each(['save', 'submit'])('clears expired photos and consent but preserves inputs before %s', async (action) => {
+    await resumeAndEdit()
+    await fireEvent.press(button('Xoá bản nháp'))
+    expect(mockRemove).toHaveBeenCalledWith({ id: photoDraft.id, version: photoDraft.version })
+    const enrichment = {
+      price: photoDraft.enrichment.price,
+      purposeKeys: ['couple'],
+      vibeKeys: ['festive'],
+      amenities: { car_parking: true },
+      visitTips: 'Keep my edited tips',
+      service: { rating: 4, chipKeys: ['quiet'] },
+      space: { rating: 4, chipKeys: ['quiet'] },
+    }
+    if (action === 'save') {
+      await fireEvent.press(button('Lưu nháp'))
+      expect(mockSave).toHaveBeenCalledWith({
+        id: expect.any(String),
+        body: { googlePlaceId: props.googlePlaceId, expectedVersion: 0, enrichment },
+      })
+      expect(mockSave.mock.calls[0][0].id).not.toBe(photoDraft.id)
+    } else {
+      await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+      expect(onSubmit).toHaveBeenCalledWith(enrichment)
+    }
+    // The stale query cache must not offer to resume the deleted draft or block saving.
+    expect(screen.queryByRole('button', { name: 'Tiếp tục bản nháp' })).toBeNull()
+  })
+
+  it('retains live photos, consent and draft identity when deletion fails', async () => {
+    await resumeAndEdit()
+    mockRemove.mockRejectedValueOnce(new ApiError(503, { code: 'UNAVAILABLE', message: 'retry' }))
+    await fireEvent.press(button('Xoá bản nháp'))
+    const enrichment = { ...photoDraft.enrichment, visitTips: 'Keep my edited tips' }
+    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    expect(onSubmit).toHaveBeenCalledWith(enrichment)
+    await fireEvent.press(button('Lưu nháp'))
+    expect(mockSave).toHaveBeenCalledWith({
+      id: photoDraft.id,
+      body: { googlePlaceId: props.googlePlaceId, expectedVersion: photoDraft.version, enrichment },
+    })
+  })
+})
+
 it('never overwrites a conflict; explicit reload is required', async () => {
   mockSave.mockRejectedValue(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'conflict' }))
   await renderScreen(<ContributionWizard {...props} />)
