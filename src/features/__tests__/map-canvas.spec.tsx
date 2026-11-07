@@ -151,7 +151,9 @@ describe('MapCanvas', () => {
     const view = await renderScreen(<MapCanvas pins={PINS} />)
     expect(view.getByTestId('map:google').props.scrollEnabled).toBe(true)
     expect(view.getByTestId('map:google').props.zoomEnabled).toBe(true)
-    expect(view.getByTestId('map:google').props.pointerEvents).toBe('auto')
+    // AIRGoogleMap is a UIView: RN 0.81's explicit auto setter falls
+    // through to none. Leave native hit testing at its enabled default.
+    expect(view.getByTestId('map:google').props.pointerEvents).toBeUndefined()
     expect(view.getByTestId('map:google').props.zoomControlEnabled).toBeUndefined()
   })
 
@@ -333,4 +335,15 @@ it('refits static previews when their pins change without controlling region', a
   await view.rerender(<MapCanvas pins={[PINS[1]]} interactive={false} />)
   expect(mockAnimateToRegion).toHaveBeenCalledWith({ latitude: PINS[1].lat, longitude: PINS[1].lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 0)
   expect(view.getByTestId('map:google').props.region).toBeUndefined()
+})
+
+it('restores native map gestures after switching from a static preview', async () => {
+  const view = await renderScreen(<MapCanvas pins={PINS} interactive={false} />)
+  expect(view.getByTestId('map:google').props.pointerEvents).toBe('none')
+  await view.rerender(<MapCanvas pins={PINS} />)
+  const map = view.getByTestId('map:google')
+  expect(map.props.pointerEvents).toBeUndefined()
+  expect(map.props.scrollEnabled).toBe(true)
+  expect(map.props.zoomEnabled).toBe(true)
+  expect(mockMapMount).toHaveBeenCalledTimes(1)
 })

@@ -145,7 +145,10 @@ export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, s
           if (details.isGesture !== true) return
           onRegionChangeComplete?.(next)
         } : undefined}
-        pointerEvents={interactive ? 'auto' : 'none'}
+        // AIRGoogleMap inherits UIView, not RCTView. RN 0.81's UIView setter
+        // falls through from explicit `auto` to `none`, disabling all touches.
+        // Omit it for interactive maps; clearing `none` restores the default.
+        pointerEvents={interactive ? undefined : 'none'}
         scrollEnabled={interactive}
         zoomEnabled={interactive}
         zoomTapEnabled={interactive}

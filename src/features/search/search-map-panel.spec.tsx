@@ -1,10 +1,22 @@
 import { act, fireEvent } from '@testing-library/react-native'
-import { AccessibilityInfo, Animated, Text } from 'react-native'
+import { AccessibilityInfo, Animated, Text, UIManager } from 'react-native'
 import { useState } from 'react'
 import { renderScreen } from '../__tests__/harness'
 import { scriptedTime } from '../__tests__/scripted-time'
 import { motion } from '@/shared/ui/tokens'
 import { SearchMapPanel } from './search-map-panel.view'
+import { MapCanvas } from '@/shared/ui/map-canvas.view'
+
+jest.mock('react-native-maps', () => ({
+  __esModule: true,
+  default: (props: Record<string, unknown>) => {
+    const { View } = jest.requireActual('react-native')
+    return <View {...props} testID="google-map" />
+  },
+  Marker: () => null,
+  Callout: () => null,
+  PROVIDER_GOOGLE: 'google',
+}))
 
 scriptedTime()
 afterEach(() => jest.restoreAllMocks())
@@ -66,4 +78,18 @@ it.each([false, true])('keeps map pans outside the expand gesture when expanded=
   await fireEvent(view.getByTestId('search-map-expand-handle'), 'touchStart', { nativeEvent: { pageX: 100, pageY: expanded ? 100 : 300 } })
   await fireEvent(view.getByTestId('search-map-expand-handle'), 'touchEnd', { nativeEvent: { pageX: 100, pageY: expanded ? 300 : 100 } })
   expect(changed).toHaveBeenCalledWith(!expanded)
+})
+
+it.each([false, true])('leaves native iOS pan and zoom enabled when expanded=%s', async expanded => {
+  jest.spyOn(UIManager, 'hasViewManagerConfig').mockReturnValue(true)
+  const view = await renderScreen(
+    <SearchMapPanel expanded={expanded} onExpandedChange={jest.fn()}>
+      <MapCanvas pins={[{ id: 'place', title: 'Place', lat: 21, lng: 105 }]} style={{ flex: 1 }} />
+    </SearchMapPanel>,
+  )
+  const map = view.getByTestId('google-map')
+  // Explicit auto disables UIView-based Google maps in RN 0.81 on iOS.
+  expect(map.props.pointerEvents).toBeUndefined()
+  expect(map.props.scrollEnabled).toBe(true)
+  expect(map.props.zoomEnabled).toBe(true)
 })
