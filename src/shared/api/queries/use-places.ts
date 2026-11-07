@@ -1,3 +1,4 @@
+import { captureSessionScope } from '../session'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
 
@@ -117,7 +118,9 @@ export function usePlaceSubmission(id: string | undefined) {
   return useQuery({
     queryKey: queryKeys.placeSubmission(id ?? ''),
     queryFn: async () => {
+      const scope = captureSessionScope()
       const submission = await placesApi.getPlaceSubmission(id as string)
+      scope.assert()
       if (submission.status === 'approved') await client.invalidateQueries({ queryKey: ['assistant'] })
       return submission
     },

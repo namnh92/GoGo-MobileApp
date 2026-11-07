@@ -8,6 +8,7 @@ import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
 import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState, type ReviewCache } from '../review-reactions'
+import { captureSessionScope } from '../session'
 import type { MyReviewReactions, OpBody, OpResponse, Plan, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 import { useIntentKey } from './use-intent-key'
@@ -38,7 +39,9 @@ export function useUpdateDateOfBirth() {
     mutationFn: (dateOfBirth: string | null) => sessionsApi.updateProfile({ dateOfBirth }),
 
     onMutate: async dateOfBirth => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key })
+      scope.assert()
       const previous = queryClient.getQueryData<Profile>(key)
       if (previous) queryClient.setQueryData<Profile>(key, { ...previous, dateOfBirth })
       return { previous }
@@ -144,7 +147,9 @@ export function useToggleSaved() {
       saved ? meApi.unsaveItem(type, id) : meApi.saveItem(type, id),
 
     onMutate: async ({ type, id, saved }) => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key })
+      scope.assert()
       const previous = queryClient.getQueryData<SavedItem[]>(key)
       if (previous) {
         queryClient.setQueryData<SavedItem[]>(
@@ -296,10 +301,12 @@ export function useToggleReviewHelpful(placeId: string) {
       helpful ? meApi.markReviewHelpful(reviewId) : meApi.unmarkReviewHelpful(reviewId),
 
     onMutate: async ({ reviewId, helpful }) => {
+      const scope = captureSessionScope()
       await Promise.all([
         queryClient.cancelQueries({ queryKey: previewsKey }),
         queryClient.cancelQueries({ queryKey: mineKey }),
       ])
+      scope.assert()
       const previews = queryClient.getQueriesData<ReviewCache>({ queryKey: previewsKey })
       const mine = queryClient.getQueryData<MyReviewReactions>(mineKey)
       const delta = helpfulDelta(mine, reviewId, helpful)
@@ -384,7 +391,9 @@ export function useSetNotificationSettings() {
     mutationFn: (body: OpBody<'setNotificationSettings'>) => meApi.setNotificationSettings(body),
 
     onMutate: async body => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key, exact: true })
+      scope.assert()
       const previous = queryClient.getQueryData<OpResponse<'getNotificationSettings'>>(key)
       if (previous) {
         queryClient.setQueryData<OpResponse<'getNotificationSettings'>>(key, {

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { create } from 'zustand'
 import { z } from 'zod'
+import { captureSessionScope } from '@/shared/api/session'
 import { useRoomStore } from './roomStore'
 
 export const draftStepSchema = z.enum(['type', 'group-setup', 'location', 'time', 'budget', 'mood'])
@@ -86,10 +87,14 @@ export async function saveRoomDraft(ownerId: string, step: DraftStep): Promise<v
   if (saveGeneration === generation) useSavedRoomDraft.setState({ draft: snapshot })
 }
 
-export async function clearSavedRoomDraft(): Promise<void> {
+export async function clearSavedRoomDraft(scope = captureSessionScope()): Promise<void> {
+  scope.assert()
   ++generation
   useSavedRoomDraft.setState({ draft: null })
-  await write(() => AsyncStorage.removeItem(KEY))
+  await write(() => {
+    scope.assert()
+    return AsyncStorage.removeItem(KEY)
+  })
 }
 
 /**

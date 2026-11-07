@@ -41,7 +41,7 @@ describe('unsubscribe then confirm, in that order (#160)', () => {
     const { run, order, deps } = harness()
     await run()
     expect(order).toEqual(['read-id', 'unsubscribe', 'confirm'])
-    expect(deps.confirm).toHaveBeenCalledWith(SUB)
+    expect(deps.confirm).toHaveBeenCalledWith(SUB, expect.objectContaining({ generation: expect.any(Number), signal: expect.anything() }))
     expect(deps.report).toHaveBeenCalledWith('push_logout_confirmed')
   })
 

@@ -1,7 +1,7 @@
 import { api } from '../client'
 import { isConflict } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
-import { persistSession, sessionFromGuestGrant, type Session } from '../session'
+import { captureSessionScope, persistSession, sessionFromGuestGrant, type Session } from '../session'
 import type { OpBody, OpQuery, OpResponse } from '../types'
 
 /**
@@ -34,7 +34,9 @@ export async function createAndOpenRoom(
   body: OpBody<'createRoom'>,
   idempotencyKey = newIdempotencyKey(),
 ): Promise<OpResponse<'createRoom'>> {
+  const scope = captureSessionScope()
   const room = await createRoom(body, idempotencyKey)
+  scope.assert()
   if (room.status !== 'draft') return room
   return transitionRoom(room.id, { status: 'collecting' })
 }
@@ -47,12 +49,15 @@ export async function createAndOpenRoom(
  * self-loop, so an already-matching room is returned untouched.
  */
 export async function ensureRoomMatching(room: OpResponse<'getRoom'>, allowIncompletePreferences = false): Promise<OpResponse<'getRoom'>> {
+  const scope = captureSessionScope()
   let current = room
   if (current.status === 'draft') {
     current = await transitionRoom(current.id, { status: 'collecting' })
+    scope.assert()
   }
   if (current.status === 'collecting') {
     current = await transitionRoom(current.id, { status: 'matching', allowIncompletePreferences })
+    scope.assert()
   }
   return current
 }
@@ -98,9 +103,11 @@ export function transitionRoom(
  * back the same thing: whatever the room is now.
  */
 export async function startRoomDate(roomId: string): Promise<OpResponse<'transitionRoom'>> {
+  const scope = captureSessionScope()
   try {
     return await transitionRoom(roomId, { status: 'active' })
   } catch (error) {
+    scope.assert()
     if (!isConflict(error)) throw error
     return getRoom(roomId)
   }
@@ -119,9 +126,11 @@ export async function startRoomDate(roomId: string): Promise<OpResponse<'transit
  * answer is the room as it stands, exactly as starting the date does.
  */
 export async function finishRoomDate(roomId: string): Promise<OpResponse<'transitionRoom'>> {
+  const scope = captureSessionScope()
   try {
     return await transitionRoom(roomId, { status: 'completed' })
   } catch (error) {
+    scope.assert()
     if (!isConflict(error)) throw error
     return getRoom(roomId)
   }
@@ -174,13 +183,15 @@ export function joinRoom(body: OpBody<'joinRoom'>): Promise<OpResponse<'joinRoom
 
 /** Guest join by invite code — persists the room-scoped guest session. */
 export async function joinRoomAsGuest(body: OpBody<'joinRoomAsGuest'>, beforePersist?: () => Promise<void>): Promise<Session> {
+  const scope = captureSessionScope()
   const grant = await api.post<OpResponse<'joinRoomAsGuest'>>('/rooms/join/guest', body, {
     anonymous: true,
   })
   // A rejected invite preserves the old session and room data. Clean up only
   // after the grant succeeds, before exposing the replacement identity.
-  await beforePersist?.()
-  return persistSession(sessionFromGuestGrant(grant))
+  scope.assert()
+  await scope.wait(beforePersist?.())
+  return persistSession(sessionFromGuestGrant(grant), scope.generation, true)
 }
 
 export function addRoomSeedPlaces(

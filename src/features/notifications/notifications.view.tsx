@@ -5,6 +5,7 @@ import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, Pressable, Vi
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMarkNotificationRead, useNotifications, useRoom, type Notification } from '@/shared/api'
+import { SessionCancelledError } from '@/shared/api/session'
 import { isUuid } from '@/shared/navigation/deep-link'
 import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
@@ -95,10 +96,19 @@ export default function NotificationsScreen() {
     openingNow.current = id
     setOpeningId(id)
     setOpenProblem(null)
-    const decision = await resolveInboxTarget(notification)
+    let decision
+    try {
+      decision = await resolveInboxTarget(notification)
+    } catch (error) {
+      if (!(error instanceof SessionCancelledError)) throw error
+      return
+    } finally {
+      if (tap === latestTap.current) {
+        openingNow.current = null
+        setOpeningId(null)
+      }
+    }
     if (tap !== latestTap.current) return
-    openingNow.current = null
-    setOpeningId(null)
     if (!onScreen.current) return
     if (decision.to === 'open') router.push(decision.path)
     else if (decision.to === 'refused' || decision.to === 'retry') setOpenProblem(decision.to)

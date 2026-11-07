@@ -39,6 +39,7 @@
  *     link, and it opens for whoever is first signed in on a later launch.
  */
 import { parseDeepLink, type DeepLinkAction } from '@/shared/navigation/deep-link'
+import type { SessionScope } from '@/shared/api/session'
 
 export const PENDING_DEEP_LINK_KEY = 'gogo.pending_deep_link'
 
@@ -138,8 +139,9 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
     }
   }
 
-  async function retire(action: KnownAction): Promise<void> {
+  async function retire(action: KnownAction, scope?: Pick<SessionScope, 'assert'>): Promise<void> {
     const list = (await consumed()).filter(d => d !== digest(action))
+    scope?.assert()
     list.push(digest(action))
     await deps.storage.set(CONSUMED_DEEP_LINK_KEY, JSON.stringify(list.slice(-CONSUMED_DEEP_LINK_LIMIT)))
   }
@@ -221,10 +223,14 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
     return entry.action
   }
 
-  async function clearNow(): Promise<void> {
+  async function clearNow(scope?: Pick<SessionScope, 'assert'>): Promise<void> {
+    scope?.assert()
     const entry = await read()
-    if (entry) await retire(entry.action as KnownAction)
+    scope?.assert()
+    if (entry) await retire(entry.action as KnownAction, scope)
+    scope?.assert()
     await deps.storage.remove(PENDING_DEEP_LINK_KEY)
+    scope?.assert()
     if ((await deps.storage.get(PENDING_DEEP_LINK_KEY, true)) !== null) {
       throw new Error('pending deep link could not be cleared')
     }
@@ -272,8 +278,8 @@ export function createPendingDeepLinkStore(deps: PendingDeepLinkDeps) {
      * success. The check reads strictly — a read that fails is "could not
      * look", not "gone".
      */
-    clear(): Promise<void> {
-      return serial(clearNow)
+    clear(scope?: Pick<SessionScope, 'assert'>): Promise<void> {
+      return serial(() => clearNow(scope))
     },
   }
 }

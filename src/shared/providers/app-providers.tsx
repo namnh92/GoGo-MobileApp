@@ -85,6 +85,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
             // taxonomy labels and ETags until their generation is replaced.
             maxAge: Infinity,
             dehydrateOptions: {
+              shouldDehydrateMutation: () => false,
               // Anything that HAS data, not only what succeeded most recently:
               // requiring `success` meant one failed refetch while offline
               // evicted the plan from disk, so the next launch had nothing left

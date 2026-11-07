@@ -7,7 +7,8 @@ import { clearSession } from '../session'
 // Hoisted by Vitest above the imports above, which is why they can stay in
 // conventional order.
 vi.mock('../client', () => ({ api: { delete: vi.fn() } }))
-vi.mock('../session', () => ({
+vi.mock('../session', async importOriginal => ({
+  ...await importOriginal<typeof import('../session')>(),
   clearSession: vi.fn(async () => {}),
   getSession: vi.fn(() => null),
   setSession: vi.fn(),

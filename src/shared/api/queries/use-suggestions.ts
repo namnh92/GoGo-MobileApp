@@ -1,6 +1,8 @@
 import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import { captureSessionScope } from '../session'
+
 import * as suggestionsApi from '../endpoints/suggestions'
 import { isApiError, isStaleRanking } from '../errors'
 import { newIdempotencyKey } from '../idempotency'
@@ -57,7 +59,9 @@ export function useCastVote(roomId: string) {
     },
 
     onMutate: async ({ placeId, value }) => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key })
+      scope.assert()
       const previous = queryClient.getQueryData<SuggestionsCurrent>(key)
       if (previous) {
         queryClient.setQueryData<SuggestionsCurrent>(key, {
