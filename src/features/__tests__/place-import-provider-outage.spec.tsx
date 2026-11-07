@@ -13,7 +13,7 @@ import { ApiError } from '@/shared/api/errors'
  */
 
 const mockResolve = {
-  mutate: jest.fn(),
+  mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }),
   reset: jest.fn(),
   isPending: false,
   isError: false,

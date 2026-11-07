@@ -34,7 +34,7 @@ const RESOLVED = {
 }
 
 const mockResolve = {
-  mutate: jest.fn(),
+  mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }),
   mutateAsync: jest.fn(),
   reset: jest.fn(),
   isPending: false,
@@ -71,7 +71,9 @@ jest.mock('@/shared/analytics', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useResolveGoogleMapsLink: () => mockResolve,
+  resolveGoogleMapsLink: (body: unknown) => mockResolve.mutateAsync(body),
   useSubmitPlace: () => mockSubmit,
+  submitPlace: (body: unknown) => mockSubmit.mutateAsync(body),
   usePlaceSubmission: () => ({ data: undefined }),
   ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
@@ -194,12 +196,8 @@ describe('APP-042 — the resolve proof reaches submit', () => {
 
     expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(1)
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
-    // #316 F-03: the stale-token refusal is cleared before the re-resolve, so
-    // the new candidate list does not open beside a failure that no longer applies.
-    expect(mockSubmit.reset).toHaveBeenCalled()
-    expect(mockSubmit.reset.mock.invocationCallOrder[0]).toBeLessThan(
-      mockResolve.mutateAsync.mock.invocationCallOrder[0],
-    )
+    // Re-resolve is an imperative guarded request; no mutation cache can retain the refusal.
+    expect(screen.queryByText('Chưa gửi được')).toBeNull()
   })
 
   it('submits without a token rather than failing, when the preview issued none', async () => {

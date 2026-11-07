@@ -1,17 +1,9 @@
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import { useImperativeHandle, type Ref } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import {
-  isApiError,
-  newIdempotencyKey,
-  useContributionDrafts,
-  useDeleteContributionDraft,
-  useReadContributionDraft,
-  useSaveContributionDraft,
-  useTaxonomies,
-} from '@/shared/api'
+import { useTaxonomies } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { MaterialIcon } from '@/shared/ui/material-icon'
@@ -19,21 +11,19 @@ import { Text } from '@/shared/ui/text'
 import { TextInput } from '@/shared/ui/text-input'
 import { FieldFocusGroup } from '@/shared/ui/field-focus-group'
 import {
-  draftEnrichment,
-  emptyContribution,
   priceValid,
-  resumeContribution,
   stepValid,
   submissionEnrichment,
-  type ContributionDraft,
   type ContributionForm,
   type Enrichment,
 } from './contribution-form'
 import { taxonomyOptions } from './contribution-options'
 import { ContributionChoices } from './contribution-choices.view'
 import { styles } from './contribution-wizard.style'
+import { ImportFlowProvider, useOptionalImportFlow, useImportFlow } from './import-flow-controller'
+import { acknowledgementValid, foregroundBusy, serializeFlow, writesAllowed } from './import-flow'
 
-export function ContributionWizard({
+function Wizard({
   ref,
   googlePlaceId,
   registered,
@@ -56,39 +46,17 @@ export function ContributionWizard({
 }) {
   const { t } = useTranslation()
   const { theme } = useUnistyles()
-  const { control, setValue, reset } = useForm<ContributionForm>({
-    defaultValues: emptyContribution(),
-  })
+  const { controller, state } = useImportFlow()
+  const { control } = useForm<ContributionForm>({ defaultValues: state.fields, values: state.fields })
   const form = useWatch({ control }) as ContributionForm
-  const [step, setStep] = useState(1)
-  const [saved, setSaved] = useState<ContributionDraft | null>(null)
-  const [message, setMessage] = useState<'saved' | 'failed' | 'conflict' | 'limit' | 'deleted' | null>(null)
-  const [needsReload, setNeedsReload] = useState(false)
-  const [draftId, setDraftId] = useState<string | null>(null)
-  const lock = useRef(false)
-  const mounted = useRef(true)
-  useEffect(() => {
-    mounted.current = true
-    return () => {
-      mounted.current = false
-    }
-  }, [])
-  const taxonomies = useTaxonomies({
-    kinds: 'suitability,mood,amenity,checkin_tag',
-  })
-  const drafts = useContributionDrafts(registered)
-  const save = useSaveContributionDraft()
-  const read = useReadContributionDraft()
-  const remove = useDeleteContributionDraft()
-  const busy = submitting || save.isPending || read.isPending || remove.isPending
-  const disabled = busy || !online
-  const [missingDraftIds, setMissingDraftIds] = useState<string[]>([])
-  const draftListMissing = drafts.isError && isApiError(drafts.error) && drafts.error.status === 404
-  const existing = draftListMissing ? [] : drafts.data?.items.filter((d) =>
-    d.googlePlaceId === googlePlaceId && !missingDraftIds.includes(d.id)) ?? []
-  useEffect(() => {
-    if (registered && drafts.isError) reportDraftReadFailure(drafts.error, 'list')
-  }, [registered, drafts.isError, drafts.error])
+  const step = state.step
+  const setValue = <K extends keyof ContributionForm>(key: K, value: ContributionForm[K]) => controller.edit({ [key]: value })
+  const taxonomies = useTaxonomies({ kinds: 'suitability,mood,amenity,checkin_tag' })
+  const busy = submitting || foregroundBusy(state)
+  const disabled = busy || !online || ['retiring', 'completed', 'submissionUnknown'].includes(state.phase)
+  const existing = state.list.filter(d => d.googlePlaceId === googlePlaceId && !state.tombstones.includes(d.id))
+  const activeId = state.draft?.id ?? state.pendingCreate?.id
+  const canSave = !disabled && registered && writesAllowed(state) && priceValid(form) && !state.listLoading
   const purposes = taxonomyOptions(taxonomies.data, 'suitability')
   const vibes = taxonomyOptions(taxonomies.data, 'mood')
   const amenities = taxonomyOptions(taxonomies.data, 'amenity')
@@ -202,105 +170,17 @@ export function ContributionWizard({
     )
   }
 
-  function fail(error: unknown) {
-    const conflict = isApiError(error) && error.code === 'DRAFT_MODIFIED'
-    setNeedsReload(conflict)
-    setMessage(
-      conflict ? 'conflict' : isApiError(error) && error.code === 'DRAFT_LIMIT_REACHED' ? 'limit' : 'failed',
-    )
-  }
-  async function load(draft: Pick<ContributionDraft, 'id'>) {
-    if (lock.current || disabled) return
-    lock.current = true
-    try {
-      const fresh = await read.mutateAsync(draft.id)
-      if (!mounted.current) return
-      reset(resumeContribution(fresh.enrichment))
-      setSaved(fresh)
-      setDraftId(fresh.id)
-      setStep(1)
-      setMessage(null)
-      setNeedsReload(false)
-      track('place_contribution_draft_resumed')
-    } catch (error) {
-      if (mounted.current) {
-        reportDraftReadFailure(error, 'resume')
-        if (isApiError(error) && error.status === 404) {
-          setMissingDraftIds((ids) => [...ids, draft.id])
-          if (draft.id === draftId || draft.id === saved?.id) {
-            setSaved(null)
-            setDraftId(null)
-            setNeedsReload(false)
-            setMessage(null)
-          }
-        }
-      }
-    } finally {
-      lock.current = false
-    }
-  }
   async function saveDraft() {
-    if (lock.current || disabled || !registered || needsReload || !priceValid(form) || !validKeys || drafts.isPending || (!saved && existing.length > 0)) return
-    lock.current = true
-    const idToSave = draftId ?? newIdempotencyKey()
-    setDraftId(idToSave)
-    setMessage(null)
-    try {
-      const result = await save.mutateAsync({
-        id: idToSave,
-        body: {
-          googlePlaceId,
-          expectedVersion: saved?.version ?? 0,
-          enrichment: draftEnrichment(form),
-        },
-      })
-      if (!mounted.current) return
-      setSaved(result)
-      setDraftId(result.id)
-      setMessage('saved')
-      track('place_contribution_draft_saved')
-    } catch (error) {
-      if (mounted.current) fail(error)
-    } finally {
-      lock.current = false
-    }
-  }
-  async function deleteDraft(draft: ContributionDraft) {
-    if (lock.current || disabled) return
-    lock.current = true
-    try {
-      await remove.mutateAsync({ id: draft.id, version: draft.version })
-      if (!mounted.current) return
-      setMissingDraftIds((ids) => [...ids, draft.id])
-      if (saved?.id === draft.id) {
-        // Deleting a draft expires its uploads; retain only the other form inputs.
-        setValue('photos', undefined)
-        setValue('billPhotoPublicConsent', undefined)
-        setSaved(null)
-        setDraftId(null)
-        setNeedsReload(false)
-      }
-      setMessage('deleted')
-      track('place_contribution_draft_deleted')
-    } catch (error) {
-      if (mounted.current) {
-        setNeedsReload(isApiError(error) && error.code === 'DRAFT_MODIFIED')
-        track('place_contribution_draft_delete_failed', {
-          status: isApiError(error) ? error.status : 0,
-        })
-      }
-    } finally {
-      lock.current = false
-    }
+    if (!canSave || !validKeys || (!activeId && existing.length > 0)) return
+    await controller.save()
   }
   useImperativeHandle(ref, () => ({ saveDraft: () => { void saveDraft() } }))
-
   function move(next: number) {
-    setStep(next)
+    controller.move(next)
     track('place_contribution_step_viewed', { step: next })
   }
-  const complete = submissionEnrichment(form)
-  const submitDisabled = disabled || blocked || !complete || !taxonomyReady || !validKeys
+  const complete = submissionEnrichment(form) ? serializeFlow(state) as Enrichment : undefined
+  const submitDisabled = disabled || blocked || !complete || !taxonomyReady || !validKeys || !writesAllowed(state) || !!state.pendingCreate?.uncertain
   return (
     <View testID="contribution-wizard" style={styles.root}>
       <View style={styles.card}>
@@ -575,60 +455,65 @@ export function ContributionWizard({
       <SecondaryBtn
         label={t('placeWizard.save')}
         icon="bookmark"
-        loading={save.isPending}
-        disabled={
-          disabled ||
-          !registered ||
-          needsReload ||
-          !priceValid(form) ||
-          !validKeys ||
-          drafts.isPending ||
-          (!saved && existing.length > 0)
-        }
-        onPress={() => {
-          void saveDraft()
-        }}
+        loading={state.phase === 'saving'}
+        disabled={!canSave || !validKeys || (!activeId && existing.length > 0)}
+        onPress={() => { void saveDraft() }}
         style={styles.action}
       />
       {!registered ? <Text variant="introCaption">{t('placeWizard.signInDraft')}</Text> : null}
-      {registered
-        ? existing.map((draft) => (
-            <View key={draft.id} style={styles.note}>
-              <Text variant="introSmall">{t('placeWizard.existingDraft')}</Text>
-              <GhostBtn
-                label={t('placeWizard.resume')}
-                disabled={disabled}
-                onPress={() => {
-                  void load(draft)
-                }}
-              />
-              <GhostBtn
-                label={t('placeWizard.delete')}
-                disabled={disabled}
-                onPress={() => {
-                  void deleteDraft(saved?.id === draft.id ? saved : draft)
-                }}
-              />
-            </View>
-          ))
-        : null}
-      {needsReload && draftId && !existing.some((d) => d.id === draftId) ? (
-        <GhostBtn
-          label={t('placeWizard.resume')}
-          disabled={disabled}
-          onPress={() => {
-            void load({ id: draftId! })
-          }}
-        />
-      ) : null}
-      {message ? (
-        <Text
-          accessibilityLiveRegion="polite"
-          color={message === 'saved' || message === 'deleted' ? 'status.successText' : 'status.dangerText'}
-        >
-          {t(`placeWizard.draft.${message}`)}
-        </Text>
-      ) : null}
+      <Text accessibilityLiveRegion="polite">{t(`placeWizard.lifecycle.${state.message}`)}</Text>
+      {state.listError ? <View>
+        <Text color="status.warningText">{t('placeWizard.lifecycle.draftListUnavailable')}</Text>
+        <GhostBtn label={t('placeWizard.lifecycle.retryList')} disabled={disabled}
+          onPress={() => { void controller.refreshList() }} />
+      </View> : null}
+      {state.media.length ? <View>
+        <Text>{t('placeWizard.lifecycle.publicPhotos', { count: state.media.length })}</Text>
+        <GhostBtn label={t('placeWizard.lifecycle.removePhotos')} disabled={busy}
+          onPress={() => controller.setMedia([])} />
+        {state.media.some(p => p.kind === 'bill') ? <>
+          {!acknowledgementValid(state) ? <>
+            <Text color="status.warningText">{t('placeWizard.lifecycle.billAcknowledgementRequired')}</Text>
+            <GhostBtn label={t('placeWizard.lifecycle.acknowledge')} disabled={busy || state.phase !== 'editing'}
+              onPress={() => controller.acknowledge()} />
+          </> : null}
+          <GhostBtn label={t('placeWizard.lifecycle.removeBills')} disabled={busy}
+            onPress={() => controller.setMedia(state.media.filter(p => p.kind !== 'bill'))} />
+        </> : null}
+      </View> : null}
+      {state.phase === 'mediaRecovery' || state.message === 'draftUnavailable' ? <GhostBtn
+        label={t('placeWizard.lifecycle.continueWithoutPhotos')} disabled={busy}
+        onPress={() => controller.continueWithoutPhotos()} /> : null}
+      {state.phase === 'conflict' ? <GhostBtn label={t('placeWizard.lifecycle.startNew')}
+        disabled={disabled} onPress={() => controller.startNew()} /> : null}
+      {registered && !activeId && !['retiring', 'completed', 'submissionUnknown'].includes(state.phase) ? <GhostBtn
+        label={t('placeWizard.lifecycle.discard')} disabled={busy} onPress={() => { void controller.deleteDraft() }} /> : null}
+      {state.pendingCreate?.uncertain ? <GhostBtn label={t('placeWizard.lifecycle.checkSave')}
+        disabled={disabled} onPress={() => { void controller.reconcileSave() }} /> : null}
+      {state.message === 'deleteFailed' ? <GhostBtn label={t('common.retry')}
+        disabled={disabled} onPress={() => { void controller.deleteDraft(state.deleteFailure ?? undefined) }} /> : null}
+      {registered && activeId ? <View style={styles.note}>
+        <GhostBtn label={t(['conflict', 'mediaRecovery'].includes(state.phase) ? 'placeWizard.lifecycle.reload' : 'placeWizard.resume')}
+          disabled={disabled} onPress={() => { void controller.requestResume(state.conflict?.id ?? activeId) }} />
+        <GhostBtn label={t('placeWizard.delete')} disabled={disabled || state.phase === 'conflict'}
+          onPress={() => { void controller.deleteDraft() }} />
+      </View> : null}
+      {registered ? existing.filter(d => d.id !== activeId).map(draft => <View key={draft.id} style={styles.note}>
+        <Text variant="introSmall">{t('placeWizard.existingDraft')}</Text>
+        <GhostBtn label={t('placeWizard.resume')} disabled={disabled}
+          onPress={() => { void controller.requestResume(draft.id) }} />
+        <GhostBtn label={t('placeWizard.delete')} disabled={disabled}
+          onPress={() => { void controller.deleteDraft(draft) }} />
+      </View>) : null}
+      {state.conflict && state.conflict.id !== activeId && !existing.some(d => d.id === state.conflict?.id) ? <GhostBtn
+        label={t('placeWizard.lifecycle.reload')} disabled={disabled}
+        onPress={() => { void controller.requestResume(state.conflict!.id) }} /> : null}
+      {state.replacement ? <View accessibilityViewIsModal>
+        <Text>{t('placeWizard.lifecycle.replaceConfirmation')}</Text>
+        <GhostBtn label={t('placeWizard.lifecycle.replace')} disabled={disabled}
+          onPress={() => { void controller.confirmReplacement() }} />
+        <GhostBtn label={t('common.cancel')} onPress={() => controller.cancelReplacement()} />
+      </View> : null}
       <View style={styles.note}>
         <View style={styles.heading}>
           <MaterialIcon name="verified" color="redesign.secondary" />
@@ -642,12 +527,11 @@ export function ContributionWizard({
   )
 }
 
-// Expected absence (including an undeployed endpoint) is silent. Telemetry never
-// includes server messages, place IDs, draft IDs, or contribution content.
-function reportDraftReadFailure(error: unknown, operation: 'list' | 'resume') {
-  if (isApiError(error) && error.status === 404) return
-  track('place_contribution_draft_read_failed', {
-    operation,
-    status: isApiError(error) ? error.status : 0,
-  })
+// Standalone use (including previews) still gets exactly one controller. The import
+// screen provides it above resolution and results, so wizard remounts cannot own it.
+export function ContributionWizard(props: Parameters<typeof Wizard>[0]) {
+  const flow = useOptionalImportFlow()
+  return flow ? <Wizard {...props} /> : <ImportFlowProvider online={props.online} registered={props.registered} initialPlaceId={props.googlePlaceId}>
+    <Wizard {...props} />
+  </ImportFlowProvider>
 }

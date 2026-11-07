@@ -19,6 +19,14 @@ jest.mock('@/shared/analytics', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  listContributionDrafts: async () => {
+    mockDraftEnabled(true)
+    if (mockDrafts.isError) throw mockDrafts.error
+    return mockDrafts.data ?? { items: [] }
+  },
+  getContributionDraft: (id: string) => mockRead(id),
+  saveContributionDraft: (id: string, body: unknown) => mockSave({ id, body }),
+  deleteContributionDraft: (id: string, version: number) => mockRemove({ id, version }),
   useContributionCredits: () => ({ data: { creditBalance: 123 } }),
   useTaxonomies: () => mockTaxonomies,
   useContributionDrafts: (enabled: boolean) => {
@@ -55,6 +63,7 @@ const draft: ContributionDraft = {
 }
 beforeEach(async () => {
   jest.clearAllMocks()
+  mockSave.mockReset(); mockRead.mockReset(); mockRemove.mockReset()
   await i18n.changeLanguage('vi')
   mockTaxonomies = {
     data: contributionTaxonomies,
@@ -68,7 +77,7 @@ beforeEach(async () => {
     isError: false,
     refetch: jest.fn(),
   }
-  mockSave.mockResolvedValue({ ...draft, version: 1 })
+  mockSave.mockImplementation(({ id, body }) => Promise.resolve({ ...draft, id, enrichment: body.enrichment, version: body.expectedVersion + 1 }))
   mockRead.mockResolvedValue(draft)
   mockRemove.mockResolvedValue({ deleted: true })
 })
@@ -180,7 +189,7 @@ it('resumes by GET, updates the version, and deletes by version', async () => {
     },
   })
   await fireEvent.press(button('Xoá bản nháp'))
-  expect(mockRemove).toHaveBeenCalledWith({ id: draft.id, version: 1 })
+  expect(mockRemove).toHaveBeenCalledWith({ id: draft.id, version: 4 })
 })
 it('retains acknowledged menu/bill uploads when a resumed draft is edited, saved and submitted', async () => {
   const photoDraft: ContributionDraft = {
@@ -196,7 +205,7 @@ it('retains acknowledged menu/bill uploads when a resumed draft is edited, saved
   }
   mockDrafts = { data: { items: [photoDraft] } }
   mockRead.mockResolvedValue(photoDraft)
-  mockSave.mockResolvedValue({ ...photoDraft, version: 4 })
+  mockSave.mockImplementation(({ id, body }) => Promise.resolve({ ...photoDraft, id, version: 4, enrichment: body.enrichment }))
   await renderScreen(<ContributionWizard {...props} />)
   await fireEvent.press(button('Tiếp tục bản nháp'))
   await fireEvent.press(button('Tiếp tục'))
@@ -262,7 +271,7 @@ describe('F-05 deleted draft media', () => {
       expect(onSubmit).toHaveBeenCalledWith(enrichment)
     }
     // The stale query cache must not offer to resume the deleted draft or block saving.
-    expect(screen.queryByRole('button', { name: 'Tiếp tục bản nháp' })).toBeNull()
+    expect(screen.queryByText(i18n.t('placeWizard.existingDraft'))).toBeNull()
   })
 
   it('retains live photos, consent and draft identity when deletion fails', async () => {
@@ -555,22 +564,21 @@ it('keeps one primary action through all steps and a compact accessible reward',
   expect(disabled('Tiếp tục')).toBe(false)
 })
 
-it.each([404, 503, 0])('silently tolerates draft-list failure %i and allows saving and submission', async (status) => {
+it.each([404, 503, 0])('offers recovery for draft-list failure %i and allows saving and submission', async (status) => {
   const error = status ? new ApiError(status, { code: 'UNAVAILABLE', message: 'private data' }) : new Error('private data')
   mockDrafts = { isError: true, error }
   await renderScreen(<ContributionWizard {...props} />)
   expect(screen.queryByText(/Không thể tải bản nháp/)).toBeNull()
   expect(disabled('Lưu nháp')).toBe(false)
-  if (status === 404) expect(mockTrack).not.toHaveBeenCalled()
-  else expect(mockTrack).toHaveBeenCalledWith('place_contribution_draft_read_failed', { operation: 'list', status })
+  expect(mockTrack).toHaveBeenCalledWith('place_contribution_draft_read_failed', { operation: 'list', status })
   await completeWizard()
   await fireEvent.press(button('Gửi địa điểm cho GoGo'))
   expect(onSubmit).toHaveBeenCalled()
   expect(screen.queryByText(/Không lưu được/)).toBeNull()
   mockSave.mockRejectedValue(new ApiError(503, { code: 'UNAVAILABLE', message: 'private data' }))
   await fireEvent.press(button('Lưu nháp'))
-  expect(screen.getByText(i18n.t('placeWizard.draft.failed'))).toBeTruthy()
-  expect(disabled('Gửi địa điểm cho GoGo')).toBe(false)
+  expect(screen.getByText(i18n.t('placeWizard.lifecycle.saveUnconfirmed'))).toBeTruthy()
+  expect(disabled('Gửi địa điểm cho GoGo')).toBe(true)
   expect(JSON.stringify(mockTrack.mock.calls)).not.toMatch(/private data|ChIJtest/)
 })
 
@@ -580,6 +588,7 @@ it.each([404, 503])('silently tolerates resume failure %i without changing enter
   await renderScreen(<ContributionWizard {...props} />)
   await fireEvent.press(button('Cặp đôi'))
   await fireEvent.press(button('Tiếp tục bản nháp'))
+  await fireEvent.press(button('Thay thế thông tin đang nhập'))
   expect(button('Cặp đôi').props.accessibilityState.selected).toBe(true)
   expect(screen.queryByText(i18n.t('placeWizard.draft.failed'))).toBeNull()
   if (status === 404) {
@@ -635,7 +644,9 @@ it.each([false, true])('F-02 recovers a conflicted draft after Resume confirms d
   await fireEvent.press(button('Lưu nháp'))
   expect(disabled('Lưu nháp')).toBe(true)
   mockRead.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'deleted elsewhere' }))
-  await fireEvent.press(button('Tiếp tục bản nháp'))
+  await fireEvent.press(button('Tải bản mới nhất'))
+  const confirm = screen.queryByRole('button', { name: 'Thay thế thông tin đang nhập' })
+  if (confirm) await fireEvent.press(confirm)
   expect(disabled('Lưu nháp')).toBe(false)
   expect(screen.queryByText(i18n.t('placeWizard.draft.conflict'))).toBeNull()
   expect(screen.queryByRole('button', { name: 'Tiếp tục bản nháp' })).toBeNull()
@@ -653,9 +664,131 @@ it('F-02 retains the conflict guard when Resume fails without confirming deletio
   await renderScreen(<ContributionWizard {...props} />)
   await fireEvent.press(button('Lưu nháp'))
   mockRead.mockRejectedValueOnce(new ApiError(503, { code: 'UNAVAILABLE', message: 'offline' }))
-  await fireEvent.press(button('Tiếp tục bản nháp'))
+  await fireEvent.press(button('Tải bản mới nhất'))
+  const confirm = screen.queryByRole('button', { name: 'Thay thế thông tin đang nhập' })
+  if (confirm) await fireEvent.press(confirm)
   expect(disabled('Lưu nháp')).toBe(true)
   await fireEvent.press(button('Lưu nháp'))
   expect(mockSave).toHaveBeenCalledTimes(1)
-  expect(button('Tiếp tục bản nháp')).toBeTruthy()
+  expect(button('Tải bản mới nhất')).toBeTruthy()
+})
+
+// SA lifecycle matrix: public UI regression probes, also run unchanged on b4ca8b3.
+describe('SA T1-T12 lifecycle regressions', () => {
+  const photos = [{ mediaId: 'menu', kind: 'menu' as const }, { mediaId: 'bill', kind: 'bill' as const }]
+  const photoDraft = { ...draft, enrichment: { ...draft.enrichment, photos, billPhotoPublicConsent: true } }
+  async function resumePhoto() {
+    mockDrafts = { data: { items: [photoDraft] } }
+    mockRead.mockResolvedValue(photoDraft)
+    await renderScreen(<ContributionWizard {...props} />)
+    await fireEvent.press(button('Tiếp tục bản nháp'))
+  }
+  it('M02 blocks bill writes without explicit acknowledgement and offers local removal', async () => {
+    mockDrafts = { data: { items: [photoDraft] } }
+    mockRead.mockResolvedValue({ ...photoDraft, enrichment: { ...photoDraft.enrichment, billPhotoPublicConsent: undefined } })
+    await renderScreen(<ContributionWizard {...props} />)
+    await fireEvent.press(button('Tiếp tục bản nháp'))
+    expect(disabled('Lưu nháp')).toBe(true)
+    await fireEvent.press(button('Xoá ảnh hoá đơn'))
+    await fireEvent.press(button('Lưu nháp'))
+    expect(mockSave.mock.calls[0][0].body.enrichment.photos).toEqual([photos[0]])
+    expect(mockSave.mock.calls[0][0].body.enrichment).not.toHaveProperty('billPhotoPublicConsent')
+  })
+  it('M03 confirmed active absence detaches media, consent, identity and conflict together', async () => {
+    await resumePhoto()
+    mockSave.mockRejectedValueOnce(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'changed' }))
+    await fireEvent.press(button('Lưu nháp'))
+    mockRead.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'gone' }))
+    await fireEvent.press(screen.queryByRole('button', { name: 'Tải bản mới nhất' }) ?? button('Tiếp tục bản nháp'))
+    const confirm = screen.queryByRole('button', { name: 'Thay thế thông tin đang nhập' })
+    if (confirm) await fireEvent.press(confirm)
+    await fireEvent.press(button('Lưu nháp'))
+    const saved = mockSave.mock.calls[1][0]
+    expect(saved.id).not.toBe(draft.id)
+    expect(saved.body).toEqual({ googlePlaceId: props.googlePlaceId, expectedVersion: 0, enrichment: draft.enrichment })
+  })
+  it('M04 another missing row cannot detach the active media or consent', async () => {
+    const other = { ...draft, id: 'other' }
+    mockDrafts = { data: { items: [photoDraft, other] } }
+    mockRead.mockResolvedValueOnce(photoDraft)
+    await renderScreen(<ContributionWizard {...props} />)
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Tiếp tục bản nháp' })[0])
+    mockRead.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'gone' }))
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Tiếp tục bản nháp' })[1])
+    await fireEvent.press(button('Tiếp tục')); await fireEvent.press(button('Tiếp tục'))
+    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    expect(onSubmit).toHaveBeenCalledWith(photoDraft.enrichment)
+    expect(mockRead).toHaveBeenLastCalledWith('other')
+  })
+  it('M05 deleting another row preserves active media; deleting active detaches all media/consent', async () => {
+    mockDrafts = { data: { items: [photoDraft, { ...draft, id: 'other' }] } }
+    mockRead.mockResolvedValue(photoDraft)
+    await renderScreen(<ContributionWizard {...props} />)
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Tiếp tục bản nháp' })[0])
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Xoá bản nháp' })[1])
+    await fireEvent.press(button('Tiếp tục')); await fireEvent.press(button('Tiếp tục'))
+    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    expect(onSubmit).toHaveBeenLastCalledWith(photoDraft.enrichment)
+    await fireEvent.press(button('Xoá bản nháp'))
+    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    expect(onSubmit).toHaveBeenLastCalledWith(draft.enrichment)
+    expect(mockRemove.mock.calls).toEqual([[{ id: 'other', version: 3 }], [{ id: draft.id, version: 3 }]])
+  })
+  it('M06 DELETE 404 reconciles via GET and requires explicit review of a newer version', async () => {
+    await resumePhoto()
+    mockRemove.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'version mismatch' }))
+    mockRead.mockResolvedValue({ ...photoDraft, version: 4 })
+    await fireEvent.press(button('Xoá bản nháp'))
+    expect(mockRead).toHaveBeenCalledTimes(2)
+    expect(disabled('Lưu nháp')).toBe(true)
+    expect(mockRemove).toHaveBeenCalledTimes(1)
+    expect(button('Tải bản mới nhất')).toBeTruthy()
+  })
+  it('M07 active expiry clears media and retains recovery without list membership', async () => {
+    mockDrafts = { data: { items: [photoDraft] } }
+    mockRead.mockResolvedValue({ ...photoDraft, expiresAt: '2020-01-01T00:00:00Z' })
+    await renderScreen(<ContributionWizard {...props} />)
+    await fireEvent.press(button('Tiếp tục bản nháp'))
+    await fireEvent.press(button('Lưu nháp'))
+    expect(mockSave.mock.calls[0][0].body.expectedVersion).toBe(0)
+    expect(mockSave.mock.calls[0][0].body.enrichment).not.toHaveProperty('photos')
+  })
+  it('M08 conflict quarantines writes and offers detach without remote deletion', async () => {
+    await resumePhoto()
+    mockSave.mockRejectedValueOnce(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'changed' }))
+    await fireEvent.press(button('Lưu nháp'))
+    await fireEvent.press(button('Tiếp tục'))
+    await fireEvent.press(button('Tiếp tục'))
+    expect(disabled('Gửi địa điểm cho GoGo')).toBe(true)
+    await fireEvent.press(button('Tạo bản mới với thông tin khác của tôi'))
+    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    expect(onSubmit).toHaveBeenCalledWith(draft.enrichment)
+    expect(mockRemove).not.toHaveBeenCalled()
+  })
+  it.each(['INVALID_SUBMISSION_PHOTOS', 'INVALID_UPLOAD_KEY'])('M09 %s clears rejected media and offers working recovery', async (code) => {
+    await resumePhoto()
+    mockSave.mockRejectedValueOnce(new ApiError(400, { code, message: 'bad media' }))
+    await fireEvent.press(button('Lưu nháp'))
+    const recovery = screen.queryByRole('button', { name: 'Tiếp tục không có ảnh' })
+    if (recovery) await fireEvent.press(recovery)
+    await fireEvent.press(button('Lưu nháp'))
+    expect(mockSave.mock.calls[1][0].body.enrichment).toEqual(draft.enrichment)
+  })
+  it('M10 uncertain create is read by the SAME UUID before another write', async () => {
+    mockSave.mockRejectedValueOnce(new Error('response lost after commit'))
+    await renderScreen(<ContributionWizard {...props} />)
+    await fireEvent.press(button('Lưu nháp'))
+    const id = mockSave.mock.calls[0][0].id
+    mockRead.mockResolvedValue({ ...draft, id, version: 1, enrichment: {} })
+    await fireEvent.press(button('Lưu nháp'))
+    expect(mockRead).toHaveBeenCalledWith(id)
+    expect(mockSave).toHaveBeenCalledTimes(1)
+  })
+  it('M15 list errors show localized retry while preserving usable inputs', async () => {
+    mockDrafts = { isError: true, error: new ApiError(404, { code: 'NOT_FOUND', message: 'route unavailable' }) }
+    await renderScreen(<ContributionWizard {...props} />)
+    expect(screen.getByText(i18n.t('placeWizard.lifecycle.draftListUnavailable'))).toBeTruthy()
+    expect(button('Thử tải danh sách nháp lại')).toBeTruthy()
+    expect(disabled('Lưu nháp')).toBe(false)
+  })
 })

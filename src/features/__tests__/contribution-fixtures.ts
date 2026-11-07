@@ -30,6 +30,7 @@ export const contributionTaxonomies = {
 
 export function contributionHooks() {
   return {
+    listContributionDrafts: async () => ({ items: [] }),
     useContributionCredits: () => ({}),
     useTaxonomies: () => ({
       data: contributionTaxonomies,

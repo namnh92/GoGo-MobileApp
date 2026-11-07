@@ -10,7 +10,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { NetworkError } from '@/shared/api/errors'
 import { ImportGuide } from './import-guide.view'
 
-import { discoveryLabels, isApiError, useResolveGoogleMapsLink, useSubmitPlace, useTaxonomies, type ResolveLinkResult } from '@/shared/api'
+import { discoveryLabels, isApiError, useResolveGoogleMapsLink, useTaxonomies, type ResolveLinkResult } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
@@ -19,8 +19,10 @@ import { PlaceCard } from '@/shared/ui/place-card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
+import { CleanupReview } from './cleanup-review.view'
 import { ContributionWizard } from './contribution-wizard.view'
-import type { Enrichment } from './contribution-form'
+import { ImportFlowProvider, useImportFlow } from './import-flow-controller'
+import { foregroundBusy } from './import-flow'
 import { FieldFocusGroup, FocusedFieldGroup } from '@/shared/ui/field-focus-group'
 import { ExistingPlaceResult } from './existing-place-result.view'
 import { Atmosphere, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
@@ -89,15 +91,14 @@ function providerUnavailable(error: unknown): boolean {
  * say operating and the submit still meet this, when Google changed its mind
  * in between; it is a fact about the place, not a failure to retry.
  */
-function notYetOpen(error: unknown): boolean {
-  return isApiError(error) && error.code === 'PLACE_NOT_YET_OPEN'
-}
-
-function staleResolution(error: unknown): boolean {
-  return isApiError(error) && error.code === 'RESOLUTION_TOKEN_INVALID'
-}
-
 export default function PlaceImportScreen() {
+  const { status } = useSession()
+  const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
+  return <ImportFlowProvider online={online} registered={status === 'user'}><PlaceImportContent /></ImportFlowProvider>
+}
+
+function PlaceImportContent() {
+  const { controller, state } = useImportFlow()
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const { status: actorStatus } = useSession()
@@ -138,31 +139,33 @@ export default function PlaceImportScreen() {
     return () => subscription.remove()
   }, [revealFocused])
 
-  const [url, setUrl] = useState('')
+  const url = state.link
+  const setUrl = (value: string) => controller.reset(value)
   const currentUrl = useRef('')
   const attemptGeneration = useRef(0)
-  const [formGeneration, setFormGeneration] = useState(0)
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null)
+  const formGeneration = state.flowGeneration
+  const linkFrozen = state.phase === 'retiring' || state.phase === 'submissionUnknown'
+  const resolvedUrl = state.resolvedLink
+  const setResolvedUrl = (value: string | null) => controller.dispatch({ type: 'PATCH', value: { resolvedLink: value } })
   const [invalid, setInvalid] = useState(false)
   const [linkFailed, setLinkFailed] = useState(false)
-  const [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState<string | null>(null)
+  const selectedGooglePlaceId = state.googlePlaceId
+  const setSelectedGooglePlaceId = (value: string | null) => { if (value) { invalidateAttempt(); controller.selectPlace(value, state.resolution?.candidates?.find(c => c.googlePlaceId === value)) } }
   // True only during the silent re-resolve of a stale attestation, so the CTA
   // keeps its loading state across the two requests instead of flickering back
   // to idle between them (APP-042).
-  const submitLock = useRef(false)
-  const [revalidating, setRevalidating] = useState(false)
 
-  const enrichment = useRef<Enrichment | undefined>(undefined)
   const taxonomies = useTaxonomies({ kinds: 'category' })
   const resolve = useResolveGoogleMapsLink()
-  const submit = useSubmitPlace()
+  const accepted = state.phase === 'retiring' || state.phase === 'completed'
   const wizard = useRef<{ saveDraft: () => void }>(null)
-  const [outcome, setOutcome] = useState<'success' | 'error' | null>(null)
-  const [submittedPreview, setSubmittedPreview] = useState<Candidate | undefined>(undefined)
-  const [resultVisible, setResultVisible] = useState(false)
-  const afterResultClose = useRef<(() => void) | null>(null)
+  const outcome = accepted ? 'success' : 'error'
+  const submittedPreview = state.candidate ?? undefined
+  const resultVisible = state.resultVisible
+  const setResultVisible = (value: boolean) => controller.dispatch({ type: 'PATCH', value: { resultVisible: value } })
+  const afterResultClose = useRef<{ action: () => void; ticket: ReturnType<typeof controller.capture> } | null>(null)
   function closeResult(action?: () => void) {
-    afterResultClose.current = action ?? null
+    afterResultClose.current = action ? { action, ticket: controller.capture() } : null
     setResultVisible(false)
   }
   function viewContributions() {
@@ -173,13 +176,8 @@ export default function PlaceImportScreen() {
     return Object.entries(discoveryLabels(taxonomies.data, i18n.language)[kind] ?? {}).map(([key, label]) => ({ key, label }))
   }
 
-  const [retainedPreview, setRetainedPreview] = useState<ResolveLinkResult | undefined>(undefined)
   const previewMatchesUrl = resolvedUrl !== null && resolvedUrl === url.trim()
-  // A failed stale-token revalidation must not unmount and erase the form.
-  if (previewMatchesUrl && resolve.data && resolve.data !== retainedPreview) {
-    setRetainedPreview(resolve.data)
-  }
-  const result = previewMatchesUrl ? resolve.data ?? retainedPreview : undefined
+  const result = previewMatchesUrl ? state.resolution ?? undefined : undefined
   const candidate = result?.candidate as Candidate | undefined
   // #131: Google lists it as opening soon; the server refuses the submit.
   useEffect(() => {
@@ -188,18 +186,13 @@ export default function PlaceImportScreen() {
   const notOpenYet = candidate?.businessStatus === 'FUTURE_OPENING'
 
   function invalidateAttempt() {
-    setRetainedPreview(undefined)
     attemptGeneration.current += 1
-    setFormGeneration(value => value + 1)
-    submitLock.current = false
-    setRevalidating(false)
-    setOutcome(null)
-    setSubmittedPreview(undefined)
     setResultVisible(false)
+    afterResultClose.current = null
   }
 
   function onResolve() {
-    if (!online || resolve.isPending) return
+    if (!online || resolve.isPending || foregroundBusy(controller.getSnapshot()) || linkFrozen) return
     Keyboard.dismiss()
     const parsed = mapsUrlSchema.safeParse(url)
     if (!parsed.success) {
@@ -207,18 +200,21 @@ export default function PlaceImportScreen() {
       return
     }
     invalidateAttempt()
+    const ticket = controller.startResolution(parsed.data)
+    if (!ticket) return
     const generation = attemptGeneration.current
     setInvalid(false)
     setResolvedUrl(parsed.data)
     setSelectedGooglePlaceId(null)
-    submit.reset()
     track('place_import_submitted')
 
     resolve.mutate(
       { url: parsed.data, ...(roomId ? { roomId } : {}) },
       {
+        onError: () => controller.resolutionFailed(ticket),
         onSuccess: (resolved) => {
-          if (generation !== attemptGeneration.current) return
+          if (generation !== attemptGeneration.current || !controller.current(ticket)) return
+          controller.resolved(resolved, parsed.data)
           if (resolved.status === 'RESOLVED') track('place_import_verified', { placeId: resolved.candidate?.googlePlaceId ?? '' })
           else track('place_import_rejected', { reason: resolved.status ?? 'UNRESOLVED' })
         },
@@ -237,92 +233,33 @@ export default function PlaceImportScreen() {
    * fetch, which is the rollback.
    */
 
-  async function onSubmitPlace(googlePlaceId: string, token?: string, retried = false, generation = attemptGeneration.current) {
-    if (
-      !online ||
-      !enrichment.current ||
-      generation !== attemptGeneration.current ||
-      !previewMatchesUrl ||
-      currentUrl.current.trim() !== resolvedUrl ||
-      submit.isSuccess ||
-      submit.isPending ||
-      (submitLock.current && !retried)
-    )
-      return
-    submitLock.current = true
-    if (!retried) {
-      setSubmittedPreview(candidate?.googlePlaceId === googlePlaceId
-        ? candidate
-        : result?.candidates?.find(item => item.googlePlaceId === googlePlaceId))
-    }
-    const resolutionToken = token ?? resolve.data?.resolutionToken
-    try {
-      const submission = await submit.mutateAsync({
-        googlePlaceId,
-        ...(resolutionToken ? { resolutionToken } : {}),
-        ...(roomId ? { roomId } : {}),
-        ...(enrichment.current ? { enrichment: enrichment.current } : {}),
-      })
-      if (generation !== attemptGeneration.current) return
-      track('place_import_added', { placeId: submission.placeId ?? googlePlaceId })
-      if (!submission.placeId) { Keyboard.dismiss(); setOutcome('success'); setResultVisible(true) }
-    } catch (error) {
-      if (generation !== attemptGeneration.current) return
-      if (!retried && staleResolution(error)) await revalidateAndResubmit(googlePlaceId, generation)
-      else { Keyboard.dismiss(); setOutcome('error'); setResultVisible(true) }
-    } finally {
-      if (generation === attemptGeneration.current) submitLock.current = false
-    }
-  }
-
-  /** One silent re-resolve, then one retry — never a loop. */
-  async function revalidateAndResubmit(googlePlaceId: string, generation: number) {
-    const verifiedUrl = resolvedUrl
-    if (generation !== attemptGeneration.current || !verifiedUrl || currentUrl.current.trim() !== verifiedUrl) return
-    const parsed = mapsUrlSchema.safeParse(verifiedUrl)
-    if (!parsed.success) return
-    setRevalidating(true)
-    // The stale-token refusal is spent; if the re-resolve comes back with a new
-    // answer (several candidates), it must not open beside that old error (#316 F-03).
-    submit.reset()
-    try {
-      const fresh = await resolve.mutateAsync({ url: parsed.data, ...(roomId ? { roomId } : {}) })
-      // A link that no longer resolves — the place closed, or now matches
-      // several branches — is a new answer for the user to see, not something
-      // to resubmit behind their back. `resolve.data` already carries it into
-      // the view.
-      // URL equality cannot distinguish a new A after an A→B→A edit.
-      if (generation !== attemptGeneration.current || currentUrl.current.trim() !== verifiedUrl) return
-      if (fresh.status !== 'RESOLVED' || !fresh.resolutionToken || fresh.candidate?.googlePlaceId !== googlePlaceId) return
-      await onSubmitPlace(fresh.candidate?.googlePlaceId ?? googlePlaceId, fresh.resolutionToken, true, generation)
-    } catch {
-      if (generation === attemptGeneration.current) { setOutcome('error'); setResultVisible(true) }
-    } finally {
-      if (generation === attemptGeneration.current) setRevalidating(false)
-    }
+  async function onSubmitPlace() {
+    if (!previewMatchesUrl || currentUrl.current.trim() !== resolvedUrl) return
+    await controller.submit(roomId)
   }
 
   function reset() {
+    if (state.phase === 'retiring' || state.phase === 'submissionUnknown') return
     invalidateAttempt()
+    controller.reset()
     resolve.reset()
-    submit.reset()
     currentUrl.current = ''
     setResolvedUrl(null)
     setInvalid(false)
     setLinkFailed(false)
     setUrl('')
     setSelectedGooglePlaceId(null)
-    enrichment.current = undefined
   }
 
   const verified = result?.status === 'RESOLVED' && !!candidate
   const contributionPlaceId = verified ? candidate.googlePlaceId : result?.status === 'CANDIDATE_SELECTION' ? selectedGooglePlaceId : undefined
-  const branchSelectionDisabled = submit.isPending || revalidating || submit.isSuccess || outcome === 'success'
+  const branchSelectionDisabled = foregroundBusy(state) || ['retiring', 'completed', 'submissionUnknown'].includes(state.phase)
   const offline = !online || resolve.isPaused || (resolve.isError && resolve.error instanceof NetworkError)
   const validFormat = mapsUrlSchema.safeParse(url).success
   const showValidation = url.trim().length > 0 || invalid
 
   function changeLink() {
+    if (state.phase === 'retiring' || state.phase === 'submissionUnknown') return
     reset()
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ y: 0, animated: false })
@@ -331,16 +268,18 @@ export default function PlaceImportScreen() {
   }
 
   async function pasteLink() {
+    if (linkFrozen) return
     const generation = attemptGeneration.current
+    const ticket = controller.capture()
     try {
       const value = await Clipboard.getStringAsync()
-      if (generation !== attemptGeneration.current) return
+      if (generation !== attemptGeneration.current || !controller.current(ticket)) return
       reset()
       currentUrl.current = value.trim()
       setUrl(value.trim())
       inputRef.current?.focus()
     } catch {
-      if (generation === attemptGeneration.current) setLinkFailed(true)
+      if (generation === attemptGeneration.current && controller.current(ticket)) setLinkFailed(true)
     }
   }
 
@@ -348,7 +287,7 @@ export default function PlaceImportScreen() {
     <Atmosphere redesign style={!verified ? styles.inputCanvas : undefined}>
       <View testID="import-header" style={[styles.header, !verified && styles.inputCanvas, { paddingTop: insets.top }]}>
         <View style={styles.topBar}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={verified ? changeLink : () => router.back()} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} disabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'} onPress={verified ? changeLink : () => router.back()} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
             <Icon name="chevronLeft" size={24} />
           </Pressable>
           <Text variant="introHeading" color="redesign.ink" style={[styles.headerTitle, !verified && styles.headerTitleCentered]}>{t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}</Text>
@@ -396,14 +335,14 @@ export default function PlaceImportScreen() {
                     </View>
                     <Text numberOfLines={1} variant="introCaption" color="redesign.secondary">{t('placeImport.verifiedLocation', { name: candidate.name })}</Text>
                   </View>
-                  <Pressable accessibilityRole="button" onPress={changeLink} style={({ pressed }) => [styles.changeLink, pressed && styles.pressed]}>
+                  <Pressable accessibilityRole="button" disabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'} onPress={changeLink} style={({ pressed }) => [styles.changeLink, pressed && styles.pressed]}>
                     <MaterialIcon name="restart" size={14} /><Text variant="introCaptionMedium" color="redesign.ink">{t('placeImport.changeLink')}</Text>
                   </Pressable>
                 </View> : <>
                   <FieldFocusGroup style={[styles.inputCard, linkFocused && styles.inputCardFocused]}>
                     <View style={styles.inputHeading}>
                       <View style={styles.inputLabel}><MaterialIcon name="link" size={18} color="redesign.primaryText" /><Text variant="introLabel" color="redesign.ink">{t('placeImport.linkLabel')}</Text></View>
-                      <Pressable accessibilityRole="button" onPress={() => void pasteLink()} style={({ pressed }) => [styles.pasteLink, pressed && styles.pressed]}>
+                      <Pressable accessibilityRole="button" disabled={linkFrozen} onPress={() => void pasteLink()} style={({ pressed }) => [styles.pasteLink, pressed && styles.pressed]}>
                         <Icon name="copy" size={14} color="redesign.primaryText" /><Text variant="introLabel" color="redesign.primaryText">{t('placeImport.pasteLink')}</Text>
                       </Pressable>
                     </View>
@@ -418,7 +357,9 @@ export default function PlaceImportScreen() {
                         onFocus={() => { setLinkFocused(true); revealFocused() }}
                         onBlur={() => setLinkFocused(false)}
                         value={url}
+                        editable={!linkFrozen}
                         onChangeText={(value) => {
+                          if (linkFrozen) return
                           reset()
                           currentUrl.current = value
                           setUrl(value)
@@ -437,7 +378,7 @@ export default function PlaceImportScreen() {
                       {!linkFocused && !!url ? <View testID="import-link-display" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.linkDisplay}>
                         <Text variant="bodySmall" numberOfLines={1} ellipsizeMode="tail">{url}</Text>
                       </View> : null}
-                      {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} onPress={changeLink} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
+                      {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} disabled={linkFrozen} onPress={changeLink} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
                     </View>
                     {showValidation ? <View accessibilityLiveRegion="polite" style={[styles.validationBadge, !validFormat && styles.validationInvalid]}>
                       <MaterialIcon name={validFormat ? 'checkCircle' : 'info'} size={15} color={validFormat ? 'redesign.greenText' : 'status.warningText'} />
@@ -449,7 +390,7 @@ export default function PlaceImportScreen() {
                   {!result ? <View onLayout={event => { guideY.current = event.nativeEvent.layout.y }}><ImportGuide onLinkFailed={() => setLinkFailed(true)} /></View> : null}
                   <View style={styles.inputActions}>
                     {offline ? <View accessibilityLiveRegion="polite" style={styles.offline}><MaterialIcon name="info" color="status.warningText" /><Text variant="introSmall" style={styles.flex}>{t('placeImport.offline')}</Text></View> : null}
-                    <PrimaryBtn label={t(resolve.isPending && !offline ? 'placeImport.verifying' : 'placeImport.verify')} variant="discovery" trailingIcon="arrowRight" onPress={onResolve} loading={resolve.isPending && !offline} disabled={!url.trim() || !online || resolve.isPaused} style={url.trim() && online && !resolve.isPaused ? styles.inputPrimary : undefined} />
+                    <PrimaryBtn label={t(resolve.isPending && !offline ? 'placeImport.verifying' : 'placeImport.verify')} variant="discovery" trailingIcon="arrowRight" onPress={onResolve} loading={resolve.isPending && !offline} disabled={linkFrozen || !url.trim() || !online || resolve.isPaused} style={url.trim() && online && !resolve.isPaused ? styles.inputPrimary : undefined} />
                   </View>
                 </>}
 
@@ -498,8 +439,7 @@ export default function PlaceImportScreen() {
                           key={option.googlePlaceId}
                           disabled={branchSelectionDisabled}
                           onPress={() => {
-                            if (submitLock.current || branchSelectionDisabled) return
-                            enrichment.current = undefined
+                            if (branchSelectionDisabled) return
                             setSelectedGooglePlaceId(option.googlePlaceId ?? null)
                           }}
                           accessibilityRole="button"
@@ -516,7 +456,7 @@ export default function PlaceImportScreen() {
                   </View>
                 ) : null}
 
-                {result?.status === 'RESOLVED' && candidate && !submit.data?.placeId ? (
+                {result?.status === 'RESOLVED' && candidate && !accepted ? (
                   <PlaceCard
                     variant="preview"
                     preview={candidate}
@@ -525,7 +465,8 @@ export default function PlaceImportScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={t('placeImport.googleLink')}
                         onPress={() => {
-                          void openWebsite(candidate.googleMapsUri!).then((ok) => setLinkFailed(!ok))
+                          const ticket = controller.capture()
+                          void openWebsite(candidate.googleMapsUri!).then((ok) => { if (controller.current(ticket)) setLinkFailed(!ok) })
                         }}
                         style={styles.previewMaps}
                       >
@@ -552,27 +493,40 @@ export default function PlaceImportScreen() {
                   </PlaceCard>
                 ) : null}
 
-                {contributionPlaceId && !submit.data?.placeId ? (
+                {contributionPlaceId && !accepted ? (
                   <ContributionWizard
                     ref={wizard}
                     key={`${formGeneration}:${contributionPlaceId}`}
                     googlePlaceId={contributionPlaceId}
                     registered={actorStatus === 'user'}
                     online={online}
-                    submitting={submit.isPending || revalidating}
-                    blocked={notOpenYet || submit.isSuccess}
+                    submitting={(state.phase === 'submitting')}
+                    blocked={notOpenYet || accepted}
                     onBack={changeLink}
                     onFocus={revealFocused}
-                    onSubmit={(value) => {
-                      enrichment.current = value
-                      void onSubmitPlace(contributionPlaceId)
-                    }}
+                    onSubmit={() => { void onSubmitPlace() }}
                   />
                 ) : null}
+                {state.phase === 'retiring' ? <View>
+                  <Text accessibilityLiveRegion="polite">{t('placeWizard.lifecycle.submittedCleanupPending')}</Text>
+                  {state.cleanup?.changedVersion !== undefined ? <>
+                    <Text>{t('placeWizard.lifecycle.cleanupChanged')}</Text>
+                    <GhostBtn label={t('placeWizard.lifecycle.reviewCleanup')} disabled={!online}
+                      onPress={() => controller.reviewChangedCleanup()} />
+                    {state.replacement ? <>
+                      <Text>{t('placeWizard.lifecycle.cleanupVersion', { version: state.cleanup.changedVersion })}</Text>
+                      {state.cleanup.review ? <CleanupReview {...state.cleanup.review} /> : null}
+                      <GhostBtn label={t('placeWizard.lifecycle.deleteLatest')} disabled={!online}
+                        onPress={() => { void controller.deleteReviewedCleanup() }} />
+                    </> : null}
+                  </> : <GhostBtn label={t('placeWizard.lifecycle.retryCleanup')} disabled={!online}
+                    onPress={() => { void controller.retryCleanup() }} />}
+                  <GhostBtn label={t('placeResult.viewContributions')} onPress={() => router.replace('/me/contributions')} />
+                </View> : null}
                 {verified && notOpenYet ? <Text color="status.dangerText">{t('placeImport.notYetOpen')}</Text> : null}
 
-                {previewMatchesUrl && submit.isSuccess && submit.data?.placeId ? (
-                  <ExistingPlaceResult placeId={submit.data.placeId} onReset={reset} />
+                {previewMatchesUrl && state.message === 'alreadyExists' && state.result?.placeId ? (
+                  <ExistingPlaceResult placeId={state.result.placeId} onReset={reset} />
                 ) : null}
 
                 {result?.status === 'UNRESOLVED' ? (
@@ -597,17 +551,18 @@ export default function PlaceImportScreen() {
         visible={resultVisible}
         variant={outcome === 'success' ? 'success' : 'error'}
         title={t(outcome === 'success' ? 'placeResult.successTitle' : 'placeResult.errorTitle')}
-        body={outcome === 'success'
+        body={state.phase === 'retiring' ? t('placeWizard.lifecycle.submittedCleanupPending') : outcome === 'success'
           ? t('placeResult.successBody', { name: submittedPreview?.name ?? t('myContributions.unknownPlace') })
-          : t('placeResult.errorBody', { reason: t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') })}
+          : state.phase === 'submissionUnknown' ? t('placeWizard.lifecycle.submissionUnconfirmed')
+          : t('placeResult.errorBody', { reason: t(state.message === 'notYetOpen' ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') })}
         media={outcome === 'success' && resultVisible && submittedPreview ? (
           <PlaceCard variant="preview" compact preview={submittedPreview} />
         ) : undefined}
         note={outcome === 'success' ? t('placeResult.credit') : undefined}
-        primaryAction={{ label: t(outcome === 'success' ? 'placeResult.viewContributions' : 'common.retry'), onPress: outcome === 'success' ? viewContributions : () => closeResult(() => { if (contributionPlaceId) void onSubmitPlace(contributionPlaceId) }) }}
-        secondaryAction={{ label: t(outcome === 'success' ? 'placeResult.addAnother' : 'placeWizard.save'), onPress: outcome === 'success' ? () => closeResult(changeLink) : () => closeResult(() => wizard.current?.saveDraft()), disabled: outcome === 'error' && actorStatus !== 'user' }}
+        primaryAction={{ label: t(outcome === 'success' ? 'placeResult.viewContributions' : state.phase === 'submissionUnknown' ? 'placeWizard.lifecycle.checkContributions' : 'common.retry'), onPress: outcome === 'success' || state.phase === 'submissionUnknown' ? viewContributions : () => closeResult(() => { if (contributionPlaceId) void onSubmitPlace() }) }}
+        secondaryAction={{ label: t(state.phase === 'retiring' ? 'placeWizard.lifecycle.retryCleanup' : outcome === 'success' ? 'placeResult.addAnother' : 'placeWizard.save'), onPress: state.phase === 'retiring' ? () => closeResult(() => { void controller.retryCleanup() }) : outcome === 'success' ? () => closeResult(changeLink) : () => closeResult(() => wizard.current?.saveDraft()), disabled: (outcome === 'error' && actorStatus !== 'user') || state.phase === 'submissionUnknown' || (state.phase === 'retiring' && (!online || state.cleanup?.changedVersion !== undefined)) }}
         onClose={outcome === 'success' ? viewContributions : () => closeResult()}
-        onClosed={() => { const action = afterResultClose.current; afterResultClose.current = null; action?.() }}
+        onClosed={() => { const action = afterResultClose.current; afterResultClose.current = null; if (action && controller.current(action.ticket)) action.action() }}
       />
     </Atmosphere>
   )

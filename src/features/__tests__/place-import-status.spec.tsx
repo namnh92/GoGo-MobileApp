@@ -1,9 +1,10 @@
+import { completeWizard } from './contribution-fixtures'
 import { fireEvent, screen } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 
 const mockSubmissionId = jest.fn()
 const mockSubmit = { data: {} as Record<string, unknown>, isSuccess: true, reset: jest.fn() }
-const mockResolve = { data: { status: 'RESOLVED', candidate: { googlePlaceId: 'google', name: 'Quán' } }, mutate: jest.fn(), reset: jest.fn() }
+const mockResolve = { data: { status: 'RESOLVED', candidate: { googlePlaceId: 'google', name: 'Quán' } }, mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }), reset: jest.fn() }
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn() }), useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
@@ -17,6 +18,7 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useResolveGoogleMapsLink: () => mockResolve,
   useSubmitPlace: () => mockSubmit,
+  submitPlace: async () => mockSubmit.data,
   usePlaceSubmission: (id: string | undefined) => { mockSubmissionId(id); return {} },
   ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
@@ -26,6 +28,8 @@ async function open() {
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/A')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  await completeWizard()
+  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
 }
 beforeEach(() => { mockSubmissionId.mockClear(); mockSubmit.data = { status: 'PENDING', submissionId: 's' } })
 
