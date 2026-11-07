@@ -4,6 +4,7 @@ import { renderScreen } from './harness'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import type { ContributionDraft } from '@/features/place-import/contribution-form'
 import i18n from '@/shared/i18n'
+import { beginSessionEnd, clearSession, persistSession, type Session } from '@/shared/api/session'
 const mockRead = jest.fn()
 const mockSave = jest.fn()
 const mockRemove = jest.fn()
@@ -103,4 +104,74 @@ it('M01 valid menu/bill round trip replaces server snapshot/version without merg
   await resume(); mockSave.mockImplementationOnce(({ id, body }) => Promise.resolve({ ...mockDraft, id, version: 4, enrichment: body.enrichment }))
   await fireEvent.press(button('Lưu nháp')); expect(mockSave.mock.calls[0][0].body.enrichment).toEqual(mockDraft.enrichment)
   await fireEvent.press(button('Gửi địa điểm cho GoGo')); expect(mockPost.mock.calls[0][0].enrichment).toEqual(mockDraft.enrichment)
+})
+
+const accountA: Session = { kind: 'user', userId: 'A', accessToken: 'A', expiresAt: Date.now() + 600_000 }
+it.each(['logout', 'switch', 'A-B-A', 'expiry', 'guest-user'] as const)('T13 %s blanks the mounted wizard, preview, result and form', async transition => {
+  await persistSession(transition === 'guest-user' ? { kind: 'guest', roomId: 'room-A', accessToken: 'guest', expiresAt: accountA.expiresAt } : accountA)
+  await resume()
+  expect(screen.getByRole('button', { name: 'Xoá ảnh hoá đơn' })).toBeTruthy()
+  if (transition === 'expiry') {
+    mockPost.mockRejectedValueOnce(new NetworkError())
+    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    expect(screen.getByTestId('result-sheet')).toBeTruthy()
+  }
+  await act(async () => {
+    if (transition === 'logout') beginSessionEnd()
+    else if (transition === 'expiry') await clearSession()
+    else {
+      await persistSession({ ...accountA, userId: 'B', accessToken: 'B' })
+      if (transition === 'A-B-A') await persistSession(accountA)
+    }
+  })
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  expect(screen.queryByTestId('contribution-wizard')).toBeNull()
+  expect(screen.queryByTestId('result-sheet')).toBeNull()
+  expect(screen.queryByText('keep')).toBeNull()
+  // Resolve the same place in the new session: no prior step, bill ids or form fields.
+  mockList.mockResolvedValue({ items: [] })
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), 'https://maps.app.goo.gl/B')
+  await fireEvent.press(button('Tiếp tục trích xuất thông tin'))
+  expect(screen.getByTestId('contribution-wizard')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Xoá ảnh hoá đơn' })).toBeNull()
+  expect(screen.queryByDisplayValue('keep')).toBeNull()
+  await screen.unmount()
+  await clearSession()
+})
+
+it('T13 clears the draft expiry timer synchronously when logout starts', async () => {
+  await persistSession(accountA)
+  const schedule = jest.spyOn(globalThis, 'setTimeout')
+  const cancel = jest.spyOn(globalThis, 'clearTimeout')
+  try {
+    await resume()
+    const index = schedule.mock.calls.findIndex(([, delay]) => delay === 2_147_483_647)
+    expect(index).toBeGreaterThanOrEqual(0)
+    const timer = schedule.mock.results[index].value
+    await act(async () => {
+      beginSessionEnd()
+      // Before React runs the reset's effect cleanup.
+      expect(cancel).toHaveBeenCalledWith(timer)
+    })
+  } finally {
+    await screen.unmount()
+    schedule.mockRestore(); cancel.mockRestore()
+    await clearSession()
+  }
+})
+
+it('T13 ignores late resolve callbacks and remounts local validation state', async () => {
+  await persistSession(accountA)
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), 'not a link')
+  await fireEvent.press(button('Tiếp tục trích xuất thông tin'))
+  let success!: (value: typeof mockResolution) => void
+  mockResolve.mutate.mockImplementationOnce((_body, callbacks) => { success = callbacks.onSuccess })
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), 'https://maps.app.goo.gl/A')
+  await fireEvent.press(button('Tiếp tục trích xuất thông tin'))
+  await act(async () => { await persistSession({ ...accountA, userId: 'B', accessToken: 'B' }); success(mockResolution) })
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  expect(screen.queryByTestId('contribution-wizard')).toBeNull()
+  await screen.unmount()
+  await clearSession()
 })

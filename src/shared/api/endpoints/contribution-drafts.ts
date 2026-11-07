@@ -8,7 +8,7 @@ export const getContributionDraft = (id: string) =>
 export const saveContributionDraft = (id: string, body: OpBody<'savePlaceContributionDraft'>) =>
   api.put<OpResponse<'savePlaceContributionDraft'>>('/place-contribution-drafts/{id}', body, { pathParams: { id } })
 export const deleteContributionDraft = (id: string, version: number) =>
-  api.delete<OpResponse<'deletePlaceContributionDraft'>>('/place-contribution-drafts/{id}', {
+  api.delete<OpResponse<'deletePlaceContributionDraft'>>('/place-contribution-drafts/{id}', undefined, {
     pathParams: { id },
     query: { version },
   })

@@ -21,7 +21,7 @@ describe('#518 private draft transport', () => {
     expect(api.get).toHaveBeenNthCalledWith(1, '/place-contribution-drafts')
     expect(api.get).toHaveBeenNthCalledWith(2, '/place-contribution-drafts/{id}', { pathParams: { id: 'draft-id' } })
     expect(api.put).toHaveBeenCalledWith('/place-contribution-drafts/{id}', body, { pathParams: { id: 'draft-id' } })
-    expect(api.delete).toHaveBeenCalledWith('/place-contribution-drafts/{id}', {
+    expect(api.delete).toHaveBeenCalledWith('/place-contribution-drafts/{id}', undefined, {
       pathParams: { id: 'draft-id' },
       query: { version: 2 },
     })

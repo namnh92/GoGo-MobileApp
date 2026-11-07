@@ -1,5 +1,6 @@
 import type { AnalyticsEvent } from '@/shared/analytics'
 import { isApiError } from '@/shared/api/errors'
+import { getSessionGeneration, subscribeToSession } from '@/shared/api/session'
 import type { OpBody, OpResponse, ResolveLinkResult } from '@/shared/api'
 import { draftEnrichment, emptyContribution, priceValid, resumeContribution, submissionEnrichment, type ContributionDraft, type ContributionForm, type EnrichmentDraft } from './contribution-form'
 
@@ -99,7 +100,7 @@ function install(s: ImportFlowState, draft: ContributionDraft, message: FlowMess
 }
 type Action =
   | { type: 'PATCH'; value: Partial<ImportFlowState> }
-  | { type: 'RESET_FLOW'; link?: string }
+  | { type: 'RESET_FLOW'; link?: string; sessionEpoch?: number }
   | { type: 'DETACH_ACTIVE'; reason: FlowMessage }
   | { type: 'EDIT'; value: Partial<ContributionForm> }
   | { type: 'MEDIA'; media: Media }
@@ -111,7 +112,7 @@ type Action =
 export function importFlowReducer(s: ImportFlowState, action: Action): ImportFlowState {
   switch (action.type) {
     case 'PATCH': return { ...s, ...action.value }
-    case 'RESET_FLOW': return { ...initialImportFlow(s.flowGeneration + 1, s.sessionEpoch), link: action.link ?? '' }
+    case 'RESET_FLOW': return { ...initialImportFlow(s.flowGeneration + 1, action.sessionEpoch ?? s.sessionEpoch), link: action.link ?? '' }
     case 'DETACH_ACTIVE': return detach(s, action.reason)
     case 'EDIT': {
       if (foregroundBusy(s) || ['submissionUnknown', 'retiring', 'completed'].includes(s.phase)) return s
@@ -137,10 +138,11 @@ export function importFlowReducer(s: ImportFlowState, action: Action): ImportFlo
 interface Ticket { sessionEpoch: number; flowGeneration: number; operationId: number; targetDraftId: string | null }
 /** Reducer + guarded effects; scoped to the mounted import flow, never persisted. */
 export class ImportFlowController {
-  private state = initialImportFlow()
+  private state = initialImportFlow(0, getSessionGeneration())
   private listeners = new Set<() => void>()
   private alive = true
   private cleanupRunning = false
+  private unsubscribeSession: (() => void) | null = null
   online = true
   registered = false
   constructor(public dependencies: FlowDependencies) {}
@@ -152,14 +154,28 @@ export class ImportFlowController {
     this.listeners.forEach(listener => listener())
   }
   configure(online: boolean, registered: boolean) { this.online = online; this.registered = registered }
-  mount = () => { this.alive = true }
-  dispose = () => { this.alive = false }
+  private syncSession = () => {
+    const sessionEpoch = getSessionGeneration()
+    if (sessionEpoch === this.state.sessionEpoch) return
+    this.cleanupRunning = false
+    this.dispatch({ type: 'RESET_FLOW', sessionEpoch })
+  }
+  mount = () => {
+    this.alive = true
+    this.unsubscribeSession ??= subscribeToSession(this.syncSession)
+    this.syncSession()
+  }
+  dispose = () => {
+    this.alive = false
+    this.unsubscribeSession?.()
+    this.unsubscribeSession = null
+  }
   private patch(value: Partial<ImportFlowState>) { this.dispatch({ type: 'PATCH', value }) }
   capture(targetDraftId: string | null = this.state.targetDraftId): Ticket {
     const { sessionEpoch, flowGeneration, operationId } = this.state
     return { sessionEpoch, flowGeneration, operationId, targetDraftId }
   }
-  current = (ticket: Ticket) => this.alive && ticket.sessionEpoch === this.state.sessionEpoch &&
+  current = (ticket: Ticket) => this.alive && ticket.sessionEpoch === getSessionGeneration() && ticket.sessionEpoch === this.state.sessionEpoch &&
     ticket.flowGeneration === this.state.flowGeneration && ticket.operationId === this.state.operationId && ticket.targetDraftId === this.state.targetDraftId
   private begin(phase: Phase, targetDraftId: string | null = null): Ticket | null {
     if (!this.online || foregroundBusy(this.state)) return null
@@ -378,7 +394,7 @@ export class ImportFlowController {
     const { sessionEpoch, flowGeneration, mutationRevision } = this.state
     const sequence = this.state.listSequence + 1
     this.patch({ listSequence: sequence, listLoading: true })
-    const current = () => this.alive && sessionEpoch === this.state.sessionEpoch && flowGeneration === this.state.flowGeneration &&
+    const current = () => this.alive && sessionEpoch === getSessionGeneration() && sessionEpoch === this.state.sessionEpoch && flowGeneration === this.state.flowGeneration &&
       mutationRevision === this.state.mutationRevision && sequence === this.state.listSequence
     try {
       const result = await this.dependencies.list()
