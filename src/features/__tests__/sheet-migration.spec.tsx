@@ -3,6 +3,7 @@ import { AccessibilityInfo, DeviceEventEmitter, StyleSheet } from 'react-native'
 
 import { loaded as mockLoaded, renderScreen as renderBare } from './harness'
 import { scriptedTime } from './scripted-time'
+import { motion } from '@/shared/ui/tokens'
 
 /**
  * GoGo-MobileApp#381 — the hand-written `<Modal transparent>` sheets on the
@@ -24,6 +25,11 @@ const mockSearchData = { pages: [{ results: [] }] }
 jest.mock('@/shared/location/use-discovery-scope', () => ({
   ...jest.requireActual('@/shared/location/use-discovery-scope'),
   useDiscoveryScope: () => ({ scope: { status: 'ready', source: 'none', reason: 'no_area' }, recheck: jest.fn() }),
+}))
+jest.mock('@/shared/administrative/queries', () => ({
+  ...jest.requireActual('@/shared/administrative/queries'),
+  useAdministrativeVersion: () => mockLoaded({ datasetVersion: 'ds-2026' }),
+  useAdministrativeUnits: () => mockLoaded([]),
 }))
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
@@ -152,6 +158,31 @@ describe('search filters sheet', () => {
     const title = view.getByText('Áp dụng bộ lọc')
     expect(modalOf(title).props.animationType).not.toBe('slide')
     expect(translatedY(title)).toEqual([])
+  })
+
+  it('R12 keeps the filter sheet through its exit and dismisses after the motion token', async () => {
+    await withReducedMotion(false)
+    const view = await openFilters()
+    await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+    await press(view.getByRole('button', { name: 'Đóng' }))
+    expect(view.queryByText('Áp dụng bộ lọc')).toBeNull()
+    expect(view.getByText('Áp dụng bộ lọc', { includeHiddenElements: true })).toBeTruthy()
+    await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+    expect(view.queryByText('Áp dụng bộ lọc', { includeHiddenElements: true })).toBeNull()
+  })
+
+  it('R12 keeps the Search area picker mounted until its close-button exit completes', async () => {
+    await withReducedMotion(false)
+    const view = await renderScreen(<SearchScreen />)
+    await press(view.getByRole('button', { name: 'Chọn khu vực' }))
+    expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+    await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+    // The header close button and the backdrop share the accessible name.
+    await press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: 'Đóng' }))
+    expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
+    expect(view.getByTestId('discovery-location-sheet', { includeHiddenElements: true })).toBeTruthy()
+    await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+    expect(view.queryByTestId('discovery-location-sheet', { includeHiddenElements: true })).toBeNull()
   })
 })
 

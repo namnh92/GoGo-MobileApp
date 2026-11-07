@@ -79,6 +79,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "discovery.list": "List",
   "discovery.map": "Map",
   "discovery.openPlace": "View place",
+  "discovery.expandMap": "Expand map",
+  "discovery.collapseMap": "Return to search",
   "discovery.mapFallback": "Map unavailable. View the places in the list below.",
   "discovery.mapLoaded": "The map shows places already loaded in the list.",
   "discovery.contributeTitle": "Can't find a familiar place?",

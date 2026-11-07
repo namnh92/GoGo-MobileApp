@@ -33,6 +33,7 @@ import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn, Toast } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon } from '@/shared/ui/icons'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { hitSlop, spacing } from '@/shared/ui/tokens'
 
@@ -466,8 +467,8 @@ export default function DatePlanScreen() {
                     </View>
                     <View pointerEvents="none" style={styles.stopHeroBottom}>
                       <Text variant="title1" color="text.inverse" numberOfLines={1}>{name}</Text>
-                      {place?.addressText ? (
-                        <Text variant="bodySmall" color="text.inverse" numberOfLines={1}>{place.addressText}</Text>
+                      {place ? (
+                        <PlaceAddressText place={place} variant="bodySmall" color="text.inverse" numberOfLines={1} />
                       ) : null}
                     </View>
                   </View>

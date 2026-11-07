@@ -1,6 +1,8 @@
-import { Component, useEffect, useState, type ReactNode } from 'react'
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode, type RefAttributes } from 'react'
 import { Platform, UIManager, View } from 'react-native'
-import { styles } from './map-canvas.style'
+import { useUnistyles } from 'react-native-unistyles'
+import { googleMapStyle, styles } from './map-canvas.style'
+import { Text } from './text'
 
 import { isGoogleMapsConfigured } from '../../../modules/map-capability'
 
@@ -29,13 +31,22 @@ export interface MapCanvasProps {
   fallback?: ReactNode
   /** Detail previews leave gestures to the surrounding scroll view. */
   interactive?: boolean
+  /** Only user gestures trigger viewport exploration. */
+  onRegionChangeComplete?: (region: NonNullable<ReturnType<typeof regionForPins>>) => void
   /** Recenter when a discovery scope changes; other maps retain their camera behaviour. */
   cameraRegion?: NonNullable<ReturnType<typeof regionForPins>> | null
+  /** Changes only for an intentional recenter, never for viewport exploration. */
+  cameraScopeKey?: string
+}
+
+interface MapHandle {
+  animateToRegion: (region: NonNullable<ReturnType<typeof regionForPins>>, duration: number) => void
 }
 
 interface MapsModule {
-  default: React.ComponentType<Record<string, unknown>>
+  default: React.ComponentType<Record<string, unknown> & RefAttributes<MapHandle>>
   Marker: React.ComponentType<Record<string, unknown>>
+  Callout: React.ComponentType<Record<string, unknown>>
   PROVIDER_DEFAULT: unknown
   PROVIDER_GOOGLE: unknown
 }
@@ -75,7 +86,12 @@ class MapBoundary extends Component<{ children: ReactNode; fallback: ReactNode }
   render() { return this.state.failed ? this.props.fallback : this.props.children }
 }
 
-export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, style, fallback, interactive = true, cameraRegion }: MapCanvasProps) {
+export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, style, fallback, interactive = true, cameraRegion, cameraScopeKey, onRegionChangeComplete }: MapCanvasProps) {
+  const { theme } = useUnistyles()
+  const customMapStyle = useMemo(
+    () => theme.mode === 'dark' ? googleMapStyle(theme.map) : [],
+    [theme.mode, theme.map],
+  )
   const maps = loadMaps()
   const region = cameraRegion ?? regionForPins(pins)
   // What the installed binary linked cannot change while it is running, but
@@ -83,10 +99,21 @@ export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, s
   // every pin tap. Read the binary once per mount, not once per render.
   const [mapsLinked] = useState(googleMapsLinked)
 
+  const mapRef = useRef<MapHandle | null>(null)
+  const cameraTarget = cameraRegion ?? (interactive ? null : region)
+  const cameraKey = cameraScopeKey ?? JSON.stringify(cameraTarget)
+  const appliedCameraKey = useRef(cameraKey)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [providerFailed, setProviderFailed] = useState(false)
   const canMount = !!maps && !!region && mapsLinked
   const hasFallback = fallback != null
+  useEffect(() => {
+    if (!mapLoaded || !cameraTarget || appliedCameraKey.current === cameraKey) return
+    appliedCameraKey.current = cameraKey
+    // Keep native gestures in charge between explicit scope/recenter changes.
+    // An instant move also respects reduced motion.
+    mapRef.current?.animateToRegion(cameraTarget, 0)
+  }, [cameraKey, cameraTarget, mapLoaded])
   // Google exposes no tile-error event. A provider that never finishes loading
   // must still yield the list, rather than leave an indefinitely blank map.
   useEffect(() => {
@@ -99,15 +126,25 @@ export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, s
 
   const MapView = maps.default
   const Marker = maps.Marker
+  const Callout = maps.Callout
 
   return (
     <MapBoundary fallback={unavailable}>
       <MapView
-        style={style}
+        ref={mapRef}
+        style={[styles.canvas, style]}
+        customMapStyle={customMapStyle}
+        userInterfaceStyle={theme.mode}
+        loadingEnabled
+        loadingBackgroundColor={theme.map.canvas}
+        loadingIndicatorColor={theme.text.secondary}
         initialRegion={region}
-        // Controlled region updates move the native camera without animation on
-        // both Google adapters, including while reduced motion is enabled.
-        region={cameraRegion ?? (interactive ? undefined : region)}
+        onRegionChangeComplete={interactive ? (next: NonNullable<ReturnType<typeof regionForPins>>, details: { isGesture?: boolean } = {}) => {
+          // Both supported adapters use Google, which reports isGesture. Native
+          // camera/layout updates must never launch another search.
+          if (details.isGesture !== true) return
+          onRegionChangeComplete?.(next)
+        } : undefined}
         pointerEvents={interactive ? 'auto' : 'none'}
         scrollEnabled={interactive}
         zoomEnabled={interactive}
@@ -137,6 +174,11 @@ export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, s
             tracksViewChanges={false}
           >
             {pin.content}
+            <Callout tooltip>
+              <View style={styles.callout}>
+                <Text variant="bodySmall" color="text.primary">{pin.title}</Text>
+              </View>
+            </Callout>
           </Marker>
         ))}
       </MapView>

@@ -1,13 +1,14 @@
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
+import { useUnreadInbox } from '@/features/notifications/unread-count'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useUnistyles } from 'react-native-unistyles'
 import { QuickJoin } from './quick-join.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -94,6 +95,25 @@ export default function HomeScreen() {
     { enabled: scope.status === 'ready' },
   )
 
+  const unread = useUnreadInbox()
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshInFlight = useRef(false)
+  async function refreshHome() {
+    if (refreshInFlight.current) return
+    refreshInFlight.current = true
+    setRefreshing(true)
+    try {
+      await Promise.allSettled([
+        ...(scope.status === 'ready' ? [search.refetch()] : []),
+        ...(status === 'user' || status === 'guest' ? [nearest.refetch()] : []),
+        ...(status === 'user' ? [unread.refetch()] : []),
+      ])
+    } finally {
+      refreshInFlight.current = false
+      setRefreshing(false)
+    }
+  }
+
   // What the server says scoped the page, not what was asked: an older server
   // ignores area parameters and reports nothing, and then nothing is claimed.
   const served = search.data?.pages[0]?.meta?.location
@@ -160,6 +180,7 @@ export default function HomeScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         testID="home-list"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshHome()} tintColor={theme.redesign.primaryText} colors={[theme.redesign.primaryText]} />}
         keyboardShouldPersistTaps="handled"
         onTouchStart={() => Keyboard.dismiss()}
         onScroll={fab.onScroll}
@@ -315,7 +336,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
-      {locationOpen ? <DiscoveryLocationSheet onClose={() => setLocationOpen(false)} onApplied={() => { void recheck() }} /> : null}
+      <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => { void recheck() }} />
     </Atmosphere>
   )
 }

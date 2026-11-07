@@ -33,6 +33,7 @@ import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Atmosphere, BackHeader, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -405,7 +406,7 @@ export default function ActiveDateScreen() {
             <View style={styles.titleRow}>
               <View style={styles.titleText}>
                 <Text variant="title1">{placeName}</Text>
-                {address ? <Text color="text.secondary" style={styles.area}>{address}</Text> : null}
+                <PlaceAddressText place={stopPlace} color="text.secondary" style={styles.area} />
               </View>
               <Pressable
                 accessibilityRole="button"

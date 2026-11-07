@@ -15,6 +15,7 @@ const mockRetryScope = jest.fn()
 const mockAddSeed = jest.fn()
 let mockSessionStatus = 'user'
 let mockRealSearch = false
+let mockRegionSearch: Record<string, unknown> | null = null
 let mockParams: Record<string, string> = {}
 let mockScope: DiscoveryScope = { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } }
 const mockQueries: Record<string, unknown>[] = []
@@ -75,7 +76,7 @@ jest.mock('@/shared/api', () => ({
   useAddRoomSeedPlaces: () => ({ mutate: mockAddSeed }),
   useTaxonomies: () =>
     mockLoaded({ kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }], ...mockKinds } }),
-  usePlaceSearch: (query: Record<string, unknown>, options?: { enabled?: boolean }) => { if (query.limit !== 2) mockQueries.push(query); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').usePlaceSearch(query, options) : query.limit === 2 ? mockNearby.value : mockSearch.value },
+  usePlaceSearch: (query: Record<string, unknown>, options?: { enabled?: boolean }) => { if (query.limit !== 2) mockQueries.push(query); return mockRealSearch ? jest.requireActual('@/shared/api/queries/use-places').usePlaceSearch(query, options) : query.limit === 2 ? mockNearby.value : query.radiusM && mockRegionSearch ? mockRegionSearch : mockSearch.value },
 }))
 
 import HomeScreen from '@/features/home/home.view'
@@ -83,6 +84,7 @@ import SearchScreen from '@/features/search/search.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { createQueryClient } from '@/shared/api/query-client'
+import { NetworkError } from '@/shared/api/errors'
 import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
 
 function emptyPage() {
@@ -105,6 +107,7 @@ scriptedTime()
 beforeEach(() => {
   mockUnread = { count: 0, more: false }
   mockRealSearch = false
+  mockRegionSearch = null
   mockMapUnavailable = false
   mockSessionStatus = 'user'
   mockKinds = {}
@@ -865,7 +868,7 @@ describe('#515 refreshed Stitch Home', () => {
     const view = await renderScreen(<HomeScreen />)
     const [full, sparse] = view.getAllByTestId('place-card-discovery').map(card => within(card))
     expect(full.getByText('Xác minh')).toBeTruthy()
-    expect(full.getByText('2,1 km • Quận 1')).toBeTruthy()
+    expect(full.queryByTestId('place-card-area-badge')).toBeNull()
     expect(full.getByText('● Mở đến 20:00')).toBeTruthy()
     expect(full.getByText('45k–90k/người')).toBeTruthy()
     expect(full.getByText('12 Nguyễn Huệ').props.numberOfLines).toBe(2)
@@ -1055,8 +1058,7 @@ describe('#515 Astra F-12..F-14', () => {
       await waitFor(() => expect(view.getByText('Map page 1')).toBeTruthy())
       await fireEvent.press(view.getByText(i18n.t('discovery.map')))
       expect(view.queryByTestId('search-results')).toBeNull()
-      expect(fetch).toHaveBeenCalledTimes(1)
-      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.more') }))
+      expect(view.queryByRole('button', { name: i18n.t('discovery.more') })).toBeNull()
       await waitFor(() => expect(view.getByRole('button', { name: i18n.t('common.retry') })).toBeTruthy())
       expect(within(view.getByTestId('discovery-native-map')).getByLabelText('Map page 1')).toBeTruthy()
       expect(fetch).toHaveBeenCalledTimes(2)
@@ -1066,7 +1068,6 @@ describe('#515 Astra F-12..F-14', () => {
       expect(view.queryByRole('button', { name: i18n.t('discovery.more') })).toBeNull()
       await act(async () => { resolveSecond!(page(2)) })
       await waitFor(() => expect(view.getByLabelText('Map page 2')).toBeTruthy())
-      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.more') }))
       await waitFor(() => expect(view.getByLabelText('Map page 3')).toBeTruthy())
       for (const index of [1, 2, 3]) expect(within(view.getByTestId('discovery-native-map')).getByLabelText(`Map page ${index}`)).toBeTruthy()
       expect(view.queryByRole('button', { name: i18n.t('discovery.more') })).toBeNull()
@@ -1091,4 +1092,173 @@ describe('#515 Astra F-12..F-14', () => {
       notifyManager.setScheduler(callback => setTimeout(callback, 0))
     }
   })
+})
+
+it('drains map pages only while active, once per cursor, and resets for a changed query', async () => {
+  const fetchNextPage = jest.fn()
+  let sequence = 0
+  const page = (cursor: string) => ({ results: [{ id: `pin-${++sequence}`, name: 'Pin', lat: 21, lng: 105, isLodging: false }], nextCursor: cursor })
+  mockSearch.value = { ...emptyPage(), fetchNextPage, hasNextPage: true, data: { pages: [page('next')] } }
+  const view = await renderScreen(<SearchScreen />)
+  expect(fetchNextPage).not.toHaveBeenCalled()
+  await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+  expect(fetchNextPage).toHaveBeenCalledTimes(1)
+  expect(fetchNextPage).toHaveBeenLastCalledWith({ cancelRefetch: false })
+  await view.rerender(<SearchScreen />)
+  expect(fetchNextPage).toHaveBeenCalledTimes(1)
+  await fireEvent.press(view.getByText(i18n.t('discovery.list')))
+  mockSearch.value = { ...mockSearch.value, data: { pages: [page('next'), page('next-2')] } }
+  await view.rerender(<SearchScreen />)
+  expect(fetchNextPage).toHaveBeenCalledTimes(1)
+  await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+  expect(fetchNextPage).toHaveBeenCalledTimes(2)
+  // A malformed server cursor must not start a background request loop.
+  mockSearch.value = { ...mockSearch.value, data: { pages: [page('next'), page('next-2'), page('next')] } }
+  await view.rerender(<SearchScreen />)
+  expect(fetchNextPage).toHaveBeenCalledTimes(2)
+  await fireEvent.changeText(view.getByLabelText('Tìm địa điểm'), 'coffee')
+  expect(fetchNextPage).toHaveBeenCalledTimes(2)
+  await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+  expect(fetchNextPage).toHaveBeenCalledTimes(3)
+})
+
+it('expands on an upward header swipe, hides header/filters, and returns by control, back and downward swipe', async () => {
+  mockSearch.value = mapPages()
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+  async function swipe(from: number, to: number) {
+    await fireEvent(view.getByTestId('search-map-expand-handle'), 'touchStart', { nativeEvent: { pageX: 100, pageY: from } })
+    await fireEvent(view.getByTestId('search-map-expand-handle'), 'touchEnd', { nativeEvent: { pageX: 100, pageY: to } })
+  }
+  await swipe(300, 100)
+  expect(view.getByTestId('search-map-fullscreen')).toBeTruthy()
+  expect(view.queryByTestId('search-header')).toBeNull()
+  expect(view.queryByLabelText(i18n.t('search.filters'))).toBeNull()
+  await fireEvent.press(view.getByText(i18n.t('discovery.collapseMap')))
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  expect(view.getByTestId('search-header')).toBeTruthy()
+  await fireEvent.press(view.getByText(i18n.t('discovery.expandMap')))
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  await fireEvent(view.getByTestId('search-map-modal'), 'requestClose')
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  expect(view.getByTestId('search-header')).toBeTruthy()
+  await swipe(300, 100)
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  await swipe(100, 300)
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  expect(view.getByTestId('search-header')).toBeTruthy()
+  await fireEvent.press(view.getByText(i18n.t('discovery.expandMap')))
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  await fireEvent(view.getByTestId('discovery-native-map'), 'onOpen', 'second')
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  expect(view.queryByTestId('search-map-fullscreen')).toBeNull()
+  expect(mockPush).toHaveBeenLastCalledWith('/places/second')
+})
+
+it.each([
+  { isPending: true, isSuccess: false },
+  { isPaused: true },
+  { isError: true, isSuccess: false, error: new Error('Search failed') },
+  { data: emptyPage().data },
+])('resets map expansion across unavailable or empty results (%j)', async state => {
+  mockSearch.value = mapPages()
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+  await fireEvent.press(view.getByText(i18n.t('discovery.expandMap')))
+  expect(view.getByTestId('search-map-fullscreen')).toBeTruthy()
+
+  mockSearch.value = { ...mapPages(), ...state }
+  await view.rerender(<SearchScreen />)
+  expect(view.queryByTestId('search-map-fullscreen')).toBeNull()
+  expect(view.getByTestId('search-header')).toBeTruthy()
+
+  mockSearch.value = mapPages()
+  await view.rerender(<SearchScreen />)
+  expect(view.getByTestId('search-map')).toBeTruthy()
+  expect(view.queryByTestId('search-map-fullscreen')).toBeNull()
+  expect(view.getByTestId('search-header')).toBeTruthy()
+})
+
+it.each([
+  { isError: true, isPending: false, error: new Error('Viewport failed'), message: 'common.errorTitle' },
+  { isError: true, isPending: false, error: new NetworkError(), message: 'common.offlineTitle' },
+  { isPaused: true, isPending: true, error: null, message: 'common.offlineTitle' },
+])('retains map markers with viewport feedback and the correct retry (%j)', async ({ message, ...state }) => {
+  mockSearch.value = mapPages()
+  const refetch = jest.fn()
+  const fetchNextPage = jest.fn()
+  mockRegionSearch = { ...emptyPage(), data: undefined, isSuccess: false, ...state, refetch, fetchNextPage }
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+  await fireEvent.press(view.getByText(i18n.t('discovery.expandMap')))
+  await act(async () => { await jest.advanceTimersByTimeAsync(240) })
+  await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', { latitude: 10, longitude: 106, latitudeDelta: 0.02, longitudeDelta: 0.02 })
+  await act(async () => { await jest.advanceTimersByTimeAsync(400) })
+  expect(view.getByTestId('search-map-fullscreen')).toBeTruthy()
+  for (const place of mapPlaces) expect(view.getByLabelText(place.name)).toBeTruthy()
+  expect(view.getByText(i18n.t(message))).toBeTruthy()
+  const retry = view.queryByRole('button', { name: i18n.t('common.retry') })
+  if (state.isPaused) expect(retry).toBeNull()
+  else {
+    await fireEvent.press(retry!)
+    expect(refetch).toHaveBeenCalledTimes(1)
+    mockRegionSearch = { ...mockRegionSearch, isFetching: true }
+    await view.rerender(<SearchScreen />)
+    expect(view.queryByRole('button', { name: i18n.t('common.retry') })).toBeNull()
+  }
+  expect(fetchNextPage).not.toHaveBeenCalled()
+  expect(mockSearch.value.refetch).not.toHaveBeenCalled()
+  mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [], meta: {} }] } }
+  await view.rerender(<SearchScreen />)
+  expect(view.queryByText(i18n.t(message))).toBeNull()
+  for (const place of mapPlaces) expect(view.getByLabelText(place.name)).toBeTruthy()
+})
+
+it('debounces visible-region search, keeps filters/keyword and header area, merges markers and preserves selection', async () => {
+  mockParams = { q: 'tea', moods: 'cozy' }
+  mockScope = { status: 'ready', source: 'selected_area', area: { datasetVersion: 'ds', provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null } }
+  mockSearch.value = mapPages()
+  mockSearch.value.data = { pages: [{ results: mapPlaces, meta: { location: { source: 'administrative_area', area: { provinceName: 'Hà Nội' } } } }] }
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+  const cameraScopeKey = view.getByTestId('discovery-native-map').props.cameraScopeKey
+  expect(cameraScopeKey).toEqual(expect.any(String))
+  await fireEvent.press(view.getByLabelText('Top place'))
+  mockRegionSearch = { ...emptyPage(), data: undefined, isSuccess: false, isPending: true, isFetching: true }
+  const region = { latitude: 10, longitude: 106, latitudeDelta: 0.02, longitudeDelta: 0.02 }
+  await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', { ...region, latitude: 11 })
+  await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+  await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', region)
+  await act(async () => { await jest.advanceTimersByTimeAsync(399) })
+  expect(mockQueries.some(query => query.radiusM !== undefined)).toBe(false)
+  await act(async () => { await jest.advanceTimersByTimeAsync(1) })
+  expect(view.getByTestId('discovery-native-map').props.cameraScopeKey).toBe(cameraScopeKey)
+  expect(mockQueries.at(-1)).toMatchObject({ lat: 10, lng: 106, q: 'tea', moods: 'cozy' })
+  expect(mockQueries.at(-1)?.radiusM).toBeGreaterThan(1500)
+  for (const key of ['datasetVersion', 'provinceCode', 'communeCode']) expect(mockQueries.at(-1)).not.toHaveProperty(key)
+  expect(view.getByTestId('search-loading-more')).toBeTruthy()
+  expect(view.getByText('Hà Nội')).toBeTruthy()
+  expect(view.getByText(i18n.t('discovery.openPlace'))).toBeTruthy()
+  const newPlace = { ...mapPlaces[0], id: 'new', name: 'Visible place', lat: 10, lng: 106 }
+  mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [newPlace, mapPlaces[0]], meta: { location: { source: 'position' } } }] } }
+  await view.rerender(<SearchScreen />)
+  for (const title of ['Top place', 'Second place', 'Visible place']) expect(view.getAllByLabelText(title)).toHaveLength(1)
+  expect(view.getByText(i18n.t('discovery.openPlace'))).toBeTruthy()
+  expect(view.getByText('Hà Nội')).toBeTruthy()
+  expect(useDiscoveryAreaStore.getState().area).toBeNull()
+  await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', { ...region, latitudeDelta: 90, longitudeDelta: 180 })
+  await act(async () => { await jest.advanceTimersByTimeAsync(400) })
+  expect(mockQueries.at(-1)?.radiusM).toBe(100000)
+  mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [], meta: {} }] } }
+  await view.rerender(<SearchScreen />)
+  expect(view.getByLabelText('Visible place')).toBeTruthy()
+  await fireEvent.press(view.getByText(i18n.t('discovery.openPlace')))
+  expect(mockPush).toHaveBeenLastCalledWith('/places/top')
+  await fireEvent.changeText(view.getByLabelText(i18n.t('search.title')), 'coffee')
+  await act(async () => { await jest.advanceTimersByTimeAsync(300) })
+  expect(view.getByTestId('discovery-native-map').props.cameraScopeKey).not.toBe(cameraScopeKey)
+  expect(mockQueries.at(-1)).toMatchObject({ q: 'coffee', provinceCode: '01' })
+  expect(mockQueries.at(-1)).not.toHaveProperty('radiusM')
+  expect(view.queryByLabelText('Visible place')).toBeNull()
+  expect(view.queryByText(i18n.t('discovery.openPlace'))).toBeNull()
 })

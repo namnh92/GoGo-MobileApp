@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Keyboard,
@@ -12,7 +12,7 @@ import {
   type DimensionValue,
 } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -66,9 +66,9 @@ const FOCUS_MARGIN = spacing[4]
  * up with the panel, ignored reduced motion, left the backdrop unnamed and let
  * the keyboard cover their inputs.
  *
- * - Motion: the panel rises over `motion.slow` (320 ms) while the backdrop
- *   fades in. With `Giảm chuyển động` on — or before the OS has answered — it
- *   is simply there: no slide, no fade.
+ * - Motion: the panel rises over `motion.standard` (240 ms) while the backdrop
+ *   fades in. Wait for the OS preference before presenting the first frame;
+ *   with `Giảm chuyển động` on it is simply there: no slide, no fade.
  * - Keyboard: a `KeyboardAvoidingView` (React Native's own — a keyboard
  *   native module needs an ADR) pads the screen by however much the keyboard
  *   overlaps it. It measures the overlap, so a platform that already resized
@@ -81,38 +81,44 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
-  // Unknown counts as reduced: an instant cut is the harmless mistake (#338).
-  const reduced = useReducedMotionPreference() ?? true
+  const motionPreference = useReducedMotionPreference()
+  const reduced = motionPreference ?? true
   const keyboardVisible = useKeyboardVisible()
 
   // Closing with motion keeps the sheet on screen for its exit slide. Derived
   // while rendering, so the frame that hides it is the one that starts the exit.
   const [shownFor, setShownFor] = useState(visible)
   const [exiting, setExiting] = useState(false)
-  if (shownFor !== visible) {
+  if (shownFor !== visible || (exiting && reduced)) {
     setShownFor(visible)
     setExiting(!visible && !reduced)
   }
-  const mounted = visible || exiting
-  const progress = useSharedValue(visible ? 1 : 0)
+  const mounted = (visible && motionPreference !== null) || exiting
+  // Even an initially visible sheet must enter from below the screen.
+  const progress = useSharedValue(0)
+  const visibleRef = useRef(visible)
+  useLayoutEffect(() => {
+    visibleRef.current = visible
+  }, [visible])
+  const finishExit = useCallback(() => {
+    if (!visibleRef.current) setExiting(false)
+  }, [])
 
   useEffect(() => {
+    if (motionPreference === null) return
     if (visible) {
-      progress.set(reduced ? 1 : withTiming(1, { duration: motion.slow }))
-      return
-    }
-    if (!exiting) {
+      progress.set(reduced ? 1 : withTiming(1, { duration: motion.standard }))
+    } else if (reduced || !exiting) {
       progress.set(0)
-      return
+    } else {
+      progress.set(
+        withTiming(0, { duration: motion.standard }, finished => {
+          if (finished) runOnJS(finishExit)()
+        }),
+      )
     }
-    progress.set(
-      withTiming(0, { duration: motion.slow }, finished => {
-        if (finished) runOnJS(setExiting)(false)
-      }),
-    )
-    // `progress` is a stable shared value.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, exiting, reduced])
+    return () => cancelAnimation(progress)
+  }, [visible, exiting, reduced, motionPreference, progress, finishExit])
 
   // `onClosed` (see the prop): iOS says so through `Modal.onDismiss`; Android
   // and web have no such event, and their modal is gone once it unmounts.
@@ -189,7 +195,7 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
         accessibilityElementsHidden={!visible}
         importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
       >
-        <Animated.View style={[styles.backdrop, !reduced && backdropStyle]}>
+        <Animated.View testID="sheet-backdrop" style={[styles.backdrop, !reduced && backdropStyle]}>
           <Pressable
             onPress={onClose}
             accessibilityRole="button"

@@ -35,6 +35,7 @@ import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlaceDetailSkeleton } from '@/shared/ui/skeleton.view'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { hitSlop } from '@/shared/ui/tokens'
 
@@ -183,7 +184,7 @@ export default function PlaceDetailScreen() {
           <View style={styles.infoIcon}><Icon name="mapPin" size={20} color="text.secondary" /></View>
           <View style={styles.infoBody}>
             <Text variant="caption" color="text.secondary">{t('placeDetail.address')}</Text>
-            <Text variant="body">{detail.addressText}</Text>
+            <PlaceAddressText place={detail} variant="body" />
           </View>
         </>
       ),

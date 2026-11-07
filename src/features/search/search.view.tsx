@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { ActivityIndicator, FlatList, Keyboard, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -29,7 +29,8 @@ import { MaterialIcon } from '@/shared/ui/material-icon'
 import { SegmentedControl } from '@/shared/ui/segmented-control.view'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { useDiscoveryAreaStore } from './discovery-area-store'
-import { discoveryMap } from './discovery-map'
+import { SearchMapPanel } from './search-map-panel.view'
+import { discoveryMap, viewportSearchScope } from './discovery-map'
 import { styles } from './search.style'
 import { DiscoveryLocationSheet } from './discovery-location.view'
 import { SearchEmpty } from './search-empty.view'
@@ -103,11 +104,48 @@ export default function SearchScreen() {
     locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true, ...(suggestions === '1' && !isPicker ? { limit: 10 } : {}),
     ...applied, ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
   }), [isPicker, scope, originLat, originLng, applied, debouncedQuery, i18n.language, suggestions])
-  const search = usePlaceSearch(searchQuery, { enabled: isPicker || scope.status === 'ready' })
+  const baseKey = JSON.stringify(searchQuery)
+  const [exploration, setExploration] = useState<{ key: string; region: NonNullable<ReturnType<typeof discoveryMap>['region']> } | null>(null)
+  const viewport = mode === 'map' && exploration?.key === baseKey ? exploration.region : null
+  const regionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (regionTimer.current) clearTimeout(regionTimer.current) }, [baseKey, mode])
+  const [mapExpanded, setMapExpanded] = useState(false)
+  const baseSearch = usePlaceSearch(searchQuery, { enabled: isPicker || scope.status === 'ready' })
+  const viewportScope = viewport && viewportSearchScope(viewport)
+  // Scope is transient: do not write the area store or send canonical area codes.
+  const { datasetVersion: _dataset, provinceCode: _province, communeCode: _commune, ...positionQuery } = searchQuery
+  const mapSearchQuery = viewportScope ? { ...positionQuery, ...viewportScope } : searchQuery
+  const regionSearch = usePlaceSearch(mapSearchQuery, { enabled: !!viewportScope && (isPicker || scope.status === 'ready') })
+  const search = viewportScope ? regionSearch : baseSearch
+  function exploreRegion(region: NonNullable<ReturnType<typeof discoveryMap>['region']>) {
+    if (!viewportSearchScope(region)) return
+    if (regionTimer.current) clearTimeout(regionTimer.current)
+    regionTimer.current = setTimeout(() => setExploration({ key: baseKey, region }), 400)
+  }
+  const { hasNextPage, isFetching, isFetchingNextPage, isPaused, isPlaceholderData, isFetchNextPageError, isError, fetchNextPage } = search
+  // One request at a time, and never follow a cursor twice automatically.
+  // A new query gets its own cursor budget; failed pages require an explicit retry.
+  const mapCursorBudget = useRef({ key: '', cursors: new Set<string>() })
+  const mapQueryKey = JSON.stringify(mapSearchQuery)
+  const nextMapCursor = search.data?.pages.at(-1)?.nextCursor
+  useEffect(() => {
+    if (mapCursorBudget.current.key !== mapQueryKey) mapCursorBudget.current = { key: mapQueryKey, cursors: new Set() }
+    if (mode !== 'map' || query.trim() !== debouncedQuery.trim() || (!isPicker && scope.status !== 'ready') ||
+      !nextMapCursor || !hasNextPage || isFetching || isFetchingNextPage || isPaused ||
+      isPlaceholderData || isFetchNextPageError || isError) return
+    if (mapCursorBudget.current.cursors.has(nextMapCursor)) return
+    mapCursorBudget.current.cursors.add(nextMapCursor)
+    void fetchNextPage({ cancelRefetch: false })
+  }, [mode, mapQueryKey, nextMapCursor, query, debouncedQuery, isPicker, scope.status, hasNextPage, isFetching, isFetchingNextPage, isPaused, isPlaceholderData, isFetchNextPageError, isError, fetchNextPage])
   const saved = useSaved({ enabled: canSave })
   const toggleSaved = useToggleSaved()
   const addSeedToRoom = useAddRoomSeedPlaces(roomId ?? '')
-  const results = useMemo(() => (search.data?.pages ?? []).flatMap(page => page.results.map(result => toPlaceCard(result, labels))), [search.data, labels])
+  const baseResults = useMemo(() => (baseSearch.data?.pages ?? []).flatMap(page => page.results.map(result => toPlaceCard(result, labels))), [baseSearch.data, labels])
+  const regionResults = useMemo(() => (regionSearch.data?.pages ?? []).flatMap(page => page.results.map(result => toPlaceCard(result, labels))), [regionSearch.data, labels])
+  const [explored, setExplored] = useState({ key: baseKey, places: [] as PlaceCardModel[], data: regionSearch.data })
+  if (explored.key !== baseKey) setExplored({ key: baseKey, places: [], data: regionSearch.data })
+  else if (viewport && explored.data !== regionSearch.data) setExplored({ key: baseKey, places: [...new Map([...explored.places, ...regionResults].map(place => [place.id, place])).values()], data: regionSearch.data })
+  const results = viewport ? [...new Map([...baseResults, ...(explored.key === baseKey ? explored.places : []), ...regionResults].map(place => [place.id, place])).values()] : baseResults
   // A fresh cache belongs to this exact query, even before a fetch after mount.
   const current = (isPicker || scope.status === 'ready') && search.isSuccess && (search.isFetchedAfterMount || search.isStale === false) && !search.isFetching && !search.isPaused && !search.isPlaceholderData && query.trim() === debouncedQuery.trim()
   const verifiedEmpty = current && results.length === 0
@@ -129,20 +167,25 @@ export default function SearchScreen() {
   const previewTotal = previewEnabled && preview.isSuccess && !preview.isFetching && !preview.isPaused && !preview.isPlaceholderData ? preview.data?.meta?.totalCount : undefined
   const mapScope = isPicker && originLat != null && originLng != null ? { status: 'ready' as const, source: 'gps' as const, position: { lat: originLat, lng: originLng } } : isPicker ? { status: 'ready' as const, source: 'none' as const, reason: 'no_area' as const } : scope
   const map = discoveryMap(mapScope, results)
-  const mapScopeKey = JSON.stringify(mapScope)
+  const mapScopeKey = JSON.stringify([mapScope, baseKey])
   const [markerSelection, setMarkerSelection] = useState({ data: search.data, scopeKey: mapScopeKey, mode, id: null as string | null })
-  const selectionIsCurrent = markerSelection.data === search.data && markerSelection.scopeKey === mapScopeKey && markerSelection.mode === mode
+  const selectionIsCurrent = (!!viewport || markerSelection.data === search.data) && markerSelection.scopeKey === mapScopeKey && markerSelection.mode === mode
   // Reset before rendering children when the results, scope, or display mode changes.
   if (!selectionIsCurrent) {
     setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id: null })
   }
+  // Reset before rendering children so recovery cannot reopen an expanded map.
+  if (mapExpanded && (mode !== 'map' || (!viewport && (search.isPaused || search.isError || verifiedEmpty || search.isPending)))) {
+    setMapExpanded(false)
+  }
   const selectedMarker = selectionIsCurrent ? markerSelection.id : null
   const selectedPlace = results.find(place => place.id === selectedMarker && map.pins.some(pin => pin.id === place.id))
-  const served = search.data?.pages[0]?.meta?.location
+  const served = baseSearch.data?.pages[0]?.meta?.location
   const scopeLabel = served?.source === 'administrative_area' && served.area ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ') : t('home.chooseArea')
   function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
   function clearFilters() { setCommitted(emptyFilters()); setDraft(emptyFilters()) }
   function onPlacePress(place: PlaceCardModel) {
+    setMapExpanded(false)
     if (isPicker) {
       if (roomId) { addSeedToRoom.mutate({ placeIds: [place.id] }, { onSuccess: () => router.back() }); return }
       addSeedPlace({ placeId: place.id, name: place.name }); router.back(); return
@@ -172,10 +215,10 @@ export default function SearchScreen() {
   function loadMore() {
     if (search.hasNextPage && !search.isFetching && !search.isPaused && !search.isFetchingNextPage && !search.isFetchNextPageError) void search.fetchNextPage({ cancelRefetch: false })
   }
-  function renderPagination(onMap = false) {
+  function renderPagination() {
     if (search.isFetchingNextPage) return <ActivityIndicator testID="search-loading-more" />
     if (search.isFetchNextPageError) return <ErrorState error={search.error} onRetry={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />
-    return onMap && search.hasNextPage ? <GhostBtn label={t('discovery.more')} disabled={search.isFetching || search.isPaused} onPress={loadMore} /> : null
+    return null
   }
   function renderResults(mapFallback = false) {
     return <FlatList
@@ -200,23 +243,28 @@ export default function SearchScreen() {
   }
   function renderContent() {
     if (!isPicker && scope.status === 'unavailable') return scope.offline ? <OfflineState /> : <ErrorState error={scope.error} onRetry={() => void retryScope()} />
-    if (mode === 'map' && search.isPaused) return <OfflineState />
-    if (search.isError && !search.isFetchNextPageError) return <ErrorState error={search.error} onRetry={() => void search.refetch()} />
+    if (mode === 'map' && search.isPaused && !viewport) return <OfflineState />
+    if (search.isError && !search.isFetchNextPageError && !viewport) return <ErrorState error={search.error} onRetry={() => void search.refetch()} />
     if (mode !== 'map' || verifiedEmpty) return renderResults()
-    if (search.isPending || (!isPicker && scope.status !== 'ready')) return <PlaceListSkeleton count={4} />
-    return <View testID="search-map" style={styles.mapBlock}>
+    if ((search.isPending && !viewport) || (!isPicker && scope.status !== 'ready')) return <PlaceListSkeleton count={4} />
+    return <SearchMapPanel expanded={mapExpanded} onExpandedChange={setMapExpanded}><View testID="search-map" style={styles.mapBlock}>
       <View style={styles.mapBlock}>
-        <MapCanvas pins={map.pins} cameraRegion={map.region} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => { const place = results.find(result => result.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={renderResults(true)} />
+        <MapCanvas pins={map.pins} cameraRegion={viewport ?? map.region} cameraScopeKey={mapScopeKey} onRegionChangeComplete={exploreRegion} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => { const place = results.find(result => result.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={renderResults(true)} />
         {selectedPlace ? <View style={[styles.mapPreview, { bottom: insets.bottom }]}>
           <Text variant="introHeading" color="redesign.ink">{selectedPlace.name}</Text>
           <GhostBtn label={t('discovery.openPlace')} onPress={() => onPlacePress(selectedPlace)} />
         </View> : null}
       </View>
-      {search.hasNextPage || search.isFetchingNextPage || search.isFetchNextPageError ? <View style={[styles.mapPagination, { paddingBottom: insets.bottom }]}>{renderPagination(true)}</View> : null}
-    </View>
+      {viewport && (search.isPaused || (search.isError && !search.isFetchNextPageError)) ? <View testID="search-map-feedback" style={styles.mapFeedback}>
+        {search.isPaused ? <OfflineState /> : <ErrorState error={search.error} onRetry={search.isFetching ? undefined : () => { if (!search.isFetching && !search.isPaused) void search.refetch() }} />}
+      </View> : null}
+      {search.isFetching || search.isFetchNextPageError ? <View testID="search-map-pagination" style={[styles.mapPagination, { bottom: insets.bottom + 8 }]}>
+        {search.isFetching ? <ActivityIndicator testID="search-loading-more" size="small" color={theme.redesign.primaryText} /> : <GhostBtn label={t('common.retry')} disabled={search.isFetching || search.isPaused} onPress={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />}
+      </View> : null}
+    </View></SearchMapPanel>
   }
   return <Atmosphere redesign>
-    <View testID="search-header" style={[styles.header, { paddingTop: insets.top }]}>
+    {!mapExpanded ? <><View testID="search-header" style={[styles.header, { paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} style={styles.back} onPress={() => router.back()}><MaterialIcon name="arrowBack" /></Pressable>
         {isPicker ? <View style={styles.scope}>
@@ -239,6 +287,7 @@ export default function SearchScreen() {
       <View style={styles.summaryCount}><MaterialIcon name="filterList" size={16} color="redesign.secondary" /><Text variant="introCaptionMedium" numberOfLines={1} color="redesign.secondary" style={styles.summaryText}>{total !== undefined || verifiedEmpty ? <Trans i18nKey="discovery.resultSummary" count={total ?? 0} components={{ primary: <Text variant="introCaptionMedium" color="redesign.primaryText" /> }} /> : t('discovery.results')}</Text></View>
       <SegmentedControl compact options={[{ value: 'list', label: t('discovery.list'), icon: 'list' }, { value: 'map', label: t('discovery.map'), icon: 'map' }]} value={mode} onChange={setMode} />
     </View>
+    </> : null}
     {renderContent()}
     {verifiedEmpty ? <View style={[styles.emptyActions, { paddingBottom: insets.bottom + 8 }]}>
       <PrimaryBtn variant="discovery" label={t('discovery.resetSearch')} leadingIcon="tune" onPress={() => { clearFilters(); setQuery('') }} />
@@ -266,6 +315,6 @@ export default function SearchScreen() {
       <View style={styles.sheetOptionRow}>{Object.entries(labels.category ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={draft.categories.includes(key) ? 'selected' : draft.categories.length >= 10 ? 'disabled' : 'default'} onPress={() => toggleCategory(key)} />)}</View>
       <View style={styles.smartBanner}><MaterialIcon name="sparkle" size={24} color="redesign.violetText" /><View style={{ flex: 1 }}><Text variant="introLabel">{t('discovery.smartTitle')}</Text><Text variant="introSmall" color="redesign.secondary">{t('discovery.smartBody')}</Text></View></View>
     </Sheet>
-    {locationOpen ? <DiscoveryLocationSheet onClose={() => setLocationOpen(false)} onApplied={() => { setScopeOverridden(true); void recheck() }} /> : null}
+    <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => { setScopeOverridden(true); void recheck() }} />
   </Atmosphere>
 }

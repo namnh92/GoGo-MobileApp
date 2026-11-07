@@ -19,3 +19,24 @@ export function discoveryMap(scope: DiscoveryScope, places: PlacePosition[]) {
     : top && usable(top.lat, top.lng) ? [{ id: top.id, title: top.name, lat: top.lat!, lng: top.lng! }] : pins
   return { pins, region: regionForPins(camera), showsUserLocation: gps !== null }
 }
+
+/** A circle covering the viewport corners, within /places/search's 100 km cap. */
+export function viewportSearchScope(region: NonNullable<ReturnType<typeof regionForPins>>) {
+  const { latitude, longitude, latitudeDelta, longitudeDelta } = region
+  if (![latitude, longitude, latitudeDelta, longitudeDelta].every(Number.isFinite)
+    || Math.abs(latitude) > 90 || Math.abs(longitude) > 180 || latitudeDelta <= 0 || longitudeDelta <= 0) return null
+  const radians = Math.PI / 180
+  const distance = (lat: number) => {
+    const dLat = (lat - latitude) * radians
+    const dLng = Math.min(longitudeDelta / 2, 180) * radians
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(latitude * radians) * Math.cos(lat * radians) * Math.sin(dLng / 2) ** 2
+    return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a))))
+  }
+  return {
+    lat: latitude, lng: longitude,
+    radiusM: Math.min(100000, Math.max(100, Math.ceil(Math.max(
+      distance(Math.min(90, latitude + latitudeDelta / 2)),
+      distance(Math.max(-90, latitude - latitudeDelta / 2)),
+    )))),
+  }
+}

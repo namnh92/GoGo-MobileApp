@@ -38,6 +38,7 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon, IconZap, type IconName } from '@/shared/ui/icons'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -294,10 +295,10 @@ export default function MatchResultScreen() {
           </View>
           <View style={styles.heroBody}>
             <Text variant="title1" numberOfLines={1}>{winner.name}</Text>
-            {winnerDetail.data?.addressText ? (
+            {winnerDetail.data ? (
               <View style={styles.heroAddress}>
                 <Icon name="mapPin" size={14} color="text.secondary" />
-                <Text variant="bodySmall" color="text.secondary" style={styles.heroAddressText}>{winnerDetail.data.addressText}</Text>
+                <PlaceAddressText place={winnerDetail.data} variant="bodySmall" color="text.secondary" style={styles.heroAddressText} />
               </View>
             ) : null}
             {/* Show a known price once; omit unknown prices entirely. */}

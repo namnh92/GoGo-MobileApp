@@ -6,6 +6,7 @@ import { formatRange } from '@/shared/pricing/money'
 import { Badge } from '@/shared/ui/badge.view'
 import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
+import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 
 import { formatWhen } from './format'
@@ -56,7 +57,7 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
         </View>
         <View style={styles.titles}>
           <Text variant="title2" numberOfLines={2}>{facts.name}</Text>
-          {facts.addressText ? <Text variant="bodySmall" color="text.secondary" numberOfLines={2}>{facts.addressText}</Text> : null}
+          <PlaceAddressText place={facts} variant="bodySmall" color="text.secondary" numberOfLines={2} />
         </View>
       </View>
       {card.available ? (
