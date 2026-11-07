@@ -174,7 +174,8 @@ export default function SearchScreen() {
   }
   const selectedMarker = selectionIsCurrent ? markerSelection.id : null
   const selectedPlace = results.find(place => place.id === selectedMarker && map.pins.some(pin => pin.id === place.id))
-  const scopeLabel = area ? administrativeAreaLabel(area) : t('home.chooseArea')
+  const scopeArea = scope.status === 'ready' && 'area' in scope ? scope.area : area
+  const scopeLabel = scopeArea ? administrativeAreaLabel(scopeArea) : t('home.chooseArea')
   function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
   function clearFilters() { setCommitted(emptyFilters()); setDraft(emptyFilters()) }
   function onPlacePress(place: PlaceCardModel) {

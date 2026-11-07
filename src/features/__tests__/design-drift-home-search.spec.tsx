@@ -1286,10 +1286,17 @@ it('waits for filter dismissal before opening the shared current-area sheet', as
 
 it('g04 opens ordinary Search with the saved category and canonical area, without AI', async () => {
   const area = { datasetVersion: 'ds-2026', provinceCode: '79', provinceName: 'Thành phố Hồ Chí Minh', communeCode: '26734', communeName: 'Phường Bến Thành' }
+  const appArea = { ...area, provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null }
+  useDiscoveryAreaStore.setState({ area: appArea })
+  mockScope = { status: 'ready', source: 'selected_area', area: appArea }
   mockParams = { categories: 'cafe', suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'selected_area', area }) }
-  await renderScreen(<SearchScreen />)
+  const view = await renderScreen(<SearchScreen />)
   expect(mockQueries.at(-1)).toMatchObject({ categories: 'cafe', provinceCode: '79', communeCode: '26734' })
   expect(mockQueries.at(-1)?.lat).toBeUndefined()
+  expect(within(view.getByTestId('search-header')).getByText('Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
+  expect(within(view.getByTestId('search-header')).queryByText('Hà Nội')).toBeNull()
+  await fireEvent.press(view.getByLabelText('Bộ lọc'))
+  expect(view.getByText('Chọn khu vực: Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
 })
 
 it('keeps the app-wide scope after changing areas and returning to the entry area', async () => {
@@ -1299,14 +1306,17 @@ it('keeps the app-wide scope after changing areas and returning to the entry are
   useDiscoveryAreaStore.setState({ area: entryArea })
   mockScope = { status: 'ready', source: 'selected_area', area: entryArea }
   mockParams = { categories: 'cafe', suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'selected_area', area: savedArea }) }
-  await renderScreen(<SearchScreen />)
+  const view = await renderScreen(<SearchScreen />)
   expect(mockQueries.at(-1)).toMatchObject({ provinceCode: '79' })
+  expect(within(view.getByTestId('search-header')).getByText('Thành phố Hồ Chí Minh')).toBeTruthy()
 
   mockScope = { status: 'ready', source: 'selected_area', area: nextArea }
   await act(async () => { useDiscoveryAreaStore.setState({ area: nextArea }) })
   expect(mockQueries.at(-1)).toMatchObject({ provinceCode: '48' })
+  expect(within(view.getByTestId('search-header')).getByText('Đà Nẵng')).toBeTruthy()
 
   mockScope = { status: 'ready', source: 'selected_area', area: entryArea }
   await act(async () => { useDiscoveryAreaStore.setState({ area: entryArea }) })
   expect(mockQueries.at(-1)).toMatchObject({ provinceCode: '01' })
+  expect(within(view.getByTestId('search-header')).getByText('Hà Nội')).toBeTruthy()
 })

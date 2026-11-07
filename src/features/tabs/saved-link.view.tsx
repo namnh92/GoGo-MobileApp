@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'expo-router'
+import { useCallback, useRef, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { useResolveGoogleMapsLink, useToggleSaved } from '@/shared/api'
@@ -21,31 +21,43 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
   const [failed, setFailed] = useState(false)
   const resolve = useResolveGoogleMapsLink()
   const toggle = useToggleSaved()
-  const active = useRef(true)
-  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  const active = useRef(false)
+  const attempt = useRef(0)
   const busy = useRef(false)
   const [pending, setPending] = useState(false)
+  useFocusEffect(useCallback(() => {
+    active.current = true
+    return () => {
+      active.current = false
+      // A response from this visit stays stale even after the tab refocuses.
+      attempt.current += 1
+      busy.current = false
+      setPending(false)
+    }
+  }, []))
   async function save() {
-    if (busy.current) return
+    if (!active.current || busy.current) return
     const parsed = mapsUrlSchema.safeParse(url)
     setInvalid(!parsed.success)
     if (!parsed.success) return
     busy.current = true
     setPending(true)
+    const currentAttempt = ++attempt.current
+    const isCurrent = () => active.current && attempt.current === currentAttempt
     try {
       const result = await resolve.mutateAsync({ url: parsed.data })
-      if (!active.current) return
+      if (!isCurrent()) return
       if (result.status === 'ALREADY_EXISTS' && result.existingPlaceId) {
         await toggle.mutateAsync({ type: 'place', id: result.existingPlaceId, saved: false })
         track('place_saved', { source: 'saved_link' })
-        if (!active.current) return
+        if (!isCurrent()) return
         onFeedback(t('saved.feedback.saved'))
         setUrl('')
       } else {
         router.push({ pathname: '/places/import', params: { url: parsed.data } })
       }
-    } catch { if (active.current) setFailed(true) }
-    finally { busy.current = false; if (active.current) setPending(false) }
+    } catch { if (isCurrent()) setFailed(true) }
+    finally { if (isCurrent()) { busy.current = false; setPending(false) } }
   }
   return <View style={styles.linkCard}>
     <View style={styles.linkRow}>
