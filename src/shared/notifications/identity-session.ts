@@ -26,6 +26,8 @@
  * continuation re-checks it before each side effect, so A -> B -> A is three
  * generations, not an equality test.
  */
+import { captureSessionScope, type SessionScope } from '@/shared/api/session'
+
 import type { DeviceCredential, DeviceCredentialStore } from './device-credential-store'
 import type {
   DeviceCreateOutcome,
@@ -97,7 +99,7 @@ export type IdentitySessionDeps = {
    * #160 inside the sign-out transition (R-21). Throws when the provider did not
    * confirm; the coordinator re-binds only when the caller says `cancelSignOut`.
    */
-  confirmSignOut?: () => Promise<void>
+  confirmSignOut?: (scope: SessionScope) => Promise<void>
   /**
    * Waits for the SDK to finish this login before the next transition may start,
    * whether or not it is still wanted. Bounded by the implementation. M-3: rapid
@@ -885,24 +887,29 @@ export function createIdentitySession(deps: IdentitySessionDeps) {
      * A guest holds the device's identity, which outlives the guest session, so
      * there is nothing to tear down and no confirmation to ask for (#279).
      */
-    beginSignOut(actor: 'user' | 'guest'): Promise<void> {
+    beginSignOut(actor: 'user' | 'guest', scope = captureSessionScope()): Promise<void> {
+      scope.assert()
       if (actor === 'guest') return Promise.resolve()
       signingOut = true
       generation += 1
-      return new Promise<void>((resolve, reject) => {
+      return scope.wait(new Promise<void>((resolve, reject) => {
         void enqueue(async () => {
           try {
-            await deps.confirmSignOut?.()
+            scope.assert()
+            await scope.wait(deps.confirmSignOut?.(scope))
+            scope.assert()
             binding = { kind: 'none' }
             resolve()
           } catch (error) {
             // `unsubscribe` may have gone out before the check failed, so the SDK
             // is not trusted to still hold the user; `cancelSignOut` binds again.
-            binding = { kind: 'none' }
+            // On cancellation the next account transition owns the binding.
+            // It must still release A if the lookup never reached native logout.
+            if (!scope.signal.aborted) binding = { kind: 'none' }
             reject(error instanceof Error ? error : new Error('push_sign_out_failed'))
           }
         })
-      })
+      }))
     },
 
     /** The session stays. Binds again, past the ordinary same-user no-op (R-21). */

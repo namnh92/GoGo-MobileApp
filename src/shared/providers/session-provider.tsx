@@ -132,7 +132,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // again: `cancelSignOut` binds it back.
       const scope = beginSessionEnd()
       try {
-        await scope.wait(pushIdentity.beginSignOut(getSession()?.kind === 'guest' ? 'guest' : 'user'))
+        await scope.wait(pushIdentity.beginSignOut(getSession()?.kind === 'guest' ? 'guest' : 'user', scope))
         scope.assert()
         // #364: before the session ends, and not in `purge`, which sign-in also
         // runs — the invite someone installed from must survive their own
