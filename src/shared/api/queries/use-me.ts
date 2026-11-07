@@ -1,14 +1,14 @@
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, type UseMutationResult, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
 import * as placesApi from '../endpoints/places'
-import * as plansApi from '../endpoints/plans'
 import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
 import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState, type ReviewCache } from '../review-reactions'
-import type { MyReviewReactions, OpBody, OpResponse, Plan, SavedItem } from '../types'
+import { captureSessionScope } from '../session'
+import type { MyReviewReactions, OpBody, OpResponse, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 import { useIntentKey } from './use-intent-key'
 
@@ -38,7 +38,9 @@ export function useUpdateDateOfBirth() {
     mutationFn: (dateOfBirth: string | null) => sessionsApi.updateProfile({ dateOfBirth }),
 
     onMutate: async dateOfBirth => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key })
+      scope.assert()
       const previous = queryClient.getQueryData<Profile>(key)
       if (previous) queryClient.setQueryData<Profile>(key, { ...previous, dateOfBirth })
       return { previous }
@@ -132,37 +134,86 @@ const PENDING_AREA: SavedItem['area'] = {
 }
 
 /**
+ * Separate hook instances share a queue for each target. Keep the optimistic
+ * update and rollback inside it too, so a queued PUT sees the settled removal.
+ */
+const savedMutations = new WeakMap<QueryClient, Map<string, Promise<void>>>()
+function reserveSavedMutation(client: QueryClient, target: string) {
+  let pending = savedMutations.get(client)
+  if (!pending) {
+    pending = new Map()
+    savedMutations.set(client, pending)
+  }
+  const scope = captureSessionScope()
+  target = `${scope.generation}:${target}`
+  const queue = pending
+  const ready = queue.get(target) ?? Promise.resolve()
+  let unlock: () => void = () => {}
+  const done = new Promise<void>(resolve => { unlock = resolve })
+  queue.set(target, done)
+  const release = () => {
+    scope.signal.removeEventListener('abort', release)
+    if (queue.get(target) === done) queue.delete(target)
+    unlock()
+  }
+  scope.signal.addEventListener('abort', release, { once: true })
+  return { ready: scope.wait(ready), release }
+}
+
+type SavedMutation = { type: SavedTargetType; id: string; saved: boolean }
+type SavedMutationContext = { previous: SavedItem | undefined; release: () => void }
+
+/**
  * Optimistic save/unsave — bookmarking must feel instant. Server state wins on
  * settle, so a rejected save snaps back rather than lying.
  */
-export function useToggleSaved() {
+export function useToggleSaved(): UseMutationResult<void, Error, SavedMutation, SavedMutationContext> {
   const queryClient = useQueryClient()
   const key = queryKeys.saved()
 
   return useMutation({
-    mutationFn: ({ type, id, saved }: { type: SavedTargetType; id: string; saved: boolean }) =>
+    mutationFn: ({ type, id, saved }: SavedMutation) =>
       saved ? meApi.unsaveItem(type, id) : meApi.saveItem(type, id),
 
     onMutate: async ({ type, id, saved }) => {
-      await queryClient.cancelQueries({ queryKey: key })
-      const previous = queryClient.getQueryData<SavedItem[]>(key)
-      if (previous) {
-        queryClient.setQueryData<SavedItem[]>(
-          key,
-          saved
-            ? previous.filter(item => !(item.targetType === type && item.targetId === id))
-            : [{ targetType: type, targetId: id, savedAt: new Date().toISOString(), area: PENDING_AREA }, ...previous],
-        )
+      const scope = captureSessionScope()
+      // Hold the turn through TanStack's automatic retries and final rollback.
+      const turn = reserveSavedMutation(queryClient, `${type}:${id}`)
+      await turn.ready
+      try {
+        scope.assert()
+        await queryClient.cancelQueries({ queryKey: key })
+        scope.assert()
+        const matches = (item: SavedItem) => item.targetType === type && item.targetId === id
+        const previous = queryClient.getQueryData<SavedItem[]>(key)?.find(matches)
+        queryClient.setQueryData<SavedItem[]>(key, current => {
+          if (!current) return current
+          if (saved) return current.filter(item => !matches(item))
+          return current.some(matches) ? current
+            : [{ targetType: type, targetId: id, savedAt: new Date().toISOString(), area: PENDING_AREA }, ...current]
+        })
+        return { previous, release: turn.release }
+      } catch (error) {
+        turn.release()
+        throw error
       }
-      return { previous }
     },
 
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(key, context.previous)
+    onError: (_error, { type, id }, context) => {
+      if (!context) return
+      // Other places can mutate concurrently; roll back only this target.
+      queryClient.setQueryData<SavedItem[]>(key, current => {
+        if (!current) return current
+        const others = current.filter(item => !(item.targetType === type && item.targetId === id))
+        return context.previous ? [context.previous, ...others] : others
+      })
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key })
+    onSettled: (_data, _error, _variables, context) => {
+      try {
+        void queryClient.invalidateQueries({ queryKey: key })
+      }
+      finally { context?.release() }
     },
   })
 }
@@ -174,24 +225,18 @@ export function isSaved(items: SavedItem[] | undefined, type: SavedTargetType, i
 /** A saved item with its area facts and, once loaded, what it points at. */
 export type SavedEntry = {
   key: string
-  type: 'place' | 'plan'
+  type: 'place'
   id: string
   area: SavedItem['area']
+  detailError?: unknown
   place?: PlaceCard
-  plan?: Plan
 }
 
-/**
- * ADM-205 (#214) — every saved place and plan with its area facts. The list is
- * one response, so grouping sees all of it; details load per item and are
- * shared with the place and plan screens' caches.
- */
+/** Hydrate saved places only; legacy saved plans remain untouched on the server. */
 export function useSavedEntries(options?: { enabled?: boolean }) {
   const saved = useSaved({ enabled: options?.enabled ?? true })
-  const items = saved.data ?? []
-  const placeIds = items.filter(item => item.targetType === 'place').map(item => item.targetId)
-  const planIds = items.filter(item => item.targetType === 'plan').map(item => item.targetId)
-
+  const items = (options?.enabled ?? true) ? (saved.data ?? []).filter(item => item.targetType === 'place') : []
+  const placeIds = items.map(item => item.targetId)
   const places = useQueries({
     queries: placeIds.map(id => ({
       queryKey: queryKeys.place(id),
@@ -199,38 +244,26 @@ export function useSavedEntries(options?: { enabled?: boolean }) {
       staleTime: 5 * 60 * 1000,
     })),
   })
-  const plans = useQueries({
-    queries: planIds.map(id => ({
-      queryKey: queryKeys.plan(id),
-      queryFn: () => plansApi.getPlan(id),
-      staleTime: 60 * 1000,
-    })),
-  })
-
   const placeById = new Map<string, PlaceCard>()
   places.forEach((query, index) => {
     if (query.data) placeById.set(placeIds[index]!, detailToPlaceCard(query.data))
   })
-  const planById = new Map<string, Plan>()
-  plans.forEach((query, index) => {
-    if (query.data) planById.set(planIds[index]!, query.data)
-  })
-
   const entries: SavedEntry[] = items.map(item => ({
     key: `${item.targetType}:${item.targetId}`,
-    type: item.targetType,
+    type: 'place',
     id: item.targetId,
     area: item.area,
-    ...(item.targetType === 'place' && placeById.has(item.targetId) ? { place: placeById.get(item.targetId) } : {}),
-    ...(item.targetType === 'plan' && planById.has(item.targetId) ? { plan: planById.get(item.targetId) } : {}),
+    detailError: places[placeIds.indexOf(item.targetId)]?.error,
+    place: placeById.get(item.targetId),
   }))
 
   return {
     entries,
-    isPending: saved.isPending || places.some(query => query.isPending) || plans.some(query => query.isPending),
+    isPending: saved.isPending || places.some(query => query.isPending),
+    isPaused: saved.isPaused || places.some(query => query.isPaused),
     isError: saved.isError,
     error: saved.error,
-    refetch: saved.refetch,
+    refetch: () => Promise.all([saved.refetch(), ...places.map(query => query.refetch())]),
   }
 }
 
@@ -296,10 +329,12 @@ export function useToggleReviewHelpful(placeId: string) {
       helpful ? meApi.markReviewHelpful(reviewId) : meApi.unmarkReviewHelpful(reviewId),
 
     onMutate: async ({ reviewId, helpful }) => {
+      const scope = captureSessionScope()
       await Promise.all([
         queryClient.cancelQueries({ queryKey: previewsKey }),
         queryClient.cancelQueries({ queryKey: mineKey }),
       ])
+      scope.assert()
       const previews = queryClient.getQueriesData<ReviewCache>({ queryKey: previewsKey })
       const mine = queryClient.getQueryData<MyReviewReactions>(mineKey)
       const delta = helpfulDelta(mine, reviewId, helpful)
@@ -384,7 +419,9 @@ export function useSetNotificationSettings() {
     mutationFn: (body: OpBody<'setNotificationSettings'>) => meApi.setNotificationSettings(body),
 
     onMutate: async body => {
+      const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key, exact: true })
+      scope.assert()
       const previous = queryClient.getQueryData<OpResponse<'getNotificationSettings'>>(key)
       if (previous) {
         queryClient.setQueryData<OpResponse<'getNotificationSettings'>>(key, {

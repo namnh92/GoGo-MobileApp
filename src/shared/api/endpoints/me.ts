@@ -11,12 +11,12 @@ export function listSaved(): Promise<OpResponse<'listSaved'>> {
 }
 
 /** Idempotent server-side — saving twice is not an error. */
-export function saveItem(type: SavedTargetType, id: string): Promise<void> {
-  return api.put<void>('/me/saved/{type}/{id}', undefined, { pathParams: { type, id } })
+export function saveItem(type: SavedTargetType, id: string, sessionGeneration?: number): Promise<void> {
+  return api.put<void>('/me/saved/{type}/{id}', undefined, { pathParams: { type, id }, sessionGeneration })
 }
 
-export function unsaveItem(type: SavedTargetType, id: string): Promise<void> {
-  return api.delete<void>('/me/saved/{type}/{id}', undefined, { pathParams: { type, id } })
+export function unsaveItem(type: SavedTargetType, id: string, sessionGeneration?: number): Promise<void> {
+  return api.delete<void>('/me/saved/{type}/{id}', undefined, { pathParams: { type, id }, sessionGeneration })
 }
 
 // --- reviews ---------------------------------------------------------------

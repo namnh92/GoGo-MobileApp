@@ -1,4 +1,3 @@
-import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,6 +12,8 @@ import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { Text, type TextColor } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { styles } from './my-contributions.style'
+import { detailToPlaceCard, discoveryLabels, usePlaceDetail, useTaxonomies } from '@/shared/api'
+import { PlaceCard } from '@/shared/ui/place-card.view'
 
 type Filter = 'all' | 'pending' | 'approved' | 'rejected'
 const filters: Filter[] = ['all', 'pending', 'approved', 'rejected']
@@ -26,6 +27,18 @@ function submissionDate(value: string) {
   const date = new Date(value)
   if (!Number.isFinite(date.getTime())) return '—'
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+}
+
+/** Canonical contributions use the Saved reference; private pending rows omit unknown facts. */
+function ContributionPlace({ item, onPress }: { item: MyPlaceSubmission; onPress?: () => void }) {
+  const { t, i18n } = useTranslation()
+  const canonical = item.status === 'approved' || item.status === 'merged'
+  const detail = usePlaceDetail(canonical ? item.placeId : undefined)
+  const taxonomy = useTaxonomies()
+  const card = detailToPlaceCard(detail.data ?? { id: item.id, name: item.name ?? t('myContributions.unknownPlace') }, discoveryLabels(taxonomy.data, i18n.language))
+  // The submission endpoint guarantees an approved catalogue image, even before detail hydrates.
+  if (!card.photoUrl && item.photoUrl) card.photoUrl = item.photoUrl
+  return <PlaceCard place={card} appearance="saved" onPress={onPress} />
 }
 
 export default function MyContributionsScreen() {
@@ -66,14 +79,9 @@ export default function MyContributionsScreen() {
           renderItem={({ item }) => {
             const tone = statuses[item.status]
             return <View style={styles.card}>
-              <View style={styles.row}>
-                {item.photoUrl ? <Image source={{ uri: item.photoUrl }} style={styles.photo} accessibilityLabel={item.name ?? t('myContributions.unknownPlace')} cachePolicy="none" /> : <View testID="contribution-photo-placeholder" style={styles.photo}><MaterialIcon name="storefront" size={32} /></View>}
-                <View style={styles.details}>
-                  <Text variant="title2">{item.name ?? t('myContributions.unknownPlace')}</Text>
-                  <Text variant="caption" color="text.secondary">{t('myContributions.sentDate', { date: submissionDate(item.createdAt) })}</Text>
-                  <View style={styles.status}><MaterialIcon name={tone.icon} color={tone.color} /><Text variant="caption" color={tone.color}>{t(`myContributions.status.${item.status}`)}</Text></View>
-                </View>
-              </View>
+              <ContributionPlace item={item} onPress={(item.status === 'approved' || item.status === 'merged') && item.placeId ? () => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } }) : undefined} />
+              <Text variant="caption" color="text.secondary">{t('myContributions.sentDate', { date: submissionDate(item.createdAt) })}</Text>
+              <View style={styles.status}><MaterialIcon name={tone.icon} color={tone.color} /><Text variant="caption" color={tone.color}>{t(`myContributions.status.${item.status}`)}</Text></View>
               {item.status === 'rejected' ? <Text variant="bodySmall" color="status.dangerText">{t(`myContributions.rejection.${item.rejectionReason ?? 'other'}`, { defaultValue: t('myContributions.rejection.other') })}</Text> : null}
               {(item.status === 'approved' || item.status === 'merged') && item.placeId ? <GhostBtn label={t('myContributions.viewPlace')} onPress={() => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } })} /> : null}
             </View>

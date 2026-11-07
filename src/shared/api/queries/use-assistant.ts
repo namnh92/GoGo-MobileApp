@@ -1,3 +1,4 @@
+import { captureSessionScope } from '../session'
 import {
   useInfiniteQuery,
   useMutation,
@@ -208,6 +209,7 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
 
   const deliver = useCallback(
     async (localId: string) => {
+      const scope = captureSessionScope()
       const store = useAssistantDraftStore.getState()
       const item = store.outgoing.find(candidate => candidate.localId === localId)
       if (!item) return
@@ -217,6 +219,7 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
         let target = item.conversationId
         if (!target) {
           const conversation = await backend.createConversation(item.context ? { context: item.context } : {}, item.createKey)
+          scope.assert()
           target = conversation.id
           useAssistantDraftStore.getState().updateOutgoing(localId, { conversationId: target })
           client.setQueryData<MessagesData>(queryKeys.assistantMessages(target), data =>
@@ -234,10 +237,12 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
           },
           item.idempotencyKey,
         )
+        scope.assert()
         insertTurn(client, target, turn)
         useAssistantDraftStore.getState().removeOutgoing(localId)
         void client.invalidateQueries({ queryKey: queryKeys.assistantConversations() })
       } catch (error) {
+        if (scope.signal.aborted) return
         useAssistantDraftStore.getState().updateOutgoing(localId, { status: 'failed', error })
         if (isApiError(error) && (error.status === 429 || error.status === 503)) {
           void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
@@ -415,10 +420,13 @@ export function useConfirmAssistantProposal(conversationId: string) {
       )
     },
     onError: async (error, { proposalId }) => {
+      const scope = captureSessionScope()
       // Already confirmed, dismissed or expired: show what the server holds.
       if (isApiError(error) && error.status === 409) {
         try {
-          patchProposal(client, conversationId, await getAssistantBackend().getProposal(proposalId))
+          const proposal = await getAssistantBackend().getProposal(proposalId)
+          scope.assert()
+          patchProposal(client, conversationId, proposal)
         } catch {
           // The card keeps its error line; nothing else to do.
         }

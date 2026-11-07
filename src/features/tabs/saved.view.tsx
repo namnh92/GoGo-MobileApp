@@ -1,36 +1,33 @@
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useLocatedArea } from '@/shared/administrative/queries'
-import { useMe, useSavedEntries, useToggleSaved, type SavedEntry } from '@/shared/api'
+import { discoveryLabels, isApiError, useTaxonomies, useMe, useSavedEntries, useToggleSaved, type SavedEntry } from '@/shared/api'
 import { useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
-import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, Card, Chip, GhostBtn, IconBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, GhostBtn, IconBtn } from '@/shared/ui/primitives'
 import { PlaceCardSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { groupSavedByArea, type CurrentArea } from './saved-groups'
-import { SavedPlanCard } from './saved-plan-card.view'
 import { styles } from './saved.style'
+import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
+import { Sheet } from '@/shared/ui/sheet.view'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
+import { savedDistance, savedUnavailable } from './saved-facts'
+import { SavedLink } from './saved-link.view'
 
-type SavedFilter = 'all' | 'places' | 'plans'
-
-const FILTERS: readonly SavedFilter[] = ['all', 'places', 'plans']
-
-/**
- * ADM-205 (#214) — Saved places and plans, grouped by province and commune.
- * No map: the list is the one view, and the user's own area comes first.
- */
+/** Saved places grouped by city, then ward. City actions filter this list. */
 export default function SavedScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { status } = useSession()
@@ -40,8 +37,16 @@ export default function SavedScreen() {
   const canSave = status === 'user'
   const saved = useSavedEntries({ enabled: canSave })
   const toggleSaved = useToggleSaved()
-  const [filter, setFilter] = useState<SavedFilter>('all')
+  const [feedback, setFeedback] = useState('')
+  const [menu, setMenu] = useState<SavedEntry | null>(null)
+  const [cityKey, setCityKey] = useState<string | null>(null)
+  const [resultError, setResultError] = useState(false)
+  const pendingRemoval = useRef<SavedEntry | null>(null)
+  useEffect(() => { if (!feedback) return; const timer = setTimeout(() => setFeedback(''), 3500); return () => clearTimeout(timer) }, [feedback])
+  const taxonomy = useTaxonomies()
+  const labels = useMemo(() => discoveryLabels(taxonomy.data, i18n.language), [taxonomy.data, i18n.language])
 
+  // TODO(#520): replace GPS/profile grouping with app-wide current-area after rebase.
   // The same source order as Home (ADM-204): the commune of a fresh position
   // when the server can place it, otherwise the account area.
   const me = useMe({ enabled: canSave })
@@ -62,29 +67,24 @@ export default function SavedScreen() {
     return null
   }, [located.data, profileArea])
 
-  const visible = saved.entries.filter(
-    entry => filter === 'all' || entry.type === (filter === 'places' ? 'place' : 'plan'),
-  )
+  const visible = saved.entries.filter(entry => entry.type === 'place')
   const groups = groupSavedByArea(
     visible.map(entry => ({ key: entry.key, area: entry.area, value: entry })),
     current,
   )
 
+  const selectedCity = groups.find(group => group.key === cityKey)
+  const visibleGroups = selectedCity ? [selectedCity] : groups
   function unsave(entry: SavedEntry) {
-    // Everything in this list is already saved, so the only action is removal.
-    toggleSaved.mutate({ type: entry.type, id: entry.id, saved: true })
+    if (!canSave || toggleSaved.isPending) return
+    toggleSaved.mutate({ type: entry.type, id: entry.id, saved: true }, {
+      onSuccess: () => setFeedback(t('saved.feedback.removed')),
+      onError: () => setResultError(true),
+    })
   }
-
   function renderEntry(entry: SavedEntry) {
-    if (entry.type === 'plan') {
-      return (
-        <SavedPlanCard
-          key={entry.key}
-          plan={entry.plan}
-          onOpen={() => router.push(`/plans/${entry.id}`)}
-          onRemove={() => unsave(entry)}
-        />
-      )
+    if (entry.detailError && !(isApiError(entry.detailError) && [403, 404, 410].includes(entry.detailError.status))) {
+      return <ErrorState key={entry.key} error={entry.detailError} onRetry={() => void saved.refetch()} />
     }
     if (!entry.place) {
       return (
@@ -97,10 +97,24 @@ export default function SavedScreen() {
         </Card>
       )
     }
+    const reason = savedUnavailable(entry.place)
+    const tagLabels = [...new Set(entry.place.taxonomies?.flatMap(tag => tag.kind && tag.key && labels[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []) ?? [])]
+    const categories = entry.place.taxonomies?.filter(tag => tag.kind === 'category').map(tag => tag.key) ?? []
+    const canFindSimilar = categories.length > 0 && !!entry.area.provinceCode && !!entry.area.datasetVersion
     return (
       <PlaceCard
         key={entry.key}
-        place={entry.place}
+        place={{ ...entry.place, distanceM: savedDistance(entry.place, scope.status === 'ready' && scope.source === 'gps' ? scope.position : null), discovery: { ...entry.place.discovery, tagLabels } }}
+        appearance="saved"
+        photoCategoryLabel={entry.place.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined}
+        unavailableLabel={reason ? t(`saved.unavailable.${reason}`) : undefined}
+        headerAction={<IconBtn accessibilityLabel={t('saved.actions')} style={styles.cardMenu} onPress={() => setMenu(entry)}><Text>⋮</Text></IconBtn>}
+        footer={reason ? <>
+          <GhostBtn label={t('saved.remove')} onPress={() => unsave(entry)} />
+          {canFindSimilar ? <GhostBtn label={t('saved.similar')} onPress={() => {
+            router.push({ pathname: '/places/search', params: { categories: categories.join(','), suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'selected_area', area: { datasetVersion: entry.area.datasetVersion, provinceCode: entry.area.provinceCode, provinceName: entry.area.provinceName, communeCode: entry.area.communeCode, communeName: entry.area.communeName } }) } })
+          }} /> : null}
+        </> : undefined}
         onPress={() => router.push(`/places/${entry.id}`)}
         saved
         onToggleSave={() => unsave(entry)}
@@ -113,25 +127,11 @@ export default function SavedScreen() {
     <Atmosphere>
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <View style={styles.headerRow}>
-          <Text variant="title1">{t('saved.title')}</Text>
-          <IconBtn
-            onPress={() => router.push('/places/import')}
-            accessibilityLabel={t('saved.addPlace')}
-            style={styles.addPlaceBtn}
-          >
-            <Icon name="plus" size={20} color="accent.primary" />
-          </IconBtn>
+          <Text variant="title2" color="redesign.primaryText">GoGo · {t('saved.title')}</Text>
+          <HeaderNotificationButton testID="saved-bell" unreadDotTestID="saved-unread" />
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {FILTERS.map(option => (
-            <Chip
-              key={option}
-              label={t(`saved.filter.${option}`)}
-              variant={filter === option ? 'selected' : 'default'}
-              onPress={() => setFilter(option)}
-            />
-          ))}
-        </ScrollView>
+        {canSave ? <SavedLink onFeedback={setFeedback} /> : null}
+        {canSave && feedback ? <Text accessibilityLiveRegion="polite" testID="saved-feedback" variant="bodySmall" color="status.successText">{feedback}</Text> : null}
       </View>
 
       {/* Saving requires an account: a guest token gets 403 USER_ONLY. */}
@@ -141,7 +141,7 @@ export default function SavedScreen() {
           body={t('saved.signInBody')}
           action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in?next=saved')} />}
         />
-      ) : saved.isPending ? (
+      ) : saved.isPaused ? <OfflineState /> : saved.isPending ? (
         <View style={[styles.grid, styles.list]}>
           {[0, 1, 2, 3].map(index => (
             <View key={index} style={styles.placeItem}>
@@ -160,31 +160,30 @@ export default function SavedScreen() {
       ) : (
         <ScrollView
           testID="saved-list"
-        onScroll={fab.onScroll}
+          onScroll={fab.onScroll}
           scrollEventThrottle={fab.scrollEventThrottle}
           contentContainerStyle={[styles.list, { paddingBottom: fab.bottomInset }]}
         >
-          {groups.map(group => (
+          {selectedCity ? <GhostBtn label={t('saved.allCities')} onPress={() => setCityKey(null)} style={styles.back} /> : null}
+          {visibleGroups.map(group => (
             <View key={group.key} style={styles.group}>
               <View style={styles.groupHeader}>
-                <View style={styles.groupDot} />
-                <Text variant="title2" accessibilityRole="header">
+                <Text variant="title2" accessibilityRole="header" style={styles.groupTitle}>
                   {group.kind === 'province'
                     ? group.provinceName
                     : t(group.kind === 'unknown' ? 'saved.group.unknown' : 'saved.group.multipleProvinces')}
                 </Text>
-                {group.kind === 'province' && group.isCurrent ? (
-                  <Chip label={t('saved.currentArea')} variant="info" />
-                ) : null}
+                <View style={styles.countBadge}><Text variant="caption" color="text.secondary">{group.kind === 'province' ? group.communes.reduce((count, commune) => count + commune.entries.length, 0) : group.entries.length}</Text></View>
+                {group.kind === 'province' && !selectedCity ? <GhostBtn label={t('saved.viewGroup')} accessibilityHint={t('saved.cityListHint', { city: group.provinceName })} style={styles.cityAction} onPress={() => setCityKey(group.key)} /> : null}
               </View>
               {group.kind === 'province' ? (
                 group.communes.map(commune => (
                   <View key={commune.key} style={styles.subgroup}>
                     <View style={styles.groupHeader}>
-                      <Text variant="label" accessibilityRole="header">
+                      <Text variant="bodySmall" color="text.secondary" accessibilityRole="header" style={styles.groupTitle}>
                         {commune.kind === 'commune' ? commune.communeName : t('saved.group.multipleCommunes')}
                       </Text>
-                      {commune.isCurrent ? <Chip label={t('saved.currentArea')} variant="info" /> : null}
+                      <View style={styles.countBadge}><Text variant="caption" color="text.secondary">{commune.entries.length}</Text></View>
                     </View>
                     <View style={styles.grid}>{commune.entries.map(item => renderEntry(item.value))}</View>
                   </View>
@@ -196,6 +195,11 @@ export default function SavedScreen() {
           ))}
         </ScrollView>
       )}
+      <Sheet visible={canSave && menu !== null} onClose={() => setMenu(null)} onClosed={() => { const entry = pendingRemoval.current; pendingRemoval.current = null; if (entry) unsave(entry) }} testID="saved-actions">
+        <GhostBtn label={t('saved.remove')} disabled={toggleSaved.isPending} onPress={() => { pendingRemoval.current = menu; setMenu(null) }} />
+      </Sheet>
+      <ResultSheet visible={resultError} variant="error" title={t('saved.actionFailed')} body={t('saved.retryBody')}
+        primaryAction={{ label: t('common.close'), onPress: () => setResultError(false) }} onClose={() => setResultError(false)} />
     </Atmosphere>
   )
 }

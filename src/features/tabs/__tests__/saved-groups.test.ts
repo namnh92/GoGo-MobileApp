@@ -36,10 +36,10 @@ const AG_LONG_XUYEN = commune('89', 'Tỉnh An Giang', '30307', 'Phường Long 
 const ENTRIES = [
   entry('place:ben-thanh', HCM_BEN_THANH),
   entry('place:hoan-kiem', HN_HOAN_KIEM),
-  entry('plan:hcm-walk', province('79', 'Thành phố Hồ Chí Minh')),
+  entry('place:province-only', province('79', 'Thành phố Hồ Chí Minh')),
   entry('place:hai-chau', DN_HAI_CHAU),
   entry('place:sai-gon', HCM_SAI_GON),
-  entry('plan:road-trip', none('multiple_provinces')),
+  entry('place:multiple-area', none('multiple_provinces')),
   entry('place:unmapped', none('unknown')),
   entry('place:long-xuyen', AG_LONG_XUYEN),
   entry('place:ben-thanh', HCM_BEN_THANH),
@@ -73,13 +73,13 @@ describe('compareVietnamese', () => {
 })
 
 describe('groupSavedByArea', () => {
-  it('orders provinces and communes alphabetically, keeps several-commune plans last, and ends with the special groups', () => {
+  it('orders provinces and communes alphabetically, keeps province-only entries last, and ends with the special groups', () => {
     expect(names(groupSavedByArea(ENTRIES, null))).toEqual([
       ['Tỉnh An Giang', ['Phường Long Xuyên']],
       ['Thành phố Đà Nẵng', ['Phường Hải Châu']],
       ['Thành phố Hà Nội', ['Phường Hoàn Kiếm']],
       ['Thành phố Hồ Chí Minh', ['Phường Bến Thành', 'Phường Sài Gòn', '(nhiều xã)']],
-      ['multiple_provinces', ['plan:road-trip']],
+      ['multiple_provinces', ['place:multiple-area']],
       ['unknown', ['place:unmapped']],
     ])
   })

@@ -2,6 +2,8 @@ import { env } from '@/shared/config/env'
 
 import { ApiError, NetworkError, TimeoutError } from './errors'
 import {
+  assertSessionGeneration,
+  captureSessionScope,
   clearSession,
   getSession,
   hydrateSession,
@@ -9,6 +11,7 @@ import {
   persistSession,
   sessionFromGrant,
   type Session,
+  type SessionScope,
 } from './session'
 import type { ErrorEnvelope, TokenGrant } from './types'
 
@@ -37,15 +40,17 @@ export interface RequestOptions {
   revalidate?: boolean
   timeoutMs?: number
   signal?: AbortSignal
+  /** Reject account-bound work after any sign-out or actor change, including HTTP replay. */
+  sessionGeneration?: number
 }
 
 /**
  * Called when the session cannot be renewed. The app uses it to purge room
  * caches and route to sign-in — the client itself never navigates.
  */
-let onSessionExpired: (() => void) | null = null
+let onSessionExpired: ((scope: SessionScope) => void) | null = null
 
-export function setOnSessionExpired(handler: (() => void) | null): void {
+export function setOnSessionExpired(handler: ((scope: SessionScope) => void) | null): void {
   onSessionExpired = handler
 }
 
@@ -77,39 +82,21 @@ function buildUrl(options: RequestOptions): string {
 // Refresh tokens are single-use: a parallel second call would revoke the family.
 // ---------------------------------------------------------------------------
 
-let refreshInFlight: Promise<Session | null> | null = null
+let refreshInFlight: { generation: number; promise: Promise<Session | null> } | null = null
 
-async function requestTokenGrant(body: { refreshToken: string } | { guestToken: string }): Promise<TokenGrant> {
-  // Same transport contract as `send()`: a refresh that cannot reach the server
-  // is a NetworkError, one that hangs is a TimeoutError. A bare `fetch` threw a
-  // TypeError and waited forever, so a sign-out with an expired token on a dead
-  // network was blamed on the push service (#279 F-01).
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
-  let response: Response
-  try {
-    response = await fetch(`${env.apiUrl.replace(/\/+$/, '')}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-  } catch (error) {
-    if (controller.signal.aborted) throw new TimeoutError(DEFAULT_TIMEOUT_MS)
-    throw new NetworkError('NETWORK_UNREACHABLE', error)
-  } finally {
-    clearTimeout(timer)
-  }
-  if (!response.ok) {
-    throw await toApiError(response)
-  }
-  return (await response.json()) as TokenGrant
+async function requestTokenGrant(body: { refreshToken: string } | { guestToken: string }, scope: SessionScope): Promise<TokenGrant> {
+  return send({ method: 'POST', path: '/auth/refresh', body, anonymous: true }, null, scope, async response => {
+    if (!response.ok) throw await scope.wait(toApiError(response))
+    return scope.wait(response.json() as Promise<TokenGrant>)
+  })
 }
 
-async function refreshSession(): Promise<Session | null> {
-  if (refreshInFlight) return refreshInFlight
+async function refreshSession(scope: SessionScope): Promise<Session | null> {
+  scope.assert()
+  const generation = scope.generation
+  if (refreshInFlight?.generation === generation) return refreshInFlight.promise
 
-  refreshInFlight = (async () => {
+  const promise = (async () => {
     const session = getSession()
     if (!session) return null
 
@@ -121,34 +108,42 @@ async function refreshSession(): Promise<Session | null> {
           : null
 
     if (!credential) {
-      await endSessionLocally()
+      await endSessionLocally(generation)
       return null
     }
 
     try {
-      const grant = await requestTokenGrant(credential)
-      return await persistSession(sessionFromGrant(grant, session))
+      const grant = await requestTokenGrant(credential, scope)
+      assertSessionGeneration(generation)
+      const renewed = await persistSession(sessionFromGrant(grant, session), generation)
+      assertSessionGeneration(generation)
+      return renewed
     } catch (error) {
+      // A late refresh must neither replace nor sign out a newer account.
+      assertSessionGeneration(generation)
       // 401 means the credential is dead (rotated, revoked, expired) — sign out.
       // A network blip must NOT destroy a still-valid refresh token.
       if (error instanceof ApiError && error.status === 401) {
-        await endSessionLocally()
+        await endSessionLocally(generation)
         return null
       }
       throw error
     }
   })()
+  const flight = { generation, promise }
+  refreshInFlight = flight
 
   try {
-    return await refreshInFlight
+    return await promise
   } finally {
-    refreshInFlight = null
+    if (refreshInFlight === flight) refreshInFlight = null
   }
 }
 
-async function endSessionLocally(): Promise<void> {
-  await clearSession()
-  onSessionExpired?.()
+async function endSessionLocally(generation: number): Promise<void> {
+  await clearSession(false, generation)
+  assertSessionGeneration(generation + 1)
+  onSessionExpired?.(captureSessionScope(generation + 1))
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +180,9 @@ async function parseBody<T>(response: Response): Promise<T> {
 // Core request
 // ---------------------------------------------------------------------------
 
-async function send(options: RequestOptions, accessToken: string | null): Promise<Response> {
+async function send<T>(options: RequestOptions, accessToken: string | null, scope: SessionScope, consume: (response: Response) => Promise<T>): Promise<T> {
+  scope.assert()
+  if (options.signal?.aborted) throw new Error('Request aborted')
   // Built before the try below: a missing path param or an unserialisable body
   // is a programming error, and must not be disguised as a network failure.
   const url = buildUrl(options)
@@ -197,6 +194,7 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
 
   const onExternalAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onExternalAbort)
+  scope.signal.addEventListener('abort', onExternalAbort)
 
   const headers: Record<string, string> = { accept: 'application/json' }
   if (options.body !== undefined) headers['content-type'] = 'application/json'
@@ -207,19 +205,27 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
   if (options.revalidate) headers['cache-control'] = 'no-cache'
 
   try {
-    return await fetch(url, {
-      method: options.method,
-      headers,
-      body: payload,
-      signal: controller.signal,
-    })
-  } catch (error) {
-    if (options.signal?.aborted) throw error
-    if (controller.signal.aborted) throw new TimeoutError(timeoutMs)
-    throw new NetworkError('NETWORK_UNREACHABLE', error)
+    let response: Response
+    try {
+      response = await scope.wait(fetch(url, {
+        method: options.method,
+        headers,
+        body: payload,
+        signal: controller.signal,
+      }))
+    } catch (error) {
+      scope.assert()
+      if (options.signal?.aborted) throw error
+      if (controller.signal.aborted) throw new TimeoutError(timeoutMs)
+      throw new NetworkError('NETWORK_UNREACHABLE', error)
+    }
+    scope.assert()
+    // Keep cancellation attached through body consumption, not just headers.
+    return await scope.wait(consume(response))
   } finally {
     clearTimeout(timer)
     options.signal?.removeEventListener('abort', onExternalAbort)
+    scope.signal.removeEventListener('abort', onExternalAbort)
   }
 }
 
@@ -234,37 +240,43 @@ async function send(options: RequestOptions, accessToken: string | null): Promis
 export async function currentAccessGrant(
   options: { force?: boolean } = {},
 ): Promise<{ token: string; expiresAt: number } | null> {
-  let session = getSession() ?? (await hydrateSession())
-  // `force` is for a caller the server has just refused. Age is no guide there:
-  // the token can be minutes from expiry and still be the one that earned the
-  // 401, so asking again without renewing would resend exactly what was
-  // rejected (GoGo-MobileApp#286).
-  if (session && (options.force || isAccessTokenExpired(session))) session = await refreshSession()
+  const active = captureSessionScope()
+  if (!getSession()) await active.wait(hydrateSession())
+  let session = getSession()
+  if (session && (options.force || isAccessTokenExpired(session))) session = await refreshSession(active)
+  if (session) active.assert()
   if (!session) return null
   return { token: session.accessToken, expiresAt: session.expiresAt }
 }
 
 export async function request<T>(options: RequestOptions): Promise<T> {
+  const scope = captureSessionScope(options.sessionGeneration)
   let accessToken: string | null = null
 
   if (!options.anonymous && !options.deviceCredential) {
-    let session = getSession() ?? (await hydrateSession())
-    if (session && isAccessTokenExpired(session)) {
-      session = await refreshSession()
+    if (!getSession()) {
+      await scope.wait(hydrateSession())
     }
-    accessToken = session?.accessToken ?? null
+    const session = getSession()
+    const active = session && isAccessTokenExpired(session) ? await refreshSession(scope) : session
+    scope.assert()
+    accessToken = active?.accessToken ?? null
   }
 
-  let response = await send(options, accessToken)
-
-  if (response.status === 401 && !options.anonymous && accessToken) {
-    const renewed = await refreshSession()
-    if (!renewed) throw await toApiError(response)
-    response = await send(options, renewed.accessToken)
+  const consume = async (response: Response): Promise<T> => {
+    scope.assert()
+    if (!response.ok) throw await scope.wait(toApiError(response))
+    return scope.wait(parseBody<T>(response))
   }
-
-  if (!response.ok) throw await toApiError(response)
-  return parseBody<T>(response)
+  return send(options, accessToken, scope, async response => {
+    if (response.status === 401 && !options.anonymous && accessToken) {
+      const renewed = await refreshSession(scope)
+      if (!renewed) throw await toApiError(response)
+      scope.assert()
+      return send(options, renewed.accessToken, scope, consume)
+    }
+    return consume(response)
+  })
 }
 
 export const api = {
@@ -285,9 +297,11 @@ export async function conditionalGet<T>(
   path: string,
   options: Pick<RequestOptions, 'query' | 'ifNoneMatch' | 'signal'> = {},
 ): Promise<{ status: 304; etag: string | null } | { status: 200; etag: string | null; data: T }> {
-  const response = await send({ ...options, method: 'GET', path, anonymous: true, revalidate: true }, null)
-  const etag = response.headers.get('etag')
-  if (response.status === 304) return { status: 304, etag }
-  if (!response.ok) throw await toApiError(response)
-  return { status: 200, etag, data: await parseBody<T>(response) }
+  const scope = captureSessionScope()
+  return send({ ...options, method: 'GET', path, anonymous: true, revalidate: true }, null, scope, async response => {
+    const etag = response.headers.get('etag')
+    if (response.status === 304) return { status: 304, etag }
+    if (!response.ok) throw await scope.wait(toApiError(response))
+    return { status: 200, etag, data: await scope.wait(parseBody<T>(response)) }
+  })
 }

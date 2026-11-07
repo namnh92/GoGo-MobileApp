@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { captureSessionScope } from '@/shared/api/session'
 
 import { deleteSecureItem, getSecureItem, setSecureItem } from './secure-store'
 
@@ -128,10 +129,19 @@ export function forgetInviteCode(roomId: string, inviteId?: string): Promise<voi
 }
 
 /** Logout, session expiry, a different sign-in and account deletion. */
-export function purgeInviteCodes(): Promise<void> {
+export function purgeInviteCodes(scope = captureSessionScope()): Promise<void> {
+  scope.assert()
   generation += 1
   return serial(async () => {
-    for (const roomId of await readIndex()) await deleteSecureItem(entryKey(roomId))
+    scope.assert()
+    const rooms = await scope.wait(readIndex())
+    for (const roomId of rooms) {
+      scope.assert()
+      // Drain an already-started native delete before the next account's
+      // serialized write. It cannot be physically cancelled by AbortSignal.
+      await deleteSecureItem(entryKey(roomId))
+    }
+    scope.assert()
     await deleteSecureItem(INDEX_KEY)
   })
 }

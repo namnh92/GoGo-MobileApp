@@ -5,7 +5,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Toucha
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { z } from 'zod'
+import { mapsUrlSchema } from './maps-url'
 import { onlineManager } from '@tanstack/react-query'
 import { NetworkError } from '@/shared/api/errors'
 import { ImportGuide } from './import-guide.view'
@@ -32,27 +32,6 @@ import { styles } from './import.style'
 
 // Accepted Google Maps link shapes (SRS FR-PLACE-001). The server validates
 // again — this only keeps an obviously wrong paste from costing a round trip.
-const mapsUrlSchema = z
-  .string()
-  .trim()
-  .url()
-  .max(2000)
-  .refine((value) => {
-    try {
-      const parsed = new URL(value)
-      const host = parsed.hostname.replace(/^www\./, '')
-      return (
-        ['https:', 'http:'].includes(parsed.protocol) &&
-        (host === 'maps.google.com' ||
-          host === 'maps.app.goo.gl' ||
-          (host === 'goo.gl' && parsed.pathname.startsWith('/maps/')) ||
-          (host === 'google.com' && /^\/maps(?:\/|$)/.test(parsed.pathname)) ||
-          (host.endsWith('.google.com') && /^\/maps(?:\/|$)/.test(parsed.pathname)))
-      )
-    } catch {
-      return false
-    }
-  })
 
 type Candidate = NonNullable<ResolveLinkResult['candidate']>
 
@@ -103,7 +82,7 @@ export default function PlaceImportScreen() {
   const { status: actorStatus } = useSession()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { roomId } = useLocalSearchParams<{ roomId?: string }>()
+  const { roomId, url: prefilledUrl } = useLocalSearchParams<{ roomId?: string; url?: string }>()
 
   const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
   const inputRef = useRef<import('@/shared/ui/text-input').TextInputRef>(null)
@@ -138,8 +117,9 @@ export default function PlaceImportScreen() {
     return () => subscription.remove()
   }, [revealFocused])
 
-  const [url, setUrl] = useState('')
-  const currentUrl = useRef('')
+  const initialUrl = mapsUrlSchema.safeParse(prefilledUrl)
+  const [url, setUrl] = useState(initialUrl.success ? initialUrl.data : '')
+  const currentUrl = useRef(initialUrl.success ? initialUrl.data : '')
   const attemptGeneration = useRef(0)
   const [formGeneration, setFormGeneration] = useState(0)
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null)
