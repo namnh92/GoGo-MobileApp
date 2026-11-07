@@ -510,3 +510,13 @@ it('keeps deletion failures silent with telemetry', async () => {
   expect(screen.queryByText(i18n.t('placeWizard.draft.failed'))).toBeNull()
   expect(mockTrack).toHaveBeenCalledWith('place_contribution_draft_delete_failed', { status: 0 })
 })
+
+
+it('distributes all five stars across the content width with 44pt touch targets', async () => {
+  await renderScreen(<ContributionWizard {...props} />)
+  await completeWizard()
+  const stars = screen.getAllByRole('radio')
+  expect(stars).toHaveLength(5)
+  for (const star of stars) expect(StyleSheet.flatten(star.props.style)).toMatchObject({ width: 44, minHeight: 44 })
+  expect(StyleSheet.flatten(stars[0].parent?.props.style)).toMatchObject({ width: '100%', justifyContent: 'space-between' })
+})

@@ -181,3 +181,115 @@ Current verification (supersedes earlier counts above):
 Remaining acceptance: simulator Light/Dark, keyboard, large-text and VoiceOver
 review; the existing BE#796 contract blocker described above. No new simulator
 screenshots or end-to-end server acceptance are claimed.
+
+## Shared result sheet and My Contributions — owner 2026-11-07
+
+Baseline `f79e416`, clean. This section supersedes the earlier inline submission
+result and fixed-width star-row descriptions. Owner authorization covers this
+focused implementation; it does not establish the project-wide migration gate.
+No dependency install, commit, push, backend edit, native build, or Stitch write.
+The referenced `RTK.md` was not present in the worktree or checked parent paths.
+
+### Behavior
+
+- All five stars span the content width with `space-between`. Every target
+  remains 44×44 or larger; optional rating toggle and service/space payloads
+  are preserved.
+- `src/shared/ui/result-sheet.view.tsx` is the one reusable result component:
+  success/error/warning/info, overridable icon, title/body, optional note,
+  primary/secondary actions, close and post-dismiss callback. It uses the
+  animated shared Sheet and semantic theme tokens in Light/Dark. The title
+  receives accessibility focus after entrance and the result is announced;
+  pending announcements are cancelled on close/unmount. Sheet continues to
+  own reduced motion, safe areas, backdrop, Android Back, and escape behavior.
+- Queued submissions show the Mint success result with place name, notification
+  copy, one small conditional +50 credit line, and the two owner actions.
+  `Xem đóng góp của tôi` uses `router.replace('/me/contributions')` after native
+  sheet dismissal, removing the submitted import route from Back history.
+  Backdrop/Back/escape on success take the same path. `Thêm địa điểm khác`
+  resets to the empty link step after dismissal. Existing canonical-place
+  responses retain their existing-place action instead of falsely promising
+  a moderation review or reward.
+- Submission errors show the error result, with safe localized text and the
+  form-retention sentence. Retry resends the captured enrichment; Save Draft
+  invokes the existing versioned draft save. The wizard stays mounted, including
+  on network failure during stale-token revalidation. Draft login, validation,
+  existing-draft and version-conflict protections remain in force. Actions run
+  after dismissal to avoid overlapping native modals. Raw server errors are
+  never displayed. The prior inline submitted/pending text and polling are gone.
+- `/me/contributions` and the Cá nhân settings entry read the authenticated
+  account's submissions. Cards include photo/placeholder, fallback name,
+  `Gửi ngày dd/MM/yyyy`, icon + localized status, public rejection-key text,
+  and place navigation only for approved/merged rows with `placeId`.
+- All/Pending/Approved/Rejected chips filter loaded pages; Approved includes
+  merged. The server has **no status query parameter**. Cursor loading remains
+  available under every filter, and an empty filtered partial list explicitly
+  says to load more. No complete-list count or false terminal empty claim.
+  Pull-to-refresh re-fetches current decisions. Loading, offline, empty,
+  initial/refresh/page errors, retry, sign-in gate, and the primary add-place CTA
+  are present. Existing cards remain visible on refresh/page failure.
+- Private contribution queries are memory-only (`gcTime: 0`, no persistence
+  allowlist match). The list endpoint itself returns approved catalogue photo
+  URLs only; the image uses `cachePolicy="none"`.
+
+### Contract and design evidence
+
+Vendored only `/me/place-submissions`, `MyPlaceSubmissionsPage`, and
+`MyPlaceSubmission` from the read-only local `be-797/openapi/gogo.v1.yaml`,
+which contains the BE#795 endpoint. Source SHA256:
+`dfa9f14fd0a98b23c0cc6c31f1cf236f460d30c2379ef137774a5139620a4d99`.
+Reused the existing `SubmissionRejectionReason` enum and regenerated
+`src/shared/api/schema.d.ts`. This is an additive contract import, not a full
+backend-contract refresh. The earlier BE#796 taxonomy validator blocker still
+requires independent reconciliation; no authenticated DEV request or POST was
+made for this change.
+
+Stitch `list_screens` is not exposed by this session's tool inventory. No saved
+artifact for `Gửi địa điểm: Kết quả - GoGo` or screen
+`9dcc2716e2d04f53a869b059a2738268` was found in this worktree. Both screens use
+the owner's written specification and existing shared mobile components.
+**Unavailability is not evidence that the generating result screen is absent.**
+A later read must inspect that title and the mobile content of
+`Đóng góp của tôi - GoGo` in project `17315762413421369447`. No Stitch parity,
+simulator, Light/Dark device, VoiceOver, large-text, or server acceptance is claimed.
+
+### Later adoption of ResultSheet (outside this PR)
+
+Keep destructive confirmation dialogs separate. Existing informational/result
+feedback candidates for follow-up:
+
+- Create-date save failures and sign-in prompts:
+  `src/features/create-date/save-draft.view.tsx`,
+  `wizard-actions.view.tsx`, and `draft-resume.view.tsx` (`Alert.alert`).
+- Account save success/failure notices in
+  `src/features/account/account.view.tsx`.
+- Contribution draft save/conflict/failure notices in
+  `src/features/place-import/contribution-wizard.view.tsx`.
+- Add-place credit-policy informational alert in
+  `src/features/place-import/import.view.tsx`.
+
+These call sites are inventoried only; no migrations are included here.
+
+### Current verification
+
+- `pnpm typecheck`: PASS on the final code and tests.
+- `pnpm lint`: PASS, no diagnostics on the final code and tests.
+- `pnpm api:check`: PASS; generated types match the additive vendored contract.
+- `pnpm test`: **115 suites passed, 1 failed, 1 skipped; 1,329 tests passed,
+  3 failed, 39 skipped**. Only the same pre-existing
+  `distribute-wrapper.test.ts:208/234/258` process-inspection cases fail.
+  Reconfirmed `ps -p $$ -o pid=` is denied with `operation not permitted`.
+  No tests were skipped, weakened, or changed to hide this environment limit.
+- `pnpm test:ui --runInBand`: **184 suites / 2,197 tests PASS** on the final tree.
+- `git diff --check`: PASS.
+
+Regression coverage includes all four shared result variants, action and close
+callbacks, title announcement and cancellation, full-width star geometry,
+success replace/reset, retry payload identity, draft-save preservation,
+revalidation network failure, no obsolete owner-only polling, contribution
+filters (including merged), public reason translation, photo placeholders,
+place/add navigation, cursor loading under an empty filter, pull-to-refresh,
+loading/empty/error/sign-in states, private API transport, and persistence
+exclusion. The earlier backend-validator and device/design acceptance items
+remain open; the sandbox process-inspection limitation prevents claiming that
+all of `pnpm test` is green.

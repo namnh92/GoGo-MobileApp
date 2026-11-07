@@ -69,7 +69,15 @@ import PlaceImportScreen from '@/features/place-import/import.view'
 const NOT_YET_OPEN = 'Google báo địa điểm này chưa khai trương. Thêm lại khi quán đã mở cửa nhé.'
 const UNKNOWN = 'Google chưa xác nhận địa điểm còn hoạt động.'
 const GENERIC_FAILURE = 'Gửi không thành công. Thử lại nhé.'
+const KEPT = ' Thông tin bạn nhập vẫn được giữ.'
 const SUBMIT = 'Gửi địa điểm cho GoGo'
+
+async function failSubmission() {
+  mockSubmit.mutateAsync.mockRejectedValue(mockSubmit.error)
+  if ((mockResolve.data as { status?: string } | undefined)?.status === 'CANDIDATE_SELECTION') await fireEvent.press(screen.getByText('Quán A'))
+  await completeWizard()
+  await fireEvent.press(screen.getByRole('button', { name: SUBMIT }))
+}
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -108,7 +116,8 @@ it('reads a PLACE_NOT_YET_OPEN refusal as that, not a generic failure', async ()
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-  expect(screen.getByText(NOT_YET_OPEN)).toBeTruthy()
+  await failSubmission()
+  expect(screen.getByText(NOT_YET_OPEN + KEPT)).toBeTruthy()
   expect(screen.queryByText(GENERIC_FAILURE)).toBeNull()
 })
 
@@ -119,7 +128,8 @@ it('keeps the generic failure for other refusals', async () => {
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-  expect(screen.getByText(GENERIC_FAILURE)).toBeTruthy()
+  await failSubmission()
+  expect(screen.getByText(GENERIC_FAILURE + KEPT)).toBeTruthy()
 })
 
 it('still offers submit for an operating place', async () => {
@@ -134,7 +144,7 @@ it('still offers submit for an operating place', async () => {
 })
 
 describe('#316 review', () => {
-  it('F-01: shows PLACE_NOT_YET_OPEN beside the candidate-selection submit too', async () => {
+  it('F-01: shows PLACE_NOT_YET_OPEN in the candidate-selection result sheet too', async () => {
     mockResolve.data = {
       status: 'CANDIDATE_SELECTION',
       candidates: [
@@ -147,11 +157,12 @@ describe('#316 review', () => {
     await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-    expect(screen.getByText(NOT_YET_OPEN)).toBeTruthy()
+    await failSubmission()
+  expect(screen.getByText(NOT_YET_OPEN + KEPT)).toBeTruthy()
     expect(screen.queryByText(GENERIC_FAILURE)).toBeNull()
   })
 
-  it('F-01: keeps the generic failure beside the candidate-selection submit for other errors', async () => {
+  it('F-01: keeps the generic failure in the candidate-selection result sheet for other errors', async () => {
     mockResolve.data = {
       status: 'CANDIDATE_SELECTION',
       candidates: [{ googlePlaceId: 'ChIJa', name: 'Quán A', address: '1 Đường A' }],
@@ -161,7 +172,8 @@ describe('#316 review', () => {
     await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-    expect(screen.getByText(GENERIC_FAILURE)).toBeTruthy()
+    await failSubmission()
+  expect(screen.getByText(GENERIC_FAILURE + KEPT)).toBeTruthy()
   })
 
   it('F-02: the disabled submit carries its reason, for assistive tech and on screen', async () => {
