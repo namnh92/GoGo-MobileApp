@@ -1,4 +1,5 @@
 import { api } from '../client'
+import { captureSessionScope, type SessionScope } from '../session'
 import type { OpBody, OpResponse } from '../types'
 
 /**
@@ -21,12 +22,14 @@ export function createUpload(body: OpBody<'createUpload'>): Promise<OpResponse<'
  * the BFF, and attaching the session token to it would leak the credential to
  * a third party.
  */
-export async function putPresigned(uploadUrl: string, blob: Blob, contentType: string): Promise<void> {
-  const response = await fetch(uploadUrl, {
+export async function putPresigned(uploadUrl: string, blob: Blob, contentType: string, scope: SessionScope = captureSessionScope()): Promise<void> {
+  scope.assert()
+  const response = await scope.wait(fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': contentType },
     body: blob,
-  })
+    signal: scope.signal,
+  }))
   if (!response.ok) {
     // The presigned URL is a credential; it must never reach a log or a message.
     throw new Error(`Upload rejected by storage (${response.status})`)

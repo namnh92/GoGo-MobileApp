@@ -27,12 +27,14 @@ it.each([saveItem, unsaveItem])('rejects obsolete saved requests before reading 
 it('does not replay A 401 using B refresh token', async () => {
   await persistSession(accountA)
   const generation = getSessionGeneration()
+  let transition = Promise.resolve()
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
-    await clearSession()
-    await persistSession(accountB)
+    transition = (async () => { await clearSession(); await persistSession(accountB) })()
+    await transition
     return json({ code: 'UNAUTHORIZED' }, 401)
   })
   await expect(saveItem('place', 'canonical', generation)).rejects.toThrow('Session changed')
+  await transition
   expect(fetch).toHaveBeenCalledTimes(1)
   expect(fetch.mock.calls[0]![1]?.headers).toMatchObject({ authorization: 'Bearer access-A' })
 })
@@ -40,14 +42,16 @@ it('does not replay A 401 using B refresh token', async () => {
 it.each([200, 401])('preserves B after A credential renewal settles (%s)', async status => {
   await persistSession({ ...accountA, expiresAt: 0 })
   const generation = getSessionGeneration()
+  let transition = Promise.resolve()
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
-    await clearSession()
-    await persistSession(accountB)
+    transition = (async () => { await clearSession(); await persistSession(accountB) })()
+    await transition
     return status === 200
       ? json({ userId: 'A', accessToken: 'renewed-A', refreshToken: 'rotated-A', expiresIn: 900 })
       : json({ code: 'SESSION_REVOKED' }, 401)
   })
   await expect(saveItem('place', 'canonical', generation)).rejects.toThrow('Session changed')
+  await transition
   expect(fetch).toHaveBeenCalledTimes(1)
   expect(String(fetch.mock.calls[0]![0])).toMatch(/\/auth\/refresh$/)
   expect(getSession()).toEqual(accountB)

@@ -16,8 +16,8 @@ jest.mock('@/shared/notifications/identity-bootstrap', () => ({
 jest.mock('@/shared/api/endpoints/sessions', () => ({
   login: jest.fn(async () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-2' })),
   register: jest.fn(async () => ({ kind: 'user', accessToken: 'token', expiresAt: 0, userId: 'user-3' })),
-  logout: jest.fn(async () => undefined),
-  deleteAccount: jest.fn(async () => undefined),
+  logout: jest.fn(async () => { await jest.requireActual('@/shared/api/session').clearSession() }),
+  deleteAccount: jest.fn(async () => { await jest.requireActual('@/shared/api/session').clearSession() }),
 }))
 jest.mock('@/shared/api/endpoints/rooms', () => ({
   ...jest.requireActual('@/shared/api/endpoints/rooms'),
@@ -40,6 +40,9 @@ import { clearSession, persistSession, type Session } from '@/shared/api/session
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { SessionProvider, useSession } from '@/shared/providers/session-provider'
 import { loadInviteCode, saveInviteCode } from '@/shared/storage/invite-codes'
+import * as inviteCodes from '@/shared/storage/invite-codes'
+import { pushIdentity } from '@/shared/notifications/identity-bootstrap'
+import { pendingDeepLinks } from '@/shared/acquisition/pending-deep-links'
 
 type SessionApi = ReturnType<typeof useSession>
 
@@ -137,5 +140,79 @@ it.each([false, true])('keeps the device area when B signs in (sign out first: %
   await act(async () => { await session!.signIn({ email: 'b@example.com', password: 'not-a-real-password' }) })
   expect(session!.session?.userId).toBe('user-2')
   await expectPurgedThenUnmount()
+  await clearSession()
+})
+
+it.each(['signIn', 'signUp', 'signOut', 'deleteAccount', 'expiry'] as const)(
+  'cancels %s cleanup held across B login', async operation => {
+    const userA: Session = { kind: 'user', userId: USER, accessToken: 'A', expiresAt: Date.now() + 900_000 }
+    const userB: Session = { ...userA, userId: 'B', accessToken: 'B' }
+    await persistSession(userA)
+    await seedAndMount()
+    let entered!: () => void
+    let release!: () => void
+    const started = new Promise<void>(resolve => { entered = resolve })
+    const held = new Promise<void>(resolve => { release = resolve })
+    const spy = jest.spyOn(inviteCodes, 'purgeInviteCodes').mockImplementationOnce(async () => {
+      entered()
+      await held
+    })
+    const loginCalls = jest.mocked(sessions.login).mock.calls.length
+    const registerCalls = jest.mocked(sessions.register).mock.calls.length
+    let result: unknown
+    await act(async () => {
+      const api = session!
+      const work = operation === 'signIn' ? api.signIn({} as never)
+        : operation === 'signUp' ? api.signUp({} as never)
+          : operation === 'signOut' ? api.signOut()
+            : operation === 'deleteAccount' ? api.deleteAccount()
+              : Promise.resolve(mockExpiry.callback?.())
+      const outcome = work.catch(error => error)
+      await started
+      await persistSession(userB)
+      client.setQueryData(['me'], { id: 'B' })
+      useDiscoveryAreaStore.getState().setArea(AREA)
+      release()
+      result = await outcome
+      await new Promise<void>(resolve => setImmediate(resolve))
+    })
+    spy.mockRestore()
+    if (operation !== 'expiry') expect(result).toEqual(expect.objectContaining({ message: expect.stringContaining('Session changed') }))
+    expect(client.getQueryData(['me'])).toEqual({ id: 'B' })
+    expect(useDiscoveryAreaStore.getState().area).toEqual(AREA)
+    expect(jest.mocked(sessions.login).mock.calls.length).toBe(loginCalls)
+    expect(jest.mocked(sessions.register).mock.calls.length).toBe(registerCalls)
+    await act(async () => { await screen.unmount() })
+    client.clear()
+    await clearSession()
+  },
+)
+
+it.each(['push confirmation', 'deferred-link clear'] as const)('cancels sign-out held at %s before it can revoke B or rebind push', async stage => {
+  const userA: Session = { kind: 'user', userId: USER, accessToken: 'A', expiresAt: Date.now() + 900_000 }
+  await persistSession(userA)
+  await seedAndMount()
+  let entered!: () => void
+  let release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  const hold = async () => { entered(); await held }
+  const spy = stage === 'push confirmation'
+    ? jest.spyOn(pushIdentity, 'beginSignOut').mockImplementationOnce(hold)
+    : jest.spyOn(pendingDeepLinks, 'clear').mockImplementationOnce(hold)
+  const logoutCalls = jest.mocked(sessions.logout).mock.calls.length
+  const cancelCalls = jest.mocked(pushIdentity.cancelSignOut).mock.calls.length
+  await act(async () => {
+    const result = session!.signOut().catch(error => error)
+    await started
+    await persistSession({ ...userA, userId: 'B', accessToken: 'B' })
+    release()
+    expect(await result).toEqual(expect.objectContaining({ message: expect.stringContaining('Session changed') }))
+  })
+  spy.mockRestore()
+  expect(jest.mocked(sessions.logout).mock.calls.length).toBe(logoutCalls)
+  expect(jest.mocked(pushIdentity.cancelSignOut).mock.calls.length).toBe(cancelCalls)
+  await act(async () => { await screen.unmount() })
+  client.clear()
   await clearSession()
 })

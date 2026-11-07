@@ -41,6 +41,7 @@ type SessionMeta = Omit<Session, 'accessToken' | 'refreshToken' | 'guestToken'>
 
 let current: Session | null = null
 let generation = 0
+let lifetime = new AbortController()
 let hydrated = false
 let hydration: Promise<Session | null> | null = null
 // A late native write cannot be cancelled. Drain every key before allowing an
@@ -67,7 +68,61 @@ export function getSessionGeneration(): number {
 }
 
 export function assertSessionGeneration(expected: number): void {
-  if (generation !== expected) throw new Error('Session changed before mutation completed')
+  if (generation !== expected) throw new SessionCancelledError()
+}
+
+export class SessionCancelledError extends Error {
+  constructor() {
+    super('Session changed before operation completed')
+    this.name = 'SessionCancelledError'
+  }
+}
+
+/** One cancellation source for HTTP, retries, queues, streams and cleanup. */
+export function captureSessionScope(expected = generation) {
+  assertSessionGeneration(expected)
+  const signal = lifetime.signal
+  const assert = () => {
+    assertSessionGeneration(expected)
+    if (signal.aborted) throw new SessionCancelledError()
+  }
+  return {
+    generation: expected,
+    signal,
+    assert,
+    // Native storage and some transports ignore abort. Reject waiters promptly
+    // and consume late settlements without allowing a continuation to run.
+    wait<T>(work: PromiseLike<T> | T): Promise<T> {
+      return new Promise<T>((resolve, reject) => {
+        const abort = () => reject(new SessionCancelledError())
+        signal.addEventListener('abort', abort, { once: true })
+        Promise.resolve(work).then(value => {
+          try { assert(); resolve(value) } catch (error) { reject(error) }
+        }, reject).finally(() => signal.removeEventListener('abort', abort))
+        if (signal.aborted) abort()
+      })
+    },
+  }
+}
+
+export type SessionScope = ReturnType<typeof captureSessionScope>
+
+function advanceLifetime(): number {
+  const previous = lifetime
+  const epoch = ++generation
+  lifetime = new AbortController()
+  previous.abort()
+  return epoch
+}
+
+/** Stop existing work immediately, retaining credentials for logout confirmation/revocation. */
+export function beginSessionEnd(): SessionScope {
+  const scope = captureSessionScope(advanceLifetime())
+  // Mounted readers observe the new lifetime even when a failed revocation
+  // retains the same account and its credentials.
+  emit()
+  scope.assert()
+  return scope
 }
 
 function sameAccount(session: Session): boolean {
@@ -82,10 +137,14 @@ function setCurrent(session: Session | null): void {
 }
 
 function beginAccountTransition(): number {
-  const epoch = ++generation
+  // Abort listeners can run synchronously and start more work. Hide the old
+  // credentials before invoking them, and never adopt a reentrant transition.
+  current = null
+  hydrated = true
+  const epoch = advanceLifetime()
   // Invalidate queued work before the first storage await. Until the new
   // credentials are durable no caller may obtain the old account's tokens.
-  setCurrent(null)
+  emit()
   return epoch
 }
 
@@ -174,7 +233,8 @@ async function hydratePersistedSession(expected: number): Promise<Session | null
     return null
   }
 
-  generation += 1
+  // Startup restoration fills the initial lifetime; only explicit identity
+  // transitions replace it. No pre-hydration caller may adopt a later login.
   setCurrent({
     ...meta,
     accessToken,
@@ -185,9 +245,9 @@ async function hydratePersistedSession(expected: number): Promise<Session | null
 }
 
 /** Renewal passes its captured generation; account replacement reserves a new one synchronously. */
-export async function persistSession(session: Session, expected = generation): Promise<Session> {
+export async function persistSession(session: Session, expected = generation, replace = false): Promise<Session> {
   assertSessionGeneration(expected)
-  const epoch = sameAccount(session) ? generation : beginAccountTransition()
+  const epoch = !replace && sameAccount(session) ? generation : beginAccountTransition()
   await serializeCredentials(async () => {
     assertSessionGeneration(epoch)
     const { accessToken, refreshToken, guestToken, ...meta } = session

@@ -8,6 +8,9 @@ import { pendingDeepLinks } from '@/shared/acquisition/pending-deep-links'
 import { pushIdentity } from '@/shared/notifications/identity-bootstrap'
 import { purgeCachedUserData } from '@/shared/api/query-client'
 import {
+  captureSessionScope,
+  beginSessionEnd,
+  SessionCancelledError,
   getSession,
   hydrateSession,
   subscribeToSession,
@@ -53,46 +56,56 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [hydrating, session?.kind, session?.userId])
 
   /** Account caches, room drafts and invite codes, in one place. */
-  const purge = useCallback(async (preserveAnonymousDraft = false) => {
+  const purge = useCallback(async (preserveAnonymousDraft = false, scope = captureSessionScope()) => {
+    scope.assert()
     clearRecentRooms()
     // A host's invite codes belong to that account (#199); the next person on
     // this device must not inherit them.
-    await purgeInviteCodes()
+    await scope.wait(purgeInviteCodes(scope))
+    scope.assert()
     if (!preserveAnonymousDraft) {
       useRoomStore.getState().resetDraft()
       useRoomStore.setState({ preferenceSeed: null })
     }
-    await clearSavedRoomDraft()
-    await purgeCachedUserData(queryClient)
+    await scope.wait(clearSavedRoomDraft(scope))
+    scope.assert()
+    await scope.wait(purgeCachedUserData(queryClient, scope))
   }, [queryClient])
 
   // A dead session must not leave another member's room data on the device.
   useEffect(() => {
-    setOnSessionExpired(() => {
-      void purge()
+    setOnSessionExpired((scope = captureSessionScope()) => {
+      void purge(false, scope).catch(error => {
+        if (!(error instanceof SessionCancelledError)) console.warn('session_cleanup_failed')
+      })
     })
     return () => setOnSessionExpired(null)
   }, [purge])
 
   const signIn = useCallback(
     async (body: OpBody<'login'>) => {
-      await purge(!getSession())
-      return sessionsApi.login(body)
+      const scope = captureSessionScope()
+      await purge(!getSession(), scope)
+      scope.assert()
+      return sessionsApi.login(body, scope)
     },
     [purge],
   )
 
   const signUp = useCallback(
     async (body: OpBody<'register'>) => {
-      await purge(!getSession())
-      return sessionsApi.register(body)
+      const scope = captureSessionScope()
+      await purge(!getSession(), scope)
+      scope.assert()
+      return sessionsApi.register(body, scope)
     },
     [purge],
   )
 
   const joinAsGuest = useCallback(
     async (body: OpBody<'joinRoomAsGuest'>) => {
-      return roomsApi.joinRoomAsGuest(body, () => purge())
+      const scope = captureSessionScope()
+      return roomsApi.joinRoomAsGuest(body, () => purge(false, scope))
     },
     [purge],
   )
@@ -115,33 +128,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // #398: the coordinator owns step 1 (R-21). If anything up to the server's
       // answer fails the person stays signed in, so the device has to be theirs
       // again: `cancelSignOut` binds it back.
+      const scope = beginSessionEnd()
       try {
-        await pushIdentity.beginSignOut(getSession()?.kind === 'guest' ? 'guest' : 'user')
+        await scope.wait(pushIdentity.beginSignOut(getSession()?.kind === 'guest' ? 'guest' : 'user'))
+        scope.assert()
         // #364: before the session ends, and not in `purge`, which sign-in also
         // runs — the invite someone installed from must survive their own
         // sign-in, not another person's. Throws if the entry is not gone.
-        await pendingDeepLinks.clear()
-        await sessionsApi.logout(allDevices)
+        await scope.wait(pendingDeepLinks.clear(scope))
+        scope.assert()
+        await sessionsApi.logout(allDevices, scope)
       } catch (error) {
-        void pushIdentity.cancelSignOut()
+        if (!scope.signal.aborted) void pushIdentity.cancelSignOut()
         throw error
       }
-      useRoomStore.getState().resetDraft()
-      useRoomStore.setState({ preferenceSeed: null })
-      await purge()
+      const cleanup = captureSessionScope(scope.generation + 1)
+      await purge(false, cleanup)
     },
     [purge],
   )
 
   const deleteAccount = useCallback(async () => {
-    await pendingDeepLinks.clear()
+    const scope = beginSessionEnd()
+    await scope.wait(pendingDeepLinks.clear(scope))
+    scope.assert()
     const deleted = getSession()?.userId
-    await sessionsApi.deleteAccount()
+    await sessionsApi.deleteAccount(scope)
+    const cleanup = captureSessionScope(scope.generation + 1)
     // The GoGo AI intro flags (#379) outlive sign-out, not the account.
     if (deleted) forgetAssistantIntro(deleted)
-    useRoomStore.getState().resetDraft()
-    useRoomStore.setState({ preferenceSeed: null })
-    await purge()
+    await purge(false, cleanup)
   }, [purge])
 
   const value = useMemo<SessionContextValue>(() => {
