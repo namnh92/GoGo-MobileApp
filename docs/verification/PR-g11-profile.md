@@ -1,5 +1,23 @@
 # G11 — Hồ sơ & cài đặt · PR #530
 
+## Cập nhật theo owner 2026-11-08 / #529 — bỏ entry AI trùng lặp
+
+Patch local trên HEAD `e6d1e73` cho PR #530: bỏ section “Trợ giúp” cùng row “GoGo AI” khỏi Profile theo approved deviation U02; giữ FAB “Hỏi GoGo AI” trên tab Profile và feature gate hiện tại. Xóa component/style riêng và hai key i18n không còn dùng (`profile.help`, `assistant.helpRow.body`) ở vi/en. UI test kiểm tra section/row vắng mặt khi gate bật hoặc tắt; bộ `assistant-fab.spec.tsx` tiếp tục kiểm tra FAB trên Profile và ẩn ở các subpages.
+
+Chưa chụp native lại cho patch này; ảnh bên dưới là evidence lịch sử theo SHA đã ghi, không chứng minh bố cục mới sau khi bỏ section. Không commit/push.
+
+Gate chạy trên patch local (HEAD nền `e6d1e73`, 2026-11-08):
+
+| Lệnh | Kết quả patch local | Log |
+|---|---|---|
+| `pnpm typecheck` | PASS, exit 0 | [typecheck](/tmp/pr530-typecheck.log) |
+| `pnpm lint` | PASS, exit 0; không errors/warnings | [lint](/tmp/pr530-lint.log) |
+| `pnpm test` | FAIL, exit 1; 134 files pass, 1 fail, 1 skip; 1.573 tests pass, 3 fail, 39 skip | [unit](/tmp/pr530-test.log) |
+| `pnpm test:ui --runInBand` | PASS, exit 0; 195 suites / 2.362 tests, gồm contextual-entry và FAB Profile | [UI](/tmp/pr530-test-ui.log) |
+| `git diff --check` | PASS, exit 0 | Kiểm tra local |
+
+Ba lỗi unit ở `src/shared/config/__tests__/distribute-wrapper.test.ts:208`, `:234`, `:258`, ngoài phạm vi source sửa: kiểm tra lock/process đang chạy. Sandbox từ chối `ps` (`operation not permitted`); case đầu không có stdout để `.trim()`, hai case còn lại mong exit khác 0 nhưng nhận 0 khi kiểm tra process group sống. Không sửa/skip các test này để làm xanh gate. Không claim unit suite pass.
+
 ## F-01 P1 — CLOSED · evidence tại `fa49468`
 
 Cập nhật **DOC ONLY, 2026-11-08, Sol 6.1 medium**, HEAD `fa49468`. Claude đã chụp lại tám PNG Light/Dark sau sửa `onAccent`; source/build identity theo owner, không suy SHA build từ bytes ảnh. Đã xem trực tiếp cả tám ảnh: Profile có avatar chữ **M** và icon/nhãn FAB; Defaults Save enabled có icon save và nhãn trắng; Theme có selected check, nhãn/mũi tên primary preview CTA; Permissions có chữ/icon/control rõ ở cả hai mode. **Đóng F-01 về foreground trong các vùng và trạng thái đã chụp.** Không dùng ảnh `d899e47` để chứng minh fix mới.
@@ -101,7 +119,7 @@ Các quyết định giữ nguyên từ [owner 2026-11-08 / #529](https://github
 | E08 | 11.5 L/D, device/tracking/location | Account push/OS/device facts tách riêng; location có Settings/manual-area; iOS tracking mở Settings thay switch; giữ unavailable/retry; không nhãn sync tổng | Owner 2026-11-08, #529 UI-only / handoff Keep, #525/#526; §0.1 không bịa trạng thái OS/sync; privacy copy theo E05 |
 | H01 | Header 11.3–11.5 L/D | Bell thay avatar | Owner 2026-11-08, handoff Keep; không unread dot/count theo E01 |
 | U01 | Header 11.3–11.5 L/D | Bỏ nút `…` không có chức năng được định nghĩa | Owner 2026-11-08 / #529, chỉ thị áp dụng PR #530: giữ header không menu chết |
-| U02 | 11.2 L/D và ba subpages | Giữ entry/FAB GoGo AI trên Profile theo feature gate; ẩn FAB trên Defaults/Theme/Permissions (kể cả alias Location) | Owner 2026-11-08 / #529, chỉ thị áp dụng PR #530; AI là feature hiện có, không thay FAQ/góp ý CMS |
+| U02 | 11.2 L/D và ba subpages | Chỉ giữ FAB “Hỏi GoGo AI” trên tab Profile theo feature gate; bỏ section “Trợ giúp” và row “GoGo AI” trùng lặp; ẩn FAB trên Defaults/Theme/Permissions (kể cả alias Location) | Owner 2026-11-08 / #529, chỉ thị áp dụng PR #530; owner yêu cầu bỏ entry trùng FAB. AI là feature hiện có, không thay FAQ/góp ý CMS |
 
 Các xác nhận từ bộ gốc vẫn giữ nguyên: system gear ở 11.5 Light/Dark đúng glyph `settings` của Stitch; Theme helper ở 11.4 Light/Dark căn giữa theo `text-center`; selected swatch check, sample CTA/mũi tên, Apply chữ/icon, system CTA chữ/icon và mặt AI FAB đều có foreground. Apply/helper và system CTA/footer ngoài frame mới vẫn là quan sát lịch sử tại `d899e47`; F-01 đóng dựa trên các foreground đã chụp lại tại `fa49468`, không mở rộng thành fresh acceptance cho những vùng ngoài frame.
 

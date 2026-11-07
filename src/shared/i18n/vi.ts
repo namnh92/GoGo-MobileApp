@@ -1543,7 +1543,6 @@ export const viMessages = {
   'assistant.placeCard.question.lateWeekend': 'Cuối tuần có mở khuya không?',
   'assistant.placeCard.question.budget': 'Có hợp ngân sách của mình không?',
   'assistant.placeCard.question.similar': 'Chỗ tương tự gần đây',
-  'assistant.helpRow.body': 'Giải đáp về GoGo, địa điểm và kế hoạch',
   'assistant.status.online': 'Đang hoạt động',
   'assistant.status.offline': 'Ngoại tuyến',
   'assistant.history.open': 'Lịch sử trò chuyện',
@@ -1723,7 +1722,6 @@ export const viMessages = {
   'assistant.history.deleted': 'Đã xoá cuộc trò chuyện',
   'assistant.history.deleteFailed': 'Không xoá được. Thử lại nhé.',
   'assistant.history.current': 'Đang mở',
-  'profile.help': 'Trợ giúp',
 } as const
 
 // Locale-dependent option datasets (selectable UI content).

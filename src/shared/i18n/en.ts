@@ -1546,7 +1546,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'assistant.placeCard.question.lateWeekend': 'Is it open late on weekends?',
   'assistant.placeCard.question.budget': 'Does it fit my budget?',
   'assistant.placeCard.question.similar': 'Similar places nearby',
-  'assistant.helpRow.body': 'Answers about GoGo, places and plans',
   'assistant.status.online': 'Online',
   'assistant.status.offline': 'Offline',
   'assistant.history.open': 'Conversation history',
@@ -1731,7 +1730,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'assistant.history.count_one': '1 conversation',
   'assistant.card.stops_one': '1 stop',
   'assistant.card.rating_one': 'GoGo {{rating}} · 1 review',
-  'profile.help': 'Help',
 }
 
 export const enContent: LocaleContent = {

@@ -1,5 +1,4 @@
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
-import { AssistantHelpSection } from '@/features/assistant/assistant-help-row.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -158,7 +157,6 @@ export default function ProfileScreen() {
           </Pressable>)}</Card>
         </View>
       })}
-      <AssistantHelpSection />
       {status !== 'anonymous' ? <SecondaryBtn label={signingOut ? t('profile.loggingOut') : t('g11.logout')} onPress={() => setLogoutConfirm(actor)} disabled={signingOut} loading={signingOut} style={styles.logout} leadingIcon="logout" /> : null}
       {signOutFailure ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.logoutError}>
         {t(({ offline: 'profile.logoutFailedOffline', timeout: 'profile.logoutFailedTimeout', push_unconfirmed: 'profile.logoutFailedPush', session_ended: 'profile.logoutSessionEnded', other: 'profile.logoutFailed' } as const satisfies Record<SignOutFailure, string>)[signOutFailure])}
