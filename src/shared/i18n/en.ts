@@ -14,6 +14,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'placeResult.successBody': '{{name}} has been sent to GoGo for review. You will be notified when there is a result',
   'placeResult.errorTitle': 'Could not send',
   'placeResult.errorBody': '{{reason}} Your entered information is kept.',
+  'placeWizard.rewardCompact': '+{{amount}}',
   'placeResult.credit': '+50 GoGo Credit when approved',
   'placeResult.viewContributions': 'View my contributions',
   'placeResult.addAnother': 'Add another place',

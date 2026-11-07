@@ -310,6 +310,7 @@ export default function PlaceImportScreen() {
 
   const verified = result?.status === 'RESOLVED' && !!candidate
   const contributionPlaceId = verified ? candidate.googlePlaceId : result?.status === 'CANDIDATE_SELECTION' ? selectedGooglePlaceId : undefined
+  const submittedPreview = candidate ?? result?.candidates?.find(item => item.googlePlaceId === contributionPlaceId)
   const offline = !online || resolve.isPaused || (resolve.isError && resolve.error instanceof NetworkError)
   const validFormat = mapsUrlSchema.safeParse(url).success
   const showValidation = url.trim().length > 0 || invalid
@@ -585,8 +586,11 @@ export default function PlaceImportScreen() {
         variant={outcome === 'success' ? 'success' : 'error'}
         title={t(outcome === 'success' ? 'placeResult.successTitle' : 'placeResult.errorTitle')}
         body={outcome === 'success'
-          ? t('placeResult.successBody', { name: candidate?.name ?? result?.candidates?.find(item => item.googlePlaceId === contributionPlaceId)?.name ?? t('myContributions.unknownPlace') })
+          ? t('placeResult.successBody', { name: submittedPreview?.name ?? t('myContributions.unknownPlace') })
           : t('placeResult.errorBody', { reason: t(notYetOpen(submit.error) ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') })}
+        media={outcome === 'success' && resultVisible && submittedPreview ? (
+          <PlaceCard variant="preview" compact preview={submittedPreview} />
+        ) : undefined}
         note={outcome === 'success' ? t('placeResult.credit') : undefined}
         primaryAction={{ label: t(outcome === 'success' ? 'placeResult.viewContributions' : 'common.retry'), onPress: outcome === 'success' ? viewContributions : () => closeResult(() => { if (contributionPlaceId) void onSubmitPlace(contributionPlaceId) }) }}
         secondaryAction={{ label: t(outcome === 'success' ? 'placeResult.addAnother' : 'placeWizard.save'), onPress: outcome === 'success' ? () => closeResult(changeLink) : () => closeResult(() => wizard.current?.saveDraft()), disabled: outcome === 'error' && actorStatus !== 'user' }}

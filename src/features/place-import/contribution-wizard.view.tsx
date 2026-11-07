@@ -121,12 +121,10 @@ export function ContributionWizard({
   }
   function reward() {
     return (
-      <View style={styles.reward}>
-        <Text variant="introCaption" color="redesign.white">
-          {t('placeWizard.reward', { amount: 50 })}
-        </Text>
-        <Text variant="introCaption" color="redesign.white">
-          {t('placeWizard.onApproval')}
+      <View style={styles.reward} accessible accessibilityLabel={t('placeResult.credit')}>
+        <MaterialIcon name="sparkle" size={14} color="redesign.white" />
+        <Text variant="introCaption" color="redesign.white" numberOfLines={1}>
+          {t('placeWizard.rewardCompact', { amount: 50 })}
         </Text>
       </View>
     )
@@ -538,7 +536,7 @@ export function ContributionWizard({
                 label={t('common.back')}
                 disabled={busy}
                 onPress={() => move(step - 1)}
-                style={styles.next}
+                style={styles.back}
               />
             ) : null}
             {step < 3 ? (
@@ -550,8 +548,11 @@ export function ContributionWizard({
               />
             ) : (
               <PrimaryBtn
-                label={t('placeWizard.finish')}
-                disabled={disabled || blocked || !complete || !taxonomyReady || !validKeys}
+                label={t('placeImport.submit')}
+                accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
+                loading={submitting}
+                leadingIcon="send"
+                disabled={submitDisabled}
                 onPress={() => {
                   if (complete) onSubmit(complete)
                 }}
@@ -561,17 +562,6 @@ export function ContributionWizard({
           </View>
         </View>
       </View>
-      <PrimaryBtn
-        label={t('placeImport.submit')}
-        accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
-        disabled={submitDisabled}
-        loading={submitting}
-        leadingIcon="send"
-        style={styles.action}
-        onPress={() => {
-          if (complete) onSubmit(complete)
-        }}
-      />
       <SecondaryBtn
         label={t('placeWizard.save')}
         icon="bookmark"

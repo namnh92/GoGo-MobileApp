@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native'
 import '@/shared/i18n'
 import { ResultSheet } from '../result-sheet.view'
 
@@ -33,4 +33,21 @@ it('announces the result and cancels pending announcements on close', async () =
   expect(announce).not.toHaveBeenCalled()
   announce.mockRestore()
   jest.useRealTimers()
+})
+
+it('renders arbitrary media before the message and equal-width actions on one line', async () => {
+  await render(<ResultSheet visible variant="success" title="Sent" body="Review pending"
+    media={<View testID="custom-media"><Text>Custom context</Text></View>}
+    primaryAction={{ label: 'View contributions', onPress: jest.fn() }}
+    secondaryAction={{ label: 'Add another', onPress: jest.fn() }} onClose={jest.fn()} />)
+  const media = screen.getByTestId('custom-media')
+  const body = screen.getByText('Review pending')
+  expect(media.parent).toBe(body.parent)
+  expect(media.parent!.children.indexOf(media)).toBeLessThan(body.parent!.children.indexOf(body))
+  const primary = screen.getByRole('button', { name: 'View contributions' })
+  const secondary = screen.getByRole('button', { name: 'Add another' })
+  expect(primary.parent).toBe(secondary.parent)
+  expect(StyleSheet.flatten(primary.parent!.props.style).flexDirection).toBe('row')
+  for (const action of [primary, secondary]) expect(StyleSheet.flatten(action.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+  expect(screen.getByText('View contributions').props.numberOfLines).toBeUndefined()
 })
