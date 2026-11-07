@@ -3,18 +3,26 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  pageHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingHorizontal: spacing[4], backgroundColor: theme.redesign.canvas },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  interests: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  interest: { borderRadius: radius.pill, backgroundColor: theme.surface.subtle, paddingHorizontal: spacing[2], paddingVertical: spacing[1] },
+  groupTitle: { marginHorizontal: spacing[5], marginBottom: spacing[2], textTransform: 'uppercase' },
+  settingsCard: { marginHorizontal: spacing[4], marginBottom: spacing[5], overflow: 'hidden' },
+  rowValue: { maxWidth: '28%' },
+  banner: { marginHorizontal: spacing[4], marginBottom: spacing[5], padding: spacing[4], borderRadius: radius.compact, backgroundColor: theme.accent.soft, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  shortcutPress: { flex: 1, borderRadius: radius.card },
+  confirm: { padding: spacing[5], gap: spacing[4] },
   headerCard: {
     marginHorizontal: spacing[5],
     marginBottom: spacing[4],
     padding: spacing[4],
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[4],
+    gap: spacing[3],
   },
   headerText: { flex: 1, minWidth: 0 },
   email: { marginTop: 2 },
 
-  card: { marginHorizontal: spacing[5], padding: spacing[4], marginBottom: spacing[4] },
+  card: { marginHorizontal: spacing[5], padding: spacing[4], marginBottom: spacing[4], gap: spacing[3] },
   caption: {
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -89,8 +97,8 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: spacing[6],
     paddingVertical: spacing[3],
     borderRadius: radius.pill,
-    backgroundColor: theme.accent.soft,
-    marginBottom: spacing[6],
+    backgroundColor: theme.surface.subtle,
+    marginBottom: spacing[4],
   },
   signIn: {
     alignSelf: 'stretch',

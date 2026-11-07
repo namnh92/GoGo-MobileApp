@@ -1,86 +1,76 @@
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { AssistantHelpSection } from '@/features/assistant/assistant-help-row.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
-import { useUnreadInbox } from '@/features/notifications/unread-count'
-import { badgeLabel, CountBadge } from '@/shared/ui/count-badge.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useMe, useMyReviews, useNotificationSettings, useSaved } from '@/shared/api'
+import { useMe, useMyReviews, useNotificationSettings, useSaved, useTaxonomies } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { getSession, type Session } from '@/shared/api/session'
-import { env } from '@/shared/config/env'
 import { useSession } from '@/shared/providers/session-provider'
 import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/sign-out-failure'
-import { locales } from '@/shared/i18n'
-import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { useRoom, type DemoAudience, type DemoUIState } from '@/shared/store/roomStore'
-import { Atmosphere, AvatarCircle, Card } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
+import { Sheet } from '@/shared/ui/sheet.view'
 import { Icon, IconChevronRight, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
-import { useUpcomingRooms } from '@/features/tabs/upcoming-rooms'
-import { AssistantHelpSection } from '@/features/assistant/assistant-help-row.view'
+import { accentOf, DEFAULT_ACCENT } from '@/shared/ui/theme'
+import { useUnistyles } from 'react-native-unistyles'
+import { BuildVersion } from '@/features/settings/settings-page.view'
+import { ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
+import { ProfileUpcoming } from './profile-upcoming.view'
 import { SETTINGS_ROWS } from './profile-settings-rows'
 import { styles } from './profile.style'
 
-const audiences: DemoAudience[] = ['couple', 'group-host', 'group-guest']
-const uiStates: DemoUIState[] = ['default', 'loading', 'empty', 'error']
-
-/** Presentation only: the glyph that leads each shortcut card. */
 const SHORTCUT_ICON: Record<string, IconName> = { saved: 'bookmark', plans: 'users', reviews: 'star' }
-
-/** Who a session belongs to; a token refresh keeps it. */
 function actorKeyOf(session: Session | null): string {
   return session ? `${session.kind}:${session.userId ?? ''}:${session.guestSessionId ?? ''}` : ''
 }
 
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation()
+  const { rt } = useUnistyles()
   const insets = useSafeAreaInsets()
-  const room = useRoom()
   const router = useRouter()
-  // The float button (#379) collapses on scroll; the list's end clears it.
   const fab = useAssistantFabScroll('profile')
-  const unread = useUnreadInbox()
   const { session, status, signOut } = useSession()
-  const me = useMe({ enabled: status === 'user' || status === 'guest' })
-  const [signingOut, setSigningOut] = useState(false)
-  // The tab stays mounted across sign-out and sign-in, so a refusal belongs to
-  // the actor it happened to and is shown only while that actor is current: a
-  // different person — or the next sign-in after an ended session — must not
-  // inherit it (#279 F-03). Tagged by actor rather than cleared by an effect,
-  // so it cannot race the session change that arrives in the same tick, and a
-  // token refresh (same actor) does not hide a message not yet read.
-  const [failed, setFailed] = useState<{ reason: SignOutFailure; actor: string } | null>(null)
-  const actor = actorKeyOf(session)
-  const signOutFailure = failed && failed.actor === actor ? failed.reason : null
-
-  // Counts come from the same queries the destination screens use, so a
-  // shortcut never promises a number the screen behind it does not have.
   const canRead = status === 'user'
+  const me = useMe({ enabled: canRead })
+  const waiting = useWaitingForNetwork(me)
+  const taxonomy = useTaxonomies({ kinds: 'mood' })
   const saved = useSaved({ enabled: canRead })
   const reviews = useMyReviews({ enabled: canRead })
-  // Warm the persisted cache while the person is already on Profile. Opening
-  // notification settings then has data on the first frame in the usual flow.
   useNotificationSettings({ enabled: canRead })
-  const recentRooms = useRecentRoomsStore(state => state.rooms)
-  // The Kèo card counts what "Sắp tới" lists, through the hook behind the tab
-  // badge, so the two read the same (#475). It is a user-only query: a guest
-  // keeps the count of rooms this device has seen, as before, and a signed-out
-  // person has no count at all.
-  const upcoming = useUpcomingRooms()
-  const plansCount =
-    status === 'user' ? badgeLabel(upcoming.count, upcoming.more)
-    : status === 'guest' ? String(recentRooms.length)
-    : null
-
-  const shortcuts: { key: string; route: string; count: string | number | null }[] = [
-    { key: 'saved', route: '/(tabs)/saved', count: canRead ? (saved.data?.length ?? null) : null },
-    { key: 'plans', route: '/(tabs)/plans', count: plansCount },
-    { key: 'reviews', route: '/settings/reviews', count: canRead ? (reviews.data?.length ?? null) : null },
+  const [signingOut, setSigningOut] = useState(false)
+  const [logoutConfirm, setLogoutConfirm] = useState<string | null>(null)
+  const [locked, setLocked] = useState(false)
+  const [failed, setFailed] = useState<{ reason: SignOutFailure; actor: string } | null>(null)
+  const actor = actorKeyOf(session)
+  const [dialogActor, setDialogActor] = useState(actor)
+  // The mounted tab may change accounts. Reset only transient dialogs before
+  // rendering the new actor; sign-out results keep their existing actor tags.
+  if (dialogActor !== actor) {
+    setDialogActor(actor)
+    setLogoutConfirm(null)
+    setLocked(false)
+  }
+  const signOutFailure = failed && failed.actor === actor ? failed.reason : null
+  const profile = canRead ? me.data : undefined
+  const moodEntries = taxonomy.data?.kinds?.mood ?? []
+  const interests = profile?.interests?.mood?.flatMap(key => {
+    const entry = moodEntries.find(item => item.key === key)
+    const label = entry?.labels?.[i18n.language] ?? entry?.labels?.vi
+    return label ? [label] : []
+  }) ?? []
+  const shortcuts = [
+    { key: 'saved', route: '/(tabs)/saved', count: canRead ? saved.data?.length : undefined, userOnly: true },
+    { key: 'plans', route: '/(tabs)/plans', count: undefined, userOnly: false },
+    { key: 'reviews', route: '/settings/reviews', count: canRead ? reviews.data?.length : undefined, userOnly: true },
   ]
-
   async function signOutNow() {
     setSigningOut(true)
     setFailed(null)
@@ -108,200 +98,80 @@ export default function ProfileScreen() {
     }
   }
 
-  return (
-    <Atmosphere>
-      <ScrollView
-        testID="profile-list"
-        onScroll={fab.onScroll}
-        scrollEventThrottle={fab.scrollEventThrottle}
-        contentContainerStyle={{ paddingTop: insets.top + spacing[2], paddingBottom: fab.bottomInset }}
-      >
-        <Card padded={false} style={styles.headerCard}>
-          <AvatarCircle
-            label={(me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()}
-            size={64}
-            imageUri={me.data?.avatarUrl}
-          />
-          <View style={styles.headerText}>
-            <Text variant="title1" numberOfLines={1}>{me.data?.displayName ?? t('profile.guestName')}</Text>
-            {/* Guests have no email; showing a placeholder would be a lie. */}
-            <Text variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.email}>{me.data?.email ?? t('profile.guestSubtitle')}</Text>
+  return <Atmosphere redesign>
+    <View style={[styles.pageHeader, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
+      <Text variant="title1" color="accent.onSoft">GoGo</Text><Text color="text.secondary">·</Text>
+      <Text variant="title2" style={styles.headerText}>{t('tabs.profile')}</Text>
+      <HeaderNotificationButton testID="profile-bell" unreadDotTestID="profile-unread" showUnread={false} />
+    </View>
+    <ScrollView testID="profile-list" onScroll={fab.onScroll} scrollEventThrottle={fab.scrollEventThrottle}
+      contentContainerStyle={{ paddingTop: spacing[3], paddingBottom: fab.bottomInset }}>
+      {canRead && me.isPending ? (waiting ? <OfflineState /> : <LoadingState />) : canRead && me.isError ? <ErrorState error={me.error} onRetry={() => void me.refetch()} /> : (
+        <Card appearance="stitch" padded={false} style={styles.headerCard}>
+          <View style={styles.identity}>
+            <AvatarCircle label={(profile?.displayName ?? t('profile.guestName')).trim().charAt(0).toUpperCase()} size={64} imageUri={profile?.avatarUrl} />
+            <View style={styles.headerText}>
+              <Text variant="title1">{canRead ? profile?.displayName : t('profile.title')}</Text>
+              {!canRead ? <Text variant="bodySmall" color="text.secondary">{t('profile.guestSubtitle')}</Text> : null}
+              {profile?.email ? <Text variant="bodySmall" color="text.secondary">{profile.email}</Text> : null}
+              {profile?.homeAdministrativeArea?.provinceName ? <Text variant="bodySmall" color="text.secondary">{profile.homeAdministrativeArea.provinceName}</Text> : null}
+            </View>
+            {canRead ? <IconBtn accessibilityLabel={t('g11.editProfile')} onPress={() => router.push('/settings/account')}><Icon name="sliders" /></IconBtn> : null}
           </View>
+          {interests.length > 0 ? <View style={styles.interests}>{interests.map(label => <View key={label} style={styles.interest}><Text variant="caption">{label}</Text></View>)}</View> : null}
         </Card>
-
-        {/* Under the header card, as drawn: at the end of the list the assistant
-            button covered it until the person scrolled. */}
-        {status === 'anonymous' ? (
-          <Pressable
-            accessibilityRole="button"
-            style={styles.signIn}
-            onPress={() => router.push('/auth/sign-in')}
-          >
-            <Text variant="label" color="accent.onAccent">{t('auth.signInCta')}</Text>
-          </Pressable>
-        ) : null}
-
-        {/*
-          The two cards that stood here were fabricated: a "couple" pairing the
-          contract does not model, and a preferences list hard-coded in English
-          ("Japanese", "Night vibe") rather than resolved from taxonomy keys.
-          Both broke RULE-CORE-002 and RULE-CORE-003, and neither told the user
-          anything true. Replaced with the three places a profile actually
-          leads, carrying real counts.
-        */}
-        <View style={styles.shortcutRow}>
-          {shortcuts.map(shortcut => (
-            <Pressable
-              key={shortcut.key}
-              accessibilityRole="button"
-              accessibilityLabel={
-                shortcut.count == null
-                  ? t(`profile.shortcut.${shortcut.key}`)
-                  : `${t(`profile.shortcut.${shortcut.key}`)}: ${shortcut.count}`
-              }
-              onPress={() =>
-                // The Plans tab stays mounted and keeps its params, so a fixed
-                // param would not change on a second tap. Only this shortcut
-                // sends a value that is new on every press, and Plans answers
-                // by showing "Sắp tới" (owner decision, #471).
-                router.push(
-                  shortcut.key === 'plans'
-                    ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } }
-                    : shortcut.route,
-                )
-              }
-              style={{ flex: 1 }}
-            >
-              <Card padded={false} style={styles.shortcut}>
-                <View style={styles.shortcutIcon}>
-                  <Icon name={SHORTCUT_ICON[shortcut.key] ?? 'star'} size={20} color="accent.onSoft" />
-                </View>
-                {/* A dash, not a zero: an unknown count and an empty list are
-                    different facts, and only one of them is reassuring. */}
-                <Text variant={!(shortcut.count == null) ? 'title1' : shortcut.count == null ? 'title1' : undefined} color={!(shortcut.count == null) ? 'text.primary' : shortcut.count == null ? 'text.secondary' : undefined}>
-                  {shortcut.count ?? '—'}
-                </Text>
-                <Text variant="caption" color="text.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
-              </Card>
-            </Pressable>
-          ))}
-        </View>
-
-        <Card padded={false} style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
-          {SETTINGS_ROWS.map((row, index) => (
-            <Pressable
-              key={row.key}
-              onPress={() => (row.route ? router.push(row.route) : undefined)}
-              // A row with nowhere to go says so instead of silently doing
-              // nothing when tapped.
-              disabled={!row.route}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !row.route }}
-              testID={`profile-setting-${t(`profile.settings.${row.key}`)}`}
-              // Pressed is a colour change (#382) — the rows had no pressed state.
-              style={({ pressed }) => [
-                styles.settingRow,
-                index === SETTINGS_ROWS.length - 1 && styles.settingRowLast,
-                pressed && !!row.route && styles.settingRowPressed,
-              ]}
-            >
-              <View style={styles.settingLead}>
-                <View style={styles.settingIconTile}>
-                  <Icon name={row.icon} size={20} color={row.route ? 'text.primary' : 'text.secondary'} />
-                </View>
-                {/* A row with nowhere to go reads `text.secondary`, the measured
-                    disabled colour — never the 1.6:1 placeholder (#382). */}
-                <Text color={row.route ? 'text.primary' : 'text.secondary'} style={styles.settingLabel}>
-                  {t(`profile.settings.${row.key}`)}
-                </Text>
-              </View>
-              {row.key === 'inbox' ? <CountBadge count={unread.count} more={unread.more} style={styles.inboxBadge} /> : null}
-              {row.route ? (
-                <IconChevronRight />
-              ) : (
-                <Text variant="caption" color="text.secondary">{t('profile.settings.comingSoon')}</Text>
-              )}
-            </Pressable>
-          ))}
+      )}
+      {!canRead ? <>
+        <Card appearance="stitch" padded={false} style={styles.card}>
+          <Text variant="title2">{t('g11.unlock')}</Text><Text color="text.secondary">{t('g11.unlockBody')}</Text>
+          <PrimaryBtn label={t('g11.signIn')} onPress={() => router.push('/auth/sign-in')} />
         </Card>
-
-        {/* Help › GoGo AI (#379), behind the assistant gate. */}
-        <AssistantHelpSection />
-
-        {/* Demo controls (dev only): audience × UI state are independent
-            dimensions (spec v3 §22); stripped from production builds. */}
-        {__DEV__ && (
-          <Card padded={false} style={styles.card}>
-            <Text variant="caption" color="text.secondary" style={styles.caption}>Demo · {env.name}</Text>
-            <View style={styles.segmentRow}>
-              {audiences.map(a => (
-                <Pressable
-                  key={a}
-                  accessibilityRole="button"
-                  onPress={() => room.setAudience(a)}
-                  style={[styles.segmentBtn, room.audience === a && styles.segmentBtnActive]}
-                >
-                  <Text variant="caption" color={room.audience === a ? 'text.inverse' : 'text.secondary'}>{a}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={[styles.segmentRow, { marginTop: spacing[2] }]}>
-              {uiStates.map(s => (
-                <Pressable
-                  key={s}
-                  accessibilityRole="button"
-                  onPress={() => room.setUiState(s)}
-                  style={[styles.segmentBtn, room.uiState === s && styles.segmentBtnActive]}
-                >
-                  <Text variant="caption" color={room.uiState === s ? 'text.inverse' : 'text.secondary'}>{s}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={[styles.segmentRow, { marginTop: spacing[2] }]}>
-              {locales.map(l => (
-                <Pressable
-                  key={l}
-                  accessibilityRole="button"
-                  onPress={() => void i18n.changeLanguage(l)}
-                  style={[styles.segmentBtn, i18n.resolvedLanguage === l && styles.segmentBtnActive]}
-                >
-                  <Text variant="caption" color={i18n.resolvedLanguage === l ? 'text.inverse' : 'text.secondary'}>{l.toUpperCase()}</Text>
-                </Pressable>
-              ))}
-            </View>
+      </> : null}
+      <View style={styles.shortcutRow}>{shortcuts.map(shortcut => {
+        const isLocked = !canRead && shortcut.userOnly
+        return <Pressable key={shortcut.key} accessibilityRole="button" accessibilityLabel={shortcut.count === undefined ? t(`profile.shortcut.${shortcut.key}`) : `${t(`profile.shortcut.${shortcut.key}`)}: ${shortcut.count}`}
+          accessibilityHint={isLocked ? t('g11.userOnly') : undefined}
+          onPress={() => isLocked ? setLocked(true) : router.push(shortcut.key === 'plans' ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } } : shortcut.route)}
+          style={({ pressed }) => [styles.shortcutPress, pressed && styles.settingRowPressed]}>
+          <Card appearance="stitch" padded={false} style={styles.shortcut}>
+            <View style={styles.shortcutIcon}><Icon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color="accent.onSoft" /></View>
+            {shortcut.count !== undefined ? <Text variant="title1">{shortcut.count}</Text> : null}
+            <Text variant="caption" color="text.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
+            {isLocked ? <Text variant="caption" color="text.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
           </Card>
-        )}
-
-        {status === 'anonymous' ? null : (
-          <Pressable
-            style={styles.logout}
-            onPress={signOutNow}
-            disabled={signingOut}
-            accessibilityRole="button"
-            accessibilityLabel={signingOut ? t('profile.loggingOut') : t('profile.logout')}
-            accessibilityState={{ disabled: signingOut, busy: signingOut }}
-          >
-            <Text variant="label" color="accent.onSoft">
-              {signingOut ? t('profile.loggingOut') : t('profile.logout')}
-            </Text>
-          </Pressable>
-        )}
-        {signOutFailure && (
-          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.logoutError}>
-            {/* A literal lookup, so the i18n key scan reads every key this can
-                ask for, and `satisfies` makes tsc demand copy for every reason. */}
-            {t(
-              ({
-                offline: 'profile.logoutFailedOffline',
-                timeout: 'profile.logoutFailedTimeout',
-                push_unconfirmed: 'profile.logoutFailedPush',
-                session_ended: 'profile.logoutSessionEnded',
-                other: 'profile.logoutFailed',
-              } as const satisfies Record<SignOutFailure, string>)[signOutFailure],
-            )}
-          </Text>
-        )}
-      </ScrollView>
-    </Atmosphere>
-  )
+        </Pressable>
+      })}</View>
+      {!canRead ? <Card appearance="stitch" padded={false} style={styles.card}><Text variant="bodySmall" color="text.secondary">{t('g11.guestHint')}</Text><GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} /></Card> : null}
+      <ProfileUpcoming enabled={canRead} />
+      {(['settings', 'experience'] as const).map(group => {
+        const rows = SETTINGS_ROWS.filter(row => row.group === group && (canRead || !row.userOnly))
+        if (!rows.length) return null
+        return <View key={group}>
+          <Text variant="label" color="text.secondary" style={styles.groupTitle}>{t(group === 'settings' ? 'g11.settings' : 'g11.experience')}</Text>
+          <Card appearance="stitch" padded={false} style={styles.settingsCard}>{rows.map((row, index) => <Pressable key={row.key} onPress={() => router.push(row.route)} accessibilityRole="button"
+            testID={`profile-setting-${t(`profile.settings.${row.key}`)}`} style={({ pressed }) => [styles.settingRow, index === rows.length - 1 && styles.settingRowLast, pressed && styles.settingRowPressed]}>
+            <View style={styles.settingLead}><View style={styles.settingIconTile}><Icon name={row.icon} size={20} /></View><Text style={styles.settingLabel}>{t(`profile.settings.${row.key}`)}</Text></View>
+            {row.key === 'theme' ? <Text variant="caption" color="text.secondary">{t(`theme.${accentOf(rt.themeName) ?? DEFAULT_ACCENT}`)}</Text> : null}
+            {row.key === 'defaults' && profile?.homeAdministrativeArea?.provinceName ? <Text variant="caption" numberOfLines={1} style={styles.rowValue} color="text.secondary">{profile.homeAdministrativeArea.provinceName}</Text> : null}
+            {row.key === 'reviews' && reviews.data ? <Text variant="caption" color="text.secondary">{reviews.data.length}</Text> : null}
+            <IconChevronRight />
+          </Pressable>)}</Card>
+        </View>
+      })}
+      <AssistantHelpSection />
+      {status !== 'anonymous' ? <SecondaryBtn label={signingOut ? t('profile.loggingOut') : t('profile.logout')} onPress={() => setLogoutConfirm(actor)} disabled={signingOut} loading={signingOut} style={styles.logout} /> : null}
+      {signOutFailure ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.logoutError}>
+        {t(({ offline: 'profile.logoutFailedOffline', timeout: 'profile.logoutFailedTimeout', push_unconfirmed: 'profile.logoutFailedPush', session_ended: 'profile.logoutSessionEnded', other: 'profile.logoutFailed' } as const satisfies Record<SignOutFailure, string>)[signOutFailure])}
+      </Text> : null}
+      <BuildVersion />
+    </ScrollView>
+    <ResultSheet visible={locked && !canRead} variant="info" title={t('notifications.signInTitle')} body={t('g11.userOnly')}
+      primaryAction={{ label: t('auth.signInCta'), onPress: () => { setLocked(false); router.push('/auth/sign-in') } }} onClose={() => setLocked(false)} />
+    <Sheet visible={logoutConfirm !== null && logoutConfirm === actor} onClose={() => setLogoutConfirm(null)} testID="profile-logout-confirm">
+      <View style={styles.confirm}><Text variant="title2">{t('g11.logoutTitle')}</Text><Text color="text.secondary">{t('g11.logoutBody')}</Text>
+        <SecondaryBtn label={t('g11.logoutConfirm')} onPress={() => { setLogoutConfirm(null); void signOutNow() }} />
+        <GhostBtn label={t('common.cancel')} onPress={() => setLogoutConfirm(null)} />
+      </View>
+    </Sheet>
+  </Atmosphere>
 }

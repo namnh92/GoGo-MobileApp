@@ -30,6 +30,8 @@ jest.mock('@/shared/api', () => {
   const idle = { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn() }
   return {
     ...jest.requireActual('@/shared/api'),
+    useTaxonomies: () => ({ data: { kinds: {} } }),
+    useMyRooms: () => ({ data: { pages: [] }, hasNextPage: false }),
     useMe: () => idle,
     useMyReviews: () => idle,
     useNotificationSettings: () => idle,

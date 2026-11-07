@@ -2,109 +2,73 @@ const mockTrack = jest.fn()
 jest.mock('@/shared/analytics', () => ({ track: (...args: unknown[]) => mockTrack(...args) }))
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { fireEvent, screen } from '@testing-library/react-native'
+import { fireEvent, screen, within } from '@testing-library/react-native'
 import { UnistylesRuntime } from 'react-native-unistyles'
-
 import { ThemeAccentCard } from '@/features/account/theme-accent.view'
-import { ACCENT_PREFERENCE_KEY, readAccentPreference } from '@/shared/theme/accent-preference'
+import { ACCENT_PREFERENCE_KEY } from '@/shared/theme/accent-preference'
 import { ACCENTS } from '@/shared/ui/theme'
-
 import { renderScreen } from './harness'
 
-/**
- * #297 (#293 §6) — "Màu chủ đề". A tap applies the theme at once
- * (`UnistylesRuntime.setTheme`), stores it for the next launch, and reports
- * which accent was picked. Selection is announced, not only painted: a check
- * glyph and `accessibilityState.selected` on the chosen swatch.
- */
 const runtime = UnistylesRuntime as unknown as { themeName?: string; setTheme: (name: string) => void }
 let setTheme: jest.SpyInstance
-
+let scoped: jest.SpyInstance
 beforeEach(async () => {
+  scoped = jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles'), 'ScopedTheme').mockImplementation(({ children }) => <>{children}</>)
   await AsyncStorage.clear()
   mockTrack.mockReset()
   runtime.themeName = undefined
-  setTheme = jest.spyOn(runtime, 'setTheme').mockImplementation(() => {})
+  setTheme = jest.spyOn(runtime, 'setTheme').mockImplementation(name => { runtime.themeName = name })
 })
+afterEach(() => { scoped.mockRestore(); setTheme.mockRestore(); runtime.themeName = undefined })
+const selected = (accent: string) => screen.getByTestId(`theme-swatch-${accent}`).props.accessibilityState?.selected
+const apply = () => fireEvent.press(screen.getByRole('button', { name: 'Áp dụng màu chủ đề' }))
 
-afterEach(() => {
-  setTheme.mockRestore()
-  runtime.themeName = undefined
+it('shows four labelled swatches and a noninteractive illustrative preview', async () => {
+  await renderScreen(<ThemeAccentCard />)
+  expect(ACCENTS.map(accent => screen.getByTestId(`theme-swatch-${accent}`).props.accessibilityLabel)).toEqual(['Cam', 'Xanh lá', 'Xanh dương', 'Tím'])
+  expect(selected('orange')).toBe(true)
+  expect(within(screen.getByTestId('theme-preview')).queryAllByRole('button')).toHaveLength(0)
+  expect(screen.getByText('Mô phỏng giao diện · Không tương tác')).toBeTruthy()
 })
-
-function selected(accent: string): boolean | undefined {
-  return screen.getByTestId(`theme-swatch-${accent}`).props.accessibilityState?.selected
-}
-
-describe('theme accent setting', () => {
-  it('shows four labelled swatches with the helper line', async () => {
-    await renderScreen(<ThemeAccentCard />)
-    expect(screen.getByText('Màu chủ đề')).toBeTruthy()
-    expect(screen.getByText('Áp dụng cho nút, tab và điểm nhấn trong ứng dụng.')).toBeTruthy()
-    const labels = ACCENTS.map(accent => screen.getByTestId(`theme-swatch-${accent}`).props.accessibilityLabel)
-    expect(labels).toEqual(['Cam', 'Xanh lá', 'Xanh dương', 'Tím'])
-  })
-
-  it('marks the active theme selected — orange when the runtime reports nothing usable', async () => {
-    runtime.themeName = 'coral'
-    await renderScreen(<ThemeAccentCard />)
-    expect(selected('orange')).toBe(true)
-    expect(ACCENTS.filter(accent => accent !== 'orange').map(selected)).toEqual([false, false, false])
-  })
-
-  it('starts on the theme the bootstrap applied', async () => {
-    runtime.themeName = 'blue'
-    await renderScreen(<ThemeAccentCard />)
-    expect(selected('blue')).toBe(true)
-    expect(selected('orange')).toBe(false)
-  })
-
-  it('follows a theme the bootstrap applies after the card mounted (#297 F-01)', async () => {
-    // Opened straight into /settings/account: the card mounts before AppProviders
-    // has read the saved key, so it first sees no theme.
-    runtime.themeName = undefined
-    await renderScreen(<ThemeAccentCard />)
-    expect(selected('orange')).toBe(true)
-
-    runtime.themeName = 'blue'
-    await screen.rerender(<ThemeAccentCard />)
-    expect(selected('blue')).toBe(true)
-    expect(selected('orange')).toBe(false)
-
-    // Orange is no longer the current theme, so choosing it applies it.
-    await fireEvent.press(screen.getByTestId('theme-swatch-orange'))
-    expect(setTheme).toHaveBeenCalledWith('orange')
-  })
-
-  it('a tap applies the theme, persists it for the next launch and fires the event', async () => {
-    await renderScreen(<ThemeAccentCard />)
-    await fireEvent.press(screen.getByTestId('theme-swatch-green'))
-
-    expect(setTheme).toHaveBeenCalledTimes(1)
-    expect(setTheme).toHaveBeenCalledWith('green')
-    expect(mockTrack).toHaveBeenCalledWith('theme_accent_changed', { accent: 'green' })
-    expect(selected('green')).toBe(true)
-    expect(selected('orange')).toBe(false)
-
-    // A restart reads the same key the bootstrap reads.
-    await expect(AsyncStorage.getItem(ACCENT_PREFERENCE_KEY)).resolves.toBe('green')
-    await expect(readAccentPreference()).resolves.toBe('green')
-  })
-
-  it('tapping the theme already on screen does nothing', async () => {
-    await renderScreen(<ThemeAccentCard />)
-    await fireEvent.press(screen.getByTestId('theme-swatch-orange'))
-    expect(setTheme).not.toHaveBeenCalled()
-    expect(mockTrack).not.toHaveBeenCalled()
-    await expect(AsyncStorage.getItem(ACCENT_PREFERENCE_KEY)).resolves.toBeNull()
-  })
-
-  it('a failed save still applies the theme for this session', async () => {
-    jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'))
-    await renderScreen(<ThemeAccentCard />)
-    await fireEvent.press(screen.getByTestId('theme-swatch-purple'))
-    expect(setTheme).toHaveBeenCalledWith('purple')
-    expect(selected('purple')).toBe(true)
-    expect(mockTrack).toHaveBeenCalledWith('theme_accent_changed', { accent: 'purple' })
-  })
+it('selecting only previews; Apply persists and changes the running theme', async () => {
+  await renderScreen(<ThemeAccentCard />)
+  await fireEvent.press(screen.getByTestId('theme-swatch-green'))
+  expect(selected('green')).toBe(true)
+  expect(setTheme).not.toHaveBeenCalled()
+  expect(scoped.mock.calls.at(-1)?.[0].name).toBe('green')
+  await expect(AsyncStorage.getItem(ACCENT_PREFERENCE_KEY)).resolves.toBeNull()
+  await apply()
+  expect(setTheme).toHaveBeenCalledWith('green')
+  expect(mockTrack).toHaveBeenCalledWith('theme_accent_changed', { accent: 'green' })
+  await expect(AsyncStorage.getItem(ACCENT_PREFERENCE_KEY)).resolves.toBe('green')
+  expect(screen.getByText('Đã cập nhật màu chủ đề')).toBeTruthy()
+})
+it('leaving without Apply does not change the stored or running theme', async () => {
+  const view = await renderScreen(<ThemeAccentCard />)
+  await fireEvent.press(screen.getByTestId('theme-swatch-purple'))
+  await view.unmount()
+  expect(setTheme).not.toHaveBeenCalled()
+  await expect(AsyncStorage.getItem(ACCENT_PREFERENCE_KEY)).resolves.toBeNull()
+})
+it('follows late bootstrap and discards a draft made over an older theme', async () => {
+  const view = await renderScreen(<ThemeAccentCard />)
+  await fireEvent.press(screen.getByTestId('theme-swatch-green'))
+  runtime.themeName = 'blueDark'
+  await view.rerender(<ThemeAccentCard />)
+  expect(selected('blue')).toBe(true)
+  expect(selected('green')).toBe(false)
+})
+it('reports storage errors, retains the draft, and allows retry', async () => {
+  jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'))
+  await renderScreen(<ThemeAccentCard />)
+  await fireEvent.press(screen.getByTestId('theme-swatch-purple'))
+  await apply()
+  expect(screen.getByText('Chưa lưu được màu chủ đề. Thử lại nhé.')).toBeTruthy()
+  expect(setTheme).not.toHaveBeenCalled()
+  expect(mockTrack).not.toHaveBeenCalled()
+  expect(selected('purple')).toBe(true)
+  await fireEvent.press(screen.getAllByRole('button', { name: 'Đóng' })[0])
+  await apply()
+  expect(setTheme).toHaveBeenCalledWith('purple')
+  await expect(AsyncStorage.getItem(ACCENT_PREFERENCE_KEY)).resolves.toBe('purple')
 })

@@ -1,8 +1,8 @@
-import { useMyRooms, type RoomListItem } from '@/shared/api'
+import { useMyRooms } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 
-/** What the Plans tab lists under "Sắp tới", and what its badge counts. */
-export const UPCOMING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'matching', 'ready', 'active']
+import { UPCOMING } from './room-status'
+export { UPCOMING } from './room-status'
 
 /**
  * The badge on the Plans tab: the same query as the "Sắp tới" list, so the two

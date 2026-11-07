@@ -53,7 +53,7 @@ it('shows exactly one switch, carrying the account value', async () => {
   expect(switches).toHaveLength(1)
   expect(switches[0].props.value).toBe(true)
   expect(switches[0].props.disabled).toBe(false)
-  expect(screen.getByLabelText('Thông báo')).toBeTruthy()
+  expect(screen.getByRole('switch', { name: 'Thông báo' })).toBeTruthy()
 })
 
 it('saves the choice on toggle and nothing else', async () => {

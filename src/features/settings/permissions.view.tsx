@@ -1,13 +1,13 @@
+import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Linking } from 'react-native'
 
 import { NotificationSwitchSection } from '@/features/notifications/notification-switch.view'
 import { useSession } from '@/shared/providers/session-provider'
-import { Atmosphere, BackHeader, Card, GhostBtn } from '@/shared/ui/primitives'
+import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { spacing } from '@/shared/ui/tokens'
+import { SettingsPage, BuildVersion } from './settings-page.view'
 
 import { DevicePromotionsSection } from './device-promotions.view'
 import { LocationPermissionSection } from './location-permission.view'
@@ -28,15 +28,19 @@ import { TrackingConsentSection } from './tracking-consent.view'
 export default function PermissionsSettingsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
+  const [settingsFailed, setSettingsFailed] = useState(false)
+  async function openSystemSettings() {
+    setSettingsFailed(false)
+    try { await Linking.openSettings() } catch { setSettingsFailed(true) }
+  }
   const { status } = useSession()
 
   return (
-    <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} title={t('permissionsSettings.title')} />
-      </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}>
+    <SettingsPage title={t('permissionsSettings.title')}>
+        <Card appearance="stitch" padded={false} style={styles.intro}>
+          <Text variant="title2">{t('g11.permissionsHeading')}</Text>
+          <Text color="text.secondary">{t('g11.permissionsIntro')}</Text>
+        </Card>
         <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>
           {t('permissionsSettings.notifications')}
         </Text>
@@ -45,7 +49,7 @@ export default function PermissionsSettingsScreen() {
         ) : (
           <>
             <DevicePromotionsSection />
-            <Card padded={false} style={styles.signInCard}>
+            <Card appearance="stitch" padded={false} style={styles.signInCard}>
               <Text>{t('notifications.signInBody')}</Text>
               <GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />
             </Card>
@@ -61,7 +65,13 @@ export default function PermissionsSettingsScreen() {
           {t('permissionsSettings.tracking')}
         </Text>
         <TrackingConsentSection />
-      </ScrollView>
-    </Atmosphere>
+        <Text variant="label" color="text.secondary" style={styles.sectionTitle}>{t('g11.system')}</Text>
+        <Card appearance="stitch" padded={false} style={styles.intro}>
+          <Text variant="title2">{t('g11.systemHeading')}</Text>
+          <SecondaryBtn label={t('g11.openSystem')} icon="settings" onPress={() => void openSystemSettings()} />
+          {settingsFailed ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
+        </Card>
+        <BuildVersion />
+    </SettingsPage>
   )
 }

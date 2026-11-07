@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { OfflineState } from '@/shared/ui/async-state.view'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator, Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
@@ -16,10 +18,12 @@ import { track } from '@/shared/analytics'
 import { serviceAreaLabel } from '@/shared/location/area-label'
 import { haptic } from '@/shared/ui/feedback'
 import { Icon } from '@/shared/ui/icons'
-import { Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 import { Text } from '@/shared/ui/text'
+
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
 
 import { styles } from './profile-defaults.style'
 
@@ -41,13 +45,16 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const update = useUpdateProfile()
+  const saving = useRef(false)
   const administrativeVersion = useAdministrativeVersion()
   const taxonomies = useTaxonomies({ kinds: INTEREST_KIND })
+  const waiting = useWaitingForNetwork(taxonomies)
 
   const [area, setArea] = useState<AdministrativeSelection | null | undefined>(undefined)
   const [moods, setMoods] = useState<string[] | undefined>(undefined)
   const [budget, setBudget] = useState<number | null | undefined>(undefined)
   const [notice, setNotice] = useState<string | null>(null)
+  const [result, setResult] = useState<'success' | 'error' | null>(null)
 
   const currentArea = area === undefined ? (profile.homeAdministrativeArea ?? null) : area
   const currentMoods = moods ?? profile.interests?.mood ?? []
@@ -64,6 +71,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
   }, [taxonomies.data, i18n.language])
 
   function toggleMood(key: string) {
+    if (saving.current) return
     const next = currentMoods.includes(key)
       ? currentMoods.filter(k => k !== key)
       : currentMoods.length < MAX_INTERESTS
@@ -73,6 +81,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
   }
 
   async function save() {
+    if (saving.current) return
     setNotice(null)
     const patch: OpBody<'updateProfile'> = {}
     if (area !== undefined) {
@@ -88,6 +97,7 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
     // server drops the row rather than keeping an empty one.
     if (moods !== undefined) patch.interests = moods.length > 0 ? { mood: moods } : null
     if (budget !== undefined) patch.usualBudget = budget === null ? null : { perPerson: budget, currency: 'VND' }
+    saving.current = true
     try {
       await update.mutateAsync(patch)
       setArea(undefined)
@@ -95,14 +105,15 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
       setBudget(undefined)
       haptic('success')
       track('profile_defaults_saved', { fields: Object.keys(patch).join(',') })
-      setNotice(t('account.defaultsSaved'))
+      setResult('success')
     } catch {
-      setNotice(t('account.defaultsFailed'))
-    }
+      setResult('error')
+    } finally { saving.current = false }
   }
 
   return (
-    <Card padded={false} style={styles.card}>
+    <>
+    <Card appearance="stitch" padded={false} style={styles.card}>
       <View style={styles.titleRow}>
         <View style={styles.icon}>
           <Icon name="sliders" size={20} color="accent.onSoft" />
@@ -112,30 +123,45 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
           <Text variant="bodySmall" color="text.secondary">{t('account.defaultsBody')}</Text>
         </View>
       </View>
+    </Card>
 
-      <View style={styles.field}>
+    <Card appearance="stitch" padded={false} style={styles.field}>
         <Text variant="label">{t('account.homeArea')}</Text>
         {area === undefined && !profile.homeAdministrativeArea && profile.homeArea ? (
           <View>
             <Text style={styles.value}>{areaDisplayName(profile.homeArea)}</Text>
             <Text variant="caption" color="text.secondary">{t('account.legacyArea')}</Text>
-            <GhostBtn label={t('account.homeAreaClear')} onPress={() => setArea(null)} />
+            <GhostBtn label={t('account.homeAreaClear')} onPress={() => { if (!saving.current) setArea(null) }} />
           </View>
         ) : null}
-        <AdministrativePicker value={currentArea} onChange={setArea} />
-      </View>
+        <AdministrativePicker value={currentArea} onChange={value => { if (!saving.current) setArea(value) }} />
+    </Card>
 
-      <View style={styles.field}>
-        <Text variant="label">{t('account.interests')}</Text>
+    <Card appearance="stitch" padded={false} style={styles.field}><View style={styles.budgetGroup} accessibilityRole="radiogroup" accessibilityLabel={t('account.usualBudget')}>
+        <Text variant="title2">{t('account.usualBudget')}</Text>
+        <Text variant="caption" color="text.secondary">{t('g11.perPerson')}</Text>
+        {[{ key: 'none', amount: null }, ...BUDGET_TIERS].map(tier => (
+          <Pressable key={tier.key} accessibilityRole="radio" accessibilityState={{ checked: currentBudget === tier.amount }}
+            onPress={() => { if (!saving.current) setBudget(tier.amount) }} style={({ pressed }) => [styles.budgetRow, currentBudget === tier.amount && styles.budgetSelected, pressed && styles.pressed]}>
+            <Text style={styles.titleText}>{tier.key === 'none' ? t('account.usualBudgetNone') : t(`createBudget.tier.${tier.key}`)}</Text>
+            <View style={[styles.radio, currentBudget === tier.amount && styles.radioSelected]}>{currentBudget === tier.amount ? <Icon name="check" size={16} color="accent.onSoft" /> : null}</View>
+          </Pressable>
+        ))}
+        {currentBudget !== null && !BUDGET_TIERS.some(tier => tier.amount === currentBudget) ? <Text variant="bodySmall">{t('g11.currentBudget', { amount: new Intl.NumberFormat(i18n.language).format(currentBudget) })}</Text> : null}
+      </View></Card>
+
+    <Card appearance="stitch" padded={false} style={styles.field}>
+        <Text variant="title2">{t('account.interests')}</Text>
+        <Text variant="caption" color="accent.onSoft">{t('g11.selected', { count: currentMoods.length })}</Text>
         <Text variant="caption" color="text.secondary">{t('account.interestsHint', { max: MAX_INTERESTS })}</Text>
         {taxonomies.isPending ? (
-          <ActivityIndicator color={theme.accent.primary} />
+          waiting ? <OfflineState /> : <ActivityIndicator color={theme.accent.primary} />
         ) : taxonomies.isError ? (
           <View style={styles.valueRow}>
             <Text variant="bodySmall" color="status.warningText">{t('account.interestsFailed')}</Text>
             <GhostBtn label={t('common.retry')} onPress={() => void taxonomies.refetch()} />
           </View>
-        ) : (
+        ) : moodOptions.length === 0 ? <Text variant="bodySmall" color="text.secondary">{t('g11.noInterests')}</Text> : (
           <View style={styles.chips}>
             {moodOptions.map(option => (
               <Chip
@@ -148,28 +174,10 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
             ))}
           </View>
         )}
-      </View>
+    </Card>
 
-      <View style={styles.field}>
-        <Text variant="label">{t('account.usualBudget')}</Text>
-        <View style={styles.chips}>
-          <Chip
-            label={t('account.usualBudgetNone')}
-            variant={currentBudget === null ? 'selected' : 'default'}
-            onPress={() => setBudget(null)}
-          />
-          {BUDGET_TIERS.map(tier => (
-            <Chip
-              key={tier.key}
-              label={t(`createBudget.tier.${tier.key}`)}
-              variant={currentBudget === tier.amount ? 'selected' : 'default'}
-              onPress={() => setBudget(tier.amount)}
-            />
-          ))}
-        </View>
-      </View>
-
-      <SecondaryBtn
+      <Text variant="bodySmall" color="text.secondary">{t('g11.defaultsNote')}</Text>
+      <PrimaryBtn
         label={t('account.defaultsSave')}
         onPress={save}
         icon="check"
@@ -182,6 +190,8 @@ export function ProfileDefaultsCard({ profile }: { profile: Me }) {
         </Text>
       ) : null}
 
-    </Card>
+    <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'account.defaultsFailed' : 'account.defaultsSaved')}
+      body={t('account.defaultsBody')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
+    </>
   )
 }
