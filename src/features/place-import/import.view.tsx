@@ -158,6 +158,7 @@ export default function PlaceImportScreen() {
   const submit = useSubmitPlace()
   const wizard = useRef<{ saveDraft: () => void }>(null)
   const [outcome, setOutcome] = useState<'success' | 'error' | null>(null)
+  const [submittedPreview, setSubmittedPreview] = useState<Candidate | undefined>(undefined)
   const [resultVisible, setResultVisible] = useState(false)
   const afterResultClose = useRef<(() => void) | null>(null)
   function closeResult(action?: () => void) {
@@ -193,6 +194,7 @@ export default function PlaceImportScreen() {
     submitLock.current = false
     setRevalidating(false)
     setOutcome(null)
+    setSubmittedPreview(undefined)
     setResultVisible(false)
   }
 
@@ -248,6 +250,11 @@ export default function PlaceImportScreen() {
     )
       return
     submitLock.current = true
+    if (!retried) {
+      setSubmittedPreview(candidate?.googlePlaceId === googlePlaceId
+        ? candidate
+        : result?.candidates?.find(item => item.googlePlaceId === googlePlaceId))
+    }
     const resolutionToken = token ?? resolve.data?.resolutionToken
     try {
       const submission = await submit.mutateAsync({
@@ -310,7 +317,7 @@ export default function PlaceImportScreen() {
 
   const verified = result?.status === 'RESOLVED' && !!candidate
   const contributionPlaceId = verified ? candidate.googlePlaceId : result?.status === 'CANDIDATE_SELECTION' ? selectedGooglePlaceId : undefined
-  const submittedPreview = candidate ?? result?.candidates?.find(item => item.googlePlaceId === contributionPlaceId)
+  const branchSelectionDisabled = submit.isPending || revalidating || submit.isSuccess || outcome === 'success'
   const offline = !online || resolve.isPaused || (resolve.isError && resolve.error instanceof NetworkError)
   const validFormat = mapsUrlSchema.safeParse(url).success
   const showValidation = url.trim().length > 0 || invalid
@@ -489,9 +496,14 @@ export default function PlaceImportScreen() {
                       return (
                         <Pressable
                           key={option.googlePlaceId}
-                          onPress={() => { enrichment.current = undefined; setSelectedGooglePlaceId(option.googlePlaceId ?? null) }}
+                          disabled={branchSelectionDisabled}
+                          onPress={() => {
+                            if (submitLock.current || branchSelectionDisabled) return
+                            enrichment.current = undefined
+                            setSelectedGooglePlaceId(option.googlePlaceId ?? null)
+                          }}
                           accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
+                          accessibilityState={{ selected: active, disabled: branchSelectionDisabled }}
                           style={[styles.candidateRow, active && styles.candidateRowActive]}
                         >
                           <Text variant="title2">{option.name}</Text>

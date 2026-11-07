@@ -227,6 +227,12 @@ export function ContributionWizard({
         reportDraftReadFailure(error, 'resume')
         if (isApiError(error) && error.status === 404) {
           setMissingDraftIds((ids) => [...ids, draft.id])
+          if (draft.id === draftId || draft.id === saved?.id) {
+            setSaved(null)
+            setDraftId(null)
+            setNeedsReload(false)
+            setMessage(null)
+          }
         }
       }
     } finally {
