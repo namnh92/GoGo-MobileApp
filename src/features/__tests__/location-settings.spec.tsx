@@ -114,12 +114,13 @@ describe('location settings', () => {
     expect(await view.findByText('Đã cho phép.')).toBeTruthy()
   })
 
-  it('keeps the default area in Account, not in a permission', async () => {
+  it('opens Defaults to choose the default area without requesting location', async () => {
     const view = await renderScreen(<LocationSettingsScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText('Chọn khu vực mặc định trong Tài khoản'))
+      await fireEvent.press(view.getByText('Chọn khu vực trong Cài đặt mặc định'))
     })
-    expect(mockPush).toHaveBeenCalledWith('/settings/account')
+    expect(mockPush).toHaveBeenCalledWith('/settings/defaults')
+    expect(mockRequest).not.toHaveBeenCalled()
   })
 
   it('explains that a profile keeps an area, never a position', async () => {

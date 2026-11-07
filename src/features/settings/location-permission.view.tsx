@@ -44,7 +44,7 @@ async function readPermission(): Promise<LocationPermissionState> {
  * PROF-APP-005 (#180), now a section of APP-058 (#216). It shows this device's
  * foreground location permission and the way to change it; it never asks on its
  * own and stores nothing. A profile's default *area* is an account choice, not a
- * permission, and stays in Account information (ADR-0022, ADM-203).
+ * permission, and is edited in Defaults (ADR-0022, ADM-203).
  */
 export function LocationPermissionSection() {
   const { theme } = useUnistyles()
@@ -123,7 +123,7 @@ export function LocationPermissionSection() {
       ) : null}
 
       <Text variant="caption" color="text.secondary">{t('locationSettings.note')}</Text>
-      <GhostBtn label={t('permissionsSettings.areaInAccount')} onPress={() => router.push('/settings/account')} />
+      <GhostBtn label={t('permissionsSettings.areaInDefaults')} onPress={() => router.push('/settings/defaults')} />
     </Card>
   )
 }

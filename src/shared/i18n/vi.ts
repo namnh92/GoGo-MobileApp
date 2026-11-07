@@ -1493,7 +1493,7 @@ export const viMessages = {
   'permissionsSettings.trackingUnavailable': 'Bản này không có đo lượt cài đặt.',
   'permissionsSettings.trackingIos': 'iOS quản lý quyền theo dõi của GoGo trong Cài đặt.',
   'permissionsSettings.openSettings': 'Mở Cài đặt',
-  'permissionsSettings.areaInAccount': 'Chọn khu vực mặc định trong Tài khoản',
+  'permissionsSettings.areaInDefaults': 'Chọn khu vực trong Cài đặt mặc định',
   'notificationSettings.saveFailed': 'Chưa lưu được. Công tắc đã trở về trạng thái trước.',
   'notificationSettings.retrySave': 'Thử lưu lại',
   'notificationSettings.loadFailed': 'Chưa tải được cài đặt thông báo của tài khoản.',

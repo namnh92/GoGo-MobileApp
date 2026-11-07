@@ -7,6 +7,7 @@
 - Quyết định owner **2026-11-08**: [#529 comment 6710656834](https://github.com/namnh92/GoGo-MobileApp/issues/529#issuecomment-6710656834), đã đọc lại trực tiếp từ GitHub trong lượt F-01.
 - Light theo bố cục Stitch và semantic tokens hiện có. Dark theo tokens, ngoại lệ owner **2026-11-07** tại [#529](https://github.com/namnh92/GoGo-MobileApp/issues/529). Không có cặp Dark riêng trong bộ local.
 - Không thay OpenAPI, endpoint, authorization hoặc cơ chế phiên/cache. Dùng các hook và DTO được sinh hiện có.
+- **Astra r2 F-02 — SOURCE FIXED:** CTA chọn khu vực trong Quyền dẫn đến `/settings/defaults`, copy vi/en trỏ tới Cài đặt mặc định; regression kiểm tra route và không yêu cầu quyền vị trí. Chưa recapture native.
 
 ## Cập nhật evidence hiện tại — PR #530, `608ba45`, 2026-11-08
 
