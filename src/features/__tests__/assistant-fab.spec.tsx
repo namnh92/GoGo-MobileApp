@@ -132,6 +132,18 @@ describe('where it hides', () => {
     expect(view.queryByRole('button', { name: OPEN })).toBeNull()
   })
 
+  it.each(['/settings/defaults', '/settings/theme', '/settings/notifications', '/settings/location'])(
+    'keeps the Profile entry but hides it on %s (owner #529, 2026-11-08)',
+    async pathname => {
+      mockNav.pathname = '/profile'
+      const view = await shownThen(() => (mockNav.pathname = pathname))
+      expect(view.queryByRole('button', { name: OPEN })).toBeNull()
+      mockNav.pathname = '/profile'
+      await view.rerender(<TabsLayout />)
+      expect(view.getByRole('button', { name: OPEN })).toBeTruthy()
+    },
+  )
+
   it('while a screen is pushed over the tabs — place or plan detail, voting, or GoGo AI itself', async () => {
     const view = await shownThen(() => (mockNav.focused = false))
     expect(view.queryByRole('button', { name: OPEN })).toBeNull()

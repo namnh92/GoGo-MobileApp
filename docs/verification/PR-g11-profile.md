@@ -2,7 +2,7 @@
 
 ## Phạm vi và nguồn
 
-- Worktree `mobile-g11`, branch `feature/GOGO-529-redesign-g11-profile`, base `c9043b3` (`re-design`), HEAD `3c9c428` + dirty patch F-01. Không install/commit/push.
+- Worktree `mobile-g11`, branch `feature/GOGO-529-redesign-g11-profile`, base `c9043b3` (`re-design`), HEAD `4366341` + dirty patch ghi nhận quyết định owner. Không install/commit/push.
 - Nguồn giao diện: đã đọc cả HTML và PNG của `dev/handoffs/stitch-g11/11.1` đến `11.5`; kế hoạch `dev/handoffs/g11-plan.md` §1, §2, §4.
 - Quyết định owner **2026-11-08**: [#529 comment 6710656834](https://github.com/namnh92/GoGo-MobileApp/issues/529#issuecomment-6710656834), đã đọc lại trực tiếp từ GitHub trong lượt F-01.
 - Light theo bố cục Stitch và semantic tokens hiện có. Dark theo tokens, ngoại lệ owner **2026-11-07** tại [#529](https://github.com/namnh92/GoGo-MobileApp/issues/529). Không có cặp Dark riêng trong bộ local.
@@ -40,7 +40,7 @@
 | 11.1 Khách | Dark | [11.1-ca-nhan-khach.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.1-ca-nhan-khach.png) + Dark tokens | Chưa có | NOT MEASURED |
 | 11.2 Cá nhân | Light | [11.2-ca-nhan.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.2-ca-nhan.png) | [11.2-ca-nhan-light.png](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.2-ca-nhan-light.png) | COMPARED; V01–V04 sửa source; còn E01/E02/E05/E06 |
 | 11.2 Cá nhân | Dark | [11.2-ca-nhan.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.2-ca-nhan.png) + Dark tokens | [11.2-ca-nhan-dark.png](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.2-ca-nhan-dark.png) | COMPARED; cùng layout Light; avatar trống cần native recheck sau V09 |
-| 11.3 Mặc định | Light | [11.3-mac-dinh-tao-keo.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.3-mac-dinh-tao-keo.png) | [11.3-mac-dinh-light.png](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.3-mac-dinh-light.png) | COMPARED; V01/V05 sửa source; E03; U01 chưa được duyệt |
+| 11.3 Mặc định | Light | [11.3-mac-dinh-tao-keo.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.3-mac-dinh-tao-keo.png) | [11.3-mac-dinh-light.png](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.3-mac-dinh-light.png) | COMPARED; V01/V05 sửa source; E03; U01 đã quyết định |
 | 11.3 Mặc định | Dark | [11.3-mac-dinh-tao-keo.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.3-mac-dinh-tao-keo.png) + Dark tokens | [11.3-mac-dinh-dark.png](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.3-mac-dinh-dark.png) | COMPARED; cùng V05/E03/U01; màu theo E07 |
 | 11.4 Màu | Light | [11.4-mau-chu-de.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.4-mau-chu-de.png) | [11.4-mau-light.png](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.4-mau-light.png) | COMPARED; V01/V06/V07 sửa source; E04; U01 |
 | 11.4 Màu | Dark | [11.4-mau-chu-de.png](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/stitch-g11/11.4-mau-chu-de.png) + Dark tokens | [11.4-mau-dark.png](/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-530-g11/11.4-mau-dark.png) | COMPARED; cùng V06/V07/E04/U01; E07 |
@@ -74,16 +74,18 @@ Các phần dưới fold không có ảnh: 11.2 experience/AI/logout/version, 11
 | E03 | 11.3 L/D; subtitle Defaults ở 11.2 | Một picker tỉnh/phường thay GPS + ba vùng ghim; tier chưa đặt/1,5 triệu/custom và nhãn theo model; mood taxonomy thật, count không cố định 3 | Owner **2026-11-08**, [comment §2](https://github.com/namnh92/GoGo-MobileApp/issues/529#issuecomment-6710656834); §0.1 theo dữ liệu BE. Không đổi upper-bound thành schema range/unlimited, không đưa các chip mẫu thiếu taxonomy vào app |
 | E04 | 11.4 L/D | Tile/nhãn minh hoạ thay ảnh quán Mơ, địa chỉ/giờ/trending/rating mẫu; caption không tương tác; tab Saved thay Bản đồ | Owner **2026-11-08**, [comment §2](https://github.com/namnh92/GoGo-MobileApp/issues/529#issuecomment-6710656834): sample card không tương tác; §0.1: không dữ liệu thật thì không dựng facts. Bốn tab giữ navigation thật theo phạm vi UI-only trong #529/handoff; không thêm route Bản đồ |
 | E05 | 11.2/11.5 L/D (11.1 chưa đo) | Không Help/FAQ/góp ý/báo lỗi/About/policy/“Thiết kế với đam mê”; không intro/cam kết riêng tư chưa có nguồn, không lời hứa camera/micro/storage; metadata không Saigon Edition/version mẫu | Owner **2026-11-08**, [comment §3](https://github.com/namnh92/GoGo-MobileApp/issues/529#issuecomment-6710656834), [BE#810](https://github.com/namnh92/GoGo-BE/issues/810), [CMS#290](https://github.com/namnh92/GoGo-CMS/issues/290); §0.1 cho metadata build. Giữ disclosure consent SDK hiện hành |
-| E06 | 11.2 L/D | Contributions thêm một row; Kèo mở upcoming dù không tổng; logout secondary + confirmation | [#529](https://github.com/namnh92/GoGo-MobileApp/issues/529) yêu cầu giữ Contributions, UI-only; [handoff owner 2026-11-08 §4/Keep](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/codex-g11-build.md:8) giữ quyền guest và session behavior. Không tự bỏ các route được owner giữ để khớp ảnh; GoGo AI được tách riêng ở U02, không suy thành ngoại lệ visual |
+| E06 | 11.2 L/D | Contributions thêm một row; Kèo mở upcoming dù không tổng; logout secondary + confirmation | [#529](https://github.com/namnh92/GoGo-MobileApp/issues/529) yêu cầu giữ Contributions, UI-only; [handoff owner 2026-11-08 §4/Keep](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/codex-g11-build.md:8) giữ quyền guest và session behavior. Không tự bỏ các route được owner giữ để khớp ảnh; GoGo AI theo quyết định riêng U02 bên dưới |
 | E07 | Tất cả Dark; 11.4 swatch L/D | Không có Stitch Dark riêng; green/blue/purple dùng accent tokens đã hiệu chỉnh contrast, không lấy raw hex của sample HTML; safe area/status bar khác trang HTML | Owner **2026-11-07** tại [#529](https://github.com/namnh92/GoGo-MobileApp/issues/529): Dark theo tokens; màu theo semantic tokens (`design-system.md`). Quyết định contrast **2026-09-24** ghi ở `src/shared/ui/tokens.ts` phần `accents`; safe area/status bar là chrome nền tảng, không phải dữ liệu mock |
 | E08 | 11.5 L/D | Account push switch và OS status tách facts; location có hướng dẫn/Settings/manual-area; iOS tracking mở OS Settings, Android switch, unavailable/error giữ nguyên; không “Đã đồng bộ” tổng | #529 UI-only, [handoff owner 2026-11-08 Keep](/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/codex-g11-build.md:8), #525/#526; §0.1: không có fact sync tổng thì ẩn, không lấy account preference thay quyền OS; privacy promises theo E05 |
 
-### Sai lệch chưa có ngoại lệ được duyệt / phần chưa thể kết luận
+### Quyết định owner đã chốt / phần chưa đo
 
-- **U01 — nút `…` trên 11.3–11.5 vẫn vắng:** HTML Stitch không định nghĩa hành động, không có destination/API tương ứng. Comment owner #529 không duyệt riêng việc bỏ nút này. Theo `stitch-design.md` §0, đã liệt kê để owner quyết; **không coi “nút chưa có chức năng” là ngoại lệ đã duyệt**, không tự invent menu hoặc nút chết. Đã hỏi owner trong lượt sửa này; chưa có câu trả lời tại thời điểm ghi báo cáo.
-- **U02 — GoGo AI entry/FAB ở Profile không có trong Stitch:** giữ behavior theo phạm vi UI-only và feature gate hiện hành, không thay Help/CMS. Không tìm thấy quyết định riêng miễn visual parity cho phần này trong #529; cần owner xác nhận giữ hay thu gọn cách hiển thị. Không gộp vào E05/E06 như một ngoại lệ đã được duyệt.
-- Header avatar → bell có căn cứ owner trong #529. Những chỗ giữ title/intro theo chức năng thật không được dùng để suy ra quyền bỏ `…`.
-- 11.1 thiếu cả hai capture; native phần dưới fold và toàn bộ dirty patch chưa đo. V09 có regression proof cho trạng thái avatar loading nhưng capture Dark cụ thể vẫn cần đo lại. **F-01 chưa đủ điều kiện đóng toàn bộ native acceptance** chỉ từ ảnh cũ và tests.
+- **U01 — DECIDED, approved deviation, 2026-11-08 / #529:** bỏ nút `…` ở header các màn con Mặc định, Màu, Quyền và dữ liệu (11.3–11.5). Stitch không định nghĩa chức năng. `SettingsPage` hiện không render nút này; giữ trạng thái đó theo quyết định owner, không thêm menu hoặc nút chết.
+- **U02 — DECIDED, approved deviation, 2026-11-08 / #529:** giữ floating **Hỏi GoGo AI** trên tab Profile theo feature gate hiện hành; **ẩn** trên Mặc định (`/settings/defaults`), Màu (`/settings/theme`), Quyền và dữ liệu (cả `/settings/notifications` và alias `/settings/location`). Route allowlist hiện có đáp ứng quyết định; regression test kiểm tra đi từ Profile sang từng route và quay lại Profile.
+- Nguồn cho hai quyết định trên: chỉ thị owner ngày **2026-11-08** trong lượt áp dụng PR #530 tại HEAD `4366341`, dẫn #529. Đây là quyết định, không phải kết quả đo native mới.
+- Header avatar → bell có căn cứ owner trong #529.
+- **NOT MEASURED — guest profile 11.1:** thiếu cả hai capture Light/Dark.
+- **NOT MEASURED — below-fold:** native phần dưới fold và toàn bộ patch sau ảnh cũ chưa đo. V09 có regression proof cho trạng thái avatar loading nhưng capture Dark cụ thể vẫn cần đo lại. **F-01 chưa đủ điều kiện đóng toàn bộ native acceptance** chỉ từ ảnh cũ và tests.
 
 ## Sai khác có chủ đích / quyết định owner
 
@@ -92,13 +94,13 @@ Các phần dưới fold không có ảnh: 11.2 experience/AI/logout/version, 11
 3. **2026-11-08 — #529 / [#524](https://github.com/namnh92/GoGo-MobileApp/issues/524):** chỉ một `homeAdministrativeArea`, dùng administrative picker hiện có; không GPS mặc định, không ba khu vực ghim; không ghi đè current area toàn app. Giữ legacy area đã có cho đến khi người dùng thay/xoá.
 4. **2026-11-08 — #529:** giữ toàn bộ budget tiers hiện hành, trạng thái chưa đặt và giá trị custom từ BE. Không diễn giải null thành “không giới hạn”, không chuyển upper bound thành schema range. Mood giữ stable keys, tối đa 5 như trước.
 5. **2026-11-08 — #529:** preview là minh hoạ được ghi rõ, không tương tác. Không dùng tên quán/giờ/Google rating/ảnh từ mẫu như dữ liệu thật. Dùng tile minh hoạ, nút và tab mô phỏng bằng View; tab mẫu khớp bốn tab thật, không thêm Bản đồ. Swatch chỉ đổi preview; lưu thất bại không báo thành công hoặc đổi màu toàn app.
-6. **2026-11-08 — #529 / [GoGo-BE#810](https://github.com/namnh92/GoGo-BE/issues/810), [GoGo-CMS#290](https://github.com/namnh92/GoGo-CMS/issues/290):** không thêm FAQ, feedback, báo lỗi, About, policy links hoặc cam kết riêng tư chưa có nguồn CMS. “Đã đồng bộ” không có fact tổng nên ẩn theo §0.1; lời hứa camera/micro/storage chờ nội dung CMS. Nút `…` là U01 chưa có quyết định riêng, không phải ngoại lệ đã duyệt. Metadata phiên bản lấy từ build; không dùng Saigon Edition/version mẫu. Giữ disclosure SDK hiện có cần cho consent thực tế; không thay bằng cam kết trái dữ liệu SDK. GoGo AI là entry riêng hiện có, không giả làm FAQ/góp ý CMS; visual exception vẫn chưa được duyệt riêng (U02).
+6. **2026-11-08 — #529 / [GoGo-BE#810](https://github.com/namnh92/GoGo-BE/issues/810), [GoGo-CMS#290](https://github.com/namnh92/GoGo-CMS/issues/290):** không thêm FAQ, feedback, báo lỗi, About, policy links hoặc cam kết riêng tư chưa có nguồn CMS. “Đã đồng bộ” không có fact tổng nên ẩn theo §0.1; lời hứa camera/micro/storage chờ nội dung CMS. Nút `…` được owner duyệt bỏ theo U01 ngày 2026-11-08. Metadata phiên bản lấy từ build; không dùng Saigon Edition/version mẫu. Giữ disclosure SDK hiện có cần cho consent thực tế; không thay bằng cam kết trái dữ liệu SDK. GoGo AI là entry riêng hiện có, không giả làm FAQ/góp ý CMS; owner duyệt giữ ở Profile và ẩn trên ba màn con theo U02 ngày 2026-11-08.
 7. **2026-11-08 — #529 / [#525](https://github.com/namnh92/GoGo-MobileApp/issues/525), [#526](https://github.com/namnh92/GoGo-MobileApp/issues/526):** không đổi pipeline account switch/logout, push confirmation, thu hồi session hoặc cache purge; chỉ thêm xác nhận secondary. Dialog chưa xác nhận không được mang sang actor khác.
 8. **2026-11-07 — #529:** Dark dùng cùng layout/nội dung, tokens theo mode. Shared Sheet/ResultSheet giữ animation/reduced motion hiện có; không thay primitives.
 
 ## Kết quả chạy bản sửa F-01
 
-Kết quả của lượt hiện tại được ghi dưới đây; các gate cũ không được gán cho dirty patch.
+Kết quả lịch sử của lượt F-01 được giữ dưới đây; không gán các gate này cho patch quyết định owner hiện tại.
 
 | Lệnh | Kết quả |
 |---|---|
@@ -118,4 +120,20 @@ Giới hạn host: CoreSimulatorService và Computer Use Simulator không truy c
 ## Theo dõi / rollback
 
 - Giữ events `profile_defaults_saved`, `theme_accent_changed`, `auth_signed_out`, `auth_sign_out_failed`; không gửi nội dung hồ sơ trong event mới. Thêm screen templates cho hai route mới.
-- Không dependency/migration/API mới. Rollback bản sửa F-01 bằng bỏ đúng dirty patch được lưu trong evidence; HEAD vẫn `3c9c428`. Bản sửa này chưa commit và không tác động remote.
+- Không dependency/migration/API mới. Rollback bản sửa F-01 bằng bỏ đúng dirty patch được lưu trong evidence; HEAD hiện tại `4366341`; lượt áp dụng quyết định owner chỉ có dirty patch, chưa commit và không tác động remote.
+
+## Áp dụng quyết định owner — 2026-11-08, PR #530
+
+- Base kiểm tra: `4366341`. Không cần đổi production code: header đã vắng `…`; AI FAB đã giới hạn ở tab routes. Bổ sung regression cho các route settings và giữ entry khi quay lại Profile.
+- Các gate bên dưới chạy lại trên patch này; kết quả F-01 phía trên là lịch sử, không thay thế kết quả lượt này.
+
+| Lệnh | Kết quả |
+|---|---|
+| `pnpm typecheck` | PASS, exit 0; `/tmp/mobile-g11-owner-typecheck.log` |
+| `pnpm lint` | PASS, exit 0; 0 errors / 0 warnings; `/tmp/mobile-g11-owner-lint.log` |
+| `pnpm test` | FAIL, exit 1; 134 files pass / 1 fail / 1 skipped; 1.573 tests pass / 3 fail / 39 skipped; `/tmp/mobile-g11-owner-test.log` |
+| `pnpm test:ui --runInBand` | PASS, exit 0; 194 suites / 2.338 tests; `/tmp/mobile-g11-owner-test-ui.log` |
+
+Ba failure vẫn ở `src/shared/config/__tests__/distribute-wrapper.test.ts` không đổi (các kiểm tra process liveness đã nêu ở F-01); kiểm tra trực tiếp `/bin/ps -o lstart= -p $$` trong lượt này trả `operation not permitted`. Không sửa/skip test để làm xanh.
+
+Không commit/push. Guest profile và below-fold vẫn **NOT MEASURED**; không claim native acceptance.
