@@ -118,6 +118,8 @@ export const viMessages = {
   'contributions.reason': "Lý do: {{reason}}",
   'contributions.supplement': "Bổ sung thông tin khác",
   'contributions.linkUnavailable': "Không có liên kết để bổ sung thông tin.",
+  'contributions.submittedMapsLink': 'Liên kết Google Maps đã gửi',
+  'contributions.detailsPending': 'Thông tin địa điểm sẽ hiện khi GoGo lấy được dữ liệu',
   'contributions.live': "Đã xuất hiện trên GoGo",
   'contributions.moderating': "Đang kiểm duyệt nội dung",
   'contributions.writtenDate': "Viết ngày {{date}}",

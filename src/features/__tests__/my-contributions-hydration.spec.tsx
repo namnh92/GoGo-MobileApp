@@ -1,7 +1,8 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
 import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
-import { ApiError } from '@/shared/api/errors'
+import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
+import i18n from '@/shared/i18n'
 import { shouldPersistQuery, isPublicAppQuery } from '@/shared/api/persist-policy'
 import { renderScreen } from './harness'
 import MyContributionsScreen from '../contributions/my-contributions.view'
@@ -73,17 +74,77 @@ it('hydrates missing facts per ID, reuses cached details after filtering, and sk
   expect(read).toHaveBeenCalledTimes(2)
 })
 
-it('offers a bounded retry when DETAIL has no facts and uses only the Maps hostname as fallback', async () => {
-  const read = jest.spyOn(api, 'get').mockResolvedValueOnce({ ...mockItems[0], providerStatus: 'unavailable', providerDisplay: display('') })
-    .mockResolvedValueOnce({ ...mockItems[0], name: 'Recovered café', addressShort: 'Recovered address', providerStatus: 'ok', providerDisplay: display('Recovered café') })
+it.each(['budget_exhausted', 'deferred', 'unavailable', 'not_found', 'identity_mismatch', 'ok'])('shows a non-retry note for a successful DETAIL with providerStatus=%s and no snapshot', async providerStatus => {
+  const read = jest.spyOn(api, 'get').mockResolvedValue({ ...mockItems[0], providerStatus })
+  await renderScreen(view())
+  expect(await screen.findByText('Thông tin địa điểm sẽ hiện khi GoGo lấy được dữ liệu')).toBeTruthy()
+  expect(screen.getByText('Liên kết Google Maps đã gửi')).toBeTruthy()
+  expect(screen.getByText('Gửi ngày 07/11/2026')).toBeTruthy()
+  expect(screen.getByText('Đang chờ duyệt')).toBeTruthy()
+  expect(screen.getByText('Đang kiểm duyệt nội dung')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
+  expect(read).toHaveBeenCalledTimes(1)
+})
+
+it.each(['budget_exhausted', 'deferred'])('preserves real list identity and cached %s DETAIL across renders and stale-age remounts', async providerStatus => {
+  mockItems = [row('s1', 'pending', { providerStatus: 'deferred', name: 'Submitted café', addressShort: 'Real address', providerDisplay: display() })]
+  const read = jest.spyOn(api, 'get').mockResolvedValue({ ...row('s1'), name: '', addressShort: '', providerStatus, providerDisplay: undefined })
+  const rendered = await renderScreen(view())
+  await waitFor(() => expect(client.getQueryCache().getAll()[0]?.state.status).toBe('success'))
+  expect(screen.getByText('Submitted café')).toBeTruthy()
+  expect(screen.getByText('Thông tin địa điểm sẽ hiện khi GoGo lấy được dữ liệu')).toBeTruthy()
+  expect(screen.getByText('Real address')).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Google Maps' })).toBeTruthy()
+  await rendered.rerender(view())
+  // Make the ordinary one-minute cache stale without advancing the GC timer.
+  const now = Date.now()
+  jest.spyOn(Date, 'now').mockReturnValue(now + 61_000)
+  await fireEvent.press(screen.getByRole('button', { name: 'Đã duyệt (0)' }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Tất cả (1)' }))
+  expect(screen.getByText('Submitted café')).toBeTruthy()
+  expect(read).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
+  // A changed submission is a new detail key, and can be hydrated again.
+  mockItems = [{ ...mockItems[0], updatedAt: '2026-11-08T01:00:00Z' }]
+  await rendered.rerender(view())
+  await waitFor(() => expect(read).toHaveBeenCalledTimes(2))
+})
+
+it('uses only a safe Maps hostname for an available URL without leaking tracking parameters', async () => {
+  mockItems = [row('s1', 'pending', { providerStatus: 'deferred', providerDisplay: display('') })]
+  jest.spyOn(api, 'get').mockResolvedValue({ ...row('s1'), providerStatus: 'budget_exhausted' })
   await renderScreen(view())
   expect(await screen.findByText('maps.google.com')).toBeTruthy()
   expect(screen.queryByText(url)).toBeNull()
-  expect(screen.queryByText('Địa điểm đã đóng góp')).toBeNull()
-  expect(read).toHaveBeenCalledTimes(1)
-  await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
-  expect(await screen.findByText('Recovered café')).toBeTruthy()
-  expect(read).toHaveBeenCalledTimes(2)
+  expect(screen.queryByText(/not-a-title/)).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
+})
+
+it.each(['budget_exhausted', 'deferred'])('keeps rejected status, reason, date and supplement link after %s without a snapshot', async providerStatus => {
+  mockItems = [row('s1', 'rejected', { providerStatus: 'deferred', rejectionReason: 'incorrect_location', providerDisplay: display('') })]
+  jest.spyOn(api, 'get').mockResolvedValue({ ...row('s1', 'rejected'), providerStatus })
+  await renderScreen(view())
+  expect(await screen.findByText('Thông tin địa điểm sẽ hiện khi GoGo lấy được dữ liệu')).toBeTruthy()
+  expect(screen.getByText('maps.google.com')).toBeTruthy()
+  expect(screen.getByText('Bị từ chối')).toBeTruthy()
+  expect(screen.getByText('Lý do: Sai vị trí')).toBeTruthy()
+  expect(screen.getByText('Gửi ngày 07/11/2026')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('link', { name: 'Bổ sung thông tin khác' }))
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/places/import', params: { url } })
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
+})
+
+it('renders the non-retry note in English', async () => {
+  await act(() => i18n.changeLanguage('en'))
+  try {
+    jest.spyOn(api, 'get').mockResolvedValue({ ...mockItems[0], providerStatus: 'deferred' })
+    await renderScreen(view())
+    expect(await screen.findByText('Place information will appear when GoGo can retrieve it')).toBeTruthy()
+    expect(screen.getByText('Submitted Google Maps link')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  } finally {
+    await act(() => i18n.changeLanguage('vi'))
+  }
 })
 
 it('omits the tab dock and renders supported SVG paths for the remaining contribution icons', async () => {
@@ -107,16 +168,24 @@ it('waits for connectivity and hydrates when the card comes online', async () =>
   expect(read).toHaveBeenCalledTimes(1)
 })
 
-it('does not automatically retry rate limits, and exposes a working manual retry', async () => {
-  const read = jest.spyOn(api, 'get').mockRejectedValueOnce(new ApiError(429, { code: 'RATE_LIMITED', message: 'private diagnostic' }))
-    .mockResolvedValueOnce({ ...mockItems[0], name: 'Retried café', addressShort: 'Real address', providerStatus: 'ok' })
+it.each([400, 401, 403, 404, 408, 425, 429])('offers no retry for non-transient HTTP %s, even with a retryable envelope', async status => {
+  const read = jest.spyOn(api, 'get').mockRejectedValue(new ApiError(status, { code: 'REJECTED', message: 'private diagnostic', retryable: true }))
   await renderScreen(view())
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy())
+  await waitFor(() => expect(client.getQueryCache().getAll()[0]?.state.status).toBe('error'))
   expect(read).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   expect(screen.queryByText('private diagnostic')).toBeNull()
+})
+
+it.each([new NetworkError(), new TimeoutError(6000), new ApiError(503, { code: 'UNAVAILABLE', message: 'private diagnostic' })])('allows recovery with manual retry after bounded transient retries: %s', async error => {
+  const read = jest.spyOn(api, 'get').mockRejectedValue(error)
+  await renderScreen(view())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy(), { timeout: 4000 })
+  expect(read).toHaveBeenCalledTimes(2)
+  read.mockResolvedValueOnce({ ...mockItems[0], name: 'Retried café', addressShort: 'Real address', providerStatus: 'ok' })
   await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
   expect(await screen.findByText('Retried café')).toBeTruthy()
-  expect(read).toHaveBeenCalledTimes(2)
+  expect(read).toHaveBeenCalledTimes(3)
 })
 
 it('bounds transient-error retries and does not restart them when a failed card remounts', async () => {
@@ -133,7 +202,8 @@ it.each(['https://maps.google.com.evil.example/maps/abc', 'javascript:alert(1)']
   const read = jest.spyOn(api, 'get').mockResolvedValue({ ...mockItems[0], providerStatus: 'unavailable', providerDisplay: { ...display(''), googleMapsUri: unsafeUrl } })
   await renderScreen(view())
   await waitFor(() => expect(read).toHaveBeenCalledTimes(1))
-  expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeTruthy()
+  expect(await screen.findByText('Thông tin địa điểm sẽ hiện khi GoGo lấy được dữ liệu')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   expect(screen.queryByText(unsafeUrl)).toBeNull()
   expect(screen.queryByText('maps.google.com.evil.example')).toBeNull()
   expect(screen.queryByRole('link', { name: 'Google Maps' })).toBeNull()

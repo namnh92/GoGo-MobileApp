@@ -7,7 +7,7 @@ import { detailToPlaceCard, useMyReviews, usePlaceDetail, useSaved, useToggleSav
 import { useMyPlaceSubmission, useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
 import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
 import type { components } from '@/shared/api/types'
-import type { MyPlaceSubmission } from '@/shared/api/endpoints/my-place-submissions'
+import { isSubmissionDetailRetryable, type MyPlaceSubmission } from '@/shared/api/endpoints/my-place-submissions'
 import { useSession } from '@/shared/providers/session-provider'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
@@ -47,13 +47,16 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const needsHydration = !canonical && (item.providerStatus === 'deferred' || !item.name?.trim() || !item.addressShort?.trim())
   const submission = useMyPlaceSubmission(item, needsHydration && online)
   const display = needsHydration && submission.data ? { ...item, ...submission.data } : item
-  const provider = display.providerDisplay
-  const link = mapsUrlSchema.safeParse(provider?.googleMapsUri)
+  const provider = display.providerDisplay ?? item.providerDisplay
+  const link = mapsUrlSchema.safeParse(provider?.googleMapsUri ?? item.providerDisplay?.googleMapsUri)
   const url = link.success ? link.data : undefined
-  // A URL fallback identifies the submitted link without exposing its path/query
+  // An available Maps URL identifies the record without exposing its path/query
   // (or mistaking the URI for a verified place name).
-  const name = display.name?.trim() || provider?.name?.trim() || (url ? new URL(url).hostname : '')
-  const address = display.addressShort?.trim() || provider?.addressShort?.trim()
+  const realName = display.name?.trim() || item.name?.trim() || provider?.name?.trim() || item.providerDisplay?.name?.trim()
+  const name = realName || (url ? new URL(url).hostname : t('contributions.submittedMapsLink'))
+  const address = display.addressShort?.trim() || item.addressShort?.trim() || provider?.addressShort?.trim() || item.providerDisplay?.addressShort?.trim()
+  const canRetry = submission.isError && isSubmissionDetailRetryable(submission.error)
+  const factsUnavailable = submission.data && (['budget_exhausted', 'deferred'].includes(display.providerStatus ?? '') || !realName || !address)
   const card = detailToPlaceCard({ id: item.id, name, addressText: address, ...detail.data })
   if (!card.photoUrl && item.photoUrl) card.photoUrl = item.photoUrl
   const canSave = canonical && !!item.placeId && !!detail.data && !detail.isError && saved.data != null && !saved.isError && online
@@ -74,7 +77,9 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
         accessibilityRole={url ? 'link' : undefined} onPress={url ? () => { void openWebsite(url) } : undefined}>{attribution}</Text>)}
       {needsHydration && submission.isFetching ? <LoadingState /> : null}
       {needsHydration && submission.isError ? <ErrorState error={submission.error} /> : null}
-      {needsHydration && !submission.isFetching && (submission.isError || (submission.data && (!(display.name?.trim() || provider?.name?.trim()) || !address))) ?
+      {needsHydration && !submission.isFetching && !submission.isError && factsUnavailable ?
+        <Text variant="caption" color="text.secondary">{t('contributions.detailsPending')}</Text> : null}
+      {needsHydration && !submission.isFetching && canRetry ?
         <GhostBtn label={t('common.retry')} disabled={!online} onPress={() => { void submission.refetch() }} /> : null}
       {!canSave ? <Text variant="caption" color="text.secondary">{saveReason}</Text> : null}
       {toggle.isError ? <ErrorState error={toggle.error} onRetry={() => { if (canSave) toggle.mutate({ type: 'place', id: item.placeId!, saved: isSaved }) }} /> : null}

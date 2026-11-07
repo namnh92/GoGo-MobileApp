@@ -1,18 +1,18 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getMyPlaceSubmission, listMyPlaceSubmissions, type MyPlaceSubmission } from '../endpoints/my-place-submissions'
-import { isApiError, isRetryable } from '../errors'
+import { getMyPlaceSubmission, isSubmissionDetailRetryable, listMyPlaceSubmissions, type MyPlaceSubmission } from '../endpoints/my-place-submissions'
 
 /** Mounted private cards only: no polling, disk persistence or retries on rate limits.
- * Keep a short per-ID memory cache across filters; a new decision gets a new key.
+ * Keep a per-ID memory cache across filters; a new decision gets a new key.
+ * Budget/deferred outcomes stay fresh until this private memory cache is evicted.
  */
 export function useMyPlaceSubmission(item: MyPlaceSubmission, enabled: boolean) {
   return useQuery({
     queryKey: ['my-place-submissions', item.id, 'detail', item.updatedAt],
     queryFn: ({ signal }) => getMyPlaceSubmission(item.id, signal),
     enabled,
-    staleTime: 60_000,
+    staleTime: query => ['budget_exhausted', 'deferred'].includes(query.state.data?.providerStatus ?? '') ? Infinity : 60_000,
     gcTime: 5 * 60_000,
-    retry: (count, error) => count < 1 && isRetryable(error) && !(isApiError(error) && error.status === 429),
+    retry: (count, error) => count < 1 && isSubmissionDetailRetryable(error),
     retryOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

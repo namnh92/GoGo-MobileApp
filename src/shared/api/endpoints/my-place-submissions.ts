@@ -1,4 +1,5 @@
 import { api } from '../client'
+import { isApiError, isOffline } from '../errors'
 import type { OpResponse, components } from '../types'
 
 export type MyPlaceSubmission = components['schemas']['MyPlaceSubmission']
@@ -7,3 +8,7 @@ export const listMyPlaceSubmissions = (cursor?: string) =>
 
 export const getMyPlaceSubmission = (id: string, signal?: AbortSignal) =>
   api.get<OpResponse<'getMyPlaceSubmission'>>('/me/place-submissions/{id}', { pathParams: { id }, signal })
+
+/** Provider outcomes and 4xx are not connectivity failures. */
+export const isSubmissionDetailRetryable = (error: unknown) =>
+  isOffline(error) || (isApiError(error) && error.status >= 500 && error.status < 600)

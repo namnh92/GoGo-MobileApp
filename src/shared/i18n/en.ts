@@ -126,6 +126,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'contributions.reason': "Reason: {{reason}}",
   'contributions.supplement': "Add more information",
   'contributions.linkUnavailable': "The link needed to add more information is unavailable.",
+  'contributions.submittedMapsLink': 'Submitted Google Maps link',
+  'contributions.detailsPending': 'Place information will appear when GoGo can retrieve it',
   'contributions.live': "Now on GoGo",
   'contributions.moderating': "Content under review",
   'contributions.writtenDate': "Written on {{date}}",
