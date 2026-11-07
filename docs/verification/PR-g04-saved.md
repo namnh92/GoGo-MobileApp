@@ -1,51 +1,30 @@
 # Group 04 — Đã lưu
 
-Owner decisions: **2026-11-07**. Branch `feature/GOGO-482-redesign-g04-saved`, stacked on #518/#516. No commit/push. Current-area #520 is deliberately not implemented here.
+Owner decisions: **2026-11-07**, revised after the simulator screenshot. Worktree baseline **3f181d8**, initially clean. No install, commit or push performed. Current-area #520 remains a rebase TODO.
 
 ## Design evidence and limits
 
-Target: [Đã lưu - GoGo](https://stitch.withgoogle.com/u/2/projects/17315762413421369447?node-id=6045502163558025217), project `17315762413421369447`, screen `6045502163558025217`.
+Destination project: `17315762413421369447`. Prior design: [Đã lưu - GoGo](https://stitch.withgoogle.com/u/2/projects/17315762413421369447?node-id=6045502163558025217), screen `6045502163558025217`.
 
-Implementation follows sections 1, 2 and 4 of `/Users/maxnguyen/MyWorks/GoGo/dev/handoffs/codex-g04-plan.sol.out` plus the dated decisions in this task. That analysis records reading the screen HTML and 390×1540 screenshot. **This run could not refresh those artifacts:** the read-only Stitch script reports `STITCH_API_KEY is not set`; Chrome and in-app browser both report `The browser access host is unavailable`. No source image is fabricated or substituted from a different project.
+Requested new title: **Đã lưu v2 - GoGo**. This session exposes no Stitch MCP tools, including `list_screens`; tool discovery found no callable Stitch capability. Its presence or generation status could not be checked. Implementation follows the owner's written v2 spec. No v2 destination ID, HTML or screenshot was verified.
 
-**Light visual comparison: BLOCKED**, no simulator screenshot pair captured in this run. **Dark: FAIL parity** — no Dark Stitch pair identified in this destination project in the supplied analysis; live inventory refresh is blocked. Dark app styles use the existing `redesignDark` / `night` tokens, with the same component tree and data as Light. Token/structural tests do not establish pixel parity. Visually verified pairs: **0/1**. Do not report this screen as 100% matched or accepted.
-
-## Stitch → app
-
-| Stitch element | Implementation / source | Verification state |
-| --- | --- | --- |
-| GoGo · Đã lưu; bell/unread dot | Shared HeaderNotificationButton; actual inbox first-page unread facts; no avatar | Implemented; visual pending |
-| Quick save URL + Lưu | Google Maps URL validator shared with import; BFF resolve, PUT saved for ALREADY_EXISTS; otherwise `/places/import?url=…` | Behavior tested |
-| Three selected/check filters + counts | Counts from full Saved response, before filtering | Behavior tested |
-| Area headings, color dot, counts | Canonical province → commune grouping; current area GPS/profile fallback | Behavior tested; TODO #520 |
-| Xem cụm | Shared group-02 MapCanvas, only saved place pins in that area group; no plan stops or search results; list fallback when map unavailable | Pin membership tested; device map pending |
-| Full-width 16:10 place card | Shared PlaceCard `appearance="saved"`, also used by Đóng góp của tôi | Structural tests; visual pending |
-| Photo hours, category, distance | Hours derived with shared Vietnam clock and foreground refresh; category/tags resolved from CMS; straight-line GPS distance explicitly labelled | Pure/structural tests |
-| ⋮ / Bỏ lưu / Chia sẻ | Shared Sheet actions; optimistic unsave with rollback; canonical BFF share link + native Share after the menu closes | UI removal tested; native share pending |
-| Name + price/unit; pin/address | Shared adapter and address formatter; price unit retained, unknown omitted | Shared card tests |
-| Two rating badges with counts | Google provider and GoGo community scores stay separate; below threshold, words plus actual count | Saved card tests |
-| CMS taxonomy tags | All available labelled taxonomy keys; no guessed/raw-key labels; chips keep text on one line | Adapter/card tests |
-| Unavailable card | Provider closed/temporarily_closed/moved and known moderation takedowns; dim image, struck title, factual warning and remove | Fact tests; visual pending |
-| Tìm quán tương tự | Ordinary Search with same category + canonical area; hidden if either fact is missing; no AI invocation | Search parameter test |
-| Plan image/title/timeline | Position-ordered first stop photo; room title + scheduled date (first arrival date fallback); real stop arrival times/names | UI/pure tests |
-| Điều kiện đã đổi / unavailable stops | Preserve SavedItem.conditionsChanged, Plan.isStale, hasUnavailableStops and stop.unavailableReason | Hook/UI tests |
-| Xem lại & điều chỉnh / Đi ngay | `/plans/{id}` / existing `/plans/{id}/active` route | UI navigation tests |
-| Save/unsave toast | Lightweight inline live-region message, clears after 3.5s; errors use shared ResultSheet | Link success/error tests |
-| Empty / guest / loading / failure / offline | Existing shared states; retry includes failed detail queries; transient detail errors are not called closed venues | UI/hook tests |
-| Bottom tabs | Existing app dock and Assistant FAB retained from stack | Visual reconciliation pending |
+Light and Dark use the same component tree, shared PlaceCard and existing semantic theme tokens. Structural tests cover the compact row and count badges in both themes; they do not establish pixel parity. No simulator screenshot pair was captured here. Visual acceptance remains pending; no 100% design-match claim.
 
 ## Dated owner deviations (2026-11-07)
 
-- Google Maps only. TikTok/Instagram removed from scope; no unsupported resolver or new BE issue created for them.
-- Existing GoGo link saves immediately; new place links open the existing Nhập link → Bổ sung thông tin flow with URL prefilled. This does not submit or auto-save an unreviewed new venue.
-- Xem cụm maps saved **places only**, including in mixed place/plan groups. A group with no readable saved places has no enabled map action. Unknown/multi-province groups retain their existing honest labels.
-- Similar means same category + area through Search, with no AI. If detail is inaccessible and category is unknown, the control is omitted; no category is invented.
-- Đi ngay opens the existing active-date screen for that plan; it does not launch a made-up directions flow or change room status.
-- Plan title/image derive from real room/date/first-stop facts. Generic existing “Kế hoạch đã lưu” is the fallback when title/date are absent; no “Lộ trình tối” or stock photo.
-- Removed sample “Kín chỗ trước 21h”, replacement-place warning and “Phục hồi danh sách mẫu”. No capacity assertion or replacement recommendation is fabricated.
-- Header uses brand + bell, no avatar.
-- Stitch toast intent is implemented as inline lightweight feedback for successful save/unsave. Actual failed operations use the shared ResultSheet; menus/maps use shared Sheet. Native sharing waits for menu dismissal.
-- Unknown fields are omitted, including price, hours, GPS distance and unlabelled CMS keys. Detail 403/404/410 remains removable without fabricated name/image; transient/network failures retain retry.
+These supersede the earlier g04 plan/filter/map/share decisions:
+
+- **Places only.** Removed Tất cả/Địa điểm/Kế hoạch chips, saved-plan cards, timeline/photo/title helpers, plan warnings, Đi ngay and their dead translations/tests. The saved-entry hook filters legacy plans before detail hydration; no plan or room detail request is made for Saved. Existing saved plans remain on the server, untouched. A response containing only plans yields the places empty state.
+- Audited app save callers: every bookmark mutation targets a place. No separate save-plan bookmark action exists elsewhere at this baseline. Existing plan-edit submission saves itinerary edits and is retained. BE endpoints, generated types and saved target contract remain unchanged.
+- Quick save is a single **44pt row** with link icon, “Dán link Google Maps để lưu” input and small “Lưu” button. Removed the separate title and padded card. Invalid-link feedback remains below the row.
+- Existing GoGo links save immediately (already-saved places stay saved); new links open the existing add-place/import wizard with the URL prefilled. No new venue is submitted automatically.
+- Compact title2 city headings and bodySmall secondary ward headings; counts are small rounded badges without parentheses. Removed current-area chips. GPS/profile area still controls ordering until #520 integration.
+- **Tất cả ›** on a city row filters this screen to the user's saved places in that city, across its wards. “‹ Tất cả thành phố” returns to all groups. No map, discovery results or plan stops are involved. The filtered list uses live saved entries, including removable unavailable places.
+- Overflow offers **Bỏ lưu only**; removed native sharing and share-link creation from Saved. Removal waits for sheet dismissal and retains optimistic rollback/error feedback.
+- The shared Saved PlaceCard stays the reference card. Provider/moderation closure facts, taxonomy labels, price units, separate rating sources, Vietnam opening hours and GPS straight-line estimates remain.
+- **Tìm quán tương tự** remains ordinary Search with the closed place's category and canonical area. Missing facts do not produce invented filters.
+- Guest, empty, loading, offline and retryable list/detail-error states remain. Detail 403/404/410 stays removable. Transient detail failures retain retry.
+- Successful save/unsave feedback remains an inline live region; failures use the shared ResultSheet. Header notification control and Assistant FAB remain.
 
 ## Contract and stack compatibility
 
@@ -53,18 +32,17 @@ Implementation follows sections 1, 2 and 4 of `/Users/maxnguyen/MyWorks/GoGo/dev
 
 That BE snapshot lacks the contribution-draft operations and three enrichment/draft schemas already used by #516. `src/shared/api/stacked-contribution-schema.d.ts` preserves those generated declarations verbatim from stack HEAD `b5cf7a1`; `types.ts` composes them with the generated BE schema. It introduces no endpoint or runtime behavior. This is explicit stack compatibility, **not evidence the deployed BE implements drafts**. Remove the snapshot when the BE contract includes the stacked draft feature. Existing draft endpoint tests remain in the validation set.
 
-Sources remain BFF endpoints: `/me/saved`, `/places/{id}`, `/plans/{id}`, `/rooms/{id}`, `/taxonomies`, `/me/notifications`, `/places/resolve-google-maps-link`, `/share-links`. No direct provider calls were added.
+Sources remain BFF endpoints: `/me/saved`, `/places/{id}`, `/taxonomies`, `/me/notifications`, `/places/resolve-google-maps-link`. No provider calls added. The BE saved-plan contract is retained unchanged.
 
-Telemetry reuses `place_saved` (`source=saved_link`); Search itself emits the existing `place_search_opened` event once on entry, without a duplicate click event. Link URLs, taxonomy/area values, names and resolution tokens are not sent in these events.
+Telemetry reuses `place_saved` (`source=saved_link`); similar Search emits its existing entry event. URLs and resolution tokens are not sent in these events.
 
 ## Checks and remaining acceptance
 
-- `pnpm install --frozen-lockfile`: passed; lockfile unchanged.
-- `pnpm api:types`, `pnpm api:check`: passed; verbatim BE blob equality checked.
-- `pnpm typecheck`, `pnpm lint`: passed.
-- `pnpm test:ui --runInBand`: **186 suites / 2,215 tests passed**. Latest focused rerun covering Saved, links, cards, contributions and saved-query hydration/sign-out: **5 suites / 82 tests passed**. Includes ordinary Search category+area entry, position-ordered plan image/title/times, Google-only auto-save/wizard routing, rating counts/price units, below-threshold community sample size, private-cache sign-out guard and detail-error retry.
-- `pnpm test`: **116 suites passed, 1 failed, 1 skipped; 1,334 tests passed, 3 failed, 39 skipped**. All five new pure Saved tests passed. Contract integration suite is skipped by default; no remote data-writing contract run was requested.
+- `pnpm typecheck`: passed on final sources/tests.
+- `pnpm lint`: passed.
+- Focused `pnpm test:ui --runInBand` (Saved areas, link behavior/Light+Dark styles, saved-entry hydration, i18n): **4 suites / 65 tests passed**. Shared PlaceCard suite also passed in the initial targeted run.
+- Full `pnpm test:ui --runInBand`: **187 suites / 2,225 tests passed**.
+- `pnpm test`: **117 suites passed, 1 failed, 1 skipped; 1,342 tests passed, 3 failed, 39 skipped**. All Saved pure tests passed. The three failures are confined to unchanged `src/shared/config/__tests__/distribute-wrapper.test.ts` process/lock checks (lines 208, 234, 258). Direct checks confirm `/bin/ps` returns `operation not permitted`; `pgrep` reports `sysmond service not found` / `Cannot get process list`. This sandbox prevents a fully green unit run. Distribution code/tests were not weakened or skipped.
 - `git diff --check`: passed.
-- Full `pnpm test` currently fails three existing distribution lock/process tests because this managed sandbox denies `ps` (`operation not permitted`) and `pgrep` cannot get the process list (`sysmond service not found`). The distribution script and its tests are unchanged. Do not weaken those tests or change distribution code to make this UI task appear green.
-- Pending: live Stitch HTML/screenshot refresh; Light app comparison; destination Dark pair + parity; native map/share smoke test. No DEV/backend acceptance or deployment claimed.
-- Open integration question: when will the BE contract include #516's draft API? Current-area integration is an explicit TODO(#520) at the Saved grouping boundary, to resolve on rebase.
+- No install, commit or push. No remote contract write tests run. BE API/schema files are unchanged.
+- Remaining acceptance: callable Stitch `list_screens` lookup for the v2 title, plus Light/Dark simulator visual comparison. No DEV/backend acceptance or deployment claimed.
