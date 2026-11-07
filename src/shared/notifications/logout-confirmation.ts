@@ -1,3 +1,5 @@
+import { captureSessionScope, type SessionScope } from '@/shared/api/session'
+
 /**
  * NTF-APP-004 (#160) — unsubscribing this device, and *knowing* it happened,
  * before sign-out is allowed to clear the session.
@@ -43,7 +45,7 @@ export type LogoutConfirmationDeps = {
   /** This device's provider subscription id, or null when it has none. */
   getSubscriptionId: () => Promise<string | null>
   /** Asks the backend whether the provider still has it enabled for us. */
-  confirm: (subscriptionId: string) => Promise<boolean>
+  confirm: (subscriptionId: string, scope: SessionScope) => Promise<boolean>
   /** Reason codes only. Never a token, never a user id. */
   report?: (event: string) => void
   timeoutMs?: number
@@ -55,22 +57,34 @@ export function createLogoutConfirmation(deps: LogoutConfirmationDeps) {
   const report = deps.report ?? (() => {})
   const timeout = deps.timeoutMs ?? CONFIRM_UNSUBSCRIBE_TIMEOUT_MS
   const interval = deps.pollIntervalMs ?? CONFIRM_UNSUBSCRIBE_POLL_MS
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
+  const sleep = deps.sleep ?? ((ms: number, signal: AbortSignal) => new Promise<void>(resolve => {
+    const done = () => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', done)
+      resolve()
+    }
+    const timer = setTimeout(done, ms)
+    signal.addEventListener('abort', done, { once: true })
+    if (signal.aborted) done()
+  }))
 
   /**
    * Resolves only when the provider agrees this device is no longer live for
    * the signed-in user. Throws otherwise — the caller must not clear anything.
    */
-  return async function unsubscribeAndConfirm(): Promise<void> {
+  return async function unsubscribeAndConfirm(scope = captureSessionScope()): Promise<void> {
+    scope.assert()
     // Read the id *before* logging out, deliberately. Afterwards the SDK holds
     // an anonymous user, and if it minted a fresh subscription for that user we
     // would go on to ask about an id the signed-in user never had — the backend
     // would truthfully answer "not subscribed here" and we would clear the
     // session on a device still receiving their notifications. The id that
     // matters is the one bound to the account at the moment it signs out.
-    const subscriptionId = await deps.getSubscriptionId()
+    const subscriptionId = await scope.wait(deps.getSubscriptionId())
 
-    await deps.unsubscribe()
+    scope.assert()
+    await scope.wait(deps.unsubscribe())
+    scope.assert()
 
     if (!subscriptionId) {
       // No subscription on this device, so nothing of theirs can be delivered
@@ -82,10 +96,15 @@ export function createLogoutConfirmation(deps: LogoutConfirmationDeps) {
 
     const deadline = Date.now() + timeout
     for (;;) {
+      scope.assert()
       let confirmed: boolean
       try {
-        confirmed = await deps.confirm(subscriptionId)
+        confirmed = await scope.wait(deps.confirm(subscriptionId, scope))
+        scope.assert()
       } catch (error) {
+        // Session cancellation must escape unchanged, without a failure report
+        // or any attempt to confirm/rebind using the next account.
+        scope.assert()
         // Includes the backend refusing to guess when the provider is
         // unreachable. Never treated as success.
         report('push_logout_confirm_unavailable')
@@ -99,7 +118,7 @@ export function createLogoutConfirmation(deps: LogoutConfirmationDeps) {
         report('push_logout_still_subscribed')
         throw new UnsubscribeNotConfirmedError('still_enabled')
       }
-      await sleep(interval)
+      await scope.wait(sleep(interval, scope.signal))
     }
   }
 }
