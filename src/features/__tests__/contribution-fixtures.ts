@@ -48,9 +48,9 @@ export function contributionHooks() {
 }
 export async function completeWizard() {
   if (screen.queryByText('Tiếp tục sang Bước 2')) {
-    await fireEvent.press(screen.getByRole('button', { name: 'Hẹn hò lãng mạn' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Cặp đôi' }))
     await fireEvent.press(screen.getByText('Tiếp tục sang Bước 2'))
-    await fireEvent.press(screen.getByRole('button', { name: 'Sôi động náo nhiệt' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Sôi động' }))
     await fireEvent.press(screen.getByText('Tiếp tục sang Bước 3'))
   }
 }
