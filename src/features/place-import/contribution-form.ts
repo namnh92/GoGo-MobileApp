@@ -21,6 +21,8 @@ export interface ContributionForm {
   serviceChips: string[]
   spaceRating: number
   spaceChips: string[]
+  photos?: EnrichmentDraft['photos']
+  billPhotoPublicConsent?: EnrichmentDraft['billPhotoPublicConsent']
 }
 export const emptyContribution = (): ContributionForm => ({
   priceKnown: false,
@@ -69,6 +71,10 @@ export function draftEnrichment(form: ContributionForm): EnrichmentDraft {
     ...(Object.keys(form.amenities).length ? { amenities: form.amenities } : {}),
     ...(form.recommendedDishes.trim() ? { recommendedDishes: form.recommendedDishes.trim() } : {}),
     ...(form.visitTips.trim() ? { visitTips: form.visitTips.trim() } : {}),
+    ...(form.photos?.length ? { photos: form.photos } : {}),
+    ...(form.billPhotoPublicConsent !== undefined
+      ? { billPhotoPublicConsent: form.billPhotoPublicConsent }
+      : {}),
     ...(Number.isInteger(form.serviceRating) && form.serviceRating >= 1 && form.serviceRating <= 5
       ? { service: { rating: form.serviceRating, chipKeys: form.serviceChips } }
       : {}),
@@ -101,5 +107,8 @@ export function resumeContribution(draft: EnrichmentDraft): ContributionForm {
     serviceChips: draft.service?.chipKeys ?? [],
     spaceRating: draft.space?.rating ?? 0,
     spaceChips: draft.space?.chipKeys ?? [],
+    // Retain uploaded public contributions and their acknowledgement; never infer consent.
+    photos: draft.photos,
+    billPhotoPublicConsent: draft.billPhotoPublicConsent,
   }
 }

@@ -182,6 +182,35 @@ it('resumes by GET, updates the version, and deletes by version', async () => {
   await fireEvent.press(button('Xoá bản nháp'))
   expect(mockRemove).toHaveBeenCalledWith({ id: draft.id, version: 1 })
 })
+it('retains acknowledged menu/bill uploads when a resumed draft is edited, saved and submitted', async () => {
+  const photoDraft: ContributionDraft = {
+    ...draft,
+    enrichment: {
+      ...draft.enrichment,
+      photos: [
+        { mediaId: '22222222-2222-4222-8222-222222222222', kind: 'menu' },
+        { mediaId: '33333333-3333-4333-8333-333333333333', kind: 'bill' },
+      ],
+      billPhotoPublicConsent: true,
+    },
+  }
+  mockDrafts = { data: { items: [photoDraft] } }
+  mockRead.mockResolvedValue(photoDraft)
+  mockSave.mockResolvedValue({ ...photoDraft, version: 4 })
+  await renderScreen(<ContributionWizard {...props} />)
+  await fireEvent.press(button('Tiếp tục bản nháp'))
+  await fireEvent.press(button('Tiếp tục'))
+  await fireEvent.press(button('Tiếp tục'))
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Updated tip')
+  const enrichment = { ...photoDraft.enrichment, visitTips: 'Updated tip' }
+  await fireEvent.press(button('Lưu nháp'))
+  expect(mockSave).toHaveBeenCalledWith({
+    id: photoDraft.id,
+    body: { googlePlaceId: props.googlePlaceId, expectedVersion: 3, enrichment },
+  })
+  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  expect(onSubmit).toHaveBeenCalledWith(enrichment)
+})
 it('never overwrites a conflict; explicit reload is required', async () => {
   mockSave.mockRejectedValue(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'conflict' }))
   await renderScreen(<ContributionWizard {...props} />)
