@@ -126,3 +126,58 @@ clearing before writes.
 Remaining acceptance: the backend contract conflict above; full Vitest process
 inspection outside this restricted sandbox; device Light/Dark, keyboard,
 VoiceOver and large-text review against the new Stitch screen when available.
+
+## Owner screenshot corrections — 2026-11-07 (HEAD 4057e22)
+
+The owner's five screenshot corrections authorize these focused deviations from
+stored Stitch HTML. They do not claim completion of the wider migration or
+simulator acceptance. Baseline `4057e22` was clean. Files only; no install,
+commit, push, native build, backend change, or Stitch write.
+
+- Submit and Save now use shared Primary/Secondary buttons, both full width and
+  56 points high in the same parent, with identical horizontal margins. Save
+  uses the design-system outlined Secondary instead of the violet Ghost style.
+- Draft-list and resume reads are best-effort. Empty lists and HTTP 404 are
+  silent; a 404 list ignores stale cached entries, and a missing resumed draft
+  releases its stale save guard without discarding entered form values. Other
+  read errors emit `place_contribution_draft_read_failed` with operation and
+  numeric HTTP status (0 for non-HTTP errors), never IDs/content/messages.
+  List failure no longer disables Save. Read failure never gates Submit.
+  Inline draft errors are reserved for explicit Save failures; existing
+  save conflict/version protection remains. Delete failures are also silent
+  with status-only telemetry and preserve the conflict reload guard.
+- The only credit message is the header `+50 GoGo Credit` pill with its approval
+  condition. Removed credit from Submit, both step-3 reward pills, photo help,
+  and the moderation note. Removed all numeric +20 hints; no bonus is promised
+  while photo upload remains blocked. The nonnumeric step-3 progress label
+  remains. This intentionally simplifies the stored Stitch rewards.
+- Footer has no `Bước n / 3 hoàn thành` text. Back is `Quay lại`, text only;
+  forward is `Tiếp tục` or `Hoàn tất`, single-line. Both share a 56-point height
+  and equal flexible widths in one row. The shared default buttons provide
+  single-line labels rather than the wrapping discovery variant.
+- Rating renders only five interactive stars, with no score/unrated text.
+  Each star retains its localized value label, checked state, and ability to
+  clear the optional rating. Service/space payload behavior is unchanged.
+
+Regression coverage includes all three wizard steps, one credit occurrence,
+button geometry/single-line labels, star accessibility, empty/404/cached-404
+lists, HTTP/network list failures, resume failures preserving entered data,
+Submit availability, explicit save errors, and silent deletion failures.
+
+Current verification (supersedes earlier counts above):
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS, no diagnostics.
+- `pnpm test`: 114 suites passed, 1 failed, 1 skipped; 1,328 tests passed,
+  3 failed, 39 skipped. The same three pre-existing process-inspection cases
+  fail at `distribute-wrapper.test.ts:208/234/258`. Confirmed directly that
+  `ps -p $$ -o pid=` returns `operation not permitted` in this sandbox.
+  No unrelated tests, scripts, skips, or permissions were changed.
+- `pnpm test:ui --runInBand`: PASS, 182 suites / 2,179 tests, including all
+  31 contribution-wizard tests.
+- Focused `pnpm test` (form, options, draft API): PASS, 3 suites / 17 tests.
+- `git diff --check`: PASS.
+
+Remaining acceptance: simulator Light/Dark, keyboard, large-text and VoiceOver
+review; the existing BE#796 contract blocker described above. No new simulator
+screenshots or end-to-end server acceptance are claimed.
