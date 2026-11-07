@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
-import { isSaved, useResolveGoogleMapsLink, useSaved, useToggleSaved } from '@/shared/api'
+import { useResolveGoogleMapsLink, useToggleSaved } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { PrimaryBtn } from '@/shared/ui/primitives'
@@ -20,7 +20,6 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
   const [invalid, setInvalid] = useState(false)
   const [failed, setFailed] = useState(false)
   const resolve = useResolveGoogleMapsLink()
-  const saved = useSaved()
   const toggle = useToggleSaved()
   const active = useRef(true)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
@@ -37,10 +36,8 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
       const result = await resolve.mutateAsync({ url: parsed.data })
       if (!active.current) return
       if (result.status === 'ALREADY_EXISTS' && result.existingPlaceId) {
-        if (!isSaved(saved.data, 'place', result.existingPlaceId)) {
-          await toggle.mutateAsync({ type: 'place', id: result.existingPlaceId, saved: false })
-          track('place_saved', { source: 'saved_link' })
-        }
+        await toggle.mutateAsync({ type: 'place', id: result.existingPlaceId, saved: false })
+        track('place_saved', { source: 'saved_link' })
         if (!active.current) return
         onFeedback(t('saved.feedback.saved'))
         setUrl('')

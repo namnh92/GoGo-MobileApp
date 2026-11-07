@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
@@ -131,6 +131,31 @@ const PENDING_AREA: SavedItem['area'] = {
 }
 
 /**
+ * Separate hook instances share a queue for each target. Keep the optimistic
+ * update and rollback inside it too, so a queued PUT sees the settled removal.
+ */
+const savedMutations = new WeakMap<QueryClient, Map<string, Promise<void>>>()
+function reserveSavedMutation(client: QueryClient, target: string) {
+  let pending = savedMutations.get(client)
+  if (!pending) {
+    pending = new Map()
+    savedMutations.set(client, pending)
+  }
+  const queue = pending
+  const ready = queue.get(target) ?? Promise.resolve()
+  let unlock: () => void = () => {}
+  const done = new Promise<void>(resolve => { unlock = resolve })
+  queue.set(target, done)
+  return {
+    ready,
+    release: () => {
+      if (queue.get(target) === done) queue.delete(target)
+      unlock()
+    },
+  }
+}
+
+/**
  * Optimistic save/unsave — bookmarking must feel instant. Server state wins on
  * settle, so a rejected save snaps back rather than lying.
  */
@@ -143,25 +168,39 @@ export function useToggleSaved() {
       saved ? meApi.unsaveItem(type, id) : meApi.saveItem(type, id),
 
     onMutate: async ({ type, id, saved }) => {
-      await queryClient.cancelQueries({ queryKey: key })
-      const previous = queryClient.getQueryData<SavedItem[]>(key)
-      if (previous) {
-        queryClient.setQueryData<SavedItem[]>(
-          key,
-          saved
-            ? previous.filter(item => !(item.targetType === type && item.targetId === id))
-            : [{ targetType: type, targetId: id, savedAt: new Date().toISOString(), area: PENDING_AREA }, ...previous],
-        )
+      // Hold the turn through TanStack's automatic retries and final rollback.
+      const turn = reserveSavedMutation(queryClient, `${type}:${id}`)
+      await turn.ready
+      try {
+        await queryClient.cancelQueries({ queryKey: key })
+        const matches = (item: SavedItem) => item.targetType === type && item.targetId === id
+        const previous = queryClient.getQueryData<SavedItem[]>(key)?.find(matches)
+        queryClient.setQueryData<SavedItem[]>(key, current => {
+          if (!current) return current
+          if (saved) return current.filter(item => !matches(item))
+          return current.some(matches) ? current
+            : [{ targetType: type, targetId: id, savedAt: new Date().toISOString(), area: PENDING_AREA }, ...current]
+        })
+        return { previous, release: turn.release }
+      } catch (error) {
+        turn.release()
+        throw error
       }
-      return { previous }
     },
 
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(key, context.previous)
+    onError: (_error, { type, id }, context) => {
+      if (!context) return
+      // Other places can mutate concurrently; roll back only this target.
+      queryClient.setQueryData<SavedItem[]>(key, current => {
+        if (!current) return current
+        const others = current.filter(item => !(item.targetType === type && item.targetId === id))
+        return context.previous ? [context.previous, ...others] : others
+      })
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key })
+    onSettled: (_data, _error, _variables, context) => {
+      try { void queryClient.invalidateQueries({ queryKey: key }) }
+      finally { context?.release() }
     },
   })
 }

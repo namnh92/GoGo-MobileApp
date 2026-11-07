@@ -28,15 +28,17 @@ These supersede the earlier g04 plan/filter/map/share decisions:
 
 ## Contract and stack compatibility
 
-`openapi/gogo.v1.yaml` is verbatim `git -C /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/be-796 show origin/re-design:openapi/gogo.v1.yaml` (**7.3.0-alpha.1**, BE commit `45d9d0822bef579929b603032e6e6b0dca37bc93`). Both blobs: `ac2806f5e810ee3b4e66d4e47faee23eb111d8f8`. Main generated schema is regenerated from that file, without hand edits.
+After Astra F-01, `openapi/gogo.v1.yaml` retains the complete stacked contract from base `4c3961d` (**7.3.0-alpha.1**, blob `9024bd539278150895ed7c04f1777f4bded987b6`). `pnpm api:types` regenerates `src/shared/api/schema.d.ts` from that contract without hand edits; both files match the base exactly.
 
-That BE snapshot lacks the contribution-draft operations and three enrichment/draft schemas already used by #516. `src/shared/api/stacked-contribution-schema.d.ts` preserves those generated declarations verbatim from stack HEAD `b5cf7a1`; `types.ts` composes them with the generated BE schema. It introduces no endpoint or runtime behavior. This is explicit stack compatibility, **not evidence the deployed BE implements drafts**. Remove the snapshot when the BE contract includes the stacked draft feature. Existing draft endpoint tests remain in the validation set.
+The base includes the contribution-draft operations, enrichment/draft schemas, and their `ContributionPrice`/`ContributionRating` dependencies already used by #516. The incomplete compatibility declaration is deleted, and `types.ts` imports the generated declarations directly. The retained contract is **not evidence the deployed BE implements drafts**. Regression evidence and current checks: [Astra finding repairs](PR-g04-astra-fixes.md).
 
 Sources remain BFF endpoints: `/me/saved`, `/places/{id}`, `/taxonomies`, `/me/notifications`, `/places/resolve-google-maps-link`. No provider calls added. The BE saved-plan contract is retained unchanged.
 
-Telemetry reuses `place_saved` (`source=saved_link`); similar Search emits its existing entry event. URLs and resolution tokens are not sent in these events.
+Quick-save always confirms the saved state through the idempotent PUT, including already saved places. The shared mutation hook serializes each target's save/removal across hook instances, including automatic retries. Optimistic saves preserve existing metadata without duplicates; failed mutations roll back only their target. Success feedback follows the PUT response.
 
-## Checks and remaining acceptance
+Telemetry reuses `place_saved` (`source=saved_link`) after successful PUT; similar Search emits its existing entry event. URLs and resolution tokens are not sent in these events.
+
+## Prior checks at `25b9ba0` and remaining acceptance
 
 - `pnpm typecheck`: passed on final sources/tests.
 - `pnpm lint`: passed.

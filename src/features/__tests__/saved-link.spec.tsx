@@ -36,8 +36,23 @@ it('saves an existing GoGo place immediately with inline feedback', async () => 
 it('keeps an already saved place saved', async () => {
   mockSaved = [{ targetType: 'place', targetId: 'canonical' }]
   await enterAndSave('https://maps.app.goo.gl/cafe')
-  expect(mockSave).not.toHaveBeenCalled()
+  expect(mockSave).toHaveBeenCalledWith({ type: 'place', id: 'canonical', saved: false })
   expect(mockFeedback).toHaveBeenCalled()
+})
+it('confirms a save through PUT after the place is removed while its link resolves', async () => {
+  mockSaved = [{ targetType: 'place', targetId: 'canonical' }]
+  let finishResolve: (value: unknown) => void = () => {}
+  let finishSave: () => void = () => {}
+  mockResolve.mockReturnValue(new Promise(resolve => { finishResolve = resolve }))
+  mockSave.mockReturnValue(new Promise<void>(resolve => { finishSave = resolve }))
+  const view = await enterAndSave('https://maps.app.goo.gl/cafe')
+  mockSaved = []
+  await view.rerender(<SavedLink onFeedback={mockFeedback} />)
+  await act(async () => { finishResolve({ status: 'ALREADY_EXISTS', existingPlaceId: 'canonical' }) })
+  expect(mockSave).toHaveBeenCalledWith({ type: 'place', id: 'canonical', saved: false })
+  expect(mockFeedback).not.toHaveBeenCalled()
+  await act(async () => { finishSave() })
+  expect(mockFeedback).toHaveBeenCalledWith('Đã lưu địa điểm')
 })
 it('opens the real add-place flow with a prefilled link for a new place', async () => {
   mockResolve.mockResolvedValue({ status: 'RESOLVED', candidate: { name: 'New café' } })
