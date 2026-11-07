@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
-import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
+import { CurrentAreaSheet } from '@/shared/location/current-area-sheet.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
 import { useMe } from '@/shared/api'
@@ -14,7 +14,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon, IconCheck, IconMapPin } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, glassStyles, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -33,6 +33,7 @@ const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 export default function CreateLocationScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const [areaOpen, setAreaOpen] = useState(false)
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
   const { area: gpsLabel, setArea } = useRoom()
@@ -194,13 +195,14 @@ export default function CreateLocationScreen() {
             />
           </View>
         ) : null}
-        <AdministrativePicker value={sharedArea} onChange={chooseArea} />
+        <SecondaryBtn label={sharedArea ? administrativeAreaLabel(sharedArea) : t('home.chooseArea')} onPress={() => setAreaOpen(true)} />
         {staleArea && administrativeArea && administrativeArea.datasetVersion !== version.data?.datasetVersion ? (
           <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
             {t('administrative.changed')}
           </Text>
         ) : null}
       </ScrollView>
+      <CurrentAreaSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={() => setStaleArea(false)} />
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>

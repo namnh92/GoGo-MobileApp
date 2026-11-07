@@ -1272,3 +1272,13 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   expect(view.queryByLabelText('Visible place')).toBeNull()
   expect(view.queryByText(i18n.t('discovery.openPlace'))).toBeNull()
 })
+
+
+it('waits for filter dismissal before opening the shared current-area sheet', async () => {
+  const view = await renderScreen(<SearchScreen />)
+  await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
+  await fireEvent.press(view.getByRole('button', { name: /^Chọn khu vực:/ }))
+  expect(view.queryByTestId('amenity-status-options')).toBeNull()
+  expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+  expect(view.getAllByTestId('sheet-drag-handle')).toHaveLength(1)
+})

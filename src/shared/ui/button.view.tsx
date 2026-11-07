@@ -24,7 +24,7 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
-  variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin'
+  variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
   onPress: () => void
   /** Why the button is unavailable, or what it does, read after the label. */
@@ -87,7 +87,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
   // request is in flight the button reads as loading, not as greyed out.
   const greyed = disabled && !loading
   const look = (onAccent ? ON_ACCENT_LOOK[kind] : undefined) ?? LOOK[kind]
-  const iconColor: TextColor = greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : look.label
+  const iconColor: TextColor = variant === 'area' && !greyed ? 'redesign.primaryText' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : look.label
   return (
     <Pressable
       onPress={() => {
@@ -106,6 +106,9 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         ...kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed),
         stitch && styles[variant],
         variant === 'discovery' && kind === 'primary' && styles.discoveryPrimary,
+        variant === 'area' && kind === 'primary' && styles.areaPrimary,
+        variant === 'area' && pressed && !inactive && (kind === 'primary' ? styles.primaryPressed : styles.areaPressed),
+        variant === 'area' && greyed && styles.primaryDisabled,
         variant === 'discovery' && greyed && styles.primaryDisabled,
         stitch && pressed && !inactive && !reduced && (variant === 'stitchSubtle' ? styles.stitchPressedSubtle : styles.stitchPressed),
         style,
@@ -115,8 +118,8 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       {icon && !loading && !stitch ? <Icon name={icon} size={18} color={iconColor} /> : null}
       {leadingIcon && !loading ? <MaterialIcon name={leadingIcon} size={20} color={iconColor} /> : null}
       <Text
-        variant={stitch ? (kind === 'primary' || variant === 'discovery' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
-        color={greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
+        variant={variant === 'area' ? 'introLabel' : stitch ? (kind === 'primary' || variant === 'discovery' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
+        color={greyed ? look.disabledLabel : variant === 'area' && kind === 'secondary' ? 'redesign.secondary' : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
         numberOfLines={stitch ? undefined : 1}
         ellipsizeMode="tail"
         style={styles.label}

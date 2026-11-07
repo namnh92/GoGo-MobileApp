@@ -210,7 +210,7 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
             styles.panel,
             appearance === 'discovery' && styles.discoveryPanel,
             size === 'full' ? styles.panelFull : { maxHeight },
-            !scroll && { paddingBottom: bottomPadding },
+            !scroll && !footer && { paddingBottom: bottomPadding },
             !reduced && panelStyle,
           ]}
         >

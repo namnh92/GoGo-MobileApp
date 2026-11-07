@@ -66,8 +66,9 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => {
   const React = jest.requireActual<typeof import('react')>('react')
   const { Pressable, Text } = jest.requireActual<typeof import('react-native')>('react-native')
   return {
-    AdministrativePicker: ({ onChange }: { onChange: (next: unknown) => void }) =>
-      React.createElement(
+    AdministrativePicker: ({ value, onChange, onValidityChange }: { value: unknown; onChange: (next: unknown) => void; onValidityChange?: (valid: boolean) => void }) => {
+      React.useEffect(() => onValidityChange?.(Boolean(value)), [value, onValidityChange])
+      return React.createElement(
         Pressable,
         {
           accessibilityRole: 'button',
@@ -81,7 +82,8 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => {
             }),
         },
         React.createElement(Text, null, 'Chọn tỉnh/thành phố'),
-      ),
+      )
+    },
   }
 })
 
@@ -111,7 +113,9 @@ it('shows the fix while the position is selected, and the offer again once an ar
   expect(view.getByText(FIX)).toBeTruthy()
   expect(card().props.accessibilityState).toMatchObject({ selected: true })
 
-  await press(view.getByText('Chọn tỉnh/thành phố'))
+  await press(view.getByText('Chọn khu vực'))
+    await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
   expect(useRoomStore.getState().originLat).toBeNull()
   expect(view.queryByText(FIX)).toBeNull()
   expect(view.getByText(OFFER)).toBeTruthy()
@@ -130,7 +134,9 @@ it('falls back to the generic fix line when the position has no label', async ()
   await press(view.getByText(OFFER))
   expect(view.getByText('Đã lấy được vị trí của bạn')).toBeTruthy()
 
-  await press(view.getByText('Chọn tỉnh/thành phố'))
+  await press(view.getByText('Chọn khu vực'))
+    await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
   expect(view.queryByText('Đã lấy được vị trí của bạn')).toBeNull()
   expect(view.getByText(OFFER)).toBeTruthy()
 })

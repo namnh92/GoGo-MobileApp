@@ -61,15 +61,19 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => {
     AdministrativePicker: ({
       value,
       onChange,
+      onValidityChange,
     }: {
       value: { provinceName: string; communeName: string | null } | null
       onChange: (next: unknown) => void
-    }) =>
-      React.createElement(
+      onValidityChange?: (valid: boolean) => void
+    }) => {
+      React.useEffect(() => onValidityChange?.(Boolean(value)), [value, onValidityChange])
+      return React.createElement(
         Pressable,
         { accessibilityRole: 'button', onPress: () => onChange(mockPick.value) },
         React.createElement(Text, null, value ? `Đã chọn: ${value.communeName ?? value.provinceName}` : 'Chọn tỉnh/thành phố'),
-      ),
+      )
+    },
   }
 })
 
@@ -161,7 +165,9 @@ describe('position and area exclude each other', () => {
     const view = await renderScreen(<CreateLocationScreen />)
     expect(view.getByText('Khoảng cách tối đa')).toBeTruthy()
 
+    await press(view.getByText('Chọn khu vực'))
     await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
     expect(useRoomStore.getState()).toMatchObject({ administrativeArea: AREA, originLat: null, originLng: null })
     // A distance only means something from a position.
     expect(view.queryByText('Khoảng cách tối đa')).toBeNull()
@@ -173,7 +179,9 @@ describe('position and area exclude each other', () => {
 
   it('continues with codes only and no distance for an area', async () => {
     const view = await renderScreen(<CreateLocationScreen />)
+    await press(view.getByText('Chọn khu vực'))
     await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByText('Xác nhận'))
     await press(view.getByText('Tiếp tục'))
     expect(mockPush).toHaveBeenCalledWith('/create/time')
     expect(useRoomStore.getState().radiusM).toBeNull()
