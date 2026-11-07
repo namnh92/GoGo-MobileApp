@@ -1,8 +1,7 @@
 import { onlineManager, type QueryClient } from '@tanstack/react-query'
-import { api } from '@/shared/api/client'
 import type { OpResponse } from '@/shared/api/types'
 import { locatedAreaOptions } from '@/shared/administrative/located-area'
-import { loadAdministrativeSnapshot, type AdministrativeUnit } from '@/shared/administrative/snapshot'
+import { administrativeUnitsOptions, administrativeVersionOptions } from '@/shared/administrative/query-options'
 import { loadCurrentArea, saveCurrentArea } from '@/shared/storage/current-area'
 import { createAreaController } from './area-controller'
 import { currentPermission, readCurrentLocation } from './native-location'
@@ -10,6 +9,12 @@ import { defaultDiscoveryArea, scopeFor, type ScopeArea } from './discovery-scop
 
 let client: QueryClient
 let profile: (ScopeArea & { status: 'current' | 'needs_reselection' }) | null | undefined
+let versionCheck: Promise<unknown> | undefined
+
+function checkVersion() {
+  // Force one check even when yesterday's version was restored from disk.
+  return client.fetchQuery({ ...administrativeVersionOptions, staleTime: 0 }).catch(() => undefined)
+}
 
 export const appArea = createAreaController({
   load: loadCurrentArea,
@@ -30,19 +35,11 @@ export const appArea = createAreaController({
     const scope = scopeFor(null, profile, false)
     if (scope.status !== 'ready' || scope.source !== 'none') return scope
     try {
-      const versionOptions = {
-        queryKey: ['administrative', 'version'], staleTime: 24 * 60 * 60_000,
-        queryFn: () => api.get<OpResponse<'getAdministrativeVersion'>>('/administrative/version', { anonymous: true }),
-      }
-      const version = onlineManager.isOnline() ? await client.fetchQuery(versionOptions) : client.getQueryData<OpResponse<'getAdministrativeVersion'>>(versionOptions.queryKey)
+      if (onlineManager.isOnline()) await versionCheck
+      const version = client.getQueryData(administrativeVersionOptions.queryKey)
       if (!version) throw new Error('DEFAULT_DISCOVERY_AREA_UNAVAILABLE')
-      const provinceOptions = {
-        queryKey: ['administrative', version.datasetVersion, 'provinces'], staleTime: Infinity,
-        queryFn: () => loadAdministrativeSnapshot(version.datasetVersion, undefined, cursor => api.get<OpResponse<'listAdministrativeProvinces'>>('/administrative/provinces', {
-          query: { limit: 100, ...(cursor ? { cursor } : {}) }, anonymous: true,
-        })),
-      }
-      const provinces = onlineManager.isOnline() ? await client.fetchQuery(provinceOptions) : client.getQueryData<AdministrativeUnit[]>(provinceOptions.queryKey)
+      const provinceOptions = administrativeUnitsOptions(version.datasetVersion)
+      const provinces = onlineManager.isOnline() ? await client.fetchQuery(provinceOptions) : client.getQueryData(provinceOptions.queryKey)
       const area = defaultDiscoveryArea(version.datasetVersion, provinces)
       if (!area) throw new Error('DEFAULT_DISCOVERY_AREA_UNAVAILABLE')
       return { status: 'ready', source: 'default_area', area }
@@ -50,10 +47,17 @@ export const appArea = createAreaController({
   },
 })
 export const useAppAreaStore = appArea.store
-export const retryAppArea = appArea.retry
+export async function retryAppArea() {
+  if (useAppAreaStore.getState().scope.status !== 'unavailable') return
+  if (onlineManager.isOnline()) await checkVersion()
+  return appArea.retry()
+}
 
 export function initializeAppArea(queryClient: QueryClient, profileArea: typeof profile) {
   client = queryClient
   profile = profileArea
-  return appArea.initialize()
+  versionCheck ??= checkVersion()
+  // Offline checks remain paused for reconnect; they must not block saved-area hydration.
+  const area = appArea.initialize()
+  return onlineManager.isOnline() ? Promise.all([versionCheck, area]).then(() => {}) : area
 }

@@ -1,30 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/shared/api/client'
-import type { OpResponse } from '@/shared/api/types'
-import { loadAdministrativeSnapshot } from './snapshot'
+import { administrativeUnitsOptions, administrativeVersionOptions } from './query-options'
 
 export function useAdministrativeVersion(options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: ['administrative', 'version'],
-    enabled: options?.enabled,
-    queryFn: () => api.get<OpResponse<'getAdministrativeVersion'>>('/administrative/version', { anonymous: true }),
-    staleTime: 5 * 60_000,
+    ...administrativeVersionOptions,
+    // Startup owns the automatic check; consumers observe it and may retry explicitly.
+    enabled: options?.enabled ?? false,
   })
 }
 
 export function useAdministrativeUnits(version: string | undefined, provinceCode?: string) {
-  return useQuery({
-    queryKey: ['administrative', version, provinceCode ?? 'provinces'],
-    enabled: Boolean(version),
-    staleTime: Infinity,
-    queryFn: () => loadAdministrativeSnapshot(version!, provinceCode, cursor =>
-      provinceCode
-        ? api.get<OpResponse<'listAdministrativeCommunes'>>('/administrative/provinces/{provinceCode}/communes', {
-            pathParams: { provinceCode }, query: { limit: 100, ...(cursor ? { cursor } : {}) }, anonymous: true,
-          })
-        : api.get<OpResponse<'listAdministrativeProvinces'>>('/administrative/provinces', {
-            query: { limit: 100, ...(cursor ? { cursor } : {}) }, anonymous: true,
-          }),
-    ),
-  })
+  return useQuery(administrativeUnitsOptions(version, provinceCode))
 }

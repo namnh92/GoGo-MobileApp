@@ -18,7 +18,8 @@ jest.mock('@/shared/location/app-area', () => ({
   appArea: { permissionChanged: () => mockController.permissionChanged() },
   retryAppArea: () => mockController.retry(),
 }))
-jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => null }))
+let mockRestoring = false
+jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => null, useIsRestoring: () => mockRestoring }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'anonymous' }) }))
 jest.mock('@/shared/api', () => ({ useMe: () => ({ isPending: false }) }))
 jest.mock('@/shared/api/realtime/app-activity', () => ({
@@ -27,7 +28,11 @@ jest.mock('@/shared/api/realtime/app-activity', () => ({
 
 it('resolves once from the root; all mounted and remounted consumers share changes without GPS reads', async () => {
   const wrapper = ({ children }: { children: ReactNode }) => <AppAreaProvider>{children}</AppAreaProvider>
+  mockRestoring = true
   const first = await renderHook(() => ({ home: useDiscoveryScope(), search: useDiscoveryScope(), saved: useDiscoveryScope() }), { wrapper })
+  expect(mockPosition).not.toHaveBeenCalled()
+  mockRestoring = false
+  await first.rerender({})
   await act(async () => { await mockController.initialize() })
   expect(mockPosition).toHaveBeenCalledTimes(1)
   expect(mockLocate).toHaveBeenCalledTimes(1)

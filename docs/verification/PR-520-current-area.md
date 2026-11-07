@@ -72,3 +72,18 @@ Các test mới ở `current-area-sheet.spec.tsx` render component thật với 
 Full `pnpm test` bị BLOCKED bởi sandbox ở ba case `distribute-wrapper.test.ts`: `ps` bị `EPERM`; `pgrep` báo `Cannot get process list` / `sysmond service not found`. Test và script distribute không đổi trong patch. Không sửa hoặc bỏ assertion để làm xanh giả.
 
 Rollback: revert phần thay đổi chưa commit này, giữ controller/store của `994faff`; không có migration dữ liệu.
+
+## Bổ sung owner 2026-11-07 — cache dữ liệu hành chính
+
+Nền kiểm tra của bổ sung này: HEAD `8c2faf0`, patch chưa commit trong worktree `mobile-520`.
+
+- Startup chờ `PersistQueryClientProvider` restore xong rồi bắt đầu kiểm tra `/administrative/version` cùng với resolve khu vực. Mỗi process chỉ khởi động một lần kiểm tra tự động, kể cả khi có lựa chọn thủ công đã lưu hoặc GPS thành công. Không tự retry khi version lỗi; retry từ UI vẫn là thao tác tường minh.
+- Các consumer version chỉ observe cache; mount, focus, reconnect và mốc 5 phút không tạo thêm lần kiểm tra. Nếu mở app offline, lần kiểm tra startup chờ mạng mà không chặn hydrate khu vực từ cache.
+- Dùng chung query options cho snapshot fallback và picker: `['administrative', datasetVersion, 'provinces']` / `['administrative', datasetVersion, provinceCode]`, `staleTime` và `gcTime` vô hạn trong bộ nhớ. Giữ prefix persisted `administrative`, AsyncStorage key `gogo.query-cache`, cache buster và `maxAge` 24 giờ hiện hữu; cache hết hạn hoặc logout vẫn bị xóa theo policy chung.
+- Regression dùng persister AsyncStorage thật với storage stub, save cache, bỏ QueryClient/module cũ, restore sang QueryClient/module mới. Khi version không đổi, relaunch chỉ gọi `/administrative/version`, không gọi provinces/communes. Có thêm case version đổi, lựa chọn thủ công không gọi GPS, offline và explicit retry sau lỗi.
+- Bằng chứng trước/sau: ba regression startup/relaunch FAIL trên `app-area.ts` của HEAD cũ (thiếu request version ở relaunch/manual, dùng version cũ khi cache còn fresh); PASS trên patch. Suite focused location: 6/6 PASS. Hai UI test về restore gate và version qua remount/focus/reconnect/explicit retry: 2/2 PASS.
+- `pnpm typecheck`, `pnpm lint`, `git diff --check`: PASS. `pnpm test --exclude src/shared/config/__tests__/distribute-wrapper.test.ts`: PASS — 114 files, 1.302 tests, 39 skipped.
+- `pnpm test:ui --runInBand --silent`: PASS — 176 suites, 2.077 tests.
+- Full `pnpm test`: BLOCKED bởi cùng ba case process inspection trong `distribute-wrapper.test.ts` (lần full run: 1.323 PASS, 39 skipped, 3 FAIL; trước khi thêm hai case offline/retry). Không sửa test/script distribute, không coi run loại suite này là full-green.
+
+Rollback bổ sung: bỏ patch chưa commit trên nền `8c2faf0`; không đổi dependency, API contract hay format persisted data. Không install/commit/push.
