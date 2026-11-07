@@ -20,7 +20,7 @@ jest.mock('@/shared/api', () => ({
   useResolveGoogleMapsLink: () => ({ data: { status: 'RESOLVED', candidate: { googlePlaceId: 'google', name: 'Quán' } }, mutate: jest.fn(), reset: jest.fn() }),
   useSubmitPlace: () => mockSubmit,
   usePlaceSubmission: (id: string | undefined) => { mockSubmissionId(id); return mockSubmission },
-  useTaxonomies: () => ({ data: undefined }),
+  ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
 import PlaceImportScreen from '@/features/place-import/import.view'
 

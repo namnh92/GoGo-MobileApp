@@ -1,3 +1,4 @@
+import { completeWizard } from './contribution-fixtures'
 import { act, fireEvent, screen } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import { ApiError } from '@/shared/api/errors'
@@ -72,7 +73,7 @@ jest.mock('@/shared/api', () => ({
   useResolveGoogleMapsLink: () => mockResolve,
   useSubmitPlace: () => mockSubmit,
   usePlaceSubmission: () => ({ data: undefined }),
-  useTaxonomies: () => ({ data: undefined }),
+  ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
 
 import PlaceImportScreen from '@/features/place-import/import.view'
@@ -85,6 +86,7 @@ const LINK = 'https://maps.google.com/maps?place_id=ChIJtest'
  * `act()` scopes, and the renderer does not recover for the rest of the file.
  */
 async function pressSubmit(): Promise<void> {
+  await completeWizard()
   await act(async () => {
     await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   })
@@ -151,15 +153,15 @@ describe('APP-042 — the resolve proof reaches submit', () => {
     })
 
     await openWithPreview()
-    await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
-    await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Keep this note')
+    await completeWizard()
+    await fireEvent.changeText(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)'), 'Keep this note')
     await pressSubmit()
 
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
     // The user is never asked to paste the link again.
     expect(mockResolve.mutateAsync).toHaveBeenCalledWith({ url: LINK })
     expect(mockSubmit.mutateAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({ resolutionToken: 'token-from-the-retry', note: 'Keep this note' }),
+      expect.objectContaining({ resolutionToken: 'token-from-the-retry', enrichment: expect.objectContaining({ visitTips: 'Keep this note' }) }),
     )
   })
 
@@ -255,8 +257,8 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
     mockSubmit.mutateAsync.mockImplementationOnce(() => new Promise((_resolve, reject) => { finish = () => reject(staleToken()) }))
   }
   await openWithPreview()
-  await fireEvent.press(screen.getByRole('button', { name: 'Bổ sung thông tin' }))
-  await fireEvent.changeText(screen.getByPlaceholderText('Ghi chú cho người kiểm duyệt…'), 'Old A note')
+  await completeWizard()
+  await fireEvent.changeText(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)'), 'Old A note')
   await pressSubmit()
   await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   const input = screen.getByPlaceholderText('Dán link Google Maps tại đây...')
@@ -265,7 +267,7 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
   await act(async () => { finish() })
 
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
-  expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ note: 'Old A note' }))
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Old A note' }) }))
   expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(pendingStep === 'resolve' ? 1 : 0)
   expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
 })
@@ -288,4 +290,13 @@ it('keeps a new attempt locked when an outdated retry finishes', async () => {
   await pressSubmit()
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
   await act(async () => { finishNew({ status: 'PENDING', submissionId: 'new' }) })
+})
+
+it('does not attach an existing contribution to a different provider identity after revalidation', async () => {
+  mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+  mockResolve.mutateAsync.mockResolvedValue({ ...RESOLVED, candidate: { ...RESOLVED.candidate, googlePlaceId: 'ChIJdifferent' }, resolutionToken: 'different-proof' })
+  await openWithPreview()
+  await pressSubmit()
+  expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+  expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(1)
 })
