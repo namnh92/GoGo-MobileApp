@@ -1,6 +1,7 @@
 import type { QueryClient, MutationObserver } from '@tanstack/react-query'
 
 import { captureSessionScope, type SessionScope } from './session'
+import { isPublicAppQuery } from './persist-policy'
 
 const bound = new WeakSet<QueryClient>()
 
@@ -13,6 +14,11 @@ export function bindSessionCaches(client: QueryClient): void {
     const scope = captureSessionScope()
     scope.signal.addEventListener('abort', () => {
       watchLifetime()
+      // Stop old requests, retaining the last public snapshot and its observers.
+      // Startup checks the administrative version once per app lifetime.
+      for (const query of client.getQueryCache().getAll()) {
+        if (isPublicAppQuery(query.queryKey)) void query.cancel({ silent: true })
+      }
       for (const [owner, work] of cancellations) {
         if (!work.scope.signal.aborted) continue
         cancellations.delete(owner)
@@ -87,6 +93,9 @@ export function bindSessionCaches(client: QueryClient): void {
     if (event.type === 'removed') cancellations.delete(event.query)
     if (event.type !== 'added') return
     const query = event.query
+    // Public queries may fetch again in any session; never bind their fetch
+    // function to the account that happened to create the cache entry.
+    if (isPublicAppQuery(query.queryKey)) return
     const scope = captureSessionScope()
     const fetch = query.fetch.bind(query)
     query.fetch = async (options, fetchOptions) => {

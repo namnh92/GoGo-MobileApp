@@ -3,7 +3,8 @@ import { focusManager, onlineManager, QueryClient, QueryClientProvider } from '@
 import type { ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { api } from '@/shared/api/client'
-import { purgeCachedUserData } from '@/shared/api/query-client'
+import { createQueryClient, purgeCachedUserData } from '@/shared/api/query-client'
+import { clearSession, persistSession } from '@/shared/api/session'
 import { administrativeUnitsOptions, administrativeVersionOptions } from './query-options'
 import { useAdministrativeUnits, useAdministrativeVersion } from './queries'
 
@@ -14,7 +15,8 @@ jest.mock('expo-network', () => ({
 }))
 
 it('keeps administrative observers and reopened pickers ready across session purges without another version check', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  await persistSession({ kind: 'user', userId: 'A', accessToken: 'A', expiresAt: Date.now() + 900_000 })
+  const client = createQueryClient()
   const province = { code: '79', fullName: 'Thành phố Hồ Chí Minh', name: 'Hồ Chí Minh', unitType: 'PROVINCE', level: 'PROVINCE', status: 'ACTIVE', isCurrent: true, effectiveFrom: '2025-07-01' }
   const commune = { ...province, code: '00001', parentCode: '79', fullName: 'Phường Một', unitType: 'WARD', level: 'COMMUNE' }
   const get = jest.mocked(api.get).mockReset().mockImplementation(async path => (
@@ -34,17 +36,23 @@ it('keeps administrative observers and reopened pickers ready across session pur
     await client.fetchQuery(administrativeVersionOptions)
     await client.fetchQuery(administrativeUnitsOptions('v1'))
     await client.fetchQuery(administrativeUnitsOptions('v1', '79'))
-    const publicQueries = client.getQueryCache().findAll({ queryKey: ['administrative'] })
+    client.setQueryData(['taxonomies', 'vi', 'current'], { data: { version: 1 }, etag: 'v1' })
+    client.setQueryData(['taxonomies', 'vi', 1], { data: { version: 1 }, etag: 'v1' })
+    const publicQueries = client.getQueryCache().getAll()
     const first = await renderHook(usePicker, { wrapper })
     // Sign-in and logout both use this same purge, without restarting appArea.
-    for (const boundary of ['sign-in', 'logout']) {
+    for (const boundary of ['logout', 'sign-in']) {
       for (const root of ['rooms', 'plans', 'me', 'assistant', 'places', 'location']) {
         client.setQueryData([root, boundary], { private: true })
       }
       client.getMutationCache().build(client, { mutationKey: ['me', boundary], gcTime: Infinity })
       await AsyncStorage.setItem('gogo.query-cache', JSON.stringify({ private: boundary }))
-      await act(async () => { await purgeCachedUserData(client) })
-      expect(client.getQueryCache().getAll().every(query => query.queryKey[0] === 'administrative')).toBe(true)
+      await act(async () => {
+        if (boundary === 'logout') await clearSession()
+        else await persistSession({ kind: 'user', userId: 'B', accessToken: 'B', expiresAt: Date.now() + 900_000 })
+        await purgeCachedUserData(client)
+      })
+      expect(client.getQueryCache().getAll().every(query => ['administrative', 'taxonomies'].includes(String(query.queryKey[0])))).toBe(true)
       expect(client.getMutationCache().getAll()).toEqual([])
       expect(await AsyncStorage.getItem('gogo.query-cache')).toBeNull()
       for (const query of publicQueries) expect(client.getQueryCache().find({ queryKey: query.queryKey })).toBe(query)
@@ -61,6 +69,7 @@ it('keeps administrative observers and reopened pickers ready across session pur
     await first.unmount()
   } finally {
     client.clear()
+    await clearSession()
     get.mockReset()
   }
 })

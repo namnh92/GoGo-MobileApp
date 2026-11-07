@@ -36,6 +36,13 @@ jest.mock('expo-network', () => ({
 
 import * as rooms from '@/shared/api/endpoints/rooms'
 import * as sessions from '@/shared/api/endpoints/sessions'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { getSecureItem } from '@/shared/storage/secure-store'
+import { createQueryClient } from '@/shared/api/query-client'
+import { useRoomStore } from '@/shared/store/roomStore'
+import { saveRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
+import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
+import { useAssistantDraftStore } from '@/shared/store/assistantDraftStore'
 import { clearSession, persistSession, type Session } from '@/shared/api/session'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { SessionProvider, useSession } from '@/shared/providers/session-provider'
@@ -59,13 +66,13 @@ function Probe({ onSession }: { onSession: (value: SessionApi) => void }) {
 
 let client: QueryClient
 
-async function seedAndMount() {
+async function seedAndMount(productionCache = false) {
   useDiscoveryAreaStore.getState().setArea(AREA)
   for (const roomId of ROOMS) {
     await saveInviteCode({ roomId, inviteId: `invite-${roomId}`, code: `code-${roomId}`, expiresAt: '2099-01-01T00:00:00.000Z', userId: USER, savedAt: 1 })
   }
   expect(await loadInviteCode(ROOMS[0], USER)).not.toBeNull()
-  client = new QueryClient()
+  client = productionCache ? createQueryClient() : new QueryClient()
   await render(
     <QueryClientProvider client={client}>
       <SessionProvider>
@@ -215,4 +222,41 @@ it.each(['push confirmation', 'deferred-link clear'] as const)('cancels sign-out
   await act(async () => { await screen.unmount() })
   client.clear()
   await clearSession()
+})
+
+
+it('logout clears all A account caches, persisted stores, drafts and secure credentials', async () => {
+  await persistSession({ kind: 'user', userId: USER, accessToken: 'A', refreshToken: 'refresh-A', expiresAt: Date.now() + 900_000 })
+  await seedAndMount(true)
+  await waitFor(() => expect(session!.status).toBe('user'))
+  const roots = ['me', 'rooms', 'plans', 'places', 'location', 'assistant']
+  for (const root of roots) client.setQueryData([root, 'A'], { owner: USER })
+  client.getMutationCache().build(client, { mutationKey: ['save-A'], gcTime: Infinity })
+  useRoomStore.setState({ title: 'A draft', preferenceSeed: { roomId: ROOMS[0], moodKeys: ['A'] } })
+  await saveRoomDraft(USER, 'type')
+  useRecentRoomsStore.setState({ rooms: [{ roomId: ROOMS[0], title: 'A room', type: 'couple', status: 'draft', participantCount: 2, lastOpenedAt: new Date().toISOString() }] })
+  useAssistantDraftStore.getState().setDraft('A', 'A question')
+  await AsyncStorage.setItem('gogo.query-cache', JSON.stringify({ private: USER }))
+  expect(useSavedRoomDraft.getState().draft?.ownerId).toBe(USER)
+  expect(await getSecureItem('gogo.access_token')).toBe('A')
+  const signOutCalls = jest.mocked(pushIdentity.beginSignOut).mock.calls.length
+
+  await act(async () => { await session!.signOut() })
+
+  expect(session!.status).toBe('anonymous')
+  expect(client.getQueryCache().getAll()).toEqual([])
+  expect(client.getMutationCache().getAll()).toEqual([])
+  expect(useRoomStore.getState()).toMatchObject({ title: '', preferenceSeed: null })
+  expect(useSavedRoomDraft.getState().draft).toBeNull()
+  expect(useRecentRoomsStore.getState().rooms).toEqual([])
+  expect(useAssistantDraftStore.getState()).toMatchObject({ drafts: {}, outgoing: [] })
+  expect(await AsyncStorage.getItem('gogo.room-draft.v1')).toBeNull()
+  expect(await AsyncStorage.getItem('gogo.query-cache')).toBeNull()
+  expect(JSON.parse((await AsyncStorage.getItem('gogo.recent-rooms'))!)).toMatchObject({ state: { rooms: [] } })
+  for (const key of ['gogo.access_token', 'gogo.refresh_token', 'gogo.guest_token', 'gogo.session_meta']) {
+    expect(await getSecureItem(key)).toBeNull()
+  }
+  expect(pushIdentity.beginSignOut).toHaveBeenCalledTimes(signOutCalls + 1)
+  expect(pushIdentity.beginSignOut).toHaveBeenLastCalledWith('user', expect.anything())
+  await expectPurgedThenUnmount()
 })

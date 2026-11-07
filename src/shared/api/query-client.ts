@@ -6,7 +6,7 @@ import * as Network from 'expo-network'
 import { AppState, Platform, type AppStateStatus } from 'react-native'
 
 import { isRetryable, isUnauthorized } from './errors'
-import { shouldPersistQuery } from './persist-policy'
+import { isPublicAppQuery, shouldPersistQuery } from './persist-policy'
 import { forgetRoomSteps } from '@/shared/navigation/room-steps'
 import { resetAssistantDrafts } from '@/shared/store/assistantDraftStore'
 import { closeAssistantStreams } from './queries/use-assistant'
@@ -177,7 +177,7 @@ export const queryPersister: Persister = {
 
 /**
  * Logout must leave no room data behind (RULE-MOB-OFFLINE). Clears the
- * account cache and the persisted copy. Public administrative queries survive
+ * account cache and the persisted copy. Public administrative and taxonomy queries survive
  * so observers keep the startup version check across session boundaries.
  */
 export async function purgeCachedUserData(queryClient: QueryClient, scope = captureSessionScope()): Promise<void> {
@@ -190,7 +190,7 @@ export async function purgeCachedUserData(queryClient: QueryClient, scope = capt
   // stays in memory (none is ever written to disk).
   closeAssistantStreams()
   resetAssistantDrafts()
-  queryClient.removeQueries({ predicate: query => query.queryKey[0] !== 'administrative' })
+  queryClient.removeQueries({ predicate: query => !isPublicAppQuery(query.queryKey) })
   queryClient.getMutationCache().clear()
   await queryPersister.removeClient()
 }

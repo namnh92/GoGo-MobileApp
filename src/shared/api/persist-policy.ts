@@ -27,6 +27,11 @@ const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me',
  */
 const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'detail', 'public-reviews', 'review-reactions']
 
+/** Shared reference data belongs to the app, across account lifetimes. */
+export function isPublicAppQuery(queryKey: readonly unknown[]): boolean {
+  return queryKey[0] === 'administrative' || queryKey[0] === 'taxonomies'
+}
+
 export function shouldPersistQuery(queryKey: readonly unknown[]): boolean {
   const [root] = queryKey
   if (typeof root !== 'string' || !PERSISTED_PREFIXES.includes(root)) return false
