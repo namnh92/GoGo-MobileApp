@@ -72,6 +72,8 @@ export const styles = StyleSheet.create((theme) => ({
     elevation: 0,
     paddingHorizontal: 12,
   },
+  moreOptions: { borderStyle: 'dashed' },
+  sheetHeader: { gap: 12, paddingBottom: 16 },
   selectedOption: {
     borderWidth: 2,
     borderColor: theme.redesign.primaryText,

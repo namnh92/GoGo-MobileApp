@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import {
-  discoveryLabels,
   isApiError,
   newIdempotencyKey,
   useContributionDrafts,
@@ -14,13 +13,12 @@ import {
   useTaxonomies,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { TextInput } from '@/shared/ui/text-input'
 import { FieldFocusGroup } from '@/shared/ui/field-focus-group'
 import {
-  amenityFields,
   draftEnrichment,
   emptyContribution,
   priceValid,
@@ -31,16 +29,9 @@ import {
   type ContributionForm,
   type Enrichment,
 } from './contribution-form'
-import { purposeOptions, vibeOptions, ratingOptions } from './contribution-options'
+import { taxonomyOptions } from './contribution-options'
+import { ContributionChoices } from './contribution-choices.view'
 import { styles } from './contribution-wizard.style'
-const amenityIcons = {
-  car_parking: 'parking',
-  power_at_each_table: 'power',
-  pets_allowed: 'pets',
-  separate_smoking_area: 'smoking',
-  open_after_23: 'night',
-  tables_over_six: 'groups',
-} as const
 
 export function ContributionWizard({
   googlePlaceId,
@@ -61,7 +52,7 @@ export function ContributionWizard({
   onBack: () => void
   onFocus: () => void
 }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { theme } = useUnistyles()
   const { control, setValue, reset } = useForm<ContributionForm>({
     defaultValues: emptyContribution(),
@@ -83,7 +74,6 @@ export function ContributionWizard({
   const taxonomies = useTaxonomies({
     kinds: 'suitability,mood,amenity,checkin_tag',
   })
-  const labels = discoveryLabels(taxonomies.data, i18n.language)
   const drafts = useContributionDrafts(registered)
   const save = useSaveContributionDraft()
   const read = useReadContributionDraft()
@@ -91,50 +81,21 @@ export function ContributionWizard({
   const busy = submitting || save.isPending || read.isPending || remove.isPending
   const disabled = busy || !online
   const existing = drafts.data?.items.filter((d) => d.googlePlaceId === googlePlaceId) ?? []
-  const supported = (kind: string, keys: readonly string[]) => keys.filter((key) => !!labels[kind]?.[key])
-  const purposes = supported('suitability', purposeOptions)
-  const vibes = supported('mood', vibeOptions)
-  const amenities = supported('amenity', amenityFields)
-  const taxonomyReady =
-    !taxonomies.isPending && !taxonomies.isError && purposes.length > 0 && vibes.length > 0
+  const purposes = taxonomyOptions(taxonomies.data, 'suitability')
+  const vibes = taxonomyOptions(taxonomies.data, 'mood')
+  const amenities = taxonomyOptions(taxonomies.data, 'amenity')
+  const ratings = taxonomyOptions(taxonomies.data, 'checkin_tag')
+  const includes = (options: typeof purposes, key: string) => options.some((option) => option.key === key)
+  const taxonomyReady = !taxonomies.isPending && !taxonomies.isError && purposes.length > 0 && vibes.length > 0
+  const validSelection = (keys: string[], options: typeof purposes, max: number) =>
+    keys.length <= max && new Set(keys).size === keys.length && keys.every((key) => includes(options, key))
   const validKeys =
-    form.purposeKeys.every((k) => purposes.includes(k)) &&
-    form.vibeKeys.every((k) => vibes.includes(k)) &&
-    Object.keys(form.amenities).every((k) => amenities.includes(k))
+    validSelection(form.purposeKeys, purposes, 10) &&
+    validSelection(form.vibeKeys, vibes, 3) &&
+    Object.keys(form.amenities).length <= 6 &&
+    Object.keys(form.amenities).every((key) => includes(amenities, key)) &&
+    validSelection(form.serviceChips, ratings, 5) && validSelection(form.spaceChips, ratings, 5)
 
-  const serializableForm = {
-    ...form,
-    serviceChips: form.serviceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
-    spaceChips: form.spaceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
-  }
-
-  function choices(field: 'purposeKeys' | 'vibeKeys', keys: string[], max: number) {
-    return (
-      <View style={styles.row}>
-        {keys.map((key) => {
-          const selected = form[field].includes(key)
-          return (
-            <Chip
-              key={key}
-              label={t(`placeWizard.option.${key}`)}
-              appearance="mood"
-              style={[styles.option, selected && styles.selectedOption]}
-              variant={
-                disabled || (!selected && form[field].length >= max)
-                  ? 'disabled'
-                  : selected
-                    ? 'selected'
-                    : 'default'
-              }
-              onPress={() =>
-                setValue(field, selected ? form[field].filter((k) => k !== key) : [...form[field], key])
-              }
-            />
-          )
-        })}
-      </View>
-    )
-  }
   function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string) {
     return (
       <View style={styles.heading}>
@@ -276,7 +237,7 @@ export function ContributionWizard({
         body: {
           googlePlaceId,
           expectedVersion: saved?.version ?? 0,
-          enrichment: draftEnrichment(serializableForm),
+          enrichment: draftEnrichment(form),
         },
       })
       if (!mounted.current) return
@@ -313,7 +274,7 @@ export function ContributionWizard({
     setStep(next)
     track('place_contribution_step_viewed', { step: next })
   }
-  const complete = submissionEnrichment(serializableForm)
+  const complete = submissionEnrichment(form)
   const submitDisabled = disabled || blocked || !complete || !taxonomyReady || !validKeys
   return (
     <View testID="contribution-wizard" style={styles.root}>
@@ -422,23 +383,23 @@ export function ContributionWizard({
                 onPress={() => {
                   setValue(
                     'purposeKeys',
-                    form.purposeKeys.filter((k) => purposes.includes(k)),
+                    form.purposeKeys.filter((k) => includes(purposes, k)),
                   )
                   setValue(
                     'vibeKeys',
-                    form.vibeKeys.filter((k) => vibes.includes(k)),
+                    form.vibeKeys.filter((k) => includes(vibes, k)),
                   )
                   setValue(
                     'amenities',
-                    Object.fromEntries(Object.entries(form.amenities).filter(([k]) => amenities.includes(k))),
+                    Object.fromEntries(Object.entries(form.amenities).filter(([k]) => includes(amenities, k))),
                   )
                   setValue(
                     'serviceChips',
-                    form.serviceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
+                    form.serviceChips.filter((k) => includes(ratings, k)),
                   )
                   setValue(
                     'spaceChips',
-                    form.spaceChips.filter((k) => ratingOptions.includes(k) && !!labels.checkin_tag?.[k]),
+                    form.spaceChips.filter((k) => includes(ratings, k)),
                   )
                 }}
               />
@@ -490,7 +451,8 @@ export function ContributionWizard({
                 <Text variant="introCaption" color="redesign.secondary">
                   {t('placeWizard.purposesHelp')}
                 </Text>
-                {choices('purposeKeys', purposes, 10)}
+                <ContributionChoices options={purposes} selected={form.purposeKeys} max={10} disabled={disabled}
+                  title={t('placeWizard.purposes')} onChange={(keys) => setValue('purposeKeys', keys)} />
               </View>
             </>
           ) : null}
@@ -499,46 +461,18 @@ export function ContributionWizard({
               <View style={styles.section}>
                 {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'))}
                 <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
-                {choices('vibeKeys', vibes, 3)}
+                <ContributionChoices options={vibes} selected={form.vibeKeys} max={3} disabled={disabled}
+                  title={t('placeWizard.vibes')} onChange={(keys) => setValue('vibeKeys', keys)} />
               </View>
               <View style={[styles.section, styles.divider]}>
                 {sectionTitle(t('placeWizard.amenities'), 'activity', t('placeWizard.tick'))}
                 <Text variant="introCaption">{t('placeWizard.amenitiesHelp')}</Text>
-                {amenityFields
-                  .filter((key) => amenities.includes(key))
-                  .map((key) => (
-                    <Pressable
-                      key={key}
-                      accessibilityRole="checkbox"
-                      accessibilityLabel={t(`placeWizard.option.${key}`)}
-                      accessibilityState={{
-                        checked: form.amenities[key] === true,
-                        disabled,
-                      }}
-                      disabled={disabled}
-                      onPress={() => {
-                        const next = { ...form.amenities }
-                        if (next[key]) delete next[key]
-                        else next[key] = true
-                        setValue('amenities', next)
-                      }}
-                      style={[styles.amenity, form.amenities[key] && styles.selectedAmenity]}
-                    >
-                      <MaterialIcon name={amenityIcons[key]} size={18} color="redesign.primaryText" />
-                      <Text variant="introSmall" style={styles.amenityLabel}>
-                        {t(`placeWizard.option.${key}`)}
-                      </Text>
-                      <MaterialIcon
-                        name={form.amenities[key] ? 'checkbox' : 'checkboxBlank'}
-                        color="redesign.primaryText"
-                      />
-                    </Pressable>
-                  ))}
-                {!Object.keys(labels.amenity ?? {}).some((key) =>
-                  (amenityFields as readonly string[]).includes(key),
-                ) ? (
-                  <Text>{t('placeWizard.amenitiesUnavailable')}</Text>
-                ) : null}
+                <ContributionChoices options={amenities} selected={Object.keys(form.amenities).filter((key) => form.amenities[key])}
+                  checklist max={6} disabled={disabled} title={t('placeWizard.amenities')}
+                  onChange={(keys) => setValue('amenities', Object.fromEntries([
+                    ...Object.entries(form.amenities).filter(([, value]) => value === false),
+                    ...keys.map((key) => [key, true] as const),
+                  ]))} />
               </View>
             </>
           ) : null}
@@ -578,6 +512,9 @@ export function ContributionWizard({
               <View style={[styles.section, styles.divider]}>
                 {sectionTitle(t('placeWizard.ratings'), 'reviews', t('placeWizard.optional'))}
                 {rating()}
+                <ContributionChoices options={ratings} selected={[...new Set([...form.serviceChips, ...form.spaceChips])]}
+                  max={5} disabled={disabled || !form.serviceRating || !form.spaceRating} title={t('placeWizard.ratings')}
+                  onChange={(keys) => { setValue('serviceChips', keys); setValue('spaceChips', keys) }} />
               </View>
             </>
           ) : null}
