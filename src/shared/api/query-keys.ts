@@ -25,6 +25,7 @@ export const queryKeys = {
   places: () => ['places'] as const,
   placeSearch: (query: PlaceSearchQuery) => ['places', 'search', query] as const,
   place: (placeId: string) => ['places', placeId, 'detail'] as const,
+  planPlaceSummary: (placeId: string) => ['places', placeId, 'plan-summary'] as const,
   placeReviewsAll: (placeId: string) => ['places', placeId, 'public-reviews'] as const,
   placeReviews: (placeId: string, order: 'latest' | 'helpful' = 'latest') =>
     ['places', placeId, 'public-reviews', order] as const,

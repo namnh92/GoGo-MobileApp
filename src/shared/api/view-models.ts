@@ -161,10 +161,10 @@ export function parseApiDate(value: string | undefined | null): Date | undefined
 }
 
 /**
- * `PlaceDetail` declares no required field at all, unlike every other DTO —
- * this adapter is the only place that has to know that.
+ * Offline plan summaries intentionally omit live aggregates and provider facts;
+ * this adapter supplies unknown/empty defaults for those missing fields.
  */
-export function detailToPlaceCard(detail: PlaceDetail): PlaceCard {
+export function detailToPlaceCard(detail: Partial<PlaceDetail>): PlaceCard {
   const price = detail.prices?.[0]
   const priceConfidence = toNumber(price?.confidence) ?? 0
   const photo = detail.photos?.[0]

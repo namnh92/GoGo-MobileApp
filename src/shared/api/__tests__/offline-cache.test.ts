@@ -20,7 +20,8 @@ describe('shouldPersistQuery', () => {
     expect(shouldPersistQuery(queryKeys.roomMembers('room-1'))).toBe(true)
   })
 
-  it('drops full place detail with moderated aggregates; the plan retains its stop summaries', () => {
+  it('persists separate plan summaries but drops full detail and provider bytes', () => {
+    expect(shouldPersistQuery(queryKeys.planPlaceSummary('place-1'))).toBe(true)
     expect(shouldPersistQuery(queryKeys.place('place-1'))).toBe(false)
     expect(shouldPersistQuery(['place-provider-photos', 'place-1'])).toBe(false)
   })

@@ -1,8 +1,8 @@
 import type { Persister } from '@tanstack/react-query-persist-client'
 
 /**
- * Offline cache for the active date: the current plan and the place summaries
- * embedded in it stay readable with a flaky connection. Profile and public
+ * Offline cache for the active date: the current plan and separately cached
+ * minimal place summaries stay readable with a flaky connection. Profile and public
  * reference datasets (administrative units and taxonomies) persist too. Full
  * PlaceDetail is excluded: it contains moderated aggregates and provider facts.
  * Search results, suggestion runs, review pages and transient provider bytes

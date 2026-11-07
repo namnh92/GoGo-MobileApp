@@ -147,11 +147,13 @@ export default function PlaceDetailScreen() {
   const name = detail.name ?? ''
   const open = openStateFromHours(detail.hours, now)
   const photos = [
-    ...(detail.photos ?? []).map(photo => ({ ...photo, transient: false })),
+    ...(detail.photos ?? []).map(photo => ({ ...photo, transient: false, googleMapsUri: photo.googleMapsUri ?? null, authorAttributions: photo.authorAttributions ?? [] })),
     ...(providerPhotos.data?.status === 'ok' ? providerPhotos.data.photos.map((photo, index) => ({
       id: `provider-${index}`,
       url: `data:${photo.contentType};base64,${photo.dataBase64}`,
-      attribution: [providerPhotos.data?.attribution, ...photo.authorAttributions.map(author => author.displayName)].join(' · '),
+      attribution: providerPhotos.data?.attribution,
+      googleMapsUri: photo.googleMapsUri,
+      authorAttributions: photo.authorAttributions,
       transient: true,
     })) : []),
   ]
@@ -374,6 +376,7 @@ export default function PlaceDetailScreen() {
             </>
           ) : photos.length > 1 ? (
             <ScrollView
+              testID="place-detail-gallery-pages"
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
@@ -415,7 +418,24 @@ export default function PlaceDetailScreen() {
           ) : null}
         </View>
 
-        {photos[photoIndex]?.attribution ? <Text variant="caption" color="text.secondary" style={styles.attribution}>{photos[photoIndex].attribution}</Text> : null}
+        {photos[photoIndex]?.attribution ? (
+          <View style={styles.attribution}>
+            {[
+              { displayName: photos[photoIndex].attribution, uri: photos[photoIndex].googleMapsUri },
+              ...photos[photoIndex].authorAttributions,
+            ].map((credit, index) => credit.uri ? (
+              <Pressable
+                key={index}
+                accessibilityRole="link"
+                accessibilityLabel={credit.displayName}
+                onPress={() => void openLink(() => openWebsite(credit.uri as string))}
+                style={styles.attributionLink}
+              >
+                <Text variant="caption" color="accent.primary">{credit.displayName}</Text>
+              </Pressable>
+            ) : <Text key={index} variant="caption" color="text.secondary">{credit.displayName}</Text>)}
+          </View>
+        ) : null}
 
         <View testID="place-detail-sheet" style={styles.body} onLayout={event => setBodyY(event.nativeEvent.layout.y)}>
           {notice ? (

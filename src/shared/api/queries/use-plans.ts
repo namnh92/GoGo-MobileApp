@@ -1,12 +1,21 @@
-import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 import * as placesApi from '../endpoints/places'
 import * as plansApi from '../endpoints/plans'
 import { isRoomNotActive } from '../errors'
 import { queryKeys } from '../query-keys'
-import type { OpBody, Plan } from '../types'
+import type { OpBody, PlaceDetail, Plan } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 import { useIntentKey } from './use-intent-key'
+
+type PlanPlaceSummary = Pick<PlaceDetail, 'id' | 'name' | 'addressText' | 'lat' | 'lng' | 'freshnessCheckedAt'>
+
+/** Explicit allowlist: no provider imagery, ratings or moderated aggregates. */
+function planPlaceSummary(detail: PlaceDetail): PlanPlaceSummary {
+  const { id, name, addressText, lat, lng, freshnessCheckedAt } = detail
+  return { id, name, addressText, lat, lng, freshnessCheckedAt }
+}
 
 /** Liveness comes from `useRoomRealtime`, never from a per-screen interval. */
 export function useCurrentPlan(roomId: string | undefined) {
@@ -29,9 +38,11 @@ export function usePlan(planId: string | undefined) {
  * A `PlanStop` carries a `placeId` and nothing else about the place, and the
  * contract has no batch place lookup, so each stop's details are fetched
  * individually. A plan has at most eight stops and the details are cached and
- * shared with the place-detail screen, so this stays cheap.
+ * shared with the place-detail screen, so this stays cheap. Only a minimal
+ * summary survives disk persistence for the active date's offline fallback.
  */
 export function usePlanStopPlaces(stops: readonly { placeId: string }[]) {
+  const queryClient = useQueryClient()
   const placeIds = [...new Set(stops.map(stop => stop.placeId).filter(Boolean))]
 
   const details = useQueries({
@@ -42,12 +53,33 @@ export function usePlanStopPlaces(stops: readonly { placeId: string }[]) {
     })),
   })
 
+  const summaries = useQueries({
+    queries: placeIds.map(id => queryOptions<PlanPlaceSummary>({
+      queryKey: queryKeys.planPlaceSummary(id),
+      // Updated from the full-detail observer below, never fetched separately.
+      enabled: false,
+      initialData: () => queryClient.getQueryData<PlanPlaceSummary>(queryKeys.planPlaceSummary(id)),
+    })),
+  })
+
+  useEffect(() => {
+    for (const query of details) {
+      if (!query.data?.id) continue
+      const key = queryKeys.planPlaceSummary(query.data.id)
+      // useQueries returns a new array each render. The source timestamp makes
+      // this idempotent and also captures details already cached before mount.
+      if (queryClient.getQueryState(key)?.dataUpdatedAt === query.dataUpdatedAt) continue
+      queryClient.setQueryData(key, planPlaceSummary(query.data), { updatedAt: query.dataUpdatedAt })
+    }
+  }, [details, queryClient])
+
   const byPlaceId = new Map<string, PlaceCard>()
-  for (const query of details) {
-    if (query.data?.id) byPlaceId.set(query.data.id, detailToPlaceCard(query.data))
+  for (const [index, query] of details.entries()) {
+    const place = query.data ?? summaries[index]?.data
+    if (place?.id) byPlaceId.set(place.id, detailToPlaceCard(place))
   }
 
-  return { byPlaceId, isPending: details.some(query => query.isPending) }
+  return { byPlaceId, isPending: details.some((query, index) => query.isPending && !summaries[index]?.data) }
 }
 
 /** Every plan mutation returns the new version — write it to both cache keys. */

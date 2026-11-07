@@ -140,7 +140,8 @@ export const styles = StyleSheet.create(theme => {
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: 2 },
 
   // --- trust ---------------------------------------------------------------
-  attribution: { marginTop: spacing[3] },
+  attribution: { marginTop: spacing[3], flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[3] },
+  attributionLink: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   // --- sections ------------------------------------------------------------
   sectionTitle: { marginTop: spacing[6], marginBottom: spacing[3] },
   suitCard: {
