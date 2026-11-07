@@ -1,3 +1,4 @@
+import { useAppAreaStore } from '@/shared/location/app-area'
 import { fireEvent } from '@testing-library/react-native'
 
 import { renderScreen } from './harness'
@@ -58,6 +59,7 @@ const DENIED = /Chưa có quyền vị trí/
 const UNAVAILABLE = /Chưa lấy được vị trí/
 
 beforeEach(() => {
+  useAppAreaStore.setState({ area: null, manual: false, scope: { status: 'resolving' }, location: { status: 'idle' } })
   // A granted fix is stored in the draft; without a reset the next case starts
   // from that position instead of the untouched step it describes.
   useRoomStore.getState().resetDraft()

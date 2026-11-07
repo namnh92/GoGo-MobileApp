@@ -1,3 +1,4 @@
+import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
@@ -26,7 +27,10 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('@/shared/location/use-current-location', () => ({
-  useCurrentLocation: () => ({ state: { status: 'idle' }, request: async () => mockLocation.result }),
+  useCurrentLocation: () => ({ state: { status: 'idle' }, request: async () => {
+    if (mockLocation.result.status === 'granted') mockAreaStore.setState({ area: null, scope: { status: 'ready', source: 'gps', position: { lat: mockLocation.result.lat!, lng: mockLocation.result.lng! } } })
+    return mockLocation.result
+  } }),
 }))
 
 jest.mock('@/shared/providers/session-provider', () => ({
@@ -88,6 +92,7 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 beforeEach(() => {
+  mockAreaStore.setState({ area: null, manual: false, scope: { status: 'resolving' }, location: { status: 'idle' } })
   useRoomStore.getState().resetDraft()
   mockSession.status = 'user'
   mockVersion.value = 'ds-2026'

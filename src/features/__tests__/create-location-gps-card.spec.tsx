@@ -1,3 +1,4 @@
+import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
@@ -30,6 +31,7 @@ jest.mock('@/shared/location/use-current-location', () => {
       return {
         state,
         request: async () => {
+          if (mockLocation.result.status === 'granted') mockAreaStore.setState({ area: null, scope: { status: 'ready', source: 'gps', position: { lat: mockLocation.result.lat!, lng: mockLocation.result.lng! } } })
           setState(mockLocation.result)
           return mockLocation.result
         },
@@ -96,6 +98,7 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 beforeEach(() => {
+  mockAreaStore.setState({ area: null, manual: false, scope: { status: 'resolving' }, location: { status: 'idle' } })
   useRoomStore.getState().resetDraft()
   mockLocation.result = { status: 'granted', lat: 21.04, lng: 105.76, label: FIX }
 })

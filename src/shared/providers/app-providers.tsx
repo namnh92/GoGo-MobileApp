@@ -14,6 +14,7 @@ import {
 import { useTaxonomies } from '@/shared/api/queries/use-preferences'
 import { retainTaxonomies } from '@/shared/api/persist-policy'
 
+import { AppAreaProvider } from './app-area-provider'
 import { SessionProvider } from './session-provider'
 import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
 import { initializePushSdk } from '@/shared/notifications/bootstrap'
@@ -96,7 +97,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <TaxonomyBootstrap />
           <SessionProvider>
             {/* One toast queue for the app (#381); inside the safe area it positions against. */}
-            <ToastProvider>{children}</ToastProvider>
+            <AppAreaProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </AppAreaProvider>
           </SessionProvider>
         </PersistQueryClientProvider>
       </SafeAreaProvider>

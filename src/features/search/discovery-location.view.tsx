@@ -32,7 +32,7 @@ export function DiscoveryLocationSheet({ visible, onClose, onApplied }: { visibl
   }, [])
   async function requestDeviceLocation() {
     const result = await location.request()
-    if (mounted.current && visibleRef.current && result.status === 'granted') { setArea(null); onApplied(); onClose() }
+    if (mounted.current && visibleRef.current && result.status === 'granted') { onApplied(); onClose() }
   }
   return <Sheet swipeToClose appearance="discovery" visible={visible} onClose={onClose} testID="discovery-location-sheet"
     header={<View style={styles.header}><Text variant="introHeading">{t('home.chooseArea')}</Text><IconBtn accessibilityLabel={t('common.close')} onPress={onClose}><MaterialIcon name="close" /></IconBtn></View>}>
@@ -40,7 +40,7 @@ export function DiscoveryLocationSheet({ visible, onClose, onApplied }: { visibl
       <SecondaryBtn label={t('home.useLocation')} onPress={() => void requestDeviceLocation()} loading={location.state.status === 'asking'} />
       {location.state.status === 'denied' || location.state.status === 'unavailable' ? <Text accessibilityLiveRegion="polite" color="text.secondary">{t(location.state.status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable')}</Text> : null}
       <AdministrativePicker value={draftArea} onChange={setDraftArea} />
-      <PrimaryBtn label={t('discovery.useArea')} disabled={location.state.status === 'asking'} onPress={() => { setArea(draftArea); onApplied(); onClose() }} />
+      <PrimaryBtn label={t('discovery.useArea')} disabled={!draftArea || location.state.status === 'asking'} onPress={() => { setArea(draftArea); onApplied(); onClose() }} />
     </View>
   </Sheet>
 }

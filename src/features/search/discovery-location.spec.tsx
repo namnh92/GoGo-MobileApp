@@ -79,5 +79,5 @@ it('discards an uncommitted area when the close button is pressed', async () => 
   await view.rerender(<DiscoveryLocationSheet visible onClose={mockBack} onApplied={mockApplied} />)
   await fireEvent.press(view.getByText('Dùng khu vực này'))
   expect(useDiscoveryAreaStore.getState().area).toBeNull()
-  expect(mockApplied).toHaveBeenCalledTimes(1)
+  expect(mockApplied).not.toHaveBeenCalled()
 })

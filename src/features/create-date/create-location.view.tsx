@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
@@ -8,6 +8,7 @@ import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
 import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { useAppAreaStore } from '@/shared/location/app-area'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
@@ -35,6 +36,9 @@ export default function CreateLocationScreen() {
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
   const { area: gpsLabel, setArea } = useRoom()
+  const sharedArea = useAppAreaStore(state => state.area)
+  const sharedScope = useAppAreaStore(state => state.scope)
+  const selectArea = useAppAreaStore(state => state.setArea)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const administrativeArea = useRoomStore(state => state.administrativeArea)
   const originLat = useRoomStore(state => state.originLat)
@@ -54,7 +58,20 @@ export default function CreateLocationScreen() {
   const offerHomeArea =
     homeArea !== null && homeArea.status === 'current' && administrativeArea === null && originLat === null
 
+  const currentLabel = location.state.status === 'granted' ? location.state.label : gpsLabel || null
+  useEffect(() => {
+    if (sharedScope.status !== 'ready') return
+    if (sharedScope.source === 'gps') {
+      setArea(sharedArea ? administrativeAreaLabel(sharedArea) : currentLabel ?? '')
+      patchDraft({ administrativeArea: null, originLat: sharedScope.position.lat, originLng: sharedScope.position.lng })
+    } else {
+      setArea('')
+      patchDraft({ administrativeArea: sharedArea, originLat: null, originLng: null })
+    }
+  }, [sharedArea, sharedScope, patchDraft, setArea, currentLabel])
+
   function chooseArea(value: AdministrativeSelection | null) {
+    selectArea(value)
     setStaleArea(false)
     setArea('')
     patchDraft({ administrativeArea: value, originLat: null, originLng: null })
@@ -73,11 +90,7 @@ export default function CreateLocationScreen() {
   }
 
   async function useDeviceLocation() {
-    const result = await location.request()
-    if (result.status !== 'granted') return // the copy below points at the area picker
-    setStaleArea(false)
-    setArea(result.label ?? '')
-    patchDraft({ administrativeArea: null, originLat: result.lat, originLng: result.lng })
+    await location.request()
   }
 
   function next() {
@@ -181,8 +194,8 @@ export default function CreateLocationScreen() {
             />
           </View>
         ) : null}
-        <AdministrativePicker value={administrativeArea} onChange={chooseArea} />
-        {staleArea ? (
+        <AdministrativePicker value={sharedArea} onChange={chooseArea} />
+        {staleArea && administrativeArea && administrativeArea.datasetVersion !== version.data?.datasetVersion ? (
           <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
             {t('administrative.changed')}
           </Text>

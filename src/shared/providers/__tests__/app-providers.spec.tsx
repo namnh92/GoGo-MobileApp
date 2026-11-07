@@ -46,6 +46,8 @@ jest.mock('@/shared/api/queries/use-preferences', () => ({ useTaxonomies: jest.f
 
 jest.mock('@/shared/acquisition/bootstrap', () => ({ initializeAcquisitionSdk: () => undefined }))
 
+jest.mock('@/shared/providers/app-area-provider', () => ({ AppAreaProvider: ({ children }: { children: unknown }) => children }))
+
 jest.mock('@/shared/providers/session-provider', () => ({
   SessionProvider: ({ children }: { children: unknown }) => children,
 }))

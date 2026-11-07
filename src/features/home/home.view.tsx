@@ -41,7 +41,8 @@ import { spacing } from '@/shared/ui/tokens'
 import { styles } from './home.style'
 import { roomBanner } from './room-banner'
 import { DiscoveryLocationSheet } from '@/features/search/discovery-location.view'
-import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
+import { useAppAreaStore } from '@/shared/location/app-area'
+import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 
 
 const RAIL_SIZE = 5
@@ -63,17 +64,9 @@ export default function HomeScreen() {
   const saved = useSaved({ enabled: canSave })
   const toggleSaved = useToggleSaved()
 
-  // ADM-204 (#209): a fresh device position first, else the account's canonical
-  // area, else Hồ Chí Minh (owner O-6) — never the create wizard's draft, which is about a
-  // room rather than about where the user is. Search waits until the scope is
-  // known, so one scope means one request.
   const [locationOpen, setLocationOpen] = useState(false)
-  const selectedArea = useDiscoveryAreaStore(state => state.area)
-  const profileArea = status === 'user' ? me.data?.homeAdministrativeArea : null
-  const { scope, recheck, retry: retryScope } = useDiscoveryScope({
-    profileArea, selectedArea,
-    profilePending: status === 'hydrating' || (status === 'user' && me.isPending),
-  })
+  const area = useAppAreaStore(state => state.area)
+  const { scope, retry: retryScope } = useDiscoveryScope()
   const location = useCurrentLocation()
   const [moods, setMoods] = useState<string[]>([])
   const taxonomies = useTaxonomies({ kinds: 'category,mood,setting,amenity' })
@@ -114,20 +107,14 @@ export default function HomeScreen() {
     }
   }
 
-  // What the server says scoped the page, not what was asked: an older server
-  // ignores area parameters and reports nothing, and then nothing is claimed.
-  const served = search.data?.pages[0]?.meta?.location
-  const scopeLabel = served?.area
-    ? [served.area.communeName, served.area.provinceName].filter(Boolean).join(', ')
-    : null
+  const scopeLabel = area ? administrativeAreaLabel(area) : null
   const areaVersionChanged =
     isApiError(search.error) && search.error.code === 'ADMINISTRATIVE_VERSION_CHANGED'
   const waitingForNetwork = useWaitingForNetwork(search)
 
   async function requestDeviceLocation() {
     // Asked here, on tap, never on launch.
-    const result = await location.request()
-    if (result.status === 'granted') await recheck()
+    await location.request()
   }
 
   function chooseArea() {
@@ -229,7 +216,7 @@ export default function HomeScreen() {
         <View testID="home-suggestions" style={styles.suggestions}>
           <View style={styles.sectionHeader}>
             <Text variant="discoveryTitle">{t('discovery.suggested')}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('discovery.more')} style={styles.moreAction} onPress={() => router.push({ pathname: '/places/search', params: { suggestions: '1', suggestionScope: JSON.stringify(scope), ...(moods.length ? { moods: moods.join(',') } : {}) } })}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('discovery.more')} style={styles.moreAction} onPress={() => router.push({ pathname: '/places/search', params: { suggestions: '1', ...(moods.length ? { moods: moods.join(',') } : {}) } })}>
               <Text variant="introSmall" color="redesign.primaryText">{t('discovery.more')}</Text>
               <MaterialIcon name="chevronRight" size={16} color="redesign.primaryText" />
             </Pressable>
@@ -336,7 +323,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
-      <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => { void recheck() }} />
+      <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => {}} />
     </Atmosphere>
   )
 }

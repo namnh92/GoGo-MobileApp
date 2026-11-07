@@ -5,7 +5,6 @@ import { setOnSessionExpired } from '@/shared/api/client'
 import * as roomsApi from '@/shared/api/endpoints/rooms'
 import * as sessionsApi from '@/shared/api/endpoints/sessions'
 import { pendingDeepLinks } from '@/shared/acquisition/pending-deep-links'
-import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { pushIdentity } from '@/shared/notifications/identity-bootstrap'
 import { purgeCachedUserData } from '@/shared/api/query-client'
 import {
@@ -53,10 +52,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!hydrating) void loadRoomDraft(session?.kind === 'user' ? session.userId ?? null : null)
   }, [hydrating, session?.kind, session?.userId])
 
-  /** Account caches, discovery selection, room drafts and invite codes, in one place. */
+  /** Account caches, room drafts and invite codes, in one place. */
   const purge = useCallback(async (preserveAnonymousDraft = false) => {
     clearRecentRooms()
-    useDiscoveryAreaStore.getState().setArea(null)
     // A host's invite codes belong to that account (#199); the next person on
     // this device must not inherit them.
     await purgeInviteCodes()

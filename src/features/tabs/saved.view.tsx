@@ -1,13 +1,12 @@
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useLocatedArea } from '@/shared/administrative/queries'
-import { useMe, useSavedEntries, useToggleSaved, type SavedEntry } from '@/shared/api'
-import { useDiscoveryScope } from '@/shared/location/use-discovery-scope'
+import { useAppAreaStore } from '@/shared/location/app-area'
+import { useSavedEntries, useToggleSaved, type SavedEntry } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
@@ -42,25 +41,8 @@ export default function SavedScreen() {
   const toggleSaved = useToggleSaved()
   const [filter, setFilter] = useState<SavedFilter>('all')
 
-  // The same source order as Home (ADM-204): the commune of a fresh position
-  // when the server can place it, otherwise the account area.
-  const me = useMe({ enabled: canSave })
-  const profileArea = canSave ? me.data?.homeAdministrativeArea : null
-  const { scope } = useDiscoveryScope({
-    profileArea,
-    profilePending: status === 'hydrating' || (canSave && me.isPending),
-  })
-  const located = useLocatedArea(scope.status === 'ready' && scope.source === 'gps' ? scope.position : null)
-  const current: CurrentArea = useMemo(() => {
-    const here = located.data?.area
-    if (here && here.scope !== 'unknown' && here.provinceCode) {
-      return { provinceCode: here.provinceCode, communeCode: here.communeCode ?? null }
-    }
-    if (profileArea?.status === 'current') {
-      return { provinceCode: profileArea.provinceCode, communeCode: profileArea.communeCode ?? null }
-    }
-    return null
-  }, [located.data, profileArea])
+  const area = useAppAreaStore(state => state.area)
+  const current: CurrentArea = area ? { provinceCode: area.provinceCode, communeCode: area.communeCode } : null
 
   const visible = saved.entries.filter(
     entry => filter === 'all' || entry.type === (filter === 'places' ? 'place' : 'plan'),
