@@ -182,6 +182,8 @@ export type SavedEntry = {
   type: 'place' | 'plan'
   id: string
   area: SavedItem['area']
+  conditionsChanged?: boolean
+  detailError?: unknown
   place?: PlaceCard
   plan?: Plan
 }
@@ -193,7 +195,7 @@ export type SavedEntry = {
  */
 export function useSavedEntries(options?: { enabled?: boolean }) {
   const saved = useSaved({ enabled: options?.enabled ?? true })
-  const items = saved.data ?? []
+  const items = (options?.enabled ?? true) ? saved.data ?? [] : []
   const placeIds = items.filter(item => item.targetType === 'place').map(item => item.targetId)
   const planIds = items.filter(item => item.targetType === 'plan').map(item => item.targetId)
 
@@ -226,6 +228,8 @@ export function useSavedEntries(options?: { enabled?: boolean }) {
     type: item.targetType,
     id: item.targetId,
     area: item.area,
+    conditionsChanged: item.conditionsChanged,
+    detailError: item.targetType === 'place' ? places[placeIds.indexOf(item.targetId)]?.error : plans[planIds.indexOf(item.targetId)]?.error,
     ...(item.targetType === 'place' && placeById.has(item.targetId) ? { place: placeById.get(item.targetId) } : {}),
     ...(item.targetType === 'plan' && planById.has(item.targetId) ? { plan: planById.get(item.targetId) } : {}),
   }))
@@ -233,9 +237,10 @@ export function useSavedEntries(options?: { enabled?: boolean }) {
   return {
     entries,
     isPending: saved.isPending || places.some(query => query.isPending) || plans.some(query => query.isPending),
+    isPaused: saved.isPaused || places.some(query => query.isPaused) || plans.some(query => query.isPaused),
     isError: saved.isError,
     error: saved.error,
-    refetch: saved.refetch,
+    refetch: () => Promise.all([saved.refetch(), ...places.map(query => query.refetch()), ...plans.map(query => query.refetch())]),
   }
 }
 

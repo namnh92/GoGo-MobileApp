@@ -430,3 +430,26 @@ it('shares the existing provinces cache across cards without another network rea
     client.clear()
   }
 })
+
+describe('g04 Saved reference card', () => {
+  it.each(['orange', 'orangeDark'] as const)('keeps units, two rating sources, CMS tags and source credits (%s)', async themeName => {
+    const create = jest.spyOn(UnistylesStyleSheet, 'create')
+    jest.isolateModules(() => { jest.requireActual('../place-card.style') })
+    const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
+    expect(factory(themes[themeName]).discoveryCard.backgroundColor).toBe(themes[themeName].redesign.card)
+    create.mockRestore()
+    await render(<PlaceCard appearance="saved" place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
+    expect(screen.getByTestId('place-card-saved')).toBeTruthy()
+    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByText('★ 4,8 (8) GoGo')).toBeTruthy()
+    expect(screen.getByText('45k–90k/người')).toBeTruthy()
+    expect(screen.getByText('Siphon')).toBeTruthy()
+    expect(screen.getByTestId('saved-photo-attribution')).toHaveTextContent(/Google/)
+    expect(screen.getByText('● Mở đến 20:00').props.numberOfLines).toBe(1)
+  })
+  it('keeps the real sample count below the community threshold and hides unknown price', async () => {
+    await render(<PlaceCard appearance="saved" place={fixture({ priceMin: null, priceMax: null, gogoRatingCount: 3 })} />)
+    expect(screen.getByText('GoGo · Chưa đủ đánh giá (3)')).toBeTruthy()
+    expect(screen.queryByText(/\/người/)).toBeNull()
+  })
+})

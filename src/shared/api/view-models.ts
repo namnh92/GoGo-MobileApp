@@ -29,11 +29,16 @@ import type {
  * Search reason codes and confidence cannot populate any of these fields.
  */
 export interface DiscoveryCardFacts {
+  categoryLabel?: string
   verified?: boolean
   tagLabels?: readonly string[]
   areaLabel?: string
 }
 export interface PlaceCard {
+  hours?: PlaceDetail['hours']
+  taxonomies?: PlaceDetail['taxonomies']
+  providerStatus?: PlaceDetail['providerStatus']
+  moderationStatus?: PlaceDetail['status']
   discovery?: DiscoveryCardFacts
   id: string
   name: string
@@ -72,6 +77,7 @@ export interface PlaceCard {
   photoAttribution: string | null
   /** Lets the UI tell imported from community imagery apart. */
   photoSource: PlacePhoto['source'] | null
+  photoAuthors?: PlacePhoto['authorAttributions']
   /**
    * The rating is provider data, never a GoGo community score — the contract
    * is kept separate from the optional GoGo community aggregate (spec §6).
@@ -92,7 +98,7 @@ export function toPlaceCard(result: PlaceSearchResult, labels?: TaxonomyLabels):
     ...(result.verification || result.taxonomies || result.areaSummary ? { discovery: {
       ...(result.verification ? { verified: result.verification.status === 'verified' } : {}),
       ...(result.areaSummary?.label ? { areaLabel: result.areaSummary.label } : {}),
-      ...(result.taxonomies ? { tagLabels: [...new Set(result.taxonomies.flatMap(tag => labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []))] } : {}),
+      ...(result.taxonomies ? { tagLabels: [...new Set(result.taxonomies.flatMap(tag => tag.kind && tag.key && labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []))] } : {}),
     } } : {}),
     id: result.id,
     name: result.name,
@@ -120,6 +126,7 @@ export function toPlaceCard(result: PlaceSearchResult, labels?: TaxonomyLabels):
     photoUrl: photo?.url ?? null,
     photoAttribution: photo?.attribution ?? null,
     photoSource: photo?.source ?? null,
+    photoAuthors: photo?.authorAttributions,
     ratingSource: 'google',
     // Search only ever quotes a per-person estimate; `pricePerPerson` is the
     // field's own name, so the unit is not a guess.
@@ -161,14 +168,21 @@ export function parseApiDate(value: string | undefined | null): Date | undefined
 }
 
 /**
- * Offline plan summaries intentionally omit live aggregates and provider facts;
- * this adapter supplies unknown/empty defaults for those missing fields.
+ * Offline plan summaries and pending contribution cards carry partial facts.
+ * Missing prices, ratings and provider facts stay unknown/empty; taxonomy
+ * labels are resolved only when supplied by the caller.
  */
-export function detailToPlaceCard(detail: Partial<PlaceDetail>): PlaceCard {
+export function detailToPlaceCard(detail: Partial<PlaceDetail>, labels?: TaxonomyLabels): PlaceCard {
   const price = detail.prices?.[0]
   const priceConfidence = toNumber(price?.confidence) ?? 0
   const photo = detail.photos?.[0]
   return {
+    hours: detail.hours,
+    taxonomies: detail.taxonomies,
+    providerStatus: detail.providerStatus,
+    moderationStatus: detail.status,
+    areaSummary: detail.areaSummary,
+    discovery: { categoryLabel: detail.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels?.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined, tagLabels: [...new Set(detail.taxonomies?.flatMap(tag => tag.kind && tag.key && labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []) ?? [])] },
     id: detail.id ?? '',
     name: detail.name ?? '',
     areaKey: detail.areaKey,
@@ -189,6 +203,7 @@ export function detailToPlaceCard(detail: Partial<PlaceDetail>): PlaceCard {
     photoUrl: photo?.url ?? null,
     photoAttribution: photo?.attribution ?? null,
     photoSource: photo?.source ?? null,
+    photoAuthors: photo?.authorAttributions,
     ratingSource: 'google',
     priceUnit: toPriceUnit(price?.unit, price != null),
   }

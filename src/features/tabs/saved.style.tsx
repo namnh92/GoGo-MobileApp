@@ -3,6 +3,11 @@ import { StyleSheet } from 'react-native-unistyles'
 import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  linkCard: { padding: 12, marginTop: 16, borderRadius: 16, backgroundColor: theme.redesign.card, gap: 8 },
+  linkRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  linkInput: { flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 8, borderRadius: 8, backgroundColor: theme.redesign.container, color: theme.redesign.ink },
+  cardMenu: { position: 'absolute', top: 12, right: 12, backgroundColor: theme.redesign.card },
+  map: { height: 360 },
   header: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   addPlaceBtn: {
@@ -19,7 +24,7 @@ export const styles = StyleSheet.create(theme => ({
   gridItem: { width: '48%' },
   // A place is the full-width Stitch card; plans keep their two-up tiles.
   placeItem: { width: '100%' },
-  unavailable: { width: '48%', padding: spacing[3], gap: spacing[2] },
+  unavailable: { width: '100%', padding: spacing[3], gap: spacing[2] },
   unavailableRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2] },
   unavailableText: { flex: 1 },
 }))

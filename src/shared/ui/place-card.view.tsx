@@ -9,6 +9,7 @@ import {
   openStateFromHours,
   type ResolveLinkResult,
   formatMinuteOfDay,
+  formatDistance,
   formatRating,
   formatCount,
   ratingParts,
@@ -52,7 +53,11 @@ export type PlaceCardVariant = 'list' | 'hero'
 
 export interface PlaceCardProps {
   place: PlaceCardModel
-  appearance?: 'default' | 'discovery'
+  appearance?: 'default' | 'discovery' | 'saved'
+  headerAction?: ReactNode
+  unavailableLabel?: string
+  photoCategoryLabel?: string
+  footer?: ReactNode
   variant?: PlaceCardVariant
   onPress?: () => void
   /** @deprecated The address row now uses street, ward and city facts. */
@@ -68,6 +73,9 @@ export interface PlaceCardProps {
 /** "Đang mở · Đóng 23:00" composed from facts, never sent as a sentence. */
 function useOpenLabel(place: PlaceCardModel, discovery = false): { label: string; open: boolean } | null {
   const { t } = useTranslation()
+  const now = usePlaceClock()
+  place = place.hours ? { ...place, ...openStateFromHours(place.hours, now) } : place
+  if (place.providerStatus && ['closed', 'temporarily_closed', 'moved'].includes(place.providerStatus.status)) return null
   if (place.openNow == null) return null
   if (place.openNow) {
     const closes = formatMinuteOfDay(place.closesAtMinute)
@@ -194,6 +202,7 @@ function CanonicalPlaceCard({
   saved,
   onToggleSave,
   style,
+  headerAction, unavailableLabel, footer, photoCategoryLabel,
 }: PlaceCardProps) {
   const canSave = saved != null && onToggleSave != null
   const visibleTags = tags.slice(0, 2)
@@ -230,7 +239,7 @@ function CanonicalPlaceCard({
     )
   }
 
-  if (appearance === 'discovery') return <DiscoveryCard place={place} onPress={onPress} save={save} style={style} />
+  if (appearance === 'discovery' || appearance === 'saved') return <DiscoveryCard place={place} onPress={onPress} save={headerAction ?? save} style={style} appearance={appearance} unavailableLabel={unavailableLabel} footer={footer} photoCategoryLabel={photoCategoryLabel} />
 
   return (
     <View style={[styles.wrap, style]}>
@@ -264,35 +273,44 @@ function CanonicalPlaceCard({
 }
 
 
-function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'place' | 'onPress' | 'style'> & { save: React.ReactNode }) {
+function DiscoveryCard({ place, onPress, save, style, appearance, unavailableLabel, footer, photoCategoryLabel }: Pick<PlaceCardProps, 'place' | 'onPress' | 'style' | 'appearance' | 'unavailableLabel' | 'footer' | 'photoCategoryLabel'> & { save: React.ReactNode }) {
   const { t, i18n } = useTranslation()
   const { google, gogo } = ratingParts(place)
   const { price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)), i18n.language)
   const open = useOpenLabel(place, true)
-  return <View style={[styles.wrap, style]}>
+  photoCategoryLabel = photoCategoryLabel ?? place.discovery?.categoryLabel
+  const saved = appearance === 'saved'
+  const distance = saved ? formatDistance(place.distanceM) : null
+  return <View style={[styles.wrap, saved ? styles.discoveryCard : undefined, style]}>
     <Pressable testID="place-card-open-target" accessibilityRole={onPress ? 'button' : undefined} onPress={onPress}>
-      <View testID="place-card-discovery" style={styles.discoveryCard}>
-        <View style={styles.listPhoto}>
+      <View testID={appearance === 'saved' ? 'place-card-saved' : 'place-card-discovery'} style={saved ? undefined : styles.discoveryCard}>
+        <View style={[styles.listPhoto, unavailableLabel ? styles.unavailablePhoto : undefined]}>
           <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
           {place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="redesign.white" /><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.verified')}</Text></View> : null}
-          {open ? <View testID="place-card-photo-badges" pointerEvents="none" style={styles.photoBadges}>
-          <View testID="place-card-hours-badge" style={styles.photoBadge}><Text numberOfLines={2} style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.open ? '● ' : ''}{open.label}</Text></View>
+          {open || (saved && (photoCategoryLabel || distance)) ? <View testID="place-card-photo-badges" pointerEvents="none" style={styles.photoBadges}>
+          {open ? <View testID="place-card-hours-badge" style={styles.photoBadge}><Text numberOfLines={saved ? 1 : 2} style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.open ? '● ' : ''}{open.label}</Text></View> : null}
+          {saved && photoCategoryLabel ? <View style={styles.photoBadge}><Text numberOfLines={1} variant="caption">{photoCategoryLabel}</Text></View> : null}
+          {distance ? <View style={styles.photoBadge}><Text numberOfLines={1} variant="caption">{t('saved.straightDistance', { distance })}</Text></View> : null}
           </View> : null}
         </View>
         <View style={styles.listBody}>
           <View style={styles.discoveryHead}>
-            <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={styles.discoveryName} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
+            <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={[styles.discoveryName, unavailableLabel ? styles.unavailableName : undefined]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
             {price ? <Text variant="introLabel" color="redesign.primaryText" style={styles.discoveryPrice}>{price}</Text> : null}
           </View>
           <MetaLine place={place} appearance="discovery" />
           {google || gogo || place.gogoRatingCount != null ? <View style={styles.ratingBadges}>
             {google ? <View style={styles.googleBadge}><Text variant="introCaptionMedium" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
-            {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}</Text></View> : null}
+            {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}{saved ? ` (${formatCount(place.gogoRatingCount, i18n.language)})` : ''}</Text></View> : null}
           </View> : null}
-          {place.discovery?.tagLabels?.length ? <View style={styles.discoveryTags}>{place.discovery.tagLabels.map(label => <View key={label} style={styles.googleBadge}><Text variant="introCaptionMedium" color="redesign.secondary">{label}</Text></View>)}</View> : null}
+
+          {unavailableLabel ? <Text variant="bodySmall" color="status.warningText">{unavailableLabel}</Text> : null}
+          {place.discovery?.tagLabels?.length ? <View style={styles.discoveryTags}>{place.discovery.tagLabels.map(label => <View key={label} style={styles.googleBadge}><Text numberOfLines={1} variant="introCaptionMedium" color="redesign.secondary">{label}</Text></View>)}</View> : null}
         </View>
       </View>
     </Pressable>
+    {appearance === 'saved' && place.photoAttribution ? <Text testID="saved-photo-attribution" variant="caption" color="text.secondary" style={styles.savedCredits}>{place.photoSource === 'google' ? 'Google · ' : ''}{place.photoAttribution}{place.photoAuthors?.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="caption" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}> · {author.displayName}</Text>)}</Text> : null}
+    {footer ? <View style={styles.savedFooter}>{footer}</View> : null}
     {save}
   </View>
 }

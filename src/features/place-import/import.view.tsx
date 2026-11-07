@@ -1,11 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MutableRefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { z } from 'zod'
+import { mapsUrlSchema } from './maps-url'
 import { onlineManager } from '@tanstack/react-query'
 import { NetworkError } from '@/shared/api/errors'
 import { ImportGuide } from './import-guide.view'
@@ -34,27 +34,6 @@ import { styles } from './import.style'
 
 // Accepted Google Maps link shapes (SRS FR-PLACE-001). The server validates
 // again — this only keeps an obviously wrong paste from costing a round trip.
-const mapsUrlSchema = z
-  .string()
-  .trim()
-  .url()
-  .max(2000)
-  .refine((value) => {
-    try {
-      const parsed = new URL(value)
-      const host = parsed.hostname.replace(/^www\./, '')
-      return (
-        ['https:', 'http:'].includes(parsed.protocol) &&
-        (host === 'maps.google.com' ||
-          host === 'maps.app.goo.gl' ||
-          (host === 'goo.gl' && parsed.pathname.startsWith('/maps/')) ||
-          (host === 'google.com' && /^\/maps(?:\/|$)/.test(parsed.pathname)) ||
-          (host.endsWith('.google.com') && /^\/maps(?:\/|$)/.test(parsed.pathname)))
-      )
-    } catch {
-      return false
-    }
-  })
 
 type Candidate = NonNullable<ResolveLinkResult['candidate']>
 
@@ -93,18 +72,19 @@ function providerUnavailable(error: unknown): boolean {
  */
 export default function PlaceImportScreen() {
   const { status } = useSession()
+  const prefillConsumed = useRef(false)
   const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
-  return <ImportFlowProvider online={online} registered={status === 'user'}><PlaceImportContent /></ImportFlowProvider>
+  return <ImportFlowProvider online={online} registered={status === 'user'}><PlaceImportContent prefillConsumed={prefillConsumed} /></ImportFlowProvider>
 }
 
-function PlaceImportContent() {
+function PlaceImportContent({ prefillConsumed }: { prefillConsumed: MutableRefObject<boolean> }) {
   const { controller, state } = useImportFlow()
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const { status: actorStatus } = useSession()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { roomId } = useLocalSearchParams<{ roomId?: string }>()
+  const { roomId, url: prefilledUrl } = useLocalSearchParams<{ roomId?: string; url?: string }>()
 
   const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
   const inputRef = useRef<import('@/shared/ui/text-input').TextInputRef>(null)
@@ -142,6 +122,17 @@ function PlaceImportContent() {
   const url = state.link
   const setUrl = (value: string) => controller.reset(value)
   const currentUrl = useRef('')
+  useEffect(() => {
+    // Consume route input once across session-driven content remounts. The
+    // wizard controller remains the sole owner of the link and flow lifetime.
+    if (prefillConsumed.current) return
+    prefillConsumed.current = true
+    const parsed = mapsUrlSchema.safeParse(prefilledUrl)
+    if (parsed.success) {
+      controller.reset(parsed.data)
+      currentUrl.current = parsed.data
+    }
+  }, [controller, prefilledUrl, prefillConsumed])
   const attemptGeneration = useRef(0)
   const formGeneration = state.flowGeneration
   const linkFrozen = state.phase === 'retiring' || state.phase === 'submissionUnknown'
