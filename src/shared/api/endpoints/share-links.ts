@@ -1,5 +1,5 @@
 import { api } from '../client'
-import type { OpResponse } from '../types'
+import type { OpBody, OpResponse } from '../types'
 
 /**
  * Resolve a canonical share link (LNK-BE-002).
@@ -18,4 +18,8 @@ export function resolveShareLink(slug: string): Promise<OpResponse<'resolveShare
     pathParams: { slug },
     anonymous: true,
   })
+}
+
+export function createShareLink(body: OpBody<'createShareLink'>): Promise<OpResponse<'createShareLink'>> {
+  return api.post<OpResponse<'createShareLink'>>('/share-links', body)
 }

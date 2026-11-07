@@ -315,7 +315,6 @@ describe('English plurals', () => {
     'review.starAria': [{}, '1 star'],
     'gogoRoom.partialBody': [{}, '1 member has not finished. They remain in the room and can vote; party size and budget stay unchanged.'],
     'datePlan.regeneratedKept': [{}, '✓ New plan · 1 locked stop kept'],
-    'saved.plan.stops': [{}, '1 stop'],
     'matchResult.points': [{}, '1 point'],
     'placeImport.reviews': [{ rating: 4.5, n: '1' }, '★ 4.5 · 1 Google review'],
   }

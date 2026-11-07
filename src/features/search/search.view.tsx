@@ -12,7 +12,7 @@ import { assistantHref } from '@/features/assistant/assistant-entry'
 import { isAssistantEntryOn } from '@/shared/config/features'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
-import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
+import { scopeSearchParams, useDiscoveryScope, type DiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
@@ -39,21 +39,41 @@ import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } fr
 
 const SEARCH_DEBOUNCE_MS = 300
 
+// Saved's similar-place link carries a canonical area, never a stale GPS scope.
+function readSuggestionScope(value: string | undefined): DiscoveryScope | null {
+  if (!value) return null
+  try {
+    const scope = JSON.parse(value)
+    if (scope?.status === 'ready' && scope.source === 'selected_area'
+      && typeof scope.area?.datasetVersion === 'string' && typeof scope.area?.provinceCode === 'string'
+      && typeof scope.area?.provinceName === 'string'
+      && (scope.area.communeCode === null || typeof scope.area.communeCode === 'string')
+      && (scope.area.communeName === null || typeof scope.area.communeName === 'string')) return scope
+  } catch { /* Invalid route data falls back to ordinary discovery. */ }
+  return null
+}
+
 export default function SearchScreen() {
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { picker, q, filters, roomId, moods, suggestions } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; suggestions?: string }>()
+  const { picker, q, filters, roomId, moods, categories, suggestions, suggestionScope } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; categories?: string; suggestions?: string; suggestionScope?: string }>()
   const { status } = useSession()
   const isPicker = picker === '1'
   const canSave = status === 'user'
   const area = useAppAreaStore(state => state.area)
-  const { scope, retry: retryScope } = useDiscoveryScope()
+  const { scope: resolvedScope, retry: retryScope } = useDiscoveryScope()
+  const [entryArea] = useState(area)
+  const [scopeOverridden, setScopeOverridden] = useState(false)
+  const savedScope = useMemo(() => suggestions === '1' && categories ? readSuggestionScope(suggestionScope) : null, [suggestions, categories, suggestionScope])
+  // Saved's similar-place search keeps its canonical area until the user changes it.
+  if (area !== entryArea && !scopeOverridden) setScopeOverridden(true)
+  const scope = !isPicker && !scopeOverridden && savedScope && area === entryArea ? savedScope : resolvedScope
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const [query, setQuery] = useState(q ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(q ?? '')
-  const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [] }))
+  const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [], categories: categories?.split(',').filter(Boolean) ?? [] }))
   const [draft, setDraft] = useState<DiscoveryFilters>(emptyFilters)
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
   const openAreaAfterFilters = useRef(false)
@@ -154,7 +174,8 @@ export default function SearchScreen() {
   }
   const selectedMarker = selectionIsCurrent ? markerSelection.id : null
   const selectedPlace = results.find(place => place.id === selectedMarker && map.pins.some(pin => pin.id === place.id))
-  const scopeLabel = area ? administrativeAreaLabel(area) : t('home.chooseArea')
+  const scopeArea = scope.status === 'ready' && 'area' in scope ? scope.area : area
+  const scopeLabel = scopeArea ? administrativeAreaLabel(scopeArea) : t('home.chooseArea')
   function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
   function clearFilters() { setCommitted(emptyFilters()); setDraft(emptyFilters()) }
   function onPlacePress(place: PlaceCardModel) {

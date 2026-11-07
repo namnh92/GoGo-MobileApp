@@ -10,26 +10,22 @@ import { Text } from './text'
  * The two rating sources side by side, never merged: Google, and GoGo only when
  * the API returns it. Nothing renders when neither exists (no placeholder).
  */
-export function RatingChips({ place }: { place: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'> }) {
+export function RatingChips({ place, source }: { source?: 'gogo'; place: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'> }) {
   const { t, i18n } = useTranslation()
   const { google, gogo } = ratingParts(place)
-  if (!google && !gogo) return null
-  const chip = (source: 'google' | 'gogo', part: { value: number; count?: number }) => (
-    <View key={source} style={[styles.chip, source === 'gogo' && styles.chipGogo]}>
-      <Text variant="caption" color={source === 'gogo' ? 'status.infoText' : 'text.primary'}>
-        ★ {formatRating(part.value, i18n.language)}
-      </Text>
-      {part.count != null ? (
-        <Text variant="caption" color={source === 'gogo' ? 'status.infoText' : 'text.secondary'}>
-          ({formatCount(part.count, i18n.language)})
-        </Text>
-      ) : null}
-      <Text variant="caption" color={source === 'gogo' ? 'status.infoText' : 'text.primary'}>{t(`rating.${source}`)}</Text>
+  if ((!google || source === 'gogo') && !gogo) return null
+  const chip = (source: 'google' | 'gogo', part: { value: number; count?: number }) => {
+    const label = t(source === 'google' ? 'discovery.googleRating' : 'rating.gogoScore', {
+      score: formatRating(part.value, i18n.language),
+      count: part.count == null ? '' : `(${formatCount(part.count, i18n.language)})`,
+    }).replace(/\s+/g, ' ')
+    return <View key={source} style={[styles.chip, source === 'gogo' && styles.chipGogo]}>
+      <Text accessibilityLabel={label} variant="caption" color={source === 'gogo' ? 'status.infoText' : 'text.primary'}>{label}</Text>
     </View>
-  )
+  }
   return (
     <View style={styles.row}>
-      {google ? chip('google', google) : null}
+      {google && !source ? chip('google', google) : null}
       {gogo ? chip('gogo', gogo) : null}
     </View>
   )

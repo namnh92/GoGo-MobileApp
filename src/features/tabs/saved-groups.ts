@@ -1,9 +1,8 @@
 /**
  * ADM-205 (#214) — saved items grouped by canonical area: province, then
  * commune, the user's current area first, the rest in Vietnamese alphabetical
- * order at both levels. Plans spanning several communes sit in their province
- * under "several communes"; plans spanning provinces and items with no known
- * area get their own groups at the end, so nothing is dropped or guessed.
+ * order at both levels. Partial or unknown area facts keep their honest
+ * fallback groups, so no saved place is dropped or assigned a guessed ward.
  *
  * The whole saved list comes back in one response, so grouping runs over all
  * of it rather than one page at a time.

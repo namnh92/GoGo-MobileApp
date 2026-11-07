@@ -19,11 +19,11 @@ beforeEach(() => { mockProvinces = [{ code: '79', fullName: 'Thành phố Hồ C
 
 /**
  * #295 — the list PlaceCard per #293 §3 and the owner decisions of 2026-09-24
- * (no "Google" on the line, chips stay, no attribution on the card).
+ * (visible source marks superseded by owner decision 2026-11-07).
  *
  * jest has no layout engine, so "fits at 375 and 402pt" is measured on a
- * device. What this file locks is what makes clipping impossible: every row is
- * one string on one line with a tail ellipsis, and the name gets two.
+ * device. Source marks wrap with the rating; address and name have their own
+ * line limits.
  */
 const fixture = (overrides: Partial<PlaceCardModel> = {}): PlaceCardModel => ({
   id: 'p1',
@@ -63,16 +63,16 @@ describe('PlaceCard — list', () => {
     expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ', { exact: true })
     expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
 
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) · 45k–90k/người', { exact: true })
-    oneLine('place-card-rating-price')
+    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) Google · 45k–90k/người', { exact: true })
+    expect(screen.getByTestId('place-card-rating-price').props.numberOfLines).toBeUndefined()
 
     expect(screen.getByTestId('place-card-open')).toHaveTextContent('Đang mở · Đóng 20:00', { exact: true })
     oneLine('place-card-open')
   })
 
-  it('never shows "Google" on the card, and keeps the source in the rating line\'s label', async () => {
+  it('shows Google on the card and keeps the source in the rating line\'s label', async () => {
     await render(<PlaceCard place={fixture()} categoryLabel="Cà phê" />)
-    expect(screen.queryByText(/Google/)).toBeNull()
+    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
     expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBe(
       'Google 4,6 sao, 980 đánh giá, 45k–90k/người',
     )
@@ -105,25 +105,25 @@ describe('PlaceCard — list', () => {
 
   it('rating without a count: no empty parentheses', async () => {
     await render(<PlaceCard place={fixture({ ratingCount: undefined })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 · 45k–90k/người', { exact: true })
+    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 Google · 45k–90k/người', { exact: true })
     expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBe('Google 4,6 sao, 45k–90k/người')
   })
 
-  it('unknown price leaves only the rating on one line', async () => {
+  it('unknown price leaves only the marked rating without clipping', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
     const line = screen.getByTestId('place-card-rating-price')
-    expect(line).toHaveTextContent('★ 4,6 (980)', { exact: true })
-    expect(line.props.numberOfLines).toBe(1)
+    expect(line).toHaveTextContent('★ 4,6 (980) Google', { exact: true })
+    expect(line.props.numberOfLines).toBeUndefined()
   })
 
   it('unknown price has no separator or amount', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980)', { exact: true })
+    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) Google', { exact: true })
   })
 
   it('free is the whole price part', async () => {
     await render(<PlaceCard place={fixture({ priceUnit: 'free', priceMin: null, priceMax: null })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) · Miễn phí', { exact: true })
+    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) Google · Miễn phí', { exact: true })
   })
 
   it('closed: secondary colour and the opening time, in words', async () => {
@@ -219,7 +219,7 @@ describe('PlaceCard — list', () => {
     await act(async () => { await i18n.changeLanguage('en') })
     try {
       await render(<PlaceCard place={fixture({ ratingCount: 1234 })} />)
-      expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent(/^★ 4\.6 \(1,234\) · /)
+      expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent(/^★ 4\.6 \(1,234\) Google · /)
     } finally {
       await act(async () => { await i18n.changeLanguage('vi') })
     }
@@ -285,7 +285,7 @@ describe('discovery appearance protects Saved/default', () => {
   it.each([0, 4])('hides a community score below five reviews (%i)', async count => {
     await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: count })} />)
     expect(screen.queryByText(/4,9/)).toBeNull()
-    expect(screen.getByText('GoGo · Chưa đủ đánh giá')).toBeTruthy()
+    expect(screen.getByText(`GoGo · Chưa đủ đánh giá (${count})`)).toBeTruthy()
     expect(screen.queryByTestId('place-card-save')).toBeNull()
   })
   it('keeps the default Saved card layout and remove toggle when new facts exist', async () => {
@@ -429,4 +429,51 @@ it('shares the existing provinces cache across cards without another network rea
     fetch.mockRestore()
     client.clear()
   }
+})
+
+describe('g04 Saved reference card', () => {
+  it.each(['orange', 'orangeDark'] as const)('keeps units, two rating sources, CMS tags and source credits (%s)', async themeName => {
+    const create = jest.spyOn(UnistylesStyleSheet, 'create')
+    jest.isolateModules(() => { jest.requireActual('../place-card.style') })
+    const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
+    expect(factory(themes[themeName]).discoveryCard.backgroundColor).toBe(themes[themeName].redesign.card)
+    create.mockRestore()
+    await render(<PlaceCard appearance="saved" place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
+    expect(screen.getByTestId('place-card-saved')).toBeTruthy()
+    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByText('★ 4,8 (8) GoGo')).toBeTruthy()
+    expect(screen.getByText('45k–90k/người')).toBeTruthy()
+    expect(screen.getByText('Siphon')).toBeTruthy()
+    expect(screen.getByTestId('saved-photo-attribution')).toHaveTextContent(/Google/)
+    expect(screen.getByText('● Mở đến 20:00').props.numberOfLines).toBe(1)
+  })
+  it('keeps the real sample count below the community threshold and hides unknown price', async () => {
+    await render(<PlaceCard appearance="saved" place={fixture({ priceMin: null, priceMax: null, gogoRatingCount: 3 })} />)
+    expect(screen.getByText('GoGo · Chưa đủ đánh giá (3)')).toBeTruthy()
+    expect(screen.queryByText(/\/người/)).toBeNull()
+  })
+})
+
+// A Google score must never become an unmarked community score in any rating-bearing variant.
+describe('owner decision 2026-11-07 rating source marks', () => {
+  it.each(['default', 'discovery', 'saved'] as const)('%s keeps both marked scores and independent sample sizes', async appearance => {
+    await render(<PlaceCard appearance={appearance} place={fixture({ gogoRating: 4.8, gogoRatingCount: 20 })} />)
+    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
+  })
+  it.each(['default', 'discovery', 'saved'] as const)('%s marks Google even when the sample size is unknown', async appearance => {
+    await render(<PlaceCard appearance={appearance} place={fixture({ ratingCount: undefined })} />)
+    expect(screen.getByText(/★ 4,6\s+Google/)).toBeTruthy()
+  })
+})
+
+it.each([false, true])('provider preview keeps every rendered Google score marked (compact=%s)', async compact => {
+  await render(<PlaceCard variant="preview" compact={compact} preview={{ name: 'Provider cafe', googleRating: 4.6, googleRatingCount: 980 }} />)
+  if (compact) expect(screen.queryByText(/★/)).toBeNull()
+  else expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+})
+
+it('hero has no rating that could be mistaken for a community score', async () => {
+  await render(<PlaceCard variant="hero" place={fixture()} />)
+  expect(screen.queryByText(/★/)).toBeNull()
 })

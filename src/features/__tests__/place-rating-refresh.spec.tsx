@@ -78,7 +78,7 @@ it.each(['detail-last', 'reviews-last'] as const)('keeps header and reviews on t
   }
   expect(screen.getByText('Đánh giá gần nhất trên GoGo (3)')).toBeTruthy()
   const header = within(screen.getByTestId('place-detail-facts'))
-  expect(header.queryByText('★ 4,8')).toBeNull()
+  expect(header.queryByText(/^★ 4,8.*GoGo$/)).toBeNull()
   expect(header.getByText('GoGo · 3 đánh giá · Chưa đủ 5 đánh giá')).toBeTruthy()
   // Reviews must not mutate the independent detail cache.
   expect(client.getQueryData(queryKeys.place('p'))).toEqual(detail)
@@ -89,11 +89,11 @@ it('uses the selected order first page, including zero, and ignores later-page a
   mockReviews.mockResolvedValueOnce({ ...page(6, 4.1), order: 'helpful', nextCursor: 'next' })
   await fireEvent.press(screen.getByLabelText('Hữu ích nhất'))
   await waitFor(() => expect(screen.getByText('Đánh giá gần nhất trên GoGo (6)')).toBeTruthy())
-  expect(within(screen.getByTestId('place-detail-facts')).getByText('★ 4,1')).toBeTruthy()
+  expect(within(screen.getByTestId('place-detail-facts')).getByText(/^★ 4,1.*GoGo$/)).toBeTruthy()
   mockReviews.mockResolvedValueOnce({ ...page(99, 5), order: 'helpful' })
   await fireEvent.press(screen.getByText('Xem thêm'))
   await waitFor(() => expect(mockReviews).toHaveBeenLastCalledWith('p', 'helpful', { limit: 10, cursor: 'next' }))
-  expect(within(screen.getByTestId('place-detail-facts')).getByText('★ 4,1')).toBeTruthy()
+  expect(within(screen.getByTestId('place-detail-facts')).getByText(/^★ 4,1.*GoGo$/)).toBeTruthy()
   mockReviews.mockResolvedValueOnce({ ...page(0), order: 'helpful', items: [] })
   await act(async () => { await client.invalidateQueries({ queryKey: queryKeys.placeReviews('p', 'helpful') }) })
   expect(screen.getByText('Đánh giá gần nhất trên GoGo (0)')).toBeTruthy()

@@ -3,23 +3,25 @@ import { StyleSheet } from 'react-native-unistyles'
 import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  linkCard: { marginTop: spacing[2], gap: spacing[1] },
+  linkRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center', minHeight: 44 },
+  linkInput: { ...theme.type.bodySmall, flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 8, borderRadius: 8, backgroundColor: theme.redesign.container, color: theme.redesign.ink },
+  cardMenu: { position: 'absolute', top: 12, right: 12, backgroundColor: theme.redesign.card },
+  linkButton: { height: 44, minHeight: 44, paddingVertical: 0, paddingHorizontal: spacing[3] },
   header: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  addPlaceBtn: {
-    marginLeft: 'auto',
-  },
-  filterRow: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
   list: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   /** ADM-205 — province, then commune; each header is a screen-reader heading. */
-  group: { marginBottom: spacing[6] },
-  groupHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
-  groupDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.accent.primary },
-  subgroup: { marginBottom: spacing[4] },
+  group: { marginBottom: spacing[3] },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] },
+  groupTitle: { flexShrink: 1 },
+  countBadge: { minWidth: 24, minHeight: 24, paddingHorizontal: spacing[1], borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface.subtle },
+  cityAction: { marginLeft: 'auto', flexShrink: 0, paddingHorizontal: spacing[1], paddingVertical: 0, minHeight: 44 },
+  back: { alignSelf: 'flex-start' },
+  subgroup: { marginBottom: spacing[2] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
-  gridItem: { width: '48%' },
-  // A place is the full-width Stitch card; plans keep their two-up tiles.
   placeItem: { width: '100%' },
-  unavailable: { width: '48%', padding: spacing[3], gap: spacing[2] },
+  unavailable: { width: '100%', padding: spacing[3], gap: spacing[2] },
   unavailableRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2] },
   unavailableText: { flex: 1 },
 }))
