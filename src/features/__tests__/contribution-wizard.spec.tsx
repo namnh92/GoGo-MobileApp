@@ -523,3 +523,41 @@ it('distributes all five stars across the content width with 44pt touch targets'
   for (const star of stars) expect(StyleSheet.flatten(star.props.style)).toMatchObject({ width: 44, minHeight: 44 })
   expect(StyleSheet.flatten(stars[0].parent?.props.style)).toMatchObject({ width: '100%', justifyContent: 'space-between' })
 })
+
+it.each([false, true])('F-02 recovers a conflicted draft after Resume confirms deletion (previously saved: %s)', async (previouslySaved) => {
+  if (previouslySaved) mockDrafts = { data: { items: [draft] } }
+  mockSave.mockRejectedValueOnce(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'conflict' }))
+  await renderScreen(<ContributionWizard {...props} />)
+  if (previouslySaved) await fireEvent.press(button('Tiếp tục bản nháp'))
+  else await fireEvent.press(button('Cặp đôi'))
+  await fireEvent.press(button('Tiếp tục'))
+  if (!previouslySaved) await fireEvent.press(button('Sôi động'))
+  await fireEvent.press(button('Tiếp tục'))
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep my edited tips')
+  await fireEvent.press(button('Lưu nháp'))
+  expect(disabled('Lưu nháp')).toBe(true)
+  mockRead.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'deleted elsewhere' }))
+  await fireEvent.press(button('Tiếp tục bản nháp'))
+  expect(disabled('Lưu nháp')).toBe(false)
+  expect(screen.queryByText(i18n.t('placeWizard.draft.conflict'))).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Tiếp tục bản nháp' })).toBeNull()
+  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Keep my edited tips')
+  await fireEvent.press(button('Lưu nháp'))
+  expect(mockSave).toHaveBeenCalledTimes(2)
+  expect(mockSave.mock.calls[1][0]).toMatchObject({
+    body: { expectedVersion: 0, enrichment: { purposeKeys: ['couple'], vibeKeys: ['festive'], visitTips: 'Keep my edited tips' } },
+  })
+  if (previouslySaved) expect(mockSave.mock.calls[1][0].id).not.toBe(draft.id)
+})
+
+it('F-02 retains the conflict guard when Resume fails without confirming deletion', async () => {
+  mockSave.mockRejectedValueOnce(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'conflict' }))
+  await renderScreen(<ContributionWizard {...props} />)
+  await fireEvent.press(button('Lưu nháp'))
+  mockRead.mockRejectedValueOnce(new ApiError(503, { code: 'UNAVAILABLE', message: 'offline' }))
+  await fireEvent.press(button('Tiếp tục bản nháp'))
+  expect(disabled('Lưu nháp')).toBe(true)
+  await fireEvent.press(button('Lưu nháp'))
+  expect(mockSave).toHaveBeenCalledTimes(1)
+  expect(button('Tiếp tục bản nháp')).toBeTruthy()
+})

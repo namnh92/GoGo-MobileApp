@@ -1,5 +1,5 @@
 import { completeWizard } from './contribution-fixtures'
-import { act, fireEvent, screen } from '@testing-library/react-native'
+import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import { ApiError } from '@/shared/api/errors'
 
@@ -120,6 +120,7 @@ async function openWithPreview(result: Omit<typeof RESOLVED, 'resolutionToken'> 
     mockTrack.mockClear()
     mockResolve.data = undefined
     mockSubmit.isError = false
+    mockSubmit.isPending = false
     mockSubmit.isSuccess = false
     mockSubmit.data = undefined
     mockSubmit.mutateAsync.mockResolvedValue({ status: 'PENDING', submissionId: 'sub-1' })
@@ -315,4 +316,70 @@ it('keeps entered form values when stale-token revalidation loses the network', 
   expect(screen.getByText('Chưa gửi được')).toBeTruthy()
   expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Keep on revalidation failure')
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
+})
+
+const BRANCHES = {
+  status: 'CANDIDATE_SELECTION',
+  candidates: [
+    { ...RESOLVED.candidate, googlePlaceId: 'branch-A', name: 'Branch A' },
+    { ...RESOLVED.candidate, googlePlaceId: 'branch-B', name: 'Branch B' },
+  ],
+}
+
+async function openBranches() {
+  mockResolve.data = BRANCHES
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  await fireEvent.press(screen.getByText('Branch A'))
+}
+
+it.each(['submit', 'revalidation'] as const)('F-01 locks branch selection during %s', async (phase) => {
+  let finish: () => void = () => {}
+  if (phase === 'submit') {
+    mockSubmit.mutateAsync.mockImplementationOnce(() => {
+      mockSubmit.isPending = true
+      return new Promise(resolve => { finish = () => {
+        mockSubmit.isPending = false
+        resolve({ status: 'PENDING', submissionId: 'A' })
+      } })
+    })
+  } else {
+    mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
+    mockResolve.mutateAsync.mockImplementationOnce(() => new Promise(resolve => {
+      finish = () => resolve({ status: 'CANDIDATE_SELECTION', candidates: BRANCHES.candidates })
+    }))
+  }
+  await openBranches()
+  await pressSubmit()
+  await screen.rerender(<PlaceImportScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: /Branch B/ }))
+  expect(screen.getByRole('button', { name: /Branch A/ }).props.accessibilityState).toMatchObject({ selected: true, disabled: true })
+  expect(screen.getByRole('button', { name: /Branch B/ }).props.accessibilityState).toMatchObject({ selected: false, disabled: true })
+  await act(async () => { finish() })
+  if (phase === 'submit') {
+    expect(within(screen.getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
+  } else {
+    expect(screen.getByRole('button', { name: /Branch B/ }).props.accessibilityState.disabled).toBe(false)
+    await fireEvent.press(screen.getByRole('button', { name: /Branch B/ }))
+    await pressSubmit()
+    expect(mockSubmit.mutateAsync).toHaveBeenLastCalledWith(expect.objectContaining({ googlePlaceId: 'branch-B' }))
+  }
+})
+
+it('F-01 binds success identity to the captured submission when the preview changes', async () => {
+  let finish: () => void = () => {}
+  mockSubmit.mutateAsync.mockImplementationOnce(() => new Promise(resolve => {
+    finish = () => resolve({ status: 'PENDING', submissionId: 'A' })
+  }))
+  await openBranches()
+  await pressSubmit()
+  mockResolve.data = { ...BRANCHES, candidates: [
+    { ...BRANCHES.candidates[0], name: 'Changed preview' }, BRANCHES.candidates[1],
+  ] }
+  await screen.rerender(<PlaceImportScreen />)
+  await act(async () => { finish() })
+  const result = within(screen.getByTestId('result-sheet'))
+  expect(result.getByText('Branch A đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()
+  expect(within(screen.getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
 })
