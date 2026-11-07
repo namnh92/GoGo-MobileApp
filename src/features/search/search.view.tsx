@@ -62,7 +62,7 @@ export default function SearchScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { picker, q, filters, roomId, moods, suggestions, suggestionScope } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; suggestions?: string; suggestionScope?: string }>()
+  const { picker, q, filters, roomId, moods, categories, suggestions, suggestionScope } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; categories?: string; suggestions?: string; suggestionScope?: string }>()
   const { status } = useSession()
   const isPicker = picker === '1'
   const canSave = status === 'user'
@@ -79,7 +79,7 @@ export default function SearchScreen() {
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const [query, setQuery] = useState(q ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(q ?? '')
-  const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [] }))
+  const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [], categories: categories?.split(',').filter(Boolean) ?? [] }))
   const [draft, setDraft] = useState<DiscoveryFilters>(emptyFilters)
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
   const [locationOpen, setLocationOpen] = useState(false)

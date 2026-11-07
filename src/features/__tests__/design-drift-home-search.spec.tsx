@@ -1271,3 +1271,12 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   expect(view.queryByLabelText('Visible place')).toBeNull()
   expect(view.queryByText(i18n.t('discovery.openPlace'))).toBeNull()
 })
+
+
+it('g04 opens ordinary Search with the saved category and canonical area, without AI', async () => {
+  const area = { datasetVersion: 'ds-2026', provinceCode: '79', provinceName: 'Thành phố Hồ Chí Minh', communeCode: '26734', communeName: 'Phường Bến Thành' }
+  mockParams = { categories: 'cafe', suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'selected_area', area }) }
+  await renderScreen(<SearchScreen />)
+  expect(mockQueries.at(-1)).toMatchObject({ categories: 'cafe', provinceCode: '79', communeCode: '26734' })
+  expect(mockQueries.at(-1)?.lat).toBeUndefined()
+})

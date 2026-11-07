@@ -8,6 +8,7 @@ const mockRefresh = jest.fn()
 let mockStatus = 'user'
 let mockQuery: any
 const mockEnabled = jest.fn()
+jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), usePlaceDetail: () => ({ data: undefined }), useTaxonomies: () => ({ data: undefined }) }))
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockStatus }) }))
 jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: (enabled: boolean) => { mockEnabled(enabled); return mockQuery } }))
@@ -20,7 +21,7 @@ beforeEach(() => {
 it('renders dates, photo placeholders, translated reasons and approved/merged navigation', async () => {
   await renderScreen(<MyContributionsScreen />)
   expect(screen.getAllByText('Gửi ngày 07/11/2026')).toHaveLength(4)
-  expect(screen.getAllByTestId('contribution-photo-placeholder')).toHaveLength(3)
+  expect(screen.getAllByTestId('place-photo-placeholder', { includeHiddenElements: true })).toHaveLength(3)
   expect(screen.getByText('Sai vị trí')).toBeTruthy()
   const actions = screen.getAllByText('Xem địa điểm')
   await fireEvent.press(actions[1])

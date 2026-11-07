@@ -3,6 +3,10 @@ import { StyleSheet } from 'react-native-unistyles'
 import { overlay, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  unavailablePhoto: { opacity: 0.5 },
+  unavailableName: { textDecorationLine: 'line-through' },
+  savedCredits: { paddingHorizontal: 16, paddingBottom: 12 },
+  savedFooter: { padding: 12, gap: 8, backgroundColor: theme.redesign.card, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
   compactRow: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' },
   compactPhoto: { width: 48, height: 48, borderRadius: 8 },
   compactCopy: { flex: 1, minWidth: 0, gap: 4 },
@@ -27,7 +31,7 @@ export const styles = StyleSheet.create(theme => ({
   addressText: { flex: 1, minWidth: 0 },
   discoveryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   ratingBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  googleBadge: { backgroundColor: theme.redesign.container, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  googleBadge: { maxWidth: '100%', backgroundColor: theme.redesign.container, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   gogoBadge: { backgroundColor: theme.redesign.violetSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   // Stitch Search: one inset bottom overlay. Reserve the top 44pt save/verified
   // row; badges wrap within the photo rather than occupying opposing corners.
