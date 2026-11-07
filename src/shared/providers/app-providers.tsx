@@ -12,6 +12,7 @@ import {
 } from '@/shared/api/query-client'
 
 import { useTaxonomies } from '@/shared/api/queries/use-preferences'
+import { retainTaxonomies } from '@/shared/api/persist-policy'
 
 import { SessionProvider } from './session-provider'
 import { initializeAcquisitionSdk } from '@/shared/acquisition/bootstrap'
@@ -77,9 +78,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <PersistQueryClientProvider
           client={queryClient}
           persistOptions={{
-            persister: queryPersister,
+            persister: retainTaxonomies(queryPersister),
             buster: CACHE_BUSTER,
-            maxAge: 24 * 60 * 60 * 1000,
+            // The persister expires account data after 24h, retaining public
+            // taxonomy labels and ETags until their generation is replaced.
+            maxAge: Infinity,
             dehydrateOptions: {
               // Anything that HAS data, not only what succeeded most recently:
               // requiring `success` meant one failed refetch while offline

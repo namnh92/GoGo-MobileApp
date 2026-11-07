@@ -8,12 +8,37 @@ export type CachedTaxonomies = { data: TaxonomyList; etag: string | null }
 
 // Process-local validation state deliberately does not survive hydration. Each
 // locale revalidates once on launch, regardless of how many screens consume it.
-const validated = new WeakMap<QueryClient, Set<string>>()
+const validated = new WeakMap<QueryClient, { locales: Set<string>; version: number }>()
 
 export function taxonomyOptions(client: QueryClient, locale: string) {
-  let locales = validated.get(client)
-  if (!locales) validated.set(client, locales = new Set())
-  const checked = locales
+  let validation = validated.get(client)
+  if (!validation) {
+    // Hydration can already contain a newer generation in another locale.
+    const versions = client.getQueriesData<CachedTaxonomies>({ queryKey: ['taxonomies'] })
+      .map(([, cached]) => cached?.data.version ?? 0)
+    validation = { locales: new Set(), version: Math.max(0, ...versions) }
+    validated.set(client, validation)
+  }
+  const state = validation
+  const checked = state.locales
+  function markValidated(version = 0) {
+    // Options may have been created before asynchronous hydration completed.
+    const knownVersion = Math.max(version, ...client.getQueriesData<CachedTaxonomies>({ queryKey: ['taxonomies'] })
+      .map(([, cached]) => cached?.data.version ?? 0))
+    if (knownVersion > state.version) {
+      state.version = knownVersion
+      checked.clear()
+      // Preserve other locales as offline fallbacks; revalidate on next use.
+      void client.invalidateQueries({
+        predicate: query => query.queryKey[0] === 'taxonomies' && query.queryKey[1] !== locale,
+        refetchType: 'none',
+      })
+    }
+    // An offline fallback (or an older in-flight response) cannot validate a
+    // locale against a newer generation we already know about.
+    if (version === state.version) checked.add(locale)
+    else checked.delete(locale)
+  }
   const queryKey = queryKeys.taxonomies(locale)
   return queryOptions({
     queryKey,
@@ -31,7 +56,7 @@ export function taxonomyOptions(client: QueryClient, locale: string) {
         })
         if (result.status === 304) {
           if (!cached) throw new Error('Taxonomy 304 without a cached representation')
-          checked.add(locale)
+          markValidated(cached.data.version)
           return { ...cached, etag: result.etag ?? cached.etag }
         }
         // Keep a version-addressed snapshot as well as the current locale pointer.
@@ -42,13 +67,13 @@ export function taxonomyOptions(client: QueryClient, locale: string) {
         client.removeQueries({ predicate: q => q.queryKey[0] === 'taxonomies'
           && q.queryKey[1] === locale && typeof q.queryKey[2] === 'number'
           && q.queryKey[2] !== next.version })
-        checked.add(locale)
+        markValidated(next.version)
         return snapshot
       } catch (error) {
         if (signal.aborted || !cached) throw error
         // A failed launch revalidation must not turn populated pickers into an
         // error screen or evict their persisted labels.
-        checked.add(locale)
+        markValidated(cached.data.version)
         return cached
       }
     },

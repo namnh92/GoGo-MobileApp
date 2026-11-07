@@ -92,6 +92,57 @@ describe('persisted taxonomy launch cache', () => {
     expect(next.getQueryData<CachedTaxonomies>(queryKeys.taxonomies('vi'))?.data).toEqual(data(1))
   })
 
+  it('revalidates Vietnamese on return after English discovers a newer global generation', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(response(1))
+      .mockResolvedValueOnce(response(2, 'en')).mockResolvedValueOnce(response(2))
+    vi.stubGlobal('fetch', fetcher)
+    const next = client()
+    await next.fetchQuery(taxonomyOptions(next, 'vi'))
+    await next.fetchQuery(taxonomyOptions(next, 'en'))
+    // Keep the old locale available until its replacement arrives.
+    expect(next.getQueryData<CachedTaxonomies>(queryKeys.taxonomies('vi'))?.data).toEqual(data(1))
+    const observer = new QueryObserver(next, taxonomyOptions(next, 'vi'))
+    const stop = observer.subscribe(() => {})
+    try {
+      await vi.waitFor(() => expect(observer.getCurrentResult().data?.data).toEqual(data(2)))
+      expect(fetcher).toHaveBeenCalledTimes(3)
+      expect(fetcher.mock.calls[2][1].headers['if-none-match']).toBe('W/"vi-1"')
+      expect(next.getQueryData(queryKeys.taxonomyVersion('vi', 1))).toBeUndefined()
+    } finally {
+      stop()
+    }
+  })
+
+  it('retains an outdated locale offline and retries it on next use after a known generation change', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(response(1))
+      .mockResolvedValueOnce(response(2, 'en')).mockRejectedValueOnce(new TypeError('offline'))
+      .mockResolvedValueOnce(response(2))
+    vi.stubGlobal('fetch', fetcher)
+    const next = client()
+    await next.fetchQuery(taxonomyOptions(next, 'vi'))
+    await next.fetchQuery(taxonomyOptions(next, 'en'))
+    const fallback = await next.fetchQuery(taxonomyOptions(next, 'vi'))
+    expect(fallback.data).toEqual(data(1))
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    expect(next.getQueryState(queryKeys.taxonomies('vi'))?.status).toBe('success')
+    expect((await next.fetchQuery(taxonomyOptions(next, 'vi'))).data).toEqual(data(2))
+    expect(fetcher).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not validate an older offline fallback when delayed hydration reveals a newer generation', async () => {
+    const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('offline')).mockResolvedValueOnce(response(2))
+    vi.stubGlobal('fetch', fetcher)
+    const next = client()
+    const optionsBeforeHydration = taxonomyOptions(next, 'vi')
+    const previous = client()
+    previous.setQueryData(queryKeys.taxonomies('vi'), { data: data(1), etag: 'W/"vi-1"' })
+    previous.setQueryData(queryKeys.taxonomies('en'), { data: data(2, 'en'), etag: 'W/"en-2"' })
+    hydrate(next, JSON.parse(JSON.stringify(dehydrate(previous))))
+    expect((await next.fetchQuery(optionsBeforeHydration)).data).toEqual(data(1))
+    expect((await next.fetchQuery(taxonomyOptions(next, 'vi'))).data).toEqual(data(2))
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
   it('renders cache without a request when the device is known offline', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(response(1))
     vi.stubGlobal('fetch', fetcher)

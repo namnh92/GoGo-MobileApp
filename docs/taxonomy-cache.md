@@ -12,7 +12,10 @@ TanStack Query lưu `{ data: { version, kinds }, etag }` dưới prefix `taxonom
 qua AsyncStorage hiện có. Khóa `['taxonomies', locale, 'current']` trỏ tới bản
 hiện hành; `['taxonomies', locale, version]` giữ snapshot tương ứng. Phiên bản
 cũ của cùng locale được bỏ khi nhận phiên bản mới. Locale khác giữ cache riêng.
-Chính sách lưu hiện có giữ cache 24 giờ; đăng xuất xóa cache cùng bộ nhớ ứng dụng.
+Taxonomy và ETag không hết hạn theo thời gian; chỉ dữ liệu tài khoản và cache
+khác hết hạn sau 24 giờ. Khi hydrate cache cũ quá 24 giờ, chỉ giữ taxonomy;
+snapshot không bị garbage collection trước khi có phiên bản thay thế. Đăng xuất
+xóa cache cùng bộ nhớ ứng dụng; cache buster vẫn loại bỏ định dạng không tương thích.
 
 Sau khi hydrate, app hiển thị cache ngay và revalidate mỗi locale một lần trong
 mỗi lần khởi chạy. Yêu cầu gửi `If-None-Match` nếu có ETag và
@@ -27,6 +30,9 @@ yêu cầu chờ mạng trở lại; nếu transport báo lỗi, dữ liệu cac
 thành công và được lưu lại. Không có cache thì giữ trạng thái loading/error
 hiện có. Đổi ngôn ngữ chọn cache locale tương ứng và kiểm tra locale đó nếu chưa
 kiểm tra trong lần khởi chạy hiện tại.
+Khi một locale phát hiện generation toàn cục mới, các locale khác mất trạng thái
+đã kiểm tra và sẽ revalidate khi dùng lại. Cache cũ vẫn đọc được offline; lỗi
+mạng không đánh dấu locale cũ là đã đồng bộ với generation mới.
 
 Không thêm metric riêng: dùng HTTP status/latency hiện có (BE ADR-0047).
 Rollback bằng cách hoàn nguyên thay đổi client; prefix mới không chứa thông tin
