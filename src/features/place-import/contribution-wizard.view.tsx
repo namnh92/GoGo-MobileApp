@@ -271,7 +271,11 @@ export function ContributionWizard({
     try {
       await remove.mutateAsync({ id: draft.id, version: draft.version })
       if (!mounted.current) return
+      setMissingDraftIds((ids) => [...ids, draft.id])
       if (saved?.id === draft.id) {
+        // Deleting a draft expires its uploads; retain only the other form inputs.
+        setValue('photos', undefined)
+        setValue('billPhotoPublicConsent', undefined)
         setSaved(null)
         setDraftId(null)
         setNeedsReload(false)

@@ -348,3 +348,34 @@ Light/Dark visual acceptance have not been rerun in this edit-only task.
 Local logs: `/tmp/mobile518-regression-before.log`,
 `/tmp/mobile518-typecheck-final.log`, `/tmp/mobile518-lint-final.log`,
 `/tmp/mobile518-ui-final.log`, `/tmp/mobile518-test.log`.
+
+## Astra r4 F-05 — deleted draft media (2026-11-07)
+
+Refs #518 / PR #522. Baseline `efbfeff` was clean. The owner's focused fix
+request authorizes this edit and the requested local gates; no install, commit,
+push, backend change, native build, or device acceptance was performed.
+
+After deleting the resumed draft successfully, the wizard clears its photo
+references and `billPhotoPublicConsent` while preserving price, taxonomy,
+amenity, rating and text inputs. The deleted ID is excluded locally while the
+draft query refreshes, so cached entries cannot block saving a new draft.
+Failed deletion preserves the original media, consent and versioned identity.
+The API contract and existing content-free deletion telemetry are unchanged.
+
+Regression evidence in `/private/tmp/mobile-522-r4-evidence/`:
+
+- `regression-before.log`: against unchanged production code at `efbfeff`,
+  the two success-path tests fail: saving is blocked by the cached deleted
+  draft, and submission contains the expired menu/bill IDs and consent.
+  The failed-deletion control passes.
+- `regression-after.log`: all 39 wizard tests pass, including all three F-05
+  cases and the existing photo-retention regression for drafts still alive.
+- `typecheck.log` and `lint.log`: PASS, exit 0.
+- `unit.log`: exit 1; 119 suites passed, 1 failed, 1 skipped; 1,360 tests passed,
+  3 failed, 39 skipped. Failures are unchanged distribution-wrapper cases at
+  lines 208/234/258. `process-inspection.log` confirms this sandbox denies `ps`;
+  the wrapper tests and distribution scripts have no diff from HEAD.
+- `ui.log`: `pnpm test:ui --runInBand` PASS, exit 0; all 188 suites / 2,235 tests.
+
+No full-suite green result, independent re-review or device acceptance is
+claimed. Revert this section and the focused wizard/test changes to roll back.
