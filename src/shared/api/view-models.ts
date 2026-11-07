@@ -373,13 +373,13 @@ export function placeCardMetaLine(card: PlaceCard, categoryLabel?: string | null
 }
 
 /**
- * PlaceCard line 3: `★ 4,6 (980) · 45k–90k/người`. The rating comes back as
+ * PlaceCard line 3: `★ 4,6 (980) Google · 45k–90k/người`. The rating comes back as
  * parts so the card can set the score heavier inside the same line; the price
  * always carries its unit (RULE-CORE-013), and "Miễn phí" stands in for a free price; unknown prices are omitted.
  *
- * No "Google" on this line — owner decision 2026-09-24 (RULE-CORE-014 list-card
- * clause). The source is in the row's accessibility label and on the detail
- * screen.
+ * Owner decision 2026-11-07 supersedes the 2026-09-24 list-card exception:
+ * renderers must show the Google mark beside this score and count. GoGo stays
+ * separate with its own mark and sample size.
  */
 export function placeCardRatingPriceLine(
   card: PlaceCard,

@@ -97,7 +97,7 @@ it('keeps GoGo reviews apart from the Google rating', async () => {
   // Google's number stays in Google's places; the GoGo card still has no
   // aggregate (its chip says so in words), because two reviews are not a
   // community rating.
-  expect(screen.getAllByText('★ 4,6').length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/^★ 4,6.*Google$/).length).toBeGreaterThan(0)
   expect(screen.queryByText('GoGo · 0 đánh giá · Chưa đủ 5 đánh giá')).toBeNull()
   expect(section().queryByText('★ 4,6')).toBeNull()
   expect(section().getAllByText('★ 1/5')).toHaveLength(2)

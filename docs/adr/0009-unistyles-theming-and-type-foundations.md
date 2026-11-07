@@ -137,11 +137,12 @@ trên; **design xác nhận lại**, test vẫn là cổng.
    mặc định). **`GlassCard` là alias deprecated** → `Card` *không pad*, nên 55 chỗ
    gọi giữ nguyên padding; `strong`/`interactive` bị bỏ qua. `Atmosphere` = nền
    phẳng `surface.canvas` (bỏ blob + blur toàn màn hình). #298 xoá alias.
-6. **PlaceCard dòng rating không có chữ "Google"** trên màn hình; nguồn nằm trong
-   `accessibilityLabel` của dòng ("Google 4,6 sao, 980 đánh giá") và trên màn chi
-   tiết. Điều khoản list-card nằm ở `core.md` rule 14. Caption attribution ảnh
-   bỏ khỏi card (owner chấp nhận rủi ro điều khoản provider trên list — ghi nhận,
-   không tuyên bố tuân thủ).
+6. **Superseded — quyết định owner 2026-11-07** thay thế ngoại lệ list-card
+   ngày 2026-09-24 (RULE-CORE-014): mọi Google rating trên màn hình phải có
+   nhãn Google nhìn thấy, trên mọi biến thể PlaceCard (list/grid/compact/saved/
+   discovery/plan/map/search-empty) và RatingChips. Google và GoGo luôn tách
+   riêng, mỗi nguồn giữ số lượt đánh giá và nhãn riêng; accessibilityLabel
+   vẫn nêu nguồn.
 7. **`TagChip` neutral** dùng `text.primary`: `text.secondary` trên
    `surface.subtle` chỉ 4,12, và tag không phải trạng thái disabled.
 

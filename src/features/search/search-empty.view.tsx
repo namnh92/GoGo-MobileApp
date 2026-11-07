@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 import {
-  formatCount, formatDistance, formatRating, placeCardRatingPriceLine, ratingParts,
+  formatDistance, placeCardRatingPriceLine,
   toPlaceCard, useDiscoveryPreview, usePlaceSearch,
   type PlaceCard, type PlaceSearchQuery,
 } from '@/shared/api'
@@ -10,6 +10,7 @@ import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
+import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } from './discovery-filters'
 import { styles } from './search.style'
 
@@ -89,7 +90,6 @@ export function SearchEmpty({ filters, query, onApply, onMore, onPlacePress, lab
 function NearbyPlace({ place, onPress }: { place: PlaceCard; onPress: () => void }) {
   const { t, i18n } = useTranslation()
   const distance = formatDistance(place.distanceM)
-  const { google, gogo } = ratingParts(place)
   const { price } = placeCardRatingPriceLine(place, unit => ({
     per_person: t('price.unit.per_person'),
     per_group: t('price.unit.per_group'),
@@ -98,8 +98,6 @@ function NearbyPlace({ place, onPress }: { place: PlaceCard; onPress: () => void
     per_night: t('price.unit.per_night'),
     free: t('price.unit.free'),
   })[unit], i18n.language)
-  const rating = google ?? gogo
-  const ratingLabel = rating ? `★ ${formatRating(rating.value, i18n.language)}${rating.count == null ? '' : ` (${formatCount(rating.count, i18n.language)})`} ${google ? 'Google' : 'GoGo'}` : undefined
   return <Pressable testID="search-nearby-place" accessibilityRole="button" accessibilityLabel={place.name} onPress={onPress} style={styles.nearbyPlace}>
     <View style={styles.nearbyPhoto}>
       <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={styles.nearbyPhoto} />
@@ -109,7 +107,8 @@ function NearbyPlace({ place, onPress }: { place: PlaceCard; onPress: () => void
       {place.discovery?.verified ? <View style={styles.nearbyVerified}><MaterialIcon name="verified" size={12} color="redesign.greenText" /><Text variant="introCaptionMedium" color="redesign.greenText">{t('discovery.verified')}</Text></View> : null}
       <Text variant="introLabel" color="redesign.ink" numberOfLines={1}>{place.name}</Text>
       <PlaceAddressText place={place} variant="introCaption" color="redesign.secondary" numberOfLines={1} />
-      {ratingLabel || price ? <Text variant="introCaption" color="redesign.secondary">{ratingLabel ? <Text variant="introCaptionMedium" color="redesign.primaryText">{ratingLabel}</Text> : null}{ratingLabel && price ? ' • ' : ''}{price}</Text> : null}
+      <RatingChips place={place} />
+      {price ? <Text variant="introCaption" color="redesign.secondary">{price}</Text> : null}
     </View>
   </Pressable>
 }

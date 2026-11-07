@@ -302,7 +302,7 @@ it('uses the directly downloaded Stitch photo/body hierarchy with real hours and
   expect(screen.getAllByTestId('import-verified-confirmation')).toHaveLength(1)
   expect(screen.getByText('Đã đồng bộ')).toBeTruthy()
   expect(screen.getByText('Đang mở · 07:30–22:30 hàng ngày')).toBeTruthy()
-  expect(screen.getByText('(123) Google')).toBeTruthy()
+  expect(screen.getByText('★ 4,8 (123) Google')).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Lưu' })).toBeNull()
   expect(within(screen.getByTestId('import-preview-card')).queryByText(/Chỉ lưu được sau khi|\+50/)).toBeNull()
   expect(screen.queryByText(/Chỉ lưu được sau khi/)).toBeNull()

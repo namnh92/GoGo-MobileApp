@@ -732,6 +732,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'placeCard.ratingA11y_one': 'Google {{rating}} stars, {{count}} rating',
   'placeCard.ratingA11y': 'Google {{rating}} stars, {{count}} ratings',
   'placeCard.ratingA11yNoCount': 'Google {{rating}} stars',
+  'rating.gogoScore': '★ {{score}} {{count}} GoGo',
   'rating.google': 'Google',
   'rating.gogo': 'GoGo',
   'rating.gogoInsufficient': 'Not enough reviews from the GoGo community yet',

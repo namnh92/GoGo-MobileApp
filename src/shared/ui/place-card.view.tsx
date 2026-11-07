@@ -26,6 +26,7 @@ import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Chip, TagChip } from '@/shared/ui/primitives'
 import { MaterialIcon } from './material-icon'
 import { Text } from '@/shared/ui/text'
+import { RatingChips } from './rating-chips.view'
 
 import { usePlaceClock } from './use-place-clock'
 import { styles } from './place-card.style'
@@ -114,13 +115,7 @@ function SaveToggle({ saved, onToggle }: {
   )
 }
 
-/**
- * Line 3. One `Text`, so rating and price truncate together as one string
- * instead of wrapping apart; the score sits in a nested `label` Text for
- * weight. The word "Google" is not on screen (owner decision 2026-09-24,
- * RULE-CORE-014) — it is in the line's accessibility label.
- *
- */
+/** Google and GoGo retain visible source marks and their own sample sizes. */
 function RatingPriceLine({ place }: { place: PlaceCardModel }) {
   const { t, i18n } = useTranslation()
   const { rating, price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)), i18n.language)
@@ -137,15 +132,11 @@ function RatingPriceLine({ place }: { place: PlaceCardModel }) {
     <Text
       testID="place-card-rating-price"
       variant="bodySmall"
-      numberOfLines={1}
-      ellipsizeMode="tail"
       accessibilityLabel={a11y}
     >
       {rating ? (
         <>
-          {'★ '}
-          <Text variant="label">{rating.score}</Text>
-          {rating.count != null ? ` (${rating.count})` : ''}
+          <Text variant="label" style={styles.googleBadge}>{t('discovery.googleRating', { score: rating.score, count: rating.count != null ? `(${rating.count})` : '' }).replace(/\s+/g, ' ')}</Text>
           {price ? ' · ' : ''}
         </>
       ) : null}
@@ -256,6 +247,7 @@ function CanonicalPlaceCard({
               <MetaLine place={place} />
             </View>
             <RatingPriceLine place={place} />
+            <RatingChips place={place} source="gogo" />
             <OpenLine place={place} />
             {visibleTags.length > 0 ? (
               <View style={styles.tags}>
@@ -300,8 +292,8 @@ function DiscoveryCard({ place, onPress, save, style, appearance, unavailableLab
           </View>
           <MetaLine place={place} appearance="discovery" />
           {google || gogo || place.gogoRatingCount != null ? <View style={styles.ratingBadges}>
-            {google ? <View style={styles.googleBadge}><Text variant="introCaptionMedium" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
-            {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}{saved ? ` (${formatCount(place.gogoRatingCount, i18n.language)})` : ''}</Text></View> : null}
+            {google ? <View style={styles.googleBadge}><Text accessibilityLabel={t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })} variant="introCaptionMedium" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(google.value, i18n.language), count: google.count == null ? '' : `(${formatCount(google.count, i18n.language)})` })}</Text></View> : null}
+            {gogo ? <View style={styles.gogoBadge}><Text variant="introSmall" color="redesign.violetText">{t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count ?? 0, i18n.language) })}</Text></View> : place.gogoRatingCount != null ? <View style={styles.gogoBadge}><Text variant="introCaption" color="redesign.violetText">{t('discovery.gogoFewReviews')}{` (${formatCount(place.gogoRatingCount, i18n.language)})`}</Text></View> : null}
           </View> : null}
 
           {unavailableLabel ? <Text variant="bodySmall" color="status.warningText">{unavailableLabel}</Text> : null}
@@ -387,7 +379,7 @@ function PreviewCard({ preview, compact, categoryLabel, children, headerAction, 
           </View>
           {categoryLabel ? <Text variant="introSmall" color="redesign.secondary">{categoryLabel}</Text> : null}
           {preview.googleRating != null || openLabel ? <View style={styles.importFacts}>
-            {preview.googleRating != null ? <View style={styles.importFact}><Text variant="introLabel" color="redesign.ink">★ {formatRating(preview.googleRating, i18n.language)}</Text><Text variant="introCaption" color="redesign.secondary">{preview.googleRatingCount != null ? `(${formatCount(preview.googleRatingCount, i18n.language)}) ` : ''}Google</Text></View> : null}
+            {preview.googleRating != null ? <View style={styles.googleBadge}><Text accessibilityLabel={t('discovery.googleRating', { score: formatRating(preview.googleRating, i18n.language), count: preview.googleRatingCount == null ? '' : `(${formatCount(preview.googleRatingCount, i18n.language)})` })} variant="introLabel" color="redesign.ink">{t('discovery.googleRating', { score: formatRating(preview.googleRating, i18n.language), count: preview.googleRatingCount == null ? '' : `(${formatCount(preview.googleRatingCount, i18n.language)})` })}</Text></View> : null}
             {openLabel ? <View testID="import-body-hours" style={styles.importFact}><Text variant="introSmall" color={open.openNow ? 'status.successText' : 'status.dangerText'}>●</Text><Text variant="introSmall" color="redesign.secondary" style={styles.importHoursLabel}>{openLabel}</Text></View> : null}
           </View> : null}
           {[...new Set(preview.attributions ?? [])].filter(attribution => !photo || attribution.trim() !== photo.attribution.trim()).map(attribution => <Text key={attribution} variant="introCaption" color="redesign.secondary">{attribution}</Text>)}

@@ -729,6 +729,7 @@ export const viMessages = {
 
   'placeCard.ratingA11y': 'Google {{rating}} sao, {{count}} đánh giá',
   'placeCard.ratingA11yNoCount': 'Google {{rating}} sao',
+  'rating.gogoScore': '★ {{score}} {{count}} GoGo',
   'rating.google': 'Google',
   'rating.gogo': 'GoGo',
   'rating.gogoInsufficient': 'Chưa đủ đánh giá từ cộng đồng GoGo',
