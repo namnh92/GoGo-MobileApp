@@ -1,6 +1,7 @@
 import { completeWizard } from './contribution-fixtures'
-import { act, fireEvent, screen } from '@testing-library/react-native'
+import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { renderScreen } from './harness'
+import i18n from '@/shared/i18n'
 import { ApiError } from '@/shared/api/errors'
 
 /**
@@ -29,7 +30,7 @@ const candidate = (businessStatus: string) => ({
 })
 
 const mockResolve = {
-  mutate: jest.fn(),
+  mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }),
   reset: jest.fn(),
   isPending: false,
   isError: false,
@@ -60,6 +61,7 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useResolveGoogleMapsLink: () => mockResolve,
   useSubmitPlace: () => mockSubmit,
+  submitPlace: (body: unknown) => mockSubmit.mutateAsync(body),
   usePlaceSubmission: () => ({ data: undefined }),
   ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
@@ -122,7 +124,7 @@ it('reads a PLACE_NOT_YET_OPEN refusal as that, not a generic failure', async ()
   expect(screen.queryByText(GENERIC_FAILURE)).toBeNull()
 })
 
-it('keeps the generic failure for other refusals', async () => {
+it('shows an unconfirmed outcome for a server error without proof of rejection', async () => {
   mockResolve.data = candidate('OPERATIONAL')
   mockSubmit.isError = true
   mockSubmit.error = new ApiError(500, { code: 'INTERNAL', message: 'boom' })
@@ -130,7 +132,8 @@ it('keeps the generic failure for other refusals', async () => {
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   await failSubmission()
-  expect(screen.getByText(GENERIC_FAILURE + KEPT)).toBeTruthy()
+  expect(within(screen.getByTestId('result-sheet')).getByText(i18n.t('placeWizard.lifecycle.submissionUnconfirmed'))).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
 })
 
 it('still offers submit for an operating place', async () => {
@@ -162,7 +165,7 @@ describe('#316 review', () => {
     expect(screen.queryByText(GENERIC_FAILURE)).toBeNull()
   })
 
-  it('F-01: keeps the generic failure in the candidate-selection result sheet for other errors', async () => {
+  it('F-01: quarantines unconfirmed server errors in candidate-selection too', async () => {
     mockResolve.data = {
       status: 'CANDIDATE_SELECTION',
       candidates: [{ googlePlaceId: 'ChIJa', name: 'Quán A', address: '1 Đường A' }],
@@ -173,7 +176,8 @@ describe('#316 review', () => {
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
     await failSubmission()
-  expect(screen.getByText(GENERIC_FAILURE + KEPT)).toBeTruthy()
+  expect(within(screen.getByTestId('result-sheet')).getByText(i18n.t('placeWizard.lifecycle.submissionUnconfirmed'))).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   })
 
   it('F-02: the disabled submit carries its reason, for assistive tech and on screen', async () => {

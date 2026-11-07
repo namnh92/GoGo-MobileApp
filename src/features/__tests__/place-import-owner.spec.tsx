@@ -5,7 +5,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { renderScreen } from './harness'
 
-const mockResolve = { data: undefined as unknown, mutate: jest.fn(), reset: jest.fn(), isPending: false, isPaused: false, isError: false, error: null as unknown }
+const mockResolve = { data: undefined as unknown, mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }), reset: jest.fn(), isPending: false, isPaused: false, isError: false, error: null as unknown }
 const mockSubmit = { mutateAsync: jest.fn(), reset: jest.fn() }
 const mockClipboard = jest.fn()
 jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }))
@@ -28,9 +28,11 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useResolveGoogleMapsLink: () => mockResolve,
   useSubmitPlace: () => mockSubmit,
+  submitPlace: (body: unknown) => mockSubmit.mutateAsync(body),
   usePlaceSubmission: () => ({}),
   ...jest.requireActual('./contribution-fixtures').contributionHooks(),
   useSaveContributionDraft: () => ({ mutateAsync: mockSaveDraft }),
+  saveContributionDraft: (id: string, body: unknown) => mockSaveDraft({ id, body }),
   usePlaceDetail: () => ({ data: { id: 'canonical', name: 'Existing' } }),
   useSaved: () => ({ data: [] }),
   useToggleSaved: () => ({ mutate: mockToggleSaved }),
@@ -54,7 +56,7 @@ beforeEach(() => {
   mockUnread.count = 0
   onlineManager.setOnline(true)
   mockClipboard.mockResolvedValue('')
-  mockSaveDraft.mockResolvedValue({ id: 'saved-draft', version: 1 })
+  mockSaveDraft.mockImplementation(({ id, body }) => Promise.resolve({ id, googlePlaceId: 'ChIJtest', enrichment: body.enrichment, version: 1, expiresAt: '2027-01-01T00:00:00Z' }))
   mockResolve.isError = false
   mockResolve.isPaused = false
   mockResolve.error = null
@@ -147,7 +149,7 @@ it.each(['https://evil.test/photo', '/places/google-provider-photo/OtherID'])('d
 })
 
 it.each(['denied', 'failed', 'empty'])('omits unavailable candidate photos (%s) while allowing submission', async status => {
-  if (status === 'failed') mockGet.mockRejectedValue(new Error('offline'))
+  if (status === 'failed') mockGet.mockRejectedValue(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'known rejection' }))
   else mockGet.mockResolvedValue({ status, photos: [] })
   await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await act(async () => {})
@@ -667,7 +669,7 @@ it('retains entered values after a submission error and retries the same enrichm
   await preview()
   await completeWizard()
   await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep these tips')
-  mockSubmit.mutateAsync.mockRejectedValueOnce(new Error('private server detail'))
+  mockSubmit.mutateAsync.mockRejectedValueOnce(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'private server detail' }))
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   expect(screen.getByText('Chưa gửi được')).toBeTruthy()
   expect(screen.queryByText('private server detail')).toBeNull()
@@ -682,7 +684,7 @@ it('saves the retained form as a draft from the error sheet', async () => {
   await preview()
   await completeWizard()
   await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Saved after failure')
-  mockSubmit.mutateAsync.mockRejectedValueOnce(new Error('offline'))
+  mockSubmit.mutateAsync.mockRejectedValueOnce(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'known rejection' }))
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   await fireEvent.press(within(screen.getByTestId('result-sheet')).getByRole('button', { name: 'Lưu nháp' }))
   await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Saved after failure' }) }) })))

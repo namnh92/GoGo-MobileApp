@@ -84,11 +84,13 @@ describe('#518 contribution contract', () => {
       ],
       billPhotoPublicConsent: true,
     },
-  ])('preserves uploaded photos and their acknowledgement through snapshot saves and submission: %j', (attachments) => {
+  ])('keeps media ownership out of the controlled non-media form adapter: %j', (attachments) => {
     const enrichment = { purposeKeys: ['date'], vibeKeys: ['quiet'], ...attachments }
     const resumed = resumeContribution(enrichment)
-    expect(draftEnrichment({ ...resumed, visitTips: 'Updated tip' })).toEqual({ ...enrichment, visitTips: 'Updated tip' })
-    expect(submissionEnrichment(resumed)).toEqual(enrichment)
+    expect(draftEnrichment({ ...resumed, visitTips: 'Updated tip' })).toEqual({ purposeKeys: ['date'], vibeKeys: ['quiet'], visitTips: 'Updated tip' })
+    expect(submissionEnrichment(resumed)).toEqual({ purposeKeys: ['date'], vibeKeys: ['quiet'] })
+    expect(resumed).not.toHaveProperty('photos')
+    expect(resumed).not.toHaveProperty('billPhotoPublicConsent')
   })
 })
 

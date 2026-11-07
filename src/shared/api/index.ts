@@ -33,3 +33,6 @@ export { discoveryLabels } from './discovery-taxonomies'
 
 export { useCandidatePhoto } from './candidate-photo'
 export * from './queries/use-contribution-drafts'
+
+export { listContributionDrafts, getContributionDraft, saveContributionDraft, deleteContributionDraft } from './endpoints/contribution-drafts'
+export { submitPlace, resolveGoogleMapsLink } from './endpoints/places'
