@@ -300,6 +300,7 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
 /** A resolved provider identity has no canonical GoGo ID or canonical place actions. */
 export interface PlacePreviewProps {
   variant: 'preview'
+  compact?: boolean
   preview: NonNullable<ResolveLinkResult['candidate']>
   categoryLabel?: string | null
   children?: ReactNode
@@ -311,7 +312,7 @@ export function PlaceCard(props: PlaceCardProps | PlacePreviewProps) {
   return 'preview' in props ? <PreviewCard {...props} /> : <CanonicalPlaceCard {...props} />
 }
 
-function PreviewCard({ preview, categoryLabel, children, headerAction, style }: PlacePreviewProps) {
+function PreviewCard({ preview, compact, categoryLabel, children, headerAction, style }: PlacePreviewProps) {
   const { t, i18n } = useTranslation()
   const now = usePlaceClock()
   const candidatePhoto = useCandidatePhoto(preview)
@@ -330,6 +331,19 @@ function PreviewCard({ preview, categoryLabel, children, headerAction, style }: 
     : opens ? t(open.opensDayOffset === 1 ? 'discovery.closedTomorrow' : (open.opensDayOffset ?? 0) > 1 ? 'discovery.closedLater' : 'search.closedOpens', { time: opens, days: open.opensDayOffset }) : t('common.closed')
   const photoCredit = photo ? `${t('placeImport.photoCredit')}${photo.authors.map(author => author.displayName).join(', ')} · ${photo.attribution}` : undefined
   const hasPhoto = candidatePhoto.status === 'loading' || !!photo
+  if (compact) return (
+    <View testID="place-preview-compact" style={[styles.compactRow, style]}>
+      {photo ? <Image testID="place-preview-thumbnail" source={{ uri: photo.uri }} style={styles.compactPhoto}
+        contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessibilityIgnoresInvertColors /> : null}
+      <View style={styles.compactCopy}>
+        <Text variant="label" numberOfLines={1}>{preview.name}</Text>
+        {preview.address ? <Text variant="caption" color="text.secondary" numberOfLines={1} accessibilityLabel={preview.address}>{preview.address}</Text> : null}
+        {photo ? <Text variant="caption" color="text.secondary">
+          {t('placeImport.photoCredit')}{photo.authors.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="caption" color="text.secondary" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)} · {photo.attribution}
+        </Text> : null}
+      </View>
+    </View>
+  )
   return (
     <View style={style}>
       <View testID="import-preview-card" style={styles.importCard}>

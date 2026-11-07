@@ -38,7 +38,9 @@ export const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: 8,
     paddingVertical: 2,
     backgroundColor: theme.redesign.primary,
-    maxWidth: 118,
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: 4,
     alignItems: 'center',
   },
   progress: {
@@ -142,14 +144,14 @@ export const styles = StyleSheet.create((theme) => ({
     borderRadius: 22,
   },
   navigation: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: theme.redesign.line,
     paddingTop: 12,
   },
-  next: { flex: 1, minWidth: 0, height: 56 },
+  back: { minHeight: 44 },
+  next: { width: '100%', minWidth: 0, height: 56 },
   headerIcon: {
     width: 28,
     height: 28,
