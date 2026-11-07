@@ -5,14 +5,6 @@ type Schemas = components['schemas']
 export type EnrichmentDraft = Schemas['ContributionEnrichmentDraft']
 export type Enrichment = Schemas['ContributionEnrichment']
 export type ContributionDraft = Schemas['ContributionDraft']
-export const amenityFields = [
-  'car_parking',
-  'power_at_each_table',
-  'pets_allowed',
-  'separate_smoking_area',
-  'open_after_23',
-  'tables_over_six',
-] as const satisfies readonly (keyof NonNullable<EnrichmentDraft['amenities']>)[]
 export const priceUnits = ['per_person', 'per_group', 'per_item', 'per_hour', 'per_night', 'free'] as const
 
 export interface ContributionForm {
@@ -22,7 +14,7 @@ export interface ContributionForm {
   unit: (typeof priceUnits)[number]
   purposeKeys: string[]
   vibeKeys: string[]
-  amenities: NonNullable<EnrichmentDraft['amenities']>
+  amenities: Record<string, boolean>
   recommendedDishes: string
   visitTips: string
   serviceRating: number
