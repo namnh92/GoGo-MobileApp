@@ -36,6 +36,8 @@ jest.mock('@/shared/api/session', () => ({
 jest.mock('@/shared/api', () => {
   const idle = { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn() }
   return {
+    useTaxonomies: () => ({ data: { kinds: {} } }),
+    useMyRooms: () => ({ data: { pages: [] }, hasNextPage: false }),
     useMe: () => idle,
     useSaved: () => idle,
     useMyReviews: () => idle,
@@ -60,8 +62,9 @@ beforeEach(() => {
 
 async function tapSignOut() {
   await act(async () => {
-    await fireEvent.press(screen.getByText(viMessages['profile.logout'] as string))
+    await fireEvent.press(screen.getByText(viMessages['g11.logout'] as string))
   })
+  await fireEvent.press(screen.getByText('Xác nhận đăng xuất'))
 }
 
 it.each([

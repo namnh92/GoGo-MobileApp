@@ -79,7 +79,7 @@ const CHIP_LABEL: Record<ChipVariant, TextColor> = {
 }
 
 export function Chip({ label, variant = 'default', icon, emoji, onPress, accessibilityLabel, style, appearance = 'default' }: {
-  appearance?: 'default' | 'discovery' | 'mood'
+  appearance?: 'default' | 'discovery' | 'mood' | 'soft'
   label: string
   variant?: ChipVariant
   /** A glyph from `icons.tsx`, drawn in the label's colour before it (#382). */
@@ -95,13 +95,14 @@ export function Chip({ label, variant = 'default', icon, emoji, onPress, accessi
 }) {
   const selected = variant === 'selected'
   const disabled = variant === 'disabled'
+  const labelColor: TextColor = appearance === 'soft' ? selected ? 'accent.onSoft' : 'redesign.secondary' : appearance === 'mood' ? selected ? 'redesign.primaryText' : 'redesign.secondary' : appearance === 'discovery' ? 'redesign.primaryText' : CHIP_LABEL[variant]
 
   const body = (pressed: boolean) => (
-    <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], appearance === 'discovery' && styles.discoveryChip, appearance === 'discovery' && selected && styles.discoveryChipSelected, appearance === 'mood' && styles.moodChip, appearance === 'mood' && selected && styles.moodChipSelected, style]}>
-      {icon ? <Icon name={icon} size={14} color={CHIP_LABEL[variant]} /> : null}
+    <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], appearance === 'discovery' && styles.discoveryChip, appearance === 'discovery' && selected && styles.discoveryChipSelected, appearance === 'soft' && styles.softChip, appearance === 'soft' && selected && styles.softChipSelected, appearance === 'soft' && pressed && styles.chip_defaultPressed, appearance === 'mood' && styles.moodChip, appearance === 'mood' && selected && styles.moodChipSelected, style]}>
+      {icon ? <Icon name={icon} size={14} color={labelColor} /> : null}
       {!icon && emoji ? <Text variant="bodySmall">{emoji}</Text> : null}
       {/* Shrinks with a chip its row constrains, so the label ellipsises (#332). */}
-      <Text variant={appearance === 'mood' ? selected ? 'introLabel' : 'introSmall' : appearance === 'discovery' ? 'introSmall' : 'label'} color={appearance === 'mood' ? selected ? 'redesign.primaryText' : 'redesign.secondary' : appearance === 'discovery' ? 'redesign.primaryText' : CHIP_LABEL[variant]} numberOfLines={appearance === 'discovery' ? undefined : 1} style={styles.chipLabel}>
+      <Text variant={appearance === 'soft' ? 'introSmall' : appearance === 'mood' ? selected ? 'introLabel' : 'introSmall' : appearance === 'discovery' ? 'introSmall' : 'label'} color={labelColor} numberOfLines={appearance === 'discovery' ? undefined : 1} style={styles.chipLabel}>
         {selected ? `✓ ${label}` : label}
       </Text>
     </View>
@@ -197,6 +198,7 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri, ic
 }) {
   const { theme } = useUnistyles()
   const [failedUri, setFailedUri] = useState<string | null>(null)
+  const [loadedUri, setLoadedUri] = useState<string | null>(null)
   const uri = imageUri && imageUri !== failedUri ? imageUri : null
   const circle = { width: size, height: size, borderRadius: size / 2 }
   return (
@@ -207,22 +209,19 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri, ic
         { backgroundColor: icon ? theme.redesign.primary : emoji ? theme.surface.subtle : background ?? theme.accent.primary },
       ]}
     >
-      {icon ? <MaterialIcon name={icon} size={18} color="redesign.white" /> : uri ? (
-        <Image
+      {icon ? <MaterialIcon name={icon} size={18} color="accent.onAccent" /> : <>
+        {!uri || loadedUri !== uri ? (emoji ? <ScaledText box={size} kind="emoji">{emoji}</ScaledText> : <ScaledText box={size} kind="initials">{label}</ScaledText>) : null}
+        {uri ? <Image
           testID="avatar-image"
           source={{ uri }}
-          style={circle}
+          style={[circle, styles.avatarImage]}
           contentFit="cover"
           transition={150}
           cachePolicy="memory-disk"
+          onLoad={() => setLoadedUri(uri)}
           onError={() => setFailedUri(uri)}
-        />
-      ) : emoji ? (
-        <ScaledText box={size} kind="emoji">{emoji}</ScaledText>
-      ) : (
-        // Sized from the prop — the one allowed exception to the type scale.
-        <ScaledText box={size} kind="initials">{label}</ScaledText>
-      )}
+        /> : null}
+      </>}
     </View>
   )
 }
@@ -262,6 +261,8 @@ const styles = StyleSheet.create(theme => ({
   tag_green: { backgroundColor: theme.status.successSoft },
   tag_neutral: { backgroundColor: theme.surface.subtle },
 
+  softChip: { minHeight: 44, borderRadius: 999, borderWidth: 0, backgroundColor: theme.redesign.low },
+  softChipSelected: { backgroundColor: theme.accent.soft },
   moodChip: { minHeight: 36, height: 36, paddingHorizontal: 14, paddingVertical: 0, borderWidth: 0, borderRadius: 999, backgroundColor: theme.redesign.card, ...theme.shadows.card },
   moodChipSelected: { backgroundColor: theme.redesign.moodSelected },
   discoveryChip: { minHeight: 44, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.redesign.low, borderWidth: 0 },
@@ -333,6 +334,7 @@ const styles = StyleSheet.create(theme => ({
   backTitleBlock: { flex: 1, marginHorizontal: theme.spacing[3] },
   backSpacer: { width: 36 },
 
+  avatarImage: { position: 'absolute', top: 0, left: 0 },
   avatar: {
     alignItems: 'center',
     justifyContent: 'center',

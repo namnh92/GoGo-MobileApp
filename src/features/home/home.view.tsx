@@ -157,7 +157,7 @@ export default function HomeScreen() {
   return (
     <Atmosphere redesign>
       <View testID="home-header" style={[styles.topBar, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
-        <View style={styles.brand}><MaterialIcon name="explore" color="redesign.white" size={19} /></View>
+        <View style={styles.brand}><MaterialIcon name="explore" color="accent.onAccent" size={19} /></View>
         <Text variant="discoveryHeading" color="redesign.primaryText">GoGo</Text>
         <Text variant="introSmall" color="redesign.secondary">•</Text>
         <Text variant="introSmall" color="redesign.secondary" style={{ flex: 1 }}>{t('discovery.home')}</Text>
@@ -200,7 +200,7 @@ export default function HomeScreen() {
           <Text variant="discoveryTitle">{t('discovery.heroTitle')}</Text>
           <Text variant="introSmall" color="redesign.secondary" style={styles.heroBody}>{t('discovery.heroBody')}</Text>
           <Pressable accessibilityRole="button" onPress={startCreate} style={styles.heroPrimary}>
-            <MaterialIcon name="plus" color="redesign.white" /><Text variant="introLabel" color="redesign.white">{t('discovery.createRoom')}</Text>
+            <MaterialIcon name="plus" color="accent.onAccent" /><Text variant="introLabel" color="accent.onAccent">{t('discovery.createRoom')}</Text>
           </Pressable>
         </LinearGradient>
         <QuickJoin knownName={me.data?.displayName} />

@@ -74,16 +74,12 @@ beforeEach(() => {
 })
 
 describe('account screen layout (#297)', () => {
-  it('puts "Màu chủ đề" under the display name and above the data section', async () => {
+  it('keeps theme and defaults on the separate approved G11 routes', async () => {
     const view = await renderScreen(<AccountScreen />)
-    const tree = JSON.stringify(view.toJSON())
-    const at = (text: string) => {
-      const index = tree.indexOf(text)
-      expect(index).toBeGreaterThan(-1)
-      return index
-    }
-    expect(at('an@gogo.id.vn')).toBeLessThan(at('Màu chủ đề'))
-    expect(at('Màu chủ đề')).toBeLessThan(at('Dữ liệu của bạn'))
+    expect(view.queryByText('Màu chủ đề')).toBeNull()
+    expect(view.queryByText('Mặc định khi tạo kèo')).toBeNull()
+    expect(view.getByText('an@gogo.id.vn')).toBeTruthy()
+    expect(view.getByText('Dữ liệu của bạn')).toBeTruthy()
   })
 })
 

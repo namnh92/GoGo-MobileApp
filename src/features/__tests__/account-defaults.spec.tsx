@@ -91,7 +91,7 @@ describe('profile defaults card', () => {
     )
     expect(view.getByText('Quận 1, TP.HCM')).toBeTruthy()
     expect(view.getByText('✓ Thư giãn')).toBeTruthy()
-    expect(view.getByText('✓ 300–500k')).toBeTruthy()
+    expect(view.getByRole('radio', { name: '300–500k' })).toBeTruthy()
     const save = view.getByText('Lưu mặc định')
     await fireEvent.press(save)
     expect(mockUpdate).not.toHaveBeenCalled()
@@ -161,4 +161,12 @@ describe('profile defaults card', () => {
     expect(areaDisplayName({ name: 'Quận 1', city: 'TP.HCM' })).toBe('Quận 1, TP.HCM')
     expect(areaDisplayName({ name: 'Vũng Tàu', city: null })).toBe('Vũng Tàu')
   })
+})
+
+it('preserves an existing custom budget when saving only mood changes', async () => {
+  const view = await renderScreen(<ProfileDefaultsCard profile={profile({ usualBudget: { perPerson: 420_000, currency: 'VND' } })} />)
+  expect(view.getByText('Đang đặt: 420.000 ₫ / người')).toBeTruthy()
+  await press(view.getByText('Sôi động'))
+  await press(view.getByText('Lưu mặc định'))
+  expect(mockUpdate).toHaveBeenCalledWith({ interests: { mood: ['lively'] } })
 })

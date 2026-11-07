@@ -173,7 +173,7 @@ export default function RoomManageScreen() {
                   accessibilityState={{ selected: active }}
                   style={[styles.tier, active && styles.tierActive]}
                 >
-                  <Text variant="label" color={active ? 'text.inverse' : 'text.primary'}>
+                  <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>
                     {formatMoney(tier.amount, currency)}
                   </Text>
                 </Pressable>

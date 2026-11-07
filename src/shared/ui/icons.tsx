@@ -540,7 +540,7 @@ export function IconCopy({ color, size = 18 }: { color?: string; size?: number }
 }
 
 export function IconShare({ color }: { color?: string }) {
-  const c = useNamed(color, theme => theme.text.inverse)
+  const c = useNamed(color, theme => theme.accent.onAccent)
   return <Glyph24 name="share" size={18} {...c} filled={false} />
 }
 

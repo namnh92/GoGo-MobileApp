@@ -5,7 +5,7 @@ import { ActivityIndicator, AppState, Linking, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { IconMapPin } from '@/shared/ui/icons'
+import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './location-permission.style'
@@ -44,7 +44,7 @@ async function readPermission(): Promise<LocationPermissionState> {
  * PROF-APP-005 (#180), now a section of APP-058 (#216). It shows this device's
  * foreground location permission and the way to change it; it never asks on its
  * own and stores nothing. A profile's default *area* is an account choice, not a
- * permission, and stays in Account information (ADR-0022, ADM-203).
+ * permission, and is edited in Defaults (ADR-0022, ADM-203).
  */
 export function LocationPermissionSection() {
   const { theme } = useUnistyles()
@@ -89,13 +89,13 @@ export function LocationPermissionSection() {
   const blocked = state === 'denied' || state === 'unavailable'
 
   return (
-    <Card padded={false} style={styles.card}>
+    <Card appearance="stitch" padded={false} style={styles.card}>
       <View style={styles.statusRow}>
         <View style={styles.statusIcon}>
-          <IconMapPin />
+          <Icon name="navigation" size={20} color="accent.onSoft" />
         </View>
         <View style={styles.statusText}>
-          <Text variant="title2">{t('locationSettings.statusTitle')}</Text>
+          <Text variant="introHeading">{t('locationSettings.statusTitle')}</Text>
           {state === 'checking' ? (
             <ActivityIndicator color={theme.accent.primary} style={{ alignSelf: 'flex-start' }} />
           ) : (
@@ -106,7 +106,7 @@ export function LocationPermissionSection() {
         </View>
       </View>
 
-      <Text>{t('locationSettings.body')}</Text>
+      <Text variant="introCaption" color="redesign.secondary">{t('locationSettings.body')}</Text>
 
       {state === 'denied' ? (
         <View style={styles.actions}>
@@ -123,7 +123,7 @@ export function LocationPermissionSection() {
       ) : null}
 
       <Text variant="caption" color="text.secondary">{t('locationSettings.note')}</Text>
-      <GhostBtn label={t('permissionsSettings.areaInAccount')} onPress={() => router.push('/settings/account')} />
+      <GhostBtn label={t('permissionsSettings.areaInDefaults')} onPress={() => router.push('/settings/defaults')} />
     </Card>
   )
 }

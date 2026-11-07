@@ -25,7 +25,7 @@ export const styles = StyleSheet.create(theme => ({
   },
   saveBtn: { marginTop: spacing[2] },
   /** The destructive section reads as one: tinted ground, danger heading, danger button. */
-  dangerCard: { backgroundColor: theme.status.dangerSoft },
+  dangerCard: { backgroundColor: theme.surface.card },
   dangerIcon: {
     width: 40,
     height: 40,

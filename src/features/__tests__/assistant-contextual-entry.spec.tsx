@@ -1,11 +1,11 @@
-import { act, fireEvent, within } from '@testing-library/react-native'
+import { fireEvent, within } from '@testing-library/react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
 
 /**
  * GoGo-MobileApp#379 (AI-APP-002) — the contextual ways into GoGo AI: the
- * "Questions about this place?" card on place detail and Profile › Help ›
- * GoGo AI, both behind the feature gate.
+ * "Questions about this place?" card behind the feature gate. Profile uses
+ * the floating button only (owner #529, 2026-11-08), without a duplicate Help row.
  */
 
 const mockPush = jest.fn()
@@ -30,6 +30,8 @@ jest.mock('@/shared/api', () => {
   const idle = { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn() }
   return {
     ...jest.requireActual('@/shared/api'),
+    useTaxonomies: () => ({ data: { kinds: {} } }),
+    useMyRooms: () => ({ data: { pages: [] }, hasNextPage: false }),
     useMe: () => idle,
     useMyReviews: () => idle,
     useNotificationSettings: () => idle,
@@ -84,23 +86,12 @@ describe('place detail: "Questions about this place?"', () => {
   })
 })
 
-describe('Profile › Help › GoGo AI', () => {
-  it('is a row under Help that opens GoGo AI, marked "New" until first opened', async () => {
-    const view = await renderScreen(<ProfileScreen />)
-    expect(view.getByText('Trợ giúp')).toBeTruthy()
-    const row = view.getByTestId('profile-help-assistant')
-    expect(within(row).getByText('GoGo AI')).toBeTruthy()
-    expect(within(row).getByText('Mới')).toBeTruthy()
-    await act(async () => {
-      await fireEvent.press(row)
-    })
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/assistant' })
-  })
-
-  it('is not there with the gate off', async () => {
-    mockGate.on = false
+describe('Profile uses the floating GoGo AI entry only (owner #529, 2026-11-08)', () => {
+  it.each([true, false])('omits the duplicate Help section with the feature gate %s', async on => {
+    mockGate.on = on
     const view = await renderScreen(<ProfileScreen />)
     expect(view.queryByTestId('profile-help-assistant')).toBeNull()
     expect(view.queryByText('Trợ giúp')).toBeNull()
+    expect(view.queryByText('GoGo AI')).toBeNull()
   })
 })

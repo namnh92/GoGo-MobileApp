@@ -6,7 +6,7 @@ import { env } from '@/shared/config/env'
  * exists.
  *
  * GoGo AI entry points (GoGo-MobileApp#379): the float button on the tabs, the
- * place-detail questions card, Profile › Help › GoGo AI and the `/assistant`
+ * place-detail questions card and the `/assistant`
  * screen. The assistant API (GoGo-BE#713) does not exist yet, so the surface is
  * off unless the build says otherwise — on in `dev` so it can be built and
  * reviewed, off in `stag` and `prod`. `EXPO_PUBLIC_ASSISTANT_ENTRY=on|off`

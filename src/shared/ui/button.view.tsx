@@ -24,7 +24,7 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
-  variant?: 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
+  variant?: 'pill' | 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
   /** Allow full action labels to wrap in narrow shared layouts. */
   wrapLabel?: boolean
@@ -89,7 +89,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
   // request is in flight the button reads as loading, not as greyed out.
   const greyed = disabled && !loading
   const look = (onAccent ? ON_ACCENT_LOOK[kind] : undefined) ?? LOOK[kind]
-  const iconColor: TextColor = variant === 'area' && !greyed ? 'redesign.primaryText' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : look.label
+  const iconColor: TextColor = variant === 'area' && kind === 'secondary' && !greyed ? 'redesign.primaryText' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : look.label
   return (
     <Pressable
       onPress={() => {

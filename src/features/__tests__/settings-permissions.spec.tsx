@@ -44,8 +44,8 @@ it('opens the same screen from both earlier settings routes', () => {
 
 it('shows both sections under their own headers for a signed-in account', async () => {
   const view = await renderScreen(<PermissionsSettingsScreen />)
-  expect(view.getByText('Quyền và dữ liệu')).toBeTruthy()
-  expect(view.getAllByRole('header').map(header => header.props.children)).toEqual(['Thông báo', 'Vị trí', 'Đo lượt cài đặt'])
+  expect(view.getByRole('header', { name: 'Quyền và dữ liệu' })).toBeTruthy()
+  expect(view.getAllByRole('header').map(header => header.props.accessibilityLabel ?? header.props.children)).toEqual(['Quyền và dữ liệu', 'Quyền thiết bị', 'Dữ liệu phân tích & Cài đặt', 'Liên kết hệ thống'])
   expect(view.getByText('notification-section')).toBeTruthy()
   expect(view.queryByText('device-promotions-section')).toBeNull()
   expect(view.getByText('location-section')).toBeTruthy()

@@ -32,9 +32,11 @@ describe('AvatarCircle', () => {
     expect(screen.queryByTestId('avatar-image')).toBeNull()
   })
 
-  it('draws the picture when the API composed a URL', async () => {
+  it('keeps initials visible until the picture has loaded', async () => {
     await render(<AvatarCircle label="A" imageUri="https://assets-test.local/avatars/x.webp" />)
     expect(screen.getByTestId('avatar-image')).toBeTruthy()
+    expect(screen.getByText('A')).toBeTruthy()
+    await act(async () => { screen.getByTestId('avatar-image').props.onLoad() })
     expect(screen.queryByText('A')).toBeNull()
   })
 

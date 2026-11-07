@@ -10,7 +10,7 @@ describe('profile settings rows (APP-058, #216)', () => {
     const routes = SETTINGS_ROWS.map(row => row.route)
     expect(routes.filter(route => route === '/settings/notifications')).toHaveLength(1)
     expect(routes).not.toContain('/settings/location')
-    expect(SETTINGS_ROWS.map(row => row.key)).toEqual(['inbox', 'notificationsLocation', 'contributions', 'reviews', 'account'])
+    expect(SETTINGS_ROWS.map(row => row.key)).toEqual(['inbox', 'reviews', 'notificationsLocation', 'account', 'contributions', 'defaults', 'theme'])
   })
 
   it('labels every row in both languages', () => {

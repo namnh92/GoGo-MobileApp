@@ -1,82 +1,70 @@
-import { render, screen } from '@testing-library/react-native'
-
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import '@/shared/i18n'
 
-/**
- * #475 — the Kèo card counts the "Sắp tới" rooms, read through the hook behind
- * the Kế hoạch tab badge, worded by the same `badgeLabel`. A signed-out
- * person has no count (a dash, never a false zero); a guest is unchanged.
- */
-
-const mockUpcoming = { count: 0, more: false, live: false }
-const mockSession: { status: 'user' | 'guest' | 'anonymous' } = { status: 'user' }
-const mockRecent: { rooms: unknown[] } = { rooms: [] }
-
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }) }))
-jest.mock('@/shared/providers/session-provider', () => ({
-  useSession: () => ({
-    session: mockSession.status === 'anonymous' ? null : { kind: mockSession.status, userId: 'u' },
-    status: mockSession.status,
-    signOut: jest.fn(),
-  }),
+const mockPush = jest.fn()
+const mockSignOut = jest.fn()
+const mockSession = { status: 'user' }
+const mockProfile = { displayName: 'An', homeAdministrativeArea: { provinceName: 'Hà Nội' }, interests: { mood: ['chill', 'unknown'] } }
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: jest.fn() }) }))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ session: { kind: mockSession.status, userId: 'u' }, status: mockSession.status, signOut: mockSignOut }) }))
+jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => ({ count: 8, more: true }) }))
+jest.mock('@/shared/api', () => ({
+  useMe: () => ({ data: mockProfile }),
+  useSaved: () => ({ data: [{}, {}] }), useMyReviews: () => ({ data: [] }), useNotificationSettings: () => ({}),
+  useTaxonomies: () => ({ data: { kinds: { mood: [{ key: 'chill', labels: { vi: 'Thư giãn' } }] } } }),
+  useMyRooms: () => ({ data: { pages: [] }, hasNextPage: false }),
 }))
-// jest.setup.js mocks this with a fixed zero; this file needs real values.
-jest.mock('@/features/tabs/upcoming-rooms', () => ({
-  ...jest.requireActual('@/features/tabs/upcoming-rooms'),
-  useUpcomingRooms: () => mockUpcoming,
-}))
-jest.mock('@/shared/store/recentRoomsStore', () => ({
-  useRecentRoomsStore: (select: (s: { rooms: unknown[] }) => unknown) => select(mockRecent),
-}))
-jest.mock('@/shared/api', () => {
-  const idle = { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn() }
-  return { useMe: () => idle, useSaved: () => idle, useMyReviews: () => idle, useNotificationSettings: () => idle }
-})
-
 import ProfileScreen from '@/features/tabs/profile.view'
 
-beforeEach(() => {
-  Object.assign(mockUpcoming, { count: 0, more: false, live: false })
-  mockSession.status = 'user'
-  mockRecent.rooms = []
-})
-
-it('shows the Sắp tới count, on the card and in its label', async () => {
-  Object.assign(mockUpcoming, { count: 3 })
-  mockRecent.rooms = [{}, {}, {}, {}, {}] // the device list no longer decides it
+beforeEach(() => { mockSession.status = 'user'; mockPush.mockReset(); mockSignOut.mockReset() })
+it.each(['user', 'guest', 'anonymous'])('%s: Kèo has no unsupported total and still opens upcoming', async status => {
+  mockSession.status = status
   await render(<ProfileScreen />)
-  expect(screen.getByRole('button', { name: 'Kèo: 3' })).toBeTruthy()
-  expect(screen.getAllByText('3').length).toBeGreaterThan(0)
+  const shortcut = screen.getByRole('button', { name: 'Kèo' })
+  expect(screen.queryByRole('button', { name: /^Kèo:/ })).toBeNull()
+  expect(screen.queryByText('—')).toBeNull()
+  await fireEvent.press(shortcut)
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/plans', params: { showUpcoming: expect.any(String) } })
 })
-
-it('reads a real zero as 0', async () => {
+it('shows only real profile fields, resolved interests and full saved/review counts', async () => {
   await render(<ProfileScreen />)
-  expect(screen.getByRole('button', { name: 'Kèo: 0' })).toBeTruthy()
+  expect(screen.getByText('An')).toBeTruthy()
+  expect(screen.getByText('Thư giãn')).toBeTruthy()
+  expect(screen.queryByText('unknown')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Đã lưu: 2' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Đánh giá: 0' })).toBeTruthy()
+  expect(screen.getByTestId('profile-setting-Đóng góp của tôi')).toBeTruthy()
+  expect(screen.getByTestId('profile-bell').props.accessibilityLabel).toBe('Thông báo')
+  expect(screen.queryByTestId('profile-unread')).toBeNull()
 })
-
-it('says "+" when a further page exists, and caps at 9+', async () => {
-  Object.assign(mockUpcoming, { count: 4, more: true })
-  const view = await render(<ProfileScreen />)
-  expect(screen.getByRole('button', { name: 'Kèo: 4+' })).toBeTruthy()
-  expect(screen.getByText('4+')).toBeTruthy()
-  Object.assign(mockUpcoming, { count: 12, more: true })
-  await view.rerender(<ProfileScreen />)
-  expect(screen.getByRole('button', { name: 'Kèo: 9+' })).toBeTruthy()
-})
-
-it('signed out: a dash and a bare label, not a zero', async () => {
-  mockSession.status = 'anonymous'
-  mockRecent.rooms = [{}, {}]
-  await render(<ProfileScreen />)
-  expect(screen.getByRole('button', { name: 'Kèo' })).toBeTruthy()
-  expect(screen.getAllByText('—').length).toBeGreaterThan(0)
-  expect(screen.queryByRole('button', { name: /^Kèo: / })).toBeNull()
-})
-
-it('guest: unchanged, the rooms this device has seen', async () => {
+it('guests have a sign-in card, locks with a reason and CTA, and accessible local theme settings', async () => {
   mockSession.status = 'guest'
-  Object.assign(mockUpcoming, { count: 7 })
-  mockRecent.rooms = [{}, {}]
   await render(<ProfileScreen />)
-  expect(screen.getByRole('button', { name: 'Kèo: 2' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Đăng nhập / Đăng ký' })).toBeTruthy()
+  expect(screen.queryByText('An')).toBeNull()
+  await fireEvent.press(screen.getByTestId('profile-setting-Màu chủ đề'))
+  expect(mockPush).toHaveBeenCalledWith('/settings/theme')
+  mockPush.mockReset()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đã lưu' }))
+  expect(mockPush).not.toHaveBeenCalled()
+  expect(screen.getByTestId('result-sheet')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đăng nhập' }))
+  expect(mockPush).toHaveBeenCalledWith('/auth/sign-in')
+})
+it('logout asks first and cancel leaves the session intact', async () => {
+  await render(<ProfileScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất tài khoản' }))
+  expect(mockSignOut).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: 'Huỷ' }))
+  expect(mockSignOut).not.toHaveBeenCalled()
+})
+it('does not carry an open confirmation across account switches', async () => {
+  const view = await render(<ProfileScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất tài khoản' }))
+  mockSession.status = 'guest'
+  await view.rerender(<ProfileScreen />)
+  mockSession.status = 'user'
+  await view.rerender(<ProfileScreen />)
+  expect(screen.queryByText('Xác nhận đăng xuất')).toBeNull()
+  expect(mockSignOut).not.toHaveBeenCalled()
 })

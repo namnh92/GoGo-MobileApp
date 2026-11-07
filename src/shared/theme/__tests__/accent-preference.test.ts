@@ -32,11 +32,11 @@ describe('accent preference', () => {
     await expect(readAccentPreference()).resolves.toBe('orange')
   })
 
-  it('reads the default when storage throws, and swallows a failed write', async () => {
+  it('reads the default on failure but reports a failed explicit save', async () => {
     vi.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('disk'))
     await expect(readAccentPreference()).resolves.toBe('orange')
 
     vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'))
-    await expect(saveAccentPreference('blue')).resolves.toBeUndefined()
+    await expect(saveAccentPreference('blue')).rejects.toThrow('disk')
   })
 })

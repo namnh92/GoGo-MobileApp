@@ -41,6 +41,7 @@ jest.mock('@/shared/api', () => {
   }
   return {
     ...jest.requireActual('@/shared/api'),
+    useTaxonomies: () => ({ data: { kinds: {} } }),
     useMe: () => idle, useSaved: () => idle, useMyReviews: () => idle, useNotificationSettings: () => idle,
     useMyRooms: (options: { status: string }) => { mockStatusSeen.push(options.status); return rooms },
   }
@@ -66,7 +67,7 @@ function Tabs() {
 
 const selected = (name: string) => screen.getByRole('tab', { name }).props.accessibilityState?.selected === true
 const chooseHistory = () => fireEvent.press(screen.getByRole('tab', { name: 'Lịch sử' }))
-const tapKeo = () => fireEvent.press(screen.getByRole('button', { name: 'Kèo: 0' }))
+const tapKeo = () => fireEvent.press(screen.getByRole('button', { name: 'Kèo' }))
 
 beforeEach(() => {
   mockPush.mockReset()

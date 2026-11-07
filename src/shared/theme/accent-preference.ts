@@ -5,9 +5,8 @@ import { ACCENTS, DEFAULT_ACCENT, type Accent } from '@/shared/ui/theme'
 
 /**
  * Where the "Màu chủ đề" choice lives (#293 §6): on the device, nothing
- * server-side. Same shape as `storage/onboarding.ts` — storage that cannot be
- * read or written must never cost the user the app, so every failure resolves
- * to the default accent.
+ * server-side. Same shape as `storage/onboarding.ts` — an unreadable preference falls back to the default at boot. An explicit
+ * save reports write failures so the settings screen can offer retry.
  */
 export const ACCENT_PREFERENCE_KEY = 'gogo.theme.accent.v1'
 
@@ -24,5 +23,5 @@ export async function readAccentPreference(): Promise<Accent> {
 }
 
 export async function saveAccentPreference(accent: Accent): Promise<void> {
-  await AsyncStorage.setItem(ACCENT_PREFERENCE_KEY, accent).catch(() => {})
+  await AsyncStorage.setItem(ACCENT_PREFERENCE_KEY, accent)
 }

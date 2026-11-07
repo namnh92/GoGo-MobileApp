@@ -1,17 +1,11 @@
-/**
- * Only rows with a destination are tappable, and every row has one. APP-058
- * (#216) folded "Thông báo" and "Vị trí" into one row: both are about what this
- * app may do on the device and for the account, and they now share one screen.
- * `/settings/location` still opens that screen for any older link. What the
- * privacy row promised — export and delete — lives on the account screen.
- */
-import type { IconName } from '@/shared/ui/icons'
+import type { MaterialIconName } from '@/shared/ui/material-icon'
 
-/** Each row leads with an icon from `icons.tsx`; the copy carries no emoji (#382). */
-export const SETTINGS_ROWS: readonly { key: string; route?: string; icon: IconName }[] = [
-  { key: 'inbox', route: '/notifications', icon: 'inbox' },
-  { key: 'notificationsLocation', route: '/settings/notifications', icon: 'bell' },
-  { key: 'contributions', route: '/me/contributions', icon: 'star' },
-  { key: 'reviews', route: '/settings/reviews', icon: 'star' },
-  { key: 'account', route: '/settings/account', icon: 'settings' },
+export const SETTINGS_ROWS: readonly { key: string; route: string; icon: MaterialIconName; group: 'settings' | 'experience'; userOnly?: boolean }[] = [
+  { key: 'inbox', route: '/notifications', icon: 'unreadMail', group: 'settings', userOnly: true },
+  { key: 'reviews', route: '/settings/reviews', icon: 'reviews', group: 'settings', userOnly: true },
+  { key: 'notificationsLocation', route: '/settings/notifications', icon: 'shield', group: 'settings' },
+  { key: 'account', route: '/settings/account', icon: 'manageAccounts', group: 'settings', userOnly: true },
+  { key: 'contributions', route: '/me/contributions', icon: 'star', group: 'settings', userOnly: true },
+  { key: 'defaults', route: '/settings/defaults', icon: 'tune', group: 'experience', userOnly: true },
+  { key: 'theme', route: '/settings/theme', icon: 'palette', group: 'experience' },
 ]
