@@ -55,100 +55,112 @@ Step 3 HTML / PNG SHA256:
 `9c8ee96aceb5481185ce38653dfdf7d71e1689266b5b3ddaa9313b39f92900da`.
 Design samples are documentation only and are never imported into app code.
 
-## Stitch → app mapping
+## Sửa theo owner 2026-11-07 — đối chiếu từng phần
 
-Paths are repository-relative. Lines identify entry points, not pixel parity.
+Owner sau khi xem simulator: “Phần bổ sung trải nghiệm vẫn không giống Stitch.
+Làm giống hoàn toàn. Quá nhiều badge (Chip chọn) làm rối form.”
+Owner bổ sung: “Phần ảnh và thông tin ở bước 3 là optional”.
+Lệnh sửa #518 hiện tại cho phép sửa file/test trong worktree này, không install,
+commit, push hay ghi vào Stitch. Đây là phạm vi được owner cho phép trực tiếp;
+không tuyên bố gate migration toàn dự án đã hoàn tất.
 
-| Stitch element | App behavior | Files:lines |
-| --- | --- | --- |
-| Wizard below the extracted-data card | Independent card after the shared `PlaceCard`; also required after ambiguous branch selection, reset on link/branch changes | `src/features/place-import/import.view.tsx:550` |
-| Bổ sung trải nghiệm thực tế + three progress segments | Empty initially; actual purpose/price, vibe and rating validity determines completion; current step is explicit | `src/features/place-import/contribution-wizard.view.tsx:261` |
-| Credit badge | Displays actual `creditBalance` from the HTTP assistant-status API; hidden if unavailable. No sample +70 or “ready” award | `src/features/place-import/contribution-wizard.view.tsx:269` |
-| Step 1: price + multiple purposes | Source price shortcuts plus explicit VND min/max/unit, free and unknown choices; purposes from `suitability` | `src/features/place-import/contribution-wizard.view.tsx:360`, `src/features/place-import/contribution-form.ts:49` |
-| Step 2: Vibe & Không gian thực tế | API `mood` choices; minimum 1, maximum 3; fourth unavailable until deselecting | `src/features/place-import/contribution-wizard.view.tsx:426` |
-| Step 2: six amenities | Checklist intersection of live `amenity` taxonomy and contract-supported fields; deselection omits the claim rather than asserting absence | `src/features/place-import/contribution-wizard.view.tsx:436`, `src/features/place-import/contribution-form.ts:8` |
-| Step 3: menu/bill photos ≤5 | Visible disabled upload with reason; no picker, local preview, upload, fake masking or image payload | `src/features/place-import/contribution-wizard.view.tsx:470` |
-| Step 3: dishes and visit tips | Optional, separate fields, limits 1,000 / 2,000 characters | `src/features/place-import/contribution-wizard.view.tsx:487` |
-| Step 3: five stars + chips | Separate service/space 1–5 ratings; `checkin_tag` chips filtered by `service_` / `space_` and capped at 5 each | `src/features/place-import/contribution-wizard.view.tsx:161` |
-| Quay lại / Tiếp tục sang Bước n | Preserves actual entries; forward transition validates current step; no timer/demo completion | `src/features/place-import/contribution-wizard.view.tsx:498` |
-| Gửi địa điểm cho GoGo | Same existing moderation endpoint, now with validated enrichment; offline/busy/incomplete/future-opening disabled; old-token retry retains claims and refuses a changed provider identity | `src/features/place-import/import.view.tsx:221`, `src/features/place-import/contribution-wizard.view.tsx:519` |
-| Lưu nháp / resume / delete | Versioned server snapshot, explicit GET resumption, conflict/limit/error handling; local text remains on failed writes | `src/features/place-import/contribution-wizard.view.tsx:195`, `src/shared/api/queries/use-contribution-drafts.ts:7`, `src/shared/api/endpoints/contribution-drafts.ts:1` |
-| Quy chuẩn kiểm duyệt GoGo | Explains unverified claims and approval-only +50, with +20 only for approved menu/bill evidence; policy comes from the vendored `AssistantStatus.creditBalance` contract description | `src/features/place-import/contribution-wizard.view.tsx:602`, `src/shared/i18n/vi.ts:1086` |
-| Light + Dark | Shared layout/content, existing redesign semantic roles backed by night tokens; no theme-dependent fields | `src/features/place-import/contribution-wizard.style.tsx:4` |
+Đã đọc lại **trực tiếp** cả ba screen qua cấu hình Stitch MCP có sẵn:
+`get_screen` → `download_file` HTML và screenshot, ngày 2026-11-07.
+Đã xem đủ ba ảnh và đối chiếu phần wizard với HTML. Hash của HTML bước 2/3 và
+ảnh bước 2/3 vẫn đúng bảng trên. HTML bước 1 SHA256:
+`c40a37767f55bf96112a7d7b0f67a23b5e255f4ac3e1588f112fe862fec57676`;
+ảnh bước 1: `e61bda5d7638299f04d816b807e7ac0a7839ab6a45c0659dca6c800d47f40a47`.
 
-Taxonomy keys and localized labels come from `GET /v1/taxonomies`; unknown,
-unlabelled and obsolete options are hidden. Resumed obsolete selections block
-submission and have an explicit removal action. No source café, sample price,
-preselected rating, uploaded photo or sample progress ships as app data.
+Đọc trực tiếp `GET https://api-dev.gogo.id.vn/v1/taxonomies`, không đăng nhập,
+không thay đổi server. Snapshot: [taxonomies-2026-11-07.json](PR-518-source/taxonomies-2026-11-07.json).
+Đây là trạng thái DEV tại thời điểm đọc, không phải cam kết taxonomy đã đủ.
+Không lấy key từ dữ liệu test hoặc đoán key theo nhãn Stitch.
+Nhãn Stitch được dịch bằng i18n vi/en; chỉ hiển thị khi API có key đã mapping
+và nhãn dùng được. Thứ tự hiển thị theo Stitch, độc lập thứ tự API trả về.
 
-## Deliberate differences and open dependencies
+**MATCH** dưới đây là cấu trúc/control/copy trong code đã đối chiếu source;
+không phải kết quả đo pixel trên app. **CHANGED** là chỗ có thay đổi được giải
+thích; **HIDDEN** là phần thiếu key hoặc dữ liệu thật, theo lệnh owner.
 
-- **FAIL parity: Stitch has no Dark for these screens.** App Dark uses existing
-  night tokens. Neither Light nor Dark app screenshots were captured in this
-  edit/test task: measured app/source visual acceptance is **0/3, not verified**.
-- Unknown price is omitted from enrichment and hidden in the provider preview,
-  per the current owner instruction. Price is optional in BE#796; unlike the
-  source’s required-price badge, the wizard lets the user explicitly say it is
-  unknown. A “Trên 200k” selection requires entering an actual upper bound,
-  because the API accepts bounded prices, not an invented open-ended maximum.
-- The source’s single combined star row is split into service and space because
-  BE#796 requires two distinct ratings. Neither starts preselected. Chips are
-  available after selecting their corresponding rating so incomplete drafts
-  cannot silently drop chips.
-- Submission evidence remains blocked: #516 has a local-only picker; #793 does
-  not supply a usable submission upload path, and BE#796 explicitly blocks
-  nonempty evidence on #794. The disabled control explains ownership/privacy
-  preparation. Enabling it requires the real approved upload/claim/masking
-  contract; no generic public-media workaround is used.
-- Reward amounts are an approval policy from the API contract, not a reward
-  calculated from form progress. Only actual credit balance is presented as a
-  current account fact. No immediate award or unverified 24-hour review SLA.
-- There is no “Đóng góp của tôi” route in `src/app`. Successful submissions keep
-  the existing status/polling screen, canonical-place outcome and owner-only
-  status explanation. A draft can be resumed after resolving its place again;
-  a global contribution/draft inbox is outside this route’s available scope.
-- BE#796 must merge, be re-vendored and reach the target environment before
-  backend integration acceptance. No DEV acceptance is claimed by these tests.
+| Phần tử Stitch | Kết quả app | Trạng thái / lý do | File:dòng |
+| --- | --- | --- | --- |
+| Card “Bổ sung trải nghiệm thực tế”, icon, pill +50 GoGo Credit | Card riêng; pill chính sách +50, thêm chữ nhỏ “khi được duyệt”; bỏ số dư tài khoản khỏi header | CHANGED — wording theo owner; không thưởng ngay, không sample | `contribution-wizard.view.tsx:319`, `:153` |
+| 3 đoạn progress; 1. Giá & Mục đích / 2. Tiện ích & Vibe / 3. Menu & Bill | Đúng thứ tự, màu current/completed, label + trạng thái; không coi bước 3 đã xong chỉ vì optional | MATCH cấu trúc; dùng label bước 2 owner yêu cầu cho cả wizard | `contribution-wizard.view.tsx:331` |
+| Nền Light, card bo 12, padding header/body 12, gap segment 8, divider | Sửa spacing/card, option có viền, footer tách section | MATCH cấu trúc; chưa đo app screenshot | `contribution-wizard.style.tsx:4` |
+| Bước 1: số bước + Mức giá & Mục đích phù hợp | Heading có số bước và trạng thái thực tế, không prefill “Đã điền” | MATCH | `contribution-wizard.view.tsx:381` |
+| Mức giá thực tế / người; bốn khoảng giá | Lưới 2×2, chọn/bỏ chọn; mọi nhãn có / người; VND integer minor units, không ×1.000 lần nữa | MATCH control/order; CHANGED nhãn thêm đơn vị theo owner | `contribution-wizard.view.tsx:447`, `contribution-form.ts:65` |
+| Giá chưa biết / các unit phụ / nhập min-max thường trực | Bỏ chip “Chưa biết giá”, 6 chip đơn vị và nút nhập giá. Không chọn giá thì omit price theo chính sách hiện có; không gắn bắt buộc giả | CHANGED — giữ contract price optional và unknown-price omission của lần trước | `contribution-wizard.view.tsx:447`, `contribution-form.ts:55` |
+| Trên 200k | Chỉ khoảng này mở ô upper bound VND để nhập giá thực; không tự tạo upper bound | CHANGED — contract chỉ nhận bounded range | `contribution-wizard.view.tsx:481` |
+| Hẹn hò lãng mạn | `suitability.couple` | MATCH | `contribution-options.ts:4` |
+| Làm việc / Đọc sách | `suitability.work_reading` | MATCH | `contribution-options.ts:4` |
+| Tụ tập bạn bè | `suitability.group` | MATCH | `contribution-options.ts:4` |
+| Đi gia đình | `suitability.family` | MATCH | `contribution-options.ts:4` |
+| Sống ảo check-in | Không có key trong suitability; không dùng `checkin_tag.photogenic` sai kind | HIDDEN — thiếu key đúng kind | `contribution-options.ts:4` |
+| Bước 2: “2. Không gian & Tiện ích thực tế” + “Trải nghiệm” | Heading có số và tag đúng copy | MATCH | `contribution-wizard.view.tsx:381` |
+| Vibe & Không gian thực tế — Chọn từ 1-3 vibe; mô tả | Đúng hierarchy/copy; chỉ whitelist Stitch, không render mọi mood | MATCH | `contribution-wizard.view.tsx:497` |
+| Yên tĩnh riêng tư | Không có key mood phù hợp; không lấy `checkin_tag.quiet` | HIDDEN — thiếu key | `contribution-options.ts:5` |
+| Nhạc nhẹ acoustic | Không có key mood phù hợp | HIDDEN — thiếu key | `contribution-options.ts:5` |
+| Sân vườn thoáng đãng | Không có key mood phù hợp; không thay bằng setting.outdoor | HIDDEN — thiếu key | `contribution-options.ts:5` |
+| Phòng lạnh êm | Không có key mood phù hợp; không thay bằng setting.indoor/cozy | HIDDEN — thiếu key | `contribution-options.ts:5` |
+| View rooftop | Chỉ có setting.rooftop, không có mood key đúng contract vibeKeys | HIDDEN — thiếu key đúng kind | `contribution-options.ts:5` |
+| Sôi động náo nhiệt | `mood.festive`, là option thứ 6 của source; chỉ nó hiện trên DEV hiện tại | MATCH mapping | `contribution-options.ts:5` |
+| Tiện ích dân đi chơi mới biết — Chạm để tick chọn; mô tả | Checklist có icon + nhãn + checkbox; không có chip tiện ích | MATCH | `contribution-wizard.view.tsx:505` |
+| Chỗ đỗ ô tô thuận tiện (Google Maps hay thiếu) | `amenity.car_parking` | MATCH checklist row | `contribution-wizard.view.tsx:507` |
+| Ổ cắm điện từng bàn (tiện làm việc) | Contract có power_at_each_table nhưng DEV không trả; `power_outlets` không chứng minh mỗi bàn | HIDDEN — thiếu key chính xác | `contribution-form.ts:8` |
+| Cho phép mang thú cưng (Pet-friendly) | `amenity.pets_allowed` | MATCH checklist row | `contribution-wizard.view.tsx:507` |
+| Khu vực hút thuốc riêng biệt | separate_smoking_area có trong contract nhưng DEV không trả | HIDDEN — thiếu taxonomy key | `contribution-form.ts:8` |
+| Mở thâu đêm / sau 23h | open_after_23 có trong contract nhưng DEV không trả | HIDDEN — thiếu taxonomy key | `contribution-form.ts:8` |
+| Có bàn lớn cho nhóm >6 người | tables_over_six có trong contract nhưng DEV không trả | HIDDEN — thiếu taxonomy key | `contribution-form.ts:8` |
+| Footer bước 2: Quay lại / Bước 2 / 3 hoàn thành / Tiếp tục sang Bước 3 | Đúng thứ tự; không thêm bonus vào nhãn CTA theo copy owner | MATCH | `contribution-wizard.view.tsx:584` |
+| Bước 3: số bước + Menu, Hoá đơn & Mẹo thực tế; +20 GoGo Credit | Đúng heading, +20 có “khi được duyệt” | CHANGED wording thưởng theo owner | `contribution-wizard.view.tsx:381` |
+| Ảnh menu/bill: tiles mẫu | Không có evidence thật; không render ảnh mẫu, nút xoá giả hoặc tên bill mẫu | HIDDEN — chưa có dữ liệu thật/luồng upload | `contribution-wizard.view.tsx:545` |
+| + Tải thêm ảnh menu/bill (Tối đa 5 ảnh), viền dashed | Giữ control disabled, icon và lý do; có “Không bắt buộc” | CHANGED — #793/#794/#796 chưa có đường upload submission khả dụng | `contribution-wizard.view.tsx:545` |
+| Lời hứa che thông tin tự động | Không khẳng định đã che; giải thích upload đang chờ xác nhận quyền sở hữu + che PII | CHANGED — không giả chức năng chưa có | `contribution-wizard.view.tsx:558` |
+| Món ngon phải thử & Mẹo khi ghé — Không bắt buộc | Một input, không có hai textarea; không prefill. Gửi vào visitTips (max 2.000). Nháp cũ hiện cả dishes và tips; sửa input thay rõ ràng thành một nội dung mới | MATCH control; copy rút Must-try theo tên owner yêu cầu | `contribution-wizard.view.tsx:566`, `:166` |
+| Đánh giá phục vụ & Không gian — 5 sao + score text | Một hàng 5 sao, score thật theo lựa chọn; ban đầu chưa đánh giá. Chọn lại sao hiện tại để xoá; gắn Không bắt buộc theo owner. Lựa chọn chung gửi cùng điểm cho hai trường contract; nháp cũ giữ điểm riêng nếu chưa sửa | CHANGED — không prefill 5.0; optional; không còn hai hàng sao | `contribution-wizard.view.tsx:204`, `contribution-form.ts:57` |
+| Nhân viên thân thiện | Không có checkin_tag tương ứng; không tạo service_friendly | HIDDEN — thiếu key | `contribution-options.ts:6` |
+| Lên món nhanh | Không có checkin_tag tương ứng; không dùng slow_service đảo nghĩa | HIDDEN — thiếu key | `contribution-options.ts:6` |
+| Nhạc vừa tai | Không có checkin_tag tương ứng; không tạo space_music | HIDDEN — thiếu key | `contribution-options.ts:6` |
+| Footer bước 3: Bước 3 / 3 hoàn thành + Hoàn tất | Nút thật; cho gửi bước 3 trống, chỉ mẹo, chỉ rating, hoặc xoá rating; giữ guard offline/busy/place chưa mở và bước 1–2 | MATCH theo copy + optional override owner | `contribution-wizard.view.tsx:584`, `contribution-form.ts:57` |
+| +70 GoGo Credit / sẵn sàng / nhận thưởng ngay | Hiện +50 tiềm năng; không nâng tổng lên +70 khi chưa có ảnh. Chính sách +20 hiện riêng, có điều kiện duyệt. Không có code cộng credit phía client | HIDDEN tổng +70 — không có menu/bill evidence; không biến sample state thành thưởng thật | `contribution-wizard.view.tsx:319`, `:629` |
+| Gửi địa điểm cho GoGo primary + pill; Lưu nháp secondary | Giữ đúng thứ tự; thêm pill thưởng có điều kiện; không để các trường bước 3 chặn submit. Nháp vẫn có version/conflict/resume/delete | MATCH cấu trúc; CHANGED wording theo owner | `contribution-wizard.view.tsx:620`, `:640` |
+| Quy chuẩn kiểm duyệt GoGo | Giữ copy đã được duyệt: +50 khi được duyệt, thêm +20 cho ảnh được duyệt; không tự hứa 24 giờ | CHANGED theo owner | `contribution-wizard.view.tsx:713`, `src/shared/i18n/vi.ts:1117` |
+| Dark | Cùng cấu trúc/copy/state, dùng token redesign → night; không có source Dark | **FAIL parity: no Stitch Dark**; chưa có ảnh app để đo | `contribution-wizard.style.tsx:4` |
 
-## Verification record
+Các file không có tiền tố ở bảng nằm trong `src/features/place-import/`.
+DEV thực tế: **4/5 purpose, 1/6 vibe, 2/6 checklist, 0/3 rating chips**.
+Không thêm taxonomy để làm đẹp form. Muốn đủ số lượng như source cần backend
+cung cấp key đúng kind và mapping xác minh trước; không đổi endpoint/contract
+trong task này. Option ngoài Stitch và tag nháp cũ ngoài whitelist không đi vào
+submission/draft write. Selection cũ ở bước 1–2 không còn khả dụng vẫn cần bỏ rõ
+ràng; field optional bước 3 không chặn “Hoàn tất” hoặc gửi.
+
+## Verification sau sửa
 
 - `pnpm typecheck`: PASS.
-- `pnpm lint`: PASS, no errors or warnings after fixes.
-- `pnpm api:types` and `pnpm api:check`: PASS.
-- Full `pnpm test`: **113 suites passed, 1 failed, 1 skipped; 1,323 tests passed,
-  3 failed, 39 skipped**. All three failures are in unchanged
-  `src/shared/config/__tests__/distribute-wrapper.test.ts`: live owner lock,
-  live recorded build group, and retained lock after child exit. Those checks
-  require process inspection; this managed sandbox rejects `ps` with
-  `operation not permitted`. No distribution scripts or their tests changed.
-- Full `pnpm test:ui --runInBand`: **182 suites / 2,157 tests PASS**. This broad
-  run preceded the final branch-switch and changed-provider regression cases.
-- Final six place-import/wizard suites: **6 suites / 82 tests PASS**, including
-  those added regression cases and the final form-state implementation.
-- Last owner + both design-drift UI suites: **3 suites / 153 tests PASS**.
-- Focused form, draft API/persistence, design-drift and dark-token Vitest:
-  **4 suites / 51 tests PASS**.
-- Regression sensitivity: deliberately reintroduced ×1,000 conversion into the
-  price serializer; the new minor-unit assertion failed (exit 1). Restored
-  correct serializer; all 51 focused tests passed afterward.
-- UI source audit against `c01b1ff`: **fails=0, warns=0**.
-- Existing installed Prettier formatted the new TypeScript files; no install.
+- `pnpm lint`: PASS, không error/warning.
+- Regression FAIL-before: chạy test form mới với đúng file form từ HEAD
+  `e02440b`; 2 test thất bại, trong đó empty-step-3 trả undefined thay vì payload.
+  Khôi phục file đã sửa: form + draft API **2 suites / 13 tests PASS**.
+- `pnpm test`: **113 suites PASS, 1 FAIL, 1 skipped; 1.324 tests PASS,
+  3 FAIL, 39 skipped**. Cả 3 lỗi ở file không sửa
+  `src/shared/config/__tests__/distribute-wrapper.test.ts`, các dòng 208/234/258.
+  Diagnostic `spawnSync('ps', ...)` trả `{status:null,error:"EPERM"}` trong sandbox.
+  Không sửa distribution script, bỏ assertion, skip test hay đổi permission để
+  tạo kết quả xanh. **Full Vitest chưa xanh; gate bị chặn bởi môi trường.**
+- Full `pnpm test:ui --runInBand`: **182 suites / 2.162 tests PASS**.
+- Lượt cuối sau chỉnh guard taxonomy: **5 suites / 81 tests PASS**, gồm wizard,
+  owner import, resolution-token, future-opening, submission-status. Có kiểm tra
+  nháp cũ, i18n, checklist đầy đủ đúng thứ tự, empty/tips-only/rating-only bước 3.
+  Mỗi bước 3 chỉ có một input và một hàng 5 radio; không render chip ngoài mapping.
 - `git diff --check`: PASS.
+- Không install, native build, commit, push, sửa backend hoặc ghi vào Stitch.
 
-Coverage includes empty forms, back/forward retention, actual taxonomy labels
-in vi/en, empty/loading/error taxonomies, 1–3 vibe cap, integer/currency/scope
-validation, partial drafts, expected versions, explicit resume/delete, conflicts,
-offline/guest/busy states, stale draft completions, unavailable evidence controls,
-reset on link/branch change, provider attribution, existing moderation polling,
-future opening, one stale-token retry, changed provider identity and telemetry
-without user text/tokens/photos.
+Cần device acceptance: chụp app cả 3 bước Light/Dark trên build chứa patch,
+so cạnh ảnh source ở 390pt và narrow/large text, kiểm tra keyboard và VoiceOver.
+Đã đọc/so source HTML + ảnh **3/3**; pixel parity app **0/3, chưa đo**.
+Dark source vẫn thiếu; không tuyên bố 100% visual parity hay DEV acceptance.
 
-NEEDS DEVICE CHECK: all three steps in Light/Dark, 390pt and narrow widths,
-keyboard reveal for prices/dishes/tips, large text, chip wrapping, star controls,
-VoiceOver/TalkBack, and comparison against the three supplied Stitch sources.
-
-TASK GoGo-MobileApp#518 / BASE c01b1ff / HEAD unchanged / PR none
-SCREENS: three wizard steps implemented; app screenshot fidelity unmeasured
-AUDIT: 0 failures, 0 warnings
-QUESTIONS FOR OWNER: no blocking product question; Dark source, evidence upload
-and contribution-inbox route remain the documented external dependencies above.
+TASK GoGo-MobileApp#518 / BASE PR #516 / HEAD e02440b + uncommitted patch
+LEFT: full Vitest môi trường ps EPERM; taxonomy thiếu; upload evidence; device
+visual acceptance; FAIL parity Dark. Không commit/push.

@@ -57,7 +57,7 @@ export function priceValid(form: ContributionForm): boolean {
 export function stepValid(form: ContributionForm, step: number): boolean {
   if (step === 1) return priceValid(form) && form.purposeKeys.length >= 1 && form.purposeKeys.length <= 10
   if (step === 2) return form.vibeKeys.length >= 1 && form.vibeKeys.length <= 3
-  return [form.serviceRating, form.spaceRating].every((n) => Number.isInteger(n) && n >= 1 && n <= 5)
+  return true // Owner 2026-11-07: all of step 3 is optional.
 }
 /** Omitted amenities mean unknown, including when a checked item is deselected. */
 export function draftEnrichment(form: ContributionForm): EnrichmentDraft {
@@ -77,8 +77,12 @@ export function draftEnrichment(form: ContributionForm): EnrichmentDraft {
     ...(Object.keys(form.amenities).length ? { amenities: form.amenities } : {}),
     ...(form.recommendedDishes.trim() ? { recommendedDishes: form.recommendedDishes.trim() } : {}),
     ...(form.visitTips.trim() ? { visitTips: form.visitTips.trim() } : {}),
-    ...(form.serviceRating ? { service: { rating: form.serviceRating, chipKeys: form.serviceChips } } : {}),
-    ...(form.spaceRating ? { space: { rating: form.spaceRating, chipKeys: form.spaceChips } } : {}),
+    ...(Number.isInteger(form.serviceRating) && form.serviceRating >= 1 && form.serviceRating <= 5
+      ? { service: { rating: form.serviceRating, chipKeys: form.serviceChips } }
+      : {}),
+    ...(Number.isInteger(form.spaceRating) && form.spaceRating >= 1 && form.spaceRating <= 5
+      ? { space: { rating: form.spaceRating, chipKeys: form.spaceChips } }
+      : {}),
   }
 }
 export function submissionEnrichment(form: ContributionForm): Enrichment | undefined {

@@ -154,7 +154,7 @@ describe('APP-042 — the resolve proof reaches submit', () => {
 
     await openWithPreview()
     await completeWizard()
-    await fireEvent.changeText(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)'), 'Keep this note')
+    await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep this note')
     await pressSubmit()
 
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
@@ -258,7 +258,7 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
   }
   await openWithPreview()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Mẹo khi ghé (không bắt buộc)'), 'Old A note')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Old A note')
   await pressSubmit()
   await fireEvent.press(screen.getByRole('button', { name: 'Đổi link' }))
   const input = screen.getByPlaceholderText('Dán link Google Maps tại đây...')

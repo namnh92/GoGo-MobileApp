@@ -3,23 +3,44 @@ import { fireEvent, screen } from '@testing-library/react-native'
 /** Contract-shaped reference data, only for tests; labels are supplied by the API. */
 export const contributionTaxonomies = {
   kinds: {
-    suitability: [{ key: 'date', labels: { vi: 'Hẹn hò', en: 'Date' } }],
-    mood: ['quiet', 'acoustic', 'garden', 'lively'].map((key, i) => ({
-      key,
-      labels: { vi: ['Yên tĩnh', 'Nhạc nhẹ', 'Sân vườn', 'Sôi động'][i], en: key },
-    })),
-    amenity: [{ key: 'car_parking', labels: { vi: 'Chỗ đỗ ô tô', en: 'Car parking' } }],
-    checkin_tag: [
-      { key: 'service_friendly', labels: { vi: 'Nhân viên thân thiện', en: 'Friendly staff' } },
-      { key: 'space_quiet', labels: { vi: 'Không gian yên tĩnh', en: 'Quiet space' } },
+    suitability: [
+      { key: 'couple', labels: { vi: 'Cặp đôi', en: 'Couple' } },
+      {
+        key: 'work_reading',
+        labels: { vi: 'Làm việc / đọc sách', en: 'Work / reading' },
+      },
+      { key: 'group', labels: { vi: 'Nhóm bạn', en: 'Group' } },
+      { key: 'family', labels: { vi: 'Gia đình', en: 'Family' } },
     ],
+    mood: [
+      { key: 'festive', labels: { vi: 'Sôi động', en: 'Festive' } },
+      { key: 'chill', labels: { vi: 'Thư giãn', en: 'Chill' } },
+    ],
+    amenity: [
+      { key: 'car_parking', labels: { vi: 'Đỗ ô tô', en: 'Car parking' } },
+      {
+        key: 'pets_allowed',
+        labels: { vi: 'Cho phép thú cưng', en: 'Pets allowed' },
+      },
+      { key: 'wifi', labels: { vi: 'Wi-Fi', en: 'Wi-Fi' } },
+    ],
+    checkin_tag: [{ key: 'quiet', labels: { vi: 'Yên tĩnh', en: 'Quiet' } }],
   },
 }
+
 export function contributionHooks() {
   return {
     useContributionCredits: () => ({}),
-    useTaxonomies: () => ({ data: contributionTaxonomies, isPending: false, isError: false }),
-    useContributionDrafts: () => ({ data: { items: [] }, isPending: false, isError: false }),
+    useTaxonomies: () => ({
+      data: contributionTaxonomies,
+      isPending: false,
+      isError: false,
+    }),
+    useContributionDrafts: () => ({
+      data: { items: [] },
+      isPending: false,
+      isError: false,
+    }),
     useReadContributionDraft: () => ({}),
     useSaveContributionDraft: () => ({}),
     useDeleteContributionDraft: () => ({}),
@@ -27,11 +48,9 @@ export function contributionHooks() {
 }
 export async function completeWizard() {
   if (screen.queryByText('Tiếp tục sang Bước 2')) {
-    await fireEvent.press(screen.getByRole('button', { name: 'Hẹn hò' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Hẹn hò lãng mạn' }))
     await fireEvent.press(screen.getByText('Tiếp tục sang Bước 2'))
-    await fireEvent.press(screen.getByRole('button', { name: 'Yên tĩnh' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Sôi động náo nhiệt' }))
     await fireEvent.press(screen.getByText('Tiếp tục sang Bước 3'))
-    await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ: 4 sao' }))
-    await fireEvent.press(screen.getByRole('radio', { name: 'Không gian: 3 sao' }))
   }
 }
