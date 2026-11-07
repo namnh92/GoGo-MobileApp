@@ -68,7 +68,7 @@ export default function SearchScreen() {
   const [scopeOverridden, setScopeOverridden] = useState(false)
   const savedScope = useMemo(() => suggestions === '1' && categories ? readSuggestionScope(suggestionScope) : null, [suggestions, categories, suggestionScope])
   // Saved's similar-place search keeps its canonical area until the user changes it.
-  useEffect(() => { if (area !== entryArea) setScopeOverridden(true) }, [area, entryArea])
+  if (area !== entryArea && !scopeOverridden) setScopeOverridden(true)
   const scope = !isPicker && !scopeOverridden && savedScope && area === entryArea ? savedScope : resolvedScope
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const [query, setQuery] = useState(q ?? '')

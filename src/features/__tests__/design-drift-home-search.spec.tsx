@@ -1291,3 +1291,22 @@ it('g04 opens ordinary Search with the saved category and canonical area, withou
   expect(mockQueries.at(-1)).toMatchObject({ categories: 'cafe', provinceCode: '79', communeCode: '26734' })
   expect(mockQueries.at(-1)?.lat).toBeUndefined()
 })
+
+it('keeps the app-wide scope after changing areas and returning to the entry area', async () => {
+  const entryArea = { datasetVersion: 'ds-2026', provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null }
+  const savedArea = { ...entryArea, provinceCode: '79', provinceName: 'Thành phố Hồ Chí Minh' }
+  const nextArea = { ...entryArea, provinceCode: '48', provinceName: 'Đà Nẵng' }
+  useDiscoveryAreaStore.setState({ area: entryArea })
+  mockScope = { status: 'ready', source: 'selected_area', area: entryArea }
+  mockParams = { categories: 'cafe', suggestions: '1', suggestionScope: JSON.stringify({ status: 'ready', source: 'selected_area', area: savedArea }) }
+  await renderScreen(<SearchScreen />)
+  expect(mockQueries.at(-1)).toMatchObject({ provinceCode: '79' })
+
+  mockScope = { status: 'ready', source: 'selected_area', area: nextArea }
+  await act(async () => { useDiscoveryAreaStore.setState({ area: nextArea }) })
+  expect(mockQueries.at(-1)).toMatchObject({ provinceCode: '48' })
+
+  mockScope = { status: 'ready', source: 'selected_area', area: entryArea }
+  await act(async () => { useDiscoveryAreaStore.setState({ area: entryArea }) })
+  expect(mockQueries.at(-1)).toMatchObject({ provinceCode: '01' })
+})

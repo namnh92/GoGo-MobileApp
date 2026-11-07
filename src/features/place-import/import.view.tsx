@@ -72,12 +72,12 @@ function providerUnavailable(error: unknown): boolean {
  */
 export default function PlaceImportScreen() {
   const { status } = useSession()
-  const prefillConsumed = useRef(false)
+  const prefillConsumedRef = useRef(false)
   const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
-  return <ImportFlowProvider online={online} registered={status === 'user'}><PlaceImportContent prefillConsumed={prefillConsumed} /></ImportFlowProvider>
+  return <ImportFlowProvider online={online} registered={status === 'user'}><PlaceImportContent prefillConsumedRef={prefillConsumedRef} /></ImportFlowProvider>
 }
 
-function PlaceImportContent({ prefillConsumed }: { prefillConsumed: MutableRefObject<boolean> }) {
+function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: MutableRefObject<boolean> }) {
   const { controller, state } = useImportFlow()
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
@@ -125,14 +125,14 @@ function PlaceImportContent({ prefillConsumed }: { prefillConsumed: MutableRefOb
   useEffect(() => {
     // Consume route input once across session-driven content remounts. The
     // wizard controller remains the sole owner of the link and flow lifetime.
-    if (prefillConsumed.current) return
-    prefillConsumed.current = true
+    if (prefillConsumedRef.current) return
+    prefillConsumedRef.current = true
     const parsed = mapsUrlSchema.safeParse(prefilledUrl)
     if (parsed.success) {
       controller.reset(parsed.data)
       currentUrl.current = parsed.data
     }
-  }, [controller, prefilledUrl, prefillConsumed])
+  }, [controller, prefilledUrl, prefillConsumedRef])
   const attemptGeneration = useRef(0)
   const formGeneration = state.flowGeneration
   const linkFrozen = state.phase === 'retiring' || state.phase === 'submissionUnknown'
