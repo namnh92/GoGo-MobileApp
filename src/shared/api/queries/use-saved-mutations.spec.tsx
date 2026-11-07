@@ -110,6 +110,18 @@ it('holds the per-place turn through automatic retries before allowing PUT', asy
   expect(client.getQueryData<SavedItem[]>(key)?.map(entry => entry.targetId)).toEqual(['canonical'])
 })
 
+it('optimistically removes a saved bookmark and restores its metadata on DELETE failure', async () => {
+  const removal = deferred()
+  mockUnsave.mockReturnValue(removal.promise)
+  const { result } = await renderHook(() => useToggleSaved(), { wrapper })
+  await act(async () => { result.current.mutate({ type: 'place', id: 'canonical', saved: true }) })
+  await waitFor(() => expect(mockUnsave).toHaveBeenCalledTimes(1))
+  expect(client.getQueryData(key)).toEqual([])
+  await act(async () => { removal.reject(new Error('offline')) })
+  await waitFor(() => expect(result.current.isError).toBe(true))
+  expect(client.getQueryData(key)).toEqual([item])
+})
+
 it('confirms an already saved place without duplicating it or replacing its metadata', async () => {
   const { result } = await renderHook(() => useToggleSaved(), { wrapper })
   await act(async () => { await result.current.mutateAsync({ type: 'place', id: 'canonical', saved: false }) })

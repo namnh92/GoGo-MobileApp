@@ -3,6 +3,18 @@ import { StyleSheet } from 'react-native-unistyles'
 import { overlay, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  savedCard: { backgroundColor: theme.redesign.card, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.redesign.savedLine },
+  savedPhoto: { height: 176, backgroundColor: theme.surface.subtle },
+  savedName: { minWidth: 0 },
+  savedHeading: { gap: 2, minWidth: 0 },
+  savedBody: { padding: 14, gap: 8, minWidth: 0 },
+  savedPhotoBadges: { position: 'absolute', left: 10, right: 10, bottom: 10, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
+  savedPhotoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: theme.redesign.savedPhotoScrim },
+  savedOpenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.redesign.savedOpenDot },
+  savedGoogleBadge: { maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: theme.redesign.savedGoogleFill, borderWidth: 1, borderColor: theme.redesign.savedGoogleLine },
+  savedNeutralBadge: { maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: theme.redesign.savedChip },
+  savedTaxonomyRow: { borderTopWidth: 1, borderTopColor: theme.redesign.savedChip, paddingTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  savedTags: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   unavailablePhoto: { opacity: 0.5 },
   unavailableName: { textDecorationLine: 'line-through' },
   savedCredits: { paddingHorizontal: 16, paddingBottom: 12 },

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đã lưu · Thành phố Hà Nội - GoGo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#FDF4F2',
+              100: '#FCE7E4',
+              500: '#CE391B',
+              600: '#B82F15',
+              700: '#96230E',
+            },
+            canvas: '#FAF7F2',
+            surface: '#FFFFFF',
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #FAF7F2;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-[#FAF7F2] text-neutral-900 min-h-screen flex justify-center selection:bg-brand-100">
+  <!-- Mobile Container (Max 430px) -->
+  <div class="w-full max-w-[430px] min-h-screen bg-[#FAF7F2] flex flex-col relative pb-24 shadow-sm">
+
+    <!-- 1. HEADER (Sticky top) -->
+    <header class="sticky top-0 z-40 bg-[#FAF7F2]/95 backdrop-blur-md px-4 pt-3 pb-3 border-b border-neutral-200/50 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Back button (44x44 tap target) -->
+        <button type="button" aria-label="Quay lại" class="w-11 h-11 rounded-full bg-white border border-neutral-200/80 shadow-xs flex items-center justify-center text-neutral-800 active:scale-95 transition-transform hover:bg-neutral-50">
+          <i class="fa-solid fa-chevron-left text-base"></i>
+        </button>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold text-neutral-900 leading-tight">Thành phố Hà Nội</h1>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-600 border border-brand-100">
+              12 địa điểm
+            </span>
+          </div>
+          <p class="text-[11px] text-neutral-500 font-medium">Danh sách các địa điểm bạn đã lưu</p>
+        </div>
+      </div>
+
+      <!-- Bell Icon (no avatar) -->
+      <button type="button" aria-label="Thông báo" class="w-11 h-11 rounded-full bg-white border border-neutral-200/80 shadow-xs flex items-center justify-center text-neutral-800 active:scale-95 transition-transform hover:bg-neutral-50 relative">
+        <i class="fa-regular fa-bell text-lg"></i>
+        <span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-brand-500 ring-2 ring-white"></span>
+      </button>
+    </header>
+
+    <!-- MAIN CONTENT: WARD SECTIONS -->
+    <main class="flex-1 px-4 py-4 space-y-6">
+
+      <!-- ============================================== -->
+      <!-- SECTION 1: PHƯỜNG BA ĐÌNH (3 địa điểm) -->
+      <!-- ============================================== -->
+      <section class="space-y-3.5">
+        <!-- Section Heading -->
+        <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center gap-2">
+            <h2 class="text-[15px] font-bold text-neutral-800 tracking-tight">Phường Ba Đình</h2>
+            <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-neutral-200/80 text-neutral-700 min-w-[20px]">
+              3
+            </span>
+          </div>
+        </div>
+
+        <!-- Place Cards Stack -->
+        <div class="space-y-3.5">
+          <!-- Card 1: Cà phê Giảng -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <!-- Photo container with chips & menu button -->
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1UOG-zRUakBuGF4s4d2-9Utp4opkmylFW94kSoaxfway_hvV5BXns4IdD1K60wqaUFN7jrlFziRtGrCq6ShC5FEl6BjKS5zpaeF1f-4UQC7b7Jbm2-HJPm-HdAoGkkBa3ky4gUQYkgwHwaWRtoDMgEGZ_JoIWkh6cqUu2QpSTCF_iVLtF0tVvlR47LDXclJrSmhQ_ul5VPc3Sck8UaJctswYAv5BIzyEgb1ICYxYR6jCbcwDw_l4GGd7IQa" alt="Cà phê Trứng Giảng" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <!-- Overlay chips top/bottom -->
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 22:30
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Cà phê truyền thống
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 1.2 km
+                </span>
+              </div>
+              <!-- Round 3-dot menu button (Only Bỏ lưu) -->
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Cà phê Trứng Giảng - Nguyễn Hữu Huân</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">39 Nguyễn Hữu Huân, P. Ba Đình, TP. Hà Nội</p>
+              </div>
+
+              <!-- Ratings row -->
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,8 (604) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <!-- Taxonomy Tag Chips & Price -->
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Cà phê trứng</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Lịch sử vintage</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Đặc sản Hà Nội</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">45k - 65k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 2: Bún chả Hương Liên -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1VQG9lzhtrkdLgOvrsFgrTnfl0LusLMEa9IcQQGMAP3yvpROVu0y9rzHrPCbp2tTmnp9dvHtCW3FlwI3fig_EggJIaYLKfv49Ub23GphmkmW3XCUYk6mUbiCYxgk6thzF3k1bFqBsP8uthpbo3fsX3ONwb38Ay-LJuNX5-Okk6VPeOtrQ9mWMdYmHneiraCoVlFUXXuoJd5KHTnWndSQuBeMGVsJy197k60mAy2ChdOhYy_J2MaeQfDxnI" alt="Bún chả Hương Liên" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 21:00
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Ẩm thực truyền thống
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 1.8 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Bún chả Hương Liên (Obama)</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">24 Lê Văn Hưu, P. Ba Đình, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,5 (1.820) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Bún chả nướng than</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Nem cua bể</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">70k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 3: Loading T Café (No price example) -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1UOG-zRUakBuGF4s4d2-9Utp4opkmylFW94kSoaxfway_hvV5BXns4IdD1K60wqaUFN7jrlFziRtGrCq6ShC5FEl6BjKS5zpaeF1f-4UQC7b7Jbm2-HJPm-HdAoGkkBa3ky4gUQYkgwHwaWRtoDMgEGZ_JoIWkh6cqUu2QpSTCF_iVLtF0tVvlR47LDXclJrSmhQ_ul5VPc3Sck8UaJctswYAv5BIzyEgb1ICYxYR6jCbcwDw_l4GGd7IQa" alt="Loading T Café" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 22:00
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Biệt thự Pháp cổ
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 2.1 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Loading T Café - Biệt Thự Cổ</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">Số 8 Chân Cầm, P. Ba Đình, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,7 (450) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Trà thảo mộc</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Không gian chill</span>
+                </div>
+                <!-- No price shown if unknown per prompt requirement -->
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- SECTION 2: PHƯỜNG HOÀN KIẾM (4 địa điểm) -->
+      <!-- ============================================== -->
+      <section class="space-y-3.5 pt-2">
+        <!-- Section Heading -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h2 class="text-[15px] font-bold text-neutral-800 tracking-tight">Phường Hoàn Kiếm</h2>
+            <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-neutral-200/80 text-neutral-700 min-w-[20px]">
+              4
+            </span>
+          </div>
+        </div>
+
+        <div class="space-y-3.5">
+          <!-- Card 4: Kem Tràng Tiền -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1VjLTGP9JpO1E5DCu6spvwuUvWnfxlZb1Wowm6ZVzjwSl3kDrS6Ub3BAujDZ9fL67EjBqSaRrRLt26xdhC5oKu4Lv0p5vv6bhs9TcSoFKDH19iPxvq9TGPHX58GHXtbL3x3QdjDS4fNB7RYf4K8GRnEszABKVKn8f9uEp9vOESDOowW39YPi0d59p367cZEfwBNrxAITRjwAZtD9ru_ifLdRuMjytgYX6WlGzQts3Vjkm38L-LfyZzSV4h3" alt="Kem Tràng Tiền" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 23:00
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Kem & Tráng miệng
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 0.5 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Kem Tràng Tiền - 35 Tràng Tiền</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">35 Tràng Tiền, P. Hoàn Kiếm, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,4 (12.618) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Kem ốc quế cốm</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Phố đi bộ</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">Dưới 50k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 5: Pizza 4P's Tràng Tiền -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1Vq2cBh0QAj9Y6K06i2xgL3BtgPcpS2brZZUQHmk7x8nkI4fn6q7m7wPj3YtGpGKGtugTlTrGPbPE2bP4R0cdG8p9EaE6JR1k1L3Ovp_ZhFDBn1nypgiwWUAO_zyWyIBYElEF-sFEJW0968hQfdyAMZggGIpSvnMAzAEAoyk5IWX7N9_7iBGWo7wr8Xzr3cpOJWH6GBszGQDApgjl1Hhoksuf4kjj4_nAGHioJM6e6OsrHz_TguEtP6RoW0" alt="Pizza 4P's Tràng Tiền" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 22:30
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Pizza & Nhà hàng
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 0.7 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Pizza 4P's - Tràng Tiền</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">43 Tràng Tiền, P. Hoàn Kiếm, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,8 (4.650) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Phô mai Burrata</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Hẹn hò lãng mạn</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">280k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 6: Cộng Cà Phê Hàng Bè -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1UOG-zRUakBuGF4s4d2-9Utp4opkmylFW94kSoaxfway_hvV5BXns4IdD1K60wqaUFN7jrlFziRtGrCq6ShC5FEl6BjKS5zpaeF1f-4UQC7b7Jbm2-HJPm-HdAoGkkBa3ky4gUQYkgwHwaWRtoDMgEGZ_JoIWkh6cqUu2QpSTCF_iVLtF0tVvlR47LDXclJrSmhQ_ul5VPc3Sck8UaJctswYAv5BIzyEgb1ICYxYR6jCbcwDw_l4GGd7IQa" alt="Cộng Cà Phê Hàng Bè" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 23:30
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Cà phê retro
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 0.3 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Cộng Cà Phê - Hàng Bè</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">35A Hàng Bè, P. Hoàn Kiếm, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,5 (1.420) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Cà phê cốt dừa</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Bao cấp hoài niệm</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">55k - 75k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 7: Phở Thìn Lò Đúc -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1VQG9lzhtrkdLgOvrsFgrTnfl0LusLMEa9IcQQGMAP3yvpROVu0y9rzHrPCbp2tTmnp9dvHtCW3FlwI3fig_EggJIaYLKfv49Ub23GphmkmW3XCUYk6mUbiCYxgk6thzF3k1bFqBsP8uthpbo3fsX3ONwb38Ay-LJuNX5-Okk6VPeOtrQ9mWMdYmHneiraCoVlFUXXuoJd5KHTnWndSQuBeMGVsJy197k60mAy2ChdOhYy_J2MaeQfDxnI" alt="Phở Thìn Lò Đúc" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 20:30
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Ẩm thực gia truyền
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 1.5 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Phở Thìn Lò Đúc - Phở Bò Tái Lăn</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">13 Lò Đúc, P. Hoàn Kiếm, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,3 (2.190) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Phở tái lăn đậm đà</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Quẩy giòn</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">90k/người</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- SECTION 3: PHƯỜNG CẦU GIẤY (5 địa điểm) -->
+      <!-- ============================================== -->
+      <section class="space-y-3.5 pt-2">
+        <!-- Section Heading -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h2 class="text-[15px] font-bold text-neutral-800 tracking-tight">Phường Cầu Giấy</h2>
+            <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-neutral-200/80 text-neutral-700 min-w-[20px]">
+              5
+            </span>
+          </div>
+        </div>
+
+        <div class="space-y-3.5">
+          <!-- Card 8: The Coffee House Cầu Giấy -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1UOG-zRUakBuGF4s4d2-9Utp4opkmylFW94kSoaxfway_hvV5BXns4IdD1K60wqaUFN7jrlFziRtGrCq6ShC5FEl6BjKS5zpaeF1f-4UQC7b7Jbm2-HJPm-HdAoGkkBa3ky4gUQYkgwHwaWRtoDMgEGZ_JoIWkh6cqUu2QpSTCF_iVLtF0tVvlR47LDXclJrSmhQ_ul5VPc3Sck8UaJctswYAv5BIzyEgb1ICYxYR6jCbcwDw_l4GGd7IQa" alt="The Coffee House" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 22:30
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Cà phê làm việc
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 3.5 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">The Coffee House - Cầu Giấy</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">122 Cầu Giấy, P. Cầu Giấy, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,5 (980) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Trà đào cam sả</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Máy lạnh êm</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">55k - 70k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 9: Bánh mì chảo Cột Điện (No price example) -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1VQG9lzhtrkdLgOvrsFgrTnfl0LusLMEa9IcQQGMAP3yvpROVu0y9rzHrPCbp2tTmnp9dvHtCW3FlwI3fig_EggJIaYLKfv49Ub23GphmkmW3XCUYk6mUbiCYxgk6thzF3k1bFqBsP8uthpbo3fsX3ONwb38Ay-LJuNX5-Okk6VPeOtrQ9mWMdYmHneiraCoVlFUXXuoJd5KHTnWndSQuBeMGVsJy197k60mAy2ChdOhYy_J2MaeQfDxnI" alt="Bánh mì chảo Cột Điện" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 22:00
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Ăn vặt & Bánh mì
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 3.8 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Bánh Mì Chảo Cột Điện Quán</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">71 Đặng Văn Ngữ kéo dài, P. Cầu Giấy, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,3 (1.240) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Chảo đầy đủ</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Sốt pate béo ngậy</span>
+                </div>
+                <!-- Price omitted if unknown per specification -->
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 10: All Day Coffee -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1UOG-zRUakBuGF4s4d2-9Utp4opkmylFW94kSoaxfway_hvV5BXns4IdD1K60wqaUFN7jrlFziRtGrCq6ShC5FEl6BjKS5zpaeF1f-4UQC7b7Jbm2-HJPm-HdAoGkkBa3ky4gUQYkgwHwaWRtoDMgEGZ_JoIWkh6cqUu2QpSTCF_iVLtF0tVvlR47LDXclJrSmhQ_ul5VPc3Sck8UaJctswYAv5BIzyEgb1ICYxYR6jCbcwDw_l4GGd7IQa" alt="All Day Coffee" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 23:00
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Cà phê specialty
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 4.1 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">All Day Coffee - Trung Hòa</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">37 Trung Hòa, P. Cầu Giấy, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,6 (890) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Cold Brew cam</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Không gian ấm cúng</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">75k - 95k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 11: Nét Huế Cầu Giấy -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1VQG9lzhtrkdLgOvrsFgrTnfl0LusLMEa9IcQQGMAP3yvpROVu0y9rzHrPCbp2tTmnp9dvHtCW3FlwI3fig_EggJIaYLKfv49Ub23GphmkmW3XCUYk6mUbiCYxgk6thzF3k1bFqBsP8uthpbo3fsX3ONwb38Ay-LJuNX5-Okk6VPeOtrQ9mWMdYmHneiraCoVlFUXXuoJd5KHTnWndSQuBeMGVsJy197k60mAy2ChdOhYy_J2MaeQfDxnI" alt="Nét Huế Cầu Giấy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 21:30
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Món ngon miền Trung
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 4.4 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Nhà Hàng Nét Huế - Trần Duy Hưng</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">83 Trần Duy Hưng, P. Cầu Giấy, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,4 (670) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Bún bò Huế</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Bánh bèo nậm lọc</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">120k/người</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 12: Ka Coffee Cầu Giấy -->
+          <article class="bg-white rounded-2xl overflow-hidden border border-neutral-200/70 shadow-xs flex flex-col group transition-all">
+            <div class="relative w-full h-44 overflow-hidden bg-neutral-100">
+              <img src="https://lh3.googleusercontent.com/aida/AEtjO1UOG-zRUakBuGF4s4d2-9Utp4opkmylFW94kSoaxfway_hvV5BXns4IdD1K60wqaUFN7jrlFziRtGrCq6ShC5FEl6BjKS5zpaeF1f-4UQC7b7Jbm2-HJPm-HdAoGkkBa3ky4gUQYkgwHwaWRtoDMgEGZ_JoIWkh6cqUu2QpSTCF_iVLtF0tVvlR47LDXclJrSmhQ_ul5VPc3Sck8UaJctswYAv5BIzyEgb1ICYxYR6jCbcwDw_l4GGd7IQa" alt="Ka Coffee" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mở đến 22:30
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  Cà phê mộc
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/60 backdrop-blur-md text-white border border-white/10">
+                  <i class="fa-solid fa-location-arrow text-[10px]"></i> 4.7 km
+                </span>
+              </div>
+              <div class="absolute top-2.5 right-2.5">
+                <button type="button" aria-label="Thao tác" class="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-neutral-700 shadow-sm flex items-center justify-center hover:bg-white active:scale-90 transition">
+                  <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-2">
+              <div>
+                <h3 class="font-bold text-base text-neutral-900 leading-snug">Ka Coffee - Ngõ 102 Vũ Phạm Hàm</h3>
+                <p class="text-xs text-neutral-500 mt-0.5 line-clamp-1">Số 8 Ngõ 102 Vũ Phạm Hàm, P. Cầu Giấy, TP. Hà Nội</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> 4,8 (312) Google
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
+                  GoGo · Chưa đủ đánh giá (0)
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-neutral-100">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Cà phê không vội</span>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-600">Sân vườn yên tĩnh</span>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0 ml-2">45k - 60k/người</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Bottom padding block so last card scrolls cleanly above tab bar -->
+      <div class="h-6"></div>
+    </main>
+
+    <!-- 4. BOTTOM TAB BAR (Identical to "Đã lưu - GoGo", "Đã lưu" active) -->
+    <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white/95 backdrop-blur-md border-t border-neutral-200/70 px-6 py-2.5 flex items-center justify-between shadow-lg">
+      <!-- Tab 1: Khám phá -->
+      <a href="#" class="flex flex-col items-center gap-1 text-neutral-400 hover:text-neutral-600 transition-colors">
+        <i class="fa-regular fa-compass text-xl"></i>
+        <span class="text-[11px] font-medium">Khám phá</span>
+      </a>
+
+      <!-- Tab 2: Kế hoạch -->
+      <a href="#" class="flex flex-col items-center gap-1 text-neutral-400 hover:text-neutral-600 transition-colors">
+        <i class="fa-regular fa-calendar text-xl"></i>
+        <span class="text-[11px] font-medium">Kế hoạch</span>
+      </a>
+
+      <!-- Tab 3: Đã lưu (Active) -->
+      <a href="#" class="flex flex-col items-center gap-1 text-brand-600 relative">
+        <i class="fa-solid fa-bookmark text-xl text-brand-500"></i>
+        <span class="text-[11px] font-bold text-brand-600">Đã lưu</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-brand-500 mt-0.5"></span>
+      </a>
+
+      <!-- Tab 4: Cá nhân -->
+      <a href="#" class="flex flex-col items-center gap-1 text-neutral-400 hover:text-neutral-600 transition-colors">
+        <i class="fa-regular fa-user text-xl"></i>
+        <span class="text-[11px] font-medium">Cá nhân</span>
+      </a>
+    </nav>
+
+  </div>
+</body>
+</html>

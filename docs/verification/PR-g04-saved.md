@@ -1,5 +1,10 @@
 # Group 04 — Đã lưu
 
+Issue #531 supersedes the in-place city-filter and removal-only menu decisions
+below: city actions push a separate ward list, and the dated owner decision 2026-11-08 replaces card
+menus with the shared filled bookmark. Closed cards retain standalone similar
+search. See [city navigation verification](GOGO-531-saved-city.md).
+
 Owner decisions: **2026-11-07**, revised after the simulator screenshot. Worktree baseline **3f181d8**, initially clean. No install, commit or push performed. Current-area #520 remains a rebase TODO.
 
 ## Design evidence and limits

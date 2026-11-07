@@ -436,7 +436,9 @@ describe('g04 Saved reference card', () => {
     const create = jest.spyOn(UnistylesStyleSheet, 'create')
     jest.isolateModules(() => { jest.requireActual('../place-card.style') })
     const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
-    expect(factory(themes[themeName]).discoveryCard.backgroundColor).toBe(themes[themeName].redesign.card)
+    expect(factory(themes[themeName]).savedCard).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderRadius: 16 })
+    expect(factory(themes[themeName]).savedPhoto).toMatchObject({ height: 176 })
+    expect(factory(themes[themeName]).savedPhotoBadge.backgroundColor).toBe(themes[themeName].redesign.savedPhotoScrim)
     create.mockRestore()
     await render(<PlaceCard appearance="saved" place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
     expect(screen.getByTestId('place-card-saved')).toBeTruthy()
@@ -445,8 +447,20 @@ describe('g04 Saved reference card', () => {
     expect(screen.getByText('45k–90k/người')).toBeTruthy()
     expect(screen.getByText('Siphon')).toBeTruthy()
     expect(screen.getByTestId('saved-photo-attribution')).toHaveTextContent(/Google/)
-    expect(screen.getByText('● Mở đến 20:00').props.numberOfLines).toBe(1)
+    expect(screen.getByText('Mở đến 20:00').props.numberOfLines).toBe(1)
   })
+  it('uses the shared filled bookmark on Saved cards without opening the card', async () => {
+    const remove = jest.fn()
+    const open = jest.fn()
+    await render(<PlaceCard appearance="saved" place={fixture()} saved onToggleSave={remove} onPress={open} />)
+    const bookmark = screen.getByRole('togglebutton', { name: 'Bỏ lưu' })
+    expect(bookmark.props.accessibilityState.checked).toBe(true)
+    expect(screen.getByTestId('icon-bookmark-filled')).toBeTruthy()
+    await act(async () => { await fireEvent.press(bookmark) })
+    expect(remove).toHaveBeenCalledTimes(1)
+    expect(open).not.toHaveBeenCalled()
+  })
+
   it('keeps the real sample count below the community threshold and hides unknown price', async () => {
     await render(<PlaceCard appearance="saved" place={fixture({ priceMin: null, priceMax: null, gogoRatingCount: 3 })} />)
     expect(screen.getByText('GoGo · Chưa đủ đánh giá (3)')).toBeTruthy()

@@ -46,6 +46,7 @@ export const SCREEN_TEMPLATES: ReadonlySet<string> = new Set([
   '/room/[roomId]/preference',
   '/room/[roomId]/shared-result',
   '/room/[roomId]/swipe',
+  '/saved/city/[provinceCode]',
   '/settings/account',
   '/settings/location',
   '/settings/notifications',
