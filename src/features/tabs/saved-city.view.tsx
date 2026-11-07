@@ -45,8 +45,7 @@ export default function SavedCityScreen() {
       <View style={styles.bell}><HeaderNotificationButton testID="saved-city-bell" unreadDotTestID="saved-city-unread" /></View>
     </View>
   )} renderBottomBar={() => (
-    <View testID="saved-city-tabs" style={[styles.dock, { paddingBottom: insets.bottom }]}>
-      <GlassBar />
+    <GlassBar testID="saved-city-tabs" style={[styles.dock, { paddingBottom: insets.bottom }]}>
       <View style={styles.tabs}>
         {tabs.map(({ key, href, icon: TabIcon }) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={t(`tabs.${key}`)} accessibilityState={{ selected: key === 'saved' }} onPress={() => router.replace(href)} style={styles.tab}>
           <TabIcon active={key === 'saved'} />
@@ -54,6 +53,6 @@ export default function SavedCityScreen() {
           {key === 'saved' ? <View style={styles.activeDot} /> : null}
         </Pressable>)}
       </View>
-    </View>
+    </GlassBar>
   )} />
 }

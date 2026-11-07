@@ -1,7 +1,9 @@
 import i18n from '@/shared/i18n'
 import { useAppAreaStore } from '@/shared/location/app-area'
-import { act, fireEvent } from '@testing-library/react-native'
-import { Platform } from 'react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
+import { Platform, StyleSheet } from 'react-native'
+
+import { TAB_BAR_HEIGHT } from '@/shared/ui/bottom-bar-inset'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
@@ -115,6 +117,27 @@ beforeEach(() => {
 afterEach(() => { Platform.OS = originalOS })
 
 describe('Saved by area', () => {
+  it.each(['ios', 'android'] as const)('covers the city tabs and bottom safe area with glass (%s)', async os => {
+    Platform.OS = os
+    const view = await renderScreen(<SavedCityScreen />)
+    const dock = view.getByTestId('saved-city-tabs')
+    const wash = within(dock).getByTestId('glass-bar-wash')
+    // The material must fill the dock that contains both the tabs and safe area,
+    // rather than a childless sibling that collapses to its top hairline.
+    expect(wash.parent === dock).toBe(true)
+    expect(StyleSheet.flatten(wash.props.style)).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 })
+    expect(StyleSheet.flatten(dock.props.style)).toMatchObject({ position: 'absolute', bottom: 0, paddingBottom: 34, borderTopWidth: 1 })
+    const tabs = within(dock).getAllByRole('tab')
+    expect(tabs).toHaveLength(4)
+    const row = tabs[0]!.parent!
+    expect(row.parent === dock).toBe(true)
+    expect(StyleSheet.flatten(row.props.style).height).toBe(TAB_BAR_HEIGHT)
+    expect(tabs.every(tab => tab.parent === row)).toBe(true)
+    expect(tabs[2]!.props.accessibilityState).toMatchObject({ selected: true })
+    await press(tabs[0]!)
+    expect(mockReplace).toHaveBeenCalledWith('/')
+  })
+
   it('offers city saved-place lists without maps', async () => {
     const view = await renderScreen(<SavedScreen />)
     expect(view.getByText('Chợ Bến Thành')).toBeTruthy()

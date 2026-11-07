@@ -70,3 +70,36 @@ roots và là file sinh tự động; ghi bằng chứng ở worktree này để
 - `git diff --check`: PASS.
 
 Không claim native visual acceptance hoặc DEV/backend acceptance.
+
+## PR #532 — sửa Astra r1 F-01 (2026-11-08)
+
+Base `c9043b3`, HEAD giữ nguyên `a60c154`; patch chưa commit/push.
+`GlassBar` nay bao cả hàng tab và padding safe area của dock thành phố.
+Material và wash phủ toàn bộ dock thay vì nằm trong một sibling rỗng chỉ cao
+bằng hairline. Không đổi primitive dùng chung hoặc geometry của hàng tab.
+
+Đã kiểm tra các màn trong diff và toàn bộ caller `GlassBar`:
+
+- Saved overview dùng navigator chung với Home/Plans/Profile: background có
+  absolute fill, chiều cao gồm `TAB_BAR_HEIGHT + insets.bottom`.
+- City là caller duy nhất có glass rỗng không có fill sizing. Các action bar
+  và composer còn lại có children định kích thước; không thấy cùng lỗi collapse.
+
+Regression trong `saved-areas.spec.tsx` dùng `GlassBar` thật, kiểm tra iOS blur
+và Android wash: material fill cùng dock với bốn tab, safe area 34pt, chiều cao
+hàng tab, tab Đã lưu selected và điều hướng Home. Assertion material/dock đỏ
+trước sửa, xanh sau sửa; focused suite 26/26 PASS. Jest không đo native pixels;
+chưa xác minh lại screenshot trên thiết bị/simulator.
+
+Log lượt này ở `/tmp/mobile-532-{typecheck,lint,test,ui}.log` và
+`/tmp/mobile-532-regression-{before,after}.log`.
+
+- `pnpm typecheck`: PASS, exit 0.
+- `pnpm lint`: PASS, exit 0.
+- `pnpm test`: exit 1; 134 suites / 1.573 tests PASS, 1 suite / 39 tests
+  skipped, 3 tests FAIL trong `distribute-wrapper.test.ts` (208/234/258).
+  Test và script distribution không đổi so với HEAD. Probe trực tiếp xác nhận
+  `spawnSync('ps', ...)` bị `EPERM`, `pgrep` exit 3: `Cannot get process list`
+  / `sysmond service not found`. Không bỏ qua hoặc sửa test để né sandbox.
+- `pnpm test:ui --runInBand`: PASS, exit 0; 193 suites / 2.342 tests.
+- `git diff --check`: PASS.
