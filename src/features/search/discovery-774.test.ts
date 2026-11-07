@@ -17,7 +17,7 @@ describe('#774 server facts', () => {
     expect(toPlaceCard({ id: 'old', confidence: 1 } as PlaceSearchResult).discovery).toBeUndefined()
   })
   it('accepts amenity and future taxonomy kinds, omitting tags without server labels', () => {
-    const labels = discoveryLabels({ kinds: {
+    const labels = discoveryLabels({ version: 1, kinds: {
       amenity: [{ key: 'wifi', labels: { vi: 'Wi-Fi' } }],
       future_kind: [{ key: 'new_key', labels: { vi: 'Nhãn mới' } }],
     } } satisfies OpResponse<'listTaxonomies'>, 'vi-VN')

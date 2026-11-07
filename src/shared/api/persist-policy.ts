@@ -1,12 +1,13 @@
 /**
  * Offline cache for the active date: the current plan and the place summaries
- * it references must stay readable with a flaky connection. Only those keys are
- * persisted — search results and suggestion runs are deliberately not.
+ * it references must stay readable with a flaky connection. Profile and public
+ * reference datasets (administrative units and taxonomies) persist too; search
+ * results and suggestion runs do not.
  *
  * Kept free of React Native imports so the policy can be tested on its own; the
  * persister that uses it lives in `query-client.ts`.
  */
-const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me', 'administrative']
+const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me', 'administrative', 'taxonomies']
 
 /**
  * List keys put their discriminator right after the root — `['places',

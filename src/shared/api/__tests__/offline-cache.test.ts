@@ -51,7 +51,8 @@ describe('shouldPersistQuery', () => {
 
   it('drops anything outside the allowed roots', () => {
     expect(shouldPersistQuery(['suggestions', 'room-1'])).toBe(false)
-    expect(shouldPersistQuery(['taxonomies'])).toBe(false)
+    expect(shouldPersistQuery(queryKeys.taxonomies('vi'))).toBe(true)
+    expect(shouldPersistQuery(queryKeys.taxonomyVersion('en', 1))).toBe(true)
     expect(shouldPersistQuery(['notifications'])).toBe(false)
   })
 

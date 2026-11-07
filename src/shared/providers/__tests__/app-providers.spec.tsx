@@ -41,6 +41,9 @@ jest.mock('@/shared/notifications/identity-bootstrap', () => ({
   initializePushIdentity: () => mockInitializeIdentity(),
 }))
 
+// Taxonomy persistence/hydration has its own integration spec; this suite owns native startup.
+jest.mock('@/shared/api/queries/use-preferences', () => ({ useTaxonomies: jest.fn() }))
+
 jest.mock('@/shared/acquisition/bootstrap', () => ({ initializeAcquisitionSdk: () => undefined }))
 
 jest.mock('@/shared/providers/session-provider', () => ({

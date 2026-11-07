@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import * as preferencesApi from '../endpoints/preferences'
 import { queryKeys } from '../query-keys'
+import { taxonomyOptions, selectTaxonomies } from '../taxonomy-cache'
 import type { OpBody, OpQuery } from '../types'
 
 /** My private draft — never another member's selections. */
@@ -44,15 +45,14 @@ export function useCompleteMyPreferences(roomId: string) {
   })
 }
 
-/**
- * Taxonomy is public, static-ish reference data: stable keys plus locale
- * labels. Cached long because it only changes when the CMS publishes.
- */
+/** All taxonomy consumers share one persisted full representation per locale. */
 export function useTaxonomies(query?: OpQuery<'listTaxonomies'>) {
+  const client = useQueryClient()
+  const { i18n } = useTranslation()
+  const locale = query?.locale ?? i18n.language.split('-')[0]!
   return useQuery({
-    queryKey: queryKeys.taxonomies(query?.kinds),
-    queryFn: () => preferencesApi.listTaxonomies(query),
-    staleTime: 60 * 60 * 1000,
+    ...taxonomyOptions(client, locale),
+    select: cached => selectTaxonomies(cached, query?.kinds),
   })
 }
 
