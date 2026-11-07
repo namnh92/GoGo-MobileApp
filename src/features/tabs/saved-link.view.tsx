@@ -8,6 +8,7 @@ import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { PrimaryBtn } from '@/shared/ui/primitives'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { Text } from '@/shared/ui/text'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { TextInput } from '@/shared/ui/text-input'
 import { styles } from './saved.style'
 
@@ -50,11 +51,11 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
     finally { busy.current = false; if (active.current) setPending(false) }
   }
   return <View style={styles.linkCard}>
-    <Text variant="introLabel" color="redesign.ink">{t('saved.quickLink')}</Text>
     <View style={styles.linkRow}>
+      <MaterialIcon name="link" size={18} color="text.secondary" />
       <TextInput testID="saved-link-input" value={url} onChangeText={value => { setUrl(value); setInvalid(false) }} editable={!pending}
         accessibilityLabel={t('placeImport.linkLabel')} placeholder={t('saved.linkPlaceholder')} autoCapitalize="none" autoCorrect={false} keyboardType="url" style={styles.linkInput} />
-      <PrimaryBtn label={t('saved.saveLink')} onPress={() => void save()} loading={pending} disabled={pending || !url.trim()} />
+      <PrimaryBtn label={t('saved.saveLink')} style={styles.linkButton} onPress={() => void save()} loading={pending} disabled={pending || !url.trim()} />
     </View>
     {invalid ? <Text variant="caption" color="status.dangerText">{t('saved.googleOnly')}</Text> : null}
     <ResultSheet visible={failed} variant="error" title={t('saved.linkFailed')} body={t('saved.retryBody')}

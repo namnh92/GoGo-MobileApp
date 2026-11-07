@@ -1,19 +1,10 @@
-import type { Plan, SavedEntry } from '@/shared/api'
-import { discoveryMap } from '@/features/search/discovery-map'
+import type { SavedEntry } from '@/shared/api'
 
 /** Provider closures and moderation are independent of weekly opening hours. */
 export function savedUnavailable(place: NonNullable<SavedEntry['place']>): string | null {
   if (['closed', 'temporarily_closed', 'moved'].includes(place.providerStatus?.status ?? '')) return place.providerStatus!.status
   if (['hidden', 'removed', 'rejected', 'archived'].includes(place.moderationStatus ?? '')) return 'unavailable'
   return null
-}
-
-export function savedGroupPins(entries: SavedEntry[]) {
-  return discoveryMap({ status: 'ready', source: 'none', reason: 'no_area' }, entries.flatMap(entry => entry.type === 'place' && entry.place ? [entry.place] : [])).pins
-}
-
-export function orderedSavedStops(plan?: Plan) {
-  return [...(plan?.stops ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 }
 
 /** Straight-line estimate from a fresh GPS fix, never routed travel distance. */

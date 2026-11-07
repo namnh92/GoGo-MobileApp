@@ -1,4 +1,6 @@
 import { act, fireEvent } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native-unistyles'
+import { themes, type AppTheme } from '@/shared/ui/theme'
 import { renderScreen } from './harness'
 import { SavedLink } from '@/features/tabs/saved-link.view'
 const mockPush = jest.fn()
@@ -64,4 +66,24 @@ it('does not save or navigate if the user leaves while link resolution is pendin
   expect(mockSave).not.toHaveBeenCalled()
   expect(mockPush).not.toHaveBeenCalled()
   expect(mockFeedback).not.toHaveBeenCalled()
+})
+
+it('uses the compact row with no separate quick-save title', async () => {
+  const view = await renderScreen(<SavedLink onFeedback={mockFeedback} />)
+  expect(view.getByPlaceholderText('Dán link Google Maps để lưu')).toBeTruthy()
+  expect(view.queryByText('Lưu nhanh từ link')).toBeNull()
+})
+
+it.each(['orange', 'orangeDark'] as const)('keeps the quick-save row compact and uses theme colors (%s)', themeName => {
+  const create = jest.spyOn(StyleSheet, 'create')
+  jest.isolateModules(() => { jest.requireActual('../tabs/saved.style') })
+  const factory = create.mock.calls[0]![0] as (theme: AppTheme) => Record<string, Record<string, unknown>>
+  const theme = themes[themeName]
+  const styles = factory(theme)
+  create.mockRestore()
+  expect(styles.linkRow).toMatchObject({ minHeight: 44, flexDirection: 'row' })
+  expect(styles.linkButton).toMatchObject({ height: 44, paddingVertical: 0 })
+  expect(styles.linkCard.padding).toBeUndefined()
+  expect(styles.linkInput).toMatchObject({ ...theme.type.bodySmall, color: theme.redesign.ink, backgroundColor: theme.redesign.container })
+  expect(styles.countBadge).toMatchObject({ minWidth: 24, minHeight: 24, borderRadius: 12, backgroundColor: theme.surface.subtle })
 })

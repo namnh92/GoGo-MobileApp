@@ -4,12 +4,10 @@ import { act, fireEvent } from '@testing-library/react-native'
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
 /**
- * ADM-205 / g04 — Saved groups places and plans by province and
+ * ADM-205 / g04 — Saved groups places by province and
  * commune with the user's area first, and keeps unknown areas visible.
  */
 
-let mockRoomData: unknown
-let mockDetails: Record<string, unknown> = {}
 const mockPush = jest.fn()
 const mockMutate = jest.fn()
 const mockSession = { status: 'user' as string }
@@ -30,8 +28,6 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useMe: () => mockMe.query,
   useTaxonomies: () => ({ data: undefined }),
-  usePlaceDetail: (id: string) => ({ data: mockDetails[id] }),
-  useRoom: () => ({ data: mockRoomData }),
   useSaved: () => ({ data: [] }),
   useResolveGoogleMapsLink: () => ({}),
   useSavedEntries: () => mockSaved.value,
@@ -47,9 +43,10 @@ jest.mock('@/shared/administrative/queries', () => ({
 }))
 jest.mock('@/shared/ui/place-card.view', () => {
   const React = jest.requireActual<typeof import('react')>('react')
-  const { Text } = jest.requireActual<typeof import('react-native')>('react-native')
+  const { Text, View, Pressable } = jest.requireActual<typeof import('react-native')>('react-native')
   return {
-    PlaceCard: ({ place }: { place: { name: string } }) => React.createElement(Text, null, place.name),
+    PlaceCard: ({ place, headerAction, footer, onPress }: { place: { name: string }; headerAction: import('react').ReactNode; footer: import('react').ReactNode; onPress: () => void }) => React.createElement(View, null,
+      React.createElement(Pressable, { onPress }, React.createElement(Text, null, place.name)), headerAction, footer),
   }
 })
 
@@ -89,8 +86,6 @@ const headers = (view: Awaited<ReturnType<typeof renderScreen>>) =>
 
 beforeEach(() => {
   useAppAreaStore.setState({ area: null })
-  mockRoomData = undefined
-  mockDetails = {}
   mockPush.mockClear()
   mockMutate.mockClear()
   mockSession.status = 'user'
@@ -101,12 +96,37 @@ beforeEach(() => {
 })
 
 describe('Saved by area', () => {
-  it('keeps the list primary and offers group maps', async () => {
+  it('offers city saved-place lists without maps', async () => {
     const view = await renderScreen(<SavedScreen />)
     expect(view.getByText('Chợ Bến Thành')).toBeTruthy()
     expect(view.queryByText('Bản đồ')).toBeNull()
     expect(view.queryByText('Danh sách')).toBeNull()
-    expect(view.getAllByText('Xem cụm').length).toBeGreaterThan(0)
+    expect(view.getAllByText('Tất cả ›')).toHaveLength(2)
+    expect(view.queryByTestId('saved-group-map')).toBeNull()
+    expect(view.getAllByText('1')).toHaveLength(5)
+    expect(view.queryByText('(1)')).toBeNull()
+    await press(view.getAllByText('Tất cả ›')[1]!)
+    expect(view.getByText('Chợ Bến Thành')).toBeTruthy()
+    expect(view.queryByText('Cà phê Hồ Gươm')).toBeNull()
+    expect(view.queryByText('Quán chưa rõ')).toBeNull()
+    expect(mockPush).not.toHaveBeenCalled()
+    await press(view.getByText('‹ Tất cả thành phố'))
+    expect(view.getByText('Cà phê Hồ Gươm')).toBeTruthy()
+  })
+
+  it('includes every ward and unavailable saved place in the selected city', async () => {
+    const secondWard = { ...ENTRIES[1], key: 'place:sg', id: 'sg', area: area(HCM[0], HCM[1], '26740', 'Phường Sài Gòn', 'commune'), place: { name: 'Cà phê Sài Gòn' } }
+    const unavailable = { ...ENTRIES[1], key: 'place:gone', id: 'gone', place: undefined }
+    mockSaved.value = { entries: [...ENTRIES, secondWard, unavailable], isPending: false, isError: false }
+    const view = await renderScreen(<SavedScreen />)
+    await press(view.getAllByText('Tất cả ›')[1]!)
+    expect(headers(view)).toEqual(['Thành phố Hồ Chí Minh', 'Phường Bến Thành', 'Phường Sài Gòn'])
+    expect(view.getByText('Chợ Bến Thành')).toBeTruthy()
+    expect(view.getByText('Cà phê Sài Gòn')).toBeTruthy()
+    expect(view.getByText('Địa điểm này không còn khả dụng')).toBeTruthy()
+    expect(view.queryByText('Cà phê Hồ Gươm')).toBeNull()
+    await press(view.getByText('Bỏ lưu'))
+    expect(mockMutate).toHaveBeenCalledWith({ type: 'place', id: 'gone', saved: true }, expect.any(Object))
   })
 
   it('puts the located commune and its province first, then alphabetical, unknown last', async () => {
@@ -117,12 +137,11 @@ describe('Saved by area', () => {
     expect(headers(view)).toEqual([
       'Thành phố Hồ Chí Minh',
       'Phường Bến Thành',
-      'Nhiều phường/xã',
       'Thành phố Hà Nội',
       'Phường Hoàn Kiếm',
       'Chưa xác định khu vực',
     ])
-    expect(view.getAllByText('Khu vực hiện tại')).toHaveLength(2)
+    expect(view.queryByText('Khu vực hiện tại')).toBeNull()
   })
 
   it('uses the shared account fallback area when no position is located', async () => {
@@ -134,30 +153,32 @@ describe('Saved by area', () => {
     expect(headers(view)[0]).toBe('Thành phố Hà Nội')
   })
 
-  it('shows saved plans with their warnings and filters places and plans apart', async () => {
+  it('shows only places and removes the filter chips, plan warnings and actions', async () => {
     const view = await renderScreen(<SavedScreen />)
-    expect(view.getByText('Kế hoạch đã lưu')).toBeTruthy()
-    expect(view.getByText('2 điểm dừng')).toBeTruthy()
-    expect(view.getByText(/Điều kiện đã đổi/)).toBeTruthy()
-
-    await press(view.getByText(/Địa điểm \(3\)/))
-    expect(view.queryByText('Kế hoạch đã lưu')).toBeNull()
+    for (const label of ['Tất cả', 'Địa điểm', 'Kế hoạch', 'Kế hoạch đã lưu', 'Đi ngay', 'Điều kiện đã đổi sau khi lập kế hoạch']) {
+      expect(view.queryByText(label)).toBeNull()
+    }
     expect(view.getByText('Chợ Bến Thành')).toBeTruthy()
-
-    await press(view.getByText(/Kế hoạch \(1\)/))
-    expect(view.getByText('Kế hoạch đã lưu')).toBeTruthy()
-    expect(view.queryByText('Chợ Bến Thành')).toBeNull()
   })
 
-  it('removes a saved plan and opens it', async () => {
-    mockSaved.value = { entries: [ENTRIES[2]], isPending: false, isError: false, error: null, refetch: jest.fn() }
+  it('shows the places empty state when only legacy plans are saved', async () => {
+    mockSaved.value = { entries: [ENTRIES[2]], isPending: false, isError: false }
     const view = await renderScreen(<SavedScreen />)
-    await press(view.getByText('Đi ngay'))
-    expect(mockPush).toHaveBeenCalledWith('/plans/walk/active')
-    await press(view.getByText('Kế hoạch đã lưu'))
-    expect(mockPush).toHaveBeenCalledWith('/plans/walk')
+    expect(view.getByText('Chưa lưu gì cả')).toBeTruthy()
+    await press(view.getByText('Tìm địa điểm'))
+    expect(mockPush).toHaveBeenCalledWith('/places/search')
+  })
+
+  it('offers only removal in the place overflow menu', async () => {
+    mockSaved.value = { entries: [ENTRIES[1]], isPending: false, isError: false }
+    const view = await renderScreen(<SavedScreen />)
+    await press(view.getByLabelText('Thao tác địa điểm'))
+    expect(view.getByText('Bỏ lưu')).toBeTruthy()
+    expect(view.queryByText('Chia sẻ')).toBeNull()
+    const dismiss = view.getByTestId('saved-actions-modal').props.onDismiss
     await press(view.getByText('Bỏ lưu'))
-    expect(mockMutate).toHaveBeenCalledWith({ type: 'plan', id: 'walk', saved: true }, expect.any(Object))
+    await act(async () => { dismiss() })
+    expect(mockMutate).toHaveBeenCalledWith({ type: 'place', id: 'bt', saved: true }, expect.any(Object))
   })
 
   it('without a position or account area marks nothing current and sorts alphabetically', async () => {
@@ -167,23 +188,9 @@ describe('Saved by area', () => {
       'Phường Hoàn Kiếm',
       'Thành phố Hồ Chí Minh',
       'Phường Bến Thành',
-      'Nhiều phường/xã',
       'Chưa xác định khu vực',
     ])
     expect(view.queryByText('Khu vực hiện tại')).toBeNull()
-  })
-
-  it('uses the room name, real date, position-ordered first photo and stop times', async () => {
-    mockRoomData = { title: 'Hẹn nhóm', scheduledDate: '2026-11-07T03:00:00Z' }
-    mockDetails = { a: { id: 'a', name: 'First café', photos: [{ url: 'https://example.com/a.jpg', source: 'community' }] }, b: { id: 'b', name: 'Second café', photos: [{ url: 'https://example.com/b.jpg', source: 'community' }] } }
-    mockSaved.value = { entries: [{ ...ENTRIES[2], plan: { roomId: 'room', stops: [{ placeId: 'b', position: 2, arriveAt: '2026-11-07T04:00:00Z' }, { placeId: 'a', position: 1, arriveAt: '2026-11-07T03:00:00Z' }] } }], isPending: false, isError: false }
-    const view = await renderScreen(<SavedScreen />)
-    expect(view.getByText('Hẹn nhóm · 07/11/2026')).toBeTruthy()
-    expect(view.getByText('10:00')).toBeTruthy()
-    expect(view.getByText('11:00')).toBeTruthy()
-    const source = view.getByTestId('place-photo-image').props.source
-    expect(Array.isArray(source) ? source[0].uri : source.uri).toBe('https://example.com/a.jpg')
-    expect(view.queryByText('Lộ trình tối')).toBeNull()
   })
 
   it('keeps a saved place whose details failed to load removable', async () => {
@@ -193,6 +200,20 @@ describe('Saved by area', () => {
     expect(view.getByText('Địa điểm này không còn khả dụng')).toBeTruthy()
     await press(view.getByText('Bỏ lưu'))
     expect(mockMutate).toHaveBeenCalledWith({ type: 'place', id: 'bt', saved: true }, expect.any(Object))
+  })
+
+  it('keeps similar-place search scoped to a closed place category and area', async () => {
+    mockSaved.value = { entries: [{ ...ENTRIES[1], place: { name: 'Closed café', providerStatus: { status: 'closed' }, taxonomies: [{ kind: 'category', key: 'cafe' }] } }], isPending: false, isError: false }
+    const view = await renderScreen(<SavedScreen />)
+    await press(view.getByText('Tìm quán tương tự'))
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: expect.objectContaining({ categories: 'cafe', suggestions: '1', suggestionScope: expect.stringContaining('26734') }) })
+  })
+
+  it('shows loading placeholders before places arrive', async () => {
+    mockSaved.value = { entries: [], isPending: true, isError: false }
+    const view = await renderScreen(<SavedScreen />)
+    expect(view.queryByText('Chưa lưu gì cả')).toBeNull()
+    expect(view.queryByTestId('saved-list')).toBeNull()
   })
 
   it('shows a retryable error when the saved list fails', async () => {
