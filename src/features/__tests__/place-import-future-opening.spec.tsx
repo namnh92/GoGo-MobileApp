@@ -1,3 +1,4 @@
+import { completeWizard } from './contribution-fixtures'
 import { act, fireEvent, screen } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import { ApiError } from '@/shared/api/errors'
@@ -60,7 +61,7 @@ jest.mock('@/shared/api', () => ({
   useResolveGoogleMapsLink: () => mockResolve,
   useSubmitPlace: () => mockSubmit,
   usePlaceSubmission: () => ({ data: undefined }),
-  useTaxonomies: () => ({ data: undefined }),
+  ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
 
 import PlaceImportScreen from '@/features/place-import/import.view'
@@ -127,7 +128,9 @@ it('still offers submit for an operating place', async () => {
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   const button = screen.getByRole('button', { name: SUBMIT })
-  expect(button.props.accessibilityState?.disabled).not.toBe(true)
+  expect(button.props.accessibilityState?.disabled).toBe(true)
+  await completeWizard()
+  expect(screen.getByRole('button', { name: SUBMIT }).props.accessibilityState?.disabled).toBe(false)
 })
 
 describe('#316 review', () => {
