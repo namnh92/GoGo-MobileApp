@@ -79,7 +79,11 @@ export function draftEnrichment(form: ContributionForm): EnrichmentDraft {
 }
 export function submissionEnrichment(form: ContributionForm): Enrichment | undefined {
   if (![1, 2, 3].every((step) => stepValid(form, step))) return undefined
-  return draftEnrichment(form) as Enrichment
+  return {
+    ...draftEnrichment(form),
+    purposeKeys: form.purposeKeys,
+    vibeKeys: form.vibeKeys,
+  }
 }
 export function resumeContribution(draft: EnrichmentDraft): ContributionForm {
   return {
