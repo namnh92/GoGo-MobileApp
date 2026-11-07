@@ -297,13 +297,13 @@ function DiscoveryCard({ place, onPress, save, style }: Pick<PlaceCardProps, 'pl
   </View>
 }
 
-/** A resolved provider identity has no canonical GoGo ID and no place actions. */
+/** A resolved provider identity has no canonical GoGo ID or canonical place actions. */
 export interface PlacePreviewProps {
   variant: 'preview'
   preview: NonNullable<ResolveLinkResult['candidate']>
   categoryLabel?: string | null
   children?: ReactNode
-  saveAction?: ReactNode
+  headerAction?: ReactNode
   style?: StyleProp<ViewStyle>
 }
 
@@ -311,7 +311,7 @@ export function PlaceCard(props: PlaceCardProps | PlacePreviewProps) {
   return 'preview' in props ? <PreviewCard {...props} /> : <CanonicalPlaceCard {...props} />
 }
 
-function PreviewCard({ preview, categoryLabel, children, saveAction, style }: PlacePreviewProps) {
+function PreviewCard({ preview, categoryLabel, children, headerAction, style }: PlacePreviewProps) {
   const { t, i18n } = useTranslation()
   const now = usePlaceClock()
   const candidatePhoto = useCandidatePhoto(preview)
@@ -340,11 +340,11 @@ function PreviewCard({ preview, categoryLabel, children, saveAction, style }: Pl
             </View>
           ) : null}
           {photo ? <Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /> : null}
-          {saveAction ? <View style={styles.importSave}>{saveAction}</View> : null}
+          {headerAction ? <View style={styles.importHeaderAction}>{headerAction}</View> : null}
           {openLabel ? <View style={styles.importHoursOverlay}><Text variant="introCaption" color="redesign.white">{open.openNow ? '● ' : ''}{openLabel}</Text></View> : null}
         </View> : null}
         <View style={styles.importBody}>
-          {!hasPhoto && saveAction ? <View style={styles.importNoPhotoHead}>{saveAction}</View> : null}
+          {!hasPhoto && headerAction ? <View style={styles.importNoPhotoHead}>{headerAction}</View> : null}
           <View style={styles.listHead}>
             <Text variant="introSection" color="redesign.ink">{preview.name}</Text>
             {preview.address ? <View style={styles.addressRow}><MaterialIcon name="location" size={18} color="redesign.outline" /><Text variant="introBody" color="redesign.secondary" style={styles.addressText}>{preview.address}</Text></View> : null}

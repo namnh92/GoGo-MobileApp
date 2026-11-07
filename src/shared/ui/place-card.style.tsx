@@ -7,8 +7,8 @@ export const styles = StyleSheet.create(theme => ({
   importBody: { padding: 16, gap: 12 },
   importFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   importFact: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: theme.redesign.container },
-  importNoPhotoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  importSave: { position: 'absolute', top: 8, right: 8 },
+  importNoPhotoHead: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
+  importHeaderAction: { position: 'absolute', top: 8, right: 8 },
   importHoursOverlay: { position: 'absolute', bottom: 12, right: 12, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 8, paddingVertical: 2 },
   importActions: { marginTop: 24, gap: 12 },
   /** Holds the card and, beside it, the save toggle positioned over it. */

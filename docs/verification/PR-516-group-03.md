@@ -1,6 +1,6 @@
 # PR #516 group 03 — Nhập link → Bổ sung thông tin
 
-Updated 2026-11-07 in `mobile-g03`, latest owner fix starting at clean HEAD `c01b1ff`.
+Updated 2026-11-07 in `mobile-g03`, latest owner fix starting at clean HEAD `8d40125`.
 Owner scope: file edits and local checks only; no install, commit, push, build or deployment.
 The owner’s current scoped fix supersedes the earlier migration pause for this task.
 
@@ -55,7 +55,7 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
 | ONE Google image, 16:10, 12pt radius, hours/save overlays | Existing shared preview retained and checked against current source; transient BFF photo with loading/decode/error handling, no stock/sample fallback | `src/shared/ui/place-card.view.tsx:315`, `src/shared/ui/place-card.style.tsx:6` |
 | Photo attribution | One localized line: Ảnh: <authors> · Google Maps; response author URI remains linkable; repeated provider credit omitted, distinct credits retained. No-store/cachePolicy=none unchanged | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:357` |
 | Name, address, Google rating/count, actual hours | Existing verified facts retained; actual seven-day identical hours may use hàng ngày. Unknown facts/price omitted | `src/shared/ui/place-card.view.tsx:324`, `:348` |
-| Bookmark for unresolved candidate | Preserved visibly disabled canonical-save control and reason; no fake draft/save endpoint | `src/features/place-import/import.view.tsx:567` |
+| Candidate Maps / save actions | Owner 2026-11-07: Maps icon inside extracted card, 44×44 touch target; candidate bookmark and save-lock explanation absent. Existing GoGo place saving retained | `src/features/place-import/import.view.tsx:559`, `src/shared/ui/place-card.view.tsx:343` |
 | Existing GoGo place + short address | Preserved shared canonical PlaceCard and operational actions; administrative formatter remains authoritative | `src/features/place-import/existing-place-result.view.tsx:29`, `src/shared/ui/place-address.view.tsx:9`, `src/shared/administrative/place-address.ts:1` |
 | Primary send location / optional photos 0/5 | Existing optional disclosure and photo picker remain below extracted facts; photos immediately precede existing moderation submit. Removed enclosing operational card surface so primary action sits on canvas, as in source | `src/features/place-import/import.view.tsx:698`, `src/features/place-import/import-photos.view.tsx:59`, `src/shared/ui/place-card.style.tsx:15` |
 | Light input materials / Dark fallback | Input cream/dim/border/primary read from new source roles; Dark uses existing night surfaces/border and orange primary. No theme-specific content branching | `src/shared/ui/tokens.ts:505`, `:523`, `src/features/place-import/import.style.tsx:7` |
@@ -68,7 +68,9 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
   and `3d9ed7f6…` are downstream references, not targets of this patch. Existing
   optional metadata and existing moderation-submit contract remain unchanged.
 - Source +50–70 banner / +20 bill-menu rewards are omitted under that owner scope.
-  Existing +50 approval-only wording is retained; no new reward calculation.
+  The input-stage policy explanation is retained. On Bổ sung thông tin, #516
+  renders no +50 reward copy; the single header pill belongs to #518 and is
+  absent from this branch. No new reward calculation or duplicate pill is added.
 - Source contribution-list button has no supported destination here. It is
   disabled and explained, rather than using the source’s demo toast as behavior.
   No remote issue/comment was created under the file-edit-only authorization.
@@ -76,7 +78,7 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
   local preview only (GoGo-BE#793): local URIs are never uploaded or sent to the
   moderation API. The visible local-only explanation remains. This patch does
   not claim persistent attachment delivery.
-- Candidate bookmark stays unavailable until there is a canonical GoGo ID.
+- Candidate bookmark and save-lock explanation are absent until there is a canonical GoGo ID.
   Missing provider imagery/facts are omitted; unknown price is hidden. No café,
   sample URL, score, schedule, uploaded menu or bill from Stitch is app data.
   Archived design evidence is documentation only.
@@ -116,10 +118,52 @@ verification decorations in the Stitch source:
   constraints and reserved space for the 44pt clear-x control. Regression covers
   pasting a long URL from the clipboard and clearing the full value.
 
+Latest simulator feedback for a place **not yet on GoGo** (owner 2026-11-07,
+starting HEAD `8d40125`) supersedes the source bookmark and reward repetition:
+
+- Removed the text button **Mở trên Google Maps** below the extracted card.
+  Its replacement is a 44×44 map icon button on the card, at the top-right of
+  the photo or right-aligned inside the card when no photo is available.
+  Accessibility label remains **Mở trên Google Maps**; it opens the same
+  candidate `googleMapsUri` and retains the link-failure message. No URI means
+  no Maps action.
+- Removed the candidate bookmark entirely, including its disabled state and
+  **Chỉ lưu được sau khi…** explanation. Existing canonical GoGo results keep
+  their working save control.
+- Removed **+50 credit GoGo AI sau khi đóng góp của bạn được duyệt.** from
+  the extracted-data actions. The only intended reward message on this screen
+  is the wizard header pill owned by #518; that wizard is absent from this
+  branch and is not implemented here. Input-stage help/policy remains scoped
+  to the earlier Nhập link screen.
+- Renamed the preview-only `saveAction` slot to `headerAction` to describe the
+  Maps action; canonical PlaceCard saving is unchanged.
+
 Photo-credit requirements checked against [Google Places photo guidance](https://developers.google.com/maps/documentation/places/web-service/place-photos):
 retain photo authors alongside the image and provider attribution.
 
-## Verification — owner fix at c01b1ff + working edits
+## Verification — latest owner fix at 8d40125 + working edits
+
+- `pnpm typecheck`: **PASS**.
+- `pnpm lint`: **PASS**, zero warnings.
+- `pnpm test:ui --runInBand` for all five place-import suites plus shared
+  place-card: **PASS, 6 suites, 137 tests**.
+- New regression coverage: Maps icon belongs inside the extracted card with
+  and without a photo; 44×44 touch target and exact accessible label; same
+  canonical `googleMapsUri` handoff; no action without URI; existing link-error
+  copy on open failure; no candidate save, lock explanation or +50 copy;
+  existing GoGo result still saves its canonical ID.
+- `pnpm test`: **FAIL, 111 files passed, 1 failed, 1 skipped; 1311 tests passed,
+  3 failed, 39 skipped**. The only failures remain the unchanged
+  `src/shared/config/__tests__/distribute-wrapper.test.ts:208`, `:234`, `:258`
+  process-liveness cases. Verified directly in this run: `/bin/ps -o lstart= -p $$`
+  is rejected with `operation not permitted`. This sandbox limitation prevents
+  a green full-suite gate. No tests were skipped or unrelated logic modified.
+- `git diff --check`: **PASS**.
+- File edits and local checks only. No install, commit, push, build, deployment
+  or simulator verification. The #518 header pill is not present in this branch;
+  this patch removes #516 duplication without claiming full wizard integration.
+
+## Historical verification — owner fix at c01b1ff + working edits
 
 - `pnpm typecheck`: PASS.
 - `pnpm lint`: PASS, zero warnings.

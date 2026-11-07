@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
 import { Alert, Keyboard, Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { ApiError, NetworkError } from '@/shared/api/errors'
@@ -11,6 +11,7 @@ jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }))
 const mockPick = jest.fn()
 const mockPermission = jest.fn()
 const mockGet = jest.fn()
+const mockToggleSaved = jest.fn()
 jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: (...args: unknown[]) => mockPermission(...args),
   launchImageLibraryAsync: (...args: unknown[]) => mockPick(...args),
@@ -29,7 +30,7 @@ jest.mock('@/shared/api', () => ({
   useTaxonomies: () => ({}),
   usePlaceDetail: () => ({ data: { id: 'canonical', name: 'Existing' } }),
   useSaved: () => ({ data: [] }),
-  useToggleSaved: () => ({}),
+  useToggleSaved: () => ({ mutate: mockToggleSaved }),
 }))
 import PlaceImportScreen from '@/features/place-import/import.view'
 const LINK = 'https://maps.google.com/maps?place_id=ChIJtest'
@@ -335,9 +336,8 @@ it('uses the directly downloaded Stitch photo/body hierarchy with real hours and
   expect(screen.getByText('Đã đồng bộ')).toBeTruthy()
   expect(screen.getByText('07:30 - 22:30 hàng ngày')).toBeTruthy()
   expect(screen.getByText('(123) Google')).toBeTruthy()
-  const save = screen.getByRole('button', { name: 'Lưu' })
-  expect(save.props.accessibilityState.disabled).toBe(true)
-  expect(save.props.accessibilityHint).toBe('Chỉ lưu được sau khi địa điểm được duyệt và có trên GoGo.')
+  expect(screen.queryByRole('button', { name: 'Lưu' })).toBeNull()
+  expect(screen.queryByText(/Chỉ lưu được sau khi|\+50/)).toBeNull()
   expect(screen.queryByText('Mơ Concept & Roastery')).toBeNull()
 })
 
@@ -504,4 +504,47 @@ it.each(['https://www.google.com/maps/contrib/123', '//maps.google.com/maps/cont
   expect(screen.getByText('Other credit')).toBeTruthy()
   await fireEvent.press(screen.getByRole('link', { name: 'Lan' }))
   expect(open).toHaveBeenCalledWith(uri.startsWith('//') ? `https:${uri}` : uri)
+})
+
+
+it.each([false, true])('puts the Maps icon inside the candidate card (photo: %s), without save or repeated credit', async hasPhoto => {
+  const uri = 'https://www.google.com/maps?cid=123'
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan' }] }] })
+  await preview({ ...candidate, googleMapsUri: uri, ...(hasPhoto ? { photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } } : {}) })
+  if (hasPhoto) await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
+  const card = screen.getByTestId('import-preview-card')
+  const maps = within(card).getByRole('button', { name: 'Mở trên Google Maps' })
+  expect(StyleSheet.flatten(maps.props.style)).toMatchObject({ width: 44, height: 44 })
+  expect(screen.getAllByRole('button', { name: 'Mở trên Google Maps' })).toHaveLength(1)
+  expect(screen.queryByText('Mở trên Google Maps')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Lưu' })).toBeNull()
+  expect(screen.queryByText(/Chỉ lưu được sau khi|\+50/)).toBeNull()
+  await fireEvent.press(maps)
+  expect(open).toHaveBeenCalledWith(uri)
+})
+
+it('omits the Maps action when the candidate has no URI', async () => {
+  await preview()
+  expect(screen.queryByRole('button', { name: 'Mở trên Google Maps' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Lưu' })).toBeNull()
+  expect(screen.queryByText(/Chỉ lưu được sau khi|\+50/)).toBeNull()
+})
+
+it('shows the existing link failure message when the card Maps action fails', async () => {
+  jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('unavailable'))
+  await preview({ ...candidate, googleMapsUri: LINK })
+  await fireEvent.press(screen.getByRole('button', { name: 'Mở trên Google Maps' }))
+  expect(screen.getByText('Chưa mở được liên kết này.')).toBeTruthy()
+})
+
+it('keeps canonical saving available for an existing GoGo place', async () => {
+  mockResolve.data = { status: 'ALREADY_EXISTS', existingPlaceId: 'canonical' }
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  const save = screen.getByRole('button', { name: 'Lưu' })
+  expect(save.props.accessibilityState.disabled).toBe(false)
+  await fireEvent.press(save)
+  expect(mockToggleSaved).toHaveBeenCalledWith({ type: 'place', id: 'canonical', saved: false })
 })

@@ -11,7 +11,7 @@ export const styles = StyleSheet.create((theme) => ({
   analysisLabel: { flex: 1 },
   syncedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '50%', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: theme.redesign.importSyncedFill },
   existingHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, marginBottom: 8, borderRadius: 12, backgroundColor: theme.redesign.greenSoft },
-  previewSave: { width: 44, height: 44, borderRadius: 999, backgroundColor: theme.redesign.card, alignItems: 'center', justifyContent: 'center' },
+  previewMaps: { width: 44, height: 44, borderRadius: 999, backgroundColor: theme.redesign.card, alignItems: 'center', justifyContent: 'center' },
   analysisHeading: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 24, marginBottom: 8 },
   header: { backgroundColor: theme.redesign.canvas, borderBottomWidth: 1, borderBottomColor: theme.redesign.container },
   topBar: { height: 56, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },

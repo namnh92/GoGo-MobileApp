@@ -17,7 +17,6 @@ import { MaterialIcon } from '@/shared/ui/material-icon'
 import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
-import { useSession } from '@/shared/providers/session-provider'
 import { ImportPhotos } from './import-photos.view'
 import { FieldFocusGroup, FocusedFieldGroup } from '@/shared/ui/field-focus-group'
 import { ExistingPlaceResult } from './existing-place-result.view'
@@ -105,7 +104,6 @@ export default function PlaceImportScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { status: actorStatus } = useSession()
   const { roomId } = useLocalSearchParams<{ roomId?: string }>()
 
   const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
@@ -558,7 +556,18 @@ export default function PlaceImportScreen() {
                   <PlaceCard
                     variant="preview"
                     preview={candidate}
-                    saveAction={<Pressable accessibilityRole="button" accessibilityLabel={t('placeDetail.save')} accessibilityHint={t('placeImport.saveLocked')} accessibilityState={{ disabled: true }} disabled style={styles.previewSave}><MaterialIcon name="bookmark" color="redesign.outline" /></Pressable>}
+                    headerAction={candidate.googleMapsUri ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t('placeImport.googleLink')}
+                        onPress={() => {
+                          void openWebsite(candidate.googleMapsUri!).then((ok) => setLinkFailed(!ok))
+                        }}
+                        style={styles.previewMaps}
+                      >
+                        <MaterialIcon name="map" color="redesign.primaryText" />
+                      </Pressable>
+                    ) : null}
                     style={styles.resultCard}
                     categoryLabel={candidate.categoryKey ? taxonomyOptions('category').find((option) => option.key === candidate.categoryKey)?.label : null}
                   >
@@ -575,18 +584,6 @@ export default function PlaceImportScreen() {
                       </View>
                     ) : null}
 
-                    <Text variant="caption" color="text.secondary">
-                      {t('placeImport.saveLocked')}
-                    </Text>
-                    {actorStatus === 'user' && !submit.isSuccess ? <Text variant="bodySmall">{t('placeImport.approvalCredit')}</Text> : null}
-                    {candidate.googleMapsUri ? (
-                      <GhostBtn
-                        label={t('placeImport.googleLink')}
-                        onPress={() => {
-                          void openWebsite(candidate.googleMapsUri as string).then((ok) => setLinkFailed(!ok))
-                        }}
-                      />
-                    ) : null}
                     {linkFailed ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
                     {/* Optional metadata (PI-APP-004) — moderators get better context
                   when the submitter fills it in, and nothing here is required. */}
