@@ -234,7 +234,7 @@ export default function SearchScreen() {
         onMore={() => { clearFilters(); setQuery(''); setDebouncedQuery(''); setMode('list') }}
         onPlacePress={onPlacePress}
       /> : null}
-      ListFooterComponent={<>{!mapFallback ? renderPagination() : null}{results.length > 0 ? contribution : null}</>}
+      ListFooterComponent={<>{!mapFallback ? renderPagination() : null}{verifiedEmpty && !sheetOpen ? contribution : null}</>}
       renderItem={({ item: place }) => {
         const card = <PlaceCard appearance="discovery" place={place} onPress={() => onPlacePress(place)} saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined} onToggleSave={canSave ? () => onBookmark(place) : undefined} style={styles.place} />
         return mapFallback ? <View>{card}<GhostBtn label={t('common.directions')} accessibilityHint={place.name} onPress={() => openGoogleMapsDirections(map.pins.find(pin => pin.id === place.id) ? `${place.lat},${place.lng}` : place.name)} /></View> : card

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { formatPlaceAddress } from '../../administrative/place-address'
 
-import type { PlaceSearchResult, Plan, RoomSummary } from '../types'
+import type { PlaceDetail, PlaceSearchResult, Plan, RoomSummary } from '../types'
 import {
   areaLabel,
   detailToPlaceCard,
@@ -458,9 +458,16 @@ describe('#754 discovery ratings', () => {
 
 
 describe('place address seam', () => {
-  it('keeps the detail raw address until it has a verified summary', () => {
-    expect(formatPlaceAddress({ addressText: ' 12 Đường A, Phường B ' })).toBe('12 Đường A, Phường B')
-    expect(formatPlaceAddress({})).toBeNull()
-    expect(formatPlaceAddress({ addressText: 'old', areaSummary: { datasetVersion: 'v1', provinceCode: '79', communeCode: 'x', locale: 'vi', label: 'Phường B, TP.HCM' } })).toBe('Phường B, TP.HCM')
+  it('keeps the detail raw address until both verified ward and province are available', () => {
+    const detail: PlaceDetail = {
+      gogoRatingCount: 0,
+      addressText: ' 12 Đường A, Phường B ',
+      areaSummary: { datasetVersion: 'v1', provinceCode: '79', communeCode: 'x', locale: 'vi', label: 'Phường B' },
+    }
+    expect(formatPlaceAddress({ addressText: detail.addressText })).toBe(detail.addressText)
+    expect(formatPlaceAddress({})).toBe('')
+    expect(formatPlaceAddress(detail)).toBe(detail.addressText)
+    expect(formatPlaceAddress(detail, 'Thành phố Hồ Chí Minh')).toBe('12 Đường A, B, Hồ Chí Minh')
+    expect(formatPlaceAddress({ ...detail, areaSummary: { ...detail.areaSummary!, communeCode: null } }, 'Thành phố Hồ Chí Minh')).toBe(detail.addressText)
   })
 })

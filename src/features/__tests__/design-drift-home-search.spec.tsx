@@ -187,6 +187,7 @@ it.each([{ isPending: true, isSuccess: false }, { isPaused: true }, { isFetching
   const view = await renderScreen(<SearchScreen />)
   expect(view.queryByText('Tìm thấy 0 địa điểm')).toBeNull()
   expect(view.queryByText('Không tìm thấy địa điểm phù hợp')).toBeNull()
+  expect(view.queryByRole('button', { name: i18n.t('discovery.addPlace') })).toBeNull()
 })
 it('ordinary search shares Home scope and never leaks the wizard origin', async () => {
   useRoomStore.setState({ originLat: 10, originLng: 106 })
@@ -205,9 +206,18 @@ it.each([false, true])('preserves wizard/existing-room picker callbacks (%s)', a
   if (existingRoom) expect(mockAddSeed).toHaveBeenCalledWith({ placeIds: ['place-1'] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
   else { expect(useRoomStore.getState().seedPlaces).toContainEqual({ placeId: 'place-1', name: 'Place' }); expect(mockBack).toHaveBeenCalled() }
 })
+it.each(['list', 'map'])('hides contribution on non-empty Search results (%s)', async mode => {
+  mockCredits = { creditBalance: 0 }
+  mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'known', name: 'Known place', isLodging: false }] }] } }
+  const view = await renderScreen(<SearchScreen />)
+  if (mode === 'map') await fireEvent.press(view.getByRole('tab', { name: i18n.t('discovery.map') }))
+  expect(view.queryByText(i18n.t('discovery.contributeTitle'))).toBeNull()
+  expect(view.queryByRole('button', { name: i18n.t('discovery.addPlace') })).toBeNull()
+  expect(view.queryByText(i18n.t('discovery.approvalReward'))).toBeNull()
+})
+
 it('clear query debounces to an empty query and contribution opens the real import route', async () => {
   mockParams = { q: 'coffee' }
-  mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'known', name: 'Known place', isLodging: false }] }] } }
   const view = await renderScreen(<SearchScreen />)
   expect(mockQueries.at(-1)?.q).toBe('coffee')
   await fireEvent.press(view.getByRole('button', { name: 'Xóa nội dung' }))
@@ -278,7 +288,6 @@ describe('#774 integration', () => {
     expect(view.getByText('Old response')).toBeTruthy()
   })
   it('shows the approval reward when credits are supported, including a zero balance', async () => {
-    mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'known', name: 'Known place', isLodging: false }] }] } }
     const view = await renderScreen(<SearchScreen />)
     expect(view.queryByText('+50 credit GoGo AI sau khi được duyệt')).toBeNull()
     mockCredits = { creditBalance: 0 }
@@ -297,8 +306,8 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(StyleSheet.flatten(view.getByText('0').props.style).color).toBe(redesignLight.primary)
     expect(view.getByText('Tìm thấy 0 địa điểm')).toBeTruthy()
     expect(view.getByTestId('search-filter-off-badge')).toBeTruthy()
-    expect(view.queryByText(i18n.t('discovery.contributeTitle'))).toBeNull()
-    expect(view.queryByText(i18n.t('discovery.addPlace'))).toBeNull()
+    expect(view.getByText(i18n.t('discovery.contributeTitle'))).toBeTruthy()
+    expect(view.getByText(i18n.t('discovery.addPlace'))).toBeTruthy()
   })
 
   it('previews only current criteria, hides unknown/zero counts, and applies a real budget relaxation', async () => {
@@ -488,13 +497,14 @@ it.each([7, 0, undefined])('empty recovery uses real search/preview HTTP and nev
     expect(preview.searchParams.get('lng')).toBe('105')
     expect(preview.searchParams.has('moods')).toBe(false)
     expect(preview.searchParams.get('includeTotal')).toBe('true')
-    expect(view.queryByText(i18n.t('discovery.contributeTitle'))).toBeNull()
+    expect(view.getByText(i18n.t('discovery.contributeTitle'))).toBeTruthy()
     if (count) {
       expect(view.getByText('+7 quán phù hợp')).toBeTruthy()
       await fireEvent.press(view.getByRole('button', { name: /Bỏ chọn: Bỏ tiêu chí/ }))
       await waitFor(() => expect(view.getByText('Recovered from HTTP')).toBeTruthy())
       expect(view.queryByTestId('search-empty-content')).toBeNull()
-      expect(view.getByText(i18n.t('discovery.contributeTitle'))).toBeTruthy()
+      expect(view.queryByText(i18n.t('discovery.contributeTitle'))).toBeNull()
+      expect(view.queryByRole('button', { name: i18n.t('discovery.addPlace') })).toBeNull()
     } else {
       expect(view.queryByTestId('search-relaxations')).toBeNull()
       expect(view.getByText(i18n.t('discovery.emptyTitle'))).toBeTruthy()
@@ -936,7 +946,6 @@ describe('owner verification round 3', () => {
     await act(async () => { await i18n.changeLanguage(locale) })
     try {
       mockCredits = { creditBalance: 0 }
-      mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{ id: 'known', name: 'Known place', isLodging: false }] }] } }
       const view = await renderScreen(<SearchScreen />)
       expect(view.getByText(locale === 'vi' ? '+50 credit GoGo AI sau khi được duyệt' : '+50 GoGo AI credits after approval')).toBeTruthy()
       expect(view.queryByText(/1 (tin nhắn|message) = 1 credit/)).toBeNull()
