@@ -1,0 +1,109 @@
+Source basis: rs-8c4f1da43b58; HEAD a20b8e7f253f4080cbee42eb2bd0ddab7b786733.
+
+
+COMMAND: pnpm typecheck
+EXIT: 0
+RAW LOG: /tmp/mobile-522-r6-final-typecheck.log
+
+> gogo-mobile@0.1.0 typecheck /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518
+> tsc --noEmit
+
+
+COMMAND: pnpm lint
+EXIT: 0
+RAW LOG: /tmp/mobile-522-r6-final-lint.log
+
+> gogo-mobile@0.1.0 lint /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518
+> expo lint
+
+env: load .env.local .env
+env: export EXPO_PUBLIC_ENV EXPO_PUBLIC_API_URL EXPO_PUBLIC_WEB_BASE_URL GOOGLE_MAPS_IOS_API_KEY GOOGLE_MAPS_ANDROID_API_KEY ONESIGNAL_APP_ID TENJIN_IOS_SDK_KEY TENJIN_ANDROID_SDK_KEY ONESIGNAL_CONFIG_ENV TENJIN_CONFIG_ENV ONESIGNAL_APNS_MODE ADJUST_CONFIG_ENV ADJUST_IOS_APP_TOKEN ADJUST_ANDROID_APP_TOKEN
+
+COMMAND: pnpm test
+EXIT: 1
+RAW LOG: /tmp/mobile-522-r6-final-test.log
+
+> gogo-mobile@0.1.0 test /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518
+> vitest run
+
+
+ RUN  v4.1.11 /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518
+
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts (26 tests | 3 failed) 10096ms
+     × refuses while the owner is alive 71ms
+     × refuses recovery while a recorded build process group is still alive 1114ms
+     × keeps the lock and run files when a recorded build group is still alive after the child exits 970ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses while the owner is alive
+TypeError: Cannot read properties of undefined (reading 'trim')
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:208:103
+    206|   it('refuses while the owner is alive', () => {
+    207|     mkdirSync(lockDir(), { recursive: true })
+    208|     const start = spawnSync('ps', ['-o', 'lstart=', '-p', String(proce…
+       |                                                                                                       ^
+    209|     writeFileSync(path.join(lockDir(), 'owner'), `pid=${process.pid}\n…
+    210|     const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses recovery while a recorded build process group is still alive
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:234:33
+    232|       writeFileSync(path.join(lockDir(), 'run.json'), JSON.stringify({…
+    233|       const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+    234|       expect(result.status).not.toBe(0)
+       |                                 ^
+    235|       expect(result.stderr).toMatch(new RegExp(`process groups: ${pgid…
+    236|       expect(existsSync(lockDir())).toBe(true)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > keeps the lock and run files when a recorded build group is still alive after the child exits
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:258:33
+    256|     try {
+    257|       const result = run(['dev', 'android', '--groups', 'dev-testers']…
+    258|       expect(result.status).not.toBe(0)
+       |                                 ^
+    259|       expect(result.stderr).toMatch(new RegExp(`build process groups s…
+    260|       expect(existsSync(path.join(lockDir('dev', 'android'), 'owner'))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 120 passed | 1 skipped (122)
+      Tests  3 failed | 1430 passed | 39 skipped (1472)
+   Start at  19:55:16
+   Duration  41.24s (transform 1.00s, setup 0ms, import 4.09s, tests 21.84s, environment 6ms)
+
+ ELIFECYCLE  Test failed. See above for more details.
+
+COMMAND: pnpm test:ui --runInBand
+EXIT: 0
+RAW LOG: /tmp/mobile-522-r6-final-ui.log
+PASS src/features/__tests__/upcoming-rooms.spec.tsx
+PASS src/features/search/discovery-map.spec.ts
+PASS src/features/auth/__tests__/input-line.spec.ts
+PASS src/shared/navigation/__tests__/external-links.spec.ts
+PASS src/features/assistant/__tests__/fab-inset.spec.ts
+PASS src/features/__tests__/account-delete-copy.spec.tsx
+
+Test Suites: 189 passed, 189 total
+Tests:       2258 passed, 2258 total
+Snapshots:   0 total
+Time:        80.751 s, estimated 100 s
+Ran all test suites.
+
+COMMAND: /bin/ps -o pgid= -p $$
+EXIT: 127
+OUTPUT: zsh:1: operation not permitted: /bin/ps
+
+COMMAND: bash /Users/maxnguyen/MyWorks/GoGo/dev/handoffs/snapshot.sh verify /tmp/mobile522-r6-final-rs-8c4f1da43b58/MANIFEST.txt
+EXIT: 0
+OUTPUT: MATCH rs-8c4f1da43b58
+
+COMMAND: git diff --check
+EXIT: 0
+OUTPUT: none

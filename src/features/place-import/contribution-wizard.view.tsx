@@ -56,6 +56,7 @@ function Wizard({
   const disabled = busy || !online || ['retiring', 'completed', 'submissionUnknown'].includes(state.phase)
   const existing = state.list.filter(d => d.googlePlaceId === googlePlaceId && !state.tombstones.includes(d.id))
   const activeId = state.draft?.id ?? state.pendingCreate?.id
+  const needsDraftChoice = !activeId && existing.length > 0 && !state.newDraftChosen
   const canSave = !disabled && registered && writesAllowed(state) && priceValid(form) && !state.listLoading
   const purposes = taxonomyOptions(taxonomies.data, 'suitability')
   const vibes = taxonomyOptions(taxonomies.data, 'mood')
@@ -171,7 +172,7 @@ function Wizard({
   }
 
   async function saveDraft() {
-    if (!canSave || !validKeys || (!activeId && existing.length > 0)) return
+    if (!canSave || !validKeys || needsDraftChoice) return
     await controller.save()
   }
   useImperativeHandle(ref, () => ({ saveDraft: () => { void saveDraft() } }))
@@ -456,7 +457,7 @@ function Wizard({
         label={t('placeWizard.save')}
         icon="bookmark"
         loading={state.phase === 'saving'}
-        disabled={!canSave || !validKeys || (!activeId && existing.length > 0)}
+        disabled={!canSave || !validKeys || needsDraftChoice}
         onPress={() => { void saveDraft() }}
         style={styles.action}
       />
@@ -485,7 +486,7 @@ function Wizard({
         label={t('placeWizard.lifecycle.continueWithoutPhotos')} disabled={busy}
         onPress={() => controller.continueWithoutPhotos()} /> : null}
       {state.phase === 'conflict' ? <GhostBtn label={t('placeWizard.lifecycle.startNew')}
-        disabled={disabled} onPress={() => controller.startNew()} /> : null}
+        disabled={disabled || !!state.pendingCreate?.uncertain} onPress={() => controller.startNew()} /> : null}
       {registered && !activeId && !['retiring', 'completed', 'submissionUnknown'].includes(state.phase) ? <GhostBtn
         label={t('placeWizard.lifecycle.discard')} disabled={busy} onPress={() => { void controller.deleteDraft() }} /> : null}
       {state.pendingCreate?.uncertain ? <GhostBtn label={t('placeWizard.lifecycle.checkSave')}

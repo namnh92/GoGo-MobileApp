@@ -1,0 +1,16 @@
+# review_snapshot_manifest v1
+root: /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518
+mode: git
+base: a20b8e7f253f4080cbee42eb2bd0ddab7b786733
+branch: feature/GOGO-518-place-wizard
+scope: src
+exclude: .git .git/* */.git/* node_modules/* */node_modules/* .env .env.* */.env */.env.* *.p8 *.pem *.key *.tfstate *.tfstate.* *.tfvars *secrets.manifest* *google-services.json *firebase-adminsdk* auth.json *credentials*.json .DS_Store */.DS_Store dev/test-evidence/snapshots/*
+created: 2026-11-07T12:55:08Z
+label: mobile522-r6-final
+entries: 4
+review_snapshot_id: rs-8c4f1da43b58
+--
+T	644	abe82053f7cdbc6ea8dc8e9c3bb1635b95701bd5585f363bd5dac8fdc619caae	src/features/place-import/contribution-wizard.view.tsx	
+T	644	ae0d55a75b6f0a495ef69e32b198073e3f98547df639029fc8265b43c5ed5f38	src/features/__tests__/contribution-wizard.spec.tsx	
+T	644	b4d443c7add55f53a719c86e557d7d567b3e6b039a468f96e8d51a2bf2d12000	src/features/place-import/import-flow.test.ts	
+T	644	b7011cc47be7661e16a52a667b688df7f5e3415341091e891ba74c148b36f029	src/features/place-import/import-flow.ts	

@@ -150,7 +150,86 @@ describe('SA lifecycle matrix T1-T12', () => {
     const pending = state().pendingCreate!; expect(pending.id).toBe('new-uuid'); flow.edit({ visitTips: 'later' })
     deps.read.mockResolvedValueOnce({ ...draft, id: pending.id, enrichment: pending.request.enrichment, version: 1 }); await flow.save()
     expect(deps.read).toHaveBeenCalledWith(pending.id); expect(deps.save).toHaveBeenCalledTimes(1); expect(deps.uuid).toHaveBeenCalledTimes(1)
-    expect(state().draft?.version).toBe(1); expect(state().fields.visitTips).toBe('frozen')
+    expect(state().draft?.version).toBe(1); expect(state().fields.visitTips).toBe('later'); expect(state().dirty).toBe(true)
+  })
+  it.each(['create', 'update'] as const)('F-09 uncertain %s reconciliation preserves later text and bill removal until explicit replacement', async kind => {
+    const { flow, deps, state } = kind === 'update' ? await resumed() : setup()
+    if (kind === 'create') { flow.setMedia(media); flow.acknowledge() }
+    flow.edit({ visitTips: 'frozen' }); deps.save.mockRejectedValueOnce(new TimeoutError(10)); await flow.save()
+    const pending = state().pendingCreate!
+    const committed = { ...draft, id: pending.id, version: kind === 'create' ? 1 : 4, enrichment: pending.request.enrichment }
+    flow.edit({ visitTips: 'later' }); flow.setMedia([media[0]])
+    deps.read.mockResolvedValue(committed); await flow.reconcileSave()
+    expect(state()).toMatchObject({ phase: 'editing', draft: { id: committed.id, version: committed.version }, pendingCreate: null, fields: { visitTips: 'later' }, media: [media[0]], acknowledgement: null, dirty: true })
+    expect(serializeFlow(state())).not.toHaveProperty('billPhotoPublicConsent')
+    await flow.requestResume(committed.id)
+    expect(state().replacement).toBe(committed.id); expect(deps.read).toHaveBeenCalledTimes(kind === 'create' ? 1 : 2)
+    flow.cancelReplacement(); expect(state().fields.visitTips).toBe('later'); expect(state().media).toEqual([media[0]])
+    await flow.requestResume(committed.id); await flow.confirmReplacement()
+    expect(state().fields.visitTips).toBe('frozen'); expect(state().media).toEqual(media); expect(acknowledgementValid(state())).toBe(true)
+  })
+  it.each(['create', 'update'] as const)('F-10 reconciled uncertain %s conflict allows start-new and a fresh save without deleting remote data', async kind => {
+    const { flow, deps, state } = kind === 'update' ? await resumed() : setup()
+    flow.edit({ visitTips: 'keep' }); deps.save.mockRejectedValueOnce(new NetworkError()); await flow.save()
+    const pending = state().pendingCreate!
+    deps.read.mockResolvedValueOnce({ ...draft, id: pending.id, version: 8 })
+    await flow.reconcileSave(); expect(state()).toMatchObject({ phase: 'conflict', conflict: { id: pending.id, version: 8 }, pendingCreate: null })
+    flow.startNew(); detached(flow); expect(state().fields.visitTips).toBe('keep')
+    deps.uuid.mockReturnValueOnce('fresh-uuid'); await flow.save()
+    expect(deps.save).toHaveBeenLastCalledWith({ id: 'fresh-uuid', body: { googlePlaceId: 'place-a', expectedVersion: 0, enrichment: { visitTips: 'keep', ...(kind === 'update' ? { purposeKeys: ['couple'], vibeKeys: ['festive'] } : {}) } } })
+    expect(deps.remove).not.toHaveBeenCalled()
+  })
+  it('F-09 confirmation also protects form edits omitted from the wire payload', async () => {
+    const { flow, deps, state } = await resumed()
+    deps.save.mockRejectedValueOnce(new TimeoutError(1)); await flow.save()
+    const pending = state().pendingCreate!
+    flow.edit({ min: '123', visitTips: 'server ' }) // Unknown price and trimmed text serialize identically.
+    deps.read.mockResolvedValueOnce({ ...draft, version: 4, enrichment: pending.request.enrichment })
+    await flow.reconcileSave(); await flow.requestResume(draft.id)
+    expect(state()).toMatchObject({ dirty: true, replacement: draft.id, fields: { min: '123', visitTips: 'server ' } })
+    expect(deps.read).toHaveBeenCalledTimes(2)
+  })
+  it.each(['create', 'update'] as const)('uncertain %s GET without later edits confirms saved identity without marking dirty', async kind => {
+    const { flow, deps, state } = kind === 'update' ? await resumed() : setup()
+    deps.save.mockRejectedValueOnce(new TimeoutError(1)); await flow.save()
+    const pending = state().pendingCreate!
+    deps.read.mockResolvedValueOnce({ ...draft, id: pending.id, enrichment: pending.request.enrichment })
+    await flow.reconcileSave(); expect(state()).toMatchObject({ dirty: false, pendingCreate: null, phase: 'editing' })
+  })
+  it.each(['404', 'expired', 'network', 'foreign'] as const)('uncertain create GET %s preserves inputs and never blindly writes or detaches uncertainty', async outcome => {
+    const { flow, deps, state } = setup(); flow.edit({ visitTips: 'keep' }); flow.setMedia(media); flow.acknowledge()
+    deps.save.mockRejectedValueOnce(new TimeoutError(1)); await flow.save()
+    const pending = state().pendingCreate!
+    flow.setMedia([media[0]])
+    if (outcome === '404') deps.read.mockRejectedValueOnce(error(404, 'NOT_FOUND'))
+    else if (outcome === 'network') deps.read.mockRejectedValueOnce(new NetworkError())
+    else deps.read.mockResolvedValueOnce({ ...draft, id: pending.id, ...(outcome === 'foreign' ? { googlePlaceId: 'foreign' } : { expiresAt: '2020-01-01T00:00:00Z' }) })
+    await flow.reconcileSave(); expect(state().fields.visitTips).toBe('keep'); expect(deps.save).toHaveBeenCalledTimes(1)
+    if (outcome === '404' || outcome === 'expired') { detached(flow); expect(state().tombstones).toContain(pending.id) }
+    else { expect(state().pendingCreate).toEqual(pending); expect(state().phase).toBe('editing'); flow.startNew(); expect(state().pendingCreate).toEqual(pending) }
+  })
+  it('F-10 list reconciliation cannot strand an uncertain update in a non-detachable conflict', async () => {
+    const { flow, deps, state } = await resumed()
+    flow.edit({ visitTips: 'keep' }); deps.save.mockRejectedValueOnce(new TimeoutError(1)); await flow.save()
+    deps.list.mockResolvedValueOnce({ items: [{ ...draft, version: 8 }] }); deps.read.mockResolvedValueOnce({ ...draft, version: 8 })
+    await flow.refreshList(); expect(state()).toMatchObject({ phase: 'conflict', pendingCreate: null })
+    expect(deps.read).toHaveBeenCalledTimes(2)
+    flow.startNew(); detached(flow); expect(deps.remove).not.toHaveBeenCalled()
+  })
+  it.each(['404', 'expired'] as const)('F-10 reconciled create conflict reload %s detaches all ownership and returns to editing', async outcome => {
+    const { flow, deps, state } = setup(); flow.edit({ visitTips: 'keep' }); flow.setMedia(media); flow.acknowledge()
+    deps.save.mockRejectedValueOnce(new TimeoutError(1)); await flow.save()
+    deps.read.mockResolvedValueOnce({ ...draft, id: 'new-uuid', version: 8 }); await flow.reconcileSave()
+    if (outcome === '404') deps.read.mockRejectedValueOnce(error(404, 'NOT_FOUND'))
+    else deps.read.mockResolvedValueOnce({ ...draft, id: 'new-uuid', expiresAt: '2020-01-01T00:00:00Z' })
+    await flow.requestResume('new-uuid'); await flow.confirmReplacement(); detached(flow)
+    expect(state()).toMatchObject({ phase: 'editing', fields: { visitTips: 'keep' } })
+  })
+  it('DELETE mismatch -> expired GET detaches active ownership without deleting the discovered version', async () => {
+    const { flow, deps, state } = await resumed(); flow.edit({ visitTips: 'keep' })
+    deps.remove.mockRejectedValueOnce(error(404, 'NOT_FOUND')); deps.read.mockResolvedValueOnce({ ...draft, version: 8, expiresAt: '2020-01-01T00:00:00Z' })
+    await flow.deleteDraft(); detached(flow); expect(state()).toMatchObject({ phase: 'editing', fields: { visitTips: 'keep' } })
+    expect(deps.remove).toHaveBeenCalledTimes(1)
   })
   it('T4 uncertain update differing from frozen payload requires conflict review', async () => {
     const { flow, deps, state } = await resumed(); flow.edit({ visitTips: 'frozen' }); deps.save.mockRejectedValueOnce(new NetworkError()); await flow.save(); await flow.save()
@@ -205,6 +284,49 @@ describe('SA lifecycle matrix T1-T12', () => {
     deps.submit.mockRejectedValueOnce(error(400, 'RESOLUTION_TOKEN_INVALID')); await flow.submit()
     expect(deps.resolve).toHaveBeenCalledTimes(1); expect(deps.submit).toHaveBeenCalledTimes(2)
     expect(deps.submit.mock.calls[1][0]).toEqual({ ...deps.submit.mock.calls[0][0], resolutionToken: 'fresh-proof' })
+  })
+  it.each([new NetworkError(), error(503, 'UNAVAILABLE'), error(400, 'INVALID_LINK')])('F-11 failed re-resolution after explicit token rejection stays editable (%s)', async failure => {
+    const { flow, deps, state } = await resumed()
+    flow.dispatch({ type: 'PATCH', value: { resolvedLink: 'https://maps.google.com/maps/a', resolutionToken: 'old' } })
+    const before = state()
+    deps.submit.mockRejectedValueOnce(error(400, 'RESOLUTION_TOKEN_INVALID')); deps.resolve.mockRejectedValueOnce(failure)
+    await flow.submit()
+    expect(state()).toMatchObject({ phase: 'editing', message: 'temporarilyUnavailable', captured: null, fields: before.fields, draft: before.draft, media: before.media, acknowledgement: before.acknowledgement })
+    expect(deps.submit).toHaveBeenCalledTimes(1); expect(deps.remove).not.toHaveBeenCalled()
+    await flow.save(); await flow.refreshList(); expect(deps.save).toHaveBeenCalledTimes(1)
+    await flow.submit(); expect(deps.submit).toHaveBeenCalledTimes(2)
+  })
+  it.each(['lost', 'rejected', 'accepted'] as const)('expired-token bounded POST retry %s is classified by the actual POST outcome', async outcome => {
+    const { flow, deps, state } = await resumed()
+    flow.dispatch({ type: 'PATCH', value: { resolvedLink: 'https://maps.google.com/maps/a', resolutionToken: 'old' } })
+    deps.submit.mockRejectedValueOnce(error(400, 'RESOLUTION_TOKEN_INVALID'))
+    if (outcome === 'lost') deps.submit.mockRejectedValueOnce(new TimeoutError(1))
+    else if (outcome === 'rejected') deps.submit.mockRejectedValueOnce(error(400, 'RESOLUTION_TOKEN_INVALID'))
+    await flow.submit(); expect(deps.resolve).toHaveBeenCalledTimes(1); expect(deps.submit).toHaveBeenCalledTimes(2)
+    if (outcome === 'lost') {
+      expect(state()).toMatchObject({ phase: 'submissionUnknown', captured: deps.submit.mock.calls[1][0] })
+      await flow.submit(); await flow.save(); await flow.deleteDraft(); flow.startNew()
+      expect(deps.submit).toHaveBeenCalledTimes(2); expect(deps.remove).not.toHaveBeenCalled(); expect(deps.save).not.toHaveBeenCalled()
+    } else if (outcome === 'rejected') expect(state()).toMatchObject({ phase: 'editing', captured: null, media, draft: { id: draft.id } })
+    else { expect(state().phase).toBe('completed'); expect(deps.remove).toHaveBeenCalledWith({ id: draft.id, version: 3 }) }
+  })
+  it.each(['differentPlace', 'noToken', 'unresolved', 'offline'] as const)('token re-resolution %s never issues a second POST and preserves ownership', async outcome => {
+    const { flow, deps, state } = await resumed()
+    flow.dispatch({ type: 'PATCH', value: { resolvedLink: 'https://maps.google.com/maps/a', resolutionToken: 'old' } })
+    deps.submit.mockRejectedValueOnce(error(400, 'RESOLUTION_TOKEN_INVALID'))
+    deps.resolve.mockImplementationOnce(async () => {
+      if (outcome === 'offline') flow.online = false
+      return outcome === 'unresolved' ? { status: 'UNRESOLVED' } : { status: 'RESOLVED', resolutionToken: outcome === 'noToken' ? undefined : 'fresh', candidate: { googlePlaceId: outcome === 'differentPlace' ? 'place-b' : 'place-a' } }
+    })
+    await flow.submit(); expect(deps.submit).toHaveBeenCalledTimes(1); expect(deps.remove).not.toHaveBeenCalled()
+    expect(state()).toMatchObject({ phase: 'editing', captured: null, draft: { id: draft.id }, media })
+  })
+  it('start-new choice survives list refresh and resets on explicit resume or a different flow', async () => {
+    const { flow, deps, state } = await resumed()
+    deps.save.mockRejectedValueOnce(error(409, 'DRAFT_MODIFIED')); await flow.save(); flow.startNew(); await flow.refreshList()
+    expect(state()).toMatchObject({ newDraftChosen: true, draft: null }); expect(state().list.map(d => d.id)).toContain(draft.id)
+    await flow.requestResume(draft.id); expect(state().newDraftChosen).toBe(false)
+    flow.startNew(); flow.selectPlace('place-b'); expect(state().newDraftChosen).toBe(false)
   })
   it.each(['read', 'save', 'submit', 'resolve', 'cleanup', 'list'] as const)('late %s work cannot affect reset generation or unmounted flow (not T13)', async stage => {
     const { flow, deps, state } = await resumed(); const slow = deferred<never>()

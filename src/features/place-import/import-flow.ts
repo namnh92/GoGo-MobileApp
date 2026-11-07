@@ -24,7 +24,7 @@ export interface ImportFlowState {
   resolutionToken: string | null
   fields: ContributionForm
   draft: Identity | null
-  pendingCreate: { id: string; request: SaveBody; uncertain: boolean } | null
+  pendingCreate: { id: string; request: SaveBody; uncertain: boolean; inputRevision: number } | null
   captured: SaveBody | OpBody<'submitPlace'> | null
   media: Media
   acknowledgement: Ack | null
@@ -41,8 +41,10 @@ export interface ImportFlowState {
   cleanup: { id: string; version: number; changedVersion?: number; review?: { fields: ContributionForm; mediaCount: number } } | null
   message: FlowMessage
   dirty: boolean
+  inputRevision: number
   step: number
   replacement: string | null
+  newDraftChosen: boolean
 }
 export interface FlowDependencies {
   uuid: () => string
@@ -61,8 +63,8 @@ export const initialImportFlow = (generation = 0, sessionEpoch = 0): ImportFlowS
   googlePlaceId: null, resolutionToken: null, fields: emptyContribution(), draft: null,
   pendingCreate: null, captured: null, media: [], acknowledgement: null, conflict: null, deleteFailure: null,
   list: [], listSequence: 0, mutationRevision: 0, listLoading: false, listError: false,
-  tombstones: [], result: null, resultVisible: false, cleanup: null, message: 'newDraft', dirty: false,
-  step: 1, replacement: null,
+  tombstones: [], result: null, resultVisible: false, cleanup: null, message: 'newDraft', dirty: false, inputRevision: 0,
+  step: 1, replacement: null, newDraftChosen: false,
 })
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 const bills = (media: Media) => media.filter(p => p.kind === 'bill').map(p => p.mediaId).sort().join('|')
@@ -84,7 +86,7 @@ const tombstone = (s: ImportFlowState, id: string) => ({
 /** The only detach path: never let form adapters retain draft-owned media. */
 function detach(s: ImportFlowState, message: FlowMessage): ImportFlowState {
   return { ...s, draft: null, pendingCreate: null, conflict: null, media: [], acknowledgement: null,
-    captured: null, deleteFailure: null, phase: 'editing', message, replacement: null }
+    captured: null, deleteFailure: null, phase: 'editing', message, replacement: null, newDraftChosen: true }
 }
 function install(s: ImportFlowState, draft: ContributionDraft, message: FlowMessage): ImportFlowState {
   const fields = resumeContribution(clone(draft.enrichment))
@@ -92,7 +94,7 @@ function install(s: ImportFlowState, draft: ContributionDraft, message: FlowMess
   return { ...s, fields, media, acknowledgement: draft.enrichment.billPhotoPublicConsent === true ? ackFor(s, media) : null,
     draft: { id: draft.id, version: draft.version, expiresAt: draft.expiresAt }, pendingCreate: null,
     captured: null, conflict: null, phase: 'editing', message, dirty: false, replacement: null, listLoading: false, deleteFailure: null,
-    mutationRevision: s.mutationRevision + 1,
+    mutationRevision: s.mutationRevision + 1, newDraftChosen: false,
     list: [...s.list.filter(d => d.id !== draft.id), clone(draft)] }
 }
 type Action =
@@ -103,6 +105,7 @@ type Action =
   | { type: 'MEDIA'; media: Media }
   | { type: 'ACKNOWLEDGE' }
   | { type: 'INSTALL'; draft: ContributionDraft; message: 'saved' | 'resumed' }
+  | { type: 'RECONCILED_SAVE'; draft: ContributionDraft; dirty: boolean }
   | { type: 'ABSENT'; id: string; reason: 'deleted' | 'draftUnavailable' }
   | { type: 'ACCEPTED'; result: Result }
 export function importFlowReducer(s: ImportFlowState, action: Action): ImportFlowState {
@@ -112,11 +115,13 @@ export function importFlowReducer(s: ImportFlowState, action: Action): ImportFlo
     case 'DETACH_ACTIVE': return detach(s, action.reason)
     case 'EDIT': {
       if (foregroundBusy(s) || ['submissionUnknown', 'retiring', 'completed'].includes(s.phase)) return s
-      return { ...s, fields: { ...s.fields, ...clone(action.value) }, dirty: true }
+      return { ...s, fields: { ...s.fields, ...clone(action.value) }, dirty: true, inputRevision: s.inputRevision + 1 }
     }
-    case 'MEDIA': return { ...s, media: clone(action.media), acknowledgement: bills(s.media) === bills(action.media) ? s.acknowledgement : null, dirty: true }
-    case 'ACKNOWLEDGE': return { ...s, acknowledgement: ackFor(s, s.media), message: 'resumed', dirty: true }
+    case 'MEDIA': return { ...s, media: clone(action.media), acknowledgement: bills(s.media) === bills(action.media) ? s.acknowledgement : null, dirty: true, inputRevision: s.inputRevision + 1 }
+    case 'ACKNOWLEDGE': return { ...s, acknowledgement: ackFor(s, s.media), message: 'resumed', dirty: true, inputRevision: s.inputRevision + 1 }
     case 'INSTALL': return install(s, action.draft, action.message)
+    case 'RECONCILED_SAVE': return { ...install(s, action.draft, 'saved'), fields: s.fields, media: s.media,
+      acknowledgement: s.acknowledgement, dirty: action.dirty }
     case 'ABSENT': {
       const next = { ...s, ...tombstone(s, action.id) }
       return activeId(s) === action.id ? detach(next, action.reason) : next
@@ -219,8 +224,9 @@ export class ImportFlowController {
       if (!this.current(ticket)) return
       if (!this.validDraft(draft, id)) { this.patch({ phase: previousPhase, message: 'temporarilyUnavailable' }); return }
       if (this.expired(draft)) {
+        const wasActive = activeId(this.state) === id
         this.dispatch({ type: 'ABSENT', id, reason: 'draftUnavailable' })
-        this.patch({ phase: activeId(this.state) === id ? 'editing' : previousPhase, message: 'draftUnavailable' })
+        this.patch({ phase: wasActive ? 'editing' : previousPhase, message: 'draftUnavailable' })
         void this.refreshList(); return
       }
       this.dispatch({ type: 'INSTALL', draft, message: 'resumed' })
@@ -229,8 +235,9 @@ export class ImportFlowController {
     } catch (error) {
       if (!this.current(ticket)) return
       if (isApiError(error) && error.status === 404) {
+        const wasActive = activeId(this.state) === id
         this.dispatch({ type: 'ABSENT', id, reason: 'draftUnavailable' })
-        this.patch({ phase: activeId(this.state) === id ? 'editing' : this.state.conflict ? 'conflict' : 'editing' })
+        this.patch({ phase: wasActive ? 'editing' : previousPhase })
         void this.refreshList()
       } else {
         this.patch({ phase: previousPhase, message: 'temporarilyUnavailable' })
@@ -261,10 +268,11 @@ export class ImportFlowController {
     if (!this.registered || !this.online || !writesAllowed(this.state) || !priceValid(this.state.fields) || !this.state.googlePlaceId || this.expireActive()) return
     if (this.state.pendingCreate?.uncertain) { await this.reconcileSave(); return }
     const id = activeId(this.state) ?? this.dependencies.uuid()
+    const inputRevision = this.state.inputRevision
     const body: SaveBody = { googlePlaceId: this.state.googlePlaceId, expectedVersion: this.state.draft?.version ?? 0, enrichment: serializeFlow(this.state) }
     const ticket = this.begin('saving', id)
     if (!ticket) return
-    this.patch({ captured: body, ...(!this.state.draft ? { pendingCreate: { id, request: body, uncertain: false } } : {}) })
+    this.patch({ captured: body, ...(!this.state.draft ? { pendingCreate: { id, request: body, uncertain: false, inputRevision } } : {}) })
     try {
       const saved = await this.dependencies.save({ id, body: clone(body) })
       if (!this.current(ticket)) return
@@ -278,11 +286,11 @@ export class ImportFlowController {
       if (isApiError(error) && error.status >= 400 && error.status < 500 && ![408, 425].includes(error.status)) {
         this.patch({ pendingCreate: null })
         // A 409 for a create still needs an identity for explicit reload.
-        if (error.code === 'DRAFT_MODIFIED') this.patch({ pendingCreate: { id, request: body, uncertain: false } })
+        if (error.code === 'DRAFT_MODIFIED') this.patch({ pendingCreate: { id, request: body, uncertain: false, inputRevision } })
         this.writeError(error)
       } else {
         // Keep UUID AND immutable request even for an update with an uncertain version.
-        this.patch({ phase: 'editing', pendingCreate: { id, request: body, uncertain: true }, message: 'saveUnconfirmed' })
+        this.patch({ phase: 'editing', pendingCreate: { id, request: body, uncertain: true, inputRevision }, message: 'saveUnconfirmed' })
       }
     }
   }
@@ -294,11 +302,17 @@ export class ImportFlowController {
     try {
       const draft = await this.dependencies.read(pending.id)
       if (!this.current(ticket)) return
-      if (!this.validDraft(draft, pending.id)) { this.conflict(pending.id); return }
+      if (!this.validDraft(draft, pending.id)) { this.patch({ phase: 'editing', message: 'saveUnconfirmed' }); return }
       if (this.expired(draft)) { this.dispatch({ type: 'ABSENT', id: pending.id, reason: 'draftUnavailable' }); return }
       // Exact returned enrichment is proof of this frozen write. Anything else needs review.
-      if (stable(draft.enrichment) === stable(pending.request.enrichment)) this.dispatch({ type: 'INSTALL', draft, message: 'saved' })
-      else this.conflict(pending.id, draft.version)
+      if (stable(draft.enrichment) === stable(pending.request.enrichment)) {
+        // Confirm identity/version without replacing anything edited after the uncertain PUT.
+        this.dispatch({ type: 'RECONCILED_SAVE', draft, dirty: this.state.inputRevision !== pending.inputRevision })
+      } else {
+        // A matching GET resolves uncertainty, even when the remote data needs conflict review.
+        this.patch({ pendingCreate: null, draft: this.state.draft ?? { id: draft.id, version: draft.version, expiresAt: draft.expiresAt } })
+        this.conflict(pending.id, draft.version)
+      }
     } catch (error) {
       if (!this.current(ticket)) return
       if (isApiError(error) && error.status === 404) {
@@ -342,6 +356,10 @@ export class ImportFlowController {
       const draft = await this.dependencies.read(id)
       if (!this.current(ticket)) return
       if (!this.validDraft(draft, id) && !retiring) { this.patch({ phase: 'editing', message: 'deleteFailed' }); return }
+      if (!retiring && this.expired(draft)) {
+        this.dispatch({ type: 'ABSENT', id, reason: 'draftUnavailable' })
+        this.patch({ phase: this.state.conflict ? 'conflict' : 'editing' }); void this.refreshList(); return
+      }
       if (retiring) {
         if (draft.id !== id || draft.googlePlaceId !== this.state.googlePlaceId) { this.patch({ phase: 'retiring', message: 'submittedCleanupPending' }); return }
         this.patch({ phase: 'retiring', cleanup: { ...this.state.cleanup!, changedVersion: draft.version, review: { fields: resumeContribution(draft.enrichment), mediaCount: draft.enrichment.photos?.length ?? 0 } }, message: 'submittedCleanupPending' })
@@ -366,7 +384,9 @@ export class ImportFlowController {
       const result = await this.dependencies.list()
       if (!current()) return
       this.patch({ list: clone(result.items).filter(d => !this.state.tombstones.includes(d.id)), listError: false, listLoading: false })
-      if (this.expireActive() || foregroundBusy(this.state) || !this.state.draft || this.state.phase !== 'editing') return
+      if (this.expireActive() || foregroundBusy(this.state) || this.state.phase !== 'editing') return
+      if (this.state.pendingCreate?.uncertain) { await this.reconcileSave(); return }
+      if (!this.state.draft) return
       const draft = this.state.draft
       const listed = this.state.list.find(d => d.id === draft.id)
       if (listed && listed.version > draft.version) this.conflict(draft.id, listed.version)
@@ -412,14 +432,21 @@ export class ImportFlowController {
         if (!this.current(ticket)) return
         if (!isApiError(error) || error.code !== 'RESOLUTION_TOKEN_INVALID' || !this.state.resolvedLink) throw error
         if (!this.online) { this.patch({ phase: 'editing', captured: null, message: 'temporarilyUnavailable', resultVisible: true }); return }
-        const fresh = await this.dependencies.resolve({ url: this.state.resolvedLink, ...(roomId ? { roomId } : {}) })
+        let fresh: ResolveLinkResult
+        try { fresh = await this.dependencies.resolve({ url: this.state.resolvedLink, ...(roomId ? { roomId } : {}) }) }
+        catch {
+          // The POST was explicitly rejected; a failed GET-like resolution cannot make it uncertain.
+          if (this.current(ticket)) this.patch({ phase: 'editing', captured: null, message: 'temporarilyUnavailable', resultVisible: true })
+          return
+        }
         if (!this.current(ticket)) return
         if (fresh.status !== 'RESOLVED' || !fresh.resolutionToken || fresh.candidate?.googlePlaceId !== body.googlePlaceId) {
           this.patch({ ...(fresh.status === 'CANDIDATE_SELECTION' || fresh.status === 'UNRESOLVED' ? { resolution: clone(fresh) } : {}), phase: 'editing', captured: null, message: 'temporarilyUnavailable' }); return
         }
         if (!this.online) { this.patch({ phase: 'editing', captured: null, message: 'temporarilyUnavailable', resultVisible: true }); return }
-        this.patch({ resolutionToken: fresh.resolutionToken })
-        result = await this.dependencies.submit({ ...clone(body), resolutionToken: fresh.resolutionToken })
+        const retryBody = { ...clone(body), resolutionToken: fresh.resolutionToken }
+        this.patch({ resolutionToken: fresh.resolutionToken, captured: clone(retryBody) })
+        result = await this.dependencies.submit(retryBody)
       }
       if (!this.current(ticket)) return
       if (result.status === 'ALREADY_EXISTS' && !result.submissionId) {

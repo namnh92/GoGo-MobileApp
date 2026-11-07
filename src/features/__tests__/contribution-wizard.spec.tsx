@@ -84,6 +84,45 @@ beforeEach(async () => {
 const button = (name: string) => screen.getByRole('button', { name })
 const disabled = (name: string) => button(name).props.accessibilityState.disabled
 
+it('F-06 conflict -> Start new -> Save keeps the remote row and creates a fresh UUID', async () => {
+  mockDrafts.data = { items: [draft] }
+  await renderScreen(<ContributionWizard {...props} />)
+  expect(disabled('Lưu nháp')).toBe(true)
+  await fireEvent.press(button(i18n.t('placeWizard.resume')))
+  mockSave.mockRejectedValueOnce(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'changed' }))
+  await fireEvent.press(button('Lưu nháp'))
+  await fireEvent.press(button(i18n.t('placeWizard.lifecycle.startNew')))
+  expect(screen.getByText(i18n.t('placeWizard.existingDraft'))).toBeTruthy()
+  expect(disabled('Lưu nháp')).toBe(false)
+  await fireEvent.press(button('Lưu nháp'))
+  expect(mockSave).toHaveBeenCalledTimes(2)
+  const saved = mockSave.mock.calls[1][0]
+  expect(saved.id).not.toBe(draft.id)
+  expect(saved.body).toEqual({ googlePlaceId: props.googlePlaceId, expectedVersion: 0, enrichment: draft.enrichment })
+  expect(mockRemove).not.toHaveBeenCalled()
+})
+
+it.each(['deleted', 'absent', 'expired'])('F-06 active draft %s -> Save stays usable with another remote row present', async reason => {
+  mockDrafts.data = { items: [draft, { ...draft, id: 'other-draft' }] }
+  await renderScreen(<ContributionWizard {...props} />)
+  await fireEvent.press(screen.getAllByRole('button', { name: i18n.t('placeWizard.resume') })[0])
+  if (reason === 'deleted') await fireEvent.press(screen.getAllByRole('button', { name: i18n.t('placeWizard.delete') })[0])
+  else {
+    mockSave.mockRejectedValueOnce(new ApiError(409, { code: 'DRAFT_MODIFIED', message: 'changed' }))
+    await fireEvent.press(button('Lưu nháp'))
+    if (reason === 'absent') mockRead.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'missing' }))
+    else mockRead.mockResolvedValueOnce({ ...draft, expiresAt: '2020-01-01T00:00:00Z' })
+    await fireEvent.press(button(i18n.t('placeWizard.lifecycle.reload')))
+  }
+  expect(screen.getByText(i18n.t('placeWizard.existingDraft'))).toBeTruthy()
+  expect(disabled('Lưu nháp')).toBe(false)
+  const previousCalls = mockSave.mock.calls.length
+  await fireEvent.press(button('Lưu nháp'))
+  expect(mockSave).toHaveBeenCalledTimes(previousCalls + 1)
+  expect(mockSave.mock.lastCall[0]).toMatchObject({ id: expect.not.stringMatching(draft.id), body: { expectedVersion: 0, enrichment: draft.enrichment } })
+  expect(mockRemove).toHaveBeenCalledTimes(reason === 'deleted' ? 1 : 0)
+})
+
 it('starts empty, retains selections back and forth, submits one real enrichment without sample data', async () => {
   await renderScreen(<ContributionWizard {...props} />)
   expect(screen.getByLabelText('+50 GoGo Credit khi được duyệt')).toBeTruthy()
@@ -783,6 +822,25 @@ describe('SA T1-T12 lifecycle regressions', () => {
     await fireEvent.press(button('Lưu nháp'))
     expect(mockRead).toHaveBeenCalledWith(id)
     expect(mockSave).toHaveBeenCalledTimes(1)
+  })
+  it('F-09 uncertain save preserves the controlled text and removed bills; reload visibly asks before replacement', async () => {
+    await resumePhoto(); await fireEvent.press(button('Tiếp tục')); await fireEvent.press(button('Tiếp tục'))
+    mockSave.mockRejectedValueOnce(new Error('response lost after commit'))
+    await fireEvent.press(button('Lưu nháp'))
+    const frozen = mockSave.mock.calls[0][0].body.enrichment
+    await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Later tips')
+    await fireEvent.press(button(i18n.t('placeWizard.lifecycle.removeBills')))
+    mockRead.mockResolvedValue({ ...photoDraft, version: 4, enrichment: frozen })
+    await fireEvent.press(button(i18n.t('placeWizard.lifecycle.checkSave')))
+    expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Later tips')
+    expect(screen.queryByRole('button', { name: i18n.t('placeWizard.lifecycle.removeBills') })).toBeNull()
+    await fireEvent.press(button('Tiếp tục bản nháp'))
+    expect(screen.getByText(i18n.t('placeWizard.lifecycle.replaceConfirmation'))).toBeTruthy()
+    expect(mockRead).toHaveBeenCalledTimes(2)
+    await fireEvent.press(button(i18n.t('common.cancel')))
+    await fireEvent.press(button('Lưu nháp'))
+    expect(mockSave.mock.calls[1][0].body).toMatchObject({ expectedVersion: 4, enrichment: { visitTips: 'Later tips', photos: [{ mediaId: 'menu', kind: 'menu' }] } })
+    expect(mockSave.mock.calls[1][0].body.enrichment).not.toHaveProperty('billPhotoPublicConsent')
   })
   it('M15 list errors show localized retry while preserving usable inputs', async () => {
     mockDrafts = { isError: true, error: new ApiError(404, { code: 'NOT_FOUND', message: 'route unavailable' }) }

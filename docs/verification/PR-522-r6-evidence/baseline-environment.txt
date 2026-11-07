@@ -1,0 +1,58 @@
+Baseline production: a20b8e7, final regression tests copied into isolated archive. No install.
+
+> gogo-mobile@0.1.0 test /private/tmp/mobile-522-r6-baseline-pk8on_o5
+> vitest run src/shared/config/__tests__/distribute-wrapper.test.ts
+
+
+ RUN  v4.1.11 /private/tmp/mobile-522-r6-baseline-pk8on_o5
+
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts (26 tests | 3 failed) 10100ms
+     × refuses while the owner is alive 100ms
+     × refuses recovery while a recorded build process group is still alive 1321ms
+     × keeps the lock and run files when a recorded build group is still alive after the child exits 1094ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses while the owner is alive
+TypeError: Cannot read properties of undefined (reading 'trim')
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:208:103
+    206|   it('refuses while the owner is alive', () => {
+    207|     mkdirSync(lockDir(), { recursive: true })
+    208|     const start = spawnSync('ps', ['-o', 'lstart=', '-p', String(proce…
+       |                                                                                                       ^
+    209|     writeFileSync(path.join(lockDir(), 'owner'), `pid=${process.pid}\n…
+    210|     const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses recovery while a recorded build process group is still alive
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:234:33
+    232|       writeFileSync(path.join(lockDir(), 'run.json'), JSON.stringify({…
+    233|       const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+    234|       expect(result.status).not.toBe(0)
+       |                                 ^
+    235|       expect(result.stderr).toMatch(new RegExp(`process groups: ${pgid…
+    236|       expect(existsSync(lockDir())).toBe(true)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > keeps the lock and run files when a recorded build group is still alive after the child exits
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:258:33
+    256|     try {
+    257|       const result = run(['dev', 'android', '--groups', 'dev-testers']…
+    258|       expect(result.status).not.toBe(0)
+       |                                 ^
+    259|       expect(result.stderr).toMatch(new RegExp(`build process groups s…
+    260|       expect(existsSync(path.join(lockDir('dev', 'android'), 'owner'))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 23 passed (26)
+   Start at  19:55:13
+   Duration  10.25s (transform 26ms, setup 0ms, import 35ms, tests 10.10s, environment 0ms)
+
+ ELIFECYCLE  Test failed. See above for more details.
