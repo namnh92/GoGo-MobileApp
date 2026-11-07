@@ -1,5 +1,7 @@
-import { act, fireEvent, screen } from '@testing-library/react-native'
+import { completeWizard } from './contribution-fixtures'
+import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { renderScreen } from './harness'
+import i18n from '@/shared/i18n'
 import { ApiError } from '@/shared/api/errors'
 
 /**
@@ -28,7 +30,7 @@ const candidate = (businessStatus: string) => ({
 })
 
 const mockResolve = {
-  mutate: jest.fn(),
+  mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }),
   reset: jest.fn(),
   isPending: false,
   isError: false,
@@ -59,8 +61,9 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useResolveGoogleMapsLink: () => mockResolve,
   useSubmitPlace: () => mockSubmit,
+  submitPlace: (body: unknown) => mockSubmit.mutateAsync(body),
   usePlaceSubmission: () => ({ data: undefined }),
-  useTaxonomies: () => ({ data: undefined }),
+  ...jest.requireActual('./contribution-fixtures').contributionHooks(),
 }))
 
 import PlaceImportScreen from '@/features/place-import/import.view'
@@ -68,7 +71,15 @@ import PlaceImportScreen from '@/features/place-import/import.view'
 const NOT_YET_OPEN = 'Google báo địa điểm này chưa khai trương. Thêm lại khi quán đã mở cửa nhé.'
 const UNKNOWN = 'Google chưa xác nhận địa điểm còn hoạt động.'
 const GENERIC_FAILURE = 'Gửi không thành công. Thử lại nhé.'
+const KEPT = ' Thông tin bạn nhập vẫn được giữ.'
 const SUBMIT = 'Gửi địa điểm cho GoGo'
+
+async function failSubmission() {
+  mockSubmit.mutateAsync.mockRejectedValue(mockSubmit.error)
+  if ((mockResolve.data as { status?: string } | undefined)?.status === 'CANDIDATE_SELECTION') await fireEvent.press(screen.getByText('Quán A'))
+  await completeWizard()
+  await fireEvent.press(screen.getByRole('button', { name: SUBMIT }))
+}
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -91,6 +102,7 @@ it('does not offer a submit the server will refuse, and says why', async () => {
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  await completeWizard()
   const button = screen.getByRole('button', { name: SUBMIT })
   expect(button.props.accessibilityState?.disabled).toBe(true)
   await act(async () => {
@@ -107,18 +119,21 @@ it('reads a PLACE_NOT_YET_OPEN refusal as that, not a generic failure', async ()
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-  expect(screen.getByText(NOT_YET_OPEN)).toBeTruthy()
+  await failSubmission()
+  expect(screen.getByText(NOT_YET_OPEN + KEPT)).toBeTruthy()
   expect(screen.queryByText(GENERIC_FAILURE)).toBeNull()
 })
 
-it('keeps the generic failure for other refusals', async () => {
+it('shows an unconfirmed outcome for a server error without proof of rejection', async () => {
   mockResolve.data = candidate('OPERATIONAL')
   mockSubmit.isError = true
   mockSubmit.error = new ApiError(500, { code: 'INTERNAL', message: 'boom' })
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-  expect(screen.getByText(GENERIC_FAILURE)).toBeTruthy()
+  await failSubmission()
+  expect(within(screen.getByTestId('result-sheet')).getByText(i18n.t('placeWizard.lifecycle.submissionUnconfirmed'))).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
 })
 
 it('still offers submit for an operating place', async () => {
@@ -126,12 +141,13 @@ it('still offers submit for an operating place', async () => {
   await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-  const button = screen.getByRole('button', { name: SUBMIT })
-  expect(button.props.accessibilityState?.disabled).not.toBe(true)
+  expect(screen.queryByRole('button', { name: SUBMIT })).toBeNull()
+  await completeWizard()
+  expect(screen.getByRole('button', { name: SUBMIT }).props.accessibilityState?.disabled).toBe(false)
 })
 
 describe('#316 review', () => {
-  it('F-01: shows PLACE_NOT_YET_OPEN beside the candidate-selection submit too', async () => {
+  it('F-01: shows PLACE_NOT_YET_OPEN in the candidate-selection result sheet too', async () => {
     mockResolve.data = {
       status: 'CANDIDATE_SELECTION',
       candidates: [
@@ -144,11 +160,12 @@ describe('#316 review', () => {
     await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-    expect(screen.getByText(NOT_YET_OPEN)).toBeTruthy()
+    await failSubmission()
+  expect(screen.getByText(NOT_YET_OPEN + KEPT)).toBeTruthy()
     expect(screen.queryByText(GENERIC_FAILURE)).toBeNull()
   })
 
-  it('F-01: keeps the generic failure beside the candidate-selection submit for other errors', async () => {
+  it('F-01: quarantines unconfirmed server errors in candidate-selection too', async () => {
     mockResolve.data = {
       status: 'CANDIDATE_SELECTION',
       candidates: [{ googlePlaceId: 'ChIJa', name: 'Quán A', address: '1 Đường A' }],
@@ -158,7 +175,9 @@ describe('#316 review', () => {
     await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
-    expect(screen.getByText(GENERIC_FAILURE)).toBeTruthy()
+    await failSubmission()
+  expect(within(screen.getByTestId('result-sheet')).getByText(i18n.t('placeWizard.lifecycle.submissionUnconfirmed'))).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   })
 
   it('F-02: the disabled submit carries its reason, for assistive tech and on screen', async () => {
@@ -166,6 +185,7 @@ describe('#316 review', () => {
     await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+    await completeWizard()
     const button = screen.getByRole('button', { name: SUBMIT })
     expect(button.props.accessibilityHint).toBe(NOT_YET_OPEN)
     // The reason is printed with the button, not only in the status line above
@@ -178,6 +198,7 @@ describe('#316 review', () => {
     await renderScreen(<PlaceImportScreen />)
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/test')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+    await completeWizard()
     expect(screen.getByRole('button', { name: SUBMIT }).props.accessibilityHint).toBeUndefined()
   })
 })

@@ -1,0 +1,167 @@
+Baseline production: a20b8e7, final regression tests copied into isolated archive. No install.
+
+> gogo-mobile@0.1.0 test:ui /private/tmp/mobile-522-r6-baseline-pk8on_o5
+> jest --runInBand src/features/__tests__/contribution-wizard.spec.tsx
+
+(node:17262) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+FAIL src/features/__tests__/contribution-wizard.spec.tsx
+  ✕ F-06 conflict -> Start new -> Save keeps the remote row and creates a fresh UUID (131 ms)
+  ✕ F-06 active draft deleted -> Save stays usable with another remote row present (81 ms)
+  ✕ F-06 active draft absent -> Save stays usable with another remote row present (92 ms)
+  ✕ F-06 active draft expired -> Save stays usable with another remote row present (48 ms)
+  ✓ starts empty, retains selections back and forth, submits one real enrichment without sample data (79 ms)
+  ✓ renders every API kind, including amenities and optional rating chips (55 ms)
+  ✓ keeps price with unit and rejects malformed, reversed and unbounded ranges (47 ms)
+  ✓ saves an incomplete snapshot and reuses its ID with the returned version (46 ms)
+  ✓ resumes by GET, updates the version, and deletes by version (41 ms)
+  ✓ retains acknowledged menu/bill uploads when a resumed draft is edited, saved and submitted (72 ms)
+  ✓ never overwrites a conflict; explicit reload is required (15 ms)
+  ✓ disables draft writes when guest (8 ms)
+  ✓ disables draft writes when offline (7 ms)
+  ✓ disables draft writes when submitting (10 ms)
+  ✓ fails closed when taxonomy is loading (8 ms)
+  ✓ fails closed when taxonomy is error (9 ms)
+  ✓ fails closed when taxonomy is empty (9 ms)
+  ✓ never invokes the picker or submits local photos while the evidence path is blocked (33 ms)
+  ✓ prefers the current locale API label, falling back to i18n only without one (10 ms)
+  ✓ ignores a late draft save after changing the link unmounts this wizard (17 ms)
+  ✓ submits once through the sole primary action with the whole optional step empty (68 ms)
+  ✓ allows tips alone, rating alone, and clearing the optional rating without blocking completion (129 ms)
+  ✓ keeps both legacy text values visible in the single input and saves an explicit replacement (70 ms)
+  ✓ uses CMS sort order, limits amenities to five rows and keeps a selected overflow row visible (57 ms)
+  ✓ supports 40 moods with search, groups, a max-three counter and selected overflow chips (134 ms)
+  ✓ caps purpose and rating chips at six, with API choices available through their sheets (128 ms)
+  ✓ rejects stale amenity and rating keys from a resumed draft instead of silently rewriting them (37 ms)
+  ✓ preserves explicit false claims while editing another amenity (46 ms)
+  ✓ keeps one primary action through all steps and a compact accessible reward (40 ms)
+  ✓ offers recovery for draft-list failure 404 and allows saving and submission (41 ms)
+  ✓ offers recovery for draft-list failure 503 and allows saving and submission (42 ms)
+  ✓ offers recovery for draft-list failure 0 and allows saving and submission (41 ms)
+  ✓ silently tolerates resume failure 404 without changing entered data or blocking submission (44 ms)
+  ✓ silently tolerates resume failure 503 without changing entered data or blocking submission (43 ms)
+  ✓ treats a 404 list as absent even with cached drafts, and keeps an empty form (18 ms)
+  ✓ keeps deletion failures silent with telemetry (15 ms)
+  ✓ distributes all five stars across the content width with 44pt touch targets (34 ms)
+  ✓ F-02 recovers a conflicted draft after Resume confirms deletion (previously saved: false) (142 ms)
+  ✓ F-02 recovers a conflicted draft after Resume confirms deletion (previously saved: true) (116 ms)
+  ✓ F-02 retains the conflict guard when Resume fails without confirming deletion (22 ms)
+  F-05 deleted draft media
+    ✓ clears expired photos and consent but preserves inputs before save (70 ms)
+    ✓ clears expired photos and consent but preserves inputs before submit (53 ms)
+    ✓ retains live photos, consent and draft identity when deletion fails (66 ms)
+  SA T1-T12 lifecycle regressions
+    ✓ M02 blocks bill writes without explicit acknowledgement and offers local removal (37 ms)
+    ✓ M03 confirmed active absence detaches media, consent, identity and conflict together (46 ms)
+    ✓ M04 another missing row cannot detach the active media or consent (40 ms)
+    ✓ M05 deleting another row preserves active media; deleting active detaches all media/consent (52 ms)
+    ✓ M06 DELETE 404 reconciles via GET and requires explicit review of a newer version (31 ms)
+    ✓ M07 active expiry clears media and retains recovery without list membership (31 ms)
+    ✓ M08 conflict quarantines writes and offers detach without remote deletion (43 ms)
+    ✓ M09 INVALID_SUBMISSION_PHOTOS clears rejected media and offers working recovery (41 ms)
+    ✓ M09 INVALID_UPLOAD_KEY clears rejected media and offers working recovery (45 ms)
+    ✓ M10 uncertain create is read by the SAME UUID before another write (22 ms)
+    ✕ F-09 uncertain save preserves the controlled text and removed bills; reload visibly asks before replacement (70 ms)
+    ✓ M15 list errors show localized retry while preserving usable inputs (11 ms)
+
+  ● F-06 conflict -> Start new -> Save keeps the remote row and creates a fresh UUID
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      94 |   await fireEvent.press(button(i18n.t('placeWizard.lifecycle.startNew')))
+      95 |   expect(screen.getByText(i18n.t('placeWizard.existingDraft'))).toBeTruthy()
+    > 96 |   expect(disabled('Lưu nháp')).toBe(false)
+         |                                ^
+      97 |   await fireEvent.press(button('Lưu nháp'))
+      98 |   expect(mockSave).toHaveBeenCalledTimes(2)
+      99 |   const saved = mockSave.mock.calls[1][0]
+
+      at Object.toBe (src/features/__tests__/contribution-wizard.spec.tsx:96:32)
+      at asyncGeneratorStep (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● F-06 active draft deleted -> Save stays usable with another remote row present
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      116 |   }
+      117 |   expect(screen.getByText(i18n.t('placeWizard.existingDraft'))).toBeTruthy()
+    > 118 |   expect(disabled('Lưu nháp')).toBe(false)
+          |                                ^
+      119 |   const previousCalls = mockSave.mock.calls.length
+      120 |   await fireEvent.press(button('Lưu nháp'))
+      121 |   expect(mockSave).toHaveBeenCalledTimes(previousCalls + 1)
+
+      at toBe (src/features/__tests__/contribution-wizard.spec.tsx:118:32)
+      at asyncGeneratorStep (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● F-06 active draft absent -> Save stays usable with another remote row present
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      116 |   }
+      117 |   expect(screen.getByText(i18n.t('placeWizard.existingDraft'))).toBeTruthy()
+    > 118 |   expect(disabled('Lưu nháp')).toBe(false)
+          |                                ^
+      119 |   const previousCalls = mockSave.mock.calls.length
+      120 |   await fireEvent.press(button('Lưu nháp'))
+      121 |   expect(mockSave).toHaveBeenCalledTimes(previousCalls + 1)
+
+      at toBe (src/features/__tests__/contribution-wizard.spec.tsx:118:32)
+      at asyncGeneratorStep (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● F-06 active draft expired -> Save stays usable with another remote row present
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      116 |   }
+      117 |   expect(screen.getByText(i18n.t('placeWizard.existingDraft'))).toBeTruthy()
+    > 118 |   expect(disabled('Lưu nháp')).toBe(false)
+          |                                ^
+      119 |   const previousCalls = mockSave.mock.calls.length
+      120 |   await fireEvent.press(button('Lưu nháp'))
+      121 |   expect(mockSave).toHaveBeenCalledTimes(previousCalls + 1)
+
+      at toBe (src/features/__tests__/contribution-wizard.spec.tsx:118:32)
+      at asyncGeneratorStep (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● SA T1-T12 lifecycle regressions › F-09 uncertain save preserves the controlled text and removed bills; reload visibly asks before replacement
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Later tips"
+    Received: "Old tips"
+
+      833 |     mockRead.mockResolvedValue({ ...photoDraft, version: 4, enrichment: frozen })
+      834 |     await fireEvent.press(button(i18n.t('placeWizard.lifecycle.checkSave')))
+    > 835 |     expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Later tips')
+          |                                                                                  ^
+      836 |     expect(screen.queryByRole('button', { name: i18n.t('placeWizard.lifecycle.removeBills') })).toBeNull()
+      837 |     await fireEvent.press(button('Tiếp tục bản nháp'))
+      838 |     expect(screen.getByText(i18n.t('placeWizard.lifecycle.replaceConfirmation'))).toBeTruthy()
+
+      at Object.toBe (src/features/__tests__/contribution-wizard.spec.tsx:835:82)
+      at asyncGeneratorStep (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../../../Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-518/node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 50 passed, 55 total
+Snapshots:   0 total
+Time:        4.689 s, estimated 20 s
+Ran all test suites matching /src\/features\/__tests__\/contribution-wizard.spec.tsx/i.
+ ELIFECYCLE  Command failed with exit code 1.

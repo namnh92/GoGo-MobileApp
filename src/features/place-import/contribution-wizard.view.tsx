@@ -1,0 +1,538 @@
+import { useImperativeHandle, type Ref } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { Pressable, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
+import { useTaxonomies } from '@/shared/api'
+import { track } from '@/shared/analytics'
+import { GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { MaterialIcon } from '@/shared/ui/material-icon'
+import { Text } from '@/shared/ui/text'
+import { TextInput } from '@/shared/ui/text-input'
+import { FieldFocusGroup } from '@/shared/ui/field-focus-group'
+import {
+  priceValid,
+  stepValid,
+  submissionEnrichment,
+  type ContributionForm,
+  type Enrichment,
+} from './contribution-form'
+import { taxonomyOptions } from './contribution-options'
+import { ContributionChoices } from './contribution-choices.view'
+import { styles } from './contribution-wizard.style'
+import { ImportFlowProvider, useOptionalImportFlow, useImportFlow } from './import-flow-controller'
+import { acknowledgementValid, foregroundBusy, serializeFlow, writesAllowed } from './import-flow'
+
+function Wizard({
+  ref,
+  googlePlaceId,
+  registered,
+  online,
+  submitting,
+  blocked,
+  onSubmit,
+  onBack,
+  onFocus,
+}: {
+  ref?: Ref<{ saveDraft: () => void }>
+  googlePlaceId: string
+  registered: boolean
+  online: boolean
+  submitting: boolean
+  blocked: boolean
+  onSubmit: (enrichment: Enrichment) => void
+  onBack: () => void
+  onFocus: () => void
+}) {
+  const { t } = useTranslation()
+  const { theme } = useUnistyles()
+  const { controller, state } = useImportFlow()
+  const { control } = useForm<ContributionForm>({ defaultValues: state.fields, values: state.fields })
+  const form = useWatch({ control }) as ContributionForm
+  const step = state.step
+  const setValue = <K extends keyof ContributionForm>(key: K, value: ContributionForm[K]) => controller.edit({ [key]: value })
+  const taxonomies = useTaxonomies({ kinds: 'suitability,mood,amenity,checkin_tag' })
+  const busy = submitting || foregroundBusy(state)
+  const disabled = busy || !online || ['retiring', 'completed', 'submissionUnknown'].includes(state.phase)
+  const existing = state.list.filter(d => d.googlePlaceId === googlePlaceId && !state.tombstones.includes(d.id))
+  const activeId = state.draft?.id ?? state.pendingCreate?.id
+  const needsDraftChoice = !activeId && existing.length > 0 && !state.newDraftChosen
+  const canSave = !disabled && registered && writesAllowed(state) && priceValid(form) && !state.listLoading
+  const purposes = taxonomyOptions(taxonomies.data, 'suitability')
+  const vibes = taxonomyOptions(taxonomies.data, 'mood')
+  const amenities = taxonomyOptions(taxonomies.data, 'amenity')
+  const ratings = taxonomyOptions(taxonomies.data, 'checkin_tag')
+  const includes = (options: typeof purposes, key: string) => options.some((option) => option.key === key)
+  const taxonomyReady = !taxonomies.isPending && !taxonomies.isError && purposes.length > 0 && vibes.length > 0
+  const validSelection = (keys: string[], options: typeof purposes, max: number) =>
+    keys.length <= max && new Set(keys).size === keys.length && keys.every((key) => includes(options, key))
+  const validKeys =
+    validSelection(form.purposeKeys, purposes, 10) &&
+    validSelection(form.vibeKeys, vibes, 3) &&
+    Object.keys(form.amenities).length <= 6 &&
+    Object.keys(form.amenities).every((key) => includes(amenities, key)) &&
+    validSelection(form.serviceChips, ratings, 5) && validSelection(form.spaceChips, ratings, 5)
+
+  function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string) {
+    return (
+      <View style={styles.heading}>
+        <MaterialIcon name={icon} size={18} color="redesign.primaryText" />
+        <Text variant="introHeading" style={styles.headingText}>
+          {title}
+        </Text>
+        {tag ? (
+          <Text variant="introCaption" color="redesign.secondary" style={styles.sectionTag}>
+            {tag}
+          </Text>
+        ) : null}
+      </View>
+    )
+  }
+  function reward() {
+    return (
+      <View style={styles.reward} accessible accessibilityLabel={t('placeResult.credit')}>
+        <MaterialIcon name="sparkle" size={14} color="redesign.white" />
+        <Text variant="introCaption" color="redesign.white" numberOfLines={1}>
+          {t('placeWizard.rewardCompact', { amount: 50 })}
+        </Text>
+      </View>
+    )
+  }
+
+  function textField(
+    field: 'min' | 'max' | 'recommendedDishes' | 'visitTips',
+    label: string,
+    maxLength: number,
+    numeric = false,
+    placeholder?: string,
+  ) {
+    return (
+      <FieldFocusGroup style={styles.field}>
+        {field !== 'visitTips' ? (
+          <Text variant="introSmall" color="redesign.secondary">
+            {label}
+          </Text>
+        ) : null}
+        <TextInput
+          accessibilityLabel={label}
+          value={
+            field === 'visitTips'
+              ? [form.recommendedDishes, form.visitTips].filter(Boolean).join(' — ')
+              : form[field]
+          }
+          editable={!disabled}
+          onChangeText={(value) => {
+            if (field === 'visitTips') setValue('recommendedDishes', '')
+            setValue(field, value)
+          }}
+          onFocus={onFocus}
+          keyboardType={numeric ? 'number-pad' : 'default'}
+          placeholder={placeholder}
+          multiline={false}
+          maxLength={maxLength}
+          placeholderTextColor={theme.redesign.secondary}
+          style={styles.input}
+        />
+      </FieldFocusGroup>
+    )
+  }
+
+  function rating() {
+    const value = form.serviceRating === form.spaceRating ? form.serviceRating : 0
+    return (
+      <View style={styles.ratingRow}>
+        <View style={styles.stars} accessibilityRole="radiogroup">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Pressable
+              key={n}
+              accessibilityRole="radio"
+              accessibilityLabel={t('placeWizard.stars', {
+                category: t('placeWizard.ratings'),
+                count: n,
+              })}
+              accessibilityState={{ checked: value === n, disabled }}
+              disabled={disabled}
+              style={styles.star}
+              onPress={() => {
+                const next = value === n ? 0 : n
+                setValue('serviceRating', next)
+                setValue('spaceRating', next)
+              }}
+            >
+              <MaterialIcon
+                name={value >= n ? 'star' : 'starOutline'}
+                size={26}
+                color={value >= n ? 'status.warningText' : 'redesign.outline'}
+              />
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    )
+  }
+
+  async function saveDraft() {
+    if (!canSave || !validKeys || needsDraftChoice) return
+    await controller.save()
+  }
+  useImperativeHandle(ref, () => ({ saveDraft: () => { void saveDraft() } }))
+  function move(next: number) {
+    controller.move(next)
+    track('place_contribution_step_viewed', { step: next })
+  }
+  const complete = submissionEnrichment(form) ? serializeFlow(state) as Enrichment : undefined
+  const submitDisabled = disabled || blocked || !complete || !taxonomyReady || !validKeys || !writesAllowed(state) || !!state.pendingCreate?.uncertain
+  return (
+    <View testID="contribution-wizard" style={styles.root}>
+      <View style={styles.card}>
+        <View style={styles.header}>
+          <View style={styles.heading}>
+            <View style={styles.headerIcon}>
+              <MaterialIcon name="editNote" size={18} color="redesign.primaryText" />
+            </View>
+            <Text variant="introHeading" style={styles.headingText}>
+              {t('placeWizard.title')}
+            </Text>
+            {reward()}
+          </View>
+          <View style={styles.progress}>
+            {[1, 2, 3].map((n) => (
+              <View
+                key={n}
+                style={styles.progressItem}
+                accessibilityLabel={t('placeWizard.progress', {
+                  step: n,
+                  status: t(
+                    n < step && stepValid(form, n)
+                      ? 'placeWizard.complete'
+                      : n === step
+                        ? 'placeWizard.current'
+                        : n === 3
+                          ? 'placeWizard.photoBonus'
+                          : n === 2
+                            ? 'placeWizard.experience'
+                            : 'placeWizard.mandatory',
+                  ),
+                })}
+              >
+                <View
+                  style={[
+                    styles.progressLine,
+                    n < step ? styles.completeLine : n === step && styles.currentLine,
+                  ]}
+                />
+                <Text
+                  variant="introCaption"
+                  color={n === step ? 'redesign.primaryText' : 'redesign.secondary'}
+                >
+                  {t(`placeWizard.step${n}`)}
+                </Text>
+                <Text variant="introCaption">
+                  {t(
+                    n < step && stepValid(form, n)
+                      ? 'placeWizard.complete'
+                      : n === step
+                        ? 'placeWizard.current'
+                        : n === 3
+                          ? 'placeWizard.photoBonus'
+                          : n === 2
+                            ? 'placeWizard.experience'
+                            : 'placeWizard.mandatory',
+                  )}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        <View style={styles.body}>
+          <View style={[styles.heading, styles.stepHeading]}>
+            <Text variant="introSmall" color="redesign.primaryText" style={styles.stepNumber}>
+              {step}
+            </Text>
+            <Text variant="introHeading" style={styles.headingText}>
+              {t(`placeWizard.heading${step as 1 | 2 | 3}`)}
+            </Text>
+            {step !== 3 ? (
+              <Text variant="introCaption" color="redesign.primaryText" style={styles.tag}>
+                {t(
+                  step === 2
+                    ? 'placeWizard.experience'
+                    : stepValid(form, 1)
+                      ? 'placeWizard.filled'
+                      : 'placeWizard.mandatory',
+                )}
+              </Text>
+            ) : null}
+          </View>
+          {!online ? <Text color="status.warningText">{t('placeWizard.offline')}</Text> : null}
+          {taxonomies.isPending ? <Text>{t('common.loading')}</Text> : null}
+          {taxonomies.isError || (!taxonomies.isPending && !taxonomyReady) ? (
+            <View>
+              <Text color="status.warningText">{t('placeWizard.taxonomyUnavailable')}</Text>
+              <GhostBtn
+                label={t('common.retry')}
+                disabled={disabled}
+                onPress={() => {
+                  void taxonomies.refetch()
+                }}
+              />
+            </View>
+          ) : null}
+          {!validKeys ? (
+            <View>
+              <Text color="status.warningText">{t('placeWizard.staleKeys')}</Text>
+              <GhostBtn
+                label={t('placeWizard.clearStale')}
+                disabled={disabled}
+                onPress={() => {
+                  setValue(
+                    'purposeKeys',
+                    form.purposeKeys.filter((k) => includes(purposes, k)),
+                  )
+                  setValue(
+                    'vibeKeys',
+                    form.vibeKeys.filter((k) => includes(vibes, k)),
+                  )
+                  setValue(
+                    'amenities',
+                    Object.fromEntries(Object.entries(form.amenities).filter(([k]) => includes(amenities, k))),
+                  )
+                  setValue(
+                    'serviceChips',
+                    form.serviceChips.filter((k) => includes(ratings, k)),
+                  )
+                  setValue(
+                    'spaceChips',
+                    form.spaceChips.filter((k) => includes(ratings, k)),
+                  )
+                }}
+              />
+            </View>
+          ) : null}
+          {step === 1 ? (
+            <>
+              <View style={styles.section}>
+                {sectionTitle(t('placeWizard.price'), 'payments')}
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.priceHelp')}
+                </Text>
+                <View style={styles.priceGrid}>
+                  {(['under50', '50to100', '100to200', 'over200'] as const).map((range, index) => {
+                    const min = ['0', '50000', '100000', '200001'][index]!
+                    const selected = form.priceKnown && form.min === min && form.unit === 'per_person'
+                    return (
+                      <Pressable
+                        key={range}
+                        accessibilityRole="button"
+                        accessibilityLabel={t(`placeWizard.${range}`)}
+                        accessibilityState={{ selected, disabled }}
+                        disabled={disabled}
+                        style={[styles.priceOption, selected && styles.selectedPrice]}
+                        onPress={() => {
+                          setValue('priceKnown', !selected)
+                          setValue('unit', 'per_person')
+                          setValue('min', min)
+                          setValue('max', ['49999', '100000', '200000', ''][index]!)
+                        }}
+                      >
+                        {selected ? (
+                          <MaterialIcon name="check" size={15} color="redesign.primaryText" />
+                        ) : null}
+                        <Text variant="introSmall">{t(`placeWizard.${range}`)}</Text>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+                {form.priceKnown && form.min === '200001'
+                  ? textField('max', t('placeWizard.max'), 16, true)
+                  : null}
+                {!priceValid(form) ? (
+                  <Text color="status.dangerText">{t('placeWizard.priceInvalid')}</Text>
+                ) : null}
+              </View>
+              <View style={[styles.section, styles.divider]}>
+                {sectionTitle(t('placeWizard.purposes'), 'target', t('placeWizard.multiple'))}
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.purposesHelp')}
+                </Text>
+                <ContributionChoices options={purposes} selected={form.purposeKeys} max={10} disabled={disabled}
+                  title={t('placeWizard.purposes')} onChange={(keys) => setValue('purposeKeys', keys)} />
+              </View>
+            </>
+          ) : null}
+          {step === 2 ? (
+            <>
+              <View style={styles.section}>
+                {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'))}
+                <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
+                <ContributionChoices options={vibes} selected={form.vibeKeys} max={3} disabled={disabled}
+                  title={t('placeWizard.vibes')} onChange={(keys) => setValue('vibeKeys', keys)} />
+              </View>
+              <View style={[styles.section, styles.divider]}>
+                {sectionTitle(t('placeWizard.amenities'), 'activity', t('placeWizard.tick'))}
+                <Text variant="introCaption">{t('placeWizard.amenitiesHelp')}</Text>
+                <ContributionChoices options={amenities} selected={Object.keys(form.amenities).filter((key) => form.amenities[key])}
+                  checklist max={6} disabled={disabled} title={t('placeWizard.amenities')}
+                  onChange={(keys) => setValue('amenities', Object.fromEntries([
+                    ...Object.entries(form.amenities).filter(([, value]) => value === false),
+                    ...keys.map((key) => [key, true] as const),
+                  ]))} />
+              </View>
+            </>
+          ) : null}
+          {step === 3 ? (
+            <>
+              <View style={styles.section}>
+                {sectionTitle(t('placeWizard.photos'), 'receipt', t('placeWizard.optional'))}
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.photosHelp')}
+                </Text>
+                <GhostBtn
+                  label={t('placeWizard.uploadPhotos')}
+                  disabled
+                  onPress={() => {}}
+                  leadingIcon="camera"
+                  accessibilityHint={t('placeWizard.photosBlocked')}
+                  style={styles.photo}
+                />
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.photosBlocked')}
+                </Text>
+              </View>
+              <View style={[styles.section, styles.divider]}>
+                {sectionTitle(t('placeWizard.tipsHeading'), 'tips', t('placeWizard.optional'))}
+                <Text variant="introCaption" color="redesign.secondary">
+                  {t('placeWizard.tipsHelp')}
+                </Text>
+                {textField(
+                  'visitTips',
+                  t('placeWizard.tipsHeading'),
+                  2000,
+                  false,
+                  t('placeWizard.tipsPlaceholder'),
+                )}
+              </View>
+              <View style={[styles.section, styles.divider]}>
+                {sectionTitle(t('placeWizard.ratings'), 'reviews', t('placeWizard.optional'))}
+                {rating()}
+                <ContributionChoices options={ratings} selected={[...new Set([...form.serviceChips, ...form.spaceChips])]}
+                  max={5} disabled={disabled || !form.serviceRating || !form.spaceRating} title={t('placeWizard.ratings')}
+                  onChange={(keys) => { setValue('serviceChips', keys); setValue('spaceChips', keys) }} />
+              </View>
+            </>
+          ) : null}
+          <View style={styles.navigation}>
+            {step > 1 ? (
+              <GhostBtn
+                label={t('common.back')}
+                disabled={busy}
+                onPress={() => move(step - 1)}
+                style={styles.back}
+              />
+            ) : null}
+            {step < 3 ? (
+              <PrimaryBtn
+                label={t('placeWizard.next')}
+                disabled={disabled || !stepValid(form, step) || !taxonomyReady || !validKeys}
+                onPress={() => move(step + 1)}
+                style={styles.next}
+              />
+            ) : (
+              <PrimaryBtn
+                label={t('placeImport.submit')}
+                accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
+                loading={submitting}
+                leadingIcon="send"
+                disabled={submitDisabled}
+                onPress={() => {
+                  if (complete) onSubmit(complete)
+                }}
+                style={styles.next}
+              />
+            )}
+          </View>
+        </View>
+      </View>
+      <SecondaryBtn
+        label={t('placeWizard.save')}
+        icon="bookmark"
+        loading={state.phase === 'saving'}
+        disabled={!canSave || !validKeys || needsDraftChoice}
+        onPress={() => { void saveDraft() }}
+        style={styles.action}
+      />
+      {!registered ? <Text variant="introCaption">{t('placeWizard.signInDraft')}</Text> : null}
+      <Text accessibilityLiveRegion="polite">{t(`placeWizard.lifecycle.${state.message}`)}</Text>
+      {state.listError ? <View>
+        <Text color="status.warningText">{t('placeWizard.lifecycle.draftListUnavailable')}</Text>
+        <GhostBtn label={t('placeWizard.lifecycle.retryList')} disabled={disabled}
+          onPress={() => { void controller.refreshList() }} />
+      </View> : null}
+      {state.media.length ? <View>
+        <Text>{t('placeWizard.lifecycle.publicPhotos', { count: state.media.length })}</Text>
+        <GhostBtn label={t('placeWizard.lifecycle.removePhotos')} disabled={busy}
+          onPress={() => controller.setMedia([])} />
+        {state.media.some(p => p.kind === 'bill') ? <>
+          {!acknowledgementValid(state) ? <>
+            <Text color="status.warningText">{t('placeWizard.lifecycle.billAcknowledgementRequired')}</Text>
+            <GhostBtn label={t('placeWizard.lifecycle.acknowledge')} disabled={busy || state.phase !== 'editing'}
+              onPress={() => controller.acknowledge()} />
+          </> : null}
+          <GhostBtn label={t('placeWizard.lifecycle.removeBills')} disabled={busy}
+            onPress={() => controller.setMedia(state.media.filter(p => p.kind !== 'bill'))} />
+        </> : null}
+      </View> : null}
+      {state.phase === 'mediaRecovery' || state.message === 'draftUnavailable' ? <GhostBtn
+        label={t('placeWizard.lifecycle.continueWithoutPhotos')} disabled={busy}
+        onPress={() => controller.continueWithoutPhotos()} /> : null}
+      {state.phase === 'conflict' ? <GhostBtn label={t('placeWizard.lifecycle.startNew')}
+        disabled={disabled || !!state.pendingCreate?.uncertain} onPress={() => controller.startNew()} /> : null}
+      {registered && !activeId && !['retiring', 'completed', 'submissionUnknown'].includes(state.phase) ? <GhostBtn
+        label={t('placeWizard.lifecycle.discard')} disabled={busy} onPress={() => { void controller.deleteDraft() }} /> : null}
+      {state.pendingCreate?.uncertain ? <GhostBtn label={t('placeWizard.lifecycle.checkSave')}
+        disabled={disabled} onPress={() => { void controller.reconcileSave() }} /> : null}
+      {state.message === 'deleteFailed' ? <GhostBtn label={t('common.retry')}
+        disabled={disabled} onPress={() => { void controller.deleteDraft(state.deleteFailure ?? undefined) }} /> : null}
+      {registered && activeId ? <View style={styles.note}>
+        <GhostBtn label={t(['conflict', 'mediaRecovery'].includes(state.phase) ? 'placeWizard.lifecycle.reload' : 'placeWizard.resume')}
+          disabled={disabled} onPress={() => { void controller.requestResume(state.conflict?.id ?? activeId) }} />
+        <GhostBtn label={t('placeWizard.delete')} disabled={disabled || state.phase === 'conflict'}
+          onPress={() => { void controller.deleteDraft() }} />
+      </View> : null}
+      {registered ? existing.filter(d => d.id !== activeId).map(draft => <View key={draft.id} style={styles.note}>
+        <Text variant="introSmall">{t('placeWizard.existingDraft')}</Text>
+        <GhostBtn label={t('placeWizard.resume')} disabled={disabled}
+          onPress={() => { void controller.requestResume(draft.id) }} />
+        <GhostBtn label={t('placeWizard.delete')} disabled={disabled}
+          onPress={() => { void controller.deleteDraft(draft) }} />
+      </View>) : null}
+      {state.conflict && state.conflict.id !== activeId && !existing.some(d => d.id === state.conflict?.id) ? <GhostBtn
+        label={t('placeWizard.lifecycle.reload')} disabled={disabled}
+        onPress={() => { void controller.requestResume(state.conflict!.id) }} /> : null}
+      {state.replacement ? <View accessibilityViewIsModal>
+        <Text>{t('placeWizard.lifecycle.replaceConfirmation')}</Text>
+        <GhostBtn label={t('placeWizard.lifecycle.replace')} disabled={disabled}
+          onPress={() => { void controller.confirmReplacement() }} />
+        <GhostBtn label={t('common.cancel')} onPress={() => controller.cancelReplacement()} />
+      </View> : null}
+      <View style={styles.note}>
+        <View style={styles.heading}>
+          <MaterialIcon name="verified" color="redesign.secondary" />
+          <Text variant="introLabel">{t('placeWizard.moderationTitle')}</Text>
+        </View>
+        <Text variant="introCaption" color="redesign.secondary">
+          {t('placeWizard.moderationNote')}
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+// Standalone use (including previews) still gets exactly one controller. The import
+// screen provides it above resolution and results, so wizard remounts cannot own it.
+export function ContributionWizard(props: Parameters<typeof Wizard>[0]) {
+  const flow = useOptionalImportFlow()
+  return flow ? <Wizard {...props} /> : <ImportFlowProvider online={props.online} registered={props.registered} initialPlaceId={props.googlePlaceId}>
+    <Wizard {...props} />
+  </ImportFlowProvider>
+}
