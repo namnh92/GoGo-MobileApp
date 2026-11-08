@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
@@ -20,7 +21,7 @@ import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 import { Icon } from '@/shared/ui/icons'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './preference.style'
@@ -159,11 +160,7 @@ export default function PreferenceScreen() {
         <AppHeader title={t('preference.headerTitle')} onBack={() => router.back()} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[5] }}>
-        <View style={styles.countPill}>
-          <Text variant="caption" color="status.successText">
-            {t('preference.selectedCount', { n: selected.length, max: MAX_PREFS })}
-          </Text>
-        </View>
+        <Chip variant="positive" label={t('preference.selectedCount', { n: selected.length, max: MAX_PREFS })} />
         <Text variant="display" style={styles.title}>{t('preference.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('preference.body')}</Text>
 
@@ -186,19 +183,8 @@ export default function PreferenceScreen() {
           {options.map(option => {
             const active = selected.includes(option.key)
             return (
-              <Pressable
-                key={option.key}
-                onPress={() => toggle(option.key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={[styles.option, active ? styles.optionActive : styles.optionIdle]}
-              >
-                {active ? <Icon name="check" size={16} color="accent.onSoft" /> : null}
-                {option.emoji ? <Glyph size="sm">{option.emoji}</Glyph> : null}
-                <Text variant="label" color={active ? 'accent.onSoft' : 'text.primary'}>
-                  {option.label}
-                </Text>
-              </Pressable>
+              <Chip key={option.key} label={option.label} emoji={option.emoji}
+                variant={active ? 'selected' : 'default'} onPress={() => toggle(option.key)} />
             )
           })}
         </View>

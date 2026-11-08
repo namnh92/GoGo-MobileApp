@@ -7,7 +7,6 @@ const RING = 56
 
 export const styles = StyleSheet.create(theme => ({
   intro: { gap: theme.spacing[2] },
-  personalisation: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1], backgroundColor: theme.redesign.container, paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[1], borderRadius: theme.radius.pill },
   section: { gap: theme.spacing[3] },
   live: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1] },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },

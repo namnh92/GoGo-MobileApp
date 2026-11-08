@@ -47,13 +47,4 @@ export const styles = StyleSheet.create(theme => ({
   actions: { alignSelf: 'stretch', gap: spacing[2] },
   error: { textAlign: 'center' },
   constraintRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing[2], marginTop: spacing[2] },
-  constraintChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    borderRadius: radius.pill,
-    backgroundColor: theme.surface.subtle,
-  },
 }))

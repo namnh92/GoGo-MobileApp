@@ -54,17 +54,6 @@ export const styles = StyleSheet.create(theme => ({
     overflow: 'hidden',
     ...theme.shadows.card,
   },
-  heroBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: theme.accent.soft,
-    paddingHorizontal: spacing[3],
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    marginBottom: spacing[3],
-  },
   heroBody: { marginTop: 4, marginBottom: spacing[4] },
 
   // One dominant CTA (spec §7): "Tạo kèo" is filled, "Chọn nhanh" is a quiet fill.

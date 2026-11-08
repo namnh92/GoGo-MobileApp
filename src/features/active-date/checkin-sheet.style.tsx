@@ -18,15 +18,6 @@ export const styles = StyleSheet.create(theme => ({
   section: { gap: spacing[3], marginBottom: spacing[5] },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  tagBtn: {
-    minHeight: touchTarget.min,
-    paddingHorizontal: spacing[4],
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.surface.subtle,
-  },
-  tagBtnActive: { backgroundColor: theme.accent.soft },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3], alignItems: 'center' },
   photoThumb: { width: 72, height: 72, borderRadius: radius.compact },
   /** Sits over the thumbnail while the presign → PUT round trip is in flight. */

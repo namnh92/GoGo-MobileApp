@@ -712,14 +712,10 @@ export default function GoGoRoomScreen() {
                     <View style={styles.memberNameRow}>
                       <Text variant="body" style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
                       {member.role === 'host' ? (
-                        <View style={styles.hostBadge}>
-                          <Text variant="caption" color="accent.onSoft">{t('gogoRoom.hostBadge')}</Text>
-                        </View>
+                        <Chip label={t('gogoRoom.hostBadge')} />
                       ) : null}
                       {member.isGuest ? (
-                        <View style={styles.guestBadge}>
-                          <Text variant="caption" color="status.infoText">{t('gogoRoom.guestBadge')}</Text>
-                        </View>
+                        <Chip label={t('gogoRoom.guestBadge')} variant="info" />
                       ) : null}
                     </View>
                     <Chip label={t(chip.key)} variant={chip.variant} />

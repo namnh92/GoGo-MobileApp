@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
@@ -9,7 +10,6 @@ import { haptic } from '@/shared/ui/feedback'
 import { Icon, IconCheck } from '@/shared/ui/icons'
 import { Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
-import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { ACCENTS, DEFAULT_ACCENT, accentOf, themeName, themes, type Accent } from '@/shared/ui/theme'
 import type { MessageKey } from '@/shared/i18n/types'
@@ -44,7 +44,7 @@ export function ThemeAccentCard() {
 
   return <>
     <View style={styles.intro}>
-      <View style={styles.personalisation}><MaterialIcon name="palette" color="accent.primary" /><Text variant="introSmall" color="redesign.secondary">{t('g11.themePersonalise')}</Text></View>
+      <Chip label={t('g11.themePersonalise')} />
       <Text variant="introSection" color="redesign.ink" accessibilityRole="header">{t('g11.themeHeading')}</Text>
       <Text variant="introBody" color="redesign.secondary">{t('g11.themeIntro')}</Text>
     </View>

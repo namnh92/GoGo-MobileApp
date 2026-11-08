@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
@@ -123,7 +124,7 @@ export default function ProfileScreen() {
             </View>
             {canRead ? <IconBtn style={styles.edit} accessibilityLabel={t('g11.editProfile')} onPress={() => router.push('/settings/account')}><MaterialIcon name="edit" size={20} color="redesign.secondary" /></IconBtn> : null}
           </View>
-          {interests.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.interests}>{interests.map(label => <View key={label} style={styles.interest}><Text variant="introCaption" color="redesign.secondary" numberOfLines={1}>{label}</Text></View>)}</ScrollView> : null}
+          {interests.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.interests}>{interests.map(label => <Chip key={label} label={label} />)}</ScrollView> : null}
         </Card>
       )}
       {!canRead ? <>

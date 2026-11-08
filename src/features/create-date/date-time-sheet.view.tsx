@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
@@ -73,18 +74,9 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
   function shortcut(id: string, key: string, label: string, date: Date) {
     const active = day === key
     return (
-      <Pressable
-        key={label}
-        onPress={() => chooseDay(key)}
-        accessibilityRole="button"
-        accessibilityLabel={`${label}, ${dayLabel(date, locale)}`}
-        accessibilityState={{ selected: active }}
-        testID={`date-sheet-shortcut-${id}`}
-        style={[styles.chip, active && styles.chipActive]}
-      >
-        {active ? <Icon name="check" size={14} color="accent.onSoft" /> : null}
-        <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onSoft' : 'text.primary'} numberOfLines={1}>{label}</Text>
-      </Pressable>
+      <Chip key={label} label={label} appearance="soft" variant={active ? 'selected' : 'default'}
+        onPress={() => chooseDay(key)} accessibilityLabel={`${label}, ${dayLabel(date, locale)}`}
+        testID={`date-sheet-shortcut-${id}`} />
     )
   }
 
@@ -208,30 +200,13 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
               const off = isPastSlot(slot, dayArg, now)
               const active = time === slot
               return (
-                <Pressable
-                  key={slot}
-                  disabled={off}
-                  onPress={() => setTime(slot)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active, disabled: off }}
-                  testID={`date-sheet-time-${slot}`}
-                  style={[styles.chip, active && styles.chipActive, off && styles.chipOff]}
-                >
-                  {active ? <Icon name="check" size={14} color="accent.onSoft" /> : null}
-                  <Text variant={active ? 'label' : 'bodySmall'} color={active ? 'accent.onSoft' : 'text.primary'}>{slot}</Text>
-                </Pressable>
+                <Chip key={slot} label={slot} appearance="soft" variant={active ? 'selected' : 'default'} disabled={off}
+                  onPress={() => setTime(slot)} testID={`date-sheet-time-${slot}`} />
               )
             })}
-            <Pressable
-              onPress={() => setSlots(true)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: time !== null && !(EVENING_STARTS as readonly string[]).includes(time) }}
-              testID="date-sheet-other-time"
-              style={[styles.chip, time !== null && !(EVENING_STARTS as readonly string[]).includes(time) && styles.chipActive]}
-            >
-              <Icon name="clock" size={14} color="text.secondary" />
-              <Text variant="bodySmall" numberOfLines={1}>{t('createTime.otherTime')}</Text>
-            </Pressable>
+            <Chip label={t('createTime.otherTime')} icon="clock" appearance="soft"
+              variant={time !== null && !(EVENING_STARTS as readonly string[]).includes(time) ? 'selected' : 'default'}
+              onPress={() => setSlots(true)} testID="date-sheet-other-time" />
           </ScrollView>
 
           <View testID="date-sheet-summary" style={[styles.summary, past && styles.summaryInvalid]}>
