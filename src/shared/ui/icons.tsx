@@ -38,6 +38,10 @@ const SHAPES = {
       <Line x1={16} y1={2} x2={16} y2={6} />
       <Line x1={8} y1={2} x2={8} y2={6} />
       <Line x1={3} y1={10} x2={21} y2={10} stroke={filled ? cut : undefined} />
+      {/* Keep the solid calendar readable at 22pt without crowding the outline. */}
+      {filled && [14, 18].map(cy => [8, 16].map(cx => (
+        <Circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.25} fill={cut} stroke="none" />
+      )))}
     </>
   ),
   flag: () => (
@@ -455,8 +459,8 @@ function useTabIconColors(active?: boolean) {
   const theme = useAppTheme()
   return {
     tint: active ? theme.accent.text : theme.text.secondary,
-    /** Detail drawn inside a filled glyph — the door, the calendar rule. */
-    cut: theme.accent.onAccent,
+    /** Contrast against accent.text, including the pale accents in dark mode. */
+    cut: theme.surface.card,
   }
 }
 
