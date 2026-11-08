@@ -45,6 +45,10 @@ async function mount(initial = profile()) {
 }
 type View = Awaited<ReturnType<typeof mount>>
 async function type(view: View, label: string, value: string) { await fireEvent.changeText(view.getByLabelText(label), value) }
+async function refetch(overrides: Partial<Me>) {
+  server = { ...server, ...overrides }
+  await act(async () => { await client.refetchQueries({ queryKey: queryKeys.me() }) })
+}
 
 it('has one header save, disabled until a valid change, and no body save or change-photo button', async () => {
   const view = await mount()
@@ -71,14 +75,102 @@ it('saves a name-only change while preserving the birthday', async () => {
   const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
   await type(view, NAME, 'Bình')
   await fireEvent.press(view.getByText('Lưu'))
-  expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'Bình', dateOfBirth: '1990-05-17' })
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'Bình' })
+})
+it('saves only the birthday when the name is untouched', async () => {
+  const view = await mount()
+  await type(view, INPUT, '01/01/2000')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: '2000-01-01' })
+})
+it('resyncs both untouched fields on /me refetch without enabling save or prompting on back', async () => {
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await refetch({ displayName: 'Server name', dateOfBirth: '1985-11-03' })
+  expect(view.getByLabelText(NAME).props.value).toBe('Server name')
+  expect(view.getByLabelText(INPUT).props.value).toBe('03/11/1985')
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
+  expect(mockBack).toHaveBeenCalledTimes(1)
+})
+it.each([
+  { label: NAME, draft: 'Bình', remote: { displayName: 'Server name', dateOfBirth: '1985-11-03' }, other: INPUT, shown: '03/11/1985', patch: { displayName: 'Bình' } },
+  { label: INPUT, draft: '01/01/2000', remote: { displayName: 'Server name', dateOfBirth: '1985-11-03' }, other: NAME, shown: 'Server name', patch: { dateOfBirth: '2000-01-01' } },
+])('preserves the $label draft and resyncs the other field before saving only the draft', async ({ label, draft, remote, other, shown, patch }) => {
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await type(view, label, draft)
+  await refetch(remote)
+  expect(view.getByLabelText(label).props.value).toBe(draft)
+  expect(view.getByLabelText(other).props.value).toBe(shown)
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith(patch)
+  expect(await view.findByText('✓ Đã lưu')).toBeTruthy()
+  expect(view.getByLabelText(other).props.value).toBe(shown)
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+})
+it('resyncs a reverted field while preserving another dirty field', async () => {
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await type(view, NAME, 'Draft')
+  await type(view, NAME, 'An')
+  await type(view, INPUT, '01/01/2000')
+  await refetch({ displayName: 'Server name' })
+  expect(view.getByLabelText(NAME).props.value).toBe('Server name')
+  expect(view.getByLabelText(INPUT).props.value).toBe('01/01/2000')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: '2000-01-01' })
+})
+it.each([
+  { label: NAME, draft: 'Bình', remote: { displayName: 'Bình' }, other: INPUT, otherDraft: '01/01/2000', patch: { dateOfBirth: '2000-01-01' } },
+  { label: INPUT, draft: '01/01/2000', remote: { dateOfBirth: '2000-01-01' }, other: NAME, otherDraft: 'Bình', patch: { displayName: 'Bình' } },
+])('omits a dirty $label that already matches the latest server value', async ({ label, draft, remote, other, otherDraft, patch }) => {
+  const view = await mount()
+  await type(view, label, draft)
+  await refetch(remote)
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).not.toHaveBeenCalled()
+  await type(view, other, otherDraft)
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith(patch)
+})
+it('follows later refetches after drafts converge with the server', async () => {
+  const view = await mount()
+  await type(view, NAME, 'Bình')
+  await type(view, INPUT, '1/1/2000')
+  await refetch({ displayName: 'Bình', dateOfBirth: '2000-01-01' })
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  await refetch({ displayName: 'Server name', dateOfBirth: '1985-11-03' })
+  expect(view.getByLabelText(NAME).props.value).toBe('Server name')
+  expect(view.getByLabelText(INPUT).props.value).toBe('03/11/1985')
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+})
+it('treats whitespace and alternate date formatting as unchanged values', async () => {
+  const view = await mount(profile({ dateOfBirth: '2000-01-01' }))
+  await type(view, NAME, '  An  ')
+  await type(view, INPUT, '1/1/2000')
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).not.toHaveBeenCalled()
+  expect(view.getByLabelText(NAME).props.value).toBe('  An  ')
+  expect(view.getByLabelText(INPUT).props.value).toBe('1/1/2000')
+  await refetch({ displayName: 'Server name', dateOfBirth: '1985-11-03' })
+  expect(view.getByLabelText(NAME).props.value).toBe('Server name')
+  expect(view.getByLabelText(INPUT).props.value).toBe('03/11/1985')
+})
+it('keeps an explicit birthday clear across refetch and saves only null', async () => {
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await fireEvent.press(view.getByText('Xoá ngày sinh'))
+  await refetch({ displayName: 'Server name', dateOfBirth: '1985-11-03' })
+  expect(view.getByLabelText(INPUT).props.value).toBe('')
+  expect(view.getByLabelText(NAME).props.value).toBe('Server name')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: null })
 })
 it('clears the birthday as a draft, then saves null with the header action', async () => {
   const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
   await fireEvent.press(view.getByText('Xoá ngày sinh'))
   expect(mockUpdateProfile).not.toHaveBeenCalled()
   await fireEvent.press(view.getByText('Lưu'))
-  expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'An', dateOfBirth: null })
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: null })
   expect(await view.findByText('Chưa đặt ngày sinh')).toBeTruthy()
 })
 it('blocks impossible and future dates with inline validation', async () => {
@@ -144,6 +236,30 @@ it('asks before discarding changes on back, and cancel keeps the draft', async (
   await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
   await fireEvent.press(view.getByText('Bỏ thay đổi'))
   expect(mockBack).toHaveBeenCalledTimes(1)
+})
+it.each([
+  { dateOfBirth: null, draft: '31/02/2000' },
+  { dateOfBirth: '2000-01-01', draft: '2000-01-01' },
+])('asks before discarding an invalid birthday draft ($draft)', async ({ dateOfBirth, draft }) => {
+  const view = await mount(profile({ dateOfBirth }))
+  await type(view, INPUT, draft)
+  await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
+  expect(await view.findByText('Thay đổi chưa lưu')).toBeTruthy()
+  expect(mockBack).not.toHaveBeenCalled()
+})
+it('keeps an untouched field refetched during save when resetting the saved draft', async () => {
+  let answer!: (value: Me) => void
+  mockUpdateProfile.mockImplementation(() => new Promise<Me>(resolve => { answer = resolve }))
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await type(view, INPUT, '01/01/2000')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: '2000-01-01' })
+  await refetch({ displayName: 'Server name' })
+  expect(view.getByLabelText(NAME).props.value).toBe('Server name')
+  await act(async () => { server = { ...server, dateOfBirth: '2000-01-01' }; answer(server) })
+  expect(await view.findByText('✓ Đã lưu')).toBeTruthy()
+  expect(view.getByLabelText(NAME).props.value).toBe('Server name')
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
 })
 it('resets drafts on account change and ignores the old late response', async () => {
   let answer!: (value: Me) => void

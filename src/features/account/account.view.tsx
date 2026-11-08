@@ -19,6 +19,7 @@ import {
   useSetAvatar,
   useUpdateProfile,
   useUploadImage,
+  type OpBody,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { pickAvatar } from '@/shared/media/pick-avatar'
@@ -35,7 +36,7 @@ import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './account.style'
 import { DateOfBirthCard } from './date-of-birth.view'
-import { checkTypedDateOfBirth, isoToTyped } from './date-of-birth'
+import { checkTypedDateOfBirth, isoToTyped, typedToIso } from './date-of-birth'
 
 const MAX_NAME = 50
 const schema = z.object({
@@ -87,10 +88,15 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
   const setAvatar = useSetAvatar()
   const removeAvatar = useRemoveAvatar()
 
-  const form = useForm({ resolver: zodResolver(schema), mode: 'onChange', defaultValues: {
+  const serverValues = {
     name: me.data?.displayName ?? '', birthday: isoToTyped(me.data?.dateOfBirth),
-  } })
+  }
+  const form = useForm({ resolver: zodResolver(schema), mode: 'onChange', defaultValues: serverValues,
+    // Refetches replace untouched values while preserving edits in progress.
+    values: serverValues, resetOptions: { keepDirtyValues: true },
+  })
   const values = useWatch({ control: form.control })
+  const { dirtyFields } = form.formState
   const inFlight = useRef(false)
   const mounted = useRef(true)
   const [saving, setSaving] = useState(false)
@@ -101,7 +107,19 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
   const [avatarNotice, setAvatarNotice] = useState<string | null>(null)
   const { confirm, dialog } = useDialog()
 
-  const dirty = (values.name ?? '').trim() !== form.formState.defaultValues?.name || values.birthday !== form.formState.defaultValues?.birthday
+  const nameDirty = !!dirtyFields.name && (values.name ?? '').trim() !== serverValues.name
+  const birthdayText = (values.birthday ?? '').trim()
+  const birthdayDate = typedToIso(birthdayText)
+  const birthdayDirty = !!dirtyFields.birthday
+    && ((birthdayText !== '' && birthdayDate === null) || birthdayDate !== (me.data?.dateOfBirth ?? null))
+  const dirty = nameDirty || birthdayDirty
+  const { resetField } = form
+  useEffect(() => {
+    // A draft that converged with the server is clean and should follow later
+    // refetches too. Keep its typed formatting rather than changing text mid-edit.
+    if (dirtyFields.name && !nameDirty) resetField('name', { defaultValue: values.name })
+    if (dirtyFields.birthday && !birthdayDirty) resetField('birthday', { defaultValue: values.birthday })
+  }, [dirtyFields.name, dirtyFields.birthday, nameDirty, birthdayDirty, resetField, values.name, values.birthday])
   const valid = schema.safeParse(values).success
   const initial = (me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()
   // Known before the picker opens (ADR-0022): the server enforces it too, this
@@ -121,18 +139,24 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
   async function save() {
     const parsed = schema.safeParse(form.getValues())
     if (inFlight.current || !dirty || !parsed.success) return
+    const submitted = parsed.data
+    const check = submitted.birthday.trim() ? checkTypedDateOfBirth(submitted.birthday) : null
+    const dateOfBirth = check?.ok ? check.iso : null
+    const patch: OpBody<'updateProfile'> = {}
+    if (dirtyFields.name && submitted.name !== serverValues.name) patch.displayName = submitted.name
+    const birthdayChanged = !!dirtyFields.birthday && dateOfBirth !== (me.data?.dateOfBirth ?? null)
+    if (birthdayChanged) patch.dateOfBirth = dateOfBirth
+    if (!Object.keys(patch).length) return
     inFlight.current = true
     setSaving(true)
     setNotice(null)
     form.clearErrors()
-    const submitted = parsed.data
-    const check = submitted.birthday.trim() ? checkTypedDateOfBirth(submitted.birthday) : null
-    const dateOfBirth = check?.ok ? check.iso : null
-    const birthdayChanged = submitted.birthday !== form.formState.defaultValues?.birthday
     try {
-      await updateProfile.mutateAsync({ displayName: submitted.name, dateOfBirth })
+      await updateProfile.mutateAsync(patch)
       if (!mounted.current) return
-      form.reset({ name: submitted.name, birthday: isoToTyped(dateOfBirth) })
+      // An untouched field may have refetched while the request was pending.
+      const current = form.getValues()
+      form.reset({ name: current.name.trim(), birthday: isoToTyped(typedToIso(current.birthday)) })
       haptic('success')
       if (birthdayChanged) track(dateOfBirth === null ? 'profile_date_of_birth_cleared' : 'profile_date_of_birth_saved')
       setNotice(t('account.saved'))
@@ -330,7 +354,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
 
         {/* Keyed by account: a different sign-in never inherits the last one's typing. */}
         {me.data ? <DateOfBirthCard profile={me.data} control={form.control} busy={saving}
-          error={form.formState.errors.birthday?.message as MessageKey | undefined} onClear={() => form.setValue('birthday', '', { shouldValidate: true })} /> : null}
+          error={form.formState.errors.birthday?.message as MessageKey | undefined} onClear={() => form.setValue('birthday', '', { shouldValidate: true, shouldDirty: true })} /> : null}
 
 
         <Card padded={false} style={styles.card}>
