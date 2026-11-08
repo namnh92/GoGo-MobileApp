@@ -15,7 +15,7 @@ export const styles = StyleSheet.create(theme => ({
   },
   introText: { flex: 1 },
   row: { marginBottom: theme.spacing[2], overflow: 'hidden' },
-  rowMain: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], padding: theme.spacing[3] },
+  rowMain: { flexDirection: 'column', alignItems: 'stretch', gap: theme.spacing[3], padding: theme.spacing[3] },
   thumb: { width: 64, height: 64, borderRadius: theme.radius.thumbnail },
   rowText: { flex: 1, minWidth: 0, gap: 2 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing[2], marginTop: 2 },

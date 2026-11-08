@@ -6,6 +6,7 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
+  detailToPlaceCard,
   isForbidden,
   isOffline,
   isRetryable,
@@ -30,11 +31,10 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
-import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
-import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -397,18 +397,10 @@ export default function ActiveDateScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Card padded={false} style={styles.card}>
-          <View style={styles.photo}>
-            <PlacePhoto placeId={stop.placeId} name={placeName} uri={stopPlace?.photoUrl ?? null} style={styles.cardImage} />
-            <View style={styles.photoBadge}>
-              <Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" />
-            </View>
-          </View>
+          <PlaceCard place={stopPlace ?? detailToPlaceCard({ id: stop.placeId, name: placeName })} />
           <View style={styles.cardBody}>
             <View style={styles.titleRow}>
-              <View style={styles.titleText}>
-                <Text variant="title1">{placeName}</Text>
-                <PlaceAddressText place={stopPlace} color="text.secondary" style={styles.area} />
-              </View>
+              <Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" />
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('common.directions')}
@@ -449,20 +441,10 @@ export default function ActiveDateScreen() {
               <Text variant="caption" color="text.secondary" style={styles.sectionLabel}>{t('activeDate.next')}</Text>
             </View>
             <Card padded={false} style={styles.nextCard}>
-              <View style={styles.nextThumb}>
-                <PlacePhoto
-                  placeId={nextStop.placeId}
-                  name={nextPlace?.name ?? ''}
-                  uri={nextPlace?.photoUrl ?? null}
-                  style={styles.cardImage}
-                />
-              </View>
               <View style={{ flex: 1 }}>
-                <Text variant="title2" style={styles.nextName}>{nextPlace?.name ?? ''}</Text>
+                <PlaceCard variant="compact" place={nextPlace ?? detailToPlaceCard({ id: nextStop.placeId, name: '' })} />
                 <Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
-                  {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)]
-                    .filter(Boolean)
-                    .join(' · ')}
+                  {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)].filter(Boolean).join(' · ')}
                 </Text>
               </View>
               <IconArrowRight />

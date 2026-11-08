@@ -496,7 +496,6 @@ export default function PlaceDetailScreen() {
               </View>
             )}
             <RatingChips place={card} />
-            {card.gogoRatingCount != null && card.gogoRatingCount < 5 ? <Text variant="caption" color="text.secondary">{t('placeDetail.gogoBelowThreshold', { count: card.gogoRatingCount ?? 0 })}</Text> : null}
           </View>
 
           {/* Questions about this place (#379): the contextual way into GoGo

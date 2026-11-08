@@ -1,3 +1,5 @@
+import { StyleSheet } from 'react-native-unistyles'
+import { themes, type AppTheme } from '../theme'
 import { renderScreen } from '../../../features/__tests__/harness'
 
 import { RatingChips } from '../rating-chips.view'
@@ -18,4 +20,18 @@ it('keeps both sources marked with their own counts', async () => {
   const view = await renderScreen(<RatingChips place={{ rating: 4.7, ratingCount: 1280, ratingSource: 'google', gogoRating: 4.9, gogoRatingCount: 20 }} />)
   expect(view.getByText('★ 4,7 (1.280) Google')).toBeTruthy()
   expect(view.getByText('★ 4,9 (20) GoGo')).toBeTruthy()
+})
+
+it.each(['orange', 'orangeDark'] as const)('uses finite badge geometry and semantic surfaces (%s)', themeName => {
+  const create = jest.spyOn(StyleSheet, 'create')
+  let factory: (theme: AppTheme) => Record<string, any>
+  try {
+    jest.isolateModules(() => { jest.requireActual('../rating-chips.style') })
+    factory = create.mock.calls[0][0] as typeof factory
+  } finally { create.mockRestore() }
+  const theme = themes[themeName]
+  const styles = factory!(theme)
+  expect(styles.google.backgroundColor).toBe(theme.redesign.container)
+  expect(styles.gogo.backgroundColor).toBe(theme.redesign.violetSoft)
+  for (const badge of [styles.google, styles.gogo]) expect(Number.isFinite(badge.borderRadius)).toBe(true)
 })

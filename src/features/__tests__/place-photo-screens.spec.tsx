@@ -103,11 +103,11 @@ describe('place photo × screen', () => {
     expect(photoFor('place-1')).toBeNull()
   })
 
-  it('plan: each stop shows its own photo, or the no-photo illustration when it has none', async () => {
+  it('plan: each stop shows its own photo, or the shared pin fallback when it has none', async () => {
     await renderScreen(withCache(<DatePlanScreen />))
     expect(photoFor('place-1')).toBe(PHOTO_1)
-    // The illustration replaces the placeholder tile, so no photo is asked for.
-    expect(photoFor('place-2')).toBeUndefined()
+    // The shared PlacePhoto receives no URI and owns the pin fallback.
+    expect(photoFor('place-2')).toBeNull()
   })
 
   it('active date: the stop in progress shows its photo', async () => {

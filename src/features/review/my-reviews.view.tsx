@@ -14,6 +14,7 @@ import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primit
 import { Badge, type BadgeTone } from '@/shared/ui/badge.view'
 import { Icon } from '@/shared/ui/icons'
 import { FormattedPlaceAddress } from '@/shared/ui/place-address.view'
+import { PlaceCardAddress } from '@/shared/ui/place-card.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -61,7 +62,7 @@ function PlaceSubject({ placeId, onOpenPlace }: { placeId: string; onOpenPlace: 
       ) : place.isError ? (
         <Text variant="caption" color="status.dangerText">{t('myReviews.placeLoadFailed')}</Text>
       ) : address ? (
-        <Text variant="caption" color="text.secondary" numberOfLines={2} accessibilityLabel={address}>{address}</Text>
+        <PlaceCardAddress place={place.data} />
       ) : null}
     </Pressable>}</FormattedPlaceAddress>
   )

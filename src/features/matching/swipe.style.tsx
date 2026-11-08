@@ -25,10 +25,9 @@ export const styles = StyleSheet.create(theme => ({
   // The card is as tall as its content: a 4:3 photo over the facts, centred in
   // the space the header and the action row leave.
   deck: { flex: 1, paddingHorizontal: spacing[5], paddingTop: spacing[2], justifyContent: 'center' },
-  // The draft's 4:5 card, at most 500pt tall, with the photo over its top 58%.
+  // Shared card content scrolls on short screens without clipping its facts.
   card: {
-    aspectRatio: 0.8,
-    maxHeight: 500,
+    maxHeight: '100%',
     borderRadius: radius.hero,
     overflow: 'hidden',
     backgroundColor: theme.surface.card,

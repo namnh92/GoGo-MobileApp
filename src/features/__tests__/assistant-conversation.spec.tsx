@@ -105,9 +105,9 @@ it('place results as cards with verified facts, and the place-data source', asyn
   await replyEnded(view)
   const card = within(view.getByTestId('assistant-card-1b2c3d4e-0000-4000-8000-000000000001'))
   expect(card.getByText('Nhà Lá Café')).toBeTruthy()
-  expect(card.getByText('45k–90k / người')).toBeTruthy()
+  expect(card.getByText('45k–90k/người')).toBeTruthy()
   expect(card.getByText('Đang mở')).toBeTruthy()
-  expect(within(view.getByTestId('assistant-card-1b2c3d4e-0000-4000-8000-000000000002')).getByText('Đang đóng')).toBeTruthy()
+  expect(within(view.getByTestId('assistant-card-1b2c3d4e-0000-4000-8000-000000000002')).getByText('Đã đóng')).toBeTruthy()
   expect(view.getByText(/Từ dữ liệu địa điểm GoGo · Kiểm tra lần cuối/)).toBeTruthy()
   await act(async () => {
     await fireEvent.press(card.getByRole('button', { name: 'Xem địa điểm' }))

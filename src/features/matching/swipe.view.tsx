@@ -1,10 +1,9 @@
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { usePlaceClock } from '@/shared/ui/use-place-clock'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View } from 'react-native'
-import { StyleSheet, useUnistyles } from 'react-native-unistyles'
+import { Pressable, ScrollView, View } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   interpolate,
@@ -17,11 +16,7 @@ import Animated, {
 
 import {
   detailToPlaceCard,
-  formatDistance,
-  formatMinuteOfDay,
   isRoomNotMatching,
-  openStateFromHours,
-  placePriceParts,
   roomCapabilities,
   toCandidateCard,
   useCastVote,
@@ -34,16 +29,13 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
-import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { haptic, useReducedMotion } from '@/shared/ui/feedback'
-import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
+import { PlaceCard } from '@/shared/ui/place-card.view'
+import { Atmosphere, GhostBtn, glassStyles } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
-import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Icon } from '@/shared/ui/icons'
-import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { hitSlop, motion } from '@/shared/ui/tokens'
 
@@ -72,7 +64,6 @@ const ACTION_VOTES: Record<'pass' | 'yes' | 'star', VoteValue> = {
 type Action = keyof typeof ACTION_VOTES
 
 export default function SwipeScreen() {
-  const now = usePlaceClock()
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
@@ -409,18 +400,8 @@ export default function SwipeScreen() {
   }
 
   const place = detail.data ? detailToPlaceCard(detail.data) : null
-  const price = place ? placePriceParts(place) : null
-  const open = openStateFromHours(detail.data?.hours, now)
-  const hasHours = (detail.data?.hours ?? []).length > 0
   const categoryKey = (detail.data?.taxonomies ?? []).find(entry => entry.kind === 'category')?.key
   const categoryLabel = categoryKey ? taxonomyLabel('category', categoryKey) : null
-  const openLabel = open.openNow
-    ? formatMinuteOfDay(open.closesAtMinute)
-      ? t('search.openUntil', { time: formatMinuteOfDay(open.closesAtMinute) })
-      : t('common.open')
-    : formatMinuteOfDay(open.opensAtMinute)
-      ? t('search.closedOpens', { time: formatMinuteOfDay(open.opensAtMinute) })
-      : t('common.closed')
 
   return (
     <Atmosphere>
@@ -437,18 +418,11 @@ export default function SwipeScreen() {
       <View style={styles.deck}>
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.card, glassStyles.card, cardStyle]}>
-            <View style={styles.imageWrap}>
-              <PlacePhoto
-                placeId={card.placeId}
-                name={card.name}
-                uri={place?.photoUrl ?? null}
-                style={StyleSheet.absoluteFill}
-              />
-
-              {categoryLabel ? (
-                <View style={styles.categoryPosition}><Chip label={categoryLabel} /></View>
-              ) : null}
-
+            <ScrollView bounces={false}>
+            <PlaceCard variant="hero" place={place ?? detailToPlaceCard({ id: card.placeId, name: card.name })}
+              photoCategoryLabel={categoryLabel ?? undefined}
+              tags={card.reasonCodes.slice(0, 2).map(code => t(`suggestion.reason.${code}`, { defaultValue: code }))} />
+            </ScrollView>
               <Animated.View
                 style={[styles.overlay, { left: 20, backgroundColor: theme.status.success }, likeStyle]}
                 pointerEvents="none"
@@ -468,57 +442,7 @@ export default function SwipeScreen() {
                 <Text variant="title1" color="text.inverse" style={styles.overlayLabel}>{t('swipe.starLabel')}</Text>
               </Animated.View>
 
-              {/* Distance and opening state sit on the photo, as in the draft. */}
-              <View style={styles.overImage}>
-                {place?.distanceM != null ? (
-                  <Chip icon="navigation" label={formatDistance(place.distanceM) ?? ''} />
-                ) : (
-                  <View />
-                )}
-                {hasHours ? (
-                  <Chip variant={open.openNow ? 'positive' : 'default'} label={openLabel} />
-                ) : null}
-              </View>
-            </View>
 
-            {/* The facts a swipe decision turns on, and nothing more (spec §17). */}
-            <View style={styles.footer}>
-              <View style={styles.titleCol}>
-                <Text variant="title1" numberOfLines={1}>{card.name}</Text>
-                {detail.data ? (
-                  <View style={styles.addressRow}>
-                    <Icon name="mapPin" size={14} color="text.secondary" />
-                    <PlaceAddressText place={detail.data} variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.addressText} />
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Name, address, price on their own lines; then ratings, then tags. */}
-              {price && price.unit !== 'unknown' ? (
-                isStandalonePrice(price.unit) ? (
-                  <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
-                ) : (
-                  <Text variant="title2" color="status.successText">
-                    {price.amount}
-                    <Text variant="bodySmall" color="text.secondary">{t(priceUnitKey(price.unit))}</Text>
-                  </Text>
-                )
-              ) : null}
-              {place ? <RatingChips place={place} /> : null}
-
-              {card.reasonCodes.length > 0 ? (
-                <View style={styles.tagRow}>
-                  {/* Why this is here — the explainable part of the score. */}
-                  {card.reasonCodes.slice(0, 2).map(code => (
-                    <Chip
-                      key={code}
-                      label={t(`suggestion.reason.${code}`, { defaultValue: code })}
-                      variant="info"
-                    />
-                  ))}
-                </View>
-              ) : null}
-            </View>
           </Animated.View>
         </GestureDetector>
 

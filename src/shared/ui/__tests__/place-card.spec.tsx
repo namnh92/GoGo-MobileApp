@@ -7,7 +7,7 @@ import { themes, type AppTheme } from '@/shared/ui/theme'
 import type { PlaceCard as PlaceCardModel } from '@/shared/api'
 import i18n from '@/shared/i18n'
 import { PlaceCard } from '@/shared/ui/place-card.view'
-import { accents, status, text, type } from '@/shared/ui/tokens'
+import { type } from '@/shared/ui/tokens'
 
 let mockRealAdministrative = false
 let mockProvinces: { code: string; fullName: string; nameEn?: string }[] = []
@@ -47,197 +47,64 @@ const fixture = (overrides: Partial<PlaceCardModel> = {}): PlaceCardModel => ({
 }) as PlaceCardModel
 
 const flat = (id: string): Record<string, any> => StyleSheet.flatten(screen.getByTestId(id).props.style)
-const oneLine = (id: string) => {
-  const node = screen.getByTestId(id)
-  expect(node.props.numberOfLines).toBe(1)
-  expect(node.props.ellipsizeMode).toBe('tail')
-}
-
-describe('PlaceCard — list', () => {
-  it('renders the spec lines with a two-line address', async () => {
-    await render(<PlaceCard place={fixture()} categoryLabel="Cà phê" />)
-
-    expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(2)
-    expect(screen.getByText('Cà phê Đỗ Phủ')).toBeTruthy()
-
-    expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ', { exact: true })
-    expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
-
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) Google · 45k–90k/người', { exact: true })
-    expect(screen.getByTestId('place-card-rating-price').props.numberOfLines).toBeUndefined()
-
-    expect(screen.getByTestId('place-card-open')).toHaveTextContent('Đang mở · Đóng 20:00', { exact: true })
-    oneLine('place-card-open')
-  })
-
-  it('shows Google on the card and keeps the source in the rating line\'s label', async () => {
-    await render(<PlaceCard place={fixture()} categoryLabel="Cà phê" />)
+describe('one shared PlaceCard', () => {
+  it.each(['default', 'discovery', 'saved', 'contribution'] as const)('%s renders the same place facts', async appearance => {
+    await render(<PlaceCard appearance={appearance} place={fixture({ gogoRating: 4.8, gogoRatingCount: 20, discovery: { categoryLabel: 'Cà phê' } })} tags={['Wi-Fi', 'Làm việc', 'Siphon']} />)
+    expect(screen.getByTestId('place-card-address-row')).toBeTruthy()
+    expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ')
     expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
-    expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBe(
-      'Google 4,6 sao, 980 đánh giá, 45k–90k/người',
-    )
+    expect(screen.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
+    expect(screen.getByTestId('place-card-price')).toHaveTextContent('45k–90k/người')
+    expect(screen.getByText('Mở đến 20:00')).toBeTruthy()
+    expect(screen.getByText('Cà phê')).toBeTruthy()
+    expect(screen.getByText('Siphon')).toBeTruthy()
+    expect(flat('place-card-surface')).toMatchObject({ backgroundColor: themes.orange.redesign.card, borderRadius: 20, overflow: 'hidden' })
   })
-
-  it('drops the photo attribution caption (owner decision 3)', async () => {
-    await render(<PlaceCard place={fixture({ photoUrl: 'https://img.example/p1.jpg' })} />)
-    expect(screen.queryByText('Ảnh: Google Maps')).toBeNull()
+  it.each(['list', 'hero', 'compact'] as const)('%s preserves separate sources, sample sizes and address', async variant => {
+    await render(<PlaceCard variant={variant} place={fixture({ gogoRating: 4.9, gogoRatingCount: 4 })} />)
+    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByText('GoGo · Chưa đủ đánh giá (4)')).toBeTruthy()
+    expect(screen.queryByText(/4,9/)).toBeNull()
+    expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
   })
-
-  it('uses the type scale and semantic colours for each line', async () => {
-    await render(<PlaceCard place={fixture()} categoryLabel="Cà phê" />)
-    expect(flat('place-card-name')).toMatchObject({ ...type.title2, color: text.primary })
-    expect(flat('place-card-meta')).toMatchObject({ ...type.bodySmall, color: text.secondary })
-    expect(flat('place-card-rating-price')).toMatchObject({ ...type.bodySmall, color: text.primary })
-    expect(flat('place-card-open')).toMatchObject({ ...type.label, color: status.successText })
+  it('omits missing facts, unknown price and guest actions', async () => {
+    await render(<PlaceCard place={fixture({ addressText: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, distanceM: undefined, priceMin: null, priceMax: null })} />)
+    for (const id of ['place-card-meta', 'place-google-rating', 'place-gogo-rating', 'place-card-price', 'place-card-photo-badges', 'place-card-save']) expect(screen.queryByTestId(id)).toBeNull()
   })
-
-  it('is a solid card clipped to its corners, photo over body (Stitch)', async () => {
-    await render(<PlaceCard place={fixture()} />)
-    expect(flat('place-card')).toMatchObject({ overflow: 'hidden', borderRadius: 20 })
-    expect(flat('place-card').flexDirection).not.toBe('row')
+  it('shows a source without empty parentheses when sample size is unknown', async () => {
+    await render(<PlaceCard place={fixture({ ratingCount: undefined, priceUnit: 'free' })} />)
+    expect(screen.getByText('★ 4,6 Google')).toBeTruthy()
+    expect(screen.getByTestId('place-card-price')).toHaveTextContent('Miễn phí')
   })
-
-  it('no rating: the line is the price alone, with no accessibility override', async () => {
-    await render(<PlaceCard place={fixture({ rating: undefined, ratingCount: undefined })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('45k–90k/người', { exact: true })
-    expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBeUndefined()
+  it('formats English independently for each source', async () => {
+    await act(async () => { await i18n.changeLanguage('en') })
+    try {
+      await render(<PlaceCard place={fixture({ ratingCount: 1234, gogoRating: 4.9, gogoRatingCount: 50 })} />)
+      expect(screen.getByText('★ 4.6 (1,234) Google')).toBeTruthy()
+      expect(screen.getByText('★ 4.9 (50) GoGo')).toBeTruthy()
+    } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
   })
-
-  it('rating without a count: no empty parentheses', async () => {
-    await render(<PlaceCard place={fixture({ ratingCount: undefined })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 Google · 45k–90k/người', { exact: true })
-    expect(screen.getByTestId('place-card-rating-price').props.accessibilityLabel).toBe('Google 4,6 sao, 45k–90k/người')
-  })
-
-  it('unknown price leaves only the marked rating without clipping', async () => {
-    await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
-    const line = screen.getByTestId('place-card-rating-price')
-    expect(line).toHaveTextContent('★ 4,6 (980) Google', { exact: true })
-    expect(line.props.numberOfLines).toBeUndefined()
-  })
-
-  it('unknown price has no separator or amount', async () => {
-    await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) Google', { exact: true })
-  })
-
-  it('free is the whole price part', async () => {
-    await render(<PlaceCard place={fixture({ priceUnit: 'free', priceMin: null, priceMax: null })} />)
-    expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent('★ 4,6 (980) Google · Miễn phí', { exact: true })
-  })
-
-  it('closed: secondary colour and the opening time, in words', async () => {
-    await render(<PlaceCard place={fixture({ openNow: false, opensAtMinute: 1020 })} />)
-    expect(screen.getByTestId('place-card-open')).toHaveTextContent('Đã đóng · Mở 17:00', { exact: true })
-    expect(flat('place-card-open').color).toBe(text.secondary)
-    expect(screen.queryByTestId('place-card-open-dot', { includeHiddenElements: true })).toBeNull()
-  })
-
-  it('open: a status.success dot sits before the label, so it never reads as a green button (#297)', async () => {
-    await render(<PlaceCard place={fixture()} />)
-    // Decorative: hidden from the screen reader, which already hears the words.
-    const dot = screen.getByTestId('place-card-open-dot', { includeHiddenElements: true })
-    expect(StyleSheet.flatten(dot.props.style)).toMatchObject({ backgroundColor: status.success, borderRadius: 3 })
-    // Shape, not colour: the label itself has no fill.
-    expect(flat('place-card-open').backgroundColor).toBeUndefined()
-  })
-
-  it('unknown open state: the line is omitted', async () => {
-    await render(<PlaceCard place={fixture({ openNow: undefined })} />)
-    expect(screen.queryByTestId('place-card-open')).toBeNull()
-  })
-
-  it('renders the same address when distance is absent', async () => {
-    await render(<PlaceCard place={fixture({ distanceM: undefined })} categoryLabel="Cà phê" />)
-    expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ', { exact: true })
-  })
-
-  it('no photo: the neutral pin placeholder', async () => {
-    await render(<PlaceCard place={fixture()} />)
-    // Decorative, so hidden from the accessibility tree.
-    expect(screen.getByTestId('icon-map-pin', { includeHiddenElements: true })).toBeTruthy()
-  })
-
-  it('tags: at most two info chips', async () => {
-    await render(<PlaceCard place={fixture()} tags={['Yên tĩnh', 'Có chỗ đậu xe', 'Lãng mạn']} />)
-    expect(screen.getByText('Yên tĩnh')).toBeTruthy()
-    expect(screen.getByText('Có chỗ đậu xe')).toBeTruthy()
-    expect(screen.queryByText('Lãng mạn')).toBeNull()
-  })
-
-  // #332: at 375pt the two chips sat on two lines. jest has no layout, so this
-  // locks what keeps them on one: no wrap, and chip + label shrink to ellipsis.
-  it('tags: one row — chips shrink and ellipsise instead of wrapping (#332)', async () => {
-    await render(<PlaceCard place={fixture()} tags={['Không gian yên tĩnh để trò chuyện', 'Có chỗ đậu xe ô tô rộng']} />)
-    const label = screen.getByText('Không gian yên tĩnh để trò chuyện')
-    const chip = label.parent
-    const row = chip?.parent
-    const flat = (node: typeof label | null | undefined) => StyleSheet.flatten(node?.props.style) ?? {}
-    expect(flat(row).flexDirection).toBe('row')
-    expect(flat(row).flexWrap ?? 'nowrap').toBe('nowrap')
-    expect(flat(chip)).toMatchObject({ flexShrink: 1, minWidth: 0 })
-    expect(flat(label).flexShrink).toBe(1)
-    expect(label.props.numberOfLines).toBe(1)
-  })
-
-  it('save toggle: 44×44, checked state, filled glyph in the accent when saved', async () => {
-    const onToggle = jest.fn()
-    await render(<PlaceCard place={fixture()} saved onToggleSave={onToggle} />)
-    const toggle = screen.getByTestId('place-card-save')
-    expect(flat('place-card-save')).toMatchObject({ width: 44, height: 44 })
-    expect(toggle.props.accessibilityRole).toBe('togglebutton')
-    expect(toggle.props.accessibilityState).toMatchObject({ checked: true })
-    expect(screen.getByTestId('icon-bookmark-filled').props.stroke).toBe(accents.orange.primary)
-    await act(async () => fireEvent.press(toggle))
-    expect(onToggle).toHaveBeenCalledTimes(1)
-  })
-
-  it('save toggle is a sibling of the card target, so a screen reader reaches it on its own (Sol #295 P2)', async () => {
-    const onPress = jest.fn()
-    const onToggle = jest.fn()
-    await render(<PlaceCard place={fixture()} onPress={onPress} saved={false} onToggleSave={onToggle} />)
+  it('save remains an independent accessible 44pt action', async () => {
+    const onPress = jest.fn(); const onToggle = jest.fn()
+    await render(<PlaceCard place={fixture()} onPress={onPress} saved onToggleSave={onToggle} />)
     const target = screen.getByTestId('place-card-open-target')
     const toggle = screen.getByTestId('place-card-save')
-    let node = toggle.parent
-    while (node) {
-      expect(node).not.toBe(target)
-      node = node.parent
-    }
-    await act(async () => fireEvent.press(toggle))
+    expect(flat('place-card-save')).toMatchObject({ width: 44, height: 44 })
+    expect(toggle.props.accessibilityState.checked).toBe(true)
+    let parent = toggle.parent
+    while (parent) { expect(parent).not.toBe(target); parent = parent.parent }
+    await fireEvent.press(toggle)
     expect(onToggle).toHaveBeenCalledTimes(1)
     expect(onPress).not.toHaveBeenCalled()
   })
-
-  it('a real photo: sizing and clip on a plain View, the image only fills it (Sol #295 P2)', async () => {
-    await render(<PlaceCard place={fixture({ photoUrl: 'https://img.example/p1.jpg' })} />)
-    const image = screen.getByLabelText('Cà phê Đỗ Phủ')
-    expect(StyleSheet.flatten(image.props.style)).toMatchObject({ width: '100%', height: '100%' })
-    expect(StyleSheet.flatten(image.parent!.parent!.props.style)).toMatchObject({ aspectRatio: 1.6 })
-  })
-
-  it('English: rating and count use English separators', async () => {
-    await act(async () => { await i18n.changeLanguage('en') })
-    try {
-      await render(<PlaceCard place={fixture({ ratingCount: 1234 })} />)
-      expect(screen.getByTestId('place-card-rating-price')).toHaveTextContent(/^★ 4\.6 \(1,234\) Google · /)
-    } finally {
-      await act(async () => { await i18n.changeLanguage('vi') })
-    }
-  })
-
-  it('save toggle unsaved: outline glyph in secondary', async () => {
-    await render(<PlaceCard place={fixture()} saved={false} onToggleSave={jest.fn()} />)
-    expect(screen.getByTestId('place-card-save').props.accessibilityState).toMatchObject({ checked: false })
-    expect(screen.getByTestId('icon-bookmark').props.stroke).toBe(text.secondary)
-  })
-
-  it('guest (no save handler): no toggle at all', async () => {
-    await render(<PlaceCard place={fixture()} />)
-    expect(screen.queryByTestId('place-card-save')).toBeNull()
+  it('preserves provider attribution and author links', async () => {
+    await render(<PlaceCard place={fixture({ photoSource: 'google', photoAuthors: [{ displayName: 'Author', uri: 'https://example.com', photoUri: null }] })} />)
+    expect(screen.getByTestId('saved-photo-attribution')).toHaveTextContent(/Google.*Author/)
+    expect(screen.getByRole('link')).toBeTruthy()
   })
 })
 
-describe('discovery appearance protects Saved/default', () => {
+describe('shared address and rating behavior', () => {
   const areaSummary: NonNullable<PlaceCardModel['areaSummary']> = {
     datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740',
     label: 'Phường Sài Gòn', locale: 'vi',
@@ -313,19 +180,19 @@ describe('F-06 bounded discovery photo badges', () => {
     expect(styles.photoBadges).toMatchObject({ position: 'absolute', left: 12, right: 12, top: 64, bottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', gap: 8 })
     expect(288 - styles.photoBadges.left - styles.photoBadges.right).toBe(264)
     expect(288 / styles.listPhoto.aspectRatio - styles.photoBadges.top - styles.photoBadges.bottom).toBe(104)
-    expect(overlay.children).toHaveLength(1)
+    expect(overlay.children).toHaveLength(2)
     for (const id of ['place-card-hours-badge']) {
       expect(screen.getByTestId(id).parent).toBe(overlay)
       expect(styles.photoBadge).toMatchObject({ maxWidth: '100%', minWidth: 0, flexShrink: 1, backgroundColor: themes[themeName].redesign.card })
       expect(styles.photoBadge.position).toBeUndefined()
-      expect(screen.getByText('● Mở đến 20:00').props.numberOfLines).toBe(2)
+      expect(screen.getByText('Mở đến 20:00').props.numberOfLines).toBe(1)
     }
     expect(screen.queryByTestId('place-card-area-badge')).toBeNull()
     expect(screen.getByText('Xác minh')).toBeTruthy()
-    expect(screen.getByText('● Mở đến 20:00')).toBeTruthy()
+    expect(screen.getByText('Mở đến 20:00')).toBeTruthy()
     expect(flat('place-card-save')).toMatchObject({ width: 44, height: 44 })
-    // The two-line hours chip fits below the top actions at default text size.
-    expect(2 * type.introCaptionMedium.lineHeight + 8).toBeLessThanOrEqual(104)
+    // The single-line hours chip fits below the top actions at default text size.
+    expect(type.introCaptionMedium.lineHeight + 8).toBeLessThanOrEqual(104)
   })
   it.each([[false, false], [true, false], [false, true], [true, true]])('renders hours only regardless of area data (%s/%s)', async (area, hours) => {
     await render(<PlaceCard appearance="discovery" place={fixture({ distanceM: undefined, discovery: area ? { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } : undefined, openNow: hours ? true : undefined })} />)
@@ -333,9 +200,9 @@ describe('F-06 bounded discovery photo badges', () => {
     expect(Boolean(screen.queryByTestId('place-card-hours-badge'))).toBe(hours)
     expect(Boolean(screen.queryByTestId('place-card-photo-badges'))).toBe(hours)
   })
-  it.each(['list', 'hero'] as const)('does not add the discovery overlay to the default %s variant', async variant => {
+  it.each(['list', 'hero'] as const)('shares the photo pills in the default %s variant', async variant => {
     await render(<PlaceCard variant={variant} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } })} />)
-    expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
+    expect(screen.getByTestId('place-card-photo-badges')).toBeTruthy()
     expect(screen.getByText('Cà phê Đỗ Phủ')).toBeTruthy()
   })
 })
@@ -356,7 +223,7 @@ describe('#515 shared discovery card address', () => {
     expect(screen.getByTestId('place-card-name').props.ellipsizeMode).toBe('tail')
   })
   it('omits address and overlays without facts, and unknown price', async () => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, distanceM: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, priceMin: null, priceMax: null, priceUnit: 'unknown' })} />)
+    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, distanceM: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, priceMin: null, priceMax: null, priceUnit: 'unknown', photoAttribution: null })} />)
     expect(screen.queryByTestId('place-card-meta')).toBeNull()
     expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
     expect(screen.queryByText(/Google|GoGo|Xác minh/)).toBeNull()
@@ -406,9 +273,9 @@ describe('owner address composition everywhere', () => {
     await render(<PlaceCard place={fixture({ addressText: ' ', areaSummary: { ...areaSummary, communeCode: null } })} />)
     expect(screen.queryByTestId('place-card-meta')).toBeNull()
   })
-  it('keeps a closed status on two lines without a location chip', async () => {
+  it('keeps a closed status in one pill without a location chip', async () => {
     await render(<PlaceCard appearance="discovery" place={fixture({ openNow: false, opensAtMinute: 450, opensDayOffset: 1, discovery: { areaLabel: 'Phường Sài Gòn' } })} />)
-    expect(screen.getByText('Đã đóng · Mở 07:30 ngày mai').props.numberOfLines).toBe(2)
+    expect(screen.getByText('Đã đóng · Mở 07:30 ngày mai').props.numberOfLines).toBe(1)
     expect(screen.queryByTestId('place-card-area-badge')).toBeNull()
   })
 })
@@ -436,9 +303,9 @@ describe('g04 Saved reference card', () => {
     const create = jest.spyOn(UnistylesStyleSheet, 'create')
     jest.isolateModules(() => { jest.requireActual('../place-card.style') })
     const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
-    expect(factory(themes[themeName]).savedCard).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderRadius: 16 })
-    expect(factory(themes[themeName]).savedPhoto).toMatchObject({ height: 176 })
-    expect(factory(themes[themeName]).savedPhotoBadge.backgroundColor).toBe(themes[themeName].redesign.savedPhotoScrim)
+    expect(factory(themes[themeName]).discoveryCard).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderRadius: 20 })
+    expect(factory(themes[themeName]).listPhoto).toMatchObject({ aspectRatio: 1.6 })
+    expect(factory(themes[themeName]).photoBadge.backgroundColor).toBe(themes[themeName].redesign.card)
     create.mockRestore()
     await render(<PlaceCard appearance="saved" place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
     expect(screen.getByTestId('place-card-saved')).toBeTruthy()
@@ -487,7 +354,7 @@ it.each([false, true])('provider preview keeps every rendered Google score marke
   else expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
 })
 
-it('hero has no rating that could be mistaken for a community score', async () => {
+it('hero keeps its Google rating visibly marked', async () => {
   await render(<PlaceCard variant="hero" place={fixture()} />)
-  expect(screen.queryByText(/★/)).toBeNull()
+  expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
 })

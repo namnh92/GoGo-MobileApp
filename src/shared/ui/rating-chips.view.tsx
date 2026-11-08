@@ -4,27 +4,41 @@ import { View } from 'react-native'
 import { formatCount, formatRating, ratingParts, type PlaceCard } from '@/shared/api'
 
 import { styles } from './rating-chips.style'
-import { Chip } from './chip.view'
+import { Text } from './text'
 
 /**
  * The two rating sources side by side, never merged: Google, and GoGo only when
  * the API returns it. Nothing renders when neither exists (no placeholder).
  */
-export function RatingChips({ place, source }: { source?: 'gogo'; place: Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'> }) {
-  const { t, i18n } = useTranslation()
+type RatingPlace = Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'>
+
+export function RatingChips({ place }: { place: RatingPlace }) {
   const { google, gogo } = ratingParts(place)
-  if ((!google || source === 'gogo') && !gogo) return null
-  const chip = (source: 'google' | 'gogo', part: { value: number; count?: number }) => {
-    const label = t(source === 'google' ? 'discovery.googleRating' : 'rating.gogoScore', {
-      score: formatRating(part.value, i18n.language),
-      count: part.count == null ? '' : `(${formatCount(part.count, i18n.language)})`,
-    }).replace(/\s+/g, ' ')
-    return <Chip key={source} label={label} variant={source === 'gogo' ? 'info' : 'default'} />
-  }
-  return (
-    <View style={styles.row}>
-      {google && !source ? chip('google', google) : null}
-      {gogo ? chip('gogo', gogo) : null}
-    </View>
-  )
+  if (!google && !gogo && place.gogoRatingCount == null) return null
+  return <View style={styles.row}>
+    {google ? <GoogleRatingBadge value={google.value} count={google.count} /> : null}
+    <GoGoRatingBadge place={place} />
+  </View>
+}
+
+export function GoGoRatingBadge({ place }: { place: RatingPlace }) {
+  const { t, i18n } = useTranslation()
+  const { gogo } = ratingParts(place)
+  if (!gogo && place.gogoRatingCount == null) return null
+  return <View testID="place-gogo-rating" style={styles.gogo}>
+    <Text numberOfLines={1} ellipsizeMode="tail" variant="introCaptionMedium" color="redesign.violetText">{gogo
+      ? t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count!, i18n.language) })
+      : `${t('discovery.gogoFewReviews')} (${formatCount(place.gogoRatingCount!, i18n.language)})`}</Text>
+  </View>
+}
+
+export function GoogleRatingBadge({ value, count }: { value: number; count?: number }) {
+  const { t, i18n } = useTranslation()
+  const label = t('discovery.googleRating', {
+    score: formatRating(value, i18n.language),
+    count: count == null ? '' : `(${formatCount(count, i18n.language)})`,
+  }).replace(/\s+/g, ' ')
+  return <View testID="place-google-rating" style={styles.google}>
+    <Text numberOfLines={1} ellipsizeMode="tail" variant="introCaptionMedium" color="redesign.ink" accessibilityLabel={label}><Text variant="introCaptionMedium" color="status.warningText">★</Text>{label.slice(1)}</Text>
+  </View>
 }

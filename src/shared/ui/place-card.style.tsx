@@ -1,84 +1,50 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { overlay, spacing, touchTarget } from '@/shared/ui/tokens'
+import { spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  savedCard: { backgroundColor: theme.redesign.card, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.redesign.savedLine },
-  savedPhoto: { height: 176, backgroundColor: theme.surface.subtle },
-  savedName: { minWidth: 0 },
-  savedHeading: { gap: 2, minWidth: 0 },
-  savedBody: { padding: 14, gap: 8, minWidth: 0 },
-  savedPhotoBadges: { position: 'absolute', left: 10, right: 10, bottom: 10, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
-  savedPhotoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: theme.redesign.savedPhotoScrim },
-  savedOpenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.redesign.savedOpenDot },
-  savedGoogleBadge: { maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: theme.redesign.savedGoogleFill, borderWidth: 1, borderColor: theme.redesign.savedGoogleLine },
-  savedNeutralBadge: { maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: theme.redesign.savedChip },
-  savedTaxonomyRow: { borderTopWidth: 1, borderTopColor: theme.redesign.savedChip, paddingTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  savedTags: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  contributionPhoto: { height: 176, backgroundColor: theme.surface.subtle },
-  contributionBadge: { position: 'absolute', top: 12, left: 12, right: 64, alignItems: 'flex-start' },
-  contributionFooter: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
+  compactCard: { flexDirection: 'row' },
+  compactCardPhoto: { width: spacing[9] * 2, minHeight: spacing[9] * 4, backgroundColor: theme.surface.subtle },
+  heroPhoto: { height: spacing[9] * 5 + spacing[5], backgroundColor: theme.surface.subtle },
+  contributionBadge: { position: 'absolute', top: spacing[3], left: spacing[3], right: spacing[8] + spacing[6], alignItems: 'flex-start' },
   unavailablePhoto: { opacity: 0.5 },
   unavailableName: { textDecorationLine: 'line-through' },
-  savedCredits: { paddingHorizontal: 16, paddingBottom: 12 },
-  savedFooter: { padding: 12, gap: 8, backgroundColor: theme.redesign.card, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
-  compactRow: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' },
-  compactPhoto: { width: 48, height: 48, borderRadius: 8 },
-  compactCopy: { flex: 1, minWidth: 0, gap: 4 },
-  importCard: { borderRadius: 12, overflow: 'hidden', backgroundColor: theme.redesign.card, ...theme.shadows.card },
-  importBody: { padding: 16, gap: 12 },
-  importFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  importFact: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: theme.redesign.container },
-  importNoPhotoHead: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
-  importHeaderAction: { position: 'absolute', top: 8, right: 8 },
+  savedCredits: { paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
+  savedFooter: { padding: spacing[3], gap: spacing[2], backgroundColor: theme.redesign.card, borderBottomLeftRadius: theme.radius.card, borderBottomRightRadius: theme.radius.card },
+  compactRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], width: '100%' },
+  compactPhoto: { width: spacing[9], height: spacing[9], borderRadius: spacing[2] },
+  compactCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
+  importCard: { borderRadius: spacing[3], overflow: 'hidden', backgroundColor: theme.redesign.card, ...theme.shadows.card },
+  importBody: { padding: spacing[4], gap: spacing[3] },
+  importFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  importFact: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: spacing[1], paddingHorizontal: spacing[2], paddingVertical: spacing[1] / 2, borderRadius: theme.radius.pill, backgroundColor: theme.redesign.container },
+  importNoPhotoHead: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: spacing[2] },
+  importHeaderAction: { position: 'absolute', top: spacing[2], right: spacing[2] },
   // Reserve 44pt Maps target + 8pt right inset + 8pt gap, even without an action.
-  importPhotoOverlays: { position: 'absolute', top: 12, left: 12, right: 60, alignItems: 'flex-start' },
-  importPhotoCredit: { maxWidth: '100%', minWidth: 0, flexShrink: 1, borderRadius: 999, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: 10, paddingVertical: 4 },
+  importPhotoOverlays: { position: 'absolute', top: spacing[3], left: spacing[3], right: spacing[9] + spacing[3], alignItems: 'flex-start' },
+  importPhotoCredit: { maxWidth: '100%', minWidth: 0, flexShrink: 1, borderRadius: theme.radius.pill, backgroundColor: theme.redesign.scrimStart, paddingHorizontal: spacing[2] + spacing[1] / 2, paddingVertical: spacing[1] },
   importHoursLabel: { flexShrink: 1 },
-  importActions: { marginTop: 24, gap: 12 },
+  importActions: { marginTop: spacing[6], gap: spacing[3] },
   /** Holds the card and, beside it, the save toggle positioned over it. */
-  verifiedBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: theme.redesign.verifiedFill },
-  discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  discoveryCard: { backgroundColor: theme.redesign.card, borderRadius: 20, overflow: 'hidden', ...theme.shadows.card },
+  verifiedBadge: { position: 'absolute', top: spacing[3], left: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[1], borderRadius: theme.radius.pill, paddingHorizontal: spacing[2] + spacing[1] / 2, paddingVertical: spacing[1], backgroundColor: theme.redesign.verifiedFill },
+  discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[1] + spacing[1] / 2 },
+  discoveryCard: { backgroundColor: theme.redesign.card, borderRadius: theme.radius.card, overflow: 'hidden', ...theme.shadows.card },
   discoveryName: { flex: 1, minWidth: 0 },
   discoveryPrice: { flexShrink: 1 },
   addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[1] },
   addressText: { flex: 1, minWidth: 0 },
-  discoveryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  ratingBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  googleBadge: { maxWidth: '100%', backgroundColor: theme.redesign.container, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  gogoBadge: { backgroundColor: theme.redesign.violetSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  // Stitch Search: one inset bottom overlay. Reserve the top 44pt save/verified
-  // row; badges wrap within the photo rather than occupying opposing corners.
-  photoBadges: { position: 'absolute', left: 12, right: 12, top: 64, bottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  photoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0, flexShrink: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: theme.redesign.card },
+  discoveryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2] },
+  photoBadges: { position: 'absolute', left: spacing[3], right: spacing[3], top: spacing[8] + spacing[6], bottom: spacing[3], flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2] },
+  photoBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], maxWidth: '100%', minWidth: 0, flexShrink: 1, paddingHorizontal: spacing[2] + spacing[1] / 2, paddingVertical: spacing[1], borderRadius: theme.radius.pill, backgroundColor: theme.redesign.card },
+  openDot: { width: spacing[1] + spacing[1] / 2, height: spacing[1] + spacing[1] / 2, borderRadius: theme.radius.pill, backgroundColor: theme.redesign.greenText },
   photoBadgeText: { flexShrink: 1 },
-  wrap: { position: 'relative' },
-
-  // --- list (default): the Stitch card, photo over body ---------------------
-  listCard: { overflow: 'hidden' },
   listPhoto: { aspectRatio: 1.6, backgroundColor: theme.surface.subtle },
   photoSkeleton: { height: '100%' },
   // `minWidth: 0` lets the text column shrink below its content, which is what
   // makes `numberOfLines={1}` ellipsise instead of pushing the card wider.
   listBody: { minWidth: 0, padding: theme.spacing[4], gap: theme.spacing[2] },
-  listHead: { gap: 2, minWidth: 0 },
-  // #332: the reason chips share one row at any width. They shrink and
-  // ellipsise instead of wrapping — at 375pt two chips took two lines.
-  tags: { flexDirection: 'row', gap: 6, minWidth: 0 },
-  tagChip: { flexShrink: 1, minWidth: 0, backgroundColor: theme.surface.subtle },
-  openRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
-  openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.status.success },
-  openLabel: { flexShrink: 1 },
-
-  // --- hero ---------------------------------------------------------------
-  heroCard: { height: 260, borderRadius: theme.radius.hero, overflow: 'hidden', justifyContent: 'flex-end' },
-  heroScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: overlay.scrim },
-  heroBody: { padding: theme.spacing[5], gap: 4 },
-  heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: theme.spacing[2] },
-
-  // --- save toggle --------------------------------------------------------
-  /** On a photo: a solid disc so the glyph reads on any image; 44pt. */
+  listHead: { gap: spacing[1] / 2, minWidth: 0 },
+  saveOnCompactPhoto: { right: undefined, left: spacing[9] * 2 - touchTarget.min - spacing[3] },
   saveOnPhoto: {
     position: 'absolute',
     top: theme.spacing[3],
