@@ -316,9 +316,6 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                     </View>
                     <Text numberOfLines={1} variant="introCaption" color="redesign.secondary">{t('placeImport.verifiedLocation', { name: candidate.name })}</Text>
                   </View>
-                  <Pressable accessibilityRole="button" disabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'} onPress={changeLink} style={({ pressed }) => [styles.changeLink, pressed && styles.pressed]}>
-                    <MaterialIcon name="restart" size={14} /><Text variant="introCaptionMedium" color="redesign.ink">{t('placeImport.changeLink')}</Text>
-                  </Pressable>
                 </View> : <>
                   <FieldFocusGroup style={[styles.inputCard, linkFocused && styles.inputCardFocused]}>
                     <View style={styles.inputHeading}>

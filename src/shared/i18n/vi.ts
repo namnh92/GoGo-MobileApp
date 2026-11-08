@@ -1354,7 +1354,6 @@ export const viMessages = {
   'placeImport.completeTitle': 'Hoàn thiện hồ sơ địa điểm',
   'placeImport.completeBody': 'Dữ liệu cơ bản đã lấy tự động. Vui lòng bổ sung trải nghiệm thực tế để giúp cộng đồng GoGo!',
   'placeImport.synced': 'Đã đồng bộ',
-  'placeImport.changeLink': 'Đổi link',
   'placeImport.verifiedLocation': '{{name}} • Đã xác minh vị trí',
   'placeImport.validFormat': 'Định dạng hợp lệ • Sẵn sàng đồng bộ',
   'placeImport.formatHint': 'Hỗ trợ định dạng maps.app.goo.gl hoặc google.com/maps/place/...',

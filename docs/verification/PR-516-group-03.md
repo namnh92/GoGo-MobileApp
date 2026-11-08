@@ -92,7 +92,7 @@ pixel parity. Paths are relative to the repository root; lines identify entry po
 | Input secondary footer | Owner 2026-11-07: removed credit-policy link; contributions link and unavailable message hidden until #518 provides a route | `src/features/place-import/import.view.tsx:473` |
 | Post-verify header: Bổ sung thông tin, notification bell | Owner 2026-11-07: removed share/avatar; shared Home/Search notification bell on both import stages, unread dot and inbox navigation; back returns to input | `src/features/place-import/import.view.tsx:367` |
 | Đã kết nối Google Maps / Hoàn thiện hồ sơ địa điểm / intro | Owner 2026-11-07: removed connected chip; title and supporting copy remain after RESOLVED | `src/features/place-import/import.view.tsx:402` |
-| Compact synced-link row, Đã đồng bộ, Đổi link | Implemented: actual URL/name, one-line truncation, one checked status pill (the only verification confirmation). Đổi link clears resolution, metadata, selection, local photos and submission state; focuses input | `src/features/place-import/import.view.tsx:319`, `:343`, `:414` |
+| Compact synced-link row, Đã đồng bộ, Đổi link | Owner 2026-11-08, #565: omit Stitch’s Đổi link button; retain actual URL, Đã đồng bộ and place name/verification. Existing flex text takes the freed width in Light + Dark using the same role tokens. Existing header Back returns to link input with the same reset behavior. | `src/features/place-import/import.view.tsx:310`, `src/features/place-import/import.style.tsx:18` |
 | Dữ liệu đã trích xuất + synced badge | Owner 2026-11-07: plain section heading; removed verified icon and synced pill | `src/features/place-import/import.view.tsx:509`, `src/features/place-import/import.style.tsx:15` |
 | ONE Google image, 16:10, 12pt radius, hours/save overlays | Existing shared preview retained and checked against current source; transient BFF photo with loading/decode/error handling, no stock/sample fallback | `src/shared/ui/place-card.view.tsx:315`, `src/shared/ui/place-card.style.tsx:6` |
 | Photo attribution | Owner 2026-11-07: localized Ảnh: <authors> · Google Maps pill alone at photo top-left, single-line/tail ellipsis with full accessible text and reserved Maps gap; response author URI remains linkable; no below-photo credit line. Repeated provider credit omitted, distinct credits retained. No-store/cachePolicy=none unchanged | `src/shared/api/candidate-photo.ts:25`, `src/shared/ui/place-card.view.tsx:345` |
@@ -151,7 +151,7 @@ verification decorations in the Stitch source:
   both its icon tick and literal ✓; also removed its no-photo inline fallback.
 - Kept only the synced-link row **Đã đồng bộ / Đã xác minh vị trí** context,
   with exactly one check-circle icon and no literal ✓. This ties confirmation
-  to the actual submitted link and preserves Đổi link.
+  to the actual submitted link. The 2026-11-08 #565 deviation above supersedes the original Đổi link control.
 - Combined photo credit into **Ảnh: <authors> · Google Maps** (English: Photo:),
   retaining every first-photo author and HTTP(S) author profile link supplied by
   the response (protocol-relative Google profile links normalize to HTTPS). Omitted the duplicate candidate Google Maps credit while
