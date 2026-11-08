@@ -545,7 +545,7 @@ export default function PlaceDetailScreen() {
               <View pointerEvents="none">
                 <MapCanvas
                   interactive={false}
-                  pins={[{ id, lat: detail.lat as number, lng: detail.lng as number, title: name }]}
+                  pins={[{ id, lat: detail.lat as number, lng: detail.lng as number, title: name, category: categories[0]?.key }]}
                   style={styles.mapPreview}
                   fallback={
                     <View style={styles.mapFallback}>

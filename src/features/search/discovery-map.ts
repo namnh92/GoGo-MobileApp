@@ -1,7 +1,7 @@
 import type { DiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { regionForPins, type MapPin } from '@/shared/ui/map-region'
 
-type PlacePosition = { id: string; name: string; lat?: number | null; lng?: number | null }
+type PlacePosition = { id: string; name: string; lat?: number | null; lng?: number | null; taxonomies?: { kind?: string; key?: string }[] }
 
 function usable(lat: number | null | undefined, lng: number | null | undefined): boolean {
   return lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)
@@ -11,7 +11,7 @@ function usable(lat: number | null | undefined, lng: number | null | undefined):
 /** All loaded results are markers; the camera follows GPS or the top-ranked place. */
 export function discoveryMap(scope: DiscoveryScope, places: PlacePosition[]) {
   const pins: MapPin[] = places.filter(place => usable(place.lat, place.lng))
-    .map(place => ({ id: place.id, title: place.name, lat: place.lat!, lng: place.lng! }))
+    .map(place => ({ id: place.id, title: place.name, lat: place.lat!, lng: place.lng!, category: place.taxonomies?.find(tag => tag.kind === 'category')?.key }))
   const top = places[0]
   const gps = scope.status === 'ready' && scope.source === 'gps' && usable(scope.position.lat, scope.position.lng)
     ? scope.position : null

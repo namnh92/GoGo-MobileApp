@@ -16,6 +16,22 @@ export function googleMapStyle(map: AppTheme['map']) {
 export const styles = StyleSheet.create(theme => ({
   fallback: { backgroundColor: theme.map.canvas },
   canvas: { backgroundColor: theme.map.canvas },
+  markerHost: { width: 44, height: 50, alignItems: 'center', justifyContent: 'flex-end' },
+  markerHostSelected: { width: 52, height: 58 },
+  markerBubble: {
+    width: 40, height: 40, borderRadius: 20, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: theme.map.labelStroke, borderColor: theme.map.label,
+  },
+  markerSelected: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: theme.accent.primary, borderColor: theme.accent.primary,
+  },
+  markerTip: {
+    width: 10, height: 10, marginTop: -6, marginBottom: 3,
+    transform: [{ rotate: '45deg' }], backgroundColor: theme.map.label,
+  },
+  markerTipSelected: { backgroundColor: theme.accent.primary },
   callout: {
     backgroundColor: theme.surface.card,
     borderColor: theme.border.hairline,

@@ -1,8 +1,11 @@
-import { Component, useEffect, useMemo, useRef, useState, type ReactNode, type RefAttributes } from 'react'
+import { Component, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefAttributes } from 'react'
 import { Platform, UIManager, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { googleMapStyle, styles } from './map-canvas.style'
-import { Text } from './text'
+import { Glyph, Text } from './text'
+import { IconMapPin } from './icons'
+import { categoryEmoji } from './taxonomy-emoji'
+import type { AppTheme } from './theme'
 
 import { isGoogleMapsConfigured } from '../../../modules/map-capability'
 
@@ -86,13 +89,68 @@ class MapBoundary extends Component<{ children: ReactNode; fallback: ReactNode }
   render() { return this.state.failed ? this.props.fallback : this.props.children }
 }
 
+/** A native bitmap snapshot is refreshed only when its visual inputs change.
+ * Memoizing scalar props also keeps viewport/search re-renders out of markers. */
+const PlaceMarker = memo(function PlaceMarker({ maps, id, lat, lng, title, category, selected = false,
+  content, interactive, onSelect, onOpen, theme }: {
+  maps: MapsModule; id: string; lat: number; lng: number; title: string
+  category?: string; selected?: boolean; content?: ReactNode; interactive: boolean
+  onSelect: (id: string) => void; onOpen?: (id: string) => void; theme: AppTheme
+}) {
+  const Marker = maps.Marker
+  const Callout = maps.Callout
+  const emoji = category ? categoryEmoji(category) : undefined
+  const revision = useMemo(() => ({ category, selected, theme, content }), [category, selected, theme, content])
+  const [snapshot, setSnapshot] = useState<object | null>(null)
+  const [layoutReady, setLayoutReady] = useState(false)
+  useEffect(() => {
+    if (!layoutReady) return
+    // Leave native time to capture laid-out glyphs, then stop bitmap tracking.
+    // There is no animation loop or per-frame React update.
+    const timer = setTimeout(() => setSnapshot(revision), 100)
+    return () => clearTimeout(timer)
+  }, [revision, layoutReady])
+  return <Marker
+    identifier={id}
+    coordinate={{ latitude: lat, longitude: lng }}
+    title={title}
+    onPress={interactive ? () => onSelect(id) : undefined}
+    onCalloutPress={interactive && onOpen ? () => onOpen(id) : undefined}
+    accessibilityLabel={title}
+    accessibilityState={{ selected }}
+    zIndex={selected ? 2 : 1}
+    anchor={{ x: 0.5, y: 1 }}
+    tracksViewChanges={snapshot !== revision}
+  >
+    <View collapsable={false} onLayout={() => setLayoutReady(true)}
+      testID={`place-marker-${id}`} style={[styles.markerHost, selected && styles.markerHostSelected]}>
+      {content ?? <>
+        <View testID={`place-marker-bubble-${id}`} style={[styles.markerBubble, selected && styles.markerSelected]}>
+          {emoji ? <Glyph size={selected ? 'md' : 'sm'}>{emoji}</Glyph>
+            : <IconMapPin size={selected ? 24 : 20} color={selected ? theme.accent.onAccent : theme.map.label} />}
+        </View>
+        <View style={[styles.markerTip, selected && styles.markerTipSelected]} />
+      </>}
+    </View>
+    <Callout tooltip>
+      <View style={styles.callout}>
+        <Text variant="bodySmall" color="text.primary">{title}</Text>
+      </View>
+    </Callout>
+  </Marker>
+})
+
 export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, style, fallback, interactive = true, cameraRegion, cameraScopeKey, onRegionChangeComplete }: MapCanvasProps) {
   const { theme } = useUnistyles()
   const customMapStyle = useMemo(
-    () => theme.mode === 'dark' ? googleMapStyle(theme.map) : [],
-    [theme.mode, theme.map],
+    () => googleMapStyle(theme.map),
+    [theme.map],
   )
-  const maps = loadMaps()
+  const [maps] = useState(loadMaps)
+  const actions = useRef({ onSelect, onOpen })
+  useEffect(() => { actions.current = { onSelect, onOpen } }, [onSelect, onOpen])
+  const selectPin = useCallback((id: string) => actions.current.onSelect?.(id), [])
+  const openPin = useCallback((id: string) => actions.current.onOpen?.(id), [])
   const region = cameraRegion ?? regionForPins(pins)
   // What the installed binary linked cannot change while it is running, but
   // this component re-renders with its screen — `saved.view` re-renders on
@@ -125,9 +183,6 @@ export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, s
   if (!maps || !region || !mapsLinked || providerFailed) return unavailable
 
   const MapView = maps.default
-  const Marker = maps.Marker
-  const Callout = maps.Callout
-
   return (
     <MapBoundary fallback={unavailable}>
       <MapView
@@ -166,23 +221,10 @@ export function MapCanvas({ pins, onSelect, onOpen, showsUserLocation = false, s
         accessibilityLabel={undefined}
       >
         {pins.map(pin => (
-          <Marker
-            key={pin.id}
-            identifier={pin.id}
-            coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-            title={pin.title}
-            onPress={interactive ? () => onSelect?.(pin.id) : undefined}
-            onCalloutPress={interactive && onOpen ? () => onOpen(pin.id) : undefined}
-            accessibilityLabel={pin.title}
-            tracksViewChanges={false}
-          >
-            {pin.content}
-            <Callout tooltip>
-              <View style={styles.callout}>
-                <Text variant="bodySmall" color="text.primary">{pin.title}</Text>
-              </View>
-            </Callout>
-          </Marker>
+          <PlaceMarker key={pin.id} maps={maps} id={pin.id} lat={pin.lat} lng={pin.lng}
+            title={pin.title} category={pin.category} selected={pin.selected}
+            content={pin.content as ReactNode} interactive={interactive}
+            onSelect={selectPin} onOpen={onOpen ? openPin : undefined} theme={theme} />
         ))}
       </MapView>
     </MapBoundary>

@@ -140,7 +140,7 @@ export default function ActiveDateScreen() {
   const stopCost = stop ? stopCostLabel(stop, summary?.currency ?? 'VND', t) : null
   const stopPin: MapPin | null =
     stopPlace?.lat != null && stopPlace.lng != null
-      ? { id: stopPlace.id, lat: stopPlace.lat, lng: stopPlace.lng, title: stopPlace.name }
+      ? { id: stopPlace.id, lat: stopPlace.lat, lng: stopPlace.lng, title: stopPlace.name, category: stopPlace.taxonomies?.find(tag => tag.kind === 'category')?.key }
       : null
 
   async function onDone() {
