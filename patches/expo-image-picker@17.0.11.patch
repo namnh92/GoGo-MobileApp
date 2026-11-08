@@ -1,0 +1,43 @@
+--- a/ios/ImagePickerHandler.swift
++++ b/ios/ImagePickerHandler.swift
+@@ -52,25 +52,30 @@
+   // MARK: - UIImagePickerControllerDelegate
+ 
+   func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: MediaInfo) {
+-    handlePickedMedia(mediaInfo: info)
+-    picker.dismiss(animated: true)
++    picker.dismiss(animated: true) {
++      self.handlePickedMedia(mediaInfo: info)
++    }
+   }
+ 
+   func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+-    handlePickingCancellation()
+-    picker.dismiss(animated: true)
++    picker.dismiss(animated: true) {
++      self.handlePickingCancellation()
++    }
+   }
+ 
+   // MARK: - PHPickerViewControllerDelegate
+ 
+   func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+-    // The PHPickerViewController returns empty collection when canceled
+-    if results.isEmpty {
+-      handlePickingCancellation()
+-    } else {
+-      handlePickedMedia(selection: results)
++    // Selection processing can finish before the dismissal animation. Only
++    // deliver a result once UIKit can safely present the caller's next modal.
++    picker.dismiss(animated: true) {
++      // The PHPickerViewController returns empty collection when canceled
++      if results.isEmpty {
++        self.handlePickingCancellation()
++      } else {
++        self.handlePickedMedia(selection: results)
++      }
+     }
+-    picker.dismiss(animated: true)
+   }
+ 
+   // MARK: - UIAdaptivePresentationControllerDelegate

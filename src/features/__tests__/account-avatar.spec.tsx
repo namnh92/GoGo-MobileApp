@@ -189,7 +189,14 @@ it.each([['vi', 'Xác nhận'], ['en', 'Confirm']])('%s deletion confirmation ke
   await open()
   expect(mockDelete).not.toHaveBeenCalled()
   const sheet = within(view.getByTestId('result-sheet'))
-  expect(sheet.getByText(`${i18n.t('account.deleteBody')}\n\n${i18n.t('account.deleteKept')}`)).toBeTruthy()
+  const shortBody = language === 'vi'
+    ? 'Không thể hoàn tác. Đánh giá và ảnh đã đóng góp vẫn được giữ ẩn danh.'
+    : 'This cannot be undone. Contributed reviews and photos are kept anonymously.'
+  expect(sheet.getByText(shortBody)).toBeTruthy()
+  expect(sheet.queryByText(i18n.t('account.deleteBody'))).toBeNull()
+  expect(sheet.queryByText(i18n.t('account.deleteKept'))).toBeNull()
+  expect(view.getByText(i18n.t('account.deleteBody'))).toBeTruthy()
+  expect(view.getByText(i18n.t('account.deleteKept'))).toBeTruthy()
   const left = sheet.getByRole('button', { name: i18n.t('account.deleteCancel') })
   const right = sheet.getByRole('button', { name: confirm })
   expect(left.parent).toBe(right.parent)
@@ -238,4 +245,27 @@ it('defers upload until crop confirmation, preserves the old avatar on cancel, a
   expect(mockUpload).not.toHaveBeenCalled()
   expect(mockSetAvatar).not.toHaveBeenCalled()
   expect(view.getByTestId('avatar-image').props.source).toEqual([{ uri: 'https://assets-test.local/old.webp' }])
+})
+
+it('waits for picker completion on every selection before opening the editor', async () => {
+  const view = await renderScreen(<AccountScreen />)
+  await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+  for (let selection = 0; selection < 2; selection++) {
+    let finishPicker!: (value: unknown) => void
+    mockPick.mockImplementationOnce(() => new Promise(resolve => { finishPicker = resolve }))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    await waitFor(() => expect(mockPick).toHaveBeenCalledTimes(selection + 1))
+    expect(view.queryByText('Dùng ảnh này')).toBeNull()
+    expect(mockUpload).not.toHaveBeenCalled()
+    await act(async () => {
+      // selectAvatar's native result now means dismissal has completed,
+      // including when the same local photo is immediately available again.
+      finishPicker({ status: 'selected', asset: { uri: 'file:///local.jpg', width: 800, height: 600 } })
+    })
+    expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+    await fireEvent.press(view.getByRole('button', { name: 'Chọn ảnh khác' }))
+    expect(await view.findByTestId('avatar-source-sheet')).toBeTruthy()
+  }
+  expect(mockUpload).not.toHaveBeenCalled()
+  expect(mockSetAvatar).not.toHaveBeenCalled()
 })

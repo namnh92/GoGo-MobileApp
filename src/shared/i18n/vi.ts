@@ -434,6 +434,7 @@ export const viMessages = {
     'Tài khoản ngừng đăng nhập được, và GoGo xoá thông tin cá nhân của bạn: tên, ảnh đại diện, khu vực, ngân sách, sở thích, mục đã lưu và thông báo. Không hoàn tác được.',
   'account.deleteKept':
     'Đánh giá và ảnh bạn đã đóng góp cho địa điểm vẫn ở lại GoGo, nhưng không còn hiện tên bạn.',
+  'account.deleteConfirmBody': 'Không thể hoàn tác. Đánh giá và ảnh đã đóng góp vẫn được giữ ẩn danh.',
   'account.deleteAction': 'Xác nhận',
   'account.deleteConfirm': 'Xoá tài khoản',
   'account.deleteCancel': 'Huỷ',

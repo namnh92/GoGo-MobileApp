@@ -437,6 +437,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'account.exporting': 'Preparing…',
   'account.exportFailed': 'Could not export. Try again later.',
   'account.deleteTitle': 'Delete account',
+  'account.deleteConfirmBody': 'This cannot be undone. Contributed reviews and photos are kept anonymously.',
   'account.deleteBody':
     'Your account can no longer be signed in to, and GoGo removes your personal data: name, avatar, home area, budget, interests, saved items and notifications. This cannot be undone.',
   'account.deleteKept':

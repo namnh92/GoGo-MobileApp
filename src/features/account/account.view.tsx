@@ -212,6 +212,8 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     setPermissionSource(null)
     setAvatarStep('picking')
     try {
+      // The patched iOS picker resolves only after UIKit confirms dismissal.
+      // A JS delay or InteractionManager task cannot confirm that transition.
       const picked = await selectAvatar(source)
       if (!mounted.current) return
       if (picked.status === 'canceled') return
@@ -438,7 +440,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
         ) : null}
       </ScrollView>
       <ResultSheet visible={deleteConfirm} variant="warning" title={t('account.deleteTitle')}
-        body={`${t('account.deleteBody')}\n\n${t('account.deleteKept')}`} actionOrder="secondary-first"
+        body={t('account.deleteConfirmBody')} actionOrder="secondary-first"
         primaryAction={{ label: t('account.deleteAction'), destructive: true, onPress: onDelete }}
         secondaryAction={{ label: t('account.deleteCancel'), onPress: () => setDeleteConfirm(false) }} onClose={() => setDeleteConfirm(false)} />
       <AvatarSourceSheet visible={avatarSheet} hasPhoto={!!me.data?.avatarUrl} canUpload={canUpload}
