@@ -1,4 +1,4 @@
-import { fireEvent } from '@testing-library/react-native'
+import { fireEvent, within } from '@testing-library/react-native'
 import { Linking, Platform } from 'react-native'
 
 import PermissionsSettingsScreen from '@/features/settings/permissions.view'
@@ -52,11 +52,20 @@ afterEach(() => {
 it.each([
   ['orange', 'user', 'denied'], ['orangeDark', 'user', 'granted'],
   ['orange', 'anonymous', 'granted'], ['orangeDark', 'anonymous', 'denied'],
-] as const)('%s / %s / location %s: one settings entry with section hints', async (theme, status, location) => {
+] as const)('%s / %s / location %s: one system section with tracking before its single settings button', async (theme, status, location) => {
   mockSession.status = status
   mockLocation.status = location
   mockLocation.granted = location === 'granted'
   const view = await renderScreen(<ThemeScopeProvider name={theme}><PermissionsSettingsScreen /></ThemeScopeProvider>)
+  const section = within(view.getByTestId('permissions-system-section'))
+  expect(section.getAllByRole('header')).toHaveLength(1)
+  expect(section.getByRole('header', { name: 'Cài đặt hệ thống' })).toHaveStyle({ textTransform: 'none' })
+  expect(view.queryByRole('header', { name: 'Dữ liệu phân tích & cài đặt' })).toBeNull()
+  expect(view.queryByRole('header', { name: 'Liên kết hệ thống' })).toBeNull()
+  const card = within(section.getByTestId('permissions-system-card'))
+  const content = card.getAllByText(/Đo lượt cài đặt|Mở cài đặt hệ thống/)
+  expect(content.map(node => node.props.children)).toEqual(['Đo lượt cài đặt', 'Mở cài đặt hệ thống'])
+  expect(card.getAllByRole('button', { name: 'Mở cài đặt hệ thống' })).toHaveLength(1)
   const controls = view.getAllByRole('button', { name: /Mở cài đặt/ })
   expect(controls).toHaveLength(1)
   expect(view.getByRole('button', { name: 'Mở cài đặt hệ thống' })).toBeTruthy()
@@ -64,6 +73,17 @@ it.each([
   for (const hint of view.getAllByText('Đổi trong cài đặt máy.')) {
     expect(hint).toHaveStyle({ color: themes[theme].text.secondary })
   }
+  await fireEvent.press(controls[0])
+  expect(Linking.openSettings).toHaveBeenCalledTimes(1)
+})
+
+it.each(['android', 'web'])('%s keeps the shared settings action', async os => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: os })
+  const view = await renderScreen(<PermissionsSettingsScreen />)
+  const section = within(view.getByTestId('permissions-system-section'))
+  expect(section.getByRole('header', { name: 'Cài đặt hệ thống' })).toBeTruthy()
+  const controls = view.getAllByRole('button', { name: /Mở cài đặt/ })
+  expect(controls).toHaveLength(1)
   await fireEvent.press(controls[0])
   expect(Linking.openSettings).toHaveBeenCalledTimes(1)
 })

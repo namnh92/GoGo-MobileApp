@@ -72,7 +72,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "g11.permissionsHeading": "Device permissions and data",
   "g11.permissionsIntro": "Manage notifications, location and install measurement for GoGo.",
   'g11.openSystem': 'Open system settings',
-  "g11.system": "System link",
+  "g11.system": "System settings",
   "g11.systemHeading": "Manage in device settings",
   "profile.settings.defaults": "Room defaults",
   "profile.settings.theme": "Theme colour",

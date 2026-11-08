@@ -64,7 +64,7 @@ export const viMessages = {
   "g11.permissionsHeading": "Quyền và dữ liệu trên thiết bị",
   "g11.permissionsIntro": "Quản lý thông báo, vị trí và đo lượt cài đặt của GoGo.",
   'g11.openSystem': 'Mở cài đặt hệ thống',
-  "g11.system": "Liên kết hệ thống",
+  "g11.system": "Cài đặt hệ thống",
   "g11.systemHeading": "Quản lý trong cài đặt máy",
   "profile.settings.defaults": "Mặc định khi tạo kèo",
   "profile.settings.theme": "Màu chủ đề",

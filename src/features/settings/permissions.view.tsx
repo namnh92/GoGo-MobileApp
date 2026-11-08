@@ -7,7 +7,6 @@ import { NotificationSwitchSection } from '@/features/notifications/notification
 import { useSession } from '@/shared/providers/session-provider'
 import { Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { SettingsPage, BuildVersion } from './settings-page.view'
 
@@ -64,17 +63,14 @@ export default function PermissionsSettingsScreen() {
         </Card>
         </View>
 
-        <View style={styles.section}>
-        <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.analytics')}</Text>
-        <TrackingConsentSection showSettingsButton={false} />
-        </View>
-        <View style={styles.section}>
-        <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.system')}</Text>
-        <Card appearance="stitch" padded={false} style={styles.intro}>
-          <View testID="permissions-system-row" style={styles.systemRow}><View style={styles.systemIcon}><Icon name="settings" size={24} /></View><Text variant="introHeading" style={styles.introText}>{t('g11.systemHeading')}</Text></View>
-          <PrimaryBtn variant="pill" label={t('g11.openSystem')} leadingIcon="external" onPress={() => void openSystemSettings()} />
-          {settingsFailed ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
-        </Card>
+        <View testID="permissions-system-section" style={styles.section}>
+          <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.systemSectionTitle}>{t('g11.system')}</Text>
+          <TrackingConsentSection showSettingsButton={false} testID="permissions-system-card" footer={
+            <>
+              <PrimaryBtn variant="pill" label={t('g11.openSystem')} leadingIcon="external" onPress={() => void openSystemSettings()} />
+              {settingsFailed ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
+            </>
+          } />
         </View>
         <BuildVersion />
     </SettingsPage>

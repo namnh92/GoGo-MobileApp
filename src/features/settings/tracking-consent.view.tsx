@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Linking, Platform, Switch, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -19,10 +19,18 @@ import { styles } from './tracking-consent.style'
  * so a way there. Either way this device's, not the account's. #404: the sheet is
  * short, so this row carries the two recipients and what goes either way.
  */
-export function TrackingConsentSection({ showSettingsButton = true }: { showSettingsButton?: boolean } = {}) {
-  if (Platform.OS === 'android') return <AndroidSwitch />
-  if (Platform.OS === 'ios') return <IosSettingsLink showSettingsButton={showSettingsButton} />
-  return null
+export function TrackingConsentSection({ showSettingsButton = true, footer, testID }: {
+  showSettingsButton?: boolean
+  footer?: ReactNode
+  testID?: string
+} = {}) {
+  if (Platform.OS !== 'android' && Platform.OS !== 'ios' && !footer) return null
+  return (
+    <Card testID={testID} appearance="stitch" padded={false} style={styles.card}>
+      {Platform.OS === 'android' ? <AndroidSwitch /> : Platform.OS === 'ios' ? <IosSettingsLink showSettingsButton={showSettingsButton} /> : null}
+      {footer}
+    </Card>
+  )
 }
 
 function AndroidSwitch() {
@@ -36,28 +44,28 @@ function AndroidSwitch() {
 
   if (!acquisitionConfigured()) {
     return (
-      <Card appearance="stitch" padded={false} style={styles.card}>
+      <>
         <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
         <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.trackingUnavailable')}</Text>
-      </Card>
+      </>
     )
   }
 
   if (!consent.loaded) {
     return (
-      <Card appearance="stitch" padded={false} style={styles.card}>
+      <>
         <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
         <View accessible accessibilityLabel={t('common.loading')}>
           <Skeleton height={touchTarget.min} />
         </View>
-      </Card>
+      </>
     )
   }
 
   const on = consent.value === 'granted'
 
   return (
-    <Card appearance="stitch" padded={false} style={styles.card}>
+    <>
         <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
       <View style={styles.row}>
         <View style={styles.rowText}>
@@ -81,7 +89,7 @@ function AndroidSwitch() {
           <GhostBtn label={t('common.retry')} onPress={() => consentStore.retry()} />
         </View>
       ) : null}
-    </Card>
+    </>
   )
 }
 
@@ -99,7 +107,7 @@ function IosSettingsLink({ showSettingsButton }: { showSettingsButton: boolean }
   }
 
   return (
-    <Card appearance="stitch" padded={false} style={styles.card}>
+    <>
         <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
       <Text variant="bodySmall">{t('permissionsSettings.trackingIos')}</Text>
       {showSettingsButton ? <SecondaryBtn label={t('permissionsSettings.openSettings')} onPress={() => void open()} icon="settings" /> : <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.deviceSettingsHint')}</Text>}
@@ -108,6 +116,6 @@ function IosSettingsLink({ showSettingsButton }: { showSettingsButton: boolean }
           {t('notificationSettings.openSettingsFailed')}
         </Text>
       ) : null}
-    </Card>
+    </>
   )
 }
