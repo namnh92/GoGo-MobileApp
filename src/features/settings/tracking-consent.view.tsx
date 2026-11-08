@@ -19,9 +19,9 @@ import { styles } from './tracking-consent.style'
  * so a way there. Either way this device's, not the account's. #404: the sheet is
  * short, so this row carries the two recipients and what goes either way.
  */
-export function TrackingConsentSection() {
+export function TrackingConsentSection({ showSettingsButton = true }: { showSettingsButton?: boolean } = {}) {
   if (Platform.OS === 'android') return <AndroidSwitch />
-  if (Platform.OS === 'ios') return <IosSettingsLink />
+  if (Platform.OS === 'ios') return <IosSettingsLink showSettingsButton={showSettingsButton} />
   return null
 }
 
@@ -85,7 +85,7 @@ function AndroidSwitch() {
   )
 }
 
-function IosSettingsLink() {
+function IosSettingsLink({ showSettingsButton }: { showSettingsButton: boolean }) {
   const { t } = useTranslation()
   const [failed, setFailed] = useState(false)
 
@@ -102,7 +102,7 @@ function IosSettingsLink() {
     <Card appearance="stitch" padded={false} style={styles.card}>
         <Text variant="introHeading">{t('permissionsSettings.tracking')}</Text>
       <Text variant="bodySmall">{t('permissionsSettings.trackingIos')}</Text>
-      <SecondaryBtn label={t('permissionsSettings.openSettings')} onPress={() => void open()} icon="settings" />
+      {showSettingsButton ? <SecondaryBtn label={t('permissionsSettings.openSettings')} onPress={() => void open()} icon="settings" /> : <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.deviceSettingsHint')}</Text>}
       {failed ? (
         <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite">
           {t('notificationSettings.openSettingsFailed')}

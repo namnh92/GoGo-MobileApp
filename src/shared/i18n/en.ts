@@ -1590,6 +1590,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'permissionsSettings.trackingUnsaved': 'Your choice could not be saved — try again',
   'permissionsSettings.trackingUnavailable': 'This build has no install measurement.',
   'permissionsSettings.trackingIos': "iOS manages GoGo's tracking permission in settings.",
+  'permissionsSettings.deviceSettingsHint': 'Change in device settings.',
   'permissionsSettings.openSettings': 'Open settings',
   'permissionsSettings.areaInDefaults': 'Choose your area in Defaults',
   'notificationSettings.saveFailed': 'Could not save. The switch is back to its previous state.',

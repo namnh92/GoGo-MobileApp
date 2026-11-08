@@ -30,7 +30,7 @@ jest.mock('expo-router', () => ({
     require('react').useEffect(effect, [effect])
   },
 }))
-import NotificationSettings from '@/features/settings/permissions.view'
+import { NotificationSwitchSection as NotificationSettings } from '@/features/notifications/notification-switch.view'
 
 const loaded = (settings: Partial<Settings> = {}) => ({
   data: { pushEnabled: true, source: 'explicit', updatedAt: '2026-09-14T00:00:00Z', ...settings },

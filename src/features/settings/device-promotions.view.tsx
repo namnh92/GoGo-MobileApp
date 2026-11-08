@@ -21,7 +21,7 @@ import { styles } from './device-promotions.style'
  * not claimed until the provider showed it (R-16): "Đang tắt…" stays until then.
  * Signed in, the account switch decides everything and this is not rendered.
  */
-export function DevicePromotionsSection() {
+export function DevicePromotionsSection({ showSettingsButton = true }: { showSettingsButton?: boolean } = {}) {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const promotions = useSyncExternalStore(devicePromotionsStore.subscribe, devicePromotionsStore.snapshot)
@@ -108,7 +108,7 @@ export function DevicePromotionsSection() {
       {on && osOff ? (
         <>
           <Text variant="bodySmall" color="status.warningText">{t('devicePromotions.osOff')}</Text>
-          <SecondaryBtn label={t('notificationSettings.openSettings')} onPress={() => void Linking.openSettings().catch(() => undefined)} icon="settings" />
+          {showSettingsButton ? <SecondaryBtn label={t('notificationSettings.openSettings')} onPress={() => void Linking.openSettings().catch(() => undefined)} icon="settings" /> : <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.deviceSettingsHint')}</Text>}
         </>
       ) : null}
     </Card>

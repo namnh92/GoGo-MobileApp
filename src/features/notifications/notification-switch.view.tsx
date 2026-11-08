@@ -36,7 +36,7 @@ const DEVICE_NOTE: Record<PushState, MessageKey> = {
  * notification. Neither says anything was delivered. Signed-in accounts only —
  * the screen decides who sees this.
  */
-export function NotificationSwitchSection() {
+export function NotificationSwitchSection({ showSettingsButton = true }: { showSettingsButton?: boolean } = {}) {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const settings = useNotificationSettings()
@@ -147,7 +147,8 @@ export function NotificationSwitchSection() {
             {t(DEVICE_NOTE[pushState])}
           </Text>
         </View>
-        {pushState === 'askable' ? (
+        {!showSettingsButton ? <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.deviceSettingsHint')}</Text> : null}
+        {pushState === 'askable' && showSettingsButton ? (
           <SecondaryBtn
             label={t('notificationSettings.openSettings')}
             onPress={() => void openNotificationSettings()}

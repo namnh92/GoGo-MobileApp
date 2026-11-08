@@ -49,10 +49,10 @@ export default function PermissionsSettingsScreen() {
         <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.devicePermissions')}</Text>
         <Card appearance="stitch" padded={false} style={styles.deviceCard}>
         {status === 'user' ? (
-          <NotificationSwitchSection />
+          <NotificationSwitchSection showSettingsButton={false} />
         ) : (
           <>
-            <DevicePromotionsSection />
+            <DevicePromotionsSection showSettingsButton={false} />
             <Card appearance="stitch" padded={false} style={styles.signInCard}>
               <Text>{t('notifications.signInBody')}</Text>
               <GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />
@@ -60,13 +60,13 @@ export default function PermissionsSettingsScreen() {
           </>
         )}
 
-        <LocationPermissionSection />
+        <LocationPermissionSection showSettingsButton={false} />
         </Card>
         </View>
 
         <View style={styles.section}>
         <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.analytics')}</Text>
-        <TrackingConsentSection />
+        <TrackingConsentSection showSettingsButton={false} />
         </View>
         <View style={styles.section}>
         <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.system')}</Text>

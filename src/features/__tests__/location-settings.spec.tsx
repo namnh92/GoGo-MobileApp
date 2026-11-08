@@ -41,7 +41,7 @@ jest.mock('expo-location', () => ({
   },
 }))
 
-import LocationSettingsScreen from '@/features/settings/permissions.view'
+import { LocationPermissionSection as LocationSettingsScreen } from '@/features/settings/location-permission.view'
 
 function permission(status: string) {
   mockPermission.status = status
