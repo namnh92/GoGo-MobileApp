@@ -13,7 +13,8 @@ const mockList = jest.fn()
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn() }
 const mockResolution = { status: 'RESOLVED', candidate: { googlePlaceId: 'place-a', name: 'Test café' } }
 const mockResolve = { data: undefined as unknown, reset: jest.fn(), mutate: jest.fn((_body, callbacks) => callbacks.onSuccess(mockResolution)), isPending: false }
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }), useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
 jest.mock('@/shared/api', () => ({

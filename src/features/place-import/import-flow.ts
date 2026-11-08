@@ -47,6 +47,11 @@ export interface ImportFlowState {
   replacement: string | null
   newDraftChosen: boolean
 }
+/** Presentation identity: presence checks must not replay a successful save notification. */
+export function contributionFeedbackKey(state: ImportFlowState): string {
+  const successful = ['saved', 'resumed', 'deleted'].includes(state.message)
+  return `${state.message}:${successful ? '' : state.operationId}:${state.mutationRevision}`
+}
 export interface FlowDependencies {
   uuid: () => string
   now: () => number

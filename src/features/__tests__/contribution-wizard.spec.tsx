@@ -1,4 +1,9 @@
 import { StyleSheet } from 'react-native'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import titleMetrics from './fixtures/contribution-title-metrics.json'
+import { styles as wizardStyles } from '@/features/place-import/contribution-wizard.style'
+import { spacing, type } from '@/shared/ui/tokens'
 import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import { contributionTaxonomies, completeWizard } from './contribution-fixtures'
@@ -132,8 +137,8 @@ it('starts empty, retains selections back and forth, submits one real enrichment
   expect(disabled('Tiếp tục')).toBe(true)
   expect(screen.queryByRole('radio')).toBeNull()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Bánh ngon')
-  await fireEvent.press(screen.getByRole('radio', { name: 'Đánh giá phục vụ & Không gian: 4 sao' }))
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Bánh ngon')
+  await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ & không gian: 4 sao' }))
   await fireEvent.press(button('Quay lại'))
   expect(button('Sôi động').props.accessibilityState.selected).toBe(true)
   await fireEvent.press(
@@ -164,7 +169,7 @@ it('renders every API kind, including amenities and optional rating chips', asyn
   await fireEvent.press(button('Sôi động'))
   await fireEvent.press(button('Tiếp tục'))
   expect(disabled('Yên tĩnh')).toBe(true)
-  await fireEvent.press(screen.getByRole('radio', { name: 'Đánh giá phục vụ & Không gian: 4 sao' }))
+  await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ & không gian: 4 sao' }))
   await fireEvent.press(button('Yên tĩnh'))
   await fireEvent.press(button('Gửi địa điểm cho GoGo'))
   expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -249,7 +254,7 @@ it('retains acknowledged menu/bill uploads when a resumed draft is edited, saved
   await fireEvent.press(button('Tiếp tục bản nháp'))
   await fireEvent.press(button('Tiếp tục'))
   await fireEvent.press(button('Tiếp tục'))
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Updated tip')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Updated tip')
   const enrichment = { ...photoDraft.enrichment, visitTips: 'Updated tip' }
   await fireEvent.press(button('Lưu nháp'))
   expect(mockSave).toHaveBeenCalledWith({
@@ -282,7 +287,7 @@ describe('F-05 deleted draft media', () => {
     await fireEvent.press(button('Tiếp tục bản nháp'))
     await fireEvent.press(button('Tiếp tục'))
     await fireEvent.press(button('Tiếp tục'))
-    await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep my edited tips')
+    await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Keep my edited tips')
   }
 
   it.each(['save', 'submit'])('clears expired photos and consent but preserves inputs before %s', async (action) => {
@@ -416,7 +421,7 @@ it('submits once through the sole primary action with the whole optional step em
 it('allows tips alone, rating alone, and clearing the optional rating without blocking completion', async () => {
   await renderScreen(<ContributionWizard {...props} />)
   await completeWizard()
-  const tips = screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé')
+  const tips = screen.getByLabelText('Món ngon & mẹo')
   await fireEvent.changeText(tips, 'Real tip')
   await fireEvent.press(button('Gửi địa điểm cho GoGo'))
   expect(onSubmit).toHaveBeenLastCalledWith({
@@ -426,7 +431,7 @@ it('allows tips alone, rating alone, and clearing the optional rating without bl
   })
   await fireEvent.changeText(tips, '')
   const star = screen.getByRole('radio', {
-    name: 'Đánh giá phục vụ & Không gian: 5 sao',
+    name: 'Phục vụ & không gian: 5 sao',
   })
   await fireEvent.press(star)
   expect(star.props.accessibilityState.checked).toBe(true)
@@ -461,7 +466,7 @@ it('keeps both legacy text values visible in the single input and saves an expli
   await fireEvent.press(button('Bỏ lựa chọn không còn khả dụng'))
   await fireEvent.press(button('Tiếp tục'))
   await fireEvent.press(button('Tiếp tục'))
-  const field = screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé')
+  const field = screen.getByLabelText('Món ngon & mẹo')
   expect(field.props.value).toBe('Cake — Morning')
   await fireEvent.press(button('Gửi địa điểm cho GoGo'))
   expect(onSubmit).toHaveBeenLastCalledWith(
@@ -531,7 +536,7 @@ it('caps purpose and rating chips at six, with API choices available through the
   await fireEvent.press(button('Tiếp tục'))
   await fireEvent.press(button('Sôi động'))
   await fireEvent.press(button('Tiếp tục'))
-  await fireEvent.press(screen.getByRole('radio', { name: 'Đánh giá phục vụ & Không gian: 5 sao' }))
+  await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ & không gian: 5 sao' }))
   expect(screen.queryByText('Đánh giá 6')).toBeNull()
   await fireEvent.press(button('+3 khác'))
   for (const n of [8, 7, 6, 5, 4]) await fireEvent.press(screen.getByRole('checkbox', { name: `Đánh giá ${n}` }))
@@ -594,8 +599,8 @@ it('keeps one primary action through all steps and a compact accessible reward',
   expect(screen.getAllByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Tiếp tục' })).toBeNull()
   const save = button('Lưu nháp')
-  expect(StyleSheet.flatten(save.props.style)).toMatchObject({ width: '100%', minHeight: 48, borderWidth: 1 })
-  expect(StyleSheet.flatten(submit.props.style)).toMatchObject({ width: '100%', minWidth: 0, minHeight: 48 })
+  expect(StyleSheet.flatten(save.props.style)).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0, minHeight: 48, borderWidth: 1 })
+  expect(StyleSheet.flatten(submit.props.style)).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0, minHeight: 48 })
   expect(within(submit).getByText('Gửi địa điểm cho GoGo').props.numberOfLines).toBe(1)
   await fireEvent.press(button('Quay lại'))
   expect(button('Sôi động').props.accessibilityState.selected).toBe(true)
@@ -679,7 +684,7 @@ it.each([false, true])('F-02 recovers a conflicted draft after Resume confirms d
   await fireEvent.press(button('Tiếp tục'))
   if (!previouslySaved) await fireEvent.press(button('Sôi động'))
   await fireEvent.press(button('Tiếp tục'))
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep my edited tips')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Keep my edited tips')
   await fireEvent.press(button('Lưu nháp'))
   expect(disabled('Lưu nháp')).toBe(true)
   mockRead.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'deleted elsewhere' }))
@@ -689,7 +694,7 @@ it.each([false, true])('F-02 recovers a conflicted draft after Resume confirms d
   expect(disabled('Lưu nháp')).toBe(false)
   expect(screen.queryByText(i18n.t('placeWizard.draft.conflict'))).toBeNull()
   expect(screen.queryByRole('button', { name: 'Tiếp tục bản nháp' })).toBeNull()
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Keep my edited tips')
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('Keep my edited tips')
   await fireEvent.press(button('Lưu nháp'))
   expect(mockSave).toHaveBeenCalledTimes(2)
   expect(mockSave.mock.calls[1][0]).toMatchObject({
@@ -828,11 +833,11 @@ describe('SA T1-T12 lifecycle regressions', () => {
     mockSave.mockRejectedValueOnce(new Error('response lost after commit'))
     await fireEvent.press(button('Lưu nháp'))
     const frozen = mockSave.mock.calls[0][0].body.enrichment
-    await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Later tips')
+    await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Later tips')
     await fireEvent.press(button(i18n.t('placeWizard.lifecycle.removeBills')))
     mockRead.mockResolvedValue({ ...photoDraft, version: 4, enrichment: frozen })
     await fireEvent.press(button(i18n.t('placeWizard.lifecycle.checkSave')))
-    expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Later tips')
+    expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('Later tips')
     expect(screen.queryByRole('button', { name: i18n.t('placeWizard.lifecycle.removeBills') })).toBeNull()
     await fireEvent.press(button('Tiếp tục bản nháp'))
     expect(screen.getByText(i18n.t('placeWizard.lifecycle.replaceConfirmation'))).toBeTruthy()
@@ -848,5 +853,67 @@ describe('SA T1-T12 lifecycle regressions', () => {
     expect(screen.getByText(i18n.t('placeWizard.lifecycle.draftListUnavailable'))).toBeTruthy()
     expect(button('Thử tải danh sách nháp lại')).toBeTruthy()
     expect(disabled('Lưu nháp')).toBe(false)
+  })
+})
+
+// CoreText CTLineGetTypographicBounds, bundled Inter SemiBold 17pt / Regular 11pt,
+// rounded UP to 0.01pt. Exact copy + font hashes prevent stale measurements passing.
+// Captions/chips sit below titles, so none consumes the title's horizontal budget.
+describe('GOGO-566 one-line titles at 390pt', () => {
+  it('keeps the measured font faces unchanged', () => {
+    for (const [face, hash] of Object.entries(titleMetrics.fonts)) {
+      expect(createHash('sha256').update(readFileSync(`assets/fonts/Inter-${face}.ttf`)).digest('hex')).toBe(hash)
+    }
+    expect(type.introHeading.fontSize).toBe(17)
+    expect(type.introCaption.fontSize).toBe(11)
+  })
+
+  it.each(['vi', 'en'])('%s copy stays within measured width and string-length budgets', locale => {
+    const card = StyleSheet.flatten(wizardStyles.card)
+    const body = StyleSheet.flatten(wizardStyles.body)
+    const heading = StyleSheet.flatten(wizardStyles.heading)
+    const content = 390 - 2 * spacing[4] - 2 * card.borderWidth - 2 * body.padding
+    for (const [id, measurement] of Object.entries(titleMetrics.titles)) {
+      if (!id.startsWith(`${locale}.`)) continue
+      const key = id.slice(3)
+      const progress = key.startsWith('step')
+      const stepHeading = key.startsWith('heading')
+      const budget = progress
+        ? (content - 2 * StyleSheet.flatten(wizardStyles.progress).gap) / 3
+        : content - (stepHeading ? StyleSheet.flatten(wizardStyles.stepNumber).minWidth : 18) - heading.gap
+      const title = i18n.t(`placeWizard.${key}`, { lng: locale })
+      expect(title).toBe(measurement.text)
+      // Copy length guard in addition to font measurement (21/18 chars measured
+      // for the longest heading/progress title; no ellipsis needed at 390pt).
+      expect([...title].length).toBeLessThanOrEqual(progress ? 18 : 21)
+      expect(measurement.width).toBeLessThanOrEqual(budget)
+    }
+  })
+
+  it.each(['vi', 'en'])('%s renders every section and step title on one line', async locale => {
+    await i18n.changeLanguage(locale)
+    await renderScreen(<ContributionWizard {...props} />)
+    const sections = [
+      [['price', 'payments'], ['purposes', 'target']],
+      [['vibes', 'mood'], ['amenities', 'activity']],
+      [['photos', 'receipt'], ['tipsHeading', 'tips'], ['ratings', 'reviews']],
+    ]
+    for (let step = 1; step <= 3; step++) {
+      const title = screen.getByTestId('contribution-step-title')
+      expect(title.props.numberOfLines).toBe(1)
+      expect(title).toHaveTextContent(i18n.t(`placeWizard.heading${step}`))
+      expect(StyleSheet.flatten(title.parent?.props.style)).toMatchObject({ minWidth: 0, alignItems: 'flex-start' })
+      for (const [key, icon] of sections[step - 1]) {
+        const section = screen.getByTestId(`contribution-section-title-${icon}`)
+        expect(section.props.numberOfLines).toBe(1)
+        expect(section).toHaveTextContent(i18n.t(`placeWizard.${key}`))
+        expect(StyleSheet.flatten(section.parent?.props.style)).toMatchObject({ minWidth: 0, alignItems: 'flex-start' })
+      }
+      for (let n = 1; n <= 3; n++) expect(screen.getByTestId(`contribution-progress-title-${n}`).props.numberOfLines).toBe(1)
+      if (step < 3) {
+        await fireEvent.press(button(locale === 'vi' ? step === 1 ? 'Cặp đôi' : 'Sôi động' : step === 1 ? 'Couple' : 'Festive'))
+        await fireEvent.press(button(i18n.t('placeWizard.next')))
+      }
+    }
   })
 })

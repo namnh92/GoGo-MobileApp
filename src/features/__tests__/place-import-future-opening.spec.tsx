@@ -51,7 +51,8 @@ const mockSubmit = {
 
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
-jest.mock('expo-router', () => ({
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }),
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({}),

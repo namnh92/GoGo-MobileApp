@@ -1,5 +1,5 @@
 import { completeWizard } from './contribution-fixtures'
-import { act, fireEvent, screen, within } from '@testing-library/react-native'
+import { act, fireEvent, screen, within, waitFor } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 import { ApiError } from '@/shared/api/errors'
 
@@ -58,7 +58,8 @@ const mockTrack = jest.fn()
 
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
-jest.mock('expo-router', () => ({
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }),
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({}),
@@ -157,7 +158,7 @@ describe('APP-042 — the resolve proof reaches submit', () => {
 
     await openWithPreview()
     await completeWizard()
-    await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep this note')
+    await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Keep this note')
     await pressSubmit()
 
     expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(2)
@@ -226,9 +227,16 @@ describe('APP-042 — the resolve proof reaches submit', () => {
 })
 
 
+async function changeVerifiedLink() {
+  await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
+  const exit = screen.queryByTestId('contribution-exit')
+  if (exit) await fireEvent.press(within(exit).getByRole('button', { name: 'Không lưu' }))
+  await waitFor(() => expect(screen.queryByTestId('contribution-wizard')).toBeNull())
+}
+
 it('invalidates A preview when the user edits the link to B', async () => {
   await openWithPreview()
-  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
+  if (screen.queryByTestId('import-synced-link')) await changeVerifiedLink()
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
   expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
@@ -240,7 +248,7 @@ it('does not retry A after a stale-token resolve returns while the user is on B'
   mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finish = resolve }))
   await openWithPreview()
   await pressSubmit()
-  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
+  if (screen.queryByTestId('import-synced-link')) await changeVerifiedLink()
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
   await act(async () => { finish(RESOLVED) })
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
@@ -257,9 +265,9 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
   }
   await openWithPreview()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Old A note')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Old A note')
   await pressSubmit()
-  await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
+  await changeVerifiedLink()
   const input = screen.getByPlaceholderText('Dán link Google Maps tại đây...')
   await fireEvent.changeText(input, 'https://maps.app.goo.gl/B')
   await fireEvent.changeText(input, LINK)
@@ -279,7 +287,7 @@ it('keeps a new attempt locked when an outdated retry finishes', async () => {
   mockResolve.mutateAsync.mockImplementation(() => new Promise(resolve => { finishOld = resolve }))
   await openWithPreview()
   await pressSubmit()
-  if (screen.queryByTestId('import-synced-link')) await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
+  if (screen.queryByTestId('import-synced-link')) await changeVerifiedLink()
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), LINK)
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
@@ -304,7 +312,7 @@ it('does not attach an existing contribution to a different provider identity af
 it('keeps entered form values when stale-token revalidation loses the network', async () => {
   await openWithPreview()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep on revalidation failure')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Keep on revalidation failure')
   mockSubmit.mutateAsync.mockRejectedValueOnce(staleToken())
   mockResolve.mutateAsync.mockImplementationOnce(async () => {
     mockResolve.data = undefined
@@ -312,7 +320,7 @@ it('keeps entered form values when stale-token revalidation loses the network', 
   })
   await pressSubmit()
   expect(screen.getByText('Chưa gửi được')).toBeTruthy()
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Keep on revalidation failure')
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('Keep on revalidation failure')
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
 })
 

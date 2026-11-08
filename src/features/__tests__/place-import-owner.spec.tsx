@@ -20,7 +20,8 @@ jest.mock('expo-image-picker', () => ({
 }))
 jest.mock('@/shared/api/client', () => ({ api: { get: (...args: unknown[]) => mockGet(...args) } }))
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn() }
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }), useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 const mockUnread = { count: 0, more: false }
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
@@ -87,14 +88,15 @@ it('keeps a long URL single-line with a 44pt clear control; changing a verified 
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(screen.queryByTestId('import-link-input')).toBeNull()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'old note')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'old note')
   await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
-  expect(screen.queryByText('Preview')).toBeNull()
+  await fireEvent.press(within(screen.getByTestId('contribution-exit')).getByRole('button', { name: 'Không lưu' }))
+  await waitFor(() => expect(screen.queryByText('Preview')).toBeNull())
   expect(screen.getByTestId('import-link-input').props.value).toBe('')
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   await completeWizard()
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('')
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('')
 })
 
 it('spaces the card/actions and individual buttons, and removes the lone entered-link control', async () => {
@@ -159,7 +161,7 @@ it.each(['denied', 'failed', 'empty'])('omits unavailable candidate photos (%s) 
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJtest', enrichment: expect.any(Object) }))
 })
 
-it.each(['Giá cao nhất (VND)', 'Món ngon phải thử & Mẹo khi ghé'])(
+it.each(['Giá cao nhất (VND)', 'Món ngon & mẹo'])(
   'scrolls the focused %s and its helper above a resized keyboard viewport and dismisses outside',
   async label => {
     let keyboard: (() => void) | undefined
@@ -631,11 +633,11 @@ it('requires the wizard after branch selection and clears another branch’s con
   await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'A only')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'A only')
   await fireEvent.press(screen.getByText('Branch B'))
   expect(screen.getByText('Tiếp tục')).toBeTruthy()
   await completeWizard()
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('')
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('')
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJbranchB', enrichment: expect.not.objectContaining({ visitTips: expect.anything() }) }))
@@ -668,7 +670,7 @@ it('resets a successful flow to Nhập link through the secondary action', async
 it('retains entered values after a submission error and retries the same enrichment', async () => {
   await preview()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep these tips')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Keep these tips')
   mockSubmit.mutateAsync.mockRejectedValueOnce(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'private server detail' }))
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   expect(screen.getByText('Chưa gửi được')).toBeTruthy()
@@ -683,12 +685,12 @@ it('retains entered values after a submission error and retries the same enrichm
 it('saves the retained form as a draft from the error sheet', async () => {
   await preview()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Saved after failure')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Saved after failure')
   mockSubmit.mutateAsync.mockRejectedValueOnce(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'known rejection' }))
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   await fireEvent.press(within(screen.getByTestId('result-sheet')).getByRole('button', { name: 'Lưu nháp' }))
   await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Saved after failure' }) }) })))
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Saved after failure')
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('Saved after failure')
 })
 
 it('shows the submitted photo thumbnail with attribution and omits it on image failure', async () => {

@@ -1,0 +1,112 @@
+{
+  "fonts": {
+    "Regular": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82",
+    "SemiBold": "78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3"
+  },
+  "titles": {
+    "en.amenities": {
+      "text": "Hidden perks",
+      "width": 109.77
+    },
+    "en.heading1": {
+      "text": "Price & purpose",
+      "width": 130.34
+    },
+    "en.heading2": {
+      "text": "Amenities & vibe",
+      "width": 137.34
+    },
+    "en.heading3": {
+      "text": "Menu, receipts & tips",
+      "width": 172.77
+    },
+    "en.photos": {
+      "text": "Menu / receipt photos",
+      "width": 180.17
+    },
+    "en.price": {
+      "text": "Price / person",
+      "width": 114.74
+    },
+    "en.purposes": {
+      "text": "Best suited for",
+      "width": 119.16
+    },
+    "en.ratings": {
+      "text": "Service & space",
+      "width": 132.17
+    },
+    "en.step1": {
+      "text": "1. Price & use",
+      "width": 69.37
+    },
+    "en.step2": {
+      "text": "2. Perks & vibe",
+      "width": 77.78
+    },
+    "en.step3": {
+      "text": "3. Menu & tips",
+      "width": 74.24
+    },
+    "en.tipsHeading": {
+      "text": "Dishes & tips",
+      "width": 106.1
+    },
+    "en.vibes": {
+      "text": "Vibe & space",
+      "width": 107.14
+    },
+    "vi.amenities": {
+      "text": "Tiện ích ít ai biết",
+      "width": 133.8
+    },
+    "vi.heading1": {
+      "text": "Giá & mục đích",
+      "width": 122.62
+    },
+    "vi.heading2": {
+      "text": "Tiện ích & vibe",
+      "width": 120.09
+    },
+    "vi.heading3": {
+      "text": "Menu, hoá đơn & mẹo",
+      "width": 177.74
+    },
+    "vi.photos": {
+      "text": "Ảnh menu / hoá đơn",
+      "width": 164.94
+    },
+    "vi.price": {
+      "text": "Giá / người",
+      "width": 87.92
+    },
+    "vi.purposes": {
+      "text": "Mục đích phù hợp",
+      "width": 147.55
+    },
+    "vi.ratings": {
+      "text": "Phục vụ & không gian",
+      "width": 177.19
+    },
+    "vi.step1": {
+      "text": "1. Giá & mục đích",
+      "width": 89.14
+    },
+    "vi.step2": {
+      "text": "2. Tiện ích & vibe",
+      "width": 89.47
+    },
+    "vi.step3": {
+      "text": "3. Menu & mẹo",
+      "width": 78.08
+    },
+    "vi.tipsHeading": {
+      "text": "Món ngon & mẹo",
+      "width": 138.05
+    },
+    "vi.vibes": {
+      "text": "Vibe & không gian",
+      "width": 148.32
+    }
+  }
+}

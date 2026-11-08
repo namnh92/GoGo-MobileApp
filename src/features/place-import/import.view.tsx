@@ -21,7 +21,8 @@ import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { CleanupReview } from './cleanup-review.view'
-import { ContributionWizard } from './contribution-wizard.view'
+import { useContributionExit } from './contribution-exit.view'
+import { ContributionWizard, ContributionWizardActionBar } from './contribution-wizard.view'
 import { ImportFlowProvider, useImportFlow } from './import-flow-controller'
 import { foregroundBusy } from './import-flow'
 import { FieldFocusGroup, FocusedFieldGroup } from '@/shared/ui/field-focus-group'
@@ -150,7 +151,8 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   const taxonomies = useTaxonomies({ kinds: 'category' })
   const resolve = useResolveGoogleMapsLink()
   const accepted = state.phase === 'retiring' || state.phase === 'completed'
-  const wizard = useRef<{ saveDraft: () => void }>(null)
+  const wizard = useRef<{ saveDraft: () => Promise<boolean> }>(null)
+  const exit = useContributionExit(async () => await wizard.current?.saveDraft() ?? false)
   const outcome = accepted ? 'success' : 'error'
   const submittedPreview = state.candidate ?? undefined
   const resultVisible = state.resultVisible
@@ -259,6 +261,12 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
     })
   }
 
+  const wizardProps = {
+    googlePlaceId: contributionPlaceId ?? '', registered: actorStatus === 'user', online,
+    submitting: state.phase === 'submitting', blocked: notOpenYet || accepted,
+    onBack: changeLink, onFocus: revealFocused, onSubmit: () => { void onSubmitPlace() },
+  }
+
   async function pasteLink() {
     if (linkFrozen) return
     const generation = attemptGeneration.current
@@ -278,7 +286,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   return (
     <Atmosphere redesign style={!verified ? styles.inputCanvas : undefined}>
       <AppHeader testID="import-header" title={t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}
-        onBack={verified ? changeLink : () => router.back()} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
+        onBack={() => exit.requestExit(verified ? changeLink : () => router.back())} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
         bellTestID="import-bell" unreadDotTestID="import-unread-dot"
         rightAction={!verified ? <AppHeaderAction accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }}><MaterialIcon name="help" size={24} color="redesign.secondary" /></AppHeaderAction> : undefined} />
       <FocusedFieldGroup.Provider value={focusedGroup}>
@@ -356,7 +364,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                       {!linkFocused && !!url ? <View testID="import-link-display" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.linkDisplay}>
                         <Text variant="bodySmall" numberOfLines={1} ellipsizeMode="tail">{url}</Text>
                       </View> : null}
-                      {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} disabled={linkFrozen} onPress={changeLink} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
+                      {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} disabled={linkFrozen} onPress={() => exit.requestExit(changeLink)} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
                     </View>
                     {showValidation ? <View accessibilityLiveRegion="polite" style={[styles.validationBadge, !validFormat && styles.validationInvalid]}>
                       <MaterialIcon name={validFormat ? 'checkCircle' : 'info'} size={15} color={validFormat ? 'redesign.greenText' : 'status.warningText'} />
@@ -472,21 +480,10 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                 ) : null}
 
                 {contributionPlaceId && !accepted ? (
-                  <ContributionWizard
-                    ref={wizard}
-                    key={`${formGeneration}:${contributionPlaceId}`}
-                    googlePlaceId={contributionPlaceId}
-                    registered={actorStatus === 'user'}
-                    online={online}
-                    submitting={(state.phase === 'submitting')}
-                    blocked={notOpenYet || accepted}
-                    onBack={changeLink}
-                    onFocus={revealFocused}
-                    onSubmit={() => { void onSubmitPlace() }}
-                  />
+                  <ContributionWizard {...wizardProps} ref={wizard} hideActions feedbackSuppressed={exit.feedbackSuppressed}
+                    key={`${formGeneration}:${contributionPlaceId}`} />
                 ) : null}
                 {state.phase === 'retiring' ? <View>
-                  <Text accessibilityLiveRegion="polite">{t('placeWizard.lifecycle.submittedCleanupPending')}</Text>
                   {state.cleanup?.changedVersion !== undefined ? <>
                     <Text>{t('placeWizard.lifecycle.cleanupChanged')}</Text>
                     <GhostBtn label={t('placeWizard.lifecycle.reviewCleanup')} disabled={!online}
@@ -523,8 +520,10 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
               </View>
             </TouchableWithoutFeedback>
           </ScrollView>
+          {contributionPlaceId && !accepted ? <ContributionWizardActionBar {...wizardProps} /> : null}
         </KeyboardAvoidingView>
       </FocusedFieldGroup.Provider>
+      {exit.sheet}
       <ResultSheet
         visible={resultVisible}
         variant={outcome === 'success' ? 'success' : 'error'}
