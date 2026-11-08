@@ -180,11 +180,11 @@ export function PlaceCardTags({ tags = [] }: { tags?: readonly string[] }) {
     <View key={tag} style={styles.factTag}><Text variant="introCaption" color="redesign.secondary">{tag}</Text></View>)}</View> : null
 }
 
-export function Verified({ inline = false }: { inline?: boolean }) {
+export function Verified({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation()
-  return <View testID="place-card-verified" style={inline ? styles.inlineVerified : styles.verifiedBadge}>
-    <MaterialIcon name="verified" size={inline ? 12 : 14} color={inline ? 'redesign.greenText' : 'text.inverse'} />
-    <Text variant="introCaptionMedium" color={inline ? 'redesign.greenText' : 'text.inverse'}>{t('discovery.verified')}</Text>
+  return <View testID="place-card-verified" style={compact ? styles.compactVerified : styles.verifiedBadge}>
+    <MaterialIcon name="verified" size={compact ? 10 : 14} color="text.inverse" />
+    <Text variant="introCaptionMedium" color="text.inverse" numberOfLines={compact ? 1 : undefined}>{t('discovery.verified')}</Text>
   </View>
 }
 

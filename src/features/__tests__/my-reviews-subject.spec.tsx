@@ -104,6 +104,8 @@ describe('my reviews: card subject', () => {
     const view = await renderScreen(<MyReviewsScreen />)
 
     expect(view.getAllByText('Không tải được tên và địa chỉ địa điểm').length).toBeGreaterThan(0)
+    const card = within(view.getAllByTestId('my-review-subject')[0]).getByTestId('place-card-small')
+    expect(within(card).queryByText('Không tải được tên và địa chỉ địa điểm')).toBeNull()
     expect(view.getByText('Nội dung r2')).toBeTruthy()
 
     // The place is still known by id, so the subject still opens it.

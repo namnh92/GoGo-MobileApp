@@ -3,7 +3,7 @@ import { overlay, spacing, touchTarget } from './tokens'
 
 export const styles = StyleSheet.create(theme => ({
   inverseBadge: { backgroundColor: overlay.scrimText },
-  inlineVerified: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  compactVerified: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 2, backgroundColor: theme.redesign.verifiedFill },
   factTag: { maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 4, borderRadius: theme.radius.pill, backgroundColor: theme.redesign.container },
   savedCredits: { paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
   savedFooter: { padding: spacing[3], gap: spacing[2], backgroundColor: theme.redesign.card, borderBottomLeftRadius: theme.radius.card, borderBottomRightRadius: theme.radius.card },

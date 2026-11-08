@@ -367,7 +367,7 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(view.getAllByTestId('search-nearby-place')).toHaveLength(2)
     expect(view.queryByText('Third cafe')).toBeNull()
     expect(view.getByText('Hoặc khám phá các quán gần bạn')).toBeTruthy()
-    expect(view.getByText('800 m')).toBeTruthy()
+    expect(view.queryByText('800 m')).toBeNull()
     expect(view.queryByText(/thịnh hành|Hot tuần này|\/người|Google|GoGo$/)).toBeNull()
     await fireEvent.press(view.getByRole('button', { name: 'Nearby cafe' }))
     expect(mockPush).toHaveBeenLastCalledWith('/places/near')
@@ -383,17 +383,18 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(view.queryByTestId('search-nearby')).toBeNull()
   })
 
-  it('uses verification, rating provenance and price only when the nearby response supplies them', async () => {
+  it('shows verified on the nearby thumbnail and separate ratings while omitting small-card prices', async () => {
     mockNearby.value = { ...emptyPage(), data: { pages: [{ results: [
       { id: 'verified', name: 'Verified cafe', isLodging: false, verification: { status: 'verified' }, rating: 4.6, ratingCount: 980, gogoRating: 4.8, gogoRatingCount: 20, pricePerPerson: { min: 65000, max: 65000, currency: 'VND', confidence: 1 } },
       { id: 'unknown', name: 'Unknown facts', isLodging: false },
     ] }] } }
     const view = await renderScreen(<SearchScreen />)
     const [known, unknown] = view.getAllByTestId('search-nearby-place').map(row => within(row))
-    expect(known.getByText('Xác minh')).toBeTruthy()
+    expect(within(known.getByTestId('place-card-photo')).getByText('Xác minh')).toBeTruthy()
+    expect(within(known.getByTestId('place-card-body')).queryByText('Xác minh')).toBeNull()
     expect(known.getByText(/4,6 \(980\) Google/)).toBeTruthy()
     expect(known.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
-    expect(known.getByText(/65k/)).toBeTruthy()
+    expect(known.queryByText(/65k/)).toBeNull()
     expect(unknown.queryByText(/Xác minh|Google|GoGo|65k|người/)).toBeNull()
   })
 })

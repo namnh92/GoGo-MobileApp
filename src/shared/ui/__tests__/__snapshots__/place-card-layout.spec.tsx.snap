@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`owner 2026-11-08 two common cards / orange LARGE pins full-data structure and retains every conditional fact: LARGE full 1`] = `
+exports[`owner 2026-11-08 two common cards / orange LARGE pins full-data structure and the facts allowed by its size: LARGE full 1`] = `
 [
   {
     "children": [
@@ -227,7 +227,7 @@ exports[`owner 2026-11-08 two common cards / orange LARGE pins minimal structure
 ]
 `;
 
-exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structure and retains every conditional fact: SMALL full 1`] = `
+exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structure and the facts allowed by its size: SMALL full 1`] = `
 [
   {
     "children": [
@@ -253,6 +253,17 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structu
                     "id": "place-photo-image",
                     "lines": undefined,
                   },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-verified",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-verified",
+                    "lines": undefined,
+                  },
                 ],
                 "id": "place-card-photo",
                 "lines": undefined,
@@ -266,6 +277,11 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structu
                   },
                   {
                     "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-location",
+                        "lines": undefined,
+                      },
                       {
                         "children": [],
                         "id": "place-card-meta",
@@ -289,55 +305,6 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structu
                       },
                     ],
                     "id": "place-card-ratings",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [
-                      {
-                        "children": [],
-                        "id": "material-icon-verified",
-                        "lines": undefined,
-                      },
-                    ],
-                    "id": "place-card-verified",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [
-                      {
-                        "children": [
-                          {
-                            "children": [],
-                            "id": "place-card-status-dot",
-                            "lines": undefined,
-                          },
-                        ],
-                        "id": "place-card-hours-badge",
-                        "lines": undefined,
-                      },
-                      {
-                        "children": [
-                          {
-                            "children": [],
-                            "id": "material-icon-nearMe",
-                            "lines": undefined,
-                          },
-                        ],
-                        "id": "place-card-distance",
-                        "lines": undefined,
-                      },
-                    ],
-                    "id": "place-card-photo-badges",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-card-price",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-card-tags",
                     "lines": undefined,
                   },
                 ],
@@ -426,7 +393,7 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins minimal structure
 ]
 `;
 
-exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins full-data structure and retains every conditional fact: LARGE full 1`] = `
+exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins full-data structure and the facts allowed by its size: LARGE full 1`] = `
 [
   {
     "children": [
@@ -653,7 +620,7 @@ exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins minimal struc
 ]
 `;
 
-exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data structure and retains every conditional fact: SMALL full 1`] = `
+exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data structure and the facts allowed by its size: SMALL full 1`] = `
 [
   {
     "children": [
@@ -679,6 +646,17 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data str
                     "id": "place-photo-image",
                     "lines": undefined,
                   },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-verified",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-verified",
+                    "lines": undefined,
+                  },
                 ],
                 "id": "place-card-photo",
                 "lines": undefined,
@@ -692,6 +670,11 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data str
                   },
                   {
                     "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-location",
+                        "lines": undefined,
+                      },
                       {
                         "children": [],
                         "id": "place-card-meta",
@@ -715,55 +698,6 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data str
                       },
                     ],
                     "id": "place-card-ratings",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [
-                      {
-                        "children": [],
-                        "id": "material-icon-verified",
-                        "lines": undefined,
-                      },
-                    ],
-                    "id": "place-card-verified",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [
-                      {
-                        "children": [
-                          {
-                            "children": [],
-                            "id": "place-card-status-dot",
-                            "lines": undefined,
-                          },
-                        ],
-                        "id": "place-card-hours-badge",
-                        "lines": undefined,
-                      },
-                      {
-                        "children": [
-                          {
-                            "children": [],
-                            "id": "material-icon-nearMe",
-                            "lines": undefined,
-                          },
-                        ],
-                        "id": "place-card-distance",
-                        "lines": undefined,
-                      },
-                    ],
-                    "id": "place-card-photo-badges",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-card-price",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-card-tags",
                     "lines": undefined,
                   },
                 ],

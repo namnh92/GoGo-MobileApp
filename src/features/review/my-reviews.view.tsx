@@ -54,12 +54,12 @@ function PlaceSubject({ placeId, onOpenPlace }: { placeId: string; onOpenPlace: 
         onPress={() => onOpenPlace(placeId)}
         accessibilityLabel={address ? `${name}, ${address}` : name}
         accessibilityHint={t('myReviews.openPlace')}
-        bodyTrailing={place.isPending ? (
-          <Text variant="caption" color="text.secondary">{t('common.loading')}</Text>
-        ) : place.isError ? (
-          <Text variant="caption" color="status.dangerText">{t('myReviews.placeLoadFailed')}</Text>
-        ) : null}
       />
+      {place.isPending ? (
+        <Text variant="caption" color="text.secondary">{t('common.loading')}</Text>
+      ) : place.isError ? (
+        <Text variant="caption" color="status.dangerText">{t('myReviews.placeLoadFailed')}</Text>
+      ) : null}
     </View>}</FormattedPlaceAddress>
   )
 }
