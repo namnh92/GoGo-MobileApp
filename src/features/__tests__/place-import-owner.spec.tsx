@@ -20,7 +20,8 @@ jest.mock('expo-image-picker', () => ({
 }))
 jest.mock('@/shared/api/client', () => ({ api: { get: (...args: unknown[]) => mockGet(...args) } }))
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn() }
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }), useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 const mockUnread = { count: 0, more: false }
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
@@ -87,14 +88,15 @@ it('keeps a long URL single-line with a 44pt clear control; changing a verified 
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(screen.queryByTestId('import-link-input')).toBeNull()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'old note')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'old note')
   await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
-  expect(screen.queryByText('Preview')).toBeNull()
+  await fireEvent.press(within(screen.getByTestId('contribution-exit')).getByRole('button', { name: 'Không lưu' }))
+  await waitFor(() => expect(screen.queryByText('Preview')).toBeNull())
   expect(screen.getByTestId('import-link-input').props.value).toBe('')
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK)
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   await completeWizard()
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('')
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('')
 })
 
 it('spaces the card/actions and individual buttons, and removes the lone entered-link control', async () => {
@@ -115,7 +117,7 @@ it('shows the menu/bill upload visibly unavailable and never requests picker per
   expect(mockPermission).not.toHaveBeenCalled()
   expect(mockPick).not.toHaveBeenCalled()
   await completeWizard()
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJtest', enrichment: expect.not.objectContaining({ photos: expect.anything() }) }))
 })
 
@@ -155,11 +157,11 @@ it.each(['denied', 'failed', 'empty'])('omits unavailable candidate photos (%s) 
   await act(async () => {})
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
   await completeWizard()
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJtest', enrichment: expect.any(Object) }))
 })
 
-it.each(['Giá cao nhất (VND)', 'Món ngon phải thử & Mẹo khi ghé'])(
+it.each(['Giá cao nhất (VND)', 'Món ngon & mẹo'])(
   'scrolls the focused %s and its helper above a resized keyboard viewport and dismisses outside',
   async label => {
     let keyboard: (() => void) | undefined
@@ -239,7 +241,7 @@ it('shows photo loading without blocking submit, then removes the image slot whe
   expect(screen.getByTestId('import-candidate-photo-loading').props.accessibilityRole).toBe('progressbar')
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
   await completeWizard()
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJtest', enrichment: expect.any(Object) }))
   await act(async () => { finish({ status: 'unavailable', photos: [] }) })
   expect(screen.queryByTestId('import-candidate-photo-loading')).toBeNull()
@@ -627,16 +629,16 @@ it('requires the wizard after branch selection and clears another branch’s con
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   expect(screen.queryByTestId('contribution-wizard')).toBeNull()
   await fireEvent.press(screen.getByText('Branch A'))
-  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'A only')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'A only')
   await fireEvent.press(screen.getByText('Branch B'))
   expect(screen.getByText('Tiếp tục')).toBeTruthy()
   await completeWizard()
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('')
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('')
+  await fireEvent.press(screen.getByText('Gửi'))
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ googlePlaceId: 'ChIJbranchB', enrichment: expect.not.objectContaining({ visitTips: expect.anything() }) }))
 })
@@ -645,7 +647,7 @@ it('requires the wizard after branch selection and clears another branch’s con
 it('shows a success result for the place and replaces the submitted form with contributions after dismissal', async () => {
   await preview({ ...candidate, address: '12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh' })
   await completeWizard()
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
   const row = within(screen.getByTestId('place-preview-compact'))
   expect(row.getByText('Preview')).toBeTruthy()
   expect(row.getByText('12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh').props.numberOfLines).toBe(2)
@@ -660,7 +662,7 @@ it('shows a success result for the place and replaces the submitted form with co
 it('resets a successful flow to Nhập link through the secondary action', async () => {
   await preview()
   await completeWizard()
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
   await fireEvent.press(screen.getByText('Thêm địa điểm khác'))
   await waitFor(() => expect(screen.getByTestId('import-link-input').props.value).toBe(''))
   expect(screen.queryByTestId('contribution-wizard')).toBeNull()
@@ -668,9 +670,9 @@ it('resets a successful flow to Nhập link through the secondary action', async
 it('retains entered values after a submission error and retries the same enrichment', async () => {
   await preview()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Keep these tips')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Keep these tips')
   mockSubmit.mutateAsync.mockRejectedValueOnce(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'private server detail' }))
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
   expect(screen.getByText('Chưa gửi được')).toBeTruthy()
   expect(screen.queryByText('private server detail')).toBeNull()
   const firstBody = mockSubmit.mutateAsync.mock.calls[0][0]
@@ -683,12 +685,12 @@ it('retains entered values after a submission error and retries the same enrichm
 it('saves the retained form as a draft from the error sheet', async () => {
   await preview()
   await completeWizard()
-  await fireEvent.changeText(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé'), 'Saved after failure')
+  await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Saved after failure')
   mockSubmit.mutateAsync.mockRejectedValueOnce(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'known rejection' }))
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
   await fireEvent.press(within(screen.getByTestId('result-sheet')).getByRole('button', { name: 'Lưu nháp' }))
   await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Saved after failure' }) }) })))
-  expect(screen.getByLabelText('Món ngon phải thử & Mẹo khi ghé').props.value).toBe('Saved after failure')
+  expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('Saved after failure')
 })
 
 it('shows the submitted photo thumbnail with attribution and omits it on image failure', async () => {
@@ -697,7 +699,7 @@ it('shows the submitted photo thumbnail with attribution and omits it on image f
   ] })
   await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await completeWizard()
-  await fireEvent.press(screen.getByRole('button', { name: 'Gửi địa điểm cho GoGo' }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Gửi' }))
   const row = within(screen.getByTestId('place-preview-compact'))
   await waitFor(() => expect(row.getByTestId('place-preview-thumbnail')).toBeTruthy())
   expect(row.getByTestId('place-preview-thumbnail').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,AA==' }], cachePolicy: 'none' })

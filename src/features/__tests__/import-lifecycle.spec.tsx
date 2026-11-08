@@ -13,7 +13,8 @@ const mockList = jest.fn()
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn() }
 const mockResolution = { status: 'RESOLVED', candidate: { googlePlaceId: 'place-a', name: 'Test café' } }
 const mockResolve = { data: undefined as unknown, reset: jest.fn(), mutate: jest.fn((_body, callbacks) => callbacks.onSuccess(mockResolution)), isPending: false }
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }), useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
 jest.mock('@/shared/api', () => ({
@@ -51,7 +52,7 @@ beforeEach(async () => {
 })
 it('M11 accepted POST retires immediately, shows retry cleanup, never resubmits or deletes media', async () => {
   mockRemove.mockRejectedValueOnce(new NetworkError())
-  await resume(); await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await resume(); await fireEvent.press(button('Gửi'))
   expect(mockRemove).toHaveBeenCalledWith({ id: mockDraft.id, version: 3 })
   expect(screen.queryByTestId('contribution-wizard')).toBeNull()
   expect(screen.getAllByText(i18n.t('placeWizard.lifecycle.submittedCleanupPending')).length).toBeGreaterThan(0)
@@ -63,7 +64,7 @@ it('M11 accepted POST retires immediately, shows retry cleanup, never resubmits 
 })
 it('M11 cleanup version mismatch requires visible review and a second explicit delete action', async () => {
   mockRemove.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'version mismatch' }))
-  await resume(); mockRead.mockResolvedValueOnce({ ...mockDraft, version: 7, enrichment: { ...mockDraft.enrichment, visitTips: 'New device edit to review' } }); await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await resume(); mockRead.mockResolvedValueOnce({ ...mockDraft, version: 7, enrichment: { ...mockDraft.enrichment, visitTips: 'New device edit to review' } }); await fireEvent.press(button('Gửi'))
   expect(mockRead).toHaveBeenCalledTimes(2); expect(mockRemove).toHaveBeenCalledTimes(1)
   expect(screen.queryByRole('button', { name: 'Xoá phiên bản mới nhất' })).toBeNull()
   await fireEvent.press(button('Xem lại bản nháp đã thay đổi'))
@@ -73,7 +74,7 @@ it('M11 cleanup version mismatch requires visible review and a second explicit d
   expect(mockRemove).toHaveBeenLastCalledWith({ id: mockDraft.id, version: 7 }); expect(mockPost).toHaveBeenCalledTimes(1)
 })
 it('M12 lost submission response offers Check my contributions, no blind retry/save/cleanup', async () => {
-  mockPost.mockRejectedValueOnce(new NetworkError()); await resume(); await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  mockPost.mockRejectedValueOnce(new NetworkError()); await resume(); await fireEvent.press(button('Gửi'))
   const sheet = within(screen.getByTestId('result-sheet'))
   expect(sheet.getByText(i18n.t('placeWizard.lifecycle.submissionUnconfirmed'))).toBeTruthy()
   expect(sheet.queryByRole('button', { name: 'Thử lại' })).toBeNull()
@@ -83,14 +84,14 @@ it('M12 lost submission response offers Check my contributions, no blind retry/s
   expect(mockPost).toHaveBeenCalledTimes(1)
 })
 it('M12 ALREADY_EXISTS retains active recovery and photos, without cleanup', async () => {
-  mockPost.mockResolvedValueOnce({ status: 'ALREADY_EXISTS' }); await resume(); await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  mockPost.mockResolvedValueOnce({ status: 'ALREADY_EXISTS' }); await resume(); await fireEvent.press(button('Gửi'))
   expect(screen.getByText(i18n.t('placeWizard.lifecycle.alreadyExists'))).toBeTruthy()
   expect(button('Xoá bản nháp')).toBeTruthy(); expect(button('Xoá ảnh hoá đơn')).toBeTruthy(); expect(mockRemove).not.toHaveBeenCalled()
 })
 it('M09 invalid submit media exposes usable no-photo recovery with unchanged draft version', async () => {
   mockPost.mockRejectedValueOnce(new ApiError(400, { code: 'INVALID_SUBMISSION_PHOTOS', message: 'invalid' }))
-  await resume(); await fireEvent.press(button('Gửi địa điểm cho GoGo')); await fireEvent.press(button('Tiếp tục không có ảnh'))
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await resume(); await fireEvent.press(button('Gửi')); await fireEvent.press(button('Tiếp tục không có ảnh'))
+  await fireEvent.press(button('Gửi'))
   expect(mockPost.mock.calls[1][0].enrichment).not.toHaveProperty('photos')
   expect(mockRemove).toHaveBeenCalledWith({ id: mockDraft.id, version: 3 })
 })
@@ -103,7 +104,7 @@ it('M15 local photo removal works offline while network actions stay disabled', 
 it('M01 valid menu/bill round trip replaces server snapshot/version without merging prior draft photos', async () => {
   await resume(); mockSave.mockImplementationOnce(({ id, body }) => Promise.resolve({ ...mockDraft, id, version: 4, enrichment: body.enrichment }))
   await fireEvent.press(button('Lưu nháp')); expect(mockSave.mock.calls[0][0].body.enrichment).toEqual(mockDraft.enrichment)
-  await fireEvent.press(button('Gửi địa điểm cho GoGo')); expect(mockPost.mock.calls[0][0].enrichment).toEqual(mockDraft.enrichment)
+  await fireEvent.press(button('Gửi')); expect(mockPost.mock.calls[0][0].enrichment).toEqual(mockDraft.enrichment)
 })
 
 const accountA: Session = { kind: 'user', userId: 'A', accessToken: 'A', expiresAt: Date.now() + 600_000 }
@@ -113,7 +114,7 @@ it.each(['logout', 'switch', 'A-B-A', 'expiry', 'guest-user'] as const)('T13 %s 
   expect(screen.getByRole('button', { name: 'Xoá ảnh hoá đơn' })).toBeTruthy()
   if (transition === 'expiry') {
     mockPost.mockRejectedValueOnce(new NetworkError())
-    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(button('Gửi'))
     expect(screen.getByTestId('result-sheet')).toBeTruthy()
   }
   await act(async () => {

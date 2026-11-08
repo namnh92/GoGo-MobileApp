@@ -1,5 +1,5 @@
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
@@ -10,7 +10,7 @@ import { TextInput } from '@/shared/ui/text-input'
 import { amenityIcon, collapsedOptions, optionLabel, type ContributionOption } from './contribution-options'
 import { styles } from './contribution-wizard.style'
 
-export function ContributionChoices({ options, selected, onChange, title, max, disabled, checklist = false }: {
+export function ContributionChoices({ options, selected, onChange, title, max, disabled, checklist = false, renderHeader }: {
   options: ContributionOption[]
   selected: string[]
   onChange: (keys: string[]) => void
@@ -18,6 +18,7 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
   max?: number
   disabled: boolean
   checklist?: boolean
+  renderHeader?: (action: ReactNode) => ReactNode
 }) {
   const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -32,32 +33,43 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
   }
   const row = (option: ContributionOption, inSheet = false) => {
     const checked = selected.includes(option.key)
-    const locked = disabled || (!checked && max !== undefined && selected.length >= max)
+    const atLimit = !checked && max !== undefined && selected.length >= max
+    const locked = disabled || atLimit
     if (checklist || inSheet) return (
       <Pressable key={option.key} accessibilityRole="checkbox" accessibilityLabel={label(option)}
+        accessibilityHint={atLimit ? t('placeWizard.selectionLimitHint', { max }) : undefined}
         accessibilityState={{ checked, disabled: locked }} disabled={locked}
-        onPress={() => toggle(option.key)} style={[styles.amenity, checked && styles.selectedAmenity]}>
-        {checklist ? <MaterialIcon name={amenityIcon(option.key)} size={18} color="redesign.primaryText" /> : null}
-        <Text variant="introSmall" style={styles.amenityLabel}>{label(option)}</Text>
-        <MaterialIcon name={checked ? 'checkbox' : 'checkboxBlank'} color="redesign.primaryText" />
+        onPress={() => toggle(option.key)} style={[styles.amenity, checked && styles.selectedAmenity, locked && styles.disabledChoice]}>
+        {checklist ? <MaterialIcon name={amenityIcon(option.key)} size={18} color={locked ? 'text.secondary' : 'text.primary'} /> : null}
+        <Text variant="introSmall" color={locked ? 'text.secondary' : 'text.primary'} style={styles.amenityLabel}>{label(option)}</Text>
+        <MaterialIcon name={checked ? 'checkbox' : 'checkboxBlank'} color={locked ? 'text.secondary' : 'text.primary'} />
       </Pressable>
     )
-    return <Chip key={option.key} label={label(option)} appearance="mood"
+    return <Chip key={option.key} label={label(option)}
       variant={checked ? 'selected' : 'default'} disabled={locked} onPress={() => toggle(option.key)} />
   }
+  const openList = () => { setSearch(''); setOpen(true) }
+  const allAction = checklist && options.length > visible.length ? (
+    <Pressable accessibilityRole="button" accessibilityLabel={t('placeWizard.allChoices', { title, count: options.length })}
+      accessibilityState={{ disabled }} disabled={disabled} hitSlop={12} style={styles.seeAll}
+      onPress={openList}>
+      <Text variant="introSmall" color="accent.primary">{t('placeWizard.all')}</Text>
+    </Pressable>
+  ) : null
   const filtered = options.filter((option) => label(option).toLocaleLowerCase(i18n.language).includes(search.trim().toLocaleLowerCase(i18n.language)))
   const groups = [...new Set(filtered.map((option) => option.group ?? ''))]
   return (
     <View style={styles.section}>
+      {renderHeader?.(allAction)}
       {!options.length ? <Text>{t('placeWizard.noOptions')}</Text> : null}
       <View style={checklist ? styles.section : styles.row}>
         {visible.map((option) => row(option))}
-        {options.length > visible.length ? <Chip
-          label={checklist ? t('placeWizard.allAmenities', { count: options.length }) : t('placeWizard.moreOptions', { count: options.length - visible.length })}
+        {!checklist && options.length > visible.length ? <Chip
+          label={t('placeWizard.moreOptions', { count: options.length - visible.length })}
           variant={disabled ? 'disabled' : 'default'}
-          onPress={() => { setSearch(''); setOpen(true) }} /> : null}
+          onPress={openList} /> : null}
       </View>
-      <Sheet visible={open} onClose={() => setOpen(false)} size="full" appearance="discovery" swipeToClose
+      <Sheet testID="contribution-choices-sheet" visible={open} onClose={() => setOpen(false)} size="full" appearance="discovery" swipeToClose
         header={<View style={styles.sheetHeader}>
           <Text variant="introHeading">{title}</Text>
           <Text accessibilityLiveRegion="polite">{max === undefined ? t('placeWizard.selectedCount', { count: selected.length }) : t('placeWizard.selectedLimit', { count: selected.length, max })}</Text>

@@ -1,5 +1,8 @@
+import { GlassBar } from '@/shared/ui/glass-bar.view'
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { Chip } from '@/shared/ui/chip.view'
-import { useImperativeHandle, type Ref } from 'react'
+import { useImperativeHandle, useState, type Ref, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
@@ -22,20 +25,10 @@ import { taxonomyOptions } from './contribution-options'
 import { ContributionChoices } from './contribution-choices.view'
 import { styles } from './contribution-wizard.style'
 import { ImportFlowProvider, useOptionalImportFlow, useImportFlow } from './import-flow-controller'
-import { acknowledgementValid, foregroundBusy, serializeFlow, writesAllowed } from './import-flow'
+import { acknowledgementValid, contributionFeedbackKey, foregroundBusy, serializeFlow, writesAllowed } from './import-flow'
 
-function Wizard({
-  ref,
-  googlePlaceId,
-  registered,
-  online,
-  submitting,
-  blocked,
-  onSubmit,
-  onBack,
-  onFocus,
-}: {
-  ref?: Ref<{ saveDraft: () => void }>
+type WizardProps = {
+  ref?: Ref<{ saveDraft: () => Promise<boolean> }>
   googlePlaceId: string
   registered: boolean
   online: boolean
@@ -44,14 +37,15 @@ function Wizard({
   onSubmit: (enrichment: Enrichment) => void
   onBack: () => void
   onFocus: () => void
-}) {
+  hideActions?: boolean
+  feedbackSuppressed?: boolean
+}
+
+function useWizardModel({ googlePlaceId, registered, online, submitting, blocked }: WizardProps) {
   const { t } = useTranslation()
-  const { theme } = useUnistyles()
   const { controller, state } = useImportFlow()
-  const { control } = useForm<ContributionForm>({ defaultValues: state.fields, values: state.fields })
-  const form = useWatch({ control }) as ContributionForm
+  const form = state.fields
   const step = state.step
-  const setValue = <K extends keyof ContributionForm>(key: K, value: ContributionForm[K]) => controller.edit({ [key]: value })
   const taxonomies = useTaxonomies({ kinds: 'suitability,mood,amenity,checkin_tag' })
   const busy = submitting || foregroundBusy(state)
   const disabled = busy || !online || ['retiring', 'completed', 'submissionUnknown'].includes(state.phase)
@@ -74,18 +68,76 @@ function Wizard({
     Object.keys(form.amenities).every((key) => includes(amenities, key)) &&
     validSelection(form.serviceChips, ratings, 5) && validSelection(form.spaceChips, ratings, 5)
 
-  function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string) {
+  async function saveDraft() {
+    if (!canSave || !validKeys || needsDraftChoice) return false
+    await controller.save()
+    const saved = controller.getSnapshot()
+    return !!saved.draft && saved.message === 'saved' && !saved.dirty
+  }
+  function move(next: number) {
+    controller.move(next)
+    track('place_contribution_step_viewed', { step: next })
+  }
+  const complete = submissionEnrichment(form) ? serializeFlow(state) as Enrichment : undefined
+  const submitDisabled = disabled || blocked || !complete || !taxonomyReady || !validKeys || !writesAllowed(state) || !!state.pendingCreate?.uncertain
+  return { t, controller, state, form, step, taxonomies, busy, disabled, existing, activeId,
+    needsDraftChoice, canSave, purposes, vibes, amenities, ratings, taxonomyReady, validKeys, includes,
+    saveDraft, move, complete, submitDisabled }
+}
+
+function WizardActionRow({ model, onSubmit, submitting, blocked }: {
+  model: ReturnType<typeof useWizardModel>
+} & Pick<WizardProps, 'onSubmit' | 'submitting' | 'blocked'>) {
+  const { t, state, step, busy, disabled, canSave, validKeys, needsDraftChoice, taxonomyReady,
+    form, saveDraft, move, complete, submitDisabled } = model
+  return <SheetActions>
+    {step > 1 ? <GhostBtn style={styles.action} label={t('common.back')} disabled={busy} onPress={() => move(step - 1)} /> : null}
+    <SecondaryBtn style={styles.action} label={t('placeWizard.save')} loading={state.phase === 'saving'}
+      disabled={!canSave || !validKeys || needsDraftChoice} onPress={() => { void saveDraft() }} />
+    {step < 3 ? <PrimaryBtn style={styles.action} label={t('placeWizard.next')}
+      disabled={disabled || !stepValid(form, step) || !taxonomyReady || !validKeys} onPress={() => move(step + 1)} />
+      : <PrimaryBtn style={styles.action} label={t('placeImport.submit')} accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
+        loading={submitting} disabled={submitDisabled} onPress={() => { if (complete) onSubmit(complete) }} />}
+  </SheetActions>
+}
+
+/** Mounted beside the screen scroll view; both adapters read the same flow controller. */
+export function ContributionWizardActionBar(props: WizardProps) {
+  const model = useWizardModel(props)
+  return <GlassBar placement="docked" testID="contribution-action-bar">
+    <WizardActionRow model={model} {...props} />
+  </GlassBar>
+}
+
+function Wizard(props: WizardProps) {
+  const { ref, registered, online, onFocus, hideActions, feedbackSuppressed } = props
+  const model = useWizardModel(props)
+  const { t, controller, state, step, taxonomies, busy, disabled, existing, activeId,
+    purposes, vibes, amenities, ratings, taxonomyReady, validKeys, includes, saveDraft } = model
+  const { theme } = useUnistyles()
+  const { control } = useForm<ContributionForm>({ defaultValues: state.fields, values: state.fields })
+  const form = useWatch({ control }) as ContributionForm
+  const [tipsHeight, setTipsHeight] = useState(88)
+  const setValue = <K extends keyof ContributionForm>(key: K, value: ContributionForm[K]) => controller.edit({ [key]: value })
+  useImperativeHandle(ref, () => ({ saveDraft }))
+  // Include operation/revision so a second save of unchanged fields still reports its result.
+  const successFeedback = ['saved', 'resumed', 'deleted'].includes(state.message)
+  const feedbackKey = contributionFeedbackKey(state)
+  const [dismissedFeedback, dismissFeedback] = useState<string | null>(null)
+  const feedbackVisible = state.message !== 'newDraft' && !busy && !state.resultVisible
+    && !feedbackSuppressed && dismissedFeedback !== feedbackKey
+
+  function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string, action?: ReactNode) {
     return (
       <View style={styles.heading}>
-        <MaterialIcon name={icon} size={18} color="redesign.primaryText" />
-        <Text variant="introHeading" style={styles.headingText}>
-          {title}
-        </Text>
-        {tag ? (
-          <Text variant="introCaption" color="redesign.secondary" style={styles.sectionTag}>
-            {tag}
-          </Text>
-        ) : null}
+        <MaterialIcon name={icon} size={18} color="accent.primary" />
+        <View style={styles.headingText}>
+          {action ? <View style={styles.titleRow}>
+            <Text testID={`contribution-section-title-${icon}`} variant="introHeading" numberOfLines={1} style={styles.sectionTitle}>{title}</Text>
+            {action}
+          </View> : <Text testID={`contribution-section-title-${icon}`} variant="introHeading" numberOfLines={1}>{title}</Text>}
+          {tag ? <Text variant="introCaption" color="text.secondary">{tag}</Text> : null}
+        </View>
       </View>
     )
   }
@@ -105,7 +157,7 @@ function Wizard({
     return (
       <FieldFocusGroup style={styles.field}>
         {field !== 'visitTips' ? (
-          <Text variant="introSmall" color="redesign.secondary">
+          <Text variant="introSmall" color="text.secondary">
             {label}
           </Text>
         ) : null}
@@ -124,11 +176,16 @@ function Wizard({
           onFocus={onFocus}
           keyboardType={numeric ? 'number-pad' : 'default'}
           placeholder={placeholder}
-          multiline={false}
+          multiline={field === 'visitTips'}
+          scrollEnabled={field === 'visitTips' ? false : undefined}
+          onContentSizeChange={field === 'visitTips' ? (event) => setTipsHeight(Math.max(88, Math.ceil(event.nativeEvent.contentSize.height))) : undefined}
           maxLength={maxLength}
-          placeholderTextColor={theme.redesign.secondary}
-          style={styles.input}
+          placeholderTextColor={theme.text.secondary}
+          style={[styles.input, field === 'visitTips' && [styles.multiline, { height: tipsHeight }]]}
         />
+        {field === 'visitTips' ? <Text variant="introCaption" color="text.secondary">
+          {t('placeWizard.characterCount', { count: [form.recommendedDishes, form.visitTips].filter(Boolean).join(' — ').length, max: maxLength })}
+        </Text> : null}
       </FieldFocusGroup>
     )
   }
@@ -158,7 +215,7 @@ function Wizard({
               <MaterialIcon
                 name={value >= n ? 'star' : 'starOutline'}
                 size={26}
-                color={value >= n ? 'status.warningText' : 'redesign.outline'}
+                color={value >= n ? 'status.warningText' : 'text.secondary'}
               />
             </Pressable>
           ))}
@@ -167,24 +224,13 @@ function Wizard({
     )
   }
 
-  async function saveDraft() {
-    if (!canSave || !validKeys || needsDraftChoice) return
-    await controller.save()
-  }
-  useImperativeHandle(ref, () => ({ saveDraft: () => { void saveDraft() } }))
-  function move(next: number) {
-    controller.move(next)
-    track('place_contribution_step_viewed', { step: next })
-  }
-  const complete = submissionEnrichment(form) ? serializeFlow(state) as Enrichment : undefined
-  const submitDisabled = disabled || blocked || !complete || !taxonomyReady || !validKeys || !writesAllowed(state) || !!state.pendingCreate?.uncertain
   return (
     <View testID="contribution-wizard" style={styles.root}>
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.heading}>
             <View style={styles.headerIcon}>
-              <MaterialIcon name="editNote" size={18} color="redesign.primaryText" />
+              <MaterialIcon name="editNote" size={18} color="accent.primary" />
             </View>
             <Text variant="introHeading" style={styles.headingText}>
               {t('placeWizard.title')}
@@ -218,8 +264,10 @@ function Wizard({
                   ]}
                 />
                 <Text
+                  testID={`contribution-progress-title-${n}`}
                   variant="introCaption"
-                  color={n === step ? 'redesign.primaryText' : 'redesign.secondary'}
+                  numberOfLines={1}
+                  color={n === step ? 'accent.primary' : 'text.secondary'}
                 >
                   {t(`placeWizard.step${n}`)}
                 </Text>
@@ -242,21 +290,14 @@ function Wizard({
         </View>
         <View style={styles.body}>
           <View style={[styles.heading, styles.stepHeading]}>
-            <Text variant="introSmall" color="redesign.primaryText" style={styles.stepNumber}>
+            <Text variant="introSmall" color="accent.primary" style={styles.stepNumber}>
               {step}
             </Text>
-            <Text variant="introHeading" style={styles.headingText}>
-              {t(`placeWizard.heading${step as 1 | 2 | 3}`)}
-            </Text>
-            {step !== 3 ? (
-              <Chip label={t(
-                  step === 2
-                    ? 'placeWizard.experience'
-                    : stepValid(form, 1)
-                      ? 'placeWizard.filled'
-                      : 'placeWizard.mandatory',
-                )} />
-            ) : null}
+            <View style={styles.headingText}>
+              <Text testID="contribution-step-title" variant="introHeading" numberOfLines={1}>
+                {t(`placeWizard.heading${step as 1 | 2 | 3}`)}
+              </Text>
+            </View>
           </View>
           {!online ? <Text color="status.warningText">{t('placeWizard.offline')}</Text> : null}
           {taxonomies.isPending ? <Text>{t('common.loading')}</Text> : null}
@@ -307,7 +348,7 @@ function Wizard({
             <>
               <View style={styles.section}>
                 {sectionTitle(t('placeWizard.price'), 'payments')}
-                <Text variant="introCaption" color="redesign.secondary">
+                <Text variant="introCaption" color="text.secondary">
                   {t('placeWizard.priceHelp')}
                 </Text>
                 <View style={styles.priceGrid}>
@@ -330,7 +371,7 @@ function Wizard({
                         }}
                       >
                         {selected ? (
-                          <MaterialIcon name="check" size={15} color="redesign.primaryText" />
+                          <MaterialIcon name="check" size={15} color="accent.primary" />
                         ) : null}
                         <Text variant="introSmall">{t(`placeWizard.${range}`)}</Text>
                       </Pressable>
@@ -346,7 +387,7 @@ function Wizard({
               </View>
               <View style={[styles.section, styles.divider]}>
                 {sectionTitle(t('placeWizard.purposes'), 'target', t('placeWizard.multiple'))}
-                <Text variant="introCaption" color="redesign.secondary">
+                <Text variant="introCaption" color="text.secondary">
                   {t('placeWizard.purposesHelp')}
                 </Text>
                 <ContributionChoices options={purposes} selected={form.purposeKeys} max={10} disabled={disabled}
@@ -357,15 +398,16 @@ function Wizard({
           {step === 2 ? (
             <>
               <View style={styles.section}>
-                {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'))}
-                <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
                 <ContributionChoices options={vibes} selected={form.vibeKeys} max={3} disabled={disabled}
+                  checklist renderHeader={(action) => <>
+                    {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'), action)}
+                    <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
+                  </>}
                   title={t('placeWizard.vibes')} onChange={(keys) => setValue('vibeKeys', keys)} />
               </View>
               <View style={[styles.section, styles.divider]}>
-                {sectionTitle(t('placeWizard.amenities'), 'activity', t('placeWizard.tick'))}
-                <Text variant="introCaption">{t('placeWizard.amenitiesHelp')}</Text>
                 <ContributionChoices options={amenities} selected={Object.keys(form.amenities).filter((key) => form.amenities[key])}
+                  renderHeader={(action) => sectionTitle(t('placeWizard.amenities'), 'activity', undefined, action)}
                   checklist max={6} disabled={disabled} title={t('placeWizard.amenities')}
                   onChange={(keys) => setValue('amenities', Object.fromEntries([
                     ...Object.entries(form.amenities).filter(([, value]) => value === false),
@@ -378,7 +420,7 @@ function Wizard({
             <>
               <View style={styles.section}>
                 {sectionTitle(t('placeWizard.photos'), 'receipt', t('placeWizard.optional'))}
-                <Text variant="introCaption" color="redesign.secondary">
+                <Text variant="introCaption" color="text.secondary">
                   {t('placeWizard.photosHelp')}
                 </Text>
                 <GhostBtn
@@ -389,13 +431,13 @@ function Wizard({
                   accessibilityHint={t('placeWizard.photosBlocked')}
                   style={styles.photo}
                 />
-                <Text variant="introCaption" color="redesign.secondary">
+                <Text variant="introCaption" color="text.secondary">
                   {t('placeWizard.photosBlocked')}
                 </Text>
               </View>
               <View style={[styles.section, styles.divider]}>
                 {sectionTitle(t('placeWizard.tipsHeading'), 'tips', t('placeWizard.optional'))}
-                <Text variant="introCaption" color="redesign.secondary">
+                <Text variant="introCaption" color="text.secondary">
                   {t('placeWizard.tipsHelp')}
                 </Text>
                 {textField(
@@ -407,55 +449,27 @@ function Wizard({
                 )}
               </View>
               <View style={[styles.section, styles.divider]}>
-                {sectionTitle(t('placeWizard.ratings'), 'reviews', t('placeWizard.optional'))}
-                {rating()}
                 <ContributionChoices options={ratings} selected={[...new Set([...form.serviceChips, ...form.spaceChips])]}
+                  checklist renderHeader={(action) => <>
+                    {sectionTitle(t('placeWizard.ratings'), 'reviews', t('placeWizard.optional'), action)}
+                    {rating()}
+                  </>}
                   max={5} disabled={disabled || !form.serviceRating || !form.spaceRating} title={t('placeWizard.ratings')}
                   onChange={(keys) => { setValue('serviceChips', keys); setValue('spaceChips', keys) }} />
               </View>
             </>
           ) : null}
-          <View style={styles.navigation}>
-            {step > 1 ? (
-              <GhostBtn
-                label={t('common.back')}
-                disabled={busy}
-                onPress={() => move(step - 1)}
-              />
-            ) : null}
-            {step < 3 ? (
-              <PrimaryBtn
-                label={t('placeWizard.next')}
-                disabled={disabled || !stepValid(form, step) || !taxonomyReady || !validKeys}
-                onPress={() => move(step + 1)}
-                style={styles.next}
-              />
-            ) : (
-              <PrimaryBtn
-                label={t('placeImport.submit')}
-                accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
-                loading={submitting}
-                leadingIcon="send"
-                disabled={submitDisabled}
-                onPress={() => {
-                  if (complete) onSubmit(complete)
-                }}
-                style={styles.next}
-              />
-            )}
-          </View>
         </View>
       </View>
-      <SecondaryBtn
-        label={t('placeWizard.save')}
-        icon="bookmark"
-        loading={state.phase === 'saving'}
-        disabled={!canSave || !validKeys || needsDraftChoice}
-        onPress={() => { void saveDraft() }}
-        style={styles.action}
-      />
+      {!hideActions ? <GlassBar placement="docked" testID="contribution-action-bar">
+        <WizardActionRow model={model} {...props} />
+      </GlassBar> : null}
       {!registered ? <Text variant="introCaption">{t('placeWizard.signInDraft')}</Text> : null}
-      <Text accessibilityLiveRegion="polite">{t(`placeWizard.lifecycle.${state.message}`)}</Text>
+      <ResultSheet testID="contribution-feedback" visible={feedbackVisible}
+        variant={successFeedback ? 'success' : ['saveUnconfirmed', 'deleteFailed', 'temporarilyUnavailable'].includes(state.message) ? 'error' : 'warning'}
+        title={t('placeWizard.title')} body={t(`placeWizard.lifecycle.${state.message}`)}
+        primaryAction={{ label: t('common.close'), onPress: () => dismissFeedback(feedbackKey) }}
+        onClose={() => dismissFeedback(feedbackKey)} />
       {state.listError ? <View>
         <Text color="status.warningText">{t('placeWizard.lifecycle.draftListUnavailable')}</Text>
         <GhostBtn label={t('placeWizard.lifecycle.retryList')} disabled={disabled}
@@ -480,8 +494,6 @@ function Wizard({
         onPress={() => controller.continueWithoutPhotos()} /> : null}
       {state.phase === 'conflict' ? <GhostBtn label={t('placeWizard.lifecycle.startNew')}
         disabled={disabled || !!state.pendingCreate?.uncertain} onPress={() => controller.startNew()} /> : null}
-      {registered && !activeId && !['retiring', 'completed', 'submissionUnknown'].includes(state.phase) ? <GhostBtn
-        label={t('placeWizard.lifecycle.discard')} disabled={busy} onPress={() => { void controller.deleteDraft() }} /> : null}
       {state.pendingCreate?.uncertain ? <GhostBtn label={t('placeWizard.lifecycle.checkSave')}
         disabled={disabled} onPress={() => { void controller.reconcileSave() }} /> : null}
       {state.message === 'deleteFailed' ? <GhostBtn label={t('common.retry')}
@@ -510,10 +522,10 @@ function Wizard({
       </View> : null}
       <View style={styles.note}>
         <View style={styles.heading}>
-          <MaterialIcon name="verified" color="redesign.secondary" />
+          <MaterialIcon name="verified" color="text.secondary" />
           <Text variant="introLabel">{t('placeWizard.moderationTitle')}</Text>
         </View>
-        <Text variant="introCaption" color="redesign.secondary">
+        <Text variant="introCaption" color="text.secondary">
           {t('placeWizard.moderationNote')}
         </Text>
       </View>

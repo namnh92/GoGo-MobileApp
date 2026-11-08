@@ -1,0 +1,42 @@
+{
+  "fontSha256": "78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3",
+  "fontSize": 15,
+  "labels": {
+    "vi": {
+      "common.back": {
+        "text": "Quay lại",
+        "width": 58.22
+      },
+      "placeWizard.save": {
+        "text": "Lưu nháp",
+        "width": 67.48
+      },
+      "placeWizard.next": {
+        "text": "Tiếp tục",
+        "width": 59.06
+      },
+      "placeImport.submit": {
+        "text": "Gửi",
+        "width": 24.86
+      }
+    },
+    "en": {
+      "common.back": {
+        "text": "Back",
+        "width": 35.78
+      },
+      "placeWizard.save": {
+        "text": "Save draft",
+        "width": 73.65
+      },
+      "placeWizard.next": {
+        "text": "Continue",
+        "width": 65.82
+      },
+      "placeImport.submit": {
+        "text": "Send",
+        "width": 37.17
+      }
+    }
+  }
+}

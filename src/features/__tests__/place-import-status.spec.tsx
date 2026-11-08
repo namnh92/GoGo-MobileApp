@@ -5,7 +5,8 @@ import { renderScreen } from './harness'
 const mockSubmissionId = jest.fn()
 const mockSubmit = { data: {} as Record<string, unknown>, isSuccess: true, reset: jest.fn() }
 const mockResolve = { data: { status: 'RESOLVED', candidate: { googlePlaceId: 'google', name: 'Quán' } }, mutate: jest.fn((_body, callbacks) => { if (mockResolve.data) callbacks?.onSuccess?.(mockResolve.data); else callbacks?.onError?.(undefined) }), reset: jest.fn() }
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn() }), useLocalSearchParams: () => ({}) }))
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }), useRouter: () => ({ back: jest.fn() }), useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
 jest.mock('@/features/place-import/existing-place-result.view', () => ({
@@ -29,7 +30,7 @@ async function open() {
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/A')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   await completeWizard()
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
 }
 beforeEach(() => { mockSubmissionId.mockClear(); mockSubmit.data = { status: 'PENDING', submissionId: 's' } })
 

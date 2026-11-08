@@ -51,7 +51,8 @@ const mockSubmit = {
 
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/header-notification-button.view', () => ({ HeaderNotificationButton: () => null }))
-jest.mock('expo-router', () => ({
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }))
+jest.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: jest.fn() }),
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({}),
@@ -72,7 +73,7 @@ const NOT_YET_OPEN = 'Google báo địa điểm này chưa khai trương. Thêm
 const UNKNOWN = 'Google chưa xác nhận địa điểm còn hoạt động.'
 const GENERIC_FAILURE = 'Gửi không thành công. Thử lại nhé.'
 const KEPT = ' Thông tin bạn nhập vẫn được giữ.'
-const SUBMIT = 'Gửi địa điểm cho GoGo'
+const SUBMIT = 'Gửi'
 
 async function failSubmission() {
   mockSubmit.mutateAsync.mockRejectedValue(mockSubmit.error)

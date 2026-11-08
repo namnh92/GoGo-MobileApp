@@ -51,7 +51,7 @@ export async function completeWizard() {
   if (screen.queryByText('Tiếp tục')) {
     await fireEvent.press(screen.getByRole('button', { name: 'Cặp đôi' }))
     await fireEvent.press(screen.getByText('Tiếp tục'))
-    await fireEvent.press(screen.getByRole('button', { name: 'Sôi động' }))
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
     await fireEvent.press(screen.getByText('Tiếp tục'))
   }
 }
