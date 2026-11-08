@@ -142,7 +142,7 @@ it('starts empty, retains selections back and forth, submits one real enrichment
   await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Bánh ngon')
   await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ & không gian: 4 sao' }))
   await fireEvent.press(button('Quay lại'))
-  expect(button('Sôi động').props.accessibilityState.selected).toBe(true)
+  expect(screen.getByRole('checkbox', { name: 'Sôi động' }).props.accessibilityState.checked).toBe(true)
   await fireEvent.press(
     screen.getByRole('checkbox', {
       name: 'Đỗ ô tô',
@@ -165,14 +165,14 @@ it('renders every API kind, including amenities and optional rating chips', asyn
   await renderScreen(<ContributionWizard {...props} />)
   await fireEvent.press(button('Cặp đôi'))
   await fireEvent.press(button('Tiếp tục'))
-  expect(button('Thư giãn')).toBeTruthy()
+  expect(screen.getByRole('checkbox', { name: 'Thư giãn' })).toBeTruthy()
   expect(screen.getByRole('checkbox', { name: 'Wi-Fi' })).toBeTruthy()
-  expect(screen.getAllByRole('checkbox')).toHaveLength(3)
-  await fireEvent.press(button('Sôi động'))
+  expect(screen.getAllByRole('checkbox')).toHaveLength(5)
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
   await fireEvent.press(button('Tiếp tục'))
-  expect(disabled('Yên tĩnh')).toBe(true)
+  expect(screen.getByRole('checkbox', { name: 'Yên tĩnh' }).props.accessibilityState.disabled).toBe(true)
   await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ & không gian: 4 sao' }))
-  await fireEvent.press(button('Yên tĩnh'))
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Yên tĩnh' }))
   await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({
     service: { rating: 4, chipKeys: ['quiet'] }, space: { rating: 4, chipKeys: ['quiet'] },
@@ -450,7 +450,58 @@ it('allows tips alone, rating alone, and clearing the optional rating without bl
   expect(screen.queryByText('Chưa đánh giá')).toBeNull()
 })
 
-it('keeps both legacy text values visible in the single input and saves an explicit replacement', async () => {
+it.each(['vi', 'en'])('grows multiline tips with the schema character counter in %s', async locale => {
+  await i18n.changeLanguage(locale)
+  await renderScreen(<ContributionWizard {...props} />)
+  await fireEvent.press(button(locale === 'vi' ? 'Cặp đôi' : 'Couple'))
+  await fireEvent.press(button(i18n.t('placeWizard.next')))
+  expect(screen.queryByText(i18n.t('placeWizard.tick'))).toBeNull()
+  expect(screen.queryByText(i18n.t('placeWizard.amenitiesHelp'))).toBeNull()
+  expect(screen.getByText(i18n.t('placeWizard.vibeCount'))).toBeTruthy()
+  expect(disabled(i18n.t('placeWizard.next'))).toBe(true)
+  await fireEvent.press(screen.getByRole('checkbox', { name: locale === 'vi' ? 'Sôi động' : 'Festive' }))
+  await fireEvent.press(button(i18n.t('placeWizard.next')))
+  const tips = screen.getByLabelText(i18n.t('placeWizard.tipsHeading'))
+  expect(tips.props).toMatchObject({ multiline: true, scrollEnabled: false, maxLength: 2000 })
+  expect(StyleSheet.flatten(tips.props.style)).toMatchObject({ minHeight: 88, textAlignVertical: 'top' })
+  expect(screen.getByText(i18n.t('placeWizard.characterCount', { count: 0, max: 2000 }))).toBeTruthy()
+  await fireEvent.changeText(tips, 'Cake\nMorning\nCoffee')
+  await fireEvent(tips, 'contentSizeChange', { nativeEvent: { contentSize: { height: 160 } } })
+  expect(StyleSheet.flatten(tips.props.style).height).toBe(160)
+  expect(screen.getByText(i18n.t('placeWizard.characterCount', { count: 19, max: 2000 }))).toBeTruthy()
+  await fireEvent.press(button(i18n.t('placeImport.submit')))
+  expect(onSubmit).toHaveBeenLastCalledWith({ purposeKeys: ['couple'], vibeKeys: ['festive'], visitTips: 'Cake\nMorning\nCoffee' })
+})
+
+it.each(['vi', 'en'])('puts All beside each checklist title and shows five rows in %s', async locale => {
+  await i18n.changeLanguage(locale)
+  mockTaxonomies = { data: { kinds: { ...contributionTaxonomies.kinds,
+    ...Object.fromEntries(['mood', 'amenity', 'checkin_tag'].map(kind => [kind,
+      Array.from({ length: 8 }, (_, i) => ({ key: `${kind}_${i}`, labels: { vi: `${kind} ${i}`, en: `${kind} ${i}` } })),
+    ])),
+  } } }
+  await renderScreen(<ContributionWizard {...props} />)
+  await fireEvent.press(button(locale === 'vi' ? 'Cặp đôi' : 'Couple'))
+  await fireEvent.press(button(i18n.t('placeWizard.next')))
+  for (const [key, icon] of [['vibes', 'mood'], ['amenities', 'activity']]) {
+    const title = screen.getByTestId(`contribution-section-title-${icon}`)
+    expect(within(title.parent!).getByRole('button', { name: i18n.t('placeWizard.allChoices', { title: i18n.t(`placeWizard.${key}`), count: 8 }) })).toHaveTextContent(i18n.t('placeWizard.all'))
+  }
+  expect(screen.getAllByRole('checkbox')).toHaveLength(10)
+  expect(screen.queryByText(/^\+\d+ (khác|more)$/)).toBeNull()
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'mood 0' }))
+  await fireEvent.press(button(i18n.t('placeWizard.next')))
+  const title = screen.getByTestId('contribution-section-title-reviews')
+  const action = within(title.parent!).getByRole('button', { name: i18n.t('placeWizard.allChoices', { title: i18n.t('placeWizard.ratings'), count: 8 }) })
+  expect(action).toHaveTextContent(i18n.t('placeWizard.all'))
+  expect(screen.getAllByRole('checkbox')).toHaveLength(5)
+  expect(screen.queryByText(/^\+\d+ (khác|more)$/)).toBeNull()
+  await fireEvent.press(screen.getAllByRole('radio')[3])
+  await fireEvent.press(action)
+  expect(within(screen.getByTestId('contribution-choices-sheet')).getAllByRole('checkbox')).toHaveLength(8)
+})
+
+it('keeps both legacy text values visible in the text area and saves an explicit replacement', async () => {
   mockDrafts = { data: { items: [draft] } }
   mockRead.mockResolvedValue({
     ...draft,
@@ -490,19 +541,20 @@ it('uses CMS sort order, limits amenities to five rows and keeps a selected over
   await renderScreen(<ContributionWizard {...props} />)
   await fireEvent.press(button('Cặp đôi'))
   await fireEvent.press(button('Tiếp tục'))
-  expect(screen.getAllByRole('checkbox').map((row) => row.props.accessibilityLabel)).toEqual(['Tiện ích 7', 'Tiện ích 6', 'Tiện ích 5', 'Tiện ích 4', 'Tiện ích 3'])
+  expect(screen.getAllByRole('checkbox').filter(row => row.props.accessibilityLabel.startsWith('Tiện ích')).map((row) => row.props.accessibilityLabel)).toEqual(['Tiện ích 7', 'Tiện ích 6', 'Tiện ích 5', 'Tiện ích 4', 'Tiện ích 3'])
   const title = screen.getByTestId('contribution-section-title-activity')
   expect(within(title.parent!).getByText('Tất cả')).toBeTruthy()
-  expect(screen.queryByText('Xem tất cả 8 tiện ích')).toBeNull()
-  expect(title.parent!.parent!.children[1]).toHaveTextContent('Chạm để tick chọn')
-  await fireEvent.press(within(title.parent!).getByRole('button', { name: 'Xem tất cả 8 tiện ích' }))
+  expect(screen.queryByText(i18n.t('placeWizard.allChoices', { title: i18n.t('placeWizard.amenities'), count: 8 }))).toBeNull()
+  expect(screen.queryByText(i18n.t('placeWizard.tick'))).toBeNull()
+  expect(screen.queryByText(i18n.t('placeWizard.amenitiesHelp'))).toBeNull()
+  await fireEvent.press(within(title.parent!).getByRole('button', { name: i18n.t('placeWizard.allChoices', { title: i18n.t('placeWizard.amenities'), count: 8 }) }))
   await fireEvent.changeText(screen.getByLabelText('Tìm lựa chọn'), 'Tiện ích 0')
   await fireEvent.press(screen.getByRole('checkbox', { name: 'Tiện ích 0' }))
   await fireEvent.press(button('Xong'))
   expect(screen.getByRole('checkbox', { name: 'Tiện ích 0' }).props.accessibilityState.checked).toBe(true)
-  expect(screen.getAllByRole('checkbox')).toHaveLength(5)
+  expect(screen.getAllByRole('checkbox').filter(row => row.props.accessibilityLabel.startsWith('Tiện ích'))).toHaveLength(5)
 })
-it('supports 40 moods with search, groups, a max-three counter and selected overflow chips', async () => {
+it('supports 40 moods with search, groups, a max-three counter and selected overflow rows', async () => {
   mockTaxonomies = { data: { kinds: { ...contributionTaxonomies.kinds,
     mood: Array.from({ length: 40 }, (_, i) => ({ key: `mood_${i}`, labels: { vi: `Vibe ${i}` }, group: i < 20 ? 'Không gian' : 'Âm nhạc' })),
   } } }
@@ -510,7 +562,7 @@ it('supports 40 moods with search, groups, a max-three counter and selected over
   await fireEvent.press(button('Cặp đôi'))
   await fireEvent.press(button('Tiếp tục'))
   expect(screen.queryByText('Vibe 6')).toBeNull()
-  await fireEvent.press(button('+34 khác'))
+  await fireEvent.press(button(i18n.t('placeWizard.allChoices', { title: i18n.t('placeWizard.vibes'), count: 40 })))
   expect(screen.getByText('Đã chọn 0/3')).toBeTruthy()
   expect(screen.getByText('Âm nhạc')).toBeTruthy()
   await fireEvent.changeText(screen.getByLabelText('Tìm lựa chọn'), 'Vibe 39')
@@ -521,14 +573,14 @@ it('supports 40 moods with search, groups, a max-three counter and selected over
   await fireEvent.press(screen.getByRole('checkbox', { name: 'Vibe 37' }))
   expect(screen.getByRole('checkbox', { name: 'Vibe 36' }).props.accessibilityState.disabled).toBe(true)
   await fireEvent.press(button('Xong'))
-  expect(button('Vibe 39').props.accessibilityState.selected).toBe(true)
-  expect(button('Vibe 37').props.accessibilityState.selected).toBe(true)
+  expect(screen.getByRole('checkbox', { name: 'Vibe 39' }).props.accessibilityState.checked).toBe(true)
+  expect(screen.getByRole('checkbox', { name: 'Vibe 37' }).props.accessibilityState.checked).toBe(true)
   expect(screen.queryByText('Vibe 3')).toBeNull()
-  await fireEvent.press(button('+34 khác'))
+  await fireEvent.press(button(i18n.t('placeWizard.allChoices', { title: i18n.t('placeWizard.vibes'), count: 40 })))
   await fireEvent.changeText(screen.getByLabelText('Tìm lựa chọn'), 'no match')
   expect(screen.getByText('Không tìm thấy lựa chọn.')).toBeTruthy()
 })
-it('caps purpose and rating chips at six, with API choices available through their sheets', async () => {
+it('caps purpose chips at six and rating rows at five, with API choices available through their sheets', async () => {
   mockTaxonomies = { data: { kinds: { ...contributionTaxonomies.kinds,
     suitability: Array.from({ length: 9 }, (_, i) => ({ key: `purpose_${i}`, labels: { vi: `Dịp ${i}` } })),
     checkin_tag: Array.from({ length: 9 }, (_, i) => ({ key: `tag_${i}`, labels: { vi: `Đánh giá ${i}` } })),
@@ -540,11 +592,11 @@ it('caps purpose and rating chips at six, with API choices available through the
   await fireEvent.press(button('Xong'))
   expect(button('Dịp 8').props.accessibilityState.selected).toBe(true)
   await fireEvent.press(button('Tiếp tục'))
-  await fireEvent.press(button('Sôi động'))
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
   await fireEvent.press(button('Tiếp tục'))
   await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ & không gian: 5 sao' }))
-  expect(screen.queryByText('Đánh giá 6')).toBeNull()
-  await fireEvent.press(button('+3 khác'))
+  expect(screen.queryByText('Đánh giá 5')).toBeNull()
+  await fireEvent.press(button(i18n.t('placeWizard.allChoices', { title: i18n.t('placeWizard.ratings'), count: 9 })))
   for (const n of [8, 7, 6, 5, 4]) await fireEvent.press(screen.getByRole('checkbox', { name: `Đánh giá ${n}` }))
   expect(screen.getByText('Đã chọn 5/5')).toBeTruthy()
   expect(screen.getByRole('checkbox', { name: 'Đánh giá 3' }).props.accessibilityState.disabled).toBe(true)
@@ -598,7 +650,7 @@ it('keeps one primary action through all steps and a compact accessible reward',
   expect(disabled('Tiếp tục')).toBe(true)
   expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   expect(button('Quay lại')).toBeTruthy()
-  await fireEvent.press(button('Sôi động'))
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
   expect(disabled('Tiếp tục')).toBe(false)
   await fireEvent.press(button('Tiếp tục'))
   const submit = button('Gửi')
@@ -609,7 +661,7 @@ it('keeps one primary action through all steps and a compact accessible reward',
   expect(StyleSheet.flatten(submit.props.style)).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0, minHeight: 48 })
   expect(within(submit).getByText('Gửi').props.numberOfLines).toBe(1)
   await fireEvent.press(button('Quay lại'))
-  expect(button('Sôi động').props.accessibilityState.selected).toBe(true)
+  expect(screen.getByRole('checkbox', { name: 'Sôi động' }).props.accessibilityState.checked).toBe(true)
   expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   expect(disabled('Tiếp tục')).toBe(false)
 })
@@ -646,7 +698,7 @@ it.each([404, 503])('silently tolerates resume failure %i without changing enter
     expect(mockTrack).not.toHaveBeenCalled()
   } else expect(mockTrack).toHaveBeenCalledWith('place_contribution_draft_read_failed', { operation: 'resume', status })
   await fireEvent.press(button('Tiếp tục'))
-  await fireEvent.press(button('Sôi động'))
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
   await fireEvent.press(button('Tiếp tục'))
   expect(disabled('Gửi')).toBe(false)
 })
@@ -688,7 +740,7 @@ it.each([false, true])('F-02 recovers a conflicted draft after Resume confirms d
   if (previouslySaved) await fireEvent.press(button('Tiếp tục bản nháp'))
   else await fireEvent.press(button('Cặp đôi'))
   await fireEvent.press(button('Tiếp tục'))
-  if (!previouslySaved) await fireEvent.press(button('Sôi động'))
+  if (!previouslySaved) await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
   await fireEvent.press(button('Tiếp tục'))
   await fireEvent.changeText(screen.getByLabelText('Món ngon & mẹo'), 'Keep my edited tips')
   await fireEvent.press(button('Lưu nháp'))
@@ -864,7 +916,7 @@ describe('SA T1-T12 lifecycle regressions', () => {
 
 // CoreText CTLineGetTypographicBounds, bundled Inter SemiBold 17pt / Regular 11pt,
 // rounded UP to 0.01pt. Exact copy + font hashes prevent stale measurements passing.
-// Captions/chips sit below titles; amenities reserve room for the compact All action.
+// Section captions sit below titles; checklists reserve room for the compact All action.
 describe('GOGO-566 one-line titles at 390pt', () => {
   it('keeps the measured font faces unchanged', () => {
     for (const [face, hash] of Object.entries(titleMetrics.fonts)) {
@@ -893,7 +945,7 @@ describe('GOGO-566 one-line titles at 390pt', () => {
       // for the longest heading/progress title; no ellipsis needed at 390pt).
       expect([...title].length).toBeLessThanOrEqual(progress ? 18 : 21)
       // All is at most 44pt wide in these two locales, plus the row gap.
-      const actionBudget = key === 'amenities' ? 44 + StyleSheet.flatten(wizardStyles.titleRow).gap : 0
+      const actionBudget = ['amenities', 'vibes', 'ratings'].includes(key) ? 44 + StyleSheet.flatten(wizardStyles.titleRow).gap : 0
       expect(measurement.width).toBeLessThanOrEqual(budget - actionBudget)
     }
   })
@@ -910,16 +962,17 @@ describe('GOGO-566 one-line titles at 390pt', () => {
       const title = screen.getByTestId('contribution-step-title')
       expect(title.props.numberOfLines).toBe(1)
       expect(title).toHaveTextContent(i18n.t(`placeWizard.heading${step}`))
+      expect(title.parent!.children).toHaveLength(1)
       expect(StyleSheet.flatten(title.parent?.props.style)).toMatchObject({ minWidth: 0, alignItems: 'flex-start' })
       for (const [key, icon] of sections[step - 1]) {
         const section = screen.getByTestId(`contribution-section-title-${icon}`)
         expect(section.props.numberOfLines).toBe(1)
         expect(section).toHaveTextContent(i18n.t(`placeWizard.${key}`))
-        expect(StyleSheet.flatten(section.parent?.props.style)).toMatchObject({ minWidth: 0, alignItems: 'flex-start' })
+        expect(StyleSheet.flatten(section.props.style).minWidth ?? StyleSheet.flatten(section.parent?.props.style).minWidth).toBe(0)
       }
       for (let n = 1; n <= 3; n++) expect(screen.getByTestId(`contribution-progress-title-${n}`).props.numberOfLines).toBe(1)
       if (step < 3) {
-        await fireEvent.press(button(locale === 'vi' ? step === 1 ? 'Cặp đôi' : 'Sôi động' : step === 1 ? 'Couple' : 'Festive'))
+        await fireEvent.press(screen.getByRole(step === 1 ? 'button' : 'checkbox', { name: locale === 'vi' ? step === 1 ? 'Cặp đôi' : 'Sôi động' : step === 1 ? 'Couple' : 'Festive' }))
         await fireEvent.press(button(i18n.t('placeWizard.next')))
       }
     }
@@ -963,7 +1016,7 @@ describe('GOGO-566 action labels without truncation', () => {
         }
       }
       if (step === 1) await fireEvent.press(button(locale === 'vi' ? 'Cặp đôi' : 'Couple'))
-      if (step === 2) await fireEvent.press(button(locale === 'vi' ? 'Sôi động' : 'Festive'))
+      if (step === 2) await fireEvent.press(screen.getByRole('checkbox', { name: locale === 'vi' ? 'Sôi động' : 'Festive' }))
       if (step < 3) await fireEvent.press(button(i18n.t('placeWizard.next')))
     }
   })

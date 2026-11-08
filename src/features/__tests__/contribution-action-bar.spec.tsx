@@ -77,7 +77,7 @@ it.each(['orange'] as const)('keeps one fixed shared row outside the scroll view
     expect(within(row()).getAllByRole('button').map(b => b.props.accessibilityLabel)).toEqual(['Lưu nháp', 'Tiếp tục'])
     await dirty(); await fireEvent.press(button('Tiếp tục'))
     expect(within(row()).getAllByRole('button').map(b => b.props.accessibilityLabel)).toEqual(['Quay lại', 'Lưu nháp', 'Tiếp tục'])
-    await fireEvent.press(button('Sôi động')); await fireEvent.press(button('Tiếp tục'))
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' })); await fireEvent.press(button('Tiếp tục'))
     const actions = within(row()).getAllByRole('button')
     expect(actions.map(b => b.props.accessibilityLabel)).toEqual(['Quay lại', 'Lưu nháp', 'Gửi'])
     for (const action of actions) expect(StyleSheet.flatten(action.props.style)).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0 })

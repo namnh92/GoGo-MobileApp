@@ -33,14 +33,16 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
   }
   const row = (option: ContributionOption, inSheet = false) => {
     const checked = selected.includes(option.key)
-    const locked = disabled || (!checked && max !== undefined && selected.length >= max)
+    const atLimit = !checked && max !== undefined && selected.length >= max
+    const locked = disabled || atLimit
     if (checklist || inSheet) return (
       <Pressable key={option.key} accessibilityRole="checkbox" accessibilityLabel={label(option)}
+        accessibilityHint={atLimit ? t('placeWizard.selectionLimitHint', { max }) : undefined}
         accessibilityState={{ checked, disabled: locked }} disabled={locked}
-        onPress={() => toggle(option.key)} style={[styles.amenity, checked && styles.selectedAmenity]}>
-        {checklist ? <MaterialIcon name={amenityIcon(option.key)} size={18} color="redesign.primaryText" /> : null}
-        <Text variant="introSmall" style={styles.amenityLabel}>{label(option)}</Text>
-        <MaterialIcon name={checked ? 'checkbox' : 'checkboxBlank'} color="redesign.primaryText" />
+        onPress={() => toggle(option.key)} style={[styles.amenity, checked && styles.selectedAmenity, locked && styles.disabledChoice]}>
+        {checklist ? <MaterialIcon name={amenityIcon(option.key)} size={18} color={locked ? 'text.secondary' : 'text.primary'} /> : null}
+        <Text variant="introSmall" color={locked ? 'text.secondary' : 'text.primary'} style={styles.amenityLabel}>{label(option)}</Text>
+        <MaterialIcon name={checked ? 'checkbox' : 'checkboxBlank'} color={locked ? 'text.secondary' : 'text.primary'} />
       </Pressable>
     )
     return <Chip key={option.key} label={label(option)}
@@ -48,7 +50,7 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
   }
   const openList = () => { setSearch(''); setOpen(true) }
   const allAction = checklist && options.length > visible.length ? (
-    <Pressable accessibilityRole="button" accessibilityLabel={t('placeWizard.allAmenities', { count: options.length })}
+    <Pressable accessibilityRole="button" accessibilityLabel={t('placeWizard.allChoices', { title, count: options.length })}
       accessibilityState={{ disabled }} disabled={disabled} hitSlop={12} style={styles.seeAll}
       onPress={openList}>
       <Text variant="introSmall" color="accent.primary">{t('placeWizard.all')}</Text>

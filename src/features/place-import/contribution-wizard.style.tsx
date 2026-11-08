@@ -99,6 +99,7 @@ export const styles = StyleSheet.create((theme) => ({
     borderColor: theme.surface.subtle,
   },
   selectedAmenity: { borderColor: theme.accent.text },
+  disabledChoice: { opacity: 0.6 },
   amenityLabel: { flex: 1 },
   ratingRow: {
     flexDirection: 'row',

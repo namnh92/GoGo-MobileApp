@@ -117,6 +117,7 @@ function Wizard(props: WizardProps) {
   const { theme } = useUnistyles()
   const { control } = useForm<ContributionForm>({ defaultValues: state.fields, values: state.fields })
   const form = useWatch({ control }) as ContributionForm
+  const [tipsHeight, setTipsHeight] = useState(88)
   const setValue = <K extends keyof ContributionForm>(key: K, value: ContributionForm[K]) => controller.edit({ [key]: value })
   useImperativeHandle(ref, () => ({ saveDraft }))
   // Include operation/revision so a second save of unchanged fields still reports its result.
@@ -175,11 +176,16 @@ function Wizard(props: WizardProps) {
           onFocus={onFocus}
           keyboardType={numeric ? 'number-pad' : 'default'}
           placeholder={placeholder}
-          multiline={false}
+          multiline={field === 'visitTips'}
+          scrollEnabled={field === 'visitTips' ? false : undefined}
+          onContentSizeChange={field === 'visitTips' ? (event) => setTipsHeight(Math.max(88, Math.ceil(event.nativeEvent.contentSize.height))) : undefined}
           maxLength={maxLength}
           placeholderTextColor={theme.text.secondary}
-          style={styles.input}
+          style={[styles.input, field === 'visitTips' && [styles.multiline, { height: tipsHeight }]]}
         />
+        {field === 'visitTips' ? <Text variant="introCaption" color="text.secondary">
+          {t('placeWizard.characterCount', { count: [form.recommendedDishes, form.visitTips].filter(Boolean).join(' — ').length, max: maxLength })}
+        </Text> : null}
       </FieldFocusGroup>
     )
   }
@@ -291,15 +297,6 @@ function Wizard(props: WizardProps) {
               <Text testID="contribution-step-title" variant="introHeading" numberOfLines={1}>
                 {t(`placeWizard.heading${step as 1 | 2 | 3}`)}
               </Text>
-              {step !== 3 ? (
-                <Chip label={t(
-                    step === 2
-                      ? 'placeWizard.experience'
-                      : stepValid(form, 1)
-                        ? 'placeWizard.filled'
-                        : 'placeWizard.mandatory',
-                  )} />
-              ) : null}
             </View>
           </View>
           {!online ? <Text color="status.warningText">{t('placeWizard.offline')}</Text> : null}
@@ -401,17 +398,16 @@ function Wizard(props: WizardProps) {
           {step === 2 ? (
             <>
               <View style={styles.section}>
-                {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'))}
-                <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
                 <ContributionChoices options={vibes} selected={form.vibeKeys} max={3} disabled={disabled}
+                  checklist renderHeader={(action) => <>
+                    {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'), action)}
+                    <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
+                  </>}
                   title={t('placeWizard.vibes')} onChange={(keys) => setValue('vibeKeys', keys)} />
               </View>
               <View style={[styles.section, styles.divider]}>
                 <ContributionChoices options={amenities} selected={Object.keys(form.amenities).filter((key) => form.amenities[key])}
-                  renderHeader={(action) => <>
-                    {sectionTitle(t('placeWizard.amenities'), 'activity', t('placeWizard.tick'), action)}
-                    <Text variant="introCaption">{t('placeWizard.amenitiesHelp')}</Text>
-                  </>}
+                  renderHeader={(action) => sectionTitle(t('placeWizard.amenities'), 'activity', undefined, action)}
                   checklist max={6} disabled={disabled} title={t('placeWizard.amenities')}
                   onChange={(keys) => setValue('amenities', Object.fromEntries([
                     ...Object.entries(form.amenities).filter(([, value]) => value === false),
@@ -453,9 +449,11 @@ function Wizard(props: WizardProps) {
                 )}
               </View>
               <View style={[styles.section, styles.divider]}>
-                {sectionTitle(t('placeWizard.ratings'), 'reviews', t('placeWizard.optional'))}
-                {rating()}
                 <ContributionChoices options={ratings} selected={[...new Set([...form.serviceChips, ...form.spaceChips])]}
+                  checklist renderHeader={(action) => <>
+                    {sectionTitle(t('placeWizard.ratings'), 'reviews', t('placeWizard.optional'), action)}
+                    {rating()}
+                  </>}
                   max={5} disabled={disabled || !form.serviceRating || !form.spaceRating} title={t('placeWizard.ratings')}
                   onChange={(keys) => { setValue('serviceChips', keys); setValue('spaceChips', keys) }} />
               </View>

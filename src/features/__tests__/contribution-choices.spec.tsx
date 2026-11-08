@@ -16,7 +16,7 @@ jest.spyOn(unistyles.StyleSheet, 'create').mockImplementation(factory => {
 })
 const { ContributionChoices } = jest.requireActual<typeof import('@/features/place-import/contribution-choices.view')>('@/features/place-import/contribution-choices.view')
 
-it.each(['orange', 'orangeDark'] as const)('uses shared default and selected chips for purpose/service choices in %s', async themeName => {
+it.each(['orange', 'orangeDark'] as const)('uses shared default and selected chips for purpose choices in %s', async themeName => {
   currentTheme = themes[themeName]
   const options = ['Cặp đôi', 'Sống ảo check-in', 'Lên món nhanh', 'Nhân viên thân thiện', ...Array.from({ length: 9 }, (_, i) => `Option ${i}`)]
     .map((label, i) => ({ key: `choice-${i}`, labels: { vi: label, en: label } }))
@@ -51,18 +51,46 @@ it.each([
   const onChange = jest.fn()
   await render(<ContributionChoices options={options} selected={[]} onChange={onChange} title="Amenities" checklist disabled={false}
     renderHeader={action => <View testID="amenity-header" style={{ minHeight: 44 }}>{action}</View>} />)
-  const action = screen.getByRole('button', { name: i18n.t('placeWizard.allAmenities', { count: 11 }) })
+  const action = screen.getByRole('button', { name: i18n.t('placeWizard.allChoices', { title: 'Amenities', count: 11 }) })
   expect(action.parent!.props.testID).toBe('amenity-header')
-  expect(screen.queryByText(i18n.t('placeWizard.allAmenities', { count: 11 }))).toBeNull()
+  expect(screen.queryByText(i18n.t('placeWizard.allChoices', { title: 'Amenities', count: 11 }))).toBeNull()
   const text = screen.getByText(label)
   expect(StyleSheet.flatten(text.props.style).color).toBe(currentTheme.accent.text)
   const style = StyleSheet.flatten(action.props.style)
   expect(style.minWidth + 2 * action.props.hitSlop).toBeGreaterThanOrEqual(44)
   expect(style.minHeight + 2 * action.props.hitSlop).toBeGreaterThanOrEqual(44)
   expect(screen.getAllByRole('checkbox')).toHaveLength(5)
+  const row = screen.getAllByRole('checkbox')[0]
+  expect(StyleSheet.flatten(row.props.style).backgroundColor).toBe(currentTheme.surface.subtle)
+  expect(StyleSheet.flatten(within(row).getByText(options[0].labels[locale]).props.style).color).toBe(currentTheme.text.primary)
   await fireEvent.press(action)
   expect(within(screen.getByTestId('contribution-choices-sheet')).getAllByRole('checkbox')).toHaveLength(11)
   await fireEvent.press(screen.getByRole('checkbox', { name: options[10].labels[locale] }))
   expect(onChange).toHaveBeenCalledWith(['amenity-10'])
+  await act(async () => { await i18n.changeLanguage('vi') })
+})
+
+it.each([
+  ['orange', 'vi'], ['orangeDark', 'vi'], ['orange', 'en'], ['orangeDark', 'en'],
+] as const)('keeps max-three checklist choices removable and explains locked rows in %s / %s', async (themeName, locale) => {
+  currentTheme = themes[themeName]
+  await i18n.changeLanguage(locale)
+  const options = Array.from({ length: 8 }, (_, i) => ({ key: `vibe-${i}`, labels: { vi: `Vibe ${i}`, en: `Vibe ${i}` } }))
+  const onChange = jest.fn()
+  const selected = ['vibe-0', 'vibe-1', 'vibe-2']
+  const view = await render(<ContributionChoices options={options} selected={selected} onChange={onChange}
+    title="Vibes" checklist max={3} disabled={false} renderHeader={action => action} />)
+  const locked = screen.getByRole('checkbox', { name: 'Vibe 3' })
+  expect(locked.props.accessibilityState.disabled).toBe(true)
+  expect(locked.props.accessibilityHint).toBe(i18n.t('placeWizard.selectionLimitHint', { max: 3 }))
+  await fireEvent.press(locked)
+  expect(onChange).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Vibe 0' }))
+  expect(onChange).toHaveBeenLastCalledWith(['vibe-1', 'vibe-2'])
+  await view.rerender(<ContributionChoices options={options} selected={['vibe-1', 'vibe-2']} onChange={onChange}
+    title="Vibes" checklist max={3} disabled={false} renderHeader={action => action} />)
+  expect(screen.getByRole('checkbox', { name: 'Vibe 3' }).props.accessibilityState.disabled).toBe(false)
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Vibe 3' }))
+  expect(onChange).toHaveBeenLastCalledWith(['vibe-1', 'vibe-2', 'vibe-3'])
   await act(async () => { await i18n.changeLanguage('vi') })
 })
