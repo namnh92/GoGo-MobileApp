@@ -10,7 +10,7 @@ export const styles = StyleSheet.create(theme => ({
   settingsCard: { marginHorizontal: spacing[4], marginBottom: spacing[6], borderRadius: 12, overflow: 'hidden', ...shadows.stitch },
   rowValue: { maxWidth: '28%' },
   banner: { marginHorizontal: spacing[4], marginBottom: spacing[5], padding: spacing[3], borderRadius: 12, backgroundColor: theme.redesign.violetSoft, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  shortcutPress: { flex: 1, borderRadius: 12 },
+  shortcutPress: { flex: 1, minWidth: 0, borderRadius: 12 },
   confirm: { padding: spacing[5], gap: spacing[4] },
   headerCard: {
     marginHorizontal: spacing[4],
@@ -30,10 +30,10 @@ export const styles = StyleSheet.create(theme => ({
     marginBottom: spacing[3],
   },
 
-  /** Saved / Plans / Reviews — the three places a profile actually leads. */
+  /** Four equally sized profile destinations. */
   shortcutRow: {
     flexDirection: 'row',
-    gap: spacing[3],
+    gap: spacing[2],
     marginHorizontal: spacing[4],
     marginBottom: spacing[6],
   },
@@ -41,7 +41,7 @@ export const styles = StyleSheet.create(theme => ({
     flex: 1,
     borderRadius: 12,
     ...shadows.stitch,
-    padding: spacing[3],
+    padding: spacing[2],
     alignItems: 'center',
     gap: 2,
     minHeight: 100,

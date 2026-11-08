@@ -92,7 +92,8 @@ const ROOT = join(SRC, '..')
  * with the typing that makes tsc keep each one inside the catalogs.
  */
 const COMPUTED_KEYS: Record<string, readonly string[]> = {
-  'src/features/account/account.view.tsx': ['avatarErrorKey(error)'], // returns MessageKey
+  'src/features/account/account.view.tsx': ['avatarErrorKey(error)', 'message', 'form.formState.errors.name.message'], // MessageKey or catalog literal union
+  'src/features/account/date-of-birth.view.tsx': ['error'], // MessageKey prop
   'src/features/account/theme-accent.view.tsx': ['LABEL[accent]', 'LABEL[current]', 'DESCRIPTION[accent]', "(['tabs.home', 'tabs.plans', 'tabs.saved', 'tabs.profile'] as const)[index]"], // all typed catalog keys
   'src/features/create-date/create-type.view.tsx': ['option.titleKey', 'option.descKey'], // typed as key literals
   'src/features/create-date/group-setup.view.tsx': ['option.labelKey'], // typed as key literals

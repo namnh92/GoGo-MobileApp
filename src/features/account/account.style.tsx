@@ -23,7 +23,14 @@ export const styles = StyleSheet.create(theme => ({
     color: theme.text.primary,
     backgroundColor: theme.surface.subtle,
   },
-  saveBtn: { marginTop: spacing[2] },
+  pressed: { backgroundColor: theme.accent.pressed },
+  disabled: { opacity: 0.4 },
+  avatarEdit: {
+    position: 'absolute', right: -spacing[2], bottom: -spacing[2],
+    width: touchTarget.min, height: touchTarget.min, borderRadius: radius.pill,
+    backgroundColor: theme.accent.primary, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: theme.surface.card,
+  },
   /** The destructive section reads as one: tinted ground, danger heading, danger button. */
   dangerCard: { backgroundColor: theme.surface.card },
   dangerIcon: {
@@ -60,5 +67,4 @@ export const styles = StyleSheet.create(theme => ({
   avatarText: { alignItems: 'center', gap: spacing[1] },
   avatarCaption: { textAlign: 'center' },
   avatarActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] },
-  avatarChangeBtn: { flex: 1 },
 }))

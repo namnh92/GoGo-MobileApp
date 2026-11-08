@@ -1,276 +1,175 @@
 import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, waitFor } from '@testing-library/react-native'
-
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
+import { StyleSheet, processColor } from 'react-native'
+import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
+import { themes } from '@/shared/ui/theme'
+import i18n from '@/shared/i18n'
 import { renderScreen } from './harness'
-
-/**
- * PROF-APP-006 (#217) — the optional date of birth in account information:
- * a calendar date shown without a time-zone shift, the server's two rules
- * checked before a request, clearing, a failed save rolled back, and a
- * different sign-in that never sees the previous account's value.
- *
- * The real `useUpdateDateOfBirth` and `useMe` run against a real QueryClient;
- * only the HTTP endpoints are faked, so the optimistic write and its rollback
- * are what is under test. Every binding a jest.mock factory touches must be
- * `mock`-prefixed; the factories are hoisted above the imports.
- */
 
 const mockUpdateProfile = jest.fn()
 const mockGetMe = jest.fn()
-
+const mockBack = jest.fn()
 jest.mock('@/shared/api/endpoints/sessions', () => ({
   ...jest.requireActual('@/shared/api/endpoints/sessions'),
   updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
   getMe: (...args: unknown[]) => mockGetMe(...args),
 }))
-
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: mockBack }) }))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', deleteAccount: jest.fn() }) }))
+import AccountScreen from '@/features/account/account.view'
 import { todayInVietnam } from '@/features/account/date-of-birth'
-import { DateOfBirthCard } from '@/features/account/date-of-birth.view'
-import { ApiError, queryKeys, useMe, type Me } from '@/shared/api'
+import { ApiError, queryKeys, type Me } from '@/shared/api'
 
 const INPUT = 'Ngày sinh (ngày/tháng/năm)'
-const SAVE = 'Lưu ngày sinh'
-const CLEAR = 'Xoá ngày sinh'
-
-function profile(overrides: Partial<Me> = {}): Me {
-  return {
-    actorType: 'user',
-    id: 'user-a',
-    displayName: 'An',
-    locale: 'vi',
-    avatarUrl: null,
-    homeArea: null,
-    interests: { mood: [] },
-    usualBudget: null,
-    capabilities: { avatarUpload: 'available' },
-    ...overrides,
-  } as Me
-}
-
-/** Mirrors the account screen: the card is keyed by the signed-in account. */
-function Screen() {
-  const me = useMe()
-  return me.data ? <DateOfBirthCard key={me.data.id} profile={me.data} /> : null
-}
-
-// TanStack's notifications inside the act that caused them (#133, #407): on the
-// default `setTimeout(0)` a loaded machine let them land after that act ended.
+const NAME = 'Tên hiển thị'
+const profile = (overrides: Partial<Me> = {}): Me => ({
+  actorType: 'user', id: 'user-a', displayName: 'An', locale: 'vi', avatarUrl: null,
+  homeArea: null, interests: { mood: [] }, usualBudget: null,
+  capabilities: { avatarUpload: 'available' }, ...overrides,
+} as Me)
+let client: QueryClient
+let server: Me
 beforeAll(() => notifyManager.setScheduler(callback => callback()))
 afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
-
-let queryClient: QueryClient
-const server: { profile: Me | null } = { profile: null }
-
-async function mount(initial: Me) {
-  server.profile = initial
-  queryClient.setQueryData(queryKeys.me(), initial)
-  return renderScreen(
-    <QueryClientProvider client={queryClient}>
-      <Screen />
-    </QueryClientProvider>,
-  )
+beforeEach(() => {
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
+  mockBack.mockClear()
+  mockUpdateProfile.mockReset().mockImplementation(async (body: Partial<Me>) => { server = { ...server, ...body }; return server })
+  mockGetMe.mockReset().mockImplementation(async () => server)
+})
+afterEach(async () => { client.clear(); await act(async () => { await i18n.changeLanguage('vi') }); UnistylesSheet.configure({ themes }) })
+async function mount(initial = profile()) {
+  server = initial
+  client.setQueryData(queryKeys.me(), initial)
+  return renderScreen(<QueryClientProvider client={client}><AccountScreen /></QueryClientProvider>)
 }
-
 type View = Awaited<ReturnType<typeof mount>>
+async function type(view: View, label: string, value: string) { await fireEvent.changeText(view.getByLabelText(label), value) }
 
-async function press(element: Parameters<typeof fireEvent.press>[0]) {
-  await act(async () => {
-    await fireEvent.press(element)
-  })
-}
-
-/**
- * Two taps that land before React re-renders the disabled button. Two
- * concurrent `fireEvent.press` calls would each open their own act scope and
- * overlap (GoGo-MobileApp#133), so walk to the nearest `onPress` the way RNTL's
- * own lookup does and call it twice inside one act.
- */
-async function doublePress(element: Parameters<typeof fireEvent.press>[0]) {
+it('has one header save, disabled until a valid change, and no body save or change-photo button', async () => {
+  const view = await mount()
+  const header = within(view.getByTestId('app-header'))
+  expect(view.getAllByText('Lưu')).toHaveLength(1)
+  expect(header.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  expect(view.queryByText('Lưu ngày sinh')).toBeNull()
+  expect(view.queryByText('Đổi ảnh')).toBeNull()
+  await type(view, NAME, '  ')
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  expect(await view.findByText('Nhập tên hiển thị từ 1 đến 50 ký tự.')).toBeTruthy()
+})
+it('saves both fields in one patch and resets dirty state after success', async () => {
+  const view = await mount()
+  await type(view, NAME, '  Bình  ')
+  await type(view, INPUT, '29/02/2024')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledTimes(1)
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'Bình', dateOfBirth: '2024-02-29' })
+  expect(await view.findByText('✓ Đã lưu')).toBeTruthy()
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+})
+it('saves a name-only change while preserving the birthday', async () => {
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await type(view, NAME, 'Bình')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'Bình', dateOfBirth: '1990-05-17' })
+})
+it('clears the birthday as a draft, then saves null with the header action', async () => {
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await fireEvent.press(view.getByText('Xoá ngày sinh'))
+  expect(mockUpdateProfile).not.toHaveBeenCalled()
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'An', dateOfBirth: null })
+  expect(await view.findByText('Chưa đặt ngày sinh')).toBeTruthy()
+})
+it('blocks impossible and future dates with inline validation', async () => {
+  const view = await mount()
+  await type(view, INPUT, '29/02/2027')
+  expect(await view.findByText('Ngày không hợp lệ. Nhập một ngày có thật theo dạng ngày/tháng/năm.')).toBeTruthy()
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  const future = `${Number(todayInVietnam().slice(0, 4)) + 1}`
+  await type(view, INPUT, `01/01/${future}`)
+  expect(await view.findByText('Ngày sinh không thể sau hôm nay.')).toBeTruthy()
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateProfile).not.toHaveBeenCalled()
+})
+it('renders field-specific server errors, preserves typing and allows retry', async () => {
+  mockUpdateProfile.mockRejectedValueOnce(new ApiError(400, { code: 'VALIDATION_FAILED', message: 'invalid', field_errors: [
+    { field: 'displayName', code: 'invalid', message: 'invalid' }, { field: 'dateOfBirth', code: 'too_big', message: 'invalid' },
+  ] }))
+  const view = await mount()
+  await type(view, NAME, 'Bình')
+  await type(view, INPUT, '01/01/2000')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(await view.findByText('Ngày sinh không thể sau hôm nay.')).toBeTruthy()
+  expect(view.getByText('Nhập tên hiển thị từ 1 đến 50 ký tự.')).toBeTruthy()
+  expect(view.getByLabelText(INPUT).props.value).toBe('01/01/2000')
+  expect(view.queryByText('✓ Đã lưu')).toBeNull()
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(await view.findByText('✓ Đã lưu')).toBeTruthy()
+})
+it('shows request failure inline for both fields and keeps the draft', async () => {
+  mockUpdateProfile.mockRejectedValueOnce(new Error('failed'))
+  const view = await mount()
+  await type(view, NAME, 'Bình')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(await view.findAllByText('Chưa lưu được. Thử lại nhé.')).toHaveLength(2)
+  expect(view.getByLabelText(NAME).props.value).toBe('Bình')
+})
+it('prevents duplicate saves and editing/back during the request', async () => {
+  let answer!: (value: Me) => void
+  mockUpdateProfile.mockImplementation(() => new Promise<Me>(resolve => { answer = resolve }))
+  const view = await mount()
+  await type(view, INPUT, '01/01/2000')
+  const save = view.getByRole('button', { name: 'Lưu' })
   type Fiber = { memoizedProps?: { onPress?: () => void } | null; return: Fiber | null }
-  let fiber = (element as unknown as { unstable_fiber: Fiber | null }).unstable_fiber
+  let fiber = (save as unknown as { unstable_fiber: Fiber | null }).unstable_fiber
   while (fiber && !fiber.memoizedProps?.onPress) fiber = fiber.return
   const onPress = fiber?.memoizedProps?.onPress
-  if (!onPress) throw new Error('no onPress handler above this element')
-  await act(async () => {
-    onPress()
-    onPress()
-  })
-}
-
-async function typeDate(view: View, text: string) {
-  await act(async () => {
-    await fireEvent.changeText(view.getByLabelText(INPUT), text)
-  })
-}
-
-beforeEach(() => {
-  queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Infinity, gcTime: Infinity },
-      mutations: { retry: false, gcTime: Infinity },
-    },
-  })
-  mockUpdateProfile.mockReset()
-  mockGetMe.mockReset()
-  mockGetMe.mockImplementation(async () => server.profile)
-  // A server that applies the patch and answers the whole profile.
-  mockUpdateProfile.mockImplementation(async (body: Partial<Me>) => {
-    server.profile = { ...server.profile!, ...body }
-    return server.profile
-  })
+  if (!onPress) throw new Error('missing save handler')
+  await act(async () => { onPress(); onPress() })
+  expect(mockUpdateProfile).toHaveBeenCalledTimes(1)
+  expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.busy).toBe(true)
+  expect(view.getByLabelText(INPUT).props.editable).toBe(false)
+  expect(view.getByRole('button', { name: 'Quay lại' }).props.accessibilityState.disabled).toBe(true)
+  await act(async () => { answer(profile({ dateOfBirth: '2000-01-01' })) })
+  expect(await view.findByText('✓ Đã lưu')).toBeTruthy()
+})
+it('asks before discarding changes on back, and cancel keeps the draft', async () => {
+  const view = await mount()
+  await type(view, NAME, 'Bình')
+  await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
+  expect(await view.findByText('Thay đổi chưa lưu')).toBeTruthy()
+  await fireEvent.press(view.getByText('Tiếp tục sửa'))
+  expect(mockBack).not.toHaveBeenCalled()
+  await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
+  await fireEvent.press(view.getByText('Bỏ thay đổi'))
+  expect(mockBack).toHaveBeenCalledTimes(1)
+})
+it('resets drafts on account change and ignores the old late response', async () => {
+  let answer!: (value: Me) => void
+  mockUpdateProfile.mockImplementation(() => new Promise<Me>(resolve => { answer = resolve }))
+  const view = await mount()
+  await type(view, NAME, 'Old draft')
+  await fireEvent.press(view.getByText('Lưu'))
+  await act(async () => { server = profile({ id: 'user-b', displayName: 'Bình', dateOfBirth: '1985-11-03' }); client.setQueryData(queryKeys.me(), server) })
+  expect(view.getByLabelText(NAME).props.value).toBe('Bình')
+  await act(async () => { answer(profile({ displayName: 'Old draft' })) })
+  await waitFor(() => expect(view.getByLabelText(INPUT).props.value).toBe('03/11/1985'))
+  expect(view.queryByText('✓ Đã lưu')).toBeNull()
 })
 
-afterEach(() => {
-  queryClient.clear()
-})
-
-describe('date of birth in account information', () => {
-  it('an old account whose profile has no such field reads as unset, with nothing to clear', async () => {
-    const legacy = profile()
-    expect('dateOfBirth' in legacy).toBe(false)
-    const view = await mount(legacy)
-    expect(view.getByText('Chưa đặt ngày sinh')).toBeTruthy()
-    expect(view.getByLabelText(INPUT).props.value).toBe('')
-    expect(view.queryByText(CLEAR)).toBeNull()
-  })
-
-  it('shows a saved date in the reader’s language, on the same calendar day', async () => {
-    const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
-    expect(view.getByText('Đã lưu: 17 tháng 5, 1990')).toBeTruthy()
-    expect(view.getByLabelText(INPUT).props.value).toBe('17/05/1990')
-  })
-
-  it('saves a real leap day as YYYY-MM-DD', async () => {
-    const view = await mount(profile())
-    await typeDate(view, '29/02/2024')
-    await press(view.getByText(SAVE))
-    expect(await view.findByText('✓ Đã lưu ngày sinh')).toBeTruthy()
-    expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: '2024-02-29' })
-    expect(view.getByText('Đã lưu: 29 tháng 2, 2024')).toBeTruthy()
-  })
-
-  it('refuses a leap day that does not exist and a date after today in Hanoi, without a request', async () => {
-    const view = await mount(profile())
-    await typeDate(view, '29/02/2027')
-    await press(view.getByText(SAVE))
-    expect(await view.findByText('Ngày không hợp lệ. Nhập một ngày có thật theo dạng ngày/tháng/năm.')).toBeTruthy()
-
-    const [year, month, day] = todayInVietnam().split('-').map(Number) as [number, number, number]
-    const tomorrow = new Date(0)
-    tomorrow.setUTCFullYear(year, month - 1, day + 1)
-    const pad = (n: number) => String(n).padStart(2, '0')
-    await typeDate(view, `${pad(tomorrow.getUTCDate())}/${pad(tomorrow.getUTCMonth() + 1)}/${tomorrow.getUTCFullYear()}`)
-    await press(view.getByText(SAVE))
-    expect(await view.findByText('Ngày sinh không thể sau hôm nay.')).toBeTruthy()
-    expect(mockUpdateProfile).not.toHaveBeenCalled()
-  })
-
-  it('names the rule when the server refuses the date itself', async () => {
-    const fieldErrors = [{ field: 'dateOfBirth', code: 'too_big', message: 'cannot be after today' }]
-    mockUpdateProfile.mockRejectedValue(
-      new ApiError(400, { code: 'VALIDATION_FAILED', message: 'Request validation failed', field_errors: fieldErrors }),
-    )
-    const view = await mount(profile())
-    await typeDate(view, '01/01/2000')
-    await press(view.getByText(SAVE))
-    expect(await view.findByText('Ngày sinh không thể sau hôm nay.')).toBeTruthy()
-    expect(view.getByText('Chưa đặt ngày sinh')).toBeTruthy()
-  })
-
-  it('clearing sends null and reads as unset', async () => {
-    const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
-    await press(view.getByText(CLEAR))
-    expect(await view.findByText('✓ Đã xoá ngày sinh')).toBeTruthy()
-    expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: null })
-    expect(view.getByText('Chưa đặt ngày sinh')).toBeTruthy()
-    expect(view.getByLabelText(INPUT).props.value).toBe('')
-  })
-
-  it('a failed save shows the new date while pending, then puts the saved one back and keeps the typing', async () => {
-    let reject: (error: unknown) => void = () => {}
-    mockUpdateProfile.mockImplementation(
-      () =>
-        new Promise((_resolve, rejectRequest) => {
-          reject = rejectRequest
-        }),
-    )
-    const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
-    await typeDate(view, '01/01/2000')
-    await press(view.getByText(SAVE))
-    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith({ dateOfBirth: '2000-01-01' }))
-    // The request never answers before `reject` below, so this is the pending state.
-    expect(await view.findByText('Đã lưu: 1 tháng 1, 2000')).toBeTruthy()
-
-    await act(async () => {
-      reject(new Error('boom'))
-    })
-    expect(await view.findByText('Chưa lưu được ngày sinh. Thử lại nhé.')).toBeTruthy()
-    expect(view.getByText('Đã lưu: 17 tháng 5, 1990')).toBeTruthy()
-    expect(queryClient.getQueryData<Me>(queryKeys.me())?.dateOfBirth).toBe('1990-05-17')
-    expect(view.getByLabelText(INPUT).props.value).toBe('01/01/2000')
-  })
-
-  it('a fast double press on save or clear sends one request', async () => {
-    let answer: (profile: Me) => void = () => {}
-    mockUpdateProfile.mockImplementation(
-      (body: Partial<Me>) =>
-        new Promise<Me>(resolve => {
-          answer = next => {
-            server.profile = { ...server.profile!, ...body, ...next }
-            resolve(server.profile)
-          }
-        }),
-    )
-    const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
-    await typeDate(view, '01/01/2000')
-    const save = view.getByText(SAVE)
-    // Both presses land before React re-renders the disabled button.
-    await doublePress(save)
-    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalled())
-    await act(async () => {
-      answer({ ...server.profile!, dateOfBirth: '2000-01-01' })
-    })
-    expect(await view.findByText('Đã lưu: 1 tháng 1, 2000')).toBeTruthy()
-    expect(mockUpdateProfile).toHaveBeenCalledTimes(1)
-
-    const clear = view.getByText(CLEAR)
-    await doublePress(clear)
-    await act(async () => {
-      answer({ ...server.profile!, dateOfBirth: null })
-    })
-    expect(mockUpdateProfile).toHaveBeenCalledTimes(2)
-    expect(mockUpdateProfile).toHaveBeenLastCalledWith({ dateOfBirth: null })
-  })
-
-  it('after signing in as someone else, shows that account’s date and never the previous one’s late answer', async () => {
-    let answer: (profile: Me) => void = () => {}
-    mockUpdateProfile.mockImplementation(
-      () =>
-        new Promise<Me>(resolve => {
-          answer = resolve
-        }),
-    )
-    const accountA = profile({ id: 'user-a', dateOfBirth: '1990-05-17' })
-    const accountB = profile({ id: 'user-b', displayName: 'Bình', dateOfBirth: '1985-11-03' })
-    const view = await mount(accountA)
-    await typeDate(view, '02/02/2002')
-    await press(view.getByText(SAVE))
-    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalled())
-
-    // Account B signs in. Its refetch never lands in this test, so whatever
-    // the cache holds afterwards is what A's late answer wrote, or did not.
-    mockGetMe.mockImplementation(() => new Promise(() => {}))
-    await act(async () => {
-      queryClient.setQueryData(queryKeys.me(), accountB)
-    })
-    expect(await view.findByText('Đã lưu: 3 tháng 11, 1985')).toBeTruthy()
-    expect(view.getByLabelText(INPUT).props.value).toBe('03/11/1985')
-
-    await act(async () => {
-      answer({ ...accountA, dateOfBirth: '2002-02-02' })
-    })
-    expect(queryClient.getQueryData<Me>(queryKeys.me())).toMatchObject({ id: 'user-b', dateOfBirth: '1985-11-03' })
-    expect(view.getByText('Đã lưu: 3 tháng 11, 1985')).toBeTruthy()
-    expect(view.queryByText('Đã lưu: 2 tháng 2, 2002')).toBeNull()
-  })
+type Node = { props: { fill?: { payload?: number } }; children: (Node | string)[] }
+const fills = (node: Node): (number | undefined)[] => [node.props.fill?.payload, ...node.children.flatMap(child => typeof child === 'string' ? [] : fills(child))]
+it.each(['orange', 'orangeDark'] as const)('uses token colors and a 44pt avatar edit target in %s with English copy', async name => {
+  const theme = themes[name]
+  UnistylesSheet.configure({ themes: { [name]: theme } as unknown as typeof themes })
+  await act(async () => { await i18n.changeLanguage('en') })
+  const view = await mount()
+  const badge = view.getByRole('button', { name: 'Change profile picture' })
+  const style = StyleSheet.flatten(badge.props.style)
+  expect(style.width).toBeGreaterThanOrEqual(44)
+  expect(style.height).toBeGreaterThanOrEqual(44)
+  expect(style.backgroundColor).toBe(theme.accent.primary)
+  expect(fills(within(badge).getByTestId('material-icon-edit', { includeHiddenElements: true }) as unknown as Node)).toContain(processColor(theme.accent.onAccent))
+  expect(view.getByRole('button', { name: 'Save' })).toBeTruthy()
 })

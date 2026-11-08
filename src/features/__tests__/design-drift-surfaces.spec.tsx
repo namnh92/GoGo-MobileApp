@@ -1,3 +1,4 @@
+jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: () => ({ data: { pages: [{ items: [], nextCursor: null }] } }) }))
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 

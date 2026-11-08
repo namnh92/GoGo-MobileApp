@@ -1,6 +1,9 @@
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Controller, useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, Share, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
@@ -23,16 +26,26 @@ import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, LoadingState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { haptic } from '@/shared/ui/feedback'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './account.style'
 import { DateOfBirthCard } from './date-of-birth.view'
+import { checkTypedDateOfBirth, isoToTyped } from './date-of-birth'
 
 const MAX_NAME = 50
+const schema = z.object({
+  name: z.string().trim().min(1, 'account.nameInvalid').max(MAX_NAME, 'account.nameInvalid'),
+  birthday: z.string(),
+}).superRefine((value, ctx) => {
+  if (!value.birthday.trim()) return
+  const check = checkTypedDateOfBirth(value.birthday)
+  if (!check.ok) ctx.addIssue({ code: 'custom', path: ['birthday'], message: check.reason === 'future' ? 'account.dobFuture' : 'account.dobInvalid' })
+})
 
 type AvatarStep = 'picking' | 'uploading' | 'removing' | null
 
@@ -55,6 +68,13 @@ function avatarErrorKey(error: unknown): MessageKey {
 }
 
 export default function AccountScreen() {
+  const { status } = useSession()
+  const me = useMe({ enabled: status === 'user' })
+  // A newly authenticated account owns a fresh form and cannot inherit late UI feedback.
+  return <AccountEditor key={`${status}:${me.data?.id ?? ''}`} me={me} />
+}
+
+function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
@@ -62,62 +82,77 @@ export default function AccountScreen() {
   const { status, deleteAccount } = useSession()
 
   const canManage = status === 'user'
-  const me = useMe({ enabled: canManage })
   const updateProfile = useUpdateProfile()
   const upload = useUploadImage()
   const setAvatar = useSetAvatar()
   const removeAvatar = useRemoveAvatar()
 
-  const [name, setName] = useState<string | null>(null)
+  const form = useForm({ resolver: zodResolver(schema), mode: 'onChange', defaultValues: {
+    name: me.data?.displayName ?? '', birthday: isoToTyped(me.data?.dateOfBirth),
+  } })
+  const values = useWatch({ control: form.control })
+  const inFlight = useRef(false)
+  const mounted = useRef(true)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const [busy, setBusy] = useState<'export' | 'delete' | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [avatarStep, setAvatarStep] = useState<AvatarStep>(null)
   const [avatarNotice, setAvatarNotice] = useState<string | null>(null)
   const { confirm, dialog } = useDialog()
 
-  const displayName = name ?? me.data?.displayName ?? ''
-  const dirty = displayName.trim() !== (me.data?.displayName ?? '') && displayName.trim().length > 0
+  const dirty = (values.name ?? '').trim() !== form.formState.defaultValues?.name || values.birthday !== form.formState.defaultValues?.birthday
+  const valid = schema.safeParse(values).success
   const initial = (me.data?.displayName ?? '?').trim().charAt(0).toUpperCase()
   // Known before the picker opens (ADR-0022): the server enforces it too, this
   // only keeps a control from looking operable when it is not.
   const canUpload = me.data?.capabilities?.avatarUpload === 'available'
 
-  const header = (
-    <View>
-      <AppHeader onBack={() => router.back()} title={t('account.title')} />
-    </View>
-  )
-
-  if (!canManage) {
-    return (
-      <Atmosphere>
-        {header}
-        <EmptyState
-          title={t('notifications.signInTitle')}
-          body={t('account.signInBody')}
-          action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />}
-        />
-      </Atmosphere>
-    )
+  async function goBack() {
+    if (inFlight.current) return
+    if (!dirty) { router.back(); return }
+    const choice = await confirm({ title: t('account.unsavedTitle'), message: t('account.unsavedBody'), actions: [
+      { key: 'keep', label: t('draft.keepEditing'), style: 'cancel' },
+      { key: 'discard', label: t('account.discard'), style: 'destructive' },
+    ] })
+    if (choice === 'discard') router.back()
   }
 
-  if (me.isPending) {
-    return (
-      <Atmosphere>
-        {header}
-        <LoadingState />
-      </Atmosphere>
-    )
-  }
-
-  async function saveName() {
+  async function save() {
+    const parsed = schema.safeParse(form.getValues())
+    if (inFlight.current || !dirty || !parsed.success) return
+    inFlight.current = true
+    setSaving(true)
     setNotice(null)
+    form.clearErrors()
+    const submitted = parsed.data
+    const check = submitted.birthday.trim() ? checkTypedDateOfBirth(submitted.birthday) : null
+    const dateOfBirth = check?.ok ? check.iso : null
+    const birthdayChanged = submitted.birthday !== form.formState.defaultValues?.birthday
     try {
-      await updateProfile.mutateAsync({ displayName: displayName.trim() })
-      setName(null)
+      await updateProfile.mutateAsync({ displayName: submitted.name, dateOfBirth })
+      if (!mounted.current) return
+      form.reset({ name: submitted.name, birthday: isoToTyped(dateOfBirth) })
+      haptic('success')
+      if (birthdayChanged) track(dateOfBirth === null ? 'profile_date_of_birth_cleared' : 'profile_date_of_birth_saved')
       setNotice(t('account.saved'))
-    } catch {
-      setNotice(t('account.saveFailed'))
+    } catch (error) {
+      if (!mounted.current) return
+      const fields = isApiError(error) ? error.fieldErrors : []
+      const message = isOffline(error) ? 'common.offlineBody' : 'account.saveFailed'
+      if (!fields.length) {
+        form.setError('name', { message })
+        form.setError('birthday', { message })
+      } else {
+        for (const field of fields) {
+          if (field.field === 'displayName') form.setError('name', { message: 'account.nameInvalid' })
+          else if (field.field === 'dateOfBirth') form.setError('birthday', { message: (field as { code?: string }).code === 'too_big' ? 'account.dobFuture' : 'account.dobInvalid' })
+          else setNotice(t(message))
+        }
+      }
+    } finally {
+      inFlight.current = false
+      if (mounted.current) setSaving(false)
     }
   }
 
@@ -209,6 +244,37 @@ export default function AccountScreen() {
       .finally(() => setBusy(null))
   }
 
+  const header = (
+    <View>
+      <AppHeader onBack={() => void goBack()} backDisabled={saving} title={t('account.title')}
+        rightAction={canManage && me.data ? <PrimaryBtn label={t('account.save')} onPress={() => void save()}
+          disabled={!dirty || !valid || saving} loading={saving} /> : undefined} />
+    </View>
+  )
+
+  if (!canManage) {
+    return (
+      <Atmosphere>
+        {header}
+        <EmptyState
+          title={t('notifications.signInTitle')}
+          body={t('account.signInBody')}
+          action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />}
+        />
+      </Atmosphere>
+    )
+  }
+
+  if (me.isPending) {
+    return (
+      <Atmosphere>
+        {header}
+        <LoadingState />
+      </Atmosphere>
+    )
+  }
+
+
   return (
     <Atmosphere>
       {header}
@@ -222,9 +288,15 @@ export default function AccountScreen() {
               <AvatarCircle label={initial} size={80} imageUri={me.data?.avatarUrl} />
               {avatarStep ? (
                 <View style={styles.avatarOverlay} accessibilityElementsHidden>
-                  <ActivityIndicator color={theme.text.inverse} />
+                  <ActivityIndicator color={theme.accent.onAccent} />
                 </View>
               ) : null}
+              <Pressable accessibilityRole="button" accessibilityLabel={t('account.avatarEdit')}
+                accessibilityState={{ disabled: !canUpload || avatarStep !== null, busy: avatarStep !== null }}
+                disabled={!canUpload || avatarStep !== null} onPress={() => void changeAvatar()}
+                style={({ pressed }) => [styles.avatarEdit, pressed && styles.pressed, (!canUpload || avatarStep !== null) && styles.disabled]}>
+                <MaterialIcon name="edit" size={20} color="accent.onAccent" />
+              </Pressable>
             </View>
             <View style={styles.avatarText}>
               <Text variant="title2" style={styles.avatarCaption}>{t('account.avatarTitle')}</Text>
@@ -234,13 +306,6 @@ export default function AccountScreen() {
             </View>
           </View>
           <View style={styles.avatarActions}>
-            <SecondaryBtn
-              label={avatarStep === 'uploading' ? t('account.avatarUploading') : t('account.avatarChange')}
-              onPress={changeAvatar}
-              disabled={!canUpload || avatarStep !== null}
-              loading={avatarStep === 'picking' || avatarStep === 'uploading'}
-              style={styles.avatarChangeBtn}
-            />
             {me.data?.avatarUrl ? (
               <GhostBtn label={t('account.avatarRemove')} onPress={removePicture} disabled={avatarStep !== null} />
             ) : null}
@@ -254,29 +319,18 @@ export default function AccountScreen() {
 
         <Card padded={false} style={styles.card}>
           <Text variant="label">{t('auth.displayName')}</Text>
-          <TextInput
-            value={displayName}
-            onChangeText={value => setName(value.slice(0, MAX_NAME))}
-            placeholder={t('auth.displayNamePlaceholder')}
-            placeholderTextColor={theme.text.secondary}
-            autoCapitalize="words"
-            accessibilityLabel={t('auth.displayName')}
-            style={styles.input}
-          />
+          <Controller control={form.control} name="name" render={({ field: { value, onChange, onBlur } }) => <TextInput
+            value={value} onChangeText={onChange} onBlur={onBlur} maxLength={MAX_NAME} editable={!saving}
+            placeholder={t('auth.displayNamePlaceholder')} placeholderTextColor={theme.text.secondary}
+            autoCapitalize="words" accessibilityLabel={t('auth.displayName')} style={styles.input} />} />
+          {form.formState.errors.name ? <Text variant="bodySmall" color="status.dangerText" accessibilityRole="alert" accessibilityLiveRegion="polite">{t(form.formState.errors.name.message as MessageKey)}</Text> : null}
           <Text variant="bodySmall" color="text.secondary">{me.data?.email ?? ''}</Text>
-          <PrimaryBtn
-            label={updateProfile.isPending ? t('account.saving') : t('account.save')}
-            onPress={saveName}
-            icon="check"
-            disabled={!dirty}
-            loading={updateProfile.isPending}
-            style={styles.saveBtn}
-          />
         </Card>
 
 
         {/* Keyed by account: a different sign-in never inherits the last one's typing. */}
-        {me.data ? <DateOfBirthCard key={me.data.id} profile={me.data} /> : null}
+        {me.data ? <DateOfBirthCard profile={me.data} control={form.control} busy={saving}
+          error={form.formState.errors.birthday?.message as MessageKey | undefined} onClear={() => form.setValue('birthday', '', { shouldValidate: true })} /> : null}
 
 
         <Card padded={false} style={styles.card}>
