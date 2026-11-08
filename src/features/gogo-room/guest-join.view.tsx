@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,7 +13,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -146,8 +147,8 @@ export default function GuestJoinScreen() {
   const leave = () => goBackOrHome(router)
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={leave} />
+    <View>
+      <AppHeader title={t('guestJoin.screenTitle')} onBack={leave} />
     </View>
   )
 

@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
@@ -5,7 +6,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMyRooms, type RoomListItem } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
@@ -18,7 +18,6 @@ import { FilledSegmentedControl } from '@/shared/ui/filled-segmented-control.vie
 import { PlanCard } from '@/shared/ui/plan-card.view'
 import { Atmosphere, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
-import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './plans.style'
@@ -31,7 +30,6 @@ const DECIDING: readonly RoomListItem['status'][] = ['draft', 'collecting', 'mat
 export default function PlansScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   // The float button (#379) collapses on scroll; the list's end clears it.
   const fab = useAssistantFabScroll('plans')
   const { status } = useSession()
@@ -122,13 +120,13 @@ export default function PlansScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top + spacing[2] }}>
-        <Text variant="display" style={styles.title}>{t('plans.title')}</Text>
+      <View>
+        <AppHeader variant="tab-root" title={t('plans.title')} bellTestID="plans-bell" unreadDotTestID="plans-unread" />
         {/* #247: for a user, entering an invite code must not depend on having
             no room yet. Not for a guest (#314 F-01): /join would replace the
             guest session holding their room; confirm-first is #272. */}
         {status === 'user' ? (
-          <View style={[styles.createAction, styles.headerActions]}>
+          <View style={[styles.createAction, styles.planActions]}>
             <SecondaryBtn label={t('home.createDate')} onPress={() => router.push('/create/type')} icon="plus" />
             <GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} />
           </View>

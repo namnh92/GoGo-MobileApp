@@ -3,7 +3,6 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget, shadows } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  pageHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingHorizontal: spacing[4], backgroundColor: theme.surface.canvas },
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   interests: { flexDirection: 'row', gap: spacing[2] },
   interest: { borderRadius: radius.pill, backgroundColor: theme.redesign.container, paddingHorizontal: 10, paddingVertical: spacing[1] },
@@ -21,7 +20,7 @@ export const styles = StyleSheet.create(theme => ({
     ...shadows.stitch,
     gap: spacing[3],
   },
-  headerText: { flex: 1, minWidth: 0 },
+  identityText: { flex: 1, minWidth: 0 },
   email: { marginTop: 2 },
 
   card: { marginHorizontal: spacing[4], padding: spacing[4], marginBottom: spacing[6], gap: spacing[3], borderRadius: 12, ...shadows.stitch },

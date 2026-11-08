@@ -14,16 +14,13 @@ export const styles = StyleSheet.create(theme => ({
   roomAction: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, backgroundColor: theme.redesign.violet, alignItems: 'center', justifyContent: 'center' },
   nearestRoom: { marginHorizontal: 16, marginTop: 24, padding: 16, gap: 12, flexDirection: 'row', alignItems: 'center', minHeight: 72, borderRadius: 16, backgroundColor: theme.redesign.violetSoft },
   roomCopy: { flex: 1, gap: 4 },
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, minHeight: 64, backgroundColor: theme.redesign.canvas },
-  brand: { width: 32, height: 32, borderRadius: 12, backgroundColor: theme.redesign.primaryFill, justifyContent: 'center', alignItems: 'center' },
-  headerAction: { width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
   locationRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 4 },
   join: { marginHorizontal: 16, marginTop: 24, backgroundColor: theme.redesign.card, borderRadius: 16, padding: 12, gap: 8 },
   joinHeading: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   joinRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   joinInput: { ...type.introBody, color: theme.redesign.ink, flex: 1, minHeight: 48, minWidth: 0, backgroundColor: theme.redesign.container, borderRadius: 12, paddingHorizontal: 12 },
   joinButton: { minHeight: 48, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.redesign.high, borderWidth: 0 },
-  header: {
+  intro: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

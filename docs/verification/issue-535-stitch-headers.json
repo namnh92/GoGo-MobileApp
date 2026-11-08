@@ -1,0 +1,768 @@
+{
+  "project": "17315762413421369447",
+  "retrieved": "2026-11-08",
+  "screens": [
+    {
+      "screen": "projects/17315762413421369447/screens/34b7f4b13564449ab6bf662b204c149f",
+      "title": "Đóng góp của tôi v2 - GoGo",
+      "file": "projects/17315762413421369447/files/3a0643ed2a3c4a718510c0d99d3c9fe9",
+      "headers": [
+        "<header class=\"px-4 py-2 flex items-center justify-between\">\n      <button aria-label=\"Quay lại\" class=\"w-11 h-11 rounded-full bg-white border border-stone-200/80 shadow-sm flex items-center justify-center text-stone-700 active:scale-95 transition-transform\">\n        <svg class=\"w-5 h-5 stroke-[2.2]\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\" />\n        </svg>\n      </button>\n\n      <h1 class=\"text-[17px] font-bold text-stone-900 tracking-tight\">Đóng góp của tôi</h1>\n\n      <button aria-label=\"Thông báo\" class=\"w-11 h-11 rounded-full bg-white border border-stone-200/80 shadow-sm flex items-center justify-center text-stone-700 active:scale-95 transition-transform relative\">\n        <svg class=\"w-5 h-5 stroke-[2]\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9\" />\n        </svg>\n        <span class=\"absolute top-2.5 right-2.5 w-2 h-2 bg-brand-500 rounded-full border border-white\"></span>\n      </button>\n    </header>",
+        "<header class=\"px-4 py-2 flex items-center justify-between\">\n      <button aria-label=\"Quay lại\" class=\"w-11 h-11 rounded-full bg-white border border-stone-200/80 shadow-sm flex items-center justify-center text-stone-700 active:scale-95 transition-transform\">\n        <svg class=\"w-5 h-5 stroke-[2.2]\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\" />\n        </svg>\n      </button>\n\n      <h1 class=\"text-[17px] font-bold text-stone-900 tracking-tight\">Đóng góp của tôi</h1>\n\n      <button aria-label=\"Thông báo\" class=\"w-11 h-11 rounded-full bg-white border border-stone-200/80 shadow-sm flex items-center justify-center text-stone-700 active:scale-95 transition-transform relative\">\n        <svg class=\"w-5 h-5 stroke-[2]\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9\" />\n        </svg>\n        <span class=\"absolute top-2.5 right-2.5 w-2 h-2 bg-brand-500 rounded-full border border-white\"></span>\n      </button>\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[17px] font-bold text-stone-900 tracking-tight\">Đóng góp của tôi</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/18423855466366345646",
+      "title": "Đã vote hết - GoGo",
+      "file": "projects/17315762413421369447/files/18423855466366346800",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Swipe Finished State</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Swipe Finished State</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/9068423104561654909",
+      "title": "Lời mời đã hết hạn - GoGo",
+      "file": "projects/17315762413421369447/files/9068423104561655119",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-title text-title text-on-surface tracking-tight mb-space-sm\">\n      Lời mời đã hết hạn\n    </h1>",
+      "leadingHeadingContext": "l=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2.5\" viewbox=\"0 0 48 48\">\n<circle class=\"text-outline-variant stroke-current opacity-40\" cx=\"24\" cy=\"24\" r=\"18\"></circle>\n<path class=\"stroke-current text-primary-container\" d=\"M24 14v10l6.5 4\"></path>\n<circle class=\"fill-current text-secondary opacity-60\" cx=\"34\" cy=\"14\" r=\"3\"></circle>\n<path class=\"stroke-current text-outline opacity-40\" d=\"M12 36l3-3\"></path>\n<path class=\"stroke-current text-outline opacity-40\" d=\"M36 36l-3-3\"></path>\n</svg>\n</div>\n<!-- Tiny whimsical status tag -->\n<span class=\"absolute -bottom-1 bg-surface-container-highest text-on-surface-variant font-caption text-caption px-2 py-0.5 rounded-full shadow-sm\">\n        Hết lượt dùng\n      </span>\n</div>\n<!-- Typography Block -->\n<h1 class=\"font-title text-title text-on-surface tracking-tight mb-space-sm\">\n      Lời mời đã hết hạn\n    </h1>\n<p class=\"font-body text-body text-on-surface-variant leading-relaxed mb-space-xl px-2\">\n      Phòng hẹn này đã diễn ra hoặc mã mời đã quá thời gian sử dụng. Bạn có thể tự tạo phòng mới hoặc xin mã mời mới từ chủ phòng.\n    </p>\n<!-- Room Summary Card (Solid tactile dimmed card) -->\n<div class=\"w-full bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm text-left relative over"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/7685922883627625240",
+      "title": "Chờ cả nhóm chọn sở thích · Light",
+      "file": "projects/17315762413421369447/files/7685922883627623742",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-[#F6F3EE]/95 backdrop-blur-md border-b border-[#e7e1dc]/80\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-colors\" onclick=\"history.back()\" type=\"button\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight ml-1 font-bold\">Chờ cả nhóm</h1></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight ml-1 font-bold\">Chờ cả nhóm</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10366405716754660736",
+      "title": "Tạo kèo: Địa điểm - GoGo",
+      "file": "projects/17315762413421369447/files/10366405716754660878",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-sm flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Location</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Location</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/3d9ed7f6136a477c85c76057aafff0b4",
+      "title": "Thêm địa điểm: Bước 3 - GoGo",
+      "file": "projects/17315762413421369447/screens/3d9ed7f6136a477c85c76057aafff0b4/fileEntries/html",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bổ sung thông tin</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bổ sung thông tin</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/17030740879031513402",
+      "title": "Buổi hẹn của tụi mình - GoGo",
+      "file": "projects/17315762413421369447/files/17030740879031515400",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/13490501616325201280",
+      "title": "Cài đặt thông báo - GoGo",
+      "file": "projects/17315762413421369447/files/13490501616325200330",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/16588258465620327250",
+      "title": "Onboarding 3 - GoGo",
+      "file": "projects/17315762413421369447/files/16588258465620326964",
+      "headers": [
+        "<header class=\"flex items-center justify-between w-full h-11\">\n<button aria-label=\"Quay lại\" class=\"flex items-center justify-center w-11 h-11 rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-transform\" onclick=\"history.back()\" type=\"button\">\n<span class=\"material-symbols-outlined text-[24px]\">arrow_back</span>\n</button>\n<a class=\"font-small text-small text-on-surface-variant hover:text-primary transition-colors px-space-sm py-space-xs rounded-lg active:bg-surface-container\" href=\"#\">\n      Bỏ qua\n    </a>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"font-display text-display text-on-surface mb-space-sm tracking-tight\">\n      Nhận ngay một buổi date hoàn chỉnh\n    </h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/11596318734062514103",
+      "title": "Trạng thái nhập địa điểm - GoGo",
+      "file": "projects/17315762413421369447/files/10036312249936176654",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Kiểm tra địa điểm</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Trợ giúp\" class=\"w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">help_outline</span></button><button aria-label=\"Đóng góp\" class=\"flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-container text-primary font-small text-small font-semibold hover:bg-surface-container-high transition-all\"><span class=\"material-symbols-outlined text-[16px]\">add_photo_alternate</span><span class=\"\">Đóng góp</span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Kiểm tra địa điểm</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/1840070110865545115",
+      "title": "Làm quen với GoGo AI",
+      "file": "projects/17315762413421369447/files/1840070110865544301",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/16621761822823836808",
+      "title": "Bộ lọc nâng cao - GoGo",
+      "file": "projects/17315762413421369447/files/17201207268377370693",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bộ Lọc Nâng Cao</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bộ Lọc Nâng Cao</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/14565909522755492896",
+      "title": "Phòng chờ nhóm",
+      "file": "projects/17315762413421369447/files/14565909522755493638",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-[#F6F3EE]/85 backdrop-blur-xl pt-safe border-b border-black/[0.04]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center rounded-full text-on-surface active:bg-black/5 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface font-bold tracking-tight\">Giờ kéo cả nhóm vào</h1></div><div class=\"flex items-center gap-1\"><button aria-label=\"Chia sẻ\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface-variant active:bg-black/5 transition-colors\" onclick=\"shareInviteLink()\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface font-bold tracking-tight\">Giờ kéo cả nhóm vào</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/3b383c779a7b4e41925a8a209cce3cc7",
+      "title": "Đóng góp của tôi v2 - GoGo",
+      "file": "projects/17315762413421369447/files/6c648d29dfde408fb65db5775a4ab35a",
+      "headers": [
+        "<header class=\"pt-3 pb-1 px-7 flex justify-between items-center text-xs font-semibold text-stone-900 select-none bg-canvas z-30\" data-purpose=\"ios-status-bar\">\n<span>9:41</span>\n<div class=\"flex items-center space-x-1.5\">\n<svg class=\"w-3.5 h-3.5 fill-current\" viewbox=\"0 0 24 24\"><path d=\"M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z\"></path></svg>\n<svg class=\"w-3.5 h-3.5 fill-current\" viewbox=\"0 0 24 24\"><path d=\"M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4z\"></path></svg>\n<div class=\"w-5 h-2.5 border border-stone-800 rounded-sm p-0.5 flex items-center\">\n<div class=\"w-full h-full bg-stone-800 rounded-2xs\"></div>\n</div>\n</div>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"font-bold text-lg text-stone-900 tracking-tight text-center\">Đóng góp của tôi</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/15334143905524313049",
+      "title": "Kế hoạch - GoGo",
+      "file": "projects/17315762413421369447/files/2038841784061400861",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><span class=\"font-title text-title text-primary tracking-tight font-bold\">GoGo</span><span class=\"text-outline-variant font-caption text-caption\">•</span><h1 class=\"font-heading text-heading text-on-surface capitalize\">Kế Hoạch</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Thông báo\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors relative\"><span class=\"material-symbols-outlined text-[24px]\">notifications</span><span class=\"absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-primary ring-2 ring-[#f6f3ee]\"></span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface capitalize\">Kế Hoạch</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/8611774578843207482",
+      "title": "Cảnh báo kế hoạch - GoGo",
+      "file": "projects/17315762413421369447/files/8611774578843205936",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><span class=\"w-2.5 h-2.5 rounded-full bg-primary\"></span><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate\">Lịch Trình</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Thông báo\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">notifications</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate\">Lịch Trình</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/d9a8855514e94eb395b5b37e99a09129",
+      "title": "Đóng góp của tôi - GoGo",
+      "file": "projects/17315762413421369447/files/0c2ed2cd329a4b9bb9cdd8c03988f3ba",
+      "headers": [
+        "<header class=\"sticky top-0 z-30 bg-[#F6F3EE]/90 backdrop-blur-md px-4 pt-3 pb-2 border-b border-[#211F1C]/5\">\n      <div class=\"flex items-center justify-between h-11\">\n        <!-- Back Button -->\n        <button class=\"w-10 h-10 rounded-full bg-white/80 border border-black/5 flex items-center justify-center text-ink active:scale-95 transition-transform shadow-sm hover:bg-white\" aria-label=\"Quay lại\">\n          <span class=\"material-symbols-outlined text-[22px]\">arrow_back</span>\n        </button>\n\n        <!-- Screen Title -->\n        <h1 class=\"text-[17px] font-semibold text-ink tracking-tight text-center\">\n          Đóng góp của tôi\n        </h1>\n\n        <!-- Placeholder to balance back button -->\n        <div class=\"w-10 h-10 opacity-0 pointer-events-none\"></div>\n      </div>\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[17px] font-semibold text-ink tracking-tight text-center\">\n          Đóng góp của tôi\n        </h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/17426023099781066287",
+      "title": "Được cả nhóm thích nhất",
+      "file": "projects/17315762413421369447/files/17426023099781063541",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-[#F6F3EE]/80 backdrop-blur-xl pt-safe border-b border-[#1d1b18]/5\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] -ml-space-xs flex items-center justify-center rounded-full text-on-surface active:bg-surface-container-high transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface font-bold tracking-tight truncate\">Được cả nhóm thích nhất</h1></div><div class=\"flex items-center gap-space-xs shrink-0\"><button aria-label=\"Chia sẻ\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface-variant active:bg-surface-container-high transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface font-bold tracking-tight truncate\">Được cả nhóm thích nhất</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/9352497074123873706",
+      "title": "Tạo kèo: Ngân sách - GoGo",
+      "file": "projects/17315762413421369447/files/9352497074123871956",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-sm flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Budget</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Budget</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/f8006c44f1594868bcc510608fab6a50",
+      "title": "Thêm địa điểm: Bước 2 · Nhiều lựa chọn - GoGo",
+      "file": "projects/17315762413421369447/files/ae4d1e678bc54700a3537b1784ff89c0",
+      "headers": [
+        "<header class=\"px-4 py-2 flex items-center justify-between bg-[#FAF7F2] z-10 border-b border-[#F0EBE1]\">\n      <button class=\"w-10 h-10 flex items-center justify-center rounded-full hover:bg-stone-200/60 active:scale-95 transition-all text-stone-800\" aria-label=\"Quay lại\">\n        <span class=\"material-symbols-outlined text-2xl\">arrow_back</span>\n      </button>\n      \n      <h1 class=\"text-[17px] font-bold text-stone-900 tracking-tight\">Bổ sung thông tin</h1>\n\n      <button class=\"w-10 h-10 flex items-center justify-center rounded-full hover:bg-stone-200/60 active:scale-95 transition-all text-stone-800 relative\" aria-label=\"Thông báo\">\n        <span class=\"material-symbols-outlined text-2xl\">notifications</span>\n      </button>\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[17px] font-bold text-stone-900 tracking-tight\">Bổ sung thông tin</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/13467143403859750440",
+      "title": "Đang ghép đôi - GoGo",
+      "file": "projects/17315762413421369447/files/11478136502005355939",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Matching In Progress</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Matching In Progress</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6045502163558025217",
+      "title": "Đã lưu - GoGo",
+      "file": "projects/17315762413421369447/files/7139670540051623733",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><span class=\"font-title text-title text-primary tracking-tight font-bold\">GoGo</span><span class=\"text-outline-variant font-caption text-caption\">•</span><h1 class=\"font-heading text-heading text-on-surface capitalize\">Đã Lưu</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Thông báo\" class=\"relative w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors\"><span class=\"material-symbols-outlined text-[24px]\">notifications</span><span class=\"absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-primary\"></span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface capitalize\">Đã Lưu</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/16507289014630550696",
+      "title": "Quyền và dữ liệu - GoGo",
+      "file": "projects/17315762413421369447/files/16507289014630548134",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6448661778109417257",
+      "title": "Cá nhân (Khách) - GoGo",
+      "file": "projects/17315762413421369447/files/6448661778109416195",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><span class=\"font-title text-title text-primary tracking-tight font-bold\">GoGo</span><span class=\"text-outline-variant font-caption text-caption\">•</span><h1 class=\"font-heading text-heading text-on-surface capitalize\">Cá Nhân</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Notifications\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[24px]\">notifications</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface capitalize\">Cá Nhân</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/2726e17cbdb0499da0adb7cf74ae33c5",
+      "title": "Gửi địa điểm: Kết quả - GoGo",
+      "file": "projects/17315762413421369447/files/641c081419124261934d7699f2018a60",
+      "headers": [],
+      "firstHeading": "<h1 class=\"text-xl font-bold text-stone-900\">Gửi địa điểm: Kết quả - GoGo (Bottom Sheet)</h1>",
+      "leadingHeadingContext": "m: scale(1.02);\n      pointer-events: none;\n      user-select: none;\n    }\n    .sheet-shadow {\n      box-shadow: 0 -12px 36px -4px rgba(28, 25, 23, 0.16), 0 -4px 12px -2px rgba(28, 25, 23, 0.08);\n    }\n  </style>\n</head>\n<body class=\"bg-[#F5F2EC] min-h-screen py-8 px-4 font-sans text-stone-900 flex flex-col items-center justify-center\">\n\n  <!-- Header Showcase Information -->\n  <div class=\"max-w-4xl w-full mb-6 flex flex-col sm:flex-row items-center justify-between text-stone-700 px-2 gap-3\">\n    <div>\n      <div class=\"inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#C83B1A] bg-orange-100/70 px-2.5 py-1 rounded-full mb-1\">\n        <span class=\"material-symbols-outlined text-sm\">check_circle</span>\n        Giao diện phản hồi kết quả\n      </div>\n      <h1 class=\"text-xl font-bold text-stone-900\">Gửi địa điểm: Kết quả - GoGo (Bottom Sheet)</h1>\n      <p class=\"text-xs text-stone-500\">Khung điện thoại 390px · Light theme · Đặt 2 trạng thái so sánh cạnh nhau</p>\n    </div>\n    <div class=\"flex items-center gap-2 text-xs font-medium text-stone-500\">\n      <span class=\"inline-block w-2.5 h-2.5 rounded-full bg-emerald-500\"></span> 1) Thành công\n      <span class=\"inline-block w-2.5 h-2.5 rounded-full bg-red-500 ml-2\"></span> 2) Thất bại\n    </div>\n"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/1871420597720396095",
+      "title": "Thông báo - GoGo",
+      "file": "projects/17315762413421369447/files/1871420597720396493",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/17848934368042884162",
+      "title": "Tìm địa điểm - GoGo",
+      "file": "projects/17315762413421369447/files/3054129010096043786",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-1.5 min-w-0 flex-1\"><button aria-label=\"Quay lại\" class=\"w-10 h-10 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all shrink-0\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[22px]\">arrow_back</span></button><div class=\"flex flex-col min-w-0 justify-center\"><div class=\"flex items-center gap-2\"><h1 class=\"font-heading text-[16px] font-bold text-on-surface tracking-tight truncate leading-tight\">Khám phá địa điểm</h1></div><div class=\"flex items-center mt-0.5\"><button type=\"button\" class=\"flex items-center gap-1 py-0.5 px-2 rounded-full bg-surface-container-low/80 hover:bg-surface-container text-on-surface active:scale-95 transition-all min-w-0 shadow-xs border border-outline-variant/30\"><span class=\"material-symbols-outlined text-primary text-[13px] shrink-0\">location_on</span><span class=\"font-heading text-[11px] font-semibold tracking-tight truncate text-on-surface\">TP. Hồ Chí Minh</span><span class=\"material-symbols-outlined text-[13px] text-on-surface-variant shrink-0\">keyboard_arrow_down</span></button></div></div></div><div class=\"flex items-center gap-space-sm shrink-0\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-[16px] font-bold text-on-surface tracking-tight truncate leading-tight\">Khám phá địa điểm</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/4001537474397277869",
+      "title": "Sửa lộ trình - GoGo",
+      "file": "projects/17315762413421369447/files/4001537474397278059",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/5503216573101538177",
+      "title": "Đã gửi đánh giá - GoGo",
+      "file": "projects/17315762413421369447/files/5503216573101538503",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-display text-display text-on-surface tracking-tight mb-space-sm\">\n      Đã gửi đánh giá\n    </h1>",
+      "leadingHeadingContext": "enter justify-center shadow-sm\">\n<div class=\"w-16 h-16 rounded-full bg-tertiary-container flex items-center justify-center text-on-tertiary shadow-md\">\n<span class=\"material-symbols-outlined text-display\" style=\"font-variation-settings: 'FILL' 1;\">check</span>\n</div>\n</div>\n<div class=\"absolute -top-1 -right-1 w-6 h-6 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary shadow-sm\">\n<span class=\"material-symbols-outlined text-small\" style=\"font-variation-settings: 'FILL' 1;\">arrow_back_ios_new</span>\n</div>\n<div class=\"absolute -bottom-1 -left-2 w-5 h-5 rounded-full bg-primary-fixed flex items-center justify-center text-primary shadow-sm\">\n<span class=\"material-symbols-outlined text-caption\" style=\"font-variation-settings: 'FILL' 1;\">favorite</span>\n</div>\n</div>\n<h1 class=\"font-display text-display text-on-surface tracking-tight mb-space-sm\">\n      Đã gửi đánh giá\n    </h1>\n<p class=\"font-body text-body text-on-surface-variant max-w-xs leading-relaxed\">\n      Cảm ơn bạn đã đóng góp! Đánh giá đang được gửi đến hệ thống kiểm duyệt cộng đồng GoGo và sẽ hiển thị công khai sau khi được duyệt.\n    </p>\n</div>\n<!-- Review Summary Card (Solid Tactile Card) -->\n<div class=\"bg-surface-container-lowest rounded-xl shadow-md p-space-lg mb-space-lg\">\n<div class=\"flex"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/4d2cde042356488abac342bedf0ff955",
+      "title": "Đã lưu v2 - GoGo",
+      "file": "projects/17315762413421369447/files/141749d3e6b74d3aaaa9328ccc4022f3",
+      "headers": [
+        "<header class=\"px-5 pt-1 pb-3 flex items-center justify-between sticky top-0 bg-[#FAF7F2]/95 backdrop-blur-md z-20\">\n<h1 class=\"text-[20px] font-bold tracking-tight text-stone-900\">Đã lưu</h1>\n<button aria-label=\"Thông báo\" class=\"relative p-2 rounded-full text-stone-700 hover:bg-stone-200/50 transition active:scale-95\">\n<svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" viewbox=\"0 0 24 24\">\n<path d=\"M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path>\n</svg>\n<!-- Unread Badge Dot -->\n<span class=\"absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#CE391B] ring-2 ring-[#FAF7F2]\"></span>\n</button>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[20px] font-bold tracking-tight text-stone-900\">Đã lưu</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/14972595260953532404",
+      "title": "Lời mời tham gia - GoGo",
+      "file": "projects/17315762413421369447/files/14972595260953534230",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-display text-display text-on-surface tracking-tight\">\n        Bạn được rủ chọn date\n      </h1>",
+      "leadingHeadingContext": "urface\"><div class=\"flex flex-col w-full pb-8\">\n<div class=\"px-margin flex flex-col space-y-space-lg\">\n<!-- Top Floating Sparkle & Badge -->\n<div class=\"flex items-center justify-between pt-2\">\n<div class=\"inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed text-primary font-small text-small shadow-sm\">\n<span class=\"material-symbols-outlined text-[16px]\" style=\"font-variation-settings: 'FILL' 1;\">favorite</span>\n<span>Lời mời date</span>\n</div>\n<div class=\"flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant font-caption text-caption\">\n<span class=\"material-symbols-outlined text-[14px]\">bolt</span>\n<span>Ghép kèo tức thì</span>\n</div>\n</div>\n<!-- Main Title & Hero Narrative -->\n<div class=\"flex flex-col space-y-space-xs\">\n<h1 class=\"font-display text-display text-on-surface tracking-tight\">\n        Bạn được rủ chọn date\n      </h1>\n<p class=\"font-body text-body text-on-surface-variant\">\n        Cùng tìm quán hợp gu, không gian ấm cúng cho buổi tối trọn vẹn tại Sài Gòn.\n      </p>\n</div>\n<!-- Host Info Tactile Card -->\n<div class=\"bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex items-center gap-space-md\">\n<div class=\"relative shrink-0\">\n<img class=\"w-14 h-14 rounded-full object-cover shadow-inner\""
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/a3500cc50aef4fbab76bf4587a8f6b20",
+      "title": "Thêm địa điểm: Nhập link - GoGo",
+      "file": "projects/17315762413421369447/screens/a3500cc50aef4fbab76bf4587a8f6b20/fileEntries/html",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-gogo-cream/90 backdrop-blur-xl border-b border-neutral-200/50\">\n<div class=\"h-14 px-4 flex items-center justify-between\">\n<button aria-label=\"Quay lại\" class=\"w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-neutral-700 hover:bg-neutral-200/50 active:scale-95 transition-all\" onclick=\"window.history.back()\">\n<span class=\"material-symbols-outlined text-[24px]\">chevron_left</span>\n</button>\n<h1 class=\"font-semibold text-[17px] text-neutral-900 tracking-tight text-center\">Thêm địa điểm mới</h1>\n<button aria-label=\"Hướng dẫn trợ giúp\" class=\"w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-neutral-600 hover:bg-neutral-200/50 active:scale-95 transition-all\" id=\"btnHelp\" type=\"button\">\n<span class=\"material-symbols-outlined text-[22px]\">help_outline</span>\n</button>\n</div>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"font-semibold text-[17px] text-neutral-900 tracking-tight text-center\">Thêm địa điểm mới</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/1593725092880141532",
+      "title": "Chi tiết địa điểm v4 · Light",
+      "file": "projects/17315762413421369447/files/1593725092880141574",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-[#F6F3EE]/95 backdrop-blur-md border-b border-[#e7e1dc]/80\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-colors\" type=\"button\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight ml-1 font-bold\">Chi tiết địa điểm</h1></div><div class=\"flex items-center gap-1\"><button aria-label=\"Báo thông tin sai\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface\" type=\"button\"><span class=\"material-symbols-outlined text-[22px]\">flag</span></button><button aria-label=\"Lưu địa điểm\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-transform\" id=\"bookmark-btn\" type=\"button\"><span class=\"material-symbols-outlined text-[22px]\" id=\"bookmark-icon\" style=\"font-variation-settings: 'FILL' 0;\">bookmark_border</span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight ml-1 font-bold\">Chi tiết địa điểm</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6508707261131335802",
+      "title": "Xác nhận đề xuất GoGo AI",
+      "file": "projects/17315762413421369447/files/6508707261131336032",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/2fd3b7e365954d6db9ef612d361a1bbf",
+      "title": "Thêm địa điểm: Bước 2 - GoGo",
+      "file": "projects/17315762413421369447/screens/2fd3b7e365954d6db9ef612d361a1bbf/fileEntries/html",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bổ sung thông tin</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bổ sung thông tin</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/303754ee1bc84f31b5405ad394c7ea81",
+      "title": "Đóng góp của tôi - GoGo",
+      "file": "projects/17315762413421369447/files/5b3e1c7a08c24870bca47be8d7985de4",
+      "headers": [
+        "<header class=\"sticky top-0 z-30 bg-[#FFF8F3]/90 backdrop-blur-md px-4 py-3.5 flex items-center justify-between border-b border-[#F2E5DC]/70\">\n<!-- Nút Back tròn -->\n<button aria-label=\"Quay lại\" class=\"w-10 h-10 rounded-full bg-white border border-[#EFE5DD] shadow-sm flex items-center justify-center text-[#1A1817] hover:bg-[#FAF2EB] active:scale-95 transition-all\" type=\"button\">\n<span class=\"material-symbols-outlined text-[20px]\">arrow_back</span>\n</button>\n<!-- Tiêu đề giữa -->\n<h1 class=\"text-[17px] font-bold text-[#1A1817] tracking-tight\">Đóng góp của tôi</h1>\n<!-- Icon chuông thông báo (chấm đỏ) -->\n<button aria-label=\"Thông báo\" class=\"w-10 h-10 rounded-full bg-white border border-[#EFE5DD] shadow-sm flex items-center justify-center text-[#1A1817] hover:bg-[#FAF2EB] active:scale-95 transition-all relative\" type=\"button\">\n<span class=\"material-symbols-outlined text-[21px]\">notifications</span>\n<!-- Chấm đỏ -->\n<span class=\"absolute top-2 right-2 w-2 h-2 rounded-full bg-[#CA381F] ring-2 ring-white\"></span>\n</button>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[17px] font-bold text-[#1A1817] tracking-tight\">Đóng góp của tôi</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/17266945854767066432",
+      "title": "Chế độ đi chơi thực tế",
+      "file": "projects/17315762413421369447/files/2431588355021223004",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-[#F6F3EE]/90 backdrop-blur-xl border-b border-black/[0.04]\"><div class=\"h-14 px-margin flex items-center justify-between\"><button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 active:scale-95 transition-all\" onclick=\"history.back()\" type=\"button\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><div class=\"flex items-center gap-1.5\"><h1 class=\"font-heading text-[17px] font-bold text-on-surface tracking-tight\">Date đang diễn ra</h1><span class=\"inline-block w-2 h-2 rounded-full bg-[#CA381F] animate-pulse\"></span></div><div class=\"min-w-[44px] min-h-[44px] flex items-center justify-center\"><button aria-label=\"Tùy chọn buổi hẹn\" class=\"min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full text-on-surface hover:bg-black/5\" type=\"button\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-[17px] font-bold text-on-surface tracking-tight\">Date đang diễn ra</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/13365286817786158447",
+      "title": "Lịch sử GoGo AI",
+      "file": "projects/17315762413421369447/files/13365286817786158757",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/12897203841795461814",
+      "title": "Tạo kèo: Đối tượng - GoGo",
+      "file": "projects/17315762413421369447/files/12897203841795461336",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-sm flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Occasion</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Occasion</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6461691912362925009",
+      "title": "Màu chủ đề - GoGo",
+      "file": "projects/17315762413421369447/files/6461691912362925179",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/12437d2c4f4d415bbd29d6dbae0defe5",
+      "title": "Chọn khu vực - GoGo",
+      "file": "projects/17315762413421369447/files/18171912755213133893",
+      "headers": [
+        "<header class=\"w-full pt-3 px-8 flex justify-between items-center z-10 shrink-0 select-none opacity-40\">\n<span class=\"text-sm font-semibold tracking-tight text-white pl-1\">12:03</span>\n<div class=\"notch mx-auto\"></div>\n<div class=\"flex items-center gap-1.5 text-xs text-white\">\n<i class=\"fa-solid fa-signal text-[11px]\"></i>\n<i class=\"fa-solid fa-wifi text-[12px]\"></i>\n<i class=\"fa-solid fa-battery-full text-[14px]\"></i>\n</div>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[21px] font-bold text-white tracking-tight leading-snug mb-5\">\n        Chào Max Nguyen! Đi đâu hôm nay? 👋\n      </h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/9414368683072081120",
+      "title": "Đăng nhập để dùng GoGo AI",
+      "file": "projects/17315762413421369447/files/9414368683072079450",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Trợ Lý Ai Lịch Trình</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/2280316372394811214",
+      "title": "Check-in điểm này - GoGo",
+      "file": "projects/17315762413421369447/files/2280316372394810424",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/7359368928226437041",
+      "title": "Tạo kèo: Mood & Tạo phòng - GoGo",
+      "file": "projects/17315762413421369447/files/7359368928226435575",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-sm flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Preferences</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Preferences</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/14694142646341612511",
+      "title": "Tạo kèo: Thời gian - GoGo",
+      "file": "projects/17315762413421369447/files/18336634336978403769",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-sm flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Schedule</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Schedule</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/4327819990303034231",
+      "title": "Vào phòng bằng mã - GoGo",
+      "file": "projects/17315762413421369447/files/4327819990303033229",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Vao Phong Bang Ma</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Vao Phong Bang Ma</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/1141223353674973688",
+      "title": "Trang chủ GoGo",
+      "file": "projects/17315762413421369447/files/3665050640789457247",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(33,31,28,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><div class=\"flex items-center gap-1.5\"><div class=\"w-8 h-8 rounded-xl bg-gradient-to-br from-[#ca381f] to-[#a71e07] flex items-center justify-center text-on-primary shadow-sm\"><span class=\"material-symbols-outlined text-[19px]\" style=\"font-variation-settings: 'FILL' 1;\">explore</span></div><span class=\"font-heading text-heading text-[#a71e07] font-bold tracking-tight\">GoGo</span></div><span class=\"font-caption text-caption text-on-surface-variant font-medium ml-space-xs\">•</span><span class=\"font-small text-small text-on-surface-variant font-semibold truncate max-w-[120px]\">Trang Chủ</span></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tìm kiếm\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant active:bg-surface-container-high transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">search</span></button><button aria-label=\"Thông báo\" class=\"relative w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant active:bg-surface-container-high transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">notifications</span><span class=\"absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-surface\"></span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface font-bold tracking-tight\">\n        Chào Linh! Đi đâu hôm nay? 👋\n      </h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/11113939438694287499",
+      "title": "Chi tiết địa điểm v4 · Không có ảnh · Light",
+      "file": "projects/17315762413421369447/files/11113939438694289217",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-[#F6F3EE]/95 backdrop-blur-md border-b border-[#e7e1dc]/80\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-colors\" type=\"button\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight ml-1 font-bold\">Chi tiết địa điểm</h1></div><div class=\"flex items-center gap-1\"><button aria-label=\"Báo thông tin sai\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface\" type=\"button\"><span class=\"material-symbols-outlined text-[22px]\">flag</span></button><button aria-label=\"Lưu địa điểm\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-transform\" id=\"bookmark-btn\" type=\"button\"><span class=\"material-symbols-outlined text-[22px]\" id=\"bookmark-icon\" style=\"font-variation-settings: 'FILL' 0;\">bookmark_border</span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight ml-1 font-bold\">Chi tiết địa điểm</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10235267990003409490",
+      "title": "Chờ cả nhóm chọn địa điểm · Light",
+      "file": "projects/17315762413421369447/files/10235267990003411324",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-[#F6F3EE]/95 backdrop-blur-md border-b border-[#e7e1dc]/80\">\n    <div class=\"h-14 px-4 flex items-center\">\n      <button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-colors\" onclick=\"window.history.back()\" type=\"button\">\n        <span class=\"material-symbols-outlined text-[24px]\">arrow_back</span>\n      </button>\n      <h1 class=\"text-[17px] leading-[22px] text-on-surface tracking-tight font-bold ml-1\">Chờ cả nhóm</h1>\n    </div>\n  </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[17px] leading-[22px] text-on-surface tracking-tight font-bold ml-1\">Chờ cả nhóm</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/9dcc2716e2d04f53a869b059a2738268",
+      "title": "Đóng góp của tôi - GoGo",
+      "file": "projects/17315762413421369447/files/3609f931ec2b4ffcaae31dd5cc22d0bb",
+      "headers": [
+        "<header class=\"sticky top-0 z-30 bg-[#FFF8F3]/90 backdrop-blur-md px-4 py-3.5 flex items-center justify-between border-b border-[#F2E5DC]/70\">\n      <!-- Nút Back tròn -->\n      <button type=\"button\" aria-label=\"Quay lại\" class=\"w-10 h-10 rounded-full bg-white border border-[#EFE5DD] shadow-sm flex items-center justify-center text-[#1A1817] hover:bg-[#FAF2EB] active:scale-95 transition-all\">\n        <span class=\"material-symbols-outlined text-[20px]\">arrow_back</span>\n      </button>\n\n      <!-- Tiêu đề giữa -->\n      <h1 class=\"text-[17px] font-bold text-[#1A1817] tracking-tight\">Đóng góp của tôi</h1>\n\n      <!-- Icon chuông thông báo (chấm đỏ) -->\n      <button type=\"button\" aria-label=\"Thông báo\" class=\"w-10 h-10 rounded-full bg-white border border-[#EFE5DD] shadow-sm flex items-center justify-center text-[#1A1817] hover:bg-[#FAF2EB] active:scale-95 transition-all relative\">\n        <span class=\"material-symbols-outlined text-[21px]\">notifications</span>\n        <!-- Chấm đỏ -->\n        <span class=\"absolute top-2 right-2 w-2 h-2 rounded-full bg-[#CA381F] ring-2 ring-white\"></span>\n      </button>\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[17px] font-bold text-[#1A1817] tracking-tight\">Đóng góp của tôi</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/14107386424034028971",
+      "title": "Onboarding 1 - GoGo",
+      "file": "projects/17315762413421369447/files/14107386424034028997",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-display text-display text-on-surface tracking-tight mb-space-sm\">\n      Đỡ mất nửa tiếng hỏi đi đâu?\n    </h1>",
+      "leadingHeadingContext": "aption text-outline\">Trước đây</span>\n<span class=\"font-small text-small text-on-surface font-medium\">30p lướt chat</span>\n</div>\n</div>\n<div class=\"flex items-center justify-center shrink-0 text-outline-variant\">\n<span class=\"material-symbols-outlined text-[16px]\">arrow_forward</span>\n</div>\n<div class=\"flex-1 bg-on-tertiary-container/30 rounded-lg p-space-sm flex items-center gap-space-xs\">\n<span class=\"material-symbols-outlined text-tertiary text-[18px]\">verified</span>\n<div class=\"flex flex-col\">\n<span class=\"font-caption text-caption text-tertiary\">Với GoGo</span>\n<span class=\"font-small text-small text-on-surface font-medium\">Chốt sau 1 chạm</span>\n</div>\n</div>\n</div>\n</div>\n</div>\n<!-- Content Section -->\n<div class=\"mt-space-xl flex flex-col items-center text-center px-space-xs\">\n<h1 class=\"font-display text-display text-on-surface tracking-tight mb-space-sm\">\n      Đỡ mất nửa tiếng hỏi đi đâu?\n    </h1>\n<p class=\"font-body text-body text-on-surface-variant max-w-[320px]\">\n      Không còn cảnh hỏi nhau ăn gì cũng được rồi tranh cãi. GoGo giúp chốt điểm hẹn trong vài phút.\n    </p>\n</div>\n<!-- Micro Interaction Carousel Dots -->\n<div aria-label=\"Tiến trình giới thiệu\" class=\"flex items-center justify-center gap-space-xs mt-space-xl py-space-xs\">\n<!-- Active Step Dot (Terr"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/5767841823205918354",
+      "title": "Chọn sở thích - GoGo",
+      "file": "projects/17315762413421369447/files/5767841823205918860",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Preference Selection</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Preference Selection</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10756253768045112131",
+      "title": "Thêm địa điểm mới - GoGo",
+      "file": "projects/17315762413421369447/files/15752337466060138129",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bổ sung thông tin</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Bổ sung thông tin</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6534318264704160088",
+      "title": "Tạo kèo: Chế độ nhóm - GoGo",
+      "file": "projects/17315762413421369447/files/6534318264704163342",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-sm flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Occasion</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate\">Create Room Occasion</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/18391407100350810666",
+      "title": "Match rồi! - GoGo",
+      "file": "projects/17315762413421369447/files/18391407100350809400",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-display text-display text-on-surface mb-space-xs\">\n      Match rồi! 🎉\n    </h1>",
+      "leadingHeadingContext": "rtrait of a stylish young Vietnamese man in a cozy minimalist cafe setting, warm ambient lighting\" src=\"https://lh3.googleusercontent.com/aida-public/AB6AXuCxcrhWT6FoFEASouQl-i5-xBkRcfNjqJBBvlGmVSzvvtA8vyfuoeZoPu43E2_FRDBp3vFeAZRBf7WIwj7w5iOUTHhzZdpFSkOuuN_KXlCgp7sjR5qKQIyx8mYmoOc46kXOWCGeiqKurtWkpaKVTjTj-J9UM2Q3Y8y8nKMygPQ4w470_dFFP_fai8qMKjWggC1sevKcjHCh3fOk3pttinLLqkttCAfvWB8So_1OKXA\"/>\n</div>\n</div>\n<!-- Match Badge -->\n<div class=\"inline-flex items-center gap-space-xs px-space-md py-1 rounded-full bg-[#4FAF86] text-on-primary shadow-sm mb-space-sm\">\n<span class=\"material-symbols-outlined text-[16px]\" style=\"font-variation-settings: 'FILL' 1;\">verified</span>\n<span class=\"font-caption text-caption font-semibold tracking-wide uppercase\">Trùng khớp 100%</span>\n</div>\n<!-- Main Title -->\n<h1 class=\"font-display text-display text-on-surface mb-space-xs\">\n      Match rồi! 🎉\n    </h1>\n<p class=\"font-body text-body text-on-surface-variant max-w-xs\">\n      Hai đứa có nhiều điểm chung hơn nghĩ đó.\n    </p>\n</div>\n<!-- Matched Place Preview Card (Tactile Solid Surface) -->\n<div class=\"w-full bg-surface-container-lowest rounded-[20px] shadow-sm overflow-hidden flex flex-col mb-space-xl\">\n<!-- Image with overlay tags -->\n<div class=\"relative w-full aspect-[16/10] overflow-hidden bg-surf"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/bef0f4bd44ba45d6aeef17000649f26a",
+      "title": "Đóng góp của tôi v2 · Đánh giá - GoGo",
+      "file": "projects/17315762413421369447/files/e52cd45c1d934580be7299c77f7cdac6",
+      "headers": [
+        "<header class=\"w-full px-4 pt-1 pb-3 flex items-center justify-between\">\n      <button class=\"w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-700 shadow-sm active:scale-95 transition-transform\" aria-label=\"Quay lại\">\n        <svg class=\"w-5 h-5\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\" />\n        </svg>\n      </button>\n      <h1 class=\"text-lg font-bold text-gray-900 tracking-tight\">Đóng góp của tôi</h1>\n      <button class=\"w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-700 shadow-sm relative active:scale-95 transition-transform\" aria-label=\"Thông báo\">\n        <svg class=\"w-5 h-5\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9\" />\n        </svg>\n        <span class=\"absolute top-2 right-2 w-2 h-2 rounded-full bg-[#CE391B] ring-2 ring-white\"></span>\n      </button>\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-lg font-bold text-gray-900 tracking-tight\">Đóng góp của tôi</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/9700245316043548900",
+      "title": "Cá nhân - GoGo",
+      "file": "projects/17315762413421369447/files/8526199056640379037",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><span class=\"font-title text-title text-primary tracking-tight font-bold\">GoGo</span><span class=\"text-outline-variant font-caption text-caption\">•</span><h1 class=\"font-heading text-heading text-on-surface capitalize\">Cá Nhân</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Thông báo\" class=\"relative w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[24px]\">notifications</span><span class=\"absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-primary\"></span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface capitalize\">Cá Nhân</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6469358302419743750",
+      "title": "Chọn theo ý bạn",
+      "file": "projects/17315762413421369447/files/6366793109063509743",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-[#F6F3EE]/80 backdrop-blur-xl pt-safe border-b border-[#e7e1dc]/60 shadow-[0_2px_12px_rgba(29,27,24,0.03)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs flex items-center justify-center rounded-full text-on-surface active:bg-surface-container-high transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><div class=\"flex flex-col\"><h1 class=\"font-heading text-heading text-on-surface font-semibold tracking-tight\">Chọn theo ý bạn</h1><p class=\"font-caption text-caption text-on-surface-variant\">GoGo sẽ tìm phần giao nhau</p></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface font-semibold tracking-tight\">Chọn theo ý bạn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/12608826252113319448",
+      "title": "Trò chuyện GoGo AI",
+      "file": "projects/17315762413421369447/files/12608826252113320646",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#F6F3EE]/90 backdrop-blur-xl border-b border-[#e5dfd5]\">\n<div class=\"h-14 px-4 flex items-center justify-between\">\n<div class=\"flex items-center gap-2\">\n<button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-1 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high/60 active:scale-95 transition-all\" type=\"button\">\n<span class=\"material-symbols-outlined text-[24px]\">arrow_back</span>\n</button>\n<div class=\"flex items-center gap-2\">\n<div class=\"w-7 h-7 rounded-full bg-secondary flex items-center justify-center shadow-sm\">\n<span class=\"material-symbols-outlined text-[16px] text-white\" style=\"font-variation-settings: 'FILL' 1;\">auto_awesome</span>\n</div>\n<div class=\"flex flex-col\">\n<div class=\"flex items-center gap-1.5\">\n<h1 class=\"text-[17px] font-bold tracking-tight text-on-surface\">GoGo AI</h1>\n<span class=\"px-1.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold tracking-wide uppercase\">Trợ lý</span>\n</div>\n</div>\n</div>\n</div>\n<div class=\"flex items-center gap-1\">\n<button aria-label=\"Lịch sử chat\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high/60 active:scale-95 transition-all\" title=\"Lịch sử trò chuyện\" type=\"button\">\n<span class=\"material-symbols-outlined text-[22px]\">history</span>\n</button>\n<button aria-label=\"Tùy chọn khác\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high/60 active:scale-95 transition-all\" title=\"Tùy chọn\" type=\"button\">\n<span class=\"material-symbols-outlined text-[22px]\">more_vert</span>\n</button>\n</div>\n</div>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"text-[17px] font-bold tracking-tight text-on-surface\">GoGo AI</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/433670407807033328",
+      "title": "Mặc định khi tạo kèo - GoGo",
+      "file": "projects/17315762413421369447/files/433670407807030294",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/1811320703148106488",
+      "title": "Không tìm thấy trang - GoGo",
+      "file": "projects/17315762413421369447/files/5675463183525064555",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-heading text-body font-bold text-on-surface tracking-tight truncate leading-tight\">Khám phá địa điểm</h1>",
+      "leadingHeadingContext": "ody {\n      min-height: max(884px, 100dvh);\n    }\n  </style>\n  </head><body class=\"bg-surface font-body text-body text-on-surface min-h-screen pt-safe pb-safe flex flex-col\"><main class=\"flex-1 flex flex-col relative w-full bg-surface\"><!-- Top App Bar Navigation -->\n<div class=\"sticky top-0 z-30 bg-surface/95 backdrop-blur-md px-margin py-space-sm border-b border-surface-container flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button onclick=\"window.history.back()\" class=\"w-10 h-10 rounded-full bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-on-surface transition-colors active:scale-95 shrink-0\"><span class=\"material-symbols-outlined text-[20px]\">arrow_back</span></button><div class=\"flex flex-col min-w-0\"><h1 class=\"font-heading text-body font-bold text-on-surface tracking-tight truncate leading-tight\">Khám phá địa điểm</h1><div class=\"flex items-center\"><button class=\"inline-flex items-center gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer min-w-0 -ml-0.5\"><span class=\"material-symbols-outlined text-primary text-[14px] shrink-0\">location_on</span><span class=\"font-caption text-caption font-semibold truncate max-w-[130px] text-on-surface\">TP. Hồ Chí Minh</sp"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10697422059769136268",
+      "title": "Onboarding 2 - GoGo",
+      "file": "projects/17315762413421369447/files/10697422059769137762",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-display text-[24px] leading-[30px] font-bold text-[#211F1C] tracking-tight mb-space-xs\">\n      Mỗi người chọn riêng\n    </h1>",
+      "leadingHeadingContext": "stify-center text-outline shadow-sm active:scale-90 transition-transform\">\n<span class=\"material-symbols-outlined text-[20px]\">close</span>\n</div>\n<div class=\"w-10 h-10 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center shadow-sm active:scale-90 transition-transform\">\n<span class=\"material-symbols-outlined text-[20px]\">bookmark</span>\n</div>\n<div class=\"w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md active:scale-95 transition-transform\">\n<span class=\"material-symbols-outlined text-[24px]\" style=\"font-variation-settings: 'FILL' 1;\">favorite</span>\n</div>\n</div>\n</div>\n</div>\n</div>\n<!-- Narrative Content & Onboarding Typography -->\n<div class=\"flex flex-col items-center text-center px-space-sm mt-space-sm\">\n<h1 class=\"font-display text-[24px] leading-[30px] font-bold text-[#211F1C] tracking-tight mb-space-xs\">\n      Mỗi người chọn riêng\n    </h1>\n<p class=\"font-body text-body text-[#746E68] max-w-xs leading-relaxed\">\n      Tự do quẹt chọn quán ăn, quán cà phê mình thích. Không ai phải chiều theo ai, sở thích được giữ riêng tư.\n    </p>\n</div>\n<!-- Step Indicator & Action Trigger Bottom Tray -->\n<div class=\"flex flex-col items-center w-full mt-space-xl pt-space-xs pb-space-sm\">\n<!-- Step Indicator: "
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/17818426877502953936",
+      "title": "Bảng màu · Dark",
+      "file": "projects/17315762413421369447/files/17818426877502953362",
+      "headers": [],
+      "firstHeading": "<h1 class=\"text-[22px] font-bold tracking-tight text-text-main mb-2\">Bảng màu</h1>",
+      "leadingHeadingContext": "F6B6B\",\n  \"danger-soft\": \"#4A1A20\",\n  \"danger-text\": \"#FF8A94\",\n  \"info\": \"#7B8CFF\",\n  \"info-soft\": \"#2F2A55\",\n  \"info-text\": \"#A99DF5\"\n}, fontFamily: { \"sans\": [\"Inter\", \"sans-serif\"] } } } };</script><style>\n    body {\n      min-height: max(884px, 100dvh);\n    }\n  </style>\n  <style id=\"phone-frame\">\nhtml{background:#111}\nbody{width:390px!important;max-width:390px!important;margin:0 auto!important;position:relative;overflow-x:hidden}\n.fixed{left:calc(50% - 195px)!important;right:auto!important;width:390px!important;max-width:390px!important;transform:none!important}\n.sticky{max-width:390px}\n</style>\n<title>Bảng màu · Dark</title>\n</head><body class=\"bg-canvas font-sans text-text-main antialiased\"><main class=\"flex flex-col relative w-full pt-safe pb-safe min-h-screen px-4 py-6 space-y-4\"><h1 class=\"text-[22px] font-bold tracking-tight text-text-main mb-2\">Bảng màu</h1><!-- Card 1: Cam --><div class=\"bg-card rounded-2xl p-4 shadow-sm space-y-3\"><div class=\"text-[15px] font-semibold text-text-main\">Cam</div><div class=\"flex items-center gap-2 whitespace-nowrap overflow-x-auto\"><button class=\"h-8 px-4 rounded-full bg-cam-primary text-white text-[13px] font-medium shrink-0 flex items-center justify-center\" type=\"button\">Chính</button><button class=\"h-8 px-4 rounded-full bg-cam-press"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/9fd8f655fad54c66b298cf16f3003300",
+      "title": "Đã lưu · Thành phố - GoGo",
+      "file": "projects/17315762413421369447/files/5487d9f8dc7b485383e798e205ad6720",
+      "headers": [
+        "<header class=\"sticky top-0 z-40 bg-[#FAF7F2]/95 backdrop-blur-md px-4 pt-3 pb-3 border-b border-neutral-200/50 flex items-center justify-between\">\n<div class=\"flex items-center gap-3\">\n<!-- Back button (44x44 tap target) -->\n<button aria-label=\"Quay lại\" class=\"w-11 h-11 rounded-full bg-white border border-neutral-200/80 shadow-xs flex items-center justify-center text-neutral-800 active:scale-95 transition-transform hover:bg-neutral-50\" type=\"button\">\n<i class=\"fa-solid fa-chevron-left text-base\"></i>\n</button>\n<div>\n<div class=\"flex items-center gap-2\">\n<h1 class=\"text-lg font-bold text-neutral-900 leading-tight\">Thành phố Hà Nội</h1>\n<span class=\"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-600 border border-brand-100\">\n              12 địa điểm\n            </span>\n</div>\n<p class=\"text-[11px] text-neutral-500 font-medium\">Danh sách các địa điểm bạn đã lưu</p>\n</div>\n</div>\n<!-- Bell Icon (no avatar) -->\n<button aria-label=\"Thông báo\" class=\"w-11 h-11 rounded-full bg-white border border-neutral-200/80 shadow-xs flex items-center justify-center text-neutral-800 active:scale-95 transition-transform hover:bg-neutral-50 relative\" type=\"button\">\n<i class=\"fa-regular fa-bell text-lg\"></i>\n<span class=\"absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-brand-500 ring-2 ring-white\"></span>\n</button>\n</header>"
+      ],
+      "firstHeading": "<h1 class=\"text-lg font-bold text-neutral-900 leading-tight\">Thành phố Hà Nội</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/560f5d68197345a29926106cfce6c3b4",
+      "title": "Chi tiết địa điểm · Đang chờ duyệt - GoGo",
+      "file": "projects/17315762413421369447/files/fccabcb668904a44b7b0885779a81c08",
+      "headers": [
+        "<header class=\"absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 pt-11 pb-3 pointer-events-none\">\n      <button onclick=\"history.back()\" aria-label=\"Quay lại\" class=\"pointer-events-auto w-10 h-10 rounded-full bg-white/80 backdrop-blur-md shadow-md flex items-center justify-center text-[#1E1E1E] hover:bg-white transition-all active:scale-95 border border-black/5\">\n        <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-5 h-5\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2.5\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\" />\n        </svg>\n      </button>\n\n      <!-- Center status pill for context -->\n      <div class=\"pointer-events-auto px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-white text-[11px] font-semibold tracking-wide flex items-center gap-1.5 shadow-sm\">\n        <span class=\"w-2 h-2 rounded-full bg-amber-400 animate-pulse\"></span>\n        Hồ sơ đóng góp\n      </div>\n\n      <div class=\"w-10\"></div> <!-- Placeholder to balance layout (KHÔNG có nút Lưu) -->\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-xl font-extrabold text-[#1E1E1E] tracking-tight\">Kem Tràng Tiền</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/14190802583642200574",
+      "title": "Đánh giá sau buổi hẹn",
+      "file": "projects/17315762413421369447/files/14190802583642200712",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container transition-colors\" onclick=\"history.back()\" type=\"button\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><div class=\"flex items-center gap-space-xs ml-space-xs\"><span class=\"font-display text-heading tracking-tight text-primary font-bold\">GoGo</span><span class=\"text-outline-variant font-caption\">•</span><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[180px]\">Đánh Giá Sau Buổi Hẹn</h1></div></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[180px]\">Đánh Giá Sau Buổi Hẹn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/2053558106923022696",
+      "title": "Bạn đang muốn gì hơn · Dark",
+      "file": "projects/17315762413421369447/files/2053558106923023542",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-dark-canvas/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between gap-space-sm\"><div class=\"flex items-center gap-space-xs flex-1 min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs flex items-center justify-center rounded-full text-dark-text-primary hover:bg-dark-raised transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"text-heading font-heading truncate text-dark-text-primary\">Chi Tiết Địa Điểm</h1></div><div class=\"flex items-center gap-space-xs shrink-0\"><button aria-label=\"Thao tác thêm\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-dark-text-secondary hover:text-dark-text-primary hover:bg-dark-raised transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_vert</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"text-heading font-heading truncate text-dark-text-primary\">Chi Tiết Địa Điểm</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/11355754713814355549",
+      "title": "Lịch trình cuộc hẹn",
+      "file": "projects/17315762413421369447/files/3826779792687018847",
+      "headers": [
+        "<header class=\"fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><span class=\"font-display text-heading tracking-tight text-primary font-bold\">GoGo</span><span class=\"text-outline-variant font-caption\">•</span><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[200px]\">Lịch Trình Cuộc Hẹn</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Thông báo\" class=\"relative w-11 h-11 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors\"><span class=\"material-symbols-outlined text-[24px]\">notifications</span><span class=\"absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-primary ring-2 ring-surface\"></span></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[200px]\">Lịch Trình Cuộc Hẹn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6910860286766835350",
+      "title": "Tạo kèo: Chọn ngày giờ · Light",
+      "file": "projects/17315762413421369447/files/6910860286766836720",
+      "headers": [],
+      "firstHeading": null,
+      "leadingHeadingContext": null
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/5cd4c60b8f2e4236bb8d8b577befd489",
+      "title": "Đã lưu · Thành phố - GoGo",
+      "file": "projects/17315762413421369447/files/024b8300a7414b7f96fc3fed8f54df7e",
+      "headers": [
+        "<header class=\"sticky top-0 z-40 bg-[#FAF7F2]/95 backdrop-blur-md px-4 pt-3 pb-3 border-b border-neutral-200/50 flex items-center justify-between\">\n      <div class=\"flex items-center gap-3\">\n        <!-- Back button (44x44 tap target) -->\n        <button type=\"button\" aria-label=\"Quay lại\" class=\"w-11 h-11 rounded-full bg-white border border-neutral-200/80 shadow-xs flex items-center justify-center text-neutral-800 active:scale-95 transition-transform hover:bg-neutral-50\">\n          <i class=\"fa-solid fa-chevron-left text-base\"></i>\n        </button>\n        <div>\n          <div class=\"flex items-center gap-2\">\n            <h1 class=\"text-lg font-bold text-neutral-900 leading-tight\">Thành phố Hà Nội</h1>\n            <span class=\"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-600 border border-brand-100\">\n              12 địa điểm\n            </span>\n          </div>\n          <p class=\"text-[11px] text-neutral-500 font-medium\">Danh sách các địa điểm bạn đã lưu</p>\n        </div>\n      </div>\n\n      <!-- Bell Icon (no avatar) -->\n      <button type=\"button\" aria-label=\"Thông báo\" class=\"w-11 h-11 rounded-full bg-white border border-neutral-200/80 shadow-xs flex items-center justify-center text-neutral-800 active:scale-95 transition-transform hover:bg-neutral-50 relative\">\n        <i class=\"fa-regular fa-bell text-lg\"></i>\n        <span class=\"absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-brand-500 ring-2 ring-white\"></span>\n      </button>\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-lg font-bold text-neutral-900 leading-tight\">Thành phố Hà Nội</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10863076915262487091",
+      "title": "Chỉnh sửa phòng hẹn - GoGo",
+      "file": "projects/17315762413421369447/files/10863076915262485697",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Room Title Schedule Editor Sheet</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Room Title Schedule Editor Sheet</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/18282881640925513825",
+      "title": "Thoát tạo kèo? · Light",
+      "file": "projects/17315762413421369447/files/18282881640925513891",
+      "headers": [],
+      "firstHeading": null,
+      "leadingHeadingContext": null
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/4978586829104193111",
+      "title": "Kết quả trùng khớp & Vote",
+      "file": "projects/17315762413421369447/files/4978586829104193093",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(33,31,28,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs flex items-center justify-center rounded-full text-on-surface active:bg-surface-container-high transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><span class=\"font-title text-title font-bold text-primary tracking-tight\">GoGo</span><h1 class=\"font-heading text-heading text-on-surface font-semibold tracking-tight truncate max-w-[170px]\">Kết quả trùng khớp</h1></div><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant active:bg-surface-container-high transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><button aria-label=\"Hồ sơ người dùng\" class=\"w-11 h-11 flex items-center justify-center rounded-full p-0 active:opacity-80 transition-opacity\"><img alt=\"Profile\" class=\"w-8 h-8 rounded-full object-cover\" src=\"https://lh3.googleusercontent.com/aida-public/AB6AXuCPDnlqz2Qic2pO_vhhXh4FtZAdRgaPnbTV0CGNIdWLuKemT1tjOUh82bJuTuJ-2GkPlXLfCtASB8Zf3e421lMzYP5c6gHN38QFKwj32gwJNt5hsM8pIzKDftcyhgq6K26BgqnFWP9YgwTFLxO-e7eH2DzNOLEnX1yfNU_cyLmfFB4yzpDO38e5hTl-OWMvoF3RhB1Izq4My3G8Lb8wsA58AT_QW4SsV1EopTsG_jA\"></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface font-semibold tracking-tight truncate max-w-[170px]\">Kết quả trùng khớp</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/2792671546852313500",
+      "title": "Quản lý phòng - GoGo",
+      "file": "projects/17315762413421369447/files/2792671546852313810",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Quan Ly Phong Host Settings</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Quan Ly Phong Host Settings</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10129463220243348418",
+      "title": "Vào phòng bằng mã - GoGo",
+      "file": "projects/17315762413421369447/files/10129463220243348072",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Vao Phong Bang Ma</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Vao Phong Bang Ma</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/3595831598222330598",
+      "title": "Đăng nhập / Đăng ký - GoGo",
+      "file": "projects/17315762413421369447/files/3595831598222331244",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm min-w-0\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-sm flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate\">Auth Phone Entry</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate\">Auth Phone Entry</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/18430637797999520424",
+      "title": "Phòng chờ nhóm (Khách) - GoGo",
+      "file": "projects/17315762413421369447/files/18430637797999520362",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 -ml-space-sm flex items-center justify-center text-on-surface hover:text-primary active:bg-surface-container rounded-full transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Room Lobby Guest Member</h1></div><div class=\"flex items-center gap-space-sm\"><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight font-semibold line-clamp-1\">Room Lobby Guest Member</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10287728079123409484",
+      "title": "Phòng hẹn đôi - GoGo",
+      "file": "projects/17315762413421369447/files/10287728079123409054",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><div class=\"w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-display text-heading\">G</div><span class=\"font-title text-title text-on-surface tracking-tight font-semibold\">Room Lobby Couple</span></div><div class=\"flex items-center gap-space-sm\"><button class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface active:bg-surface-container transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">notifications</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-title text-title text-on-surface mt-space-xs\">Giờ kéo người kia vào</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/11616575349645775674",
+      "title": "Tạo phòng hẹn",
+      "file": "projects/17315762413421369447/files/11616575349645778416",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(33,31,28,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs flex items-center justify-center rounded-full text-on-surface active:bg-surface-container-high transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><span class=\"font-heading text-title font-bold text-primary tracking-tight\">GoGo</span><h1 class=\"font-heading text-heading text-on-surface font-semibold tracking-tight truncate max-w-[170px]\">Tạo phòng hẹn</h1></div><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant active:bg-surface-container-high transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><button aria-label=\"Hồ sơ người dùng\" class=\"w-11 h-11 flex items-center justify-center rounded-full p-0 active:opacity-80 transition-opacity\"><img alt=\"Profile\" class=\"w-8 h-8 rounded-full object-cover\" src=\"https://lh3.googleusercontent.com/aida-public/AB6AXuCPDnlqz2Qic2pO_vhhXh4FtZAdRgaPnbTV0CGNIdWLuKemT1tjOUh82bJuTuJ-2GkPlXLfCtASB8Zf3e421lMzYP5c6gHN38QFKwj32gwJNt5hsM8pIzKDftcyhgq6K26BgqnFWP9YgwTFLxO-e7eH2DzNOLEnX1yfNU_cyLmfFB4yzpDO38e5hTl-OWMvoF3RhB1Izq4My3G8Lb8wsA58AT_QW4SsV1EopTsG_jA\"></button></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface font-semibold tracking-tight truncate max-w-[170px]\">Tạo phòng hẹn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/10219812896993323843",
+      "title": "Liên kết không còn dùng được - GoGo",
+      "file": "projects/17315762413421369447/files/10219812896993321809",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-title text-title text-on-surface mb-space-sm font-semibold tracking-tight\">\n      Liên kết không còn dùng được\n    </h1>",
+      "leadingHeadingContext": "ixed/40 blur-2xl pointer-events-none\"></div>\n<!-- Tactile Icon Badge with Broken Chain Motif -->\n<div class=\"relative mb-space-lg\">\n<div class=\"w-20 h-20 rounded-full bg-surface-container flex items-center justify-center shadow-sm\">\n<div class=\"w-14 h-14 rounded-full bg-primary-fixed flex items-center justify-center\">\n<span class=\"material-symbols-outlined text-primary text-[32px] select-none\" style=\"font-variation-settings: 'FILL' 1;\">\n            link_off\n          </span>\n</div>\n</div>\n<!-- Micro-accent floating badge -->\n<div class=\"absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-surface-container-lowest shadow flex items-center justify-center\">\n<span class=\"material-symbols-outlined text-error text-[16px]\">\n          priority_high\n        </span>\n</div>\n</div>\n<!-- Main Title -->\n<h1 class=\"font-title text-title text-on-surface mb-space-sm font-semibold tracking-tight\">\n      Liên kết không còn dùng được\n    </h1>\n<!-- Editorial Explanation -->\n<p class=\"font-body text-body text-on-surface-variant max-w-xs leading-relaxed mb-space-xl\">\n      Đường dẫn tham gia phòng hẹn có thể đã bị chủ phòng thu hồi, thay đổi hoặc không còn tồn tại trên GoGo.\n    </p>\n<!-- Tactile Diagnostic Card (Structured without borders) -->\n<div class=\"w-full rounded-lg bg-surface-container-low p-s"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/14017508325498846188",
+      "title": "Splash · Light",
+      "file": "projects/17315762413421369447/files/14017508325498844822",
+      "headers": [],
+      "firstHeading": "<h1 class=\"font-heading font-bold text-[38px] leading-[44px] text-primary-container tracking-tight\">\n        GoGo\n      </h1>",
+      "leadingHeadingContext": "\" r=\"4\" stroke=\"#ca381f\" fill=\"none\" opacity=\"0\"/>\n          <g class=\"pin-group-3\">\n            <ellipse cx=\"94.4\" cy=\"273.1\" rx=\"3.5\" ry=\"1.4\" fill=\"#1d1b18\" fill-opacity=\"0.12\"/>\n            <path d=\"M94.4 273.1 C94.4 273.1 88.4 266.6 88.4 262.6 C88.4 259.3 91.10000000000001 256.6 94.4 256.6 C97.7 256.6 100.4 259.3 100.4 262.6 C100.4 266.6 94.4 273.1 94.4 273.1 Z\" fill=\"#ca381f\"/>\n            <circle cx=\"94.4\" cy=\"262.6\" r=\"2\" fill=\"#ffffff\"/>\n            <text x=\"103.4\" y=\"265.6\" font-family=\"'Inter', sans-serif\" font-size=\"9\" font-weight=\"500\" fill=\"#5a413b\" letter-spacing=\"0.01em\">TP.HCM</text>\n          </g>\n        </g>\n      </svg>\n    </label>\n\n    <!-- Wordmark & Tagline: Reveals after 1.0s -->\n    <div class=\"anim-brand-intro flex flex-col items-center text-center mt-8\">\n      <h1 class=\"font-heading font-bold text-[38px] leading-[44px] text-primary-container tracking-tight\">\n        GoGo\n      </h1>\n      <p class=\"font-body font-medium text-[17px] leading-[22px] text-on-surface mt-2 tracking-[-0.01em]\">\n        Gợi ý điểm đến cho bạn\n      </p>\n    </div>\n\n    <!-- handoff to next screen at 1.5s -->\n  </main>\n\n</body>\n</html>\n"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/16408752368138891559",
+      "title": "Sửa lộ trình - GoGo",
+      "file": "projects/17315762413421369447/files/16408752368138894189",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tạo Lịch Hẹn</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/17016885611051333911",
+      "title": "Date xong rồi! · Light",
+      "file": "projects/17315762413421369447/files/17016885611051335537",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-14 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-xs\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 -ml-space-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all\" onclick=\"window.history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back_ios_new</span></button><h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tổng kết</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Chia sẻ\" class=\"w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all\"><span class=\"material-symbols-outlined text-[22px]\">share</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface tracking-tight truncate max-w-[220px]\">Tổng kết</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/2173455576639071118",
+      "title": "Đánh giá của tôi · Light",
+      "file": "projects/17315762413421369447/files/2173455576639071428",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Đánh giá của tôi</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Đánh giá của tôi</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/6458166590678622329",
+      "title": "Quyền và dữ liệu - GoGo",
+      "file": "projects/17315762413421369447/files/6458166590678622615",
+      "headers": [
+        "<header class=\"fixed top-0 inset-x-0 z-50 pt-safe bg-[#f6f3ee]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]\"><div class=\"h-16 px-margin flex items-center justify-between\"><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Quay lại\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-variant/40 transition-colors\" onclick=\"history.back()\"><span class=\"material-symbols-outlined text-[24px]\">arrow_back</span></button><h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1></div><div class=\"flex items-center gap-space-sm\"><button aria-label=\"Tùy chọn\" class=\"w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors\"><span class=\"material-symbols-outlined text-[22px]\">more_horiz</span></button><div class=\"w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0\"><span class=\"material-symbols-outlined text-on-primary text-[18px]\">person</span></div></div></div></header>"
+      ],
+      "firstHeading": "<h1 class=\"font-heading text-heading text-on-surface truncate max-w-[200px]\">Cài Đặt &amp; Thông Báo</h1>"
+    },
+    {
+      "screen": "projects/17315762413421369447/screens/12774f9e0fe143aa8d0a5cb160f4ee7e",
+      "title": "Đóng góp của tôi · Card - GoGo",
+      "file": "projects/17315762413421369447/files/7f32138a2f07494386ef78121ee29f7a",
+      "headers": [
+        "<header class=\"sticky top-0 z-30 bg-[#FFFBF7]/95 backdrop-blur-md px-4 pt-3 pb-3 border-b border-gogo-border/60\">\n      <div class=\"flex items-center justify-between\">\n        <!-- Circular Back Button -->\n        <button class=\"w-10 h-10 rounded-full bg-white border border-gogo-border flex items-center justify-center text-gogo-textPrimary shadow-sm hover:bg-gogo-sand active:scale-95 transition-all\" aria-label=\"Quay lại\">\n          <svg class=\"w-5 h-5 stroke-[2.2]\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n            <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\" />\n          </svg>\n        </button>\n\n        <!-- Screen Title -->\n        <h1 class=\"text-lg font-bold text-gogo-textPrimary tracking-tight\">Đóng góp của tôi</h1>\n\n        <!-- Empty placeholder to balance header center title -->\n        <div class=\"w-10 h-10\"></div>\n      </div>\n\n      <!-- Horizontal Scrollable Filter Chips -->\n      <div class=\"flex items-center gap-2 mt-3 overflow-x-auto no-scrollbar py-0.5\">\n        <!-- Chip 1: Tất cả -->\n        <button class=\"flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-gogo-border text-gogo-textSecondary hover:bg-gogo-sand active:scale-95 transition-all\">\n          Tất cả (12)\n        </button>\n\n        <!-- Chip 2: Đang chờ duyệt (Selected with Check icon) -->\n        <button class=\"flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-gogo-textPrimary text-white shadow-sm active:scale-95 transition-all\">\n          <svg class=\"w-3.5 h-3.5 stroke-[2.5]\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n            <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 13l4 4L19 7\" />\n          </svg>\n          <span>Đang chờ duyệt</span>\n          <span class=\"w-1.5 h-1.5 rounded-full bg-amber-400\"></span>\n        </button>\n\n        <!-- Chip 3: Đã duyệt -->\n        <button class=\"flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-gogo-border text-gogo-textSecondary hover:bg-gogo-sand active:scale-95 transition-all\">\n          Đã duyệt\n        </button>\n\n        <!-- Chip 4: Bị từ chối -->\n        <button class=\"flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-gogo-border text-gogo-textSecondary hover:bg-gogo-sand active:scale-95 transition-all\">\n          Bị từ chối\n        </button>\n      </div>\n    </header>"
+      ],
+      "firstHeading": "<h1 class=\"text-lg font-bold text-gogo-textPrimary tracking-tight\">Đóng góp của tôi</h1>"
+    }
+  ]
+}

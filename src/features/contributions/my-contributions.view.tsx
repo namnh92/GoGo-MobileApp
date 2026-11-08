@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,8 +12,7 @@ import { isSubmissionDetailRetryable, type MyPlaceSubmission } from '@/shared/ap
 import { useSession } from '@/shared/providers/session-provider'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, GhostBtn } from '@/shared/ui/primitives'
-import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
+import { Atmosphere, GhostBtn } from '@/shared/ui/primitives'
 import { FilledSegmentedControl } from '@/shared/ui/filled-segmented-control.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
@@ -156,8 +156,8 @@ export default function MyContributionsScreen() {
   </>
   const refresh = <RefreshControl refreshing={!!active.isRefetching && !(tab === 'places' && query.isFetchingNextPage)} onRefresh={() => { void active.refetch() }} />
   return <Atmosphere>
-    <View style={{ paddingTop: insets.top }}><BackHeader title={t('myContributions.title')} onBack={() => router.back()}
-      right={<HeaderNotificationButton testID="contributions-bell" unreadDotTestID="contributions-unread" />} /></View>
+    <View><AppHeader title={t('myContributions.title')} onBack={() => router.back()}
+      bellTestID="contributions-bell" unreadDotTestID="contributions-unread" /></View>
     {!registered ? <EmptyState title={t('notifications.signInTitle')} body={t('myContributions.signInBody')} action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} /> : <>
       <FilledSegmentedControl value={tab} onChange={value => { setTab(value); setFilter('all') }}
         options={(['places', 'reviews'] as const).map(value => ({ value, label: (value === 'places' ? query.data : reviews.data) == null

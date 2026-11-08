@@ -1,3 +1,4 @@
+import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MutableRefObject } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -14,7 +15,6 @@ import { discoveryLabels, isApiError, useResolveGoogleMapsLink, useTaxonomies, t
 import { track } from '@/shared/analytics'
 import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
@@ -276,18 +276,10 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
 
   return (
     <Atmosphere redesign style={!verified ? styles.inputCanvas : undefined}>
-      <View testID="import-header" style={[styles.header, !verified && styles.inputCanvas, { paddingTop: insets.top }]}>
-        <View style={styles.topBar}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} disabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'} onPress={verified ? changeLink : () => router.back()} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-            <Icon name="chevronLeft" size={24} />
-          </Pressable>
-          <Text variant="introHeading" color="redesign.ink" style={[styles.headerTitle, !verified && styles.headerTitleCentered]}>{t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}</Text>
-          {!verified ? <Pressable accessibilityRole="button" accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-            <MaterialIcon name="help" size={24} color="redesign.secondary" />
-          </Pressable> : null}
-          <HeaderNotificationButton testID="import-bell" unreadDotTestID="import-unread-dot" />
-        </View>
-      </View>
+      <AppHeader testID="import-header" title={t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}
+        onBack={verified ? changeLink : () => router.back()} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
+        bellTestID="import-bell" unreadDotTestID="import-unread-dot"
+        rightAction={!verified ? <AppHeaderAction accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }}><MaterialIcon name="help" size={24} color="redesign.secondary" /></AppHeaderAction> : undefined} />
       <FocusedFieldGroup.Provider value={focusedGroup}>
         <KeyboardAvoidingView testID="import-keyboard-avoider" style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView

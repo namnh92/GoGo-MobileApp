@@ -7,8 +7,6 @@ export const styles = StyleSheet.create(theme => ({
   linkRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center', minHeight: 44 },
   linkInput: { ...theme.type.bodySmall, flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 8, borderRadius: 8, backgroundColor: theme.redesign.container, color: theme.redesign.ink },
   linkButton: { height: 44, minHeight: 44, paddingVertical: 0, paddingHorizontal: spacing[3] },
-  header: { paddingHorizontal: spacing[5], paddingVertical: spacing[3] },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   list: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   /** ADM-205 — province, then commune; each header is a screen-reader heading. */
   group: { marginBottom: spacing[3] },
@@ -16,6 +14,7 @@ export const styles = StyleSheet.create(theme => ({
   groupTitle: { flexShrink: 1 },
   countBadge: { minWidth: 24, minHeight: 24, paddingHorizontal: spacing[1], borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface.subtle },
   cityAction: { marginLeft: 'auto', flexShrink: 0, paddingHorizontal: spacing[1], paddingVertical: 0, minHeight: 44 },
+  saveLink: { paddingHorizontal: spacing[5], paddingBottom: spacing[3] },
   feedback: { paddingHorizontal: spacing[5], paddingBottom: spacing[2] },
   subgroup: { marginBottom: spacing[2] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },

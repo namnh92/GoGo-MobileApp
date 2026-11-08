@@ -91,3 +91,13 @@ describe('picker × connectivity', () => {
     expect(view.getByText('Đang tải…')).toBeTruthy()
   })
 })
+
+// Both modes live inside a native sheet: embedded reuses the area-picker sheet.
+it.each([false, true])('has no notification navigation while choosing administrative units (embedded=%s)', async embedded => {
+  const view = await renderScreen(<AdministrativePicker embedded={embedded} value={selected} onChange={mockChanged} />)
+  await fireEvent.press(view.getByText('Hà Nội'))
+  expect(view.getByRole('header', { name: 'Tỉnh/Thành phố' })).toBeTruthy()
+  expect(view.queryByTestId('app-header-bell')).toBeNull()
+  await fireEvent.press(view.getByText(mockProvince.fullName))
+  expect(mockChanged).toHaveBeenCalledTimes(1)
+})

@@ -4,7 +4,7 @@ import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   // Progress card: where the date is, in one glance.
-  topBar: { paddingHorizontal: spacing[5], paddingTop: spacing[3], paddingBottom: spacing[3] },
+  stopSummary: { paddingHorizontal: spacing[5], paddingTop: spacing[3], paddingBottom: spacing[3] },
   progressCard: { padding: spacing[4], gap: spacing[2] },
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent.primary },

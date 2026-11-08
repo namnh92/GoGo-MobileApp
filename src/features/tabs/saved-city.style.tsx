@@ -4,13 +4,6 @@ import { TAB_BAR_HEIGHT } from '@/shared/ui/bottom-bar-inset'
 
 export const styles = StyleSheet.create(theme => ({
   canvas: { backgroundColor: theme.redesign.savedCanvas },
-  header: { paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: theme.redesign.savedLine },
-  back: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.redesign.card, borderWidth: 1, borderColor: theme.redesign.savedLine, alignItems: 'center', justifyContent: 'center' },
-  bell: { borderRadius: 22, backgroundColor: theme.redesign.card, borderWidth: 1, borderColor: theme.redesign.savedLine },
-  titleBlock: { flex: 1, minWidth: 0 },
-  titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  title: { flexShrink: 1 },
-  cityCount: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: theme.redesign.savedLine, backgroundColor: theme.redesign.savedAccentSoft },
   list: { paddingHorizontal: 16, paddingTop: 20 },
   subgroup: { marginBottom: 24 },
   wardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },

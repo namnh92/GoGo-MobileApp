@@ -1,9 +1,8 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useRoom } from '@/shared/store/roomStore'
-import { BackHeader } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 
 import { WizardActions } from './wizard-actions.view'
@@ -29,7 +28,6 @@ export type WizardStepKey = (typeof GROUP_STEPS)[number]
  */
 export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () => void }) {
   const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
   const { roomType } = useRoom()
   const steps: readonly WizardStepKey[] = roomType === 'group' ? GROUP_STEPS : COUPLE_STEPS
   const index = Math.max(0, steps.indexOf(step))
@@ -38,8 +36,8 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
 
   return (
     <>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={onBack} title={t('home.createDate')} right={<WizardActions step={step} />} />
+      <View>
+        <AppHeader onBack={onBack} title={t('home.createDate')} rightAction={<WizardActions step={step} />} />
       </View>
       {/* The bar repeats the count visually; the label carries it for a screen
           reader, so the bar itself stays decorative. */}

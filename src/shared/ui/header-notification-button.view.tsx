@@ -7,7 +7,7 @@ import { badgeLabel } from './count-badge.view'
 import { Icon } from './icons'
 import { styles } from './header-notification-button.style'
 
-export function HeaderNotificationButton({ testID, unreadDotTestID, showUnread = true }: { testID: string; unreadDotTestID: string; showUnread?: boolean }) {
+export function HeaderNotificationButton({ testID, unreadDotTestID }: { testID: string; unreadDotTestID: string }) {
   const router = useRouter()
   const { t } = useTranslation()
   const unread = useUnreadInbox()
@@ -18,14 +18,14 @@ export function HeaderNotificationButton({ testID, unreadDotTestID, showUnread =
       onPress={() => router.push('/notifications')}
       accessibilityRole="button"
       accessibilityLabel={
-        showUnread && unread.count > 0
+        unread.count > 0
           ? t('home.bellUnread', { count: badgeLabel(unread.count, unread.more) })
           : t('notifications.title')
       }
-      style={styles.button}
+      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
       <Icon name="bell" size={22} color="redesign.primaryText" />
-      {showUnread && unread.count > 0 ? <View testID={unreadDotTestID} style={styles.unreadDot} /> : null}
+      {unread.count > 0 ? <View testID={unreadDotTestID} style={styles.unreadDot} /> : null}
     </Pressable>
   )
 }

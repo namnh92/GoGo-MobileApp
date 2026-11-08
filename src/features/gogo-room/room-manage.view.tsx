@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,7 +20,7 @@ import { formatMoney } from '@/shared/pricing/money'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, BackHeader, Card, DangerBtn, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -50,8 +51,8 @@ export default function RoomManageScreen() {
   const capabilities = roomCapabilities(summary)
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => router.back()} title={t('roomManage.title')} />
+    <View>
+      <AppHeader onBack={() => router.back()} title={t('roomManage.title')} />
     </View>
   )
 

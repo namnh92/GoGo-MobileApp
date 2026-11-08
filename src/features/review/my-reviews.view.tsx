@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { parseApiDate, useMyReviews, usePlaceDetail, usePlan, useUpdateReview, type Review } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Badge, type BadgeTone } from '@/shared/ui/badge.view'
 import { Icon } from '@/shared/ui/icons'
 import { FormattedPlaceAddress } from '@/shared/ui/place-address.view'
@@ -119,8 +120,8 @@ export default function MyReviewsScreen() {
   }
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => router.back()} title={t('myReviews.title')} />
+    <View>
+      <AppHeader onBack={() => router.back()} title={t('myReviews.title')} />
     </View>
   )
 

@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
@@ -9,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import type { MessageKey } from '@/shared/i18n/types'
-import { Atmosphere, AvatarCircle, BackHeader, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { Badge } from '@/shared/ui/badge.view'
 import { InfoBanner } from '@/shared/ui/info-banner.view'
@@ -185,9 +186,9 @@ export default function SignInScreen() {
 
   return (
     <Atmosphere redesign>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader redesign title={t(mode === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')} onBack={() => goBackOrHome(router)}
-          right={<AvatarCircle label="" size={32} icon="user" />} />
+      <View>
+        <AppHeader title={t(mode === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')} onBack={() => goBackOrHome(router)}
+          rightAction={<AvatarCircle label="" size={32} icon="user" />} />
       </View>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View ref={viewportRef} testID="auth-viewport" style={styles.fill} onLayout={schedule}>

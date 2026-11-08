@@ -93,7 +93,15 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 const headers = (view: Awaited<ReturnType<typeof renderScreen>>) =>
-  view.getAllByRole('header').map(node => {
+  view.getAllByRole('header').filter(node => {
+    // Area ordering concerns content headings; the screen title is now a heading too.
+    let parent = node.parent
+    while (parent) {
+      if (parent.props.testID === 'app-header') return false
+      parent = parent.parent
+    }
+    return true
+  }).map(node => {
     const children = node.props.children
     return Array.isArray(children) ? children.join('') : String(children)
   })

@@ -1,0 +1,86 @@
+GOGO-535, 2026-11-08, feature/GOGO-535-shared-header @ ea0deb6 + uncommitted patch
+pnpm typecheck: exit 0
+pnpm lint: exit 0, 0 warnings/errors
+pnpm test: exit 1 (distribution process-inspection sandbox restriction)
+pnpm test app-header-ownership.test.ts: exit 0, 42 passed
+pnpm test:ui --runInBand: exit 0
+
+full Jest final
+Test Suites: 198 passed, 198 total
+Tests:       2448 passed, 2448 total
+Snapshots:   0 total
+Time:        94.415 s, estimated 95 s
+Ran all test suites.
+
+full Jest preceding repeat
+Test Suites: 198 passed, 198 total
+Tests:       2448 passed, 2448 total
+Snapshots:   0 total
+Time:        92.921 s, estimated 95 s
+Ran all test suites.
+
+Unchanged from ea0deb6 (git rev-parse base:path == git hash-object path):
+9a111cac683fff01d5a8cbb902872a16feccd247 scripts/distribute.sh
+5e58b0eea03fe42474549fbe33fe0abf8fcb984e src/shared/config/__tests__/distribute-wrapper.test.ts
+/bin/ps -o lstart= -p $$ -> exit 127: operation not permitted: /bin/ps
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses while the owner is alive
+TypeError: Cannot read properties of undefined (reading 'trim')
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:208:103
+    206|   it('refuses while the owner is alive', () => {
+    207|     mkdirSync(lockDir(), { recursive: true })
+    208|     const start = spawnSync('ps', ['-o', 'lstart=', '-p', String(proce…
+       |                                                                                                       ^
+    209|     writeFileSync(path.join(lockDir(), 'owner'), `pid=${process.pid}\n…
+    210|     const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses recovery while a recorded build process group is still alive
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:234:33
+    232|       writeFileSync(path.join(lockDir(), 'run.json'), JSON.stringify({…
+    233|       const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+    234|       expect(result.status).not.toBe(0)
+       |                                 ^
+    235|       expect(result.stderr).toMatch(new RegExp(`process groups: ${pgid…
+    236|       expect(existsSync(lockDir())).toBe(true)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > keeps the lock and run files when a recorded build group is still alive after the child exits
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:258:33
+    256|     try {
+    257|       const result = run(['dev', 'android', '--groups', 'dev-testers']…
+    258|       expect(result.status).not.toBe(0)
+       |                                 ^
+    259|       expect(result.stderr).toMatch(new RegExp(`build process groups s…
+    260|       expect(existsSync(path.join(lockDir('dev', 'android'), 'owner'))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 135 passed | 1 skipped (137)
+      Tests  3 failed | 1631 passed | 39 skipped (1673)
+   Start at  07:40:09
+   Duration  48.98s (transform 1.31s, setup 0ms, import 5.80s, tests 25.52s, environment 7ms)
+
+ ELIFECYCLE  Test failed. See above for more details.
+
+
+PR #538 fix follow-up — 2026-11-08; base HEAD d889888246a36061d715d5e712af19fdd0fac405; uncommitted patch
+pnpm typecheck: exit 0
+pnpm lint: exit 0; no warnings/errors
+pnpm test: exit 1; 135 passed / 1 failed / 1 skipped files; 1634 passed / 3 failed / 39 skipped tests
+pnpm test:ui --runInBand: exit 0; 198 suites / 2447 tests passed
+Focused UI before fix: exit 1; 4 failed / 32 passed (sheet bell, standalone picker bell, embedded picker bell, assistant bell)
+Focused UI after fix: exit 0; 3 suites / 36 passed
+Header ownership: exit 0; 45 passed
+/bin/ps -o lstart= -p $$: denied by sandbox (operation not permitted)
+git diff HEAD --exit-code -- scripts/distribute.sh src/shared/config/__tests__/distribute-wrapper.test.ts: exit 0
+Distribution failures: same three names and error locations as original log above (lines 208/234/258).
+Deep links: Expo extractExpoPathFromURL([], 'gogo-dev://(tabs)') = '(tabs)'; extractExpoPathFromURL([], 'gogo-dev://places/search') = 'places/search'. Source routes verified; no simulator run.
+No commit or push.

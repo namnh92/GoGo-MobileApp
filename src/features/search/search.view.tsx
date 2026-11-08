@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
@@ -18,7 +19,6 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { SearchField } from '@/shared/ui/search-field.view'
 import { FieldFocusGroup } from '@/shared/ui/field-focus-group'
 import { Sheet } from '@/shared/ui/sheet.view'
@@ -258,18 +258,10 @@ export default function SearchScreen() {
     </View></SearchMapPanel>
   }
   return <Atmosphere redesign>
-    {!mapExpanded ? <><View testID="search-header" style={[styles.header, { paddingTop: insets.top }]}>
-      <View style={styles.headerRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} style={styles.back} onPress={() => router.back()}><MaterialIcon name="arrowBack" /></Pressable>
-        {isPicker ? <View style={styles.scope}>
-          <Text variant="discoveryHeader" color="redesign.ink">{t('discovery.searchTitle')}</Text>
-        </View> : <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setLocationOpen(true)}>
-          <Text variant="discoveryHeader" color="redesign.ink">{t('discovery.searchTitle')}</Text>
-          <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text><MaterialIcon name="expandMore" size={16} color="redesign.secondary" /></View>
-        </Pressable>}
-        <HeaderNotificationButton testID="search-bell" unreadDotTestID="search-unread-dot" />
-      </View>
-    </View>
+    {!mapExpanded ? <><AppHeader testID="search-header" title={t('discovery.searchTitle')} onBack={() => router.back()} bellTestID="search-bell" unreadDotTestID="search-unread-dot"
+      titleAccessory={!isPicker ? <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setLocationOpen(true)}>
+        <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text><MaterialIcon name="expandMore" size={16} color="redesign.secondary" /></View>
+      </Pressable> : undefined} />
     <View style={styles.searchRow}>
       <SearchField appearance="discovery" value={query} onChangeText={setQuery} accessibilityLabel={t('search.title')} placeholder={t('discovery.searchPlaceholder')} style={styles.input} />
       <IconBtn onPress={openFilters} accessibilityLabel={t('search.filters')} active={activeFilterCount > 0} style={styles.filterToggle}>

@@ -1,3 +1,4 @@
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }))
 import { render, screen } from '@testing-library/react-native'
 import { Image, type ImageProps } from 'expo-image'
 import { Text as RNText, StyleSheet } from 'react-native'
@@ -52,13 +53,10 @@ describe('shared primitives on a dark device', () => {
     expect(flat(props.style)).toMatchObject({ backgroundColor: themes.orangeDark.redesign.low, width: 4, height: 4 })
   })
 
-  it('the BackHeader button is the dark card, not a light one under light text', async () => {
-    const { BackHeader } = jest.requireActual<typeof import('@/shared/ui/primitives')>('@/shared/ui/primitives')
-    await render(<BackHeader title="T" onBack={jest.fn()} />)
-    const button = screen.getByRole('button', { name: /.+/ })
-    const style = button.props.style
-    const resolved = flat(typeof style === 'function' ? style({ pressed: false }) : style)
-    expect(resolved.backgroundColor).toBe(darkSurface.card)
+  it('the AppHeader canvas follows the dark device', async () => {
+    const { AppHeader } = jest.requireActual<typeof import('@/shared/ui/app-header.view')>('@/shared/ui/app-header.view')
+    await render(<AppHeader title="T" onBack={jest.fn()} />)
+    expect(flat(screen.getByTestId('app-header').props.style).backgroundColor).toBe(themes.orangeDark.redesign.canvas)
   })
 
   it('the map fallback surface is not the light map green', async () => {

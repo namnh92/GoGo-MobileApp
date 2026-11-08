@@ -1,8 +1,8 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   formatDistance,
@@ -30,7 +30,7 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn, Toast } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, Toast } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceAddressText } from '@/shared/ui/place-address.view'
@@ -48,7 +48,6 @@ import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 export default function DatePlanScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { planId } = useLocalSearchParams<{ planId: string }>()
 
   const plan = usePlan(planId)
@@ -185,8 +184,8 @@ export default function DatePlanScreen() {
   }
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => goBackOrHome(router)} title={screenTitle()} />
+    <View>
+      <AppHeader onBack={() => goBackOrHome(router)} title={screenTitle()} />
     </View>
   )
 
@@ -312,8 +311,8 @@ export default function DatePlanScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader
+      <View>
+        <AppHeader
           onBack={() => goBackOrHome(router)}
           title={screenTitle()}
         />

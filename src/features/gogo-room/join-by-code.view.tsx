@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +12,7 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, BackHeader, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -89,8 +90,8 @@ export default function JoinByCodeScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} title={t('joinByCode.title')} />
+      <View>
+        <AppHeader onBack={() => router.back()} title={t('joinByCode.title')} />
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView

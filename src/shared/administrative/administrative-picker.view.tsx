@@ -1,9 +1,10 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, View } from 'react-native'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, LoadingState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
-import { BackHeader, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { SearchField } from '@/shared/ui/search-field.view'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
@@ -45,7 +46,7 @@ export function AdministrativePicker({ value, onChange, embedded = false, onChoo
   }
   const list = (
     <View style={styles.sheetBody}>
-      <BackHeader title={t(level === 'commune' ? 'administrative.commune' : 'administrative.province')} onBack={() => setLevel(null)} />
+      <AppHeader variant="sheet" safeArea={false} title={t(level === 'commune' ? 'administrative.commune' : 'administrative.province')} onBack={() => setLevel(null)} />
       <SearchField value={search} onChangeText={setSearch} accessibilityLabel={t('administrative.search')} placeholder={t('administrative.search')} />
       <StaleNotice error={units.error} hasData={false} onRetry={() => { void version.refetch(); void units.refetch() }} />
       {level === 'commune' && value ? <GhostBtn label={t('administrative.wholeProvince')} onPress={() => { onChange({ ...value, communeCode: null, communeName: null }); setLevel(null) }} /> : null}
