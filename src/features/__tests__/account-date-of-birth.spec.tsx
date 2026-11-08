@@ -353,15 +353,11 @@ it.each(['cancel', 'close', 'backdrop', 'back', 'escape'] as const)('discards on
   const reopened = await openBirthday(view)
   expect(reopened.getByRole('adjustable', { name: 'Năm' }).props.accessibilityValue.now).toBe(2000)
 })
-it('clamps leap days and short months, and supports screen reader adjustments and decade shortcuts', async () => {
+it('clamps leap days and short months, and supports screen reader adjustments', async () => {
   const view = await mount(profile({ dateOfBirth: '2000-02-29' }))
   const sheet = await openBirthday(view)
   await fireEvent(sheet.getByRole('adjustable', { name: 'Năm' }), 'accessibilityAction', { nativeEvent: { actionName: 'increment' } })
   expect(sheet.getByRole('adjustable', { name: 'Ngày' }).props.accessibilityValue.now).toBe(28)
-  await fireEvent.press(sheet.getByRole('button', { name: '- 10 năm' }))
-  expect(sheet.getByRole('adjustable', { name: 'Năm' }).props.accessibilityValue.now).toBe(1991)
-  await fireEvent.press(sheet.getByRole('button', { name: '+ 10 năm' }))
-  expect(sheet.getByRole('adjustable', { name: 'Năm' }).props.accessibilityValue.now).toBe(2001)
   await wheel(view, 'month', 1)
   await wheel(view, 'day', 31)
   await wheel(view, 'month', 4)
@@ -369,26 +365,21 @@ it('clamps leap days and short months, and supports screen reader adjustments an
   await fireEvent.press(sheet.getByRole('button', { name: 'Xác nhận' }))
   expect(view.getByLabelText(INPUT).props.value).toBe('30/04/2001')
 })
-it('defaults an unset picker to Vietnam today, blocks future selections and clamps decade shortcuts', async () => {
+it('defaults an unset picker to an adult year, removes quick actions and still blocks future dates', async () => {
+  jest.setSystemTime(new Date('2026-11-08T12:00:00Z'))
   const view = await mount()
   const sheet = await openBirthday(view)
-  const [year, month, day] = todayInVietnam().split('-').map(Number)
-  expect(sheet.getByRole('adjustable', { name: 'Ngày' }).props.accessibilityValue.now).toBe(day)
+  const [year] = todayInVietnam().split('-').map(Number)
+  expect(sheet.getByRole('adjustable', { name: 'Năm' }).props.accessibilityValue.now).toBe(year - 18)
+  expect(sheet.getByRole('adjustable', { name: 'Ngày' }).props.accessibilityValue.now).toBe(1)
+  expect(sheet.getByRole('adjustable', { name: 'Tháng' }).props.accessibilityValue.now).toBe(1)
+  for (const name of ['- 10 năm', 'Hôm nay', '+ 10 năm']) expect(sheet.queryByRole('button', { name })).toBeNull()
   await wheel(view, 'year', year)
   await wheel(view, 'month', 12)
   await wheel(view, 'day', 31)
-  if (month !== 12 || day !== 31) {
-    expect(sheet.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
-    expect(sheet.getByText('Ngày sinh không thể sau hôm nay.')).toBeTruthy()
-    await fireEvent.press(sheet.getByRole('button', { name: 'Xác nhận' }))
-    expect(view.getByLabelText(INPUT).props.value).toBe('')
-  }
-  await fireEvent.press(sheet.getByRole('button', { name: '+ 10 năm' }))
-  expect(sheet.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(false)
-  await wheel(view, 'year', 1990)
-  await fireEvent.press(sheet.getByRole('button', { name: 'Hôm nay' }))
+  expect(sheet.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
   await fireEvent.press(sheet.getByRole('button', { name: 'Xác nhận' }))
-  expect(view.getByLabelText(INPUT).props.value).toBe(`${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`)
+  expect(view.getByLabelText(INPUT).props.value).toBe('')
 })
 it.each(['orange', 'orangeDark'] as const)('localizes the picker in English with semantic colors and accessible targets in %s', async name => {
   const theme = themes[name]
@@ -407,7 +398,7 @@ it.each(['orange', 'orangeDark'] as const)('localizes the picker in English with
   expect(sheet.getByRole('adjustable', { name: 'Day' })).toBeTruthy()
   expect(sheet.getByRole('adjustable', { name: 'Month' })).toBeTruthy()
   expect(sheet.getByRole('adjustable', { name: 'Year' })).toBeTruthy()
-  expect(sheet.getByRole('button', { name: 'Today' })).toBeTruthy()
+  expect(sheet.queryByRole('button', { name: 'Today' })).toBeNull()
   expect(sheet.getByRole('button', { name: 'Confirm' })).toBeTruthy()
 })
 
@@ -422,7 +413,7 @@ it.each(['orange', 'orangeDark'] as const)('resolves birthday sheet surfaces fro
     expect(styles.picker.backgroundColor).toBe(themes[name].surface.card)
     expect(styles.summary.backgroundColor).toBe(themes[name].surface.subtle)
     expect(styles.selected.backgroundColor).toBe(themes[name].surface.subtle)
-    for (const surface of [styles.close, styles.picker, styles.summary, styles.shortcut]) expect(surface.borderWidth).toBe(0)
+    for (const surface of [styles.close, styles.picker, styles.summary]) expect(surface.borderWidth).toBe(0)
   })
 })
 it('keeps picker changes out of form dirty state and cancels to the latest refetched value', async () => {
@@ -453,4 +444,14 @@ it('confirms the current wheel row even before scroll momentum ends', async () =
   await fireEvent.press(sheet.getByRole('button', { name: 'Xác nhận' }))
   expect(view.getByLabelText(INPUT).props.value).toBe('18/05/1990')
   expect(mockUpdateProfile).not.toHaveBeenCalled()
+})
+
+it.each(['pressIn', 'focus', 'accessibilityTap'])('opens birthday wheels at the current field date via %s', async event => {
+  const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
+  await fireEvent(view.getByLabelText(INPUT), event)
+  const sheet = within(await view.findByTestId('birthday-sheet'))
+  for (const [part, label, value] of [['day', 'Ngày', 17], ['month', 'Tháng', 5], ['year', 'Năm', 1990]] as const) {
+    expect(sheet.getByRole('adjustable', { name: label }).props.accessibilityValue.now).toBe(value)
+    expect(view.getByTestId(`birthday-wheel-${part}`, { includeHiddenElements: true }).props.initialScrollIndex).toBe(value - 1)
+  }
 })

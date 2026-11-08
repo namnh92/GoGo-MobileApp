@@ -1,3 +1,5 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
+import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
@@ -242,21 +244,10 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
       ) : null}
       </ScrollView>
       {/* Outside the scroll, so both ways out are on screen as the sheet opens. */}
-      <PrimaryBtn
-        label={pending ? t('checkin.saving') : t('checkin.save')}
-        onPress={save}
-        loading={pending}
-        style={styles.saveBtn}
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: Boolean(pending) }}
-        disabled={pending}
-        onPress={skip}
-        style={[styles.skipBtn, pending && styles.skipBtnDisabled]}
-      >
-        <Text variant="bodySmall" color="text.secondary">{t('checkin.skip')}</Text>
-      </Pressable>
+      <SheetActions>
+        <SecondaryBtn label={t('checkin.skip')} onPress={skip} disabled={Boolean(pending)} />
+        <PrimaryBtn label={pending ? t('checkin.saving') : t('checkin.save')} onPress={save} loading={pending} />
+      </SheetActions>
     </Sheet>
   )
 }

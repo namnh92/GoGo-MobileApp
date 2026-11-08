@@ -9,7 +9,7 @@ import { TextInput, type TextInputRef } from '@/shared/ui/text-input'
 import { Icon } from '@/shared/ui/icons'
 import { Card, GhostBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { checkTypedDateOfBirth, formatDateOfBirth, parseIsoDate, todayInVietnam } from './date-of-birth'
+import { formatDateOfBirth, initialBirthdayDate } from './date-of-birth'
 import { BirthdaySheet } from './birthday-sheet.view'
 import { styles } from './date-of-birth.style'
 
@@ -21,12 +21,11 @@ export function DateOfBirthCard({ profile, control, busy, error, onClear, embedd
   const text = useWatch({ control, name: 'birthday' })
   const input = useRef<TextInputRef>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pickerDate, setPickerDate] = useState(() => parseIsoDate(todayInVietnam())!)
-  function openPicker() {
+  const [pickerDate, setPickerDate] = useState(() => initialBirthdayDate(text))
+  function openPicker(value: string) {
     if (busy) return
     input.current?.blur()
-    const check = checkTypedDateOfBirth(text)
-    setPickerDate(parseIsoDate(check.ok ? check.iso : todayInVietnam())!)
+    setPickerDate(initialBirthdayDate(value))
     setPickerOpen(true)
   }
   const label = formatDateOfBirth(profile.dateOfBirth, i18n.language)
@@ -57,9 +56,9 @@ export function DateOfBirthCard({ profile, control, busy, error, onClear, embedd
             accessibilityLabel={t('account.dobInputLabel')}
             accessibilityHint={t('account.birthdayPickerHint')}
             ref={input}
-            onPressIn={openPicker}
-            onAccessibilityTap={openPicker}
-            onFocus={openPicker}
+            onPressIn={() => openPicker(value)}
+            onAccessibilityTap={() => openPicker(value)}
+            onFocus={() => openPicker(value)}
             showSoftInputOnFocus={false}
             value={value}
             onChangeText={next => {

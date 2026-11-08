@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useRef, useState } from 'react'
 import { Keyboard, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -77,7 +78,7 @@ export function QuickJoin({ knownName }: { knownName?: string | null }) {
       <FieldFocusGroup><Text variant="introHeading">{t('guestJoin.nameLabel')}</Text>
       <TextInput value={name} onChangeText={setName} maxLength={50} accessibilityLabel={t('guestJoin.nameLabel')} placeholder={t('guestJoin.namePlaceholder')} style={[styles.joinInput, { flex: 0 }]} />
       <Text variant="introSmall" color="redesign.secondary">{t('guestJoin.noAccount')}</Text></FieldFocusGroup>
-      <PrimaryBtn label={t('discovery.enterRoom')} disabled={!name.trim()} onPress={() => { Keyboard.dismiss(); continueAfterClose.current = true; setNameOpen(false) }} />
+      <SheetActions><PrimaryBtn label={t('discovery.enterRoom')} disabled={!name.trim()} onPress={() => { Keyboard.dismiss(); continueAfterClose.current = true; setNameOpen(false) }} /></SheetActions>
     </Sheet>
     {dialog}
   </>

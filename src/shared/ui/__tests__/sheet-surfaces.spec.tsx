@@ -24,6 +24,15 @@ const { BirthdaySheet } = jest.requireActual<typeof import('@/features/account/b
 const { CurrentAreaSheet } = jest.requireActual<typeof import('@/shared/location/current-area-sheet.view')>('@/shared/location/current-area-sheet.view')
 const { ResultSheet } = jest.requireActual<typeof import('../result-sheet.view')>('../result-sheet.view')
 
+function expectHorizontalActions() {
+  for (const row of screen.getAllByTestId('sheet-actions')) {
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'nowrap' })
+    for (const button of within(row).getAllByRole('button')) {
+      expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0 })
+    }
+  }
+}
+
 describe.each(Object.entries(themes))('%s sheet surfaces', (_name, theme) => {
   beforeEach(() => { currentTheme = theme })
 
@@ -41,6 +50,7 @@ describe.each(Object.entries(themes))('%s sheet surfaces', (_name, theme) => {
     expect(StyleSheet.flatten(cancel.props.style)).toMatchObject({ borderWidth: 0, backgroundColor: theme.surface.subtle })
     await fireEvent.press(library)
     expect(choose).toHaveBeenCalledWith('library')
+    expectHorizontalActions()
   })
 
   it('shared logout/delete confirmation has no outlined actions and preserves the destructive tint', async () => {
@@ -49,14 +59,16 @@ describe.each(Object.entries(themes))('%s sheet surfaces', (_name, theme) => {
       secondaryAction={{ label: 'Cancel', onPress: jest.fn() }} onClose={jest.fn()} />)
     expect(StyleSheet.flatten(screen.getByRole('button', { name: 'Cancel' }).props.style)).toMatchObject({ borderWidth: 0, backgroundColor: theme.surface.subtle })
     expect(StyleSheet.flatten(screen.getByRole('button', { name: 'Confirm' }).props.style)).toMatchObject({ borderWidth: 0, backgroundColor: theme.status.dangerSoft })
+    expectHorizontalActions()
   })
 
-  it('birthday picker uses surfaces for close, summary, wheel selection and shortcuts', async () => {
+  it('birthday picker uses surfaces for close, summary, wheel selection', async () => {
     await render(<BirthdaySheet visible date={{ year: 1990, month: 5, day: 17 }} onChange={jest.fn()} onClose={jest.fn()} onConfirm={jest.fn()} />)
     const sheet = within(screen.getByTestId('birthday-sheet'))
     expect(StyleSheet.flatten(sheet.getByRole('button', { name: i18n.t('common.close') }).props.style)).toMatchObject({ backgroundColor: theme.surface.card, borderWidth: 0 })
-    expect(StyleSheet.flatten(sheet.getByRole('button', { name: i18n.t('account.birthdayToday') }).props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderWidth: 0 })
+    expect(sheet.queryByRole('button', { name: i18n.t('account.birthdayToday') })).toBeNull()
     expect(StyleSheet.flatten(sheet.getByRole('button', { name: i18n.t('common.cancel') }).props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderWidth: 0 })
+    expectHorizontalActions()
   })
 
   it('area picker actions are borderless; province fields use only the existing hairline token', async () => {
@@ -64,5 +76,6 @@ describe.each(Object.entries(themes))('%s sheet surfaces', (_name, theme) => {
     expect(StyleSheet.flatten(screen.getByRole('button', { name: i18n.t('home.useLocation') }).props.style)).toMatchObject({ backgroundColor: theme.redesign.high, borderWidth: 0 })
     expect(StyleSheet.flatten(screen.getByRole('button', { name: i18n.t('administrative.clear') }).props.style).borderWidth).toBe(0)
     expect(StyleSheet.flatten(screen.getByRole('button', { name: i18n.t('areaPicker.selectProvince') }).props.style)).toMatchObject({ borderColor: theme.border.hairline })
+    expectHorizontalActions()
   })
 })

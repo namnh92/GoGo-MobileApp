@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -165,10 +166,10 @@ function EditForm({
       {edit.kind === 'text' ? field(edit.label, first, setFirst) : null}
       {edit.kind === 'choice' ? chips(edit.options) : null}
       {error ? <Text variant="bodySmall" color="status.dangerText" accessibilityRole="alert">{error}</Text> : null}
-      <View style={styles.actions}>
-        <PrimaryBtn label={t('assistant.edit.save')} onPress={save} />
+      <SheetActions>
         <GhostBtn label={t('common.cancel')} onPress={onClose} />
-      </View>
+        <PrimaryBtn label={t('assistant.edit.save')} onPress={save} />
+      </SheetActions>
     </View>
   )
 }

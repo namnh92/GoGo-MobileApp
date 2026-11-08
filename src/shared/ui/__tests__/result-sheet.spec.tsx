@@ -50,14 +50,14 @@ it('renders arbitrary media before the message and equal-width actions on one li
   expect(primary.parent).toBe(secondary.parent)
   expect(StyleSheet.flatten(primary.parent!.props.style).flexDirection).toBe('row')
   for (const action of [primary, secondary]) expect(StyleSheet.flatten(action.props.style)).toMatchObject({ flex: 1, minWidth: 0, minHeight: buttonSizes.regular.minHeight })
-  expect(screen.getByText('View contributions').props.numberOfLines).toBeUndefined()
+  expect(screen.getByText('View contributions').props.numberOfLines).toBe(1)
 })
 
 
 it('offers secondary cancel first and a danger confirmation while preserving shared action states', async () => {
   const confirm = jest.fn(), cancel = jest.fn()
   await render(<ResultSheet visible variant="warning" title="Confirm?" body="This ends the session."
-    actionOrder="secondary-first" primaryAction={{ label: 'Confirm', onPress: confirm, destructive: true, loading: true }}
+    primaryAction={{ label: 'Confirm', onPress: confirm, destructive: true, loading: true }}
     secondaryAction={{ label: 'Cancel', onPress: cancel }} onClose={cancel} />)
   const primary = screen.getByRole('button', { name: 'Confirm' })
   const secondary = screen.getByRole('button', { name: 'Cancel' })

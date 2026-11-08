@@ -81,7 +81,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && kind === 'primary' && styles.primaryPressed, disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel = false, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
+function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -130,7 +130,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       <Text
         variant={buttonSizes[size].label}
         color={greyed ? look.disabledLabel : variant === 'area' && kind === 'secondary' ? 'redesign.secondary' : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
-        numberOfLines={stitch || wrapLabel ? undefined : 1}
+        numberOfLines={wrapLabel === false ? 1 : stitch || wrapLabel ? undefined : 1}
         ellipsizeMode="tail"
         style={styles.label}
       >

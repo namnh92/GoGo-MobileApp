@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
@@ -44,10 +45,12 @@ export function PlaceReport({ placeId, onClose }: { placeId: string; onClose: ()
             )} />
             {form.formState.errors.note ? <Text color="status.dangerText">{t('placeReport.invalidNote')}</Text> : null}
             {report.isError ? <Text color="status.dangerText" accessibilityLiveRegion="polite">{t(isApiError(report.error) && report.error.status === 429 ? 'placeImport.rateLimited' : 'placeReport.failed')}</Text> : null}
-            <PrimaryBtn label={t('placeReport.send')} loading={report.isPending} onPress={form.handleSubmit(body => { if (!report.isPending) report.mutate({ reasonCode: body.reasonCode, ...(body.note.trim() ? { note: body.note.trim() } : {}) }, { onSuccess: () => track('place_report_submitted', { placeId, reason: body.reasonCode }) }) })} />
           </>
         )}
-        <GhostBtn label={t('common.close')} onPress={close} />
+        <SheetActions>
+          <GhostBtn label={t('common.close')} onPress={close} />
+          {canReport && !report.isSuccess ? <PrimaryBtn label={t('placeReport.send')} loading={report.isPending} onPress={form.handleSubmit(body => { if (!report.isPending) report.mutate({ reasonCode: body.reasonCode, ...(body.note.trim() ? { note: body.note.trim() } : {}) }, { onSuccess: () => track('place_report_submitted', { placeId, reason: body.reasonCode }) }) })} /> : null}
+        </SheetActions>
       </View>
     </Sheet>
   )

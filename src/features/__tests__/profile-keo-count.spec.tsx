@@ -222,7 +222,7 @@ it.each([
   expect(StyleSheet.flatten(left.parent!.props.style).flexDirection).toBe('row')
   expect(left.parent!.children.indexOf(left)).toBeLessThan(left.parent!.children.indexOf(right))
   for (const button of [left, right]) expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
-  expect(screen.getByText(confirm).props.numberOfLines).toBeUndefined()
+  expect(screen.getByText(confirm).props.numberOfLines).toBe(1)
   await fireEvent.press(left)
   expect(mockSignOut).not.toHaveBeenCalled()
   await fireEvent.press(screen.getByRole('button', { name: open }))

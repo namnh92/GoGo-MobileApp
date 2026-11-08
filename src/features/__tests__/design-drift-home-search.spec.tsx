@@ -457,7 +457,7 @@ it.each([true, false])('keeps a carried mood removable on an uncounted empty Sea
   const resetView = await renderScreen(<SearchScreen />)
   expect(mockQueries.at(-1)?.moods).toBe('cozy')
   await fireEvent.press(resetView.getByLabelText('Bộ lọc'))
-  await fireEvent.press(resetView.getByLabelText('Đặt lại về mặc định'))
+  await fireEvent.press(resetView.getByLabelText('Đặt lại'))
   await fireEvent.press(resetView.getByText('Áp dụng bộ lọc'))
   expect(mockQueries.at(-1)?.moods).toBeUndefined()
 })
