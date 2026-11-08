@@ -96,11 +96,13 @@ export function toPlaceCard(result: PlaceSearchResult, labels?: TaxonomyLabels):
   const photo = result.primaryPhoto
   return {
     ...(result.verification || result.taxonomies || result.areaSummary ? { discovery: {
+      categoryLabel: result.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels?.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined,
       ...(result.verification ? { verified: result.verification.status === 'verified' } : {}),
       ...(result.areaSummary?.label ? { areaLabel: result.areaSummary.label } : {}),
       ...(result.taxonomies ? { tagLabels: [...new Set(result.taxonomies.flatMap(tag => tag.kind && tag.key && labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []))] } : {}),
     } } : {}),
     id: result.id,
+    taxonomies: result.taxonomies,
     name: result.name,
     areaKey: result.areaKey,
     addressText: result.addressText,

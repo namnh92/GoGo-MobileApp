@@ -18,6 +18,7 @@ export const styles = StyleSheet.create(theme => ({
   mapBlock: { flex: 1, minHeight: 0 },
   mapFeedback: { position: 'absolute', top: spacing[4], left: spacing[4], right: spacing[4], borderRadius: 16, backgroundColor: theme.redesign.card },
   mapPagination: { position: 'absolute', right: spacing[4], borderRadius: 16, padding: spacing[2], backgroundColor: theme.redesign.card },
+  mapPaginationAboveCard: { top: spacing[4] },
   mapPreview: { position: 'absolute', left: spacing[4], right: spacing[4] },
   map: { flex: 1 },
   emptyContent: { gap: 12 },

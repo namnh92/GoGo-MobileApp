@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Animated, Modal, View, useAnimatedValue } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useReducedMotionPreference } from '@/shared/ui/feedback'
 import { GhostBtn } from '@/shared/ui/primitives'
 import { motion } from '@/shared/ui/tokens'
@@ -54,8 +55,8 @@ export function SearchMapPanel({ children, expanded, onExpandedChange }: {
   </View>
   if (!presented) return content
   return <Modal testID="search-map-modal" visible presentationStyle="fullScreen" animationType="none" onRequestClose={() => onExpandedChange(false)}>
-    <Animated.View testID="search-map-fullscreen" style={[styles.mapFullscreen, { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [48, 0] }) }] }]}>
+    <GestureHandlerRootView style={styles.mapFullscreen}><Animated.View testID="search-map-fullscreen" style={[styles.mapFullscreen, { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [48, 0] }) }] }]}>
       {content}
-    </Animated.View>
+    </Animated.View></GestureHandlerRootView>
   </Modal>
 }

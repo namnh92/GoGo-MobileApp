@@ -317,3 +317,37 @@ it('hero keeps its Google rating visibly marked', async () => {
   await render(<PlaceCard place={fixture()} />)
   expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
 })
+
+describe('#561 shared small marker card', () => {
+  it.each(['orange', 'orangeDark'] as const)('uses the common small layout, real facts and independent actions (%s)', async themeName => {
+    const theme = themes[themeName]
+    UnistylesStyleSheet.configure({ themes: { orange: theme } as typeof themes })
+    try {
+      const open = jest.fn()
+      const save = jest.fn()
+      await render(<PlaceCardSmall place={fixture({ gogoRatingCount: 3, discovery: { categoryLabel: 'Cà phê' } })} onPress={open} saved={false} onToggleSave={save} />)
+      expect(screen.getByTestId('place-card-small')).toBeTruthy()
+      expect(flat('place-card-photo')).toMatchObject({ width: 80, height: 80, overflow: 'hidden' })
+      expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+      expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(1)
+      expect(screen.getByText('Cà phê')).toBeTruthy()
+      expect(screen.getByText('Mở đến 20:00')).toBeTruthy()
+      expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ')
+      expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(1)
+      expect(screen.getByText('★ 4,6 (980) Google').props.numberOfLines).toBe(1)
+      expect(screen.getByText('GoGo · Chưa đủ đánh giá (3)').props.numberOfLines).toBe(1)
+      expect(screen.getByTestId('place-card-price')).toHaveTextContent('45k–90k/người')
+      await fireEvent.press(screen.getByTestId('place-card-save'))
+      expect(save).toHaveBeenCalledTimes(1)
+      expect(open).not.toHaveBeenCalled()
+      await fireEvent.press(screen.getByTestId('place-card-open-target'))
+      expect(open).toHaveBeenCalledTimes(1)
+    } finally { UnistylesStyleSheet.configure({ themes }) }
+  })
+
+  it('omits unknown facts and guest save actions while retaining the shared placeholder', async () => {
+    await render(<PlaceCardSmall place={fixture({ addressText: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, distanceM: undefined, discovery: undefined, priceMin: null, priceMax: null })} />)
+    for (const id of ['place-card-meta', 'place-google-rating', 'place-gogo-rating', 'place-card-price', 'place-card-save', 'place-card-photo-badges']) expect(screen.queryByTestId(id)).toBeNull()
+    expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+  })
+})

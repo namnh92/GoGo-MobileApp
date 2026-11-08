@@ -82,7 +82,7 @@ beforeEach(() => {
 describe('MapCanvas', () => {
   // The Unistyles Jest mock resolves styles once at module load. Load a fresh
   // stylesheet in each mode to check the same tokens native Unistyles updates.
-  it.each(['light', 'dark'] as const)('uses %s tokens for canvas, fallback and callout surfaces', mode => {
+  it.each(['light', 'dark'] as const)('uses %s tokens for canvas, fallback and marker surfaces', mode => {
     const theme = mode === 'dark' ? themes.orangeDark : themes.orange
     const { StyleSheet: sheet } = jest.requireMock<typeof import('react-native-unistyles')>('react-native-unistyles')
     sheet.configure({ themes: { orange: theme } as typeof themes })
@@ -90,8 +90,8 @@ describe('MapCanvas', () => {
       const { styles } = jest.requireActual<typeof import('@/shared/ui/map-canvas.style')>('@/shared/ui/map-canvas.style')
       expect(styles.canvas.backgroundColor).toBe(theme.map.canvas)
       expect(styles.fallback.backgroundColor).toBe(theme.map.canvas)
-      expect(styles.callout.backgroundColor).toBe(theme.surface.card)
-      expect(styles.callout.borderColor).toBe(theme.border.hairline)
+      expect(styles.markerBubble.backgroundColor).toBe(theme.map.labelStroke)
+      expect(styles.markerSelected.backgroundColor).toBe(theme.accent.primary)
     } finally { sheet.configure({ themes }) }
   })
 
@@ -104,6 +104,12 @@ describe('MapCanvas', () => {
       expect(map.props.userInterfaceStyle).toBe(mode)
       expect(map.props.loadingBackgroundColor).toBe(theme.map.canvas)
       expect(map.props.loadingIndicatorColor).toBe(theme.text.secondary)
+      // The SDK takes opaque RGB colors, not RN alpha washes. A bad style
+      // must not flatten roads/water into an apparently empty dark canvas.
+      for (const rule of map.props.customMapStyle) {
+        for (const styler of rule.stylers) expect(styler.color).toMatch(/^#[0-9a-f]{6}$/i)
+      }
+      expect(new Set(map.props.customMapStyle.map((rule: { stylers: { color: string }[] }) => rule.stylers[0].color)).size).toBeGreaterThan(3)
       if (mode === 'dark') {
         expect(map.props.customMapStyle).toEqual(expect.arrayContaining([
           { elementType: 'geometry', stylers: [{ color: darkMapColors.canvas }] },
@@ -248,16 +254,30 @@ it('updates the native camera imperatively independently of the loaded discovery
 })
 
 
-it('selects a named marker and opens its detail through the native callout', async () => {
+it('selects an accessible icon marker without any native title, callout or visible name', async () => {
   const select = jest.fn()
-  const open = jest.fn()
-  const view = await renderScreen(<MapCanvas pins={PINS} onSelect={select} onOpen={open} />)
+  const view = await renderScreen(<MapCanvas pins={PINS} onSelect={select} />)
   const marker = view.getByLabelText('Quán B')
-  expect(marker.props.title).toBe('Quán B')
-  await fireEvent.press(marker)
+  expect(marker.props.title).toBeUndefined()
+  expect(marker.props.onCalloutPress).toBeUndefined()
+  for (const pin of PINS) expect(view.queryByText(pin.title)).toBeNull()
+  const stopPropagation = jest.fn()
+  await fireEvent.press(marker, { stopPropagation })
   expect(select).toHaveBeenCalledWith('b')
-  await fireEvent(marker, 'calloutPress')
-  expect(open).toHaveBeenCalledWith('b')
+  expect(stopPropagation).toHaveBeenCalledTimes(1)
+  expect(marker.props.stopPropagation).toBe(true)
+})
+
+it('dismisses only on empty-map presses, including the Android marker-press distinction', async () => {
+  const dismiss = jest.fn()
+  const view = await renderScreen(<MapCanvas pins={PINS} onDeselect={dismiss} />)
+  const map = view.getByTestId('map:google')
+  await fireEvent.press(map, { nativeEvent: { action: 'marker-press' } })
+  expect(dismiss).not.toHaveBeenCalled()
+  await fireEvent.press(map, { nativeEvent: { action: 'press' } })
+  expect(dismiss).toHaveBeenCalledTimes(1)
+  await view.rerender(<MapCanvas pins={PINS} onDeselect={dismiss} interactive={false} />)
+  expect(view.getByTestId('map:google').props.onPress).toBeUndefined()
 })
 
 it('falls back when a linked provider never loads tiles', async () => {
