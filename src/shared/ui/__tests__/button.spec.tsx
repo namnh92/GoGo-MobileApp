@@ -32,7 +32,7 @@ describe.each([false, true])('area buttons with wrapLabel=%s', wrapLabel => {
       <SecondaryBtn variant="area" label="Clear area" wrapLabel={wrapLabel} onPress={onPress} />
     </>)
     for (const label of ['Confirm area', 'Clear area']) {
-      expect(screen.getByText(label).props.numberOfLines).toBeUndefined()
+      expect(screen.getByText(label).props.numberOfLines).toBe(wrapLabel ? undefined : 1)
       expect(flat(screen.getByText(label))).toMatchObject(type.buttonLabel)
     }
     expect(flat(button('Confirm area')).backgroundColor).toBe(redesignLight.primaryFill)

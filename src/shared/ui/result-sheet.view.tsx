@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useEffect, useRef, type ReactNode, type ComponentRef } from 'react'
 import { AccessibilityInfo, findNodeHandle, View } from 'react-native'
 import { Icon, type IconName } from './icons'
@@ -19,7 +20,6 @@ export interface ResultSheetProps {
   media?: ReactNode
   note?: string
   primaryAction: Action & { destructive?: boolean }
-  actionOrder?: 'primary-first' | 'secondary-first'
   testID?: string
   secondaryAction?: Action
   onClose: () => void
@@ -33,21 +33,20 @@ const icons: Record<ResultSheetProps['variant'], IconName> = {
 }
 
 /** App-wide result feedback. Sheet owns modal lifecycle, animation and reduced motion. */
-export function ResultSheet({ visible, variant, icon, title, body, media, note, primaryAction, secondaryAction, actionOrder = 'primary-first', testID = 'result-sheet', onClose, onClosed }: ResultSheetProps) {
+export function ResultSheet({ visible, variant, icon, title, body, media, note, primaryAction, secondaryAction, testID = 'result-sheet', onClose, onClosed }: ResultSheetProps) {
   const titleRef = useRef<ComponentRef<typeof Text>>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const reduced = useReducedMotionPreference()
   useEffect(() => () => clearTimeout(timer.current), [])
   useEffect(() => { if (!visible) clearTimeout(timer.current) }, [visible])
   const PrimaryAction = primaryAction.destructive ? DangerBtn : PrimaryBtn
-  const secondary = secondaryAction ? <SecondaryBtn {...secondaryAction} variant="neutral" style={styles.action} wrapLabel /> : null
+  const secondary = secondaryAction ? <SecondaryBtn {...secondaryAction} variant="neutral" style={styles.action} /> : null
   return (
     <Sheet visible={visible} onClose={onClose} onClosed={onClosed} testID={testID}
-      footer={<View style={styles.actions}>
-        {actionOrder === 'secondary-first' ? secondary : null}
-        <PrimaryAction {...primaryAction} style={styles.action} wrapLabel />
-        {actionOrder === 'primary-first' ? secondary : null}
-      </View>}>
+      footer={<SheetActions>
+        {secondary}
+        <PrimaryAction {...primaryAction} style={styles.action} />
+      </SheetActions>}>
       <View style={styles.content}>
         <Icon name={icon ?? icons[variant]} color={tones[variant]} size={spacing[8]} />
         <Text ref={titleRef} accessibilityRole="header" variant="title1" style={styles.copy}

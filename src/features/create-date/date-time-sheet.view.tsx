@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -220,12 +221,11 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
       )}
 
       {slots ? null : (
-        <PrimaryBtn
+        <SheetActions><PrimaryBtn
           label={t('createTime.done')}
           disabled={!canDone}
           onPress={() => onDone(dayArg, time as string)}
-          style={styles.done}
-        />
+        /></SheetActions>
       )}
     </Sheet>
   )

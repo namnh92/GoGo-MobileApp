@@ -440,7 +440,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
         ) : null}
       </ScrollView>
       <ResultSheet visible={deleteConfirm} variant="warning" title={t('account.deleteTitle')}
-        body={t('account.deleteConfirmBody')} actionOrder="secondary-first"
+        body={t('account.deleteConfirmBody')}
         primaryAction={{ label: t('account.deleteAction'), destructive: true, onPress: onDelete }}
         secondaryAction={{ label: t('account.deleteCancel'), onPress: () => setDeleteConfirm(false) }} onClose={() => setDeleteConfirm(false)} />
       <AvatarSourceSheet visible={avatarSheet} hasPhoto={!!me.data?.avatarUrl} canUpload={canUpload}

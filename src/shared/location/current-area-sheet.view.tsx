@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
@@ -49,10 +50,10 @@ export function CurrentAreaSheet({ visible, onClose, onApplied, selection }: { v
   }
   return <Sheet swipeToClose appearance="discovery" visible={visible} onClose={onClose} testID="discovery-location-sheet"
     size={choosing ? 'full' : 'content'} scroll={false}
-    footer={!choosing ? <View style={styles.footer}>
-      {!selection ? <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} style={styles.clear} onPress={() => { setDraftArea(null); setArea(null) }} /> : null}
-      <PrimaryBtn variant="area" label={t('areaPicker.confirm')} style={styles.confirm} disabled={!draftArea || !valid || (!selection && location.state.status === 'asking')} onPress={confirm} />
-    </View> : undefined}
+    footer={!choosing ? <SheetActions>
+      {!selection ? <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} onPress={() => { setDraftArea(null); setArea(null) }} /> : null}
+      <PrimaryBtn variant="area" label={t('areaPicker.confirm')} disabled={!draftArea || !valid || (!selection && location.state.status === 'asking')} onPress={confirm} />
+    </SheetActions> : undefined}
     header={!choosing ? <AppHeader variant="sheet" safeArea={false} title={t('home.chooseArea')}
       rightAction={<AppHeaderAction accessibilityLabel={t('common.close')} onPress={onClose}><MaterialIcon name="close" /></AppHeaderAction>} /> : undefined}>
     <View style={choosing ? styles.list : styles.content}>

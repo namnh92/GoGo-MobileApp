@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
@@ -63,7 +64,7 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
           <TextInput accessibilityLabel={t('placeWizard.searchOptions')} placeholder={t('placeWizard.searchOptions')}
             value={search} onChangeText={setSearch} style={styles.input} />
         </View>}
-        footer={<PrimaryBtn label={t('placeWizard.done')} variant="discovery" onPress={() => setOpen(false)} />}>
+        footer={<SheetActions><PrimaryBtn label={t('placeWizard.done')} variant="discovery" onPress={() => setOpen(false)} /></SheetActions>}>
         <View style={styles.section}>
           {!filtered.length ? <Text>{t('placeWizard.noResults')}</Text> : null}
           {groups.map((group) => <View key={group} style={styles.section}>

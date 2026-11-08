@@ -16,9 +16,5 @@ export const styles = StyleSheet.create(theme => ({
   wheelPadding: { paddingVertical: BIRTHDAY_ROW_HEIGHT },
   row: { height: BIRTHDAY_ROW_HEIGHT, alignItems: 'center', justifyContent: 'center' },
   selected: { backgroundColor: theme.surface.subtle, borderRadius: 8 },
-  shortcuts: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 6, paddingTop: 8, marginTop: 8, borderTopWidth: 1, borderTopColor: theme.border.hairline },
-  shortcut: { minHeight: 44, paddingHorizontal: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface.subtle, borderRadius: 8, borderWidth: 0 },
-  actions: { flexDirection: 'row', gap: 12, paddingTop: 4 },
-  action: { flex: 1 },
   pressed: { backgroundColor: theme.surface.subtle },
 }))

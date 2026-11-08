@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -72,14 +73,14 @@ export function TrackingSheet(props: TrackingSheetProps) {
             <>
               <Text variant="title2" accessibilityRole="header">{t('consent.tracking.title')}</Text>
               <Text variant="body" color="text.secondary">{t('consent.tracking.body')}</Text>
-              <View style={styles.actions}>
+              <SheetActions>
+                <GhostBtn label={t('consent.tracking.later')} onPress={onLater} disabled={requesting} />
                 <PrimaryBtn
                   label={t('consent.tracking.continue')}
                   onPress={props.onContinue}
                   loading={requesting}
                 />
-                <GhostBtn label={t('consent.tracking.later')} onPress={onLater} disabled={requesting} />
-              </View>
+              </SheetActions>
             </>
           ) : (
             <>
@@ -87,10 +88,10 @@ export function TrackingSheet(props: TrackingSheetProps) {
               <ScrollView style={styles.bodyScroll}>
                 <Text variant="body" color="text.secondary">{t('consent.tracking.android.body')}</Text>
               </ScrollView>
-              <View style={styles.actions}>
-                <PrimaryBtn label={t('consent.tracking.android.allow')} onPress={props.onAllow} />
+              <SheetActions>
                 <GhostBtn label={t('consent.tracking.android.deny')} onPress={props.onDeny} />
-              </View>
+                <PrimaryBtn label={t('consent.tracking.android.allow')} onPress={props.onAllow} />
+              </SheetActions>
             </>
           )}
         </View>

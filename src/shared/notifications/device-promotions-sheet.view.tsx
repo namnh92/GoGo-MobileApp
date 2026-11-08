@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -48,10 +49,10 @@ export function DevicePromotionsSheet({
           <ScrollView style={styles.bodyScroll}>
             <Text variant="body" color="text.secondary">{t('devicePromotions.sheet.body')}</Text>
           </ScrollView>
-          <View style={styles.actions}>
-            <PrimaryBtn label={t('devicePromotions.sheet.continue')} onPress={onContinue} loading={requesting} />
+          <SheetActions>
             <GhostBtn label={t('devicePromotions.sheet.decline')} onPress={onDecline} disabled={requesting} />
-          </View>
+            <PrimaryBtn label={t('devicePromotions.sheet.continue')} onPress={onContinue} loading={requesting} />
+          </SheetActions>
         </View>
       </View>
     </Modal>

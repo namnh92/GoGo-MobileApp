@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { View } from 'react-native'
@@ -27,15 +28,15 @@ export function MediaPermissionSheet({ issue, onSettings, onChoose, onClose, onC
   const reason = current?.status === 'denied' ? 'Denied' : 'Unavailable'
   const settings = current?.status === 'denied'
   const fallback = source === 'camera' ? 'library' : 'camera'
-  const fallbackLabel = t(fallback === 'library' ? 'account.avatarLibrary' : 'account.avatarCamera')
+  const fallbackLabel = t(fallback === 'library' ? 'mediaPermission.libraryAction' : 'mediaPermission.cameraAction')
   return <Sheet visible={issue !== null} appearance="avatar" testID="media-permission-sheet" onClose={onClose} onClosed={onClosed}
-    footer={<View style={styles.actions}>
-      {settings ? <PrimaryBtn variant="stitch" label={t('account.avatarSettings')} onPress={onSettings} /> : null}
-      {settings
-        ? <SecondaryBtn variant="neutral" label={fallbackLabel} onPress={() => onChoose(fallback)} />
-        : <PrimaryBtn variant="stitch" label={fallbackLabel} onPress={() => onChoose(fallback)} />}
+    footer={<SheetActions>
       <SecondaryBtn variant="neutral" label={t('common.cancel')} onPress={onClose} />
-    </View>}>
+      {settings ? <SecondaryBtn variant="neutral" label={fallbackLabel} onPress={() => onChoose(fallback)} /> : null}
+      {settings
+        ? <PrimaryBtn variant="stitch" label={t('account.avatarSettings')} onPress={onSettings} />
+        : <PrimaryBtn variant="stitch" label={fallbackLabel} onPress={() => onChoose(fallback)} />}
+    </SheetActions>}>
     <View style={styles.content}>
       <IconChip icon={source === 'camera' ? 'camera' : 'photoLibrary'} />
       <Text accessibilityRole="header" variant="savedWardTitle" style={styles.copy}>{t(`mediaPermission.${source}${reason}Title`)}</Text>

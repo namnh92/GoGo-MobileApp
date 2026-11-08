@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { Sheet } from '@/shared/ui/sheet.view'
@@ -27,7 +28,7 @@ export function AvatarSourceSheet({ visible, hasPhoto, canUpload, onClose, onClo
         destructive: option.source === 'remove', disabled: option.source !== 'remove' && !canUpload,
         onPress: () => onChoose(option.source),
       }))} />
-      <SecondaryBtn variant="neutral" label={t('common.cancel')} onPress={onClose} />
+      <SheetActions><SecondaryBtn variant="neutral" label={t('common.cancel')} onPress={onClose} /></SheetActions>
     </View>
   </Sheet>
 }

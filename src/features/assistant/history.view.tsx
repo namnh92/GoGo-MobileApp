@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, SectionList, View } from 'react-native'
@@ -334,10 +335,10 @@ function RenameForm({
           style={styles.input}
         />
       </View>
-      <View style={styles.actions}>
-        <PrimaryBtn label={t('assistant.edit.save')} onPress={onSave} disabled={!canSave || saving} loading={saving} />
+      <SheetActions>
         <GhostBtn label={t('common.cancel')} onPress={onCancel} />
-      </View>
+        <PrimaryBtn label={t('assistant.edit.save')} onPress={onSave} disabled={!canSave || saving} loading={saving} />
+      </SheetActions>
     </View>
   )
 }

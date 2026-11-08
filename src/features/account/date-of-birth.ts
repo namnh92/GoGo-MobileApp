@@ -96,3 +96,12 @@ export function formatDateOfBirth(value: string | null | undefined, locale: stri
     year: date.year,
   })
 }
+
+/** Picker seed only; validation remains a real, non-future calendar date. */
+export function initialBirthdayDate(text: string, now: Date = new Date()): CalendarDate {
+  const check = checkTypedDateOfBirth(text, now)
+  if (check.ok) return parseIsoDate(check.iso)!
+  const today = parseIsoDate(todayInVietnam(now))!
+  // An adult year rather than today's newborn date; Jan 1 also avoids leap-day overflow.
+  return { year: Math.max(1, today.year - 18), month: 1, day: 1 }
+}

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  initialBirthdayDate,
   checkTypedDateOfBirth,
   formatDateOfBirth,
   isoToTyped,
@@ -100,4 +101,16 @@ describe('date of birth as a calendar date (PROF-APP-006 #217)', () => {
     }
     expect([...carriers].sort()).toEqual(['Me', 'ProfilePatch'])
   })
+})
+
+it.each(['UTC', 'America/Los_Angeles', 'Asia/Ho_Chi_Minh'])('initializes birthday from the field in %s', zone => {
+  process.env.TZ = zone
+  const now = new Date('2026-11-08T12:00:00Z')
+  expect(initialBirthdayDate('17/05/1990', now)).toEqual({ year: 1990, month: 5, day: 17 })
+  expect(initialBirthdayDate('29/02/2000', now)).toEqual({ year: 2000, month: 2, day: 29 })
+  for (const value of ['', 'invalid', '01/01/2099']) {
+    const date = initialBirthdayDate(value, now)
+    expect(date).toEqual({ year: 2008, month: 1, day: 1 })
+    expect(checkTypedDateOfBirth(isoToTyped(`${date.year}-01-01`), now).ok).toBe(true)
+  }
 })

@@ -174,7 +174,7 @@ export default function ProfileScreen() {
     <ResultSheet visible={locked && !canRead} variant="info" title={t('notifications.signInTitle')} body={t('g11.userOnly')}
       primaryAction={{ label: t('auth.signInCta'), onPress: () => { setLocked(false); router.push('/auth/sign-in') } }} onClose={() => setLocked(false)} />
     <ResultSheet visible={logoutConfirm !== null && logoutConfirm === actor} variant="warning"
-      testID="profile-logout-confirm" title={t('g11.logoutTitle')} body={t('g11.logoutBody')} actionOrder="secondary-first"
+      testID="profile-logout-confirm" title={t('g11.logoutTitle')} body={t('g11.logoutBody')}
       primaryAction={{ label: t('g11.logoutConfirm'), destructive: true, onPress: () => { setLogoutConfirm(null); void signOutNow() } }}
       secondaryAction={{ label: t('common.cancel'), onPress: () => setLogoutConfirm(null) }} onClose={() => setLogoutConfirm(null)} />
   </Atmosphere>

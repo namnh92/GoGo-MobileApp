@@ -1,3 +1,4 @@
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, View } from 'react-native'
@@ -74,11 +75,6 @@ export function BirthdaySheet({ visible, date, onChange, onClose, onConfirm }: {
     next.day = Math.min(next.day, daysInBirthdayMonth(next.year, next.month))
     onChange(next)
   }
-  function shiftYears(amount: number) {
-    const next = { ...date, year: Math.max(1, Math.min(today.year, date.year + amount)) }
-    next.day = Math.min(next.day, daysInBirthdayMonth(next.year, next.month))
-    onChange(toIsoDate(next) > toIsoDate(today) ? today : next)
-  }
   return <Sheet visible={visible} onClose={onClose} scroll={false} maxHeight="100%" appearance="avatar" testID="birthday-sheet">
     <View style={styles.content} accessibilityViewIsModal>
       <View style={styles.heading}>
@@ -100,21 +96,12 @@ export function BirthdaySheet({ visible, date, onChange, onClose, onConfirm }: {
           <Wheel part="month" label={t('account.birthdayMonth')} value={date.month} max={12} onChange={value => change('month', value)} />
           <Wheel part="year" label={t('account.birthdayYear')} value={date.year} max={today.year} onChange={value => change('year', value)} />
         </View>
-        <View style={styles.shortcuts}>
-          {([
-            [t('account.birthdayMinusTen'), () => shiftYears(-10)],
-            [t('account.birthdayToday'), () => onChange(today)],
-            [t('account.birthdayPlusTen'), () => shiftYears(10)],
-          ] as const).map(([label, onPress]) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
-            <Text variant="avatarTool" color="text.secondary">{label}</Text>
-          </Pressable>)}
-        </View>
       </View>
       {!check.ok ? <Text variant="bodySmall" color="status.dangerText" accessibilityRole="alert" accessibilityLiveRegion="polite">{t(check.reason === 'future' ? 'account.dobFuture' : 'account.dobInvalid')}</Text> : null}
-      <View style={styles.actions}>
-        <SecondaryBtn variant="neutral" label={t('common.cancel')} onPress={onClose} style={styles.action} />
-        <PrimaryBtn variant="stitch" label={t('areaPicker.confirm')} disabled={!check.ok} onPress={() => { if (checkTypedDateOfBirth(typed).ok) onConfirm(typed) }} style={styles.action} />
-      </View>
+      <SheetActions>
+        <SecondaryBtn variant="neutral" label={t('common.cancel')} onPress={onClose} />
+        <PrimaryBtn variant="stitch" label={t('areaPicker.confirm')} disabled={!check.ok} onPress={() => { if (checkTypedDateOfBirth(typed).ok) onConfirm(typed) }} />
+      </SheetActions>
     </View>
   </Sheet>
 }
