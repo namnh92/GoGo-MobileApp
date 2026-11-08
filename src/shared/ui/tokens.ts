@@ -410,6 +410,15 @@ export const fontFamily = {
 export const type = {
   // Saved city Stitch 5cd4c60b: header, ward, card and metadata hierarchy.
   savedCityTitle: { fontFamily: fontFamily.bold, fontSize: 18, lineHeight: 23 },
+  avatarAction: { fontFamily: fontFamily.semiBold, fontSize: 14.5, lineHeight: 20 },
+  avatarCancel: { fontFamily: fontFamily.bold, fontSize: 14.5, lineHeight: 20 },
+  avatarCaption: { fontFamily: fontFamily.regular, fontSize: 11.5, lineHeight: 16 },
+  avatarSubtitle: { fontFamily: fontFamily.regular, fontSize: 12, lineHeight: 16 },
+  avatarReset: { fontFamily: fontFamily.semiBold, fontSize: 14, lineHeight: 20 },
+  avatarTool: { fontFamily: fontFamily.semiBold, fontSize: 11.5, lineHeight: 16 },
+  avatarPrimary: { fontFamily: fontFamily.bold, fontSize: 14, lineHeight: 20 },
+  avatarSecondary: { fontFamily: fontFamily.bold, fontSize: 13.5, lineHeight: 20 },
+  accountInput: { fontFamily: fontFamily.medium, fontSize: 14.5, lineHeight: 20 },
   savedWardTitle: { fontFamily: fontFamily.bold, fontSize: 15, lineHeight: 20 },
   savedCardTitle: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 22 },
   savedMeta: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
@@ -584,3 +593,10 @@ export const darkAccents = {
   blue: { primary: '#1E68D7', text: '#94BEF7', pressed: '#164EB0', soft: '#192B45', onSoft: '#94BEF7', onAccent },
   purple: { primary: '#7161E2', text: '#C7BFFF', pressed: '#5747C8', soft: '#2F2A55', onSoft: '#C7BFFF', onAccent },
 } as const satisfies Record<AccentName, Record<keyof (typeof accents)['orange'], string>>
+
+/** Owner Stitch avatar editor: fixed dark photo workspace in both themes. */
+export const photoEditor = {
+  canvas: '#121212', dock: '#181818', black: '#000000',
+  line: '#333333', raised: '#262626', pressed: '#444444',
+  pill: '#000000BF', white: '#FFFFFF',
+} as const

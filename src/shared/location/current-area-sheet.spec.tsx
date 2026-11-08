@@ -108,3 +108,18 @@ it('selects from cached administrative data while offline', async () => {
   await fireEvent.press(view.getByText('Xác nhận'))
   expect(useAppAreaStore.getState().area).toEqual(area)
 })
+
+
+it('applies a controlled profile selection without changing the app-wide area', async () => {
+  const apply = jest.fn()
+  const view = await renderScreen(<CurrentAreaSheet visible onClose={close} onApplied={applied}
+    selection={{ value: null, onApply: apply }} />)
+  expect(view.queryByText('Dùng vị trí của tôi')).toBeNull()
+  await fireEvent.press(view.getByText('Chọn Tỉnh / Thành phố'))
+  await fireEvent.press(view.getByText(province.fullName))
+  expect(apply).not.toHaveBeenCalled()
+  expect(useAppAreaStore.getState().area).toBeNull()
+  await fireEvent.press(view.getByText('Xác nhận'))
+  expect(apply).toHaveBeenCalledWith(area)
+  expect(useAppAreaStore.getState().area).toBeNull()
+})

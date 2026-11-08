@@ -121,7 +121,7 @@ export default function MyReviewsScreen() {
 
   const header = (
     <View>
-      <AppHeader onBack={() => router.back()} title={t('myReviews.title')} />
+      <AppHeader showNotifications={false} onBack={() => router.back()} title={t('myReviews.title')} />
     </View>
   )
 

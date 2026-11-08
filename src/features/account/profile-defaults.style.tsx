@@ -3,6 +3,9 @@ import { StyleSheet } from 'react-native-unistyles'
 import { shadows, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  areaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], minHeight: 64, padding: spacing[3], borderRadius: 8, backgroundColor: theme.redesign.low },
+  areaIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.surface.card, alignItems: 'center', justifyContent: 'center' },
+  areaClear: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing[1] },
   card: { padding: spacing[4], gap: spacing[4], borderRadius: 12, ...shadows.stitch },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.redesign.primarySoft },

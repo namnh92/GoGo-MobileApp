@@ -1,5 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
-import '@/shared/i18n'
+let mockSubmissions = { data: { pages: [{ items: [] as { id: string }[], nextCursor: null as string | null }] }, isPending: false, isError: false }
+const mockSubmissionEnabled = jest.fn()
+jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: (enabled: boolean) => { mockSubmissionEnabled(enabled); return mockSubmissions } }))
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import i18n from '@/shared/i18n'
+import { StyleSheet } from 'react-native'
+import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
+import { themes } from '@/shared/ui/theme'
 
 let mockUnread = { count: 8, more: true }
 const mockPush = jest.fn()
@@ -23,6 +29,8 @@ jest.mock('@/shared/api', () => ({
 import ProfileScreen from '@/features/tabs/profile.view'
 
 beforeEach(() => {
+  mockSubmissions = { data: { pages: [{ items: [], nextCursor: null }] }, isPending: false, isError: false }
+  mockSubmissionEnabled.mockClear()
   mockUnread = { count: 8, more: true }
   mockSession.status = 'user'
   mockPush.mockReset()
@@ -128,7 +136,7 @@ it('does not carry an open confirmation across account switches', async () => {
   await view.rerender(<ProfileScreen />)
   mockSession.status = 'user'
   await view.rerender(<ProfileScreen />)
-  expect(screen.queryByText('Xác nhận đăng xuất')).toBeNull()
+  expect(screen.queryByText('Xác nhận')).toBeNull()
   expect(mockSignOut).not.toHaveBeenCalled()
 })
 
@@ -141,4 +149,84 @@ it('uses shared unread updates and routes the bell to the inbox', async () => {
   await view.rerender(<ProfileScreen />)
   expect(screen.queryByTestId('profile-unread')).toBeNull()
   expect(screen.getByTestId('profile-bell').props.accessibilityLabel).toBe('Thông báo')
+})
+
+it('shows a zero contribution count and links each contribution segment explicitly', async () => {
+  await render(<ProfileScreen />)
+  expect(mockSubmissionEnabled).toHaveBeenCalledWith(true)
+  await fireEvent.press(screen.getByRole('button', { name: 'Đóng góp: 0' }))
+  expect(mockPush).toHaveBeenLastCalledWith('/me/contributions?tab=places')
+  await fireEvent.press(screen.getByRole('button', { name: 'Đánh giá: 0' }))
+  expect(mockPush).toHaveBeenLastCalledWith('/me/contributions?tab=reviews')
+})
+it('counts unique submissions across pages with a lower bound until the final page', async () => {
+  mockSubmissions.data.pages = [{ items: [{ id: 'a' }, { id: 'b' }], nextCursor: 'next' }]
+  const view = await render(<ProfileScreen />)
+  expect(screen.getByRole('button', { name: 'Đóng góp: 2+' })).toBeTruthy()
+  mockSubmissions.data.pages.push({ items: [{ id: 'b' }, { id: 'c' }], nextCursor: null })
+  await view.rerender(<ProfileScreen />)
+  expect(screen.getByRole('button', { name: 'Đóng góp: 3' })).toBeTruthy()
+})
+it('hides stale contribution counts on error while keeping navigation', async () => {
+  mockSubmissions.isError = true
+  mockSubmissions.data.pages = [{ items: [{ id: 'a' }], nextCursor: null }]
+  await render(<ProfileScreen />)
+  expect(screen.queryByRole('button', { name: /^Đóng góp:/ })).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đóng góp' }))
+  expect(mockPush).toHaveBeenLastCalledWith('/me/contributions?tab=places')
+})
+it('shows a contribution skeleton while loading and hides cached counts for guests', async () => {
+  mockSubmissions.isPending = true
+  mockSubmissions.data.pages = []
+  const view = await render(<ProfileScreen />)
+  expect(screen.getByTestId('profile-contributions-loading')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Đóng góp' }).props.accessibilityState.busy).toBe(true)
+  mockSession.status = 'guest'
+  mockSubmissions.isPending = false
+  mockSubmissions.data.pages = [{ items: [{ id: 'a' }], nextCursor: null }]
+  await view.rerender(<ProfileScreen />)
+  expect(mockSubmissionEnabled).toHaveBeenLastCalledWith(false)
+  expect(screen.queryByRole('button', { name: /^Đóng góp:/ })).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đóng góp' }))
+  expect(mockPush).not.toHaveBeenCalled()
+  expect(screen.getByTestId('result-sheet')).toBeTruthy()
+})
+it.each(['orange', 'orangeDark'] as const)('balances four tiles in one row with English labels in %s', async name => {
+  UnistylesSheet.configure({ themes: { [name]: themes[name] } as unknown as typeof themes })
+  await act(async () => { await i18n.changeLanguage('en') })
+  try {
+    await render(<ProfileScreen />)
+    for (const label of ['Saved: 2', 'Plans: 0', 'Reviews: 0', 'Contributions: 0']) {
+      const tile = screen.getByRole('button', { name: label })
+      expect(StyleSheet.flatten(tile.props.style).flex).toBe(1)
+      expect(StyleSheet.flatten(tile.props.style).minWidth).toBe(0)
+    }
+  } finally {
+    await act(async () => { await i18n.changeLanguage('vi') })
+    UnistylesSheet.configure({ themes })
+  }
+})
+
+
+it.each([
+  ['vi', 'Đăng xuất tài khoản', 'Phiên trên thiết bị này sẽ kết thúc.', 'Huỷ', 'Xác nhận'],
+  ['en', 'Sign out of account', 'Your session on this device will end.', 'Cancel', 'Confirm'],
+])('renders %s logout copy with cancel left and confirmation right on one row', async (language, open, body, cancel, confirm) => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  await render(<ProfileScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: open }))
+  expect(screen.getByText(body)).toBeTruthy()
+  const left = screen.getByRole('button', { name: cancel })
+  const right = screen.getByRole('button', { name: confirm })
+  expect(left.parent).toBe(right.parent)
+  expect(StyleSheet.flatten(left.parent!.props.style).flexDirection).toBe('row')
+  expect(left.parent!.children.indexOf(left)).toBeLessThan(left.parent!.children.indexOf(right))
+  for (const button of [left, right]) expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+  expect(screen.getByText(confirm).props.numberOfLines).toBeUndefined()
+  await fireEvent.press(left)
+  expect(mockSignOut).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: open }))
+  await fireEvent.press(screen.getByRole('button', { name: confirm }))
+  expect(mockSignOut).toHaveBeenCalledTimes(1)
+  await act(async () => { await i18n.changeLanguage('vi') })
 })

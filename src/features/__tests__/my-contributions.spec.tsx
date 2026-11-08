@@ -48,7 +48,7 @@ afterEach(async () => {
   await act(async () => { jest.runOnlyPendingTimers() })
   jest.useRealTimers()
 })
-it('switches real lists, resets the filter and routes notifications and creation without a tab dock', async () => {
+it('switches real lists, resets the filter and routes creation without notification navigation without a tab dock', async () => {
   await renderScreen(<MyContributionsScreen />)
   expect(screen.getAllByText('Gửi ngày 07/11/2026')).toHaveLength(4)
   expect(screen.getByText('Lý do: Sai vị trí')).toBeTruthy()
@@ -65,8 +65,9 @@ it('switches real lists, resets the filter and routes notifications and creation
   await fireEvent.press(screen.getByRole('tab', { name: /Địa điểm/ }))
   await fireEvent.press(screen.getByRole('button', { name: 'Thêm địa điểm mới' }))
   expect(mockRouter.push).toHaveBeenCalledWith('/places/import')
-  await fireEvent.press(screen.getByTestId('contributions-bell'))
-  expect(mockRouter.push).toHaveBeenCalledWith('/notifications')
+  expect(screen.queryByTestId('contributions-bell')).toBeNull()
+  expect(screen.queryByTestId('contributions-unread')).toBeNull()
+  expect(mockRouter.push).not.toHaveBeenCalledWith('/notifications')
   expect(screen.getAllByRole('tab')).toHaveLength(2)
   expect(screen.queryByRole('tab', { name: 'Đã lưu' })).toBeNull()
 })

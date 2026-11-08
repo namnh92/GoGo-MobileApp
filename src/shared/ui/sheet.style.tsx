@@ -24,6 +24,8 @@ export const styles = StyleSheet.create(theme => ({
     flexShrink: 1,
     ...theme.shadows.toast,
   },
+  avatarPanel: { backgroundColor: theme.surface.canvas, paddingHorizontal: 16, paddingTop: 18 },
+  avatarHandle: { width: 36, height: 4, marginBottom: 16 },
   discoveryPanel: { backgroundColor: theme.redesign.card, paddingHorizontal: 16, paddingTop: 8 },
   discoveryHandle: { height: 6, marginBottom: 8, backgroundColor: theme.redesign.highest },
   panelFull: { height: '92%' },

@@ -24,7 +24,7 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
-  variant?: 'pill' | 'default' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
+  variant?: 'pill' | 'default' | 'neutral' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
   /** Allow full action labels to wrap in narrow shared layouts. */
   wrapLabel?: boolean
@@ -55,6 +55,10 @@ const LOOK: Record<Kind, Look> = {
   danger: { label: 'status.dangerText', disabledLabel: 'text.secondary', spinner: theme => theme.status.dangerText },
 }
 
+const NEUTRAL_LOOK: Look = {
+  label: 'text.primary', disabledLabel: 'text.secondary', spinner: theme => theme.text.primary,
+}
+
 /** On an accent-coloured ground the two filled roles swap. */
 const ON_ACCENT_LOOK: Partial<Record<Kind, Look>> = {
   primary: { label: 'accent.primary', disabledLabel: 'accent.primary', spinner: theme => theme.accent.primary },
@@ -83,12 +87,13 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
 }) {
   const { theme } = useUnistyles()
   const reduced = useReducedMotion()
-  const stitch = variant !== 'default'
+  const neutral = variant === 'neutral'
+  const stitch = variant !== 'default' && !neutral
   const inactive = disabled || loading
   // Callers often pass `loading={pending} disabled={pending || …}`: while a
   // request is in flight the button reads as loading, not as greyed out.
   const greyed = disabled && !loading
-  const look = (onAccent ? ON_ACCENT_LOOK[kind] : undefined) ?? LOOK[kind]
+  const look = neutral ? NEUTRAL_LOOK : (onAccent ? ON_ACCENT_LOOK[kind] : undefined) ?? LOOK[kind]
   const iconColor: TextColor = variant === 'area' && kind === 'secondary' && !greyed ? 'redesign.primaryText' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : look.label
   return (
     <Pressable
@@ -105,7 +110,9 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [
         styles.base,
-        ...kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed),
+        // A neutral control never registers accent styles with the native
+        // stylesheet, including the pressed/disabled/onAccent paths.
+        ...(neutral ? [styles.neutral, pressed && !inactive && styles.neutralPressed] : kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed)),
         stitch && styles[variant],
         variant === 'discovery' && kind === 'primary' && styles.discoveryPrimary,
         variant === 'area' && kind === 'primary' && styles.areaPrimary,

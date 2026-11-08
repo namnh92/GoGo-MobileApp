@@ -1,3 +1,4 @@
+jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: () => ({ data: { pages: [{ items: [], nextCursor: null }] } }) }))
 import { fireEvent, within } from '@testing-library/react-native'
 
 import { loaded as mockLoaded, renderScreen } from './harness'

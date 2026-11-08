@@ -125,7 +125,7 @@ export default function NotificationsScreen() {
 
   const header = (
     <View>
-      <AppHeader onBack={() => goBackOrHome(router)} title={t('notifications.title')} />
+      <AppHeader showNotifications={false} onBack={() => goBackOrHome(router)} title={t('notifications.title')} />
       {pushUnavailable ? (
         <Text variant="bodySmall" accessibilityLiveRegion="polite" style={styles.notice}>
           {t('notifications.pushUnavailable')}

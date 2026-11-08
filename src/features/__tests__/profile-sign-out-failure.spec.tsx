@@ -1,3 +1,4 @@
+jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: () => ({ data: { pages: [{ items: [], nextCursor: null }] } }) }))
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 
 import '@/shared/i18n'
@@ -64,7 +65,7 @@ async function tapSignOut() {
   await act(async () => {
     await fireEvent.press(screen.getByText(viMessages['g11.logout'] as string))
   })
-  await fireEvent.press(screen.getByText('Xác nhận đăng xuất'))
+  await fireEvent.press(screen.getByText('Xác nhận'))
 }
 
 it.each([

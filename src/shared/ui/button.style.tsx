@@ -17,7 +17,7 @@ const noShadow = { shadowOpacity: 0, elevation: 0 } as const
 
 export const styles = StyleSheet.create(theme => ({
   pill: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 999, gap: 8 },
-  area: { minHeight: 50, height: undefined, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.border.hairline, backgroundColor: theme.redesign.high, gap: 8 },
+  area: { minHeight: 50, height: undefined, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 0, backgroundColor: theme.redesign.high, gap: 8 },
   areaPressed: { backgroundColor: theme.redesign.container },
   areaPrimary: { backgroundColor: theme.accent.primary, borderColor: 'transparent' },
   discoveryJoin: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 12, gap: 4, borderWidth: 0, backgroundColor: theme.redesign.high },
@@ -58,17 +58,19 @@ export const styles = StyleSheet.create(theme => ({
   secondaryOnAccent: { backgroundColor: 'transparent', borderColor: theme.accent.onAccent },
   secondaryOnAccentPressed: { backgroundColor: theme.onDark.wash },
 
+  neutral: { minHeight: 52, paddingVertical: 13, borderRadius: 16, backgroundColor: theme.surface.subtle, borderWidth: 0, ...noShadow },
+  neutralPressed: { backgroundColor: theme.surface.card },
+
   ghost: { height: touchTarget.min },
   ghostPressed: { backgroundColor: theme.surface.subtle },
   ghostDisabled: {},
 
   danger: {
     height: 52,
-    backgroundColor: theme.surface.card,
-    borderWidth: 1,
-    borderColor: theme.status.danger,
+    backgroundColor: theme.status.dangerSoft,
+    borderWidth: 0,
   },
-  dangerPressed: { backgroundColor: theme.status.dangerSoft },
+  dangerPressed: { backgroundColor: theme.surface.subtle },
   dangerDisabled: { backgroundColor: theme.surface.subtle, borderColor: 'transparent' },
 
   /** A coloured ground has no neutral disabled fill; fade instead. */

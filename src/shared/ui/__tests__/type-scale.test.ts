@@ -48,7 +48,8 @@ function offenders(pattern: RegExp): string[] {
 
 describe('type scale', () => {
   it('retains the six base sizes and explicitly tokens every owner-approved Stitch size', () => {
-    const { savedCityTitle, savedWardTitle, savedCardTitle, savedMeta, discoveryTitle, discoveryHeading, discoveryHeader, brand, introTitle, introCompact, introHeading, introTagline, introSection, introBody, introRelaxed, introSmall, introLabel, introCaption, introCaptionMedium, illustrationBadge, mapLabel, ...base } = type
+    const { avatarAction, avatarCancel, avatarCaption, avatarSubtitle, avatarReset, avatarTool, avatarPrimary, avatarSecondary, accountInput, savedCityTitle, savedWardTitle, savedCardTitle, savedMeta, discoveryTitle, discoveryHeading, discoveryHeader, brand, introTitle, introCompact, introHeading, introTagline, introSection, introBody, introRelaxed, introSmall, introLabel, introCaption, introCaptionMedium, illustrationBadge, mapLabel, ...base } = type
+    expect([avatarAction.fontSize, avatarCancel.fontSize, avatarCaption.fontSize, avatarSubtitle.fontSize, avatarReset.fontSize, avatarTool.fontSize, avatarPrimary.fontSize, avatarSecondary.fontSize, accountInput.fontSize]).toEqual([14.5, 14.5, 11.5, 12, 14, 11.5, 14, 13.5, 14.5])
     expect([savedCityTitle.fontSize, savedWardTitle.fontSize, savedCardTitle.fontSize, savedMeta.fontSize]).toEqual([18, 15, 16, 12])
     expect([discoveryTitle.fontSize, discoveryHeading.fontSize, discoveryHeader.fontSize]).toEqual([22, 17, 16])
     expect([introTagline.fontSize, introCaptionMedium.fontSize]).toEqual([17, 11])
