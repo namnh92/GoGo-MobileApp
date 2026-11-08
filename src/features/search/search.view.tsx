@@ -77,7 +77,6 @@ export default function SearchScreen() {
   const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [], categories: categories?.split(',').filter(Boolean) ?? [] }))
   const [draft, setDraft] = useState<DiscoveryFilters>(emptyFilters)
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
-  const openAreaAfterFilters = useRef(false)
   const [locationOpen, setLocationOpen] = useState(false)
   const [mode, setMode] = useState<'list' | 'map'>('list')
   const taxonomies = useTaxonomies({ kinds: 'category,mood,setting,amenity,suitability' })
@@ -280,10 +279,9 @@ export default function SearchScreen() {
       <PrimaryBtn variant="discovery" label={t('discovery.resetSearch')} leadingIcon="tune" onPress={() => { clearFilters(); setQuery('') }} />
       {isAssistantEntryOn() ? <SecondaryBtn variant="discovery" label={t('discovery.askAI')} leadingIcon="sparkle" onPress={() => router.push(assistantHref())} /> : null}
     </View> : null}
-    <Sheet appearance="discovery" visible={sheetOpen} onClosed={() => { if (openAreaAfterFilters.current) { openAreaAfterFilters.current = false; setLocationOpen(true) } }} onClose={() => { setSheetOpen(false); setDraft(committed) }}
+    <Sheet appearance="discovery" visible={sheetOpen} onClose={() => { setSheetOpen(false); setDraft(committed) }}
       header={<View style={styles.sheetHeader}><View style={styles.sheetTitle}><MaterialIcon name="tune" color="redesign.primaryText" size={22} /><Text variant="introHeading">{t('discovery.filterTitle')}</Text></View></View>}
       footer={<SheetActions><SecondaryBtn label={t('discovery.resetDefaults')} onPress={() => setDraft(emptyFilters())} /><PrimaryBtn variant="discovery" label={previewTotal !== undefined ? t('discovery.previewCount', { count: previewTotal }) : t('discovery.apply')} disabled={!valid} onPress={() => { if (valid) { Keyboard.dismiss(); setCommitted(draft); setSheetOpen(false) } }} /></SheetActions>}>
-      <SecondaryBtn variant="area" label={`${t('home.chooseArea')}: ${scopeLabel}`} trailingIcon="expandMore" onPress={() => { Keyboard.dismiss(); openAreaAfterFilters.current = true; setSheetOpen(false) }} />
       <Text variant="introHeading" style={styles.sheetSection}>{t('discovery.amenities')}</Text>
       <View testID="amenity-status-options" style={styles.sheetOptionRow}><Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} />{supports774 ? options('amenity', 'amenities') : null}</View>
       <View style={styles.priceHeading}><Text variant="introHeading">{t('discovery.priceRange')}</Text></View>
