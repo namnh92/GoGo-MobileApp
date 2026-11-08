@@ -8,9 +8,6 @@ patchedDependencies:
   '@sentry/react-native@8.30.0':
     hash: 07e2dd13186d3a162cf861bcbaf03700036a3fd9deb8501df9177fe934dd4daa
     path: patches/@sentry__react-native@8.30.0.patch
-  expo-image-picker@17.0.11:
-    hash: eeebc7c9eb91887ae4cec3e3566659bba5e216e60f5f83f7af4b21f7a3e38a3f
-    path: patches/expo-image-picker@17.0.11.patch
 
 importers:
 
@@ -69,7 +66,7 @@ importers:
         version: 14.0.8(expo@54.0.37)
       expo-image-picker:
         specifier: ~17.0.11
-        version: 17.0.11(patch_hash=eeebc7c9eb91887ae4cec3e3566659bba5e216e60f5f83f7af4b21f7a3e38a3f)(expo@54.0.37)
+        version: 17.0.11(expo@54.0.37)
       expo-linear-gradient:
         specifier: ~15.0.8
         version: 15.0.8(expo@54.0.37)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.0(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -9607,7 +9604,7 @@ snapshots:
       expo: 54.0.37(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.0(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       expo-image-loader: 6.0.0(expo@54.0.37)
 
-  expo-image-picker@17.0.11(patch_hash=eeebc7c9eb91887ae4cec3e3566659bba5e216e60f5f83f7af4b21f7a3e38a3f)(expo@54.0.37):
+  expo-image-picker@17.0.11(expo@54.0.37):
     dependencies:
       expo: 54.0.37(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.0(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       expo-image-loader: 6.0.0(expo@54.0.37)

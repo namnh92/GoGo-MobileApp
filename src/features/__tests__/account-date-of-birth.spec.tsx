@@ -3,8 +3,10 @@ import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { StyleSheet, processColor } from 'react-native'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import { themes } from '@/shared/ui/theme'
+import { motion } from '@/shared/ui/tokens'
 import i18n from '@/shared/i18n'
 import { renderScreen } from './harness'
+import { scriptedTime } from './scripted-time'
 
 const mockUpdateProfile = jest.fn()
 const mockGetMe = jest.fn()
@@ -29,6 +31,8 @@ const profile = (overrides: Partial<Me> = {}): Me => ({
 } as Me)
 let client: QueryClient
 let server: Me
+// Own wheel batches and Sheet exit frames, including under parallel-worker load.
+scriptedTime()
 beforeAll(() => notifyManager.setScheduler(callback => callback()))
 afterAll(() => notifyManager.setScheduler(callback => setTimeout(callback, 0)))
 beforeEach(() => {
@@ -301,6 +305,22 @@ async function openBirthday(view: View) {
 async function wheel(view: View, part: 'day' | 'month' | 'year', value: number) {
   await fireEvent(view.getByTestId(`birthday-wheel-${part}`, { includeHiddenElements: true }), 'momentumScrollEnd', { nativeEvent: { contentOffset: { y: (value - 1) * 44 } } })
 }
+it('settles wheel batching and sheet dismissal on the controlled clock', async () => {
+  const view = await mount(profile({ dateOfBirth: '2000-02-29' }))
+  const sheet = await openBirthday(view)
+  await wheel(view, 'year', 2001)
+  // Cross several list batches and animation frames while the picker is open.
+  await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+  expect(sheet.getByRole('adjustable', { name: 'Ngày' }).props.accessibilityValue.now).toBe(28)
+  await fireEvent.press(sheet.getByRole('button', { name: 'Xác nhận' }))
+  expect(view.getByLabelText(INPUT).props.value).toBe('28/02/2001')
+  // Closing hides accessibility immediately, but the real exit still runs.
+  expect(view.queryByTestId('birthday-sheet')).toBeNull()
+  expect(view.getByTestId('birthday-sheet', { includeHiddenElements: true })).toBeTruthy()
+  await act(async () => { jest.advanceTimersByTime(motion.standard + 100) })
+  expect(view.queryByTestId('birthday-sheet', { includeHiddenElements: true })).toBeNull()
+  expect(mockUpdateProfile).not.toHaveBeenCalled()
+})
 it('opens Stitch wheels from the field and confirms only a form draft until header Save', async () => {
   const view = await mount(profile({ dateOfBirth: '1990-05-17' }))
   const sheet = await openBirthday(view)

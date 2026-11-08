@@ -111,10 +111,8 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
   const [avatarNotice, setAvatarNotice] = useState<string | null>(null)
   const [avatarSheet, setAvatarSheet] = useState(false)
   const [avatarAsset, setAvatarAsset] = useState<(PickedAsset & { width: number; height: number }) | null>(null)
-  const [avatarEditing, setAvatarEditing] = useState(false)
   const avatarLock = useRef(false)
   const pendingSource = useRef<AvatarSource | 'remove' | null>(null)
-  const chooseAfterEditor = useRef(false)
   const [permissionSource, setPermissionSource] = useState<AvatarSource | null>(null)
   const { confirm, dialog } = useDialog()
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -212,8 +210,8 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     setPermissionSource(null)
     setAvatarStep('picking')
     try {
-      // The patched iOS picker resolves only after UIKit confirms dismissal.
-      // A JS delay or InteractionManager task cannot confirm that transition.
+      // The upstream picker can resolve during UIKit dismissal. The editor
+      // replaces this screen's content, so it presents no competing native modal.
       const picked = await selectAvatar(source)
       if (!mounted.current) return
       if (picked.status === 'canceled') return
@@ -224,7 +222,6 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
       }
       if (picked.status !== 'selected') return
       setAvatarAsset(picked.asset)
-      setAvatarEditing(true)
     } catch (error) {
       if (mounted.current) setAvatarNotice(t(avatarErrorKey(error)))
     } finally {
@@ -247,7 +244,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
       if (!mounted.current) return
       haptic('success')
       track('profile_avatar_set')
-      setAvatarEditing(false)
+      setAvatarAsset(null)
       setAvatarNotice(t('account.avatarSaved'))
     } catch (error) {
       if (mounted.current) setAvatarNotice(t(avatarErrorKey(error)))
@@ -335,6 +332,12 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     )
   }
 
+  if (avatarAsset) {
+    return <AvatarEditor key={avatarAsset.uri} asset={avatarAsset} busy={avatarStep === 'uploading'} error={avatarNotice}
+      onClose={() => { setAvatarAsset(null); setAvatarNotice(null) }}
+      onChooseAnother={() => { setAvatarAsset(null); setAvatarNotice(null); setAvatarSheet(true) }}
+      onConfirm={(value, viewport) => void confirmAvatar(value, viewport)} />
+  }
 
   return (
     <Atmosphere>
@@ -368,7 +371,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
             <GhostBtn label={t('account.avatarSettings')} onPress={() => { void Linking.openSettings().catch(() => setAvatarNotice(t('account.avatarFailed'))) }} />
             <GhostBtn label={t(permissionSource === 'camera' ? 'account.avatarLibrary' : 'account.avatarCamera')} onPress={() => void changeAvatar(permissionSource === 'camera' ? 'library' : 'camera')} />
           </View> : null}
-          {avatarNotice && !avatarEditing ? (
+          {avatarNotice ? (
             <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
               {avatarNotice}
             </Text>
@@ -404,7 +407,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
             <Text variant="savedWardTitle" accessibilityRole="header">{t('account.dataTitle')}</Text>
           </View>
           <Text variant="bodySmall" color="text.secondary">{t('account.exportBody')}</Text>
-          <SecondaryBtn leadingIcon="download"
+          <SecondaryBtn variant="neutral" leadingIcon="download"
             disabled={busy === 'export'} loading={busy === 'export'}
             label={busy === 'export' ? t('account.exporting') : t('account.export')}
             onPress={onExport}
@@ -445,10 +448,6 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
         secondaryAction={{ label: t('account.deleteCancel'), onPress: () => setDeleteConfirm(false) }} onClose={() => setDeleteConfirm(false)} />
       <AvatarSourceSheet visible={avatarSheet} hasPhoto={!!me.data?.avatarUrl} canUpload={canUpload}
         onClose={() => { pendingSource.current = null; setAvatarSheet(false) }} onClosed={sourceSheetClosed} onChoose={chooseAvatarSource} />
-      {avatarAsset ? <AvatarEditor key={avatarAsset.uri} asset={avatarAsset} visible={avatarEditing} busy={avatarStep === 'uploading'} error={avatarNotice}
-        onClose={() => { setAvatarEditing(false); setAvatarNotice(null) }}
-        onClosed={() => { if (chooseAfterEditor.current) { chooseAfterEditor.current = false; setAvatarSheet(true) } }}
-        onChooseAnother={() => { chooseAfterEditor.current = true; setAvatarEditing(false) }} onConfirm={(value, viewport) => void confirmAvatar(value, viewport)} /> : null}
       {dialog}
     </Atmosphere>
   )

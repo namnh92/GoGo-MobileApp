@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Image, Modal, Platform, Pressable, View, useWindowDimensions } from 'react-native'
+import { ActivityIndicator, BackHandler, Image, Pressable, View, useWindowDimensions } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Svg, { Circle, Defs, G, Line, Mask, Rect } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -10,17 +10,18 @@ import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
 import { styles } from './avatar-editor.style'
 
-export function AvatarEditor({ asset, visible, onClosed, busy, error, onClose, onChooseAnother, onConfirm }: {
-  visible: boolean; onClosed: () => void
+export function AvatarEditor({ asset, busy, error, onClose, onChooseAnother, onConfirm }: {
   asset: PickedAsset & { width: number; height: number }; busy: boolean; error: string | null
   onClose: () => void; onChooseAnother: () => void; onConfirm: (value: AvatarAdjustment, viewport: number) => void
 }) {
   const { t } = useTranslation()
-  const wasVisible = useRef(visible)
   useEffect(() => {
-    if (wasVisible.current && !visible && Platform.OS !== 'ios') onClosed()
-    wasVisible.current = visible
-  }, [visible, onClosed])
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!busy) onClose()
+      return true
+    })
+    return () => subscription.remove()
+  }, [busy, onClose])
   const insets = useSafeAreaInsets()
   const { width, height } = useWindowDimensions()
   const viewport = Math.max(80, Math.min(350, width - 32, height - insets.top - insets.bottom - 350))
@@ -48,9 +49,8 @@ export function AvatarEditor({ asset, visible, onClosed, busy, error, onClose, o
     .onBegin(e => update({ ...current.current, zoom: 1 + Math.max(0, Math.min(1, e.x / sliderWidth.current)) * 1.5 }))
     .onUpdate(e => update({ ...current.current, zoom: 1 + Math.max(0, Math.min(1, e.x / sliderWidth.current)) * 1.5 }))
   /* eslint-enable react-hooks/refs */
-  return <Modal visible={visible} onDismiss={onClosed} animationType="none" onRequestClose={() => { if (!busy) onClose() }}>
-    <GestureHandlerRootView style={styles.root}>
-      <View accessibilityViewIsModal onAccessibilityEscape={() => { if (!busy) onClose() }} style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+  return <GestureHandlerRootView style={styles.root}>
+      <View onAccessibilityEscape={() => { if (!busy) onClose() }} style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
           <EditorButton icon="close" label={t('common.close')} onPress={onClose} busy={busy} />
           <Text variant="discoveryHeading" color="onDark.strong" accessibilityRole="header" style={styles.title}>{t('account.avatarAdjust')}</Text>
@@ -110,7 +110,6 @@ export function AvatarEditor({ asset, visible, onClosed, busy, error, onClose, o
         </View>
       </View>
     </GestureHandlerRootView>
-  </Modal>
 }
 
 function EditorButton({ icon, label, onPress, busy, tool = false }: { icon: MaterialIconName; label: string; onPress: () => void; busy: boolean; tool?: boolean }) {

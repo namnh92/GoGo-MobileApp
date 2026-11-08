@@ -3,7 +3,9 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => ({ Adminis
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
-import { StyleSheet } from 'react-native'
+import { scriptedTime } from './scripted-time'
+import { BackHandler, StyleSheet } from 'react-native'
+import { themes } from '@/shared/ui/theme'
 import i18n from '@/shared/i18n'
 
 /**
@@ -71,6 +73,18 @@ function profile(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function expectInScreenEditor(view: Awaited<ReturnType<typeof renderScreen>>) {
+  let ancestor = view.getByText('Dùng ảnh này').parent
+  while (ancestor) {
+    expect(ancestor.type).not.toBe('Modal')
+    ancestor = ancestor.parent
+  }
+  expect(view.queryByText(i18n.t('account.export'))).toBeNull()
+}
+
+// Source-sheet exit / onClosed uses the same timer-driven Sheet as birthday.
+scriptedTime()
+
 beforeEach(() => {
   mockMe.query = loaded(profile())
   mockUpload.mockReset()
@@ -79,6 +93,7 @@ beforeEach(() => {
   mockPick.mockReset()
   mockDelete.mockReset().mockResolvedValue(undefined)
 })
+
 
 describe('account screen layout (#297)', () => {
   it('keeps theme and defaults on the separate approved G11 routes', async () => {
@@ -247,25 +262,87 @@ it('defers upload until crop confirmation, preserves the old avatar on cancel, a
   expect(view.getByTestId('avatar-image').props.source).toEqual([{ uri: 'https://assets-test.local/old.webp' }])
 })
 
-it('waits for picker completion on every selection before opening the editor', async () => {
+it.each(['camera', 'library'])('waits for %s completion before showing the in-screen editor on every selection', async source => {
   const view = await renderScreen(<AccountScreen />)
   await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
-  for (let selection = 0; selection < 2; selection++) {
+  for (let selection = 0; selection < 3; selection++) {
     let finishPicker!: (value: unknown) => void
     mockPick.mockImplementationOnce(() => new Promise(resolve => { finishPicker = resolve }))
-    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    await fireEvent.press(await view.findByRole('button', { name: source === 'camera' ? 'Chụp ảnh' : 'Chọn từ thư viện' }))
     await waitFor(() => expect(mockPick).toHaveBeenCalledTimes(selection + 1))
     expect(view.queryByText('Dùng ảnh này')).toBeNull()
     expect(mockUpload).not.toHaveBeenCalled()
     await act(async () => {
-      // selectAvatar's native result now means dismissal has completed,
-      // including when the same local photo is immediately available again.
+      // Upstream may resolve while UIKit is still dismissing the picker.
       finishPicker({ status: 'selected', asset: { uri: 'file:///local.jpg', width: 800, height: 600 } })
     })
     expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+    expectInScreenEditor(view)
     await fireEvent.press(view.getByRole('button', { name: 'Chọn ảnh khác' }))
     expect(await view.findByTestId('avatar-source-sheet')).toBeTruthy()
   }
   expect(mockUpload).not.toHaveBeenCalled()
   expect(mockSetAvatar).not.toHaveBeenCalled()
+})
+
+it('handles fast repeated local selections without native presentation and resets the crop', async () => {
+  mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///local.jpg', width: 800, height: 600 } })
+  const view = await renderScreen(<AccountScreen />)
+  await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+  for (let selection = 0; selection < 3; selection++) {
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+    expectInScreenEditor(view)
+    expect(view.getByRole('adjustable').props.accessibilityValue.now).toBe(125)
+    await fireEvent.press(view.getByRole('button', { name: i18n.t('account.avatarZoomIn') }))
+    expect(view.getByRole('adjustable').props.accessibilityValue.now).toBe(140)
+    await fireEvent.press(view.getByRole('button', { name: 'Chọn ảnh khác' }))
+  }
+  expect(mockPick).toHaveBeenCalledTimes(3)
+  expect(mockUpload).not.toHaveBeenCalled()
+})
+
+it('uses the shared neutral export appearance on Account', async () => {
+  const view = await renderScreen(<AccountScreen />)
+  const button = view.getByRole('button', { name: i18n.t('account.export') })
+  expect(StyleSheet.flatten(button.props.style)).toMatchObject({
+    backgroundColor: themes.orange.surface.subtle, borderColor: themes.orange.border.hairline,
+  })
+  expect(StyleSheet.flatten(view.getByText(i18n.t('account.export')).props.style).color).toBe(themes.orange.text.primary)
+})
+
+it('returns from the in-screen editor on Android back and preserves the account draft', async () => {
+  const back = jest.spyOn(BackHandler, 'addEventListener')
+  try {
+    mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///local.jpg', width: 800, height: 600 } })
+    const view = await renderScreen(<AccountScreen />)
+    await fireEvent.changeText(view.getByLabelText(i18n.t('auth.displayName')), 'Bình')
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+    const handler = back.mock.calls.at(-1)![1]
+    await act(async () => { expect(handler()).toBe(true) })
+    expect(view.queryByText('Dùng ảnh này')).toBeNull()
+    expect(view.getByLabelText(i18n.t('auth.displayName')).props.value).toBe('Bình')
+    expect(mockUpload).not.toHaveBeenCalled()
+  } finally { back.mockRestore() }
+})
+
+it('consumes Android back while the confirmed avatar is uploading', async () => {
+  const back = jest.spyOn(BackHandler, 'addEventListener')
+  try {
+    mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///local.jpg', width: 800, height: 600 } })
+    let finishUpload!: (key: string) => void
+    mockUpload.mockImplementation(() => new Promise(resolve => { finishUpload = resolve }))
+    const view = await renderScreen(<AccountScreen />)
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    await fireEvent.press(await view.findByText('Dùng ảnh này'))
+    await waitFor(() => expect(mockUpload).toHaveBeenCalledTimes(1))
+    const handler = back.mock.calls.at(-1)![1]
+    await act(async () => { expect(handler()).toBe(true) })
+    expect(view.getByRole('button', { name: i18n.t('account.avatarUploading') })).toBeDisabled()
+    await act(async () => { finishUpload('tmp/avatars/u1/k.jpg') })
+    expect(await view.findByText('✓ Đã cập nhật ảnh')).toBeTruthy()
+  } finally { back.mockRestore() }
 })

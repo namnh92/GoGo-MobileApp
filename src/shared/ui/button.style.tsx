@@ -58,6 +58,9 @@ export const styles = StyleSheet.create(theme => ({
   secondaryOnAccent: { backgroundColor: 'transparent', borderColor: theme.accent.onAccent },
   secondaryOnAccentPressed: { backgroundColor: theme.onDark.wash },
 
+  neutral: { height: 52, backgroundColor: theme.surface.subtle, borderWidth: 1, borderColor: theme.border.hairline, ...noShadow },
+  neutralPressed: { backgroundColor: theme.surface.card },
+
   ghost: { height: touchTarget.min },
   ghostPressed: { backgroundColor: theme.surface.subtle },
   ghostDisabled: {},

@@ -1,5 +1,8 @@
 # PR #542 — Astra r1 fixes
 
+Historical r1 evidence. The native F-01 approach and incomplete F-03 disposition
+below are superseded by [Astra r2 fixes](PR-542-astra-r2-fixes.md).
+
 Basis: `96aec32`, existing `feature/GOGO-537-account-header-save` worktree.
 Changes are uncommitted; no commit, push, PR comment, or simulator deployment.
 Scope follows the owner's explicit request to fix the supplied findings.
