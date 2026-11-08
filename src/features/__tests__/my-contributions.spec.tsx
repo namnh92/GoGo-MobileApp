@@ -138,7 +138,7 @@ it('renders loading, offline, error/retry, independent empty states and the sign
   await fireEvent.press(screen.getByRole('tab', { name: /Đánh giá/ }))
   expect(screen.getByText('Bạn chưa viết đánh giá nào')).toBeTruthy()
   await fireEvent.press(screen.getByText('Khám phá địa điểm'))
-  expect(mockRouter.push).toHaveBeenCalledWith('/(tabs)')
+  expect(mockRouter.push).toHaveBeenCalledWith('/places/search')
   mockReviews.isError = true
   await view.rerender(<MyContributionsScreen />)
   await fireEvent.press(screen.getByText('Thử lại'))
@@ -208,6 +208,6 @@ it('shows a Reviews empty state only for the active filter with its explore acti
   await fireEvent.press(screen.getByRole('button', { name: 'Đã duyệt (0)' }))
   expect(screen.getByText('Bạn chưa có đánh giá nào được duyệt')).toBeTruthy()
   await fireEvent.press(screen.getByRole('button', { name: 'Khám phá địa điểm' }))
-  expect(mockRouter.push).toHaveBeenCalledWith('/(tabs)')
+  expect(mockRouter.push).toHaveBeenCalledWith('/places/search')
   expect(screen.queryByTestId('contributions-add-fab')).toBeNull()
 })

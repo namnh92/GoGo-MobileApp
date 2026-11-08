@@ -145,7 +145,7 @@ export default function MyContributionsScreen() {
   const options = [...filters.filter(value => tab === 'places' || value !== 'rejected' || reviewItems.some(row => row.status === 'rejected')), ...(tab === 'reviews' && reviewItems.some(row => row.status === 'removed') ? ['removed' as const] : [])]
   const loadMore = () => { if (query.hasNextPage && !query.isFetching && online) void query.fetchNextPage() }
   const emptyAction = <GhostBtn label={t(tab === 'places' ? 'contributions.emptyAdd' : 'contributions.explore')}
-    onPress={() => router.push(tab === 'places' ? '/places/import' : '/(tabs)')} />
+    onPress={() => router.push(tab === 'places' ? '/places/import' : '/places/search')} />
   const emptyTitle = filter === 'all' ? t(`contributions.empty.${tab}.title`) :
     t(`contributions.empty.${tab}.${filter}`)
   const emptyList = active.isPending ? (!online || active.isPaused ? <OfflineState /> : <LoadingState />) : active.isError ? null :
