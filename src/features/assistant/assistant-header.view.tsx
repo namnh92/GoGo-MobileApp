@@ -37,7 +37,7 @@ export function AssistantHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <AppHeader safeArea={false} title={title ?? t('assistant.name')} subtitle={subtitle} subtitleTone={offline ? 'danger' : 'default'}
+    <AppHeader variant="sheet" safeArea={false} title={title ?? t('assistant.name')} subtitle={subtitle} subtitleTone={offline ? 'danger' : 'default'}
       onBack={onBack} backLabel={t('assistant.history.back')} backTestID="assistant-back"
       leading={<>
         {onClose ? <HeaderButton testID="assistant-close" icon="x" label={t('assistant.close')} onPress={onClose} /> : null}

@@ -156,7 +156,7 @@ export default function MyContributionsScreen() {
   </>
   const refresh = <RefreshControl refreshing={!!active.isRefetching && !(tab === 'places' && query.isFetchingNextPage)} onRefresh={() => { void active.refetch() }} />
   return <Atmosphere>
-    <View><AppHeader titleAlign="center" title={t('myContributions.title')} onBack={() => router.back()}
+    <View><AppHeader title={t('myContributions.title')} onBack={() => router.back()}
       bellTestID="contributions-bell" unreadDotTestID="contributions-unread" /></View>
     {!registered ? <EmptyState title={t('notifications.signInTitle')} body={t('myContributions.signInBody')} action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} /> : <>
       <FilledSegmentedControl value={tab} onChange={value => { setTab(value); setFilter('all') }}

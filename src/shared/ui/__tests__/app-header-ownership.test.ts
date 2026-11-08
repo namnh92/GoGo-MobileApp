@@ -50,6 +50,13 @@ function violations(file: string, source: string) {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       const tag = node.tagName.getText(ast)
       const attrs = node.attributes.getText(ast)
+      if (tag === 'AppHeader') {
+        const props = node.attributes.properties
+        if (props.some(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'titleAlign')) errors.push('header alignment override')
+        const inSheet = file.endsWith('assistant/assistant-header.view.tsx') || file.endsWith('administrative/administrative-picker.view.tsx')
+        const variant = props.find(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'variant')
+        if (inSheet && (!variant || !ts.isJsxAttribute(variant) || !variant.initializer || !ts.isStringLiteral(variant.initializer) || variant.initializer.text !== 'sheet')) errors.push('sheet header must omit notification navigation')
+      }
       // Exempt only the measured intro controls, never the entire feature file.
       let parent: ts.Node | undefined = node.parent
       let introControls = false
@@ -96,6 +103,23 @@ describe('application header ownership', () => {
       return violations(file, readFileSync(file, 'utf8')).map(error => `${file}: ${error}`)
     })
     expect(found).toEqual([])
+  })
+  it.each([
+    resolve(src, 'shared/administrative/administrative-picker.view.tsx'),
+    resolve(features, 'assistant/assistant-header.view.tsx'),
+  ])('%s enforces the sheet variant for every header, including embedded pickers', file => {
+    const source = readFileSync(file, 'utf8')
+    expect(owns(source, 'AppHeader')).toBe(true)
+    expect(violations(file, source)).toEqual([])
+  })
+  it('rejects sheet navigation and per-screen title alignment overrides', () => {
+    const source = 'const x = <AppHeader title="T" />'
+    for (const file of ['assistant/assistant-header.view.tsx', 'administrative/administrative-picker.view.tsx']) {
+      expect(violations(file, source)).toEqual(['sheet header must omit notification navigation'])
+      expect(violations(file, source.replace('<AppHeader ', '<AppHeader variant="sheet" '))).toEqual([])
+      expect(violations(file, source.replace('<AppHeader ', '<AppHeader variant="sub-screen" '))).toEqual(['sheet header must omit notification navigation'])
+    }
+    expect(violations('screen.view.tsx', 'const x = <AppHeader title="T" titleAlign="center" />')).toEqual(['header alignment override'])
   })
   it('cannot be bypassed with an extra shared header or a comment', () => {
     expect(violations('onboarding/onboarding.view.tsx', 'const x = <HeaderNotificationButton />')).toEqual(['HeaderNotificationButton'])

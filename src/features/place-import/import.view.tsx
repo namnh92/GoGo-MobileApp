@@ -276,7 +276,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
 
   return (
     <Atmosphere redesign style={!verified ? styles.inputCanvas : undefined}>
-      <AppHeader testID="import-header" title={t(verified ? 'placeImport.metaTitle' : 'placeImport.title')} titleAlign={verified ? 'left' : 'center'}
+      <AppHeader testID="import-header" title={t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}
         onBack={verified ? changeLink : () => router.back()} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
         bellTestID="import-bell" unreadDotTestID="import-unread-dot"
         rightAction={!verified ? <AppHeaderAction accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }}><MaterialIcon name="help" size={24} color="redesign.secondary" /></AppHeaderAction> : undefined} />

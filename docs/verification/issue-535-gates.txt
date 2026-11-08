@@ -69,3 +69,18 @@ AssertionError: expected +0 not to be +0 // Object.is equality
    Duration  48.98s (transform 1.31s, setup 0ms, import 5.80s, tests 25.52s, environment 7ms)
 
  ELIFECYCLE  Test failed. See above for more details.
+
+
+PR #538 fix follow-up — 2026-11-08; base HEAD d889888246a36061d715d5e712af19fdd0fac405; uncommitted patch
+pnpm typecheck: exit 0
+pnpm lint: exit 0; no warnings/errors
+pnpm test: exit 1; 135 passed / 1 failed / 1 skipped files; 1634 passed / 3 failed / 39 skipped tests
+pnpm test:ui --runInBand: exit 0; 198 suites / 2447 tests passed
+Focused UI before fix: exit 1; 4 failed / 32 passed (sheet bell, standalone picker bell, embedded picker bell, assistant bell)
+Focused UI after fix: exit 0; 3 suites / 36 passed
+Header ownership: exit 0; 45 passed
+/bin/ps -o lstart= -p $$: denied by sandbox (operation not permitted)
+git diff HEAD --exit-code -- scripts/distribute.sh src/shared/config/__tests__/distribute-wrapper.test.ts: exit 0
+Distribution failures: same three names and error locations as original log above (lines 208/234/258).
+Deep links: Expo extractExpoPathFromURL([], 'gogo-dev://(tabs)') = '(tabs)'; extractExpoPathFromURL([], 'gogo-dev://places/search') = 'places/search'. Source routes verified; no simulator run.
+No commit or push.

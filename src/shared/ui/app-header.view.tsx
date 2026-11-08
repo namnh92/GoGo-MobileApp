@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View, type AccessibilityRole, type AccessibilityState, type LayoutChangeEvent } from 'react-native'
+import { Pressable, View, type AccessibilityRole, type AccessibilityState } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { HeaderNotificationButton } from './header-notification-button.view'
@@ -10,11 +9,11 @@ import { Text } from './text'
 import { styles } from './app-header.style'
 
 export type AppHeaderProps = {
-  variant?: 'tab-root' | 'sub-screen'
+  /** Sheets/modals retain local actions and omit notification navigation. */
+  variant?: 'tab-root' | 'sub-screen' | 'sheet'
   title: string
   subtitle?: string
   subtitleTone?: 'default' | 'danger'
-  titleAlign?: 'left' | 'center'
   onBack?: () => void
   backDisabled?: boolean
   backLabel?: string
@@ -31,30 +30,23 @@ export type AppHeaderProps = {
 }
 
 /** The only application navigation bar. Screen titles are localized by callers. */
-export function AppHeader({ variant = 'sub-screen', title, subtitle, subtitleTone = 'default', titleAlign = 'left', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
+export function AppHeader({ variant = 'sub-screen', title, subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
-  const [sides, setSides] = useState({ left: 0, right: 0 })
-  const sideWidth = Math.max(sides.left, sides.right)
-  const centered = titleAlign === 'center' && variant === 'sub-screen'
-  const measureSide = (side: 'left' | 'right') => (event: LayoutChangeEvent) => {
-    const width = event.nativeEvent.layout.width
-    setSides(previous => previous[side] === width ? previous : { ...previous, [side]: width })
-  }
   const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" size={24} /></AppHeaderAction> : null
-  const actions = <>{rightAction}<HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /></>
+  const actions = <>{rightAction}{variant !== 'sheet' ? <HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /> : null}</>
   return <View testID={testID} style={[styles.root, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
-    <View style={[styles.row, variant === 'sub-screen' && styles.subScreenRow]}>
-      {centered ? <View style={[styles.side, { minWidth: sideWidth }]}><View onLayout={measureSide('left')} style={styles.actions}>{back}{leading}</View></View> : <>{back}{leading}</>}
+    <View style={[styles.row, variant !== 'tab-root' && styles.subScreenRow]}>
+      {back}{leading}
       <View style={styles.identity}>
         <View style={variant === 'tab-root' ? styles.brandRow : undefined}>
           {variant === 'tab-root' ? <><Text variant="discoveryHeading" color="redesign.primaryText">{t('splash.brand')}</Text><Text variant="introSmall" color="redesign.secondary">·</Text></> : null}
-          <Text variant="introHeading" color="redesign.ink" accessibilityRole="header" style={[styles.title, centered && styles.centered]}>{title}</Text>
+          <Text variant="introHeading" color="redesign.ink" accessibilityRole="header" style={styles.title}>{title}</Text>
         </View>
-        {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'redesign.secondary'} style={[styles.subtitle, centered && styles.centered]}>{subtitle}</Text> : null}
+        {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'redesign.secondary'} style={styles.subtitle}>{subtitle}</Text> : null}
         {titleAccessory}
       </View>
-      {centered ? <View style={[styles.side, styles.trailing, { minWidth: sideWidth }]}><View onLayout={measureSide('right')} style={styles.actions}>{actions}</View></View> : <View style={styles.actions}>{actions}</View>}
+      <View style={styles.actions}>{actions}</View>
     </View>
   </View>
 }

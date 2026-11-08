@@ -4,7 +4,7 @@ jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () =
 import { fireEvent, render, screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import i18n from '@/shared/i18n'
-import { AppHeader, AppHeaderAction } from '../app-header.view'
+import { AppHeader, AppHeaderAction, type AppHeaderProps } from '../app-header.view'
 import { MaterialIcon } from '../material-icon'
 import { touchTarget } from '../tokens'
 
@@ -13,13 +13,10 @@ let mockUnread = { count: 0, more: false }
 const flat = (style: unknown) => StyleSheet.flatten(style as never) as Record<string, number | string>
 beforeEach(() => { mockPush.mockClear(); mockUnread = { count: 0, more: false } })
 
-const variants = [
-  { variant: 'tab-root', titleAlign: 'left' },
-  { variant: 'sub-screen', titleAlign: 'left' },
-  { variant: 'sub-screen', titleAlign: 'center' },
-] as const
+const variants = ['tab-root', 'sub-screen', 'sheet'] as const satisfies readonly NonNullable<AppHeaderProps['variant']>[]
+const navigableVariants = variants.filter(variant => variant !== 'sheet')
 
-it.each(variants.flatMap(props => [0, 1, 12].flatMap(count => [false, true].map(more => ({ ...props, count, more })))))('uses one unread rule for $variant/$titleAlign ($count/$more)', async ({ count, more, ...props }) => {
+it.each(navigableVariants.flatMap(variant => [0, 1, 12].flatMap(count => [false, true].map(more => ({ variant, count, more })))))('uses one unread rule for $variant ($count/$more)', async ({ count, more, ...props }) => {
   mockUnread = { count, more }
   const view = await render(<AppHeader {...props} title={i18n.t('plans.title')} onBack={props.variant === 'sub-screen' ? jest.fn() : undefined} />)
   const header = within(screen.getByTestId('app-header'))
@@ -50,18 +47,25 @@ it('owns the safe area, heading, back and optional save target', async () => {
   expect(save).toHaveBeenCalledTimes(1)
 })
 
-it('keeps the centered title between equal side columns, including help plus bell', async () => {
-  await render(<AppHeader title="A long title that can wrap on a small phone" titleAlign="center" onBack={jest.fn()} rightAction={<AppHeaderAction accessibilityLabel="Help" onPress={jest.fn()}><MaterialIcon name="help" /></AppHeaderAction>} />)
+it.each(variants)('keeps the %s title left-aligned with back and multiple actions', async variant => {
+  await render(<AppHeader variant={variant} title="A long title that can wrap on a small phone" onBack={jest.fn()} rightAction={<AppHeaderAction accessibilityLabel="Help" onPress={jest.fn()}><MaterialIcon name="help" /></AppHeaderAction>} />)
   const title = screen.getByRole('header')
-  expect(flat(title.props.style).textAlign).toBe('center')
+  expect(flat(title.props.style).textAlign).toBe('left')
   expect(title.props.numberOfLines).toBeUndefined()
-  const row = title.parent!.parent!.parent!
-  const sides = row.children.filter(child => typeof child !== 'string')
-  const measured = sides[2].children[0]
-  if (typeof measured === 'string') throw new Error('Expected the action layout')
-  await fireEvent(measured, 'layout', { nativeEvent: { layout: { width: 92 } } })
-  expect(flat(sides[0].props.style).minWidth).toBe(92)
-  expect(flat(sides[2].props.style).minWidth).toBe(92)
+})
+
+it('omits the bell and unread dot in a sheet while retaining local actions', async () => {
+  mockUnread = { count: 12, more: true }
+  const back = jest.fn()
+  const help = jest.fn()
+  await render(<AppHeader variant="sheet" title="Sheet" onBack={back} rightAction={<AppHeaderAction accessibilityLabel="Help" onPress={help}><MaterialIcon name="help" /></AppHeaderAction>} />)
+  expect(screen.queryByTestId('app-header-bell')).toBeNull()
+  expect(screen.queryByTestId('app-header-unread-dot')).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: i18n.t('common.back') }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Help' }))
+  expect(back).toHaveBeenCalledTimes(1)
+  expect(help).toHaveBeenCalledTimes(1)
+  expect(mockPush).not.toHaveBeenCalled()
 })
 
 it('honors disabled back and modal-owned safe area', async () => {

@@ -62,6 +62,7 @@ beforeEach(() => {
 it('greets, with the composer ready — no more "coming soon"', async () => {
   const view = await open()
   expect(view.getByText('GoGo AI')).toBeTruthy()
+  expect(view.queryByTestId('app-header-bell')).toBeNull()
   expect(view.getByText('Chào bạn! GoGo có thể giúp gì cho bạn hôm nay?')).toBeTruthy()
   expect(view.queryByText(/sắp ra mắt/)).toBeNull()
   // Decorative: hidden from screen readers, "GoGo AI" is written beside it.
