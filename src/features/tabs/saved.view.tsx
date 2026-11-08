@@ -11,7 +11,7 @@ import { discoveryLabels, isApiError, useTaxonomies, useSavedEntries, useToggleS
 import { useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, Card, GhostBtn } from '@/shared/ui/primitives'
 import { PlaceCardSkeleton } from '@/shared/ui/skeleton.view'
@@ -96,12 +96,10 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
     const tagLabels = [...new Set(entry.place.taxonomies?.flatMap(tag => tag.kind && tag.key && labels[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []) ?? [])]
     const canFindSimilar = similarParams(entry) !== null
     return (
-      <PlaceCard
+      <PlaceCardLarge
         key={entry.key}
         place={{ ...entry.place, distanceM: savedDistance(entry.place, scope.status === 'ready' && scope.source === 'gps' ? scope.position : null), discovery: { ...entry.place.discovery, tagLabels } }}
-        appearance="saved"
-        variant={city ? 'saved-city' : 'saved'}
-        photoCategoryLabel={entry.place.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined}
+        categoryLabel={entry.place.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined}
         unavailableLabel={reason ? t(`saved.unavailable.${reason}`) : undefined}
         footer={reason && canFindSimilar ? <GhostBtn label={t('saved.similar')} onPress={() => findSimilar(entry)} /> : undefined}
         onPress={() => router.push(`/places/${entry.id}`)}

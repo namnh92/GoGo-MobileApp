@@ -18,7 +18,8 @@ import { scopeSearchParams, useDiscoveryScope, type DiscoveryScope } from '@/sha
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Atmosphere, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { SearchField } from '@/shared/ui/search-field.view'
 import { FieldFocusGroup } from '@/shared/ui/field-focus-group'
@@ -230,7 +231,7 @@ export default function SearchScreen() {
       /> : null}
       ListFooterComponent={<>{!mapFallback ? renderPagination() : null}{verifiedEmpty && !sheetOpen ? contribution : null}</>}
       renderItem={({ item: place }) => {
-        const card = <PlaceCard appearance="discovery" place={place} onPress={() => onPlacePress(place)} saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined} onToggleSave={canSave ? () => onBookmark(place) : undefined} style={styles.place} />
+        const card = <PlaceCardLarge place={place} onPress={() => onPlacePress(place)} saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined} onToggleSave={canSave ? () => onBookmark(place) : undefined} style={styles.place} />
         return mapFallback ? <View>{card}<GhostBtn label={t('common.directions')} accessibilityHint={place.name} onPress={() => openGoogleMapsDirections(map.pins.find(pin => pin.id === place.id) ? `${place.lat},${place.lng}` : place.name)} /></View> : card
       }}
     />
@@ -245,8 +246,8 @@ export default function SearchScreen() {
       <View style={styles.mapBlock}>
         <MapCanvas pins={map.pins.map(pin => ({ ...pin, selected: pin.id === selectedMarker }))} cameraRegion={viewport ?? map.region} cameraScopeKey={mapScopeKey} onRegionChangeComplete={exploreRegion} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => { const place = results.find(result => result.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={renderResults(true)} />
         {selectedPlace ? <View style={[styles.mapPreview, { bottom: insets.bottom }]}>
-          <Text variant="introHeading" color="redesign.ink">{selectedPlace.name}</Text>
-          <GhostBtn label={t('discovery.openPlace')} onPress={() => onPlacePress(selectedPlace)} />
+          <PlaceCardSmall place={selectedPlace} onPress={() => onPlacePress(selectedPlace)}
+            accessibilityLabel={t('discovery.openPlace')} accessibilityHint={selectedPlace.name} />
         </View> : null}
       </View>
       {viewport && (search.isPaused || (search.isError && !search.isFetchNextPageError)) ? <View testID="search-map-feedback" style={styles.mapFeedback}>

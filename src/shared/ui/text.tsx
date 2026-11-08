@@ -47,6 +47,8 @@ export type TextColor =
   | 'status.warningText'
   | 'status.dangerText'
   | 'status.infoText'
+  | 'onDark.success'
+  | 'onDark.danger'
   | 'onDark.strong'
   | 'onDark.medium'
   | 'onDark.soft'
@@ -88,6 +90,8 @@ const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
   'status.warningText': theme => theme.status.warningText,
   'status.dangerText': theme => theme.status.dangerText,
   'status.infoText': theme => theme.status.infoText,
+  'onDark.success': theme => theme.onDark.success,
+  'onDark.danger': theme => theme.onDark.danger,
   'onDark.strong': theme => theme.onDark.strong,
   'onDark.medium': theme => theme.onDark.medium,
   'onDark.soft': theme => theme.onDark.soft,

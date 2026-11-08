@@ -6,7 +6,7 @@ import {
 } from '@/shared/api'
 import { formatMoney } from '@/shared/pricing/money'
 import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
-import { PlaceCard as PlaceCardView } from '@/shared/ui/place-card.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Text } from '@/shared/ui/text'
 import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } from './discovery-filters'
 import { styles } from './search.style'
@@ -85,5 +85,5 @@ export function SearchEmpty({ filters, query, onApply, onMore, onPlacePress, lab
 }
 
 function NearbyPlace({ place, onPress }: { place: PlaceCard; onPress: () => void }) {
-  return <View testID="search-nearby-place"><PlaceCardView place={place} variant="nearby" onPress={onPress} /></View>
+  return <View testID="search-nearby-place"><PlaceCardSmall place={place} onPress={onPress} /></View>
 }

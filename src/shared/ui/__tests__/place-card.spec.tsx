@@ -6,7 +6,8 @@ import { themes, type AppTheme } from '@/shared/ui/theme'
 
 import type { PlaceCard as PlaceCardModel } from '@/shared/api'
 import i18n from '@/shared/i18n'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge as PlaceCard } from '@/shared/ui/place-card-large.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { type } from '@/shared/ui/tokens'
 
 let mockRealAdministrative = false
@@ -48,24 +49,24 @@ const fixture = (overrides: Partial<PlaceCardModel> = {}): PlaceCardModel => ({
 
 const flat = (id: string): Record<string, any> => StyleSheet.flatten(screen.getByTestId(id).props.style)
 describe('one shared PlaceCard', () => {
-  it.each(['default', 'discovery', 'saved'] as const)('%s renders the same place facts', async appearance => {
-    await render(<PlaceCard appearance={appearance} place={fixture({ gogoRating: 4.8, gogoRatingCount: 20, discovery: { categoryLabel: 'Cà phê' } })} tags={['Wi-Fi', 'Làm việc', 'Siphon']} />)
+  it.each(['default', 'discovery', 'saved'] as const)('%s renders the same place facts', async () => {
+    await render(<PlaceCard place={fixture({ gogoRating: 4.8, gogoRatingCount: 20, discovery: { categoryLabel: 'Cà phê' } })} tags={['Wi-Fi', 'Làm việc', 'Siphon']} />)
     expect(screen.getByTestId('place-card-address-row')).toBeTruthy()
     expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ')
     expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
     expect(screen.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
     expect(screen.getByTestId('place-card-price')).toHaveTextContent('45k–90k/người')
     expect(screen.getByText('Mở đến 20:00')).toBeTruthy()
-    expect(screen.queryByText('Cà phê')).toBeNull()
+    expect(screen.getByText('Cà phê')).toBeTruthy()
     expect(screen.getByText('Siphon')).toBeTruthy()
-    expect(flat('place-card-surface')).toMatchObject({ backgroundColor: themes.orange.redesign.card, borderRadius: appearance === 'saved' ? 16 : 20, overflow: 'hidden' })
+    expect(flat('place-card-surface')).toMatchObject({ backgroundColor: themes.orange.redesign.card, borderRadius: 20, overflow: 'hidden' })
   })
-  it.each(['list', 'hero', 'compact'] as const)('%s preserves separate sources, sample sizes and address', async variant => {
-    await render(<PlaceCard variant={variant} place={fixture({ gogoRating: 4.9, gogoRatingCount: 4 })} />)
+  it.each(['list', 'hero', 'compact'] as const)('%s preserves separate sources, sample sizes and address', async () => {
+    await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 4 })} />)
     expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
     expect(screen.getByText('GoGo · Chưa đủ đánh giá (4)')).toBeTruthy()
     expect(screen.queryByText(/4,9/)).toBeNull()
-    expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(variant === 'list' ? 2 : 1)
+    expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
   })
   it('omits missing facts, unknown price and guest actions', async () => {
     await render(<PlaceCard place={fixture({ addressText: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, distanceM: undefined, priceMin: null, priceMax: null })} />)
@@ -115,7 +116,7 @@ describe('shared address and rating behavior', () => {
     [undefined, 'Sài Gòn, Hồ Chí Minh'],
     ['', 'Sài Gòn, Hồ Chí Minh'],
   ] as const)('renders address %s with matching accessibility text', async (addressText, expected) => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, areaSummary, discovery: { areaLabel: 'Discovery bucket' } })} />)
+    await render(<PlaceCard place={fixture({ addressText, areaSummary, discovery: { areaLabel: 'Discovery bucket' } })} />)
     const line = screen.getByTestId('place-card-meta')
     expect(line).toHaveTextContent(expected, { exact: true })
     expect(line.props.numberOfLines).toBe(2)
@@ -124,7 +125,7 @@ describe('shared address and rating behavior', () => {
   })
 
   it('omits the address line without either fact instead of using the chip or area key', async () => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, areaKey: 'hcm_q3', discovery: { areaLabel: 'Discovery bucket' } })} />)
+    await render(<PlaceCard place={fixture({ addressText: undefined, areaKey: 'hcm_q3', discovery: { areaLabel: 'Discovery bucket' } })} />)
     expect(screen.queryByTestId('place-card-meta')).toBeNull()
     expect(screen.queryByLabelText('Discovery bucket')).toBeNull()
   })
@@ -132,7 +133,7 @@ describe('shared address and rating behavior', () => {
   it('keeps the proper name when the label locale differs from the app language', async () => {
     await act(async () => { await i18n.changeLanguage('en') })
     try {
-      await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, areaSummary })} />)
+      await render(<PlaceCard place={fixture({ addressText: undefined, areaSummary })} />)
       expect(screen.getByTestId('place-card-meta')).toHaveTextContent('Sài Gòn, Hồ Chí Minh', { exact: true })
       expect(screen.getByLabelText('Sài Gòn, Hồ Chí Minh')).toBeTruthy()
     } finally {
@@ -142,7 +143,7 @@ describe('shared address and rating behavior', () => {
 
   it('renders separate rating sources and isolates save from open', async () => {
     const open = jest.fn(); const save = jest.fn()
-    await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: 20 })} saved onPress={open} onToggleSave={save} />)
+    await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 20 })} saved onPress={open} onToggleSave={save} />)
     expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
     expect(screen.getByText('★ 4,9 (20) GoGo')).toBeTruthy()
     await fireEvent.press(screen.getByTestId('place-card-save'))
@@ -150,7 +151,7 @@ describe('shared address and rating behavior', () => {
     expect(open).not.toHaveBeenCalled()
   })
   it.each([0, 4])('hides a community score below five reviews (%i)', async count => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ gogoRating: 4.9, gogoRatingCount: count })} />)
+    await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: count })} />)
     expect(screen.queryByText(/4,9/)).toBeNull()
     expect(screen.getByText(`GoGo · Chưa đủ đánh giá (${count})`)).toBeTruthy()
     expect(screen.queryByTestId('place-card-save')).toBeNull()
@@ -167,54 +168,13 @@ describe('shared address and rating behavior', () => {
 })
 
 /** Structural evidence only: RNTL/Jest do not perform Yoga text measurement. */
-describe('F-06 bounded discovery photo badges', () => {
-  it.each(['orange', 'orangeDark'] as const)('shares a 264pt wrapping overlay inside a 288pt card on a 320pt phone (%s)', async themeName => {
-    const create = jest.spyOn(UnistylesStyleSheet, 'create')
-    jest.isolateModules(() => { jest.requireActual('../place-card.style') })
-    const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
-    const styles = factory(themes[themeName])
-    create.mockRestore()
-    await render(<PlaceCard appearance="discovery" style={{ width: 320 - 2 * 16 }} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu', verified: true }, distanceM: 2100 })} saved onToggleSave={jest.fn()} />)
-    const overlay = screen.getByTestId('place-card-photo-badges')
-    expect(StyleSheet.flatten(screen.getByTestId('place-card-discovery').parent!.parent!.props.style).width).toBe(288)
-    expect(styles.photoBadges).toMatchObject({ position: 'absolute', left: 12, right: 12, top: 64, bottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end', gap: 8 })
-    expect(288 - styles.photoBadges.left - styles.photoBadges.right).toBe(264)
-    expect(288 / styles.listPhoto.aspectRatio - styles.photoBadges.top - styles.photoBadges.bottom).toBe(104)
-    expect(overlay.children).toHaveLength(2)
-    for (const id of ['place-card-hours-badge']) {
-      expect(screen.getByTestId(id).parent).toBe(overlay)
-      expect(styles.photoBadge).toMatchObject({ maxWidth: '100%', minWidth: 0, flexShrink: 0, backgroundColor: themes[themeName].redesign.card })
-      expect(styles.photoBadge.position).toBeUndefined()
-      expect(screen.getByText('Mở đến 20:00').props.numberOfLines).toBeUndefined()
-    }
-    expect(screen.queryByTestId('place-card-area-badge')).toBeNull()
-    expect(screen.getByText('Xác minh')).toBeTruthy()
-    expect(screen.getByText('Mở đến 20:00')).toBeTruthy()
-    expect(flat('place-card-save')).toMatchObject({ width: 44, height: 44 })
-    // The single-line hours chip fits below the top actions at default text size.
-    expect(type.introCaptionMedium.lineHeight + 8).toBeLessThanOrEqual(104)
-  })
-  it.each([[false, false], [true, false], [false, true], [true, true]])('renders hours only regardless of area data (%s/%s)', async (area, hours) => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ distanceM: undefined, discovery: area ? { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } : undefined, openNow: hours ? true : undefined })} />)
-    expect(Boolean(screen.queryByTestId('place-card-area-badge'))).toBe(false)
-    expect(Boolean(screen.queryByTestId('place-card-hours-badge'))).toBe(hours)
-    expect(Boolean(screen.queryByTestId('place-card-photo-badges'))).toBe(hours)
-  })
-  it.each(['list'] as const)('shares the photo pills in the default %s variant', async variant => {
-    await render(<PlaceCard variant={variant} place={fixture({ discovery: { areaLabel: 'Tỉnh Bà Rịa - Vũng Tàu' } })} />)
-    expect(screen.getByTestId('place-card-photo-badges')).toBeTruthy()
-    expect(screen.getByText('Cà phê Đỗ Phủ')).toBeTruthy()
-  })
-})
-
-
 describe('#515 shared discovery card address', () => {
   it.each([
     ['12 Nguyễn Huệ', '12 Nguyễn Huệ, Quận 1, Hồ Chí Minh'],
     [undefined, 'Quận 1, Hồ Chí Minh'],
     ['  ', 'Quận 1, Hồ Chí Minh'],
   ])('appends the real ward to the street (%s)', async (addressText, expected) => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ addressText, areaSummary: { datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740', label: 'Quận 1', locale: 'vi' }, discovery: { areaLabel: 'Discovery bucket' } })} />)
+    await render(<PlaceCard place={fixture({ addressText, areaSummary: { datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740', label: 'Quận 1', locale: 'vi' }, discovery: { areaLabel: 'Discovery bucket' } })} />)
     expect(screen.getByTestId('place-card-meta')).toHaveTextContent(expected!, { exact: true })
     expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
     expect(screen.getByTestId('place-card-meta').props.ellipsizeMode).toBe('tail')
@@ -223,7 +183,7 @@ describe('#515 shared discovery card address', () => {
     expect(screen.getByTestId('place-card-name').props.ellipsizeMode).toBe('tail')
   })
   it('omits address and overlays without facts, and unknown price', async () => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ addressText: undefined, distanceM: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, priceMin: null, priceMax: null, priceUnit: 'unknown', photoAttribution: null })} />)
+    await render(<PlaceCard place={fixture({ addressText: undefined, distanceM: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, priceMin: null, priceMax: null, priceUnit: 'unknown', photoAttribution: null })} />)
     expect(screen.queryByTestId('place-card-meta')).toBeNull()
     expect(screen.queryByTestId('place-card-photo-badges')).toBeNull()
     expect(screen.queryByText(/Google|GoGo|Xác minh/)).toBeNull()
@@ -238,9 +198,9 @@ describe('owner address composition everywhere', () => {
     ['discovery', 'list', '24 P. Đường Thành, Phố cổ Hà Nội, Hoàn Kiếm, Hà Nội 100000', 'Hoàn Kiếm', '24 P. Đường Thành, Hoàn Kiếm, Hà Nội'],
     ['default', 'hero', '79 P. Lý Nam Đế, phường, Hoàn Kiếm, Hà Nội 100000', 'Hoàn Kiếm', '79 P. Lý Nam Đế, Hoàn Kiếm, Hà Nội'],
     ['discovery', 'hero', '43 Tràng Tiền', 'Cửa Nam', '43 Tràng Tiền, Cửa Nam, Hà Nội'],
-  ] as const)('normalizes the owner example for %s/%s', async (appearance, variant, addressText, label, expected) => {
+  ] as const)('normalizes the owner example for %s/%s', async (_appearance, _variant, addressText, label, expected) => {
     mockProvinces = [{ code: '01', fullName: 'Thành phố Hà Nội' }]
-    await render(<PlaceCard appearance={appearance} variant={variant} place={fixture({
+    await render(<PlaceCard place={fixture({
       addressText, areaSummary: { ...areaSummary, provinceCode: '01', label },
     })} />)
     expect(screen.getByTestId('place-card-meta')).toHaveTextContent(expected, { exact: true })
@@ -248,9 +208,9 @@ describe('owner address composition everywhere', () => {
   })
   it.each([
     ['default', 'list'], ['discovery', 'list'], ['default', 'hero'],
-  ] as const)('composes street, ward and cached province for %s/%s', async (appearance, variant) => {
+  ] as const)('composes street, ward and cached province for %s/%s', async () => {
     mockProvinces = [{ code: '79', fullName: 'Thành phố Hồ Chí Minh' }]
-    await render(<PlaceCard appearance={appearance} variant={variant} place={fixture({ areaSummary })} />)
+    await render(<PlaceCard place={fixture({ areaSummary })} />)
     const expected = '12 Nguyễn Huệ, Sài Gòn, Hồ Chí Minh'
     expect(screen.getByTestId('place-card-meta')).toHaveTextContent(expected, { exact: true })
     expect(screen.getByTestId('place-card-meta').props.accessibilityLabel).toBe(expected)
@@ -274,7 +234,7 @@ describe('owner address composition everywhere', () => {
     expect(screen.queryByTestId('place-card-meta')).toBeNull()
   })
   it('keeps a closed status in one pill without a location chip', async () => {
-    await render(<PlaceCard appearance="discovery" place={fixture({ openNow: false, opensAtMinute: 450, opensDayOffset: 1, discovery: { areaLabel: 'Phường Sài Gòn' } })} />)
+    await render(<PlaceCard place={fixture({ openNow: false, opensAtMinute: 450, opensDayOffset: 1, discovery: { areaLabel: 'Phường Sài Gòn' } })} />)
     expect(screen.getByText('Đã đóng · Mở 07:30 ngày mai').props.numberOfLines).toBeUndefined()
     expect(screen.queryByTestId('place-card-area-badge')).toBeNull()
   })
@@ -288,7 +248,7 @@ it('shares the existing provinces cache across cards without another network rea
   const fetch = jest.spyOn(globalThis, 'fetch')
   try {
     const place = fixture({ areaSummary: { datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740', label: 'Phường Sài Gòn', locale: 'vi' } })
-    const view = await render(<QueryClientProvider client={client}><PlaceCard place={place} /><PlaceCard appearance="discovery" place={place} /></QueryClientProvider>)
+    const view = await render(<QueryClientProvider client={client}><PlaceCard place={place} /><PlaceCard place={place} /></QueryClientProvider>)
     expect(screen.getAllByLabelText('12 Nguyễn Huệ, Sài Gòn, Hồ Chí Minh')).toHaveLength(2)
     expect(fetch).not.toHaveBeenCalled()
     await view.unmount()
@@ -304,11 +264,10 @@ describe('g04 Saved reference card', () => {
     jest.isolateModules(() => { jest.requireActual('../place-card.style') })
     const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
     expect(factory(themes[themeName]).discoveryCard).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderRadius: 20 })
-    expect(factory(themes[themeName]).listPhoto).toMatchObject({ aspectRatio: 1.6 })
     expect(factory(themes[themeName]).photoBadge.backgroundColor).toBe(themes[themeName].redesign.card)
     create.mockRestore()
-    await render(<PlaceCard appearance="saved" place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
-    expect(screen.getByTestId('place-card-saved')).toBeTruthy()
+    await render(<PlaceCard place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
+    expect(screen.getByTestId('place-card-large')).toBeTruthy()
     expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
     expect(screen.getByText('★ 4,8 (8) GoGo')).toBeTruthy()
     expect(screen.getByText('45k–90k/người')).toBeTruthy()
@@ -319,7 +278,7 @@ describe('g04 Saved reference card', () => {
   it('uses the shared filled bookmark on Saved cards without opening the card', async () => {
     const remove = jest.fn()
     const open = jest.fn()
-    await render(<PlaceCard appearance="saved" place={fixture()} saved onToggleSave={remove} onPress={open} />)
+    await render(<PlaceCard place={fixture()} saved onToggleSave={remove} onPress={open} />)
     const bookmark = screen.getByRole('togglebutton', { name: 'Bỏ lưu' })
     expect(bookmark.props.accessibilityState.checked).toBe(true)
     expect(screen.getByTestId('icon-bookmark-filled')).toBeTruthy()
@@ -329,7 +288,7 @@ describe('g04 Saved reference card', () => {
   })
 
   it('keeps the real sample count below the community threshold and hides unknown price', async () => {
-    await render(<PlaceCard appearance="saved" place={fixture({ priceMin: null, priceMax: null, gogoRatingCount: 3 })} />)
+    await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null, gogoRatingCount: 3 })} />)
     expect(screen.getByText('GoGo · Chưa đủ đánh giá (3)')).toBeTruthy()
     expect(screen.queryByText(/\/người/)).toBeNull()
   })
@@ -337,24 +296,24 @@ describe('g04 Saved reference card', () => {
 
 // A Google score must never become an unmarked community score in any rating-bearing variant.
 describe('owner decision 2026-11-07 rating source marks', () => {
-  it.each(['default', 'discovery', 'saved'] as const)('%s keeps both marked scores and independent sample sizes', async appearance => {
-    await render(<PlaceCard appearance={appearance} place={fixture({ gogoRating: 4.8, gogoRatingCount: 20 })} />)
+  it.each(['default', 'discovery', 'saved'] as const)('%s keeps both marked scores and independent sample sizes', async () => {
+    await render(<PlaceCard place={fixture({ gogoRating: 4.8, gogoRatingCount: 20 })} />)
     expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
     expect(screen.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
   })
-  it.each(['default', 'discovery', 'saved'] as const)('%s marks Google even when the sample size is unknown', async appearance => {
-    await render(<PlaceCard appearance={appearance} place={fixture({ ratingCount: undefined })} />)
+  it.each(['default', 'discovery', 'saved'] as const)('%s marks Google even when the sample size is unknown', async () => {
+    await render(<PlaceCard place={fixture({ ratingCount: undefined })} />)
     expect(screen.getByText(/★ 4,6\s+Google/)).toBeTruthy()
   })
 })
 
 it.each([false, true])('provider preview keeps every rendered Google score marked (compact=%s)', async compact => {
-  await render(<PlaceCard variant="preview" compact={compact} preview={{ name: 'Provider cafe', googleRating: 4.6, googleRatingCount: 980 }} />)
-  if (compact) expect(screen.queryByText(/★/)).toBeNull()
-  else expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+  const Component = compact ? PlaceCardSmall : PlaceCard
+  await render(<Component preview={{ name: 'Provider cafe', googleRating: 4.6, googleRatingCount: 980 }} />)
+  expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
 })
 
 it('hero keeps its Google rating visibly marked', async () => {
-  await render(<PlaceCard variant="hero" place={fixture()} />)
+  await render(<PlaceCard place={fixture()} />)
   expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
 })

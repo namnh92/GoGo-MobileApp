@@ -364,7 +364,7 @@ it.each(['submit', 'revalidation'] as const)('F-01 locks branch selection during
   expect(screen.getByRole('button', { name: /Branch B/ }).props.accessibilityState).toMatchObject({ selected: false, disabled: true })
   await act(async () => { finish() })
   if (phase === 'submit') {
-    expect(within(screen.getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
+    expect(within(within(screen.getByTestId('result-sheet')).getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
   } else {
     expect(screen.getByRole('button', { name: /Branch B/ }).props.accessibilityState.disabled).toBe(false)
     await fireEvent.press(screen.getByRole('button', { name: /Branch B/ }))
@@ -387,5 +387,5 @@ it('F-01 binds success identity to the captured submission when the preview chan
   await act(async () => { finish() })
   const result = within(screen.getByTestId('result-sheet'))
   expect(result.getByText('Branch A đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()
-  expect(within(screen.getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
+  expect(within(within(screen.getByTestId('result-sheet')).getByTestId('place-preview-compact')).getByText('Branch A')).toBeTruthy()
 })

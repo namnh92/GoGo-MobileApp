@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -26,7 +26,8 @@ import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { allScopes, costLineText, planCost } from '@/shared/pricing/plan-cost'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
@@ -240,7 +241,7 @@ export default function MatchResultScreen() {
         ) : null}
 
         <Card padded={false} style={styles.hero}>
-          <PlaceCard variant={roomType === 'group' ? 'match-group' : 'match'} photoOverlay={<View style={styles.heroBadgePosition}><Chip icon="zap" variant="info" label={roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')} /></View>} place={winnerPlace ?? detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
+          <PlaceCardLarge photoOverlay={<Chip icon="zap" variant="info" label={roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')} />} place={winnerPlace ?? detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
           <View style={styles.heroBody}>
             {plan.data?.totals ? (
               <View style={styles.heroMeta}>
@@ -288,29 +289,16 @@ export default function MatchResultScreen() {
             {candidates.filter(candidate => candidate.placeId !== winner.placeId).slice(0, 4).map(candidate => {
               const entry = tally.get(candidate.placeId)
               return (
-                <Pressable
+                <PlaceCardSmall
                   key={candidate.placeId}
-                  accessibilityRole="button"
-                  accessibilityLabel={candidate.name}
-                  // Choosing the winner is the host's, in host mode; anyone else
-                  // opens the place rather than swapping a winner only they see.
+                  place={detailToPlaceCard({ id: candidate.placeId, name: candidate.name })}
+                  // Host selection and member navigation remain unchanged.
                   onPress={() => capabilities.isHost && decisionMode === 'host'
                     ? setSelectedPlaceId(candidate.placeId)
                     : router.push(`/places/${candidate.placeId}`)}
-                  style={styles.runnerAction}
-                >
-                  <Card padded={false} style={styles.runnerRow}>
-                    <View style={styles.runnerRank}>
-                      <Text variant="caption" color="accent.onSoft">#{candidate.rank}</Text>
-                    </View>
-                    <Text variant="title2" style={styles.runnerName} numberOfLines={1}>{candidate.name}</Text>
-                    <View style={styles.runnerPoints}>
-                      <Text variant="label" color="accent.onSoft">
-                        {t('matchResult.points', { count: entry?.points ?? candidate.points })}
-                      </Text>
-                    </View>
-                  </Card>
-                </Pressable>
+                  bodyLeading={<View style={styles.runnerRank}><Text variant="caption" color="accent.onSoft">#{candidate.rank}</Text></View>}
+                  bodyTrailing={<View style={styles.runnerPoints}><Text variant="label" color="accent.onSoft">{t('matchResult.points', { count: entry?.points ?? candidate.points })}</Text></View>}
+                />
               )
             })}
           </View>

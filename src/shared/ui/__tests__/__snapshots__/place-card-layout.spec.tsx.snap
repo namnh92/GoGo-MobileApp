@@ -1,0 +1,853 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`owner 2026-11-08 two common cards / orange LARGE pins full-data structure and retains every conditional fact: LARGE full 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-loading",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-photo-image",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-verified",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-verified",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [
+                              {
+                                "children": [],
+                                "id": "place-card-status-dot",
+                                "lines": undefined,
+                              },
+                            ],
+                            "id": "place-card-hours-badge",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [
+                              {
+                                "children": [],
+                                "id": "material-icon-nearMe",
+                                "lines": undefined,
+                              },
+                            ],
+                            "id": "place-card-distance",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-card-photo-badges",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-photo-footer",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-card-name",
+                        "lines": 1,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-card-price",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-title-row",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-location",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-card-meta",
+                        "lines": 2,
+                      },
+                    ],
+                    "id": "place-card-address-row",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-google-rating",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-gogo-rating",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-ratings",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-tags",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-large",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+  {
+    "children": [
+      {
+        "children": [],
+        "id": "icon-bookmark-filled",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-save",
+    "lines": undefined,
+  },
+  {
+    "children": [],
+    "id": "saved-photo-attribution",
+    "lines": undefined,
+  },
+]
+`;
+
+exports[`owner 2026-11-08 two common cards / orange LARGE pins minimal structure and omits missing facts only: LARGE minimal 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-placeholder",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-photo-footer",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-card-name",
+                        "lines": 1,
+                      },
+                    ],
+                    "id": "place-card-title-row",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-large",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+]
+`;
+
+exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structure and retains every conditional fact: SMALL full 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-loading",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-photo-image",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "id": "place-card-name",
+                    "lines": 1,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-card-meta",
+                        "lines": 1,
+                      },
+                    ],
+                    "id": "place-card-address-row",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-google-rating",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-gogo-rating",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-ratings",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-verified",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-verified",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-card-status-dot",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-card-hours-badge",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "material-icon-nearMe",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-card-distance",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-photo-badges",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-price",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-tags",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-small",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+  {
+    "children": [
+      {
+        "children": [],
+        "id": "icon-bookmark-filled",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-save",
+    "lines": undefined,
+  },
+  {
+    "children": [],
+    "id": "saved-photo-attribution",
+    "lines": undefined,
+  },
+]
+`;
+
+exports[`owner 2026-11-08 two common cards / orange SMALL pins minimal structure and omits missing facts only: SMALL minimal 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-placeholder",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "id": "place-card-name",
+                    "lines": 1,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-small",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+]
+`;
+
+exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins full-data structure and retains every conditional fact: LARGE full 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-loading",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-photo-image",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-verified",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-verified",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [
+                              {
+                                "children": [],
+                                "id": "place-card-status-dot",
+                                "lines": undefined,
+                              },
+                            ],
+                            "id": "place-card-hours-badge",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [
+                              {
+                                "children": [],
+                                "id": "material-icon-nearMe",
+                                "lines": undefined,
+                              },
+                            ],
+                            "id": "place-card-distance",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-card-photo-badges",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-photo-footer",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-card-name",
+                        "lines": 1,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-card-price",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-title-row",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-location",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-card-meta",
+                        "lines": 2,
+                      },
+                    ],
+                    "id": "place-card-address-row",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-google-rating",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-gogo-rating",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-ratings",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-tags",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-large",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+  {
+    "children": [
+      {
+        "children": [],
+        "id": "icon-bookmark-filled",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-save",
+    "lines": undefined,
+  },
+  {
+    "children": [],
+    "id": "saved-photo-attribution",
+    "lines": undefined,
+  },
+]
+`;
+
+exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins minimal structure and omits missing facts only: LARGE minimal 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-placeholder",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-photo-footer",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-card-name",
+                        "lines": 1,
+                      },
+                    ],
+                    "id": "place-card-title-row",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-large",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+]
+`;
+
+exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data structure and retains every conditional fact: SMALL full 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-loading",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-photo-image",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "id": "place-card-name",
+                    "lines": 1,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-card-meta",
+                        "lines": 1,
+                      },
+                    ],
+                    "id": "place-card-address-row",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-google-rating",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [],
+                        "id": "place-gogo-rating",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-ratings",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "material-icon-verified",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-verified",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-card-status-dot",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-card-hours-badge",
+                        "lines": undefined,
+                      },
+                      {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "material-icon-nearMe",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-card-distance",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-photo-badges",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-price",
+                    "lines": undefined,
+                  },
+                  {
+                    "children": [],
+                    "id": "place-card-tags",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-small",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+  {
+    "children": [
+      {
+        "children": [],
+        "id": "icon-bookmark-filled",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-save",
+    "lines": undefined,
+  },
+  {
+    "children": [],
+    "id": "saved-photo-attribution",
+    "lines": undefined,
+  },
+]
+`;
+
+exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins minimal structure and omits missing facts only: SMALL minimal 1`] = `
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "icon-map-pin",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-photo-placeholder",
+                    "lines": undefined,
+                  },
+                ],
+                "id": "place-card-photo",
+                "lines": undefined,
+              },
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "id": "place-card-name",
+                    "lines": 1,
+                  },
+                ],
+                "id": "place-card-body",
+                "lines": undefined,
+              },
+            ],
+            "id": "place-card-small",
+            "lines": undefined,
+          },
+        ],
+        "id": "place-card",
+        "lines": undefined,
+      },
+    ],
+    "id": "place-card-open-target",
+    "lines": undefined,
+  },
+]
+`;

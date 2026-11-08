@@ -5,7 +5,7 @@ import type { AssistantPlaceCard, AssistantPlanCard, AssistantResultCard } from 
 import { Badge } from '@/shared/ui/badge.view'
 import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { Text } from '@/shared/ui/text'
 
 import { formatWhen } from './format'
@@ -74,7 +74,7 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
   }
   return (
     <View testID={`assistant-card-${card.placeId}`} style={styles.place}>
-      <PlaceCard variant="assistant" place={place} showPhoto={!!place.photoUrl} onPress={card.available ? () => onOpen(card.placeId) : undefined} footer={<View style={styles.placeAction}>
+      <PlaceCardLarge place={place} onPress={card.available ? () => onOpen(card.placeId) : undefined} footer={<View style={styles.placeAction}>
         {card.available ? (
           <SecondaryBtn size="regular" variant="neutral" label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" />
         ) : <Badge tone="warning" label={t('assistant.card.unavailable')} />}

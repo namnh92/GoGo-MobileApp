@@ -16,7 +16,8 @@ import { discoveryLabels, isApiError, useResolveGoogleMapsLink, useTaxonomies, t
 import { track } from '@/shared/analytics'
 import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
@@ -421,30 +422,24 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                     {(result.candidates ?? []).map((option) => {
                       const active = selectedGooglePlaceId === option.googlePlaceId
                       return (
-                        <Pressable
+                        <PlaceCardSmall
                           key={option.googlePlaceId}
+                          preview={option}
                           disabled={branchSelectionDisabled}
+                          selected={active}
                           onPress={() => {
                             if (branchSelectionDisabled) return
                             setSelectedGooglePlaceId(option.googlePlaceId ?? null)
                           }}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active, disabled: branchSelectionDisabled }}
                           style={[styles.candidateRow, active && styles.candidateRowActive]}
-                        >
-                          <Text variant="title2">{option.name}</Text>
-                          <Text variant="bodySmall" color="text.secondary" style={styles.candidateAddress}>
-                            {option.address}
-                          </Text>
-                        </Pressable>
+                        />
                       )
                     })}
                   </View>
                 ) : null}
 
                 {result?.status === 'RESOLVED' && candidate && !accepted ? (
-                  <PlaceCard
-                    variant="preview"
+                  <PlaceCardLarge
                     preview={candidate}
                     headerAction={candidate.googleMapsUri ? (
                       <Pressable
@@ -476,7 +471,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                     ) : null}
 
                     {linkFailed ? <Text color="status.dangerText">{t('placeDetail.linkFailed')}</Text> : null}
-                  </PlaceCard>
+                  </PlaceCardLarge>
                 ) : null}
 
                 {contributionPlaceId && !accepted ? (
@@ -533,7 +528,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
           : state.phase === 'submissionUnknown' ? t('placeWizard.lifecycle.submissionUnconfirmed')
           : t('placeResult.errorBody', { reason: t(state.message === 'notYetOpen' ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') })}
         media={outcome === 'success' && resultVisible && submittedPreview ? (
-          <PlaceCard variant="preview" compact preview={submittedPreview} />
+          <PlaceCardSmall preview={submittedPreview} />
         ) : undefined}
         note={outcome === 'success' ? t('placeResult.credit') : undefined}
         primaryAction={{ label: t(outcome === 'success' ? 'placeResult.viewContributions' : state.phase === 'submissionUnknown' ? 'placeWizard.lifecycle.checkContributions' : 'common.retry'), onPress: outcome === 'success' || state.phase === 'submissionUnknown' ? viewContributions : () => closeResult(() => { if (contributionPlaceId) void onSubmitPlace() }) }}

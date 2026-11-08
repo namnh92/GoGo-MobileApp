@@ -12,10 +12,10 @@ import { Text } from './text'
  */
 type RatingPlace = Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'>
 
-export function RatingChips({ place, compact = false, detail = false }: { place: RatingPlace; compact?: boolean; detail?: boolean }) {
+export function RatingChips({ place, compact = false, detail = false, stacked = false }: { place: RatingPlace; compact?: boolean; detail?: boolean; stacked?: boolean }) {
   const { google, gogo } = ratingParts(place)
   if (!google && !gogo && place.gogoRatingCount == null) return null
-  return <View testID="place-card-ratings" style={[styles.row, compact && styles.compactRow]}>
+  return <View testID="place-card-ratings" style={[styles.row, compact && styles.compactRow, stacked && styles.stackedRow]}>
     {google ? <GoogleRatingBadge value={google.value} count={google.count} compact={compact} detail={detail} /> : null}
     <GoGoRatingBadge place={place} compact={compact} detail={detail} />
   </View>

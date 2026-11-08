@@ -31,7 +31,8 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
@@ -397,7 +398,7 @@ export default function ActiveDateScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Card padded={false} style={styles.card}>
-          <PlaceCard variant="active" place={stopPlace ?? detailToPlaceCard({ id: stop.placeId, name: placeName })}
+          <PlaceCardLarge place={stopPlace ?? detailToPlaceCard({ id: stop.placeId, name: placeName })}
             photoOverlay={<View style={styles.photoBadge}><Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" /></View>}
             headingAction={
               <Pressable
@@ -440,7 +441,7 @@ export default function ActiveDateScreen() {
             </View>
             <Card padded={false} style={styles.nextCard}>
               <View style={{ flex: 1 }}>
-                <PlaceCard variant="next-stop" place={nextPlace ?? detailToPlaceCard({ id: nextStop.placeId, name: '' })}
+                <PlaceCardSmall place={nextPlace ?? detailToPlaceCard({ id: nextStop.placeId, name: '' })}
                   bodyTrailing={<Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
                     {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)].filter(Boolean).join(' · ')}
                   </Text>} />

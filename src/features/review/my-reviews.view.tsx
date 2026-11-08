@@ -7,14 +7,14 @@ import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 
-import { parseApiDate, useMyReviews, usePlaceDetail, usePlan, useUpdateReview, type Review } from '@/shared/api'
+import { detailToPlaceCard, parseApiDate, useMyReviews, usePlaceDetail, usePlan, useUpdateReview, type Review } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Badge, type BadgeTone } from '@/shared/ui/badge.view'
 import { Icon } from '@/shared/ui/icons'
 import { FormattedPlaceAddress } from '@/shared/ui/place-address.view'
-import { PlaceCardAddress } from '@/shared/ui/place-card.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -48,23 +48,19 @@ function PlaceSubject({ placeId, onOpenPlace }: { placeId: string; onOpenPlace: 
 
   const name = place.data?.name || t('myReviews.placeFallback')
   return (
-    <FormattedPlaceAddress place={place.data}>{address => <Pressable
-      onPress={() => onOpenPlace(placeId)}
-      accessibilityRole="button"
-      accessibilityLabel={address ? `${name}, ${address}` : name}
-      accessibilityHint={t('myReviews.openPlace')}
-      style={styles.subject}
-      testID="my-review-subject"
-    >
-      <Text variant="title2" numberOfLines={1}>{name}</Text>
-      {place.isPending ? (
-        <Text variant="caption" color="text.secondary">{t('common.loading')}</Text>
-      ) : place.isError ? (
-        <Text variant="caption" color="status.dangerText">{t('myReviews.placeLoadFailed')}</Text>
-      ) : address ? (
-        <PlaceCardAddress place={place.data} compact pin={false} />
-      ) : null}
-    </Pressable>}</FormattedPlaceAddress>
+    <FormattedPlaceAddress place={place.data}>{address => <View testID="my-review-subject">
+      <PlaceCardSmall
+        place={detailToPlaceCard({ ...place.data, id: placeId, name })}
+        onPress={() => onOpenPlace(placeId)}
+        accessibilityLabel={address ? `${name}, ${address}` : name}
+        accessibilityHint={t('myReviews.openPlace')}
+        bodyTrailing={place.isPending ? (
+          <Text variant="caption" color="text.secondary">{t('common.loading')}</Text>
+        ) : place.isError ? (
+          <Text variant="caption" color="status.dangerText">{t('myReviews.placeLoadFailed')}</Text>
+        ) : null}
+      />
+    </View>}</FormattedPlaceAddress>
   )
 }
 

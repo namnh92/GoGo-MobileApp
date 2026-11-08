@@ -5,7 +5,7 @@ export const styles = StyleSheet.create(theme => ({
   filters: { gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
   pressed: { borderColor: theme.accent.primary, borderWidth: 1 },
   unavailable: { opacity: 0.65 },
-  bookmark: { position: 'absolute', top: 12, right: 12, width: 44, height: 44, borderRadius: 99, backgroundColor: theme.surface.card, alignItems: 'center', justifyContent: 'center' },
+  bookmark: { width: 44, height: 44, borderRadius: 99, backgroundColor: theme.surface.card, alignItems: 'center', justifyContent: 'center' },
   metadata: { borderTopWidth: 1, borderTopColor: theme.border.hairline, paddingTop: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   rejection: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.status.dangerSoft, borderRadius: 12, padding: 12 },
   linkTarget: { minHeight: 44, justifyContent: 'center' },

@@ -210,6 +210,8 @@ export const night = {
 
 /** Text/icon colors over photos and dark backgrounds. */
 export const onDark = {
+  success: darkStatus.successText,
+  danger: darkStatus.dangerText,
   strong: 'rgba(255,255,255,0.9)',
   medium: 'rgba(255,255,255,0.8)',
   soft: 'rgba(255,255,255,0.6)',

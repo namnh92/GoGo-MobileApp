@@ -32,6 +32,8 @@ const FILL = { width: '100%', height: '100%' } as const
 type Props = {
   /** The place's approved photo, when it has one. */
   cachePolicy?: 'none'
+  imageTestID?: string
+  onPhotoError?: () => void
   uri?: string | null
   /** Kept for callers; the placeholder no longer varies per place. */
   placeId: string
@@ -49,7 +51,7 @@ export function PlacePhoto({ uri, style, icon, ...rest }: Props) {
   return <PhotoAttempt key={uri} uri={uri} style={style} icon={icon} {...rest} />
 }
 
-function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy }: Props & { uri: string }) {
+function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy, imageTestID, onPhotoError }: Props & { uri: string }) {
   const reduced = useReducedMotionPreference()
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading')
   const label = accessibilityLabel ?? name
@@ -65,7 +67,7 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy 
     <View style={[styles.image, style]}>
       {status === 'loading' ? <Pin icon={icon} testID="place-photo-loading" style={styles.underlay} /> : null}
       <Image
-        testID="place-photo-image"
+        testID={imageTestID ?? 'place-photo-image'}
         source={{ uri }}
         cachePolicy={cachePolicy}
         // The view is not reused for another place's picture (Sol #348 F-01).
@@ -76,7 +78,7 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy 
         // first frame, before the OS answers (Sol #348 F-03).
         transition={motionDuration(motion.standard, reduced !== false)}
         onLoad={() => setStatus('loaded')}
-        onError={() => setStatus('failed')}
+        onError={() => { setStatus('failed'); onPhotoError?.() }}
         // expo-image is not an accessibility element by default, so a label on
         // its own is never read. Opt in only when there is one (Sol #348 F-06).
         accessible={label !== undefined}

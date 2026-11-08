@@ -19,7 +19,7 @@ import { MaterialIcon } from '@/shared/ui/material-icon'
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { Badge } from '@/shared/ui/badge.view'
 import { styles } from './my-contributions.style'
@@ -63,7 +63,7 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const canSave = canonical && !!item.placeId && !!detail.data && !detail.isError && saved.data != null && !saved.isError && online
   const isSaved = saved.data?.some(row => row.targetType === 'place' && row.targetId === item.placeId) ?? false
   const saveReason = !canonical ? t('contributions.saveLocked') : !online ? t('common.offlineBody') : t('contributions.saveUnavailable')
-  return <PlaceCard place={card} appearance="contribution"
+  return <PlaceCardLarge place={card}
     onPress={canonical && item.placeId ? () => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } }) : undefined}
     contributionBadge={<Badge appearance="solid" icon={item.status === 'pending' ? 'clock' : item.status === 'rejected' ? 'close' : 'checkCircle'}
       tone={item.status === 'pending' ? 'warning' : item.status === 'rejected' ? 'danger' : 'success'} label={t(`myContributions.status.${item.status}`)} />}

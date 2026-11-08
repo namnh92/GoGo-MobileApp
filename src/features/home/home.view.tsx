@@ -29,7 +29,7 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon } from '@/shared/ui/icons'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { Atmosphere, Card, Chip, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { StaleNotice, useOfflineAnnouncement } from '@/shared/ui/async-state.view'
@@ -293,10 +293,9 @@ export default function HomeScreen() {
           {visualState === 'default' && (
             <View style={{ gap: spacing[3] }}>
               {places.map(place => (
-                <PlaceCard
+                <PlaceCardLarge
                   key={place.id}
                   place={place}
-                  appearance="discovery"
                   onPress={() => router.push(`/places/${place.id}`)}
                   saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined}
                   onToggleSave={

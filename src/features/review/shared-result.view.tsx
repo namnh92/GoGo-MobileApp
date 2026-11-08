@@ -17,7 +17,7 @@ import {
 import { costLineText, planCost, scopeLabel } from '@/shared/pricing/plan-cost'
 import { ErrorState } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconShare } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -124,7 +124,7 @@ export default function SharedResultScreen() {
 
         {/* The place, not just its name — this is the card people send on. */}
         {winner ? (
-          <PlaceCard variant="shared-result" place={winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
+          <PlaceCardLarge place={winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
         ) : null}
 
         {scoreParts.length > 0 ? (

@@ -1,0 +1,46 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`#564 exactly two common place-card components Home, Explore, Saved and Saved City pin the same common component and interaction props: Home / Explore / Saved / Saved City structure 1`] = `
+[
+  {
+    "component": "PlaceCardLarge",
+    "interactionProps": [
+      "onPress",
+      "onToggleSave",
+      "place",
+      "saved",
+    ],
+    "layoutProps": [],
+  },
+  {
+    "component": "PlaceCardLarge",
+    "interactionProps": [
+      "onPress",
+      "onToggleSave",
+      "place",
+      "saved",
+    ],
+    "layoutProps": [],
+  },
+  {
+    "component": "PlaceCardLarge",
+    "interactionProps": [
+      "onPress",
+      "onToggleSave",
+      "place",
+      "saved",
+    ],
+    "layoutProps": [],
+  },
+  {
+    "component": "PlaceCardLarge",
+    "interactionProps": [
+      "onPress",
+      "onToggleSave",
+      "place",
+      "saved",
+    ],
+    "layoutProps": [],
+  },
+]
+`;
