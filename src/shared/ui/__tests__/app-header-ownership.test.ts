@@ -91,7 +91,7 @@ describe('application header ownership', () => {
   })
   it('accounts for every routed feature screen, including deliberate headerless scenes', () => {
     const headerless = [
-      'onboarding/splash', 'onboarding/onboarding', 'deep-link/share-link', 'deep-link/not-found',
+      'onboarding/splash', 'onboarding/onboarding', 'deep-link/share-link',
       'active-date/date-finished', 'matching/matching', 'matching/match-result',
       'review/shared-result', 'date-plan/place-reviews-page',
     ]

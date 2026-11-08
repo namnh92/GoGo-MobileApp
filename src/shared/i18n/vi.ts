@@ -808,8 +808,6 @@ export const viMessages = {
   'shareLink.unsupportedBody': 'Cập nhật GoGo lên bản mới rồi mở lại liên kết.',
   'shareLink.retry': 'Thử lại',
   'shareLink.goHome': 'Về trang chủ',
-  'notFound.title': 'Không tìm thấy trang',
-  'notFound.body': 'Đường dẫn này không thuộc về GoGo, hoặc đã đổi.',
   'joinByCode.title': 'Vào phòng bằng mã',
   'joinByCode.body': 'Nhập mã mời bạn nhận được. Không có mã thì mở link mời là xong.',
   'joinByCode.codeLabel': 'Mã mời',
