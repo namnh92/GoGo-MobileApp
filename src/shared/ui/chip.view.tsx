@@ -45,14 +45,13 @@ export function Chip({ label, variant = 'default', appearance = 'default', icon,
       : visual === 'discovery' ? 'redesign.primaryText' : LABEL[stateVariant]
   const showIcon = icon && !(selected && (icon === 'check' || icon === 'checkCircle'))
 
-  const body = (pressed: boolean) => (
+  const body = (
     <View testID={!onPress ? testID : undefined}
       accessibilityState={{ selected, disabled }}
       style={[
-        styles.chip, styles[`chip_${stateVariant}`], pressed && styles[`chip_${stateVariant}Pressed`],
+        styles.chip, styles[`chip_${stateVariant}`],
         visual === 'discovery' && styles.discoveryChip, visual === 'discovery' && selected && styles.discoveryChipSelected,
         visual === 'soft' && styles.softChip, visual === 'soft' && selected && styles.softChipSelected,
-        visual === 'soft' && pressed && styles.chip_defaultPressed,
         visual === 'mood' && styles.moodChip, visual === 'mood' && selected && styles.moodChipSelected,
         style,
       ]}>
@@ -70,11 +69,11 @@ export function Chip({ label, variant = 'default', appearance = 'default', icon,
     </View>
   )
 
-  if (!onPress) return body(false)
+  if (!onPress) return body
   return <Pressable testID={testID} style={styles.host} disabled={disabled}
     onPress={() => { haptic('select'); onPress() }}
     accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label}
     accessibilityState={{ selected, disabled }} hitSlop={hitSlop}>
-    {({ pressed }) => body(pressed && !disabled)}
+    {body}
   </Pressable>
 }

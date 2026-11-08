@@ -19,7 +19,7 @@ export function SheetOptionList({ options }: { options: SheetOption[] }) {
   return <View testID="sheet-option-list" style={styles.group}>{options.map((option, index) => (
     <Pressable key={option.key} accessibilityRole="button" accessibilityLabel={option.title}
       accessibilityState={{ disabled: !!option.disabled }} disabled={option.disabled} onPress={option.onPress}
-      style={({ pressed }) => [styles.row, index > 0 && styles.divider, pressed && styles.pressed, option.disabled && styles.disabled]}>
+      style={[styles.row, index > 0 && styles.divider, option.disabled && styles.disabled]}>
       <IconChip icon={option.icon} destructive={option.destructive} />
       <View style={styles.copy}>
         <Text variant="avatarAction" color={option.destructive ? 'status.dangerText' : 'text.primary'}>{option.title}</Text>

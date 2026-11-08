@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { spacing } from '@/shared/ui/tokens'
+import { spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   linkCard: { marginTop: spacing[2], gap: spacing[1] },
@@ -9,7 +9,7 @@ export const styles = StyleSheet.create(theme => ({
   list: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   /** ADM-205 — province, then commune; each header is a screen-reader heading. */
   group: { marginBottom: spacing[3] },
-  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] },
+  groupHeader: { minHeight: touchTarget.min, flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] },
   groupTitle: { flexShrink: 1 },
   countBadge: { minWidth: 24, minHeight: 24, paddingHorizontal: spacing[1], borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface.subtle },
   cityAction: { marginLeft: 'auto', flexShrink: 0 },

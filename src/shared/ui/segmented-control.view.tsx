@@ -10,9 +10,9 @@ export function SegmentedControl<Value extends string>({ options, value, onChang
     onPress={() => onChange(option.value)} disabled={disabled} accessibilityRole="tab"
     accessibilityState={{ selected: option.value === value, disabled }}
     style={[styles.tab, compact && styles.compactTab, disabled && styles.disabled]}>
-    {({ pressed }) => <View style={[styles.surface, compact && styles.compact, option.value === value && styles.selected, pressed && styles.pressed]}>
+    <View style={[styles.surface, compact && styles.compact, option.value === value && styles.selected]}>
     {option.icon ? <MaterialIcon name={option.icon} size={compact ? 14 : 16} color={option.value === value ? 'redesign.ink' : 'redesign.secondary'} /> : null}
     <Text numberOfLines={1} variant={compact ? 'introCaptionMedium' : option.value === value ? 'introLabel' : 'introSmall'} color={option.value === value ? 'redesign.ink' : 'redesign.secondary'}>{option.label}</Text>
-    </View>}
+    </View>
   </Pressable>)}</View>
 }
