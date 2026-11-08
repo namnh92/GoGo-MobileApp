@@ -1360,7 +1360,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'placeImport.completeTitle': 'Complete the place profile',
   'placeImport.completeBody': 'The basics were extracted automatically. Add your experience to help the GoGo community!',
   'placeImport.synced': 'Synced',
-  'placeImport.changeLink': 'Change link',
   'placeImport.verifiedLocation': '{{name}} • Location verified',
   'placeImport.validFormat': 'Valid format • Ready to sync',
   'placeImport.formatHint': 'Supports maps.app.goo.gl or google.com/maps/place/...',

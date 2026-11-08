@@ -18,7 +18,6 @@ const nonChips: Record<string, string[]> = {
   'matching/match-result': ['runnerRank', 'runnerPoints'], // score readouts
   'matching/swipe': ['counterPill'], // deck position
   'onboarding/onboarding-visual': ['index', 'walk'], // illustrated route
-  'place-import/import': ['changeLink'],
   'search/search-empty': ['relaxAction'], // filter-reset action button (#541)
   'review/review': ['ratingPill'], // live star-rating input value
 }

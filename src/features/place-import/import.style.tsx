@@ -20,7 +20,6 @@ export const styles = StyleSheet.create((theme) => ({
   syncedText: { flex: 1, minWidth: 0, gap: 2 },
   syncedTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   syncedUrl: { flex: 1, minWidth: 0 },
-  changeLink: { minHeight: 44, paddingHorizontal: 8, borderRadius: 999, backgroundColor: theme.redesign.high, flexDirection: 'row', alignItems: 'center', gap: 4 },
   resultActions: { marginTop: spacing[4], gap: spacing[3] },
   inputHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   inputLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
