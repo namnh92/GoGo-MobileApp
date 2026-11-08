@@ -23,10 +23,11 @@ import { BuildVersion } from '@/features/settings/settings-page.view'
 import { ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
 import { ProfileUpcoming } from './profile-upcoming.view'
 import { SETTINGS_ROWS } from './profile-settings-rows'
+import { useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
 import { profileKeoCount } from './profile-keo-count'
 import { styles } from './profile.style'
 
-const SHORTCUT_ICON: Record<string, MaterialIconName> = { saved: 'bookmarkFilled', plans: 'groups', reviews: 'hotelClass' }
+const SHORTCUT_ICON: Record<string, MaterialIconName> = { saved: 'bookmarkFilled', plans: 'groups', reviews: 'hotelClass', contributions: 'edit' }
 function actorKeyOf(session: Session | null): string {
   return session ? `${session.kind}:${session.userId ?? ''}:${session.guestSessionId ?? ''}` : ''
 }
@@ -43,6 +44,11 @@ export default function ProfileScreen() {
   const taxonomy = useTaxonomies({ kinds: 'mood' })
   const saved = useSaved({ enabled: canRead })
   const reviews = useMyReviews({ enabled: canRead })
+  const submissions = useMyPlaceSubmissions(canRead)
+  const submissionPages = submissions.data?.pages
+  const contributionCount = canRead && !submissions.isError && submissionPages?.length
+    ? `${new Set(submissionPages.flatMap(page => page.items.map(item => item.id))).size}${submissionPages[submissionPages.length - 1].nextCursor ? '+' : ''}` : undefined
+  const contributionLoading = canRead && submissions.isPending && !submissions.isError
   const canReadRooms = canRead || status === 'guest'
   const rooms = useMyRooms({ enabled: canReadRooms })
   const keoCount = canReadRooms && !rooms.isError ? profileKeoCount(rooms.data?.pages) : undefined
@@ -73,6 +79,7 @@ export default function ProfileScreen() {
     { key: 'saved', route: '/(tabs)/saved', count: canRead ? saved.data?.length : undefined, userOnly: true },
     { key: 'plans', route: '/(tabs)/plans', count: keoCount, userOnly: false },
     { key: 'reviews', route: '/me/contributions?tab=reviews', count: canRead ? reviews.data?.length : undefined, userOnly: true },
+    { key: 'contributions', route: '/me/contributions?tab=places', count: contributionCount, userOnly: true },
   ]
   async function signOutNow() {
     setSigningOut(true)
@@ -129,13 +136,13 @@ export default function ProfileScreen() {
       <View style={styles.shortcutRow}>{shortcuts.map(shortcut => {
         const isLocked = !canRead && shortcut.userOnly
         return <Pressable key={shortcut.key} accessibilityRole="button" accessibilityLabel={shortcut.count === undefined ? t(`profile.shortcut.${shortcut.key}`) : `${t(`profile.shortcut.${shortcut.key}`)}: ${shortcut.count}`}
-          accessibilityState={shortcut.key === 'plans' ? { busy: keoLoading } : undefined}
+          accessibilityState={{ busy: shortcut.key === 'plans' ? keoLoading : shortcut.key === 'contributions' ? contributionLoading : false }}
           accessibilityHint={isLocked ? t('g11.userOnly') : undefined}
           onPress={() => isLocked ? setLocked(true) : router.push(shortcut.key === 'plans' ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } } : shortcut.route)}
           style={({ pressed }) => [styles.shortcutPress, pressed && styles.settingRowPressed]}>
           <Card appearance="stitch" padded={false} style={styles.shortcut}>
             <View style={[styles.shortcutIcon, shortcut.key === 'plans' && styles.plansIcon, shortcut.key === 'reviews' && styles.reviewsIcon]}><MaterialIcon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color={shortcut.key === 'plans' ? 'redesign.violetText' : 'redesign.primaryText'} /></View>
-            {shortcut.key === 'plans' && keoLoading ? <View testID="profile-keo-loading"><Skeleton width={40} height={24} /></View> : shortcut.count !== undefined ? <Text variant="introHeading" color="redesign.ink">{shortcut.count}</Text> : null}
+            {(shortcut.key === 'plans' && keoLoading) || (shortcut.key === 'contributions' && contributionLoading) ? <View testID={shortcut.key === 'plans' ? 'profile-keo-loading' : 'profile-contributions-loading'}><Skeleton width={40} height={24} /></View> : shortcut.count !== undefined ? <Text variant="introHeading" color="redesign.ink">{shortcut.count}</Text> : null}
             <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
             {isLocked ? <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
           </Card>

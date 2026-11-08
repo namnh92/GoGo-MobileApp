@@ -88,7 +88,7 @@ describe('account avatar', () => {
     mockMe.query = loaded(profile({ capabilities: { avatarUpload: 'unavailable' } }))
     const view = await renderScreen(<AccountScreen />)
     expect(view.getByText('Tải ảnh chưa khả dụng ở môi trường này.')).toBeTruthy()
-    const change = view.getByText('Đổi ảnh')
+    const change = view.getByLabelText('Đổi ảnh đại diện')
     await fireEvent.press(change)
     expect(mockPick).not.toHaveBeenCalled()
   })
@@ -100,7 +100,7 @@ describe('account avatar', () => {
     const view = await renderScreen(<AccountScreen />)
 
     await act(async () => {
-      await fireEvent.press(view.getByText('Đổi ảnh'))
+      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     })
 
     expect(mockUpload).toHaveBeenCalledWith({
@@ -119,7 +119,7 @@ describe('account avatar', () => {
     )
     const view = await renderScreen(<AccountScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText('Đổi ảnh'))
+      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     })
     expect(await view.findByText('Ảnh không đọc được. Chọn ảnh khác nhé.')).toBeTruthy()
   })
@@ -132,7 +132,7 @@ describe('account avatar', () => {
     )
     const view = await renderScreen(<AccountScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText('Đổi ảnh'))
+      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     })
     expect(await view.findByText('Máy chủ đang bận. Thử lại sau ít phút.')).toBeTruthy()
     expect(view.queryByTestId('avatar-image')).toBeNull()
@@ -142,7 +142,7 @@ describe('account avatar', () => {
     mockPick.mockResolvedValue({ status: 'denied' })
     const view = await renderScreen(<AccountScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText('Đổi ảnh'))
+      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     })
     expect(await view.findByText(/Chưa có quyền truy cập ảnh/)).toBeTruthy()
     expect(mockUpload).not.toHaveBeenCalled()
@@ -152,7 +152,7 @@ describe('account avatar', () => {
     mockPick.mockResolvedValue({ status: 'unsupported' })
     const view = await renderScreen(<AccountScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText('Đổi ảnh'))
+      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     })
     expect(await view.findByText(/Chọn ảnh JPG hoặc PNG/)).toBeTruthy()
     expect(mockUpload).not.toHaveBeenCalled()
