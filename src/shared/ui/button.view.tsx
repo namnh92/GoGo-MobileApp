@@ -76,10 +76,9 @@ const HAPTIC: Record<Kind, Parameters<typeof haptic>[0]> = {
 function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: boolean) {
   if (onAccent && (kind === 'primary' || kind === 'secondary')) {
     const onAccentBase = kind === 'primary' ? styles.primaryOnAccent : styles.secondaryOnAccent
-    const onAccentPressed = kind === 'primary' ? styles.primaryOnAccentPressed : styles.secondaryOnAccentPressed
-    return [styles[kind], onAccentBase, pressed && onAccentPressed, disabled && styles.onAccentInactive]
+    return [styles[kind], onAccentBase, disabled && styles.onAccentInactive]
   }
-  return [styles[kind], pressed && styles[`${kind}Pressed`], disabled && styles[`${kind}Disabled`]]
+  return [styles[kind], pressed && kind === 'primary' && styles.primaryPressed, disabled && styles[`${kind}Disabled`]]
 }
 
 function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel = false, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
@@ -114,11 +113,10 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         styles.base,
         // A neutral control never registers accent styles with the native
         // stylesheet, including the pressed/disabled/onAccent paths.
-        ...(neutral ? [styles.neutral, pressed && !inactive && styles.neutralPressed] : kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed)),
+        ...(neutral ? [styles.neutral] : kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed)),
         stitch && styles[variant],
         variant === 'discovery' && kind === 'primary' && styles.discoveryPrimary,
         variant === 'area' && kind === 'primary' && styles.areaPrimary,
-        variant === 'area' && pressed && !inactive && (kind === 'primary' ? styles.primaryPressed : styles.areaPressed),
         variant === 'area' && greyed && styles.primaryDisabled,
         variant === 'discovery' && greyed && styles.primaryDisabled,
         stitch && pressed && !inactive && !reduced && (variant === 'stitchSubtle' ? styles.stitchPressedSubtle : styles.stitchPressed),
@@ -190,11 +188,10 @@ export function IconBtn({ children, onPress, accessibilityLabel, active = false,
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled, selected: active }}
       hitSlop={hitSlop}
-      style={({ pressed }) => [
+      style={[
         styles.icon,
         size === 'regular' ? styles.iconRegular : styles.iconSmall,
         active && styles.iconActive,
-        pressed && !disabled && styles.iconPressed,
         disabled && styles.iconDisabled,
         style,
       ]}

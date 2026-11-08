@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
-import { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/button.view'
-import { accents, buttonSizes, glassFx, redesignLight, shadows, status, surface, text, type } from '@/shared/ui/tokens'
+import { type ButtonProps, DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/button.view'
+import { accents, buttonSizes, redesignLight, shadows, status, surface, text, type } from '@/shared/ui/tokens'
 import * as feedback from '@/shared/ui/feedback'
 
 /**
@@ -67,13 +67,13 @@ describe('owner D1 Stitch buttons', () => {
     expect(flat(screen.getByText('Tiếp theo'))).toMatchObject(type.buttonLabel)
     expect((await pressedStyle('Tiếp theo')).transform).toEqual([{ scale: 0.98 }])
   })
-  it('keeps the static pressed response under reduced motion', async () => {
+  it('keeps the resting fill under reduced motion', async () => {
     const reduced = jest.spyOn(feedback, 'useReducedMotion').mockReturnValue(true)
     try {
       await render(<PrimaryBtn variant="stitchSubtle" label="Đăng nhập" onPress={jest.fn()} />)
       const style = await pressedStyle('Đăng nhập')
       expect(style.transform).toBeUndefined()
-      expect(style.backgroundColor).toBe(orange.pressed)
+      expect(style.backgroundColor).toBe(orange.primary)
     } finally {
       reduced.mockRestore()
     }
@@ -101,11 +101,34 @@ async function pressedStyle(name: string) {
   return flat(button(name))
 }
 
+const variants: NonNullable<ButtonProps['variant']>[] = [
+  'default', 'pill', 'neutral', 'stitch', 'stitchSubtle', 'stitchGuest',
+  'stitchSkip', 'stitchSkipPill', 'discovery', 'discoveryJoin', 'area',
+]
+
+describe.each([PrimaryBtn, SecondaryBtn, GhostBtn, DangerBtn])('pressed palette across shared variants', Btn => {
+  it.each(variants)('%s keeps its resting fill, border and label', async variant => {
+    await render(<Btn variant={variant} label="Action" onPress={jest.fn()} />)
+    const resting = flat(button('Action'))
+    const restingLabel = labelColor('Action')
+    const pressed = await pressedStyle('Action')
+    expect(pressed.backgroundColor).toBe(resting.backgroundColor)
+    expect(pressed.borderColor).toBe(resting.borderColor)
+    expect(labelColor('Action')).toBe(restingLabel)
+  })
+})
+
+it('keeps a header text action transparent while pressed', async () => {
+  await render(<GhostBtn size="small" label="Edit" onPress={jest.fn()} />)
+  expect((await pressedStyle('Edit')).backgroundColor).toBeUndefined()
+  expect(labelColor('Edit')).toBe(orange.primary)
+})
+
 describe.each([
-  ['PrimaryBtn', PrimaryBtn, { bg: orange.primary, label: orange.onAccent, pressedBg: orange.pressed, spinner: orange.onAccent }],
-  ['SecondaryBtn', SecondaryBtn, { bg: surface.card, label: orange.primary, pressedBg: orange.soft, spinner: orange.primary }],
-  ['GhostBtn', GhostBtn, { bg: undefined, label: orange.primary, pressedBg: surface.subtle, spinner: orange.primary }],
-  ['DangerBtn', DangerBtn, { bg: status.dangerSoft, label: status.dangerText, pressedBg: surface.subtle, spinner: status.dangerText }],
+  ['PrimaryBtn', PrimaryBtn, { bg: orange.primary, label: orange.onAccent, spinner: orange.onAccent }],
+  ['SecondaryBtn', SecondaryBtn, { bg: surface.card, label: orange.primary, spinner: orange.primary }],
+  ['GhostBtn', GhostBtn, { bg: undefined, label: orange.primary, spinner: orange.primary }],
+  ['DangerBtn', DangerBtn, { bg: status.dangerSoft, label: status.dangerText, spinner: status.dangerText }],
 ] as const)('%s', (_name, Btn, look) => {
   it('default: height, fill and label colour from the theme, label in the `label` style on one line', async () => {
     await render(<Btn label="Tạo kèo" onPress={jest.fn()} />)
@@ -121,10 +144,11 @@ describe.each([
     expect(flat(label)).toMatchObject({ ...type.buttonLabel, color: look.label })
   })
 
-  it('pressed: a colour change only — no scale, no fade', async () => {
+  it('pressed: keeps the resting fill and label — no scale, no fade', async () => {
     await render(<Btn label="Tạo kèo" onPress={jest.fn()} />)
     const style = await pressedStyle('Tạo kèo')
-    expect(style.backgroundColor).toBe(look.pressedBg)
+    expect(style.backgroundColor).toBe(look.bg)
+    expect(labelColor('Tạo kèo')).toBe(look.label)
     expect(style.transform).toBeUndefined()
     expect(style.opacity).toBeUndefined()
   })
@@ -186,7 +210,7 @@ describe('onAccent — on an accent-coloured hero', () => {
     expect(style.backgroundColor).toBe(orange.onAccent)
     expect(style.shadowOpacity).toBe(0)
     expect(labelColor('Bắt đầu')).toBe(orange.primary)
-    expect((await pressedStyle('Bắt đầu')).backgroundColor).toBe(orange.soft)
+    expect((await pressedStyle('Bắt đầu')).backgroundColor).toBe(orange.onAccent)
   })
 
   it('Secondary is a white outline with a white label', async () => {
@@ -195,7 +219,7 @@ describe('onAccent — on an accent-coloured hero', () => {
     expect(style.backgroundColor).toBe('transparent')
     expect(style.borderColor).toBe(orange.onAccent)
     expect(labelColor('Mời bạn')).toBe(orange.onAccent)
-    expect((await pressedStyle('Mời bạn')).backgroundColor).toBe(glassFx.badge)
+    expect((await pressedStyle('Mời bạn')).backgroundColor).toBe('transparent')
   })
 
   it('disabled and loading fade rather than turn grey — no neutral fill reads on a coloured ground', async () => {
@@ -219,9 +243,10 @@ describe('IconBtn', () => {
     expect(button('Bản đồ').props.accessibilityState).toMatchObject({ selected: true })
   })
 
-  it('pressed swaps to the subtle fill', async () => {
-    await render(<IconBtn accessibilityLabel="Sao chép" onPress={jest.fn()}><></></IconBtn>)
-    expect((await pressedStyle('Sao chép')).backgroundColor).toBe(surface.subtle)
+  it.each([false, true])('pressed keeps the resting fill and ring (active=%s)', async active => {
+    await render(<IconBtn accessibilityLabel="Sao chép" onPress={jest.fn()} active={active}><></></IconBtn>)
+    const resting = flat(button('Sao chép'))
+    expect(await pressedStyle('Sao chép')).toEqual(resting)
   })
 
   it('disabled changes the fill and never fires', async () => {

@@ -35,7 +35,7 @@ describe.each(Object.entries(themes))('%s shared neutral button', (_name, theme)
         persist: () => {}, currentTarget: { measure: () => {} },
       })
     })
-    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ backgroundColor: theme.surface.card, borderWidth: 0 })
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderWidth: 0 })
     expect(StyleSheet.flatten(screen.getByText('Export').props.style).color).toBe(theme.text.primary)
   })
 
