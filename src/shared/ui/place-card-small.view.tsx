@@ -16,8 +16,8 @@ export function PlaceCardSmall(props: PlaceCardProps) {
           {props.contributionBadge || props.photoOverlay ? <View style={styles.featureOverlay}>{props.contributionBadge}{props.photoOverlay}</View> : null}
           {place.discovery?.verified ? <Verified compact /> : null}
         </View>
-        <View testID="place-card-body" style={[styles.body, (!!props.headerAction || props.saved != null && !!props.onToggleSave) && styles.withAction]}>
-          <Text testID="place-card-name" variant="introLabel" color="redesign.ink" style={props.unavailableLabel ? styles.unavailableName : undefined} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
+        <View testID="place-card-body" style={styles.body}>
+          <Text testID="place-card-name" variant="introLabel" color="redesign.ink" style={[styles.name, (!!props.headerAction || props.saved != null && !!props.onToggleSave) && styles.withAction, props.unavailableLabel && styles.unavailableName]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
           <PlaceCardAddress place={place} compact />
           <RatingChips place={place} compact />
         </View>

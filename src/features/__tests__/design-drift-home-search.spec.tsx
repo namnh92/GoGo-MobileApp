@@ -395,7 +395,8 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(known.getByText(/4,6 \(980\) Google/)).toBeTruthy()
     expect(known.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
     expect(known.queryByText(/65k/)).toBeNull()
-    expect(unknown.queryByText(/Xác minh|Google|GoGo|65k|người/)).toBeNull()
+    expect(unknown.getByText('GoGo · Chưa đủ đánh giá')).toBeTruthy()
+    expect(unknown.queryByText(/Xác minh|Google|65k|người/)).toBeNull()
   })
 })
 

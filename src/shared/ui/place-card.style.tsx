@@ -21,7 +21,7 @@ export const styles = StyleSheet.create(theme => ({
   photoOpenDot: { backgroundColor: theme.onDark.success },
   photoClosedDot: { backgroundColor: theme.onDark.danger },
   photoBadgeText: { flexShrink: 1, minWidth: 0 },
-  saveSmall: { position: 'absolute', top: 8, right: 8, width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
+  saveSmall: { position: 'absolute', top: 0, right: 0, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
   saveOnPhoto: {
     position: 'absolute',
     top: theme.spacing[3],

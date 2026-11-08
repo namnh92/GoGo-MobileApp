@@ -295,12 +295,12 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structu
                     "children": [
                       {
                         "children": [],
-                        "id": "place-google-rating",
+                        "id": "place-gogo-rating",
                         "lines": undefined,
                       },
                       {
                         "children": [],
-                        "id": "place-gogo-rating",
+                        "id": "place-google-rating",
                         "lines": undefined,
                       },
                     ],
@@ -373,6 +373,17 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins minimal structure
                     "children": [],
                     "id": "place-card-name",
                     "lines": 1,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-gogo-rating",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-ratings",
+                    "lines": undefined,
                   },
                 ],
                 "id": "place-card-body",
@@ -688,12 +699,12 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data str
                     "children": [
                       {
                         "children": [],
-                        "id": "place-google-rating",
+                        "id": "place-gogo-rating",
                         "lines": undefined,
                       },
                       {
                         "children": [],
-                        "id": "place-gogo-rating",
+                        "id": "place-google-rating",
                         "lines": undefined,
                       },
                     ],
@@ -766,6 +777,17 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins minimal struc
                     "children": [],
                     "id": "place-card-name",
                     "lines": 1,
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "id": "place-gogo-rating",
+                        "lines": undefined,
+                      },
+                    ],
+                    "id": "place-card-ratings",
+                    "lines": undefined,
                   },
                 ],
                 "id": "place-card-body",

@@ -6,7 +6,7 @@ export const styles = StyleSheet.create(theme => ({
   detailBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   detailGoogle: { backgroundColor: theme.redesign.card, borderWidth: 1, borderColor: theme.redesign.highest },
   stackedRow: { flexDirection: 'column', alignItems: 'flex-start' },
-  compactRow: { gap: 4, flexWrap: 'nowrap' },
-  compactBadge: { paddingHorizontal: 4, paddingVertical: 2, flexShrink: 1, minWidth: 0 },
+  compactRow: { gap: 4, flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'flex-start' },
+  compactBadge: { paddingHorizontal: 4, paddingVertical: 2, flexShrink: 0 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
 }))

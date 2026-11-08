@@ -13,6 +13,7 @@ import { MaterialIcon } from './material-icon'
 import { Text } from './text'
 import { usePlaceClock } from './use-place-clock'
 import { styles } from './place-card.style'
+import { touchTarget } from './tokens'
 
 export interface CardControls {
   onPress?: () => void
@@ -144,6 +145,8 @@ export function SaveToggle({ saved, onToggle, compact }: {
   return (
     <Pressable
       testID="place-card-save"
+      // Extend inward so the parent's bounds do not clip the 44pt target.
+      hitSlop={compact ? { left: touchTarget.min - 22, bottom: touchTarget.min - 22, top: 0, right: 0 } : undefined}
       onPress={() => {
         haptic('select')
         onToggle()

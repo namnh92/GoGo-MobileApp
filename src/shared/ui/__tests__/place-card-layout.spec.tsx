@@ -5,7 +5,7 @@ import { detailToPlaceCard, toPlaceCard, type PlaceDetail, type PlaceSearchResul
 import { PlaceCardLarge } from '../place-card-large.view'
 import { PlaceCardSmall } from '../place-card-small.view'
 import { ThemeScopeProvider } from '../scoped-theme'
-import { darkStatus, overlay } from '../tokens'
+import { darkStatus, overlay, spacing, touchTarget } from '../tokens'
 import { themes } from '../theme'
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 
@@ -88,7 +88,12 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     for (const text of ['★ 4,6 (980) Google', '★ 4,9 (142) GoGo']) expect(screen.getByText(text)).toBeTruthy()
     for (const text of ['Category', 'Purpose', 'Vibe', '800 m']) expect(!!screen.queryByText(text)).toBe(name === 'LARGE')
     for (const id of ['place-card-hours-badge', 'place-card-price', 'place-card-tags', 'place-card-distance']) expect(!!screen.queryByTestId(id)).toBe(name === 'LARGE')
-    if (name === 'LARGE') expect(screen.getByTestId('place-card-price')).toHaveTextContent('45k–90k/người')
+    if (name === 'LARGE') {
+      expect(screen.getByTestId('place-card-price')).toHaveTextContent('45k–90k/người')
+      expect(StyleSheet.flatten(screen.getByTestId('place-card-ratings').props.style).flexDirection).toBe('row')
+      expect(screen.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-google-rating', 'place-gogo-rating'])
+      expect(screen.getByText('★ 4,6 (980) Google').props.numberOfLines).toBe(1)
+    }
     expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(name === 'LARGE' ? 2 : 1)
     expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(1)
     expect(screen.getByRole('link')).toBeTruthy()
@@ -97,7 +102,9 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     await render(<ThemeScopeProvider name={theme}><Component place={minimal} /></ThemeScopeProvider>)
     expect(structure(screen.getByTestId('place-card-surface'))).toMatchSnapshot(name + ' minimal')
     expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
-    for (const id of ['place-card-meta', 'place-card-verified', 'saved-photo-attribution', 'place-card-hours-badge', 'place-card-price', 'place-google-rating', 'place-gogo-rating', 'place-card-tags', 'place-card-distance', 'place-card-save']) expect(screen.queryByTestId(id)).toBeNull()
+    for (const id of ['place-card-meta', 'place-card-verified', 'saved-photo-attribution', 'place-card-hours-badge', 'place-card-price', 'place-google-rating', 'place-card-tags', 'place-card-distance', 'place-card-save']) expect(screen.queryByTestId(id)).toBeNull()
+    if (name === 'SMALL') expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá')
+    else expect(screen.queryByTestId('place-gogo-rating')).toBeNull()
   })
   it('LARGE reserves the upper corners for verified/save and lower left for status; category stays in tags', async () => {
     await render(<ThemeScopeProvider name={theme}><PlaceCardLarge place={full} saved onToggleSave={jest.fn()} /></ThemeScopeProvider>)
@@ -123,18 +130,18 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     await fireEvent.press(screen.getByTestId('place-card-save'))
     expect(save).toHaveBeenCalledTimes(1); expect(open).not.toHaveBeenCalled()
   })
-  it('SMALL has exactly name → pinned address → Google/GoGo row, with verified on the square photo', async () => {
+  it('SMALL has exactly name → pinned address → GoGo/Google lines, with verified on the square photo', async () => {
     await render(<ThemeScopeProvider name={theme}><PlaceCardSmall place={full} tags={['Extra tag']} categoryLabel="Extra category" unavailableLabel="Unavailable" bodyLeading={<View testID="feature-leading" />} bodyTrailing={<View testID="feature-trailing" />} headingAction={<View testID="heading-action" />} /></ThemeScopeProvider>)
     expect(StyleSheet.flatten(screen.getByTestId('place-card-small').props.style)).toMatchObject({ flexDirection: 'row', gap: 12 })
     expect(StyleSheet.flatten(screen.getByTestId('place-card-photo').props.style)).toMatchObject({ width: 80, height: 80 })
-    expect(StyleSheet.flatten(screen.getByTestId('place-card-ratings').props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'nowrap' })
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-ratings').props.style)).toMatchObject({ flexDirection: 'column', alignItems: 'flex-start' })
     expect(StyleSheet.flatten(screen.getByTestId('place-card-surface').props.style)).toMatchObject({ padding: 8, borderRadius: 16, borderWidth: 1 })
     const body = screen.getByTestId('place-card-body')
     expect(body.children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-card-name', 'place-card-address-row', 'place-card-ratings'])
     expect(within(body).queryByTestId('place-card-verified')).toBeNull()
     expect(within(screen.getByTestId('place-card-address-row')).getByTestId('material-icon-location', { includeHiddenElements: true })).toBeTruthy()
     const ratings = screen.getByTestId('place-card-ratings')
-    expect(ratings.children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-google-rating', 'place-gogo-rating'])
+    expect(ratings.children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
     const badge = within(screen.getByTestId('place-card-photo')).getByTestId('place-card-verified')
     expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ position: 'absolute', bottom: 0, left: 0, right: 0 })
     const verifiedText = within(badge).getByText('Xác minh')
@@ -142,6 +149,41 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     expect(StyleSheet.flatten(verifiedText.props.style).color).toBe(themes[theme].text.inverse)
     for (const text of ['Extra tag', 'Extra category', 'Unavailable']) expect(screen.queryByText(text)).toBeNull()
     for (const id of ['feature-leading', 'feature-trailing', 'heading-action']) expect(screen.queryByTestId(id)).toBeNull()
+  })
+  it.each([0, 1, 4, 5, 142])('SMALL at 390pt keeps complete rating pills and the bookmark at the content inset (GoGo count %s)', async count => {
+    const save = jest.fn(), open = jest.fn()
+    await render(<ThemeScopeProvider name={theme}><PlaceCardSmall
+      place={{ ...full, name: 'Địa điểm với tên rất dài để kiểm tra hàng tiêu đề trên bản đồ', addressText: '123 Đường Nguyễn Thị Minh Khai, Phường Sài Gòn, Thành phố Hồ Chí Minh', rating: 4.5, ratingCount: 1395, gogoRatingCount: count }}
+      style={{ width: 390 }} saved onToggleSave={save} onPress={open}
+    /></ThemeScopeProvider>)
+    const surface = StyleSheet.flatten(screen.getByTestId('place-card-surface').props.style)
+    expect(surface).toMatchObject({ width: 390, padding: spacing[2] })
+    const action = screen.getByTestId('place-card-save')
+    const actionStyle = StyleSheet.flatten(action.props.style)
+    // The shell already supplies the same inset at both content edges.
+    expect(actionStyle).toMatchObject({ top: 0, right: 0, width: 22, height: 22 })
+    expect(actionStyle.marginRight).toBeUndefined()
+    expect(actionStyle.width + action.props.hitSlop.left + action.props.hitSlop.right).toBeGreaterThanOrEqual(touchTarget.min)
+    expect(actionStyle.height + action.props.hitSlop.top + action.props.hitSlop.bottom).toBeGreaterThanOrEqual(touchTarget.min)
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-small').props.style).alignItems).toBe('flex-start')
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-name').props.style)).toMatchObject({ paddingVertical: 2, paddingRight: 22 + spacing[3] })
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-body').props.style).paddingRight).toBeUndefined()
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-ratings').props.style)).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
+    const ratings = screen.getByTestId('place-card-ratings')
+    expect(ratings.children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(count < 5 ? `GoGo · Chưa đủ đánh giá (${count})` : `★ 4,9 (${count}) GoGo`)
+    expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,5 (1.395) Google')
+    for (const id of ['place-gogo-rating', 'place-google-rating']) {
+      const pill = screen.getByTestId(id)
+      expect(StyleSheet.flatten(pill.props.style)).toMatchObject({ flexShrink: 0, maxWidth: '100%' })
+      for (const text of within(pill).getAllByText(/.+/)) {
+        expect(text.props.numberOfLines).toBeUndefined()
+        expect(text.props.ellipsizeMode).toBeUndefined()
+      }
+    }
+    await fireEvent.press(action)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(open).not.toHaveBeenCalled()
   })
   it('SMALL uses the theme’s solid verified fill over photos in Light and Dark', () => {
     // Unistyles' Jest mock resolves styles with the first theme; evaluate the
