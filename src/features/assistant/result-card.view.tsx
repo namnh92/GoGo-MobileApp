@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
 import type { AssistantPlaceCard, AssistantPlanCard, AssistantResultCard } from '@/shared/api'
-import { detailToPlaceCard } from '@/shared/api'
 import { Badge } from '@/shared/ui/badge.view'
 import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
@@ -48,18 +47,40 @@ function Meta({ icon, text }: { icon: IconName; text: string }) {
 function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (placeId: string) => void }) {
   const { t } = useTranslation()
   const { facts } = card
-  const place = detailToPlaceCard({ id: card.placeId, name: facts.name, addressText: facts.addressText,
-    gogoRating: card.available ? facts.gogoRating : undefined,
-    gogoRatingCount: card.available ? facts.gogoRatingCount : undefined,
-
-  })
-  return <View testID={`assistant-card-${card.placeId}`}>
-    <PlaceCard place={{ ...place, openNow: card.available ? facts.openNow ?? undefined : undefined,
-      priceMin: card.available ? facts.priceMin ?? null : null, priceMax: card.available ? facts.priceMax ?? null : null,
-      currency: facts.currency ?? 'VND', priceUnit: 'per_person', priceUncertain: false }}
-      variant="compact" unavailableLabel={card.available ? undefined : t('assistant.card.unavailable')}
-      footer={card.available ? <SecondaryBtn label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" /> : undefined} />
-  </View>
+  // The assistant contract explicitly defines these verified prices per person.
+  // No provider rating, category, distance or verification is inferred here.
+  const place = {
+    id: card.placeId,
+    name: facts.name,
+    ...(card.available ? {
+      areaKey: facts.areaKey,
+      addressText: facts.addressText,
+      gogoRating: facts.gogoRating,
+      gogoRatingCount: facts.gogoRatingCount,
+      openNow: facts.openNow ?? undefined,
+      freshnessCheckedAt: facts.checkedAt,
+    } : {}),
+    priceMin: card.available ? facts.priceMin ?? null : null,
+    priceMax: card.available ? facts.priceMax ?? null : null,
+    currency: facts.currency ?? 'VND',
+    priceUnit: 'per_person' as const,
+    priceUncertain: false,
+    isLodging: false,
+    reasonCodes: [],
+    photoUrl: card.available ? facts.photoUrl ?? null : null,
+    photoAttribution: null,
+    photoSource: null,
+    ratingSource: 'google' as const,
+  }
+  return (
+    <View testID={`assistant-card-${card.placeId}`} style={styles.place}>
+      <PlaceCard place={place} showPhoto={!!place.photoUrl} onPress={card.available ? () => onOpen(card.placeId) : undefined} footer={<View style={styles.placeAction}>
+        {card.available ? (
+          <SecondaryBtn size="regular" variant="neutral" label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" />
+        ) : <Badge tone="warning" label={t('assistant.card.unavailable')} />}
+      </View>} />
+    </View>
+  )
 }
 
 function PlanResult({ card, onOpen }: { card: AssistantPlanCard; onOpen: (planId: string, roomId: string) => void }) {

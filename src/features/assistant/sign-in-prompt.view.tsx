@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -17,7 +17,7 @@ import { styles } from './sign-in-prompt.style'
 export function SignInPrompt({ onSignIn }: { onSignIn: () => void }) {
   const { t } = useTranslation()
   return (
-    <View testID="assistant-sign-in" style={styles.body}>
+    <ScrollView testID="assistant-sign-in" contentContainerStyle={styles.body}>
       <View style={styles.card}>
         <View style={styles.badge}>
           <AssistantAvatar size="lg" />
@@ -27,8 +27,26 @@ export function SignInPrompt({ onSignIn }: { onSignIn: () => void }) {
         </View>
         <Text variant="title1" accessibilityRole="header" style={styles.centered}>{t('assistant.signIn.title')}</Text>
         <Text variant="body" color="text.secondary" style={styles.centered}>{t('assistant.signIn.body')}</Text>
-        <PrimaryBtn label={t('assistant.signIn.cta')} onPress={onSignIn} style={styles.cta} />
+        <View style={styles.benefits}>
+          {(['history', 'sources', 'confirmation'] as const).map(key => (
+            <View key={key} style={styles.benefit}>
+              <Icon name="checkCircle" size={24} color="status.successText" />
+              <Text variant="bodySmall" style={styles.benefitText}>{t(`assistant.signIn.benefit.${key}`)}</Text>
+            </View>
+          ))}
+        </View>
+        <PrimaryBtn size="regular" variant="pill" label={t('assistant.signIn.cta')} trailingIcon="arrowRight" onPress={onSignIn} style={styles.cta} />
       </View>
-    </View>
+      <View testID="assistant-locked-composer" style={styles.lockedDock}>
+        <View style={styles.benefit}>
+          <Text variant="caption" color="text.secondary" style={styles.benefitText}>{t('assistant.composer.label')}</Text>
+          <Icon name="lock" size={16} color="text.secondary" />
+        </View>
+        <View style={styles.lockedField}>
+          <Text variant="body" color="text.secondary" style={styles.benefitText}>{t('assistant.signIn.lockedHint')}</Text>
+          <Icon name="send" size={20} color="text.secondary" />
+        </View>
+      </View>
+    </ScrollView>
   )
 }

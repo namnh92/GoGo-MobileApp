@@ -66,10 +66,10 @@ export function ConfirmationCard({
     <View testID={`assistant-proposal-${proposal.id}`} style={styles.card}>
       <View style={styles.head}>
         <View style={styles.tile}>
-          <Icon name="calendar" size={18} color="status.infoText" />
+          <Icon name="sparkle" size={18} color="accent.onAccent" />
         </View>
         <View style={styles.titles}>
-          <Text variant="caption" color="status.infoText">{t('assistant.proposal.kicker')}</Text>
+          <Text variant="caption" color="accent.onSoft">{t('assistant.proposal.kicker')}</Text>
           <Text variant="title2" accessibilityRole="header">{proposalTitle(proposal, t)}</Text>
         </View>
       </View>
@@ -83,13 +83,15 @@ export function ConfirmationCard({
             ) : null}
             <View style={styles.actions}>
               <PrimaryBtn
+                size="regular"
+                variant="pill"
                 label={confirming ? t('assistant.proposal.working') : action}
                 loading={confirming}
-                icon="check"
+                trailingIcon="check"
                 disabled={busy}
                 onPress={() => onConfirm(Object.keys(edits).length > 0 ? edits : undefined)}
               />
-              <SecondaryBtn label={t('assistant.proposal.notNow')} disabled={busy} onPress={onDismiss} />
+              <SecondaryBtn size="regular" variant="neutral" label={t('assistant.proposal.notNow')} loading={dismissing} disabled={busy} onPress={onDismiss} />
             </View>
           </>
         ) : (

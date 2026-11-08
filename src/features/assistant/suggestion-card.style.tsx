@@ -6,7 +6,7 @@ import { touchTarget } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: theme.spacing[4],
     minHeight: touchTarget.min + theme.spacing[6],
     padding: theme.spacing[4],
@@ -14,7 +14,6 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.surface.card,
     ...theme.shadows.card,
   },
-  cardPressed: { backgroundColor: theme.surface.subtle },
   cardDisabled: { backgroundColor: theme.surface.subtle, shadowOpacity: 0, elevation: 0 },
   tile: {
     width: 48,
@@ -24,5 +23,7 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { flex: 1, minWidth: 0, gap: 2 },
+  text: { flex: 1, minWidth: 0, gap: theme.spacing[1] },
+  heading: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[2] },
+  title: { flex: 1 },
 }))
