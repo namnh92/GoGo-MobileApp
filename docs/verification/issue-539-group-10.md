@@ -1,6 +1,10 @@
 # GoGo-MobileApp #539 — Group 10 notifications
 
-Basis: `feature/GOGO-539-redesign-g10-notifications`, `f28f617` (`origin/re-design` supplied by owner). UI only; no generated contract edits, commit, push or backend changes. Date: 2026-11-08.
+Current basis: `feature/GOGO-539-redesign-g10-notifications`, `d3012e3`, worktree `mobile-g10`, PR #573. Continuation date: 2026-11-09. UI + API wiring against BE `origin/re-design` at `a9c84a728964676cc36a9776cb0bb268c4ad9c50` (BE#812). Owner confirms DEV deployment and inbox backfill; this continuation does not independently claim DEV acceptance. No commit or push.
+
+The vendored client contract pin is `openapi/gogo.v1.yaml` → **7.7.0-alpha.1** (repo convention: ADR-0001). Copied verbatim with `git -C /Users/maxnguyen/MyWorks/GoGo/GoGo-BE show origin/re-design:openapi/gogo.v1.yaml > openapi/gogo.v1.yaml`; generated with **`pnpm api:types`** (`openapi-typescript openapi/gogo.v1.yaml -o src/shared/api/schema.d.ts`). Existing CI `pnpm api:check` regenerates and compares this same vendored contract; no hand edits to generated types.
+
+Initial UI-only basis was `f28f617`; the original visual evidence below remains historical.
 
 Owner instruction [2026-11-08](https://github.com/namnh92/GoGo-MobileApp/issues/539#issuecomment-6721242112): “Làm song song đi. Có API thì ghép sau”. This supersedes the earlier wait-for-BE comment. The current task also confirms Later = mark read only; reminders 120 minutes before confirmed start; quiet hours default off, 23–07 opt-in, defer push, no emergency exception; no automatic cleanup. Read `dev/handoffs/g10-plan.md` and `sa-shape-be-811.astra.md` in full, plus core/design-system/stitch-design rules. The referenced `RTK.md` was not found in the checkout or workspace/ancestor searches.
 
@@ -18,8 +22,8 @@ Only Light references were supplied; the previous full-project handoff found no 
 | Screen / Stitch element | Implemented behavior | Basis / unlock |
 | --- | --- | --- |
 | Both: custom back/menu/avatar header | Shared `AppHeader`, inbox bell omitted; no inactive menu | Owner #535, shared header rule |
-| 10.1: “N mới” total badge | Hidden; no page-length total substituted | Generated client has no summary; BE#812 |
-| 10.1: “Đọc tất cả” | Visible, disabled with visible reason and accessibility hint | Missing read-all; BE#812; core §16 |
+| 10.1: “N mới” total badge | Exact summary unreadCount; shared bell/profile use the same account query | Contract 7.7.0-alpha.1 / BE#812 |
+| 10.1: “Đọc tất cả” | POST summary cutoff with Idempotency-Key; poll running operations; busy/disabled until completion and list+summary refetch | Contract 7.7.0-alpha.1 / BE#812 |
 | 10.1: category chips | Shared Chip, All selected; remaining filters disabled with visible reason | No server filter in generated `listNotifications` query; BE#811 optional filter follow-up; never filter only loaded pages |
 | 10.1 / 10.2: incoming invitation text | “Thành viên vào phòng”; host-facing joined-room copy; `inviterName` explicitly identified as creator of the invitation | ADR-0039 R-02: current `member.joined` targets HOST; not evidence that recipient was invited |
 | 10.1 / 10.2: request to choose preferences | Preference progress/update copy for the host; N-member progress from real payload | ADR-0039 R-02: `preferences.completed` targets host |
@@ -45,12 +49,12 @@ Only Light references were supplied; the previous full-project handoff found no 
 
 ## Central capability gate and BE unlocks
 
-`src/features/notifications/notification-capabilities.ts` is the only capability decision point. Absent operations/fields are compile-checked against generated `paths`/`NotificationSettings`/inbox query types. All new capabilities are closed at this basis. Contract regeneration intentionally produces a type error for a newly present operation/field, forcing real adapter wiring before activation. A backend deploy alone cannot silently activate a control or call a speculative endpoint. Runtime response guards also lock legacy master writes if `categories` appears before client regeneration. Both notification settings surfaces use that guard.
+`src/features/notifications/notification-capabilities.ts` is the only capability decision point. Absent operations/fields are compile-checked against generated `paths`/`NotificationSettings`/inbox query types. Only summary and read-all are open at this basis; category preferences/filtering and quiet hours remain closed. Contract regeneration intentionally produces a type error for a newly present operation/field, forcing real adapter wiring before activation. A backend deploy alone cannot silently activate a control or call a speculative endpoint. Runtime response guards also lock legacy master writes if `categories` appears before client regeneration. The reused master section uses that guard; the permissions page has only a read-only navigation row after the UI unification below.
 
 | Gated control / content | Contract requirement | BE PR / remaining work |
 | --- | --- | --- |
-| Total “N mới”; shared bell total | GET `/me/notifications/summary`; one shared account-scoped query, invalidated on reads | [BE#812](https://github.com/namnh92/GoGo-BE/pull/812), slice 1. Regenerate client and replace the existing bell's approximate first-page source with the same summary adapter; do not add an inbox-only count |
-| Read all | POST `/me/notifications/read-all`, summary cutoff, idempotency key, operation polling to completion | BE#812, slice 1; rollout/backfill must be ready on DEV before wiring |
+| Total “N mới”; shared bell total | GET `/me/notifications/summary`; one shared account-scoped query, invalidated on reads | Wired: `useNotificationSummary`, key `['me', 'notification-summary']`, bell/profile/inbox share it; excluded from disk persistence |
+| Read all | POST `/me/notifications/read-all`, summary cutoff, idempotency key, operation polling to completion | Wired: key stable through automatic retries; 1-second authenticated polls while running; session abort clears timer and blocks late responses/refetches |
 | Members/plans/appointments filters | Server-side category filtering with cursor bound to filter | BE#811 optional filter follow-up. #812's published scope does not promise this filter; no separate PR found |
 | Five category toggles, Enable all, configured count | GET categories/version + PATCH `/me/notification-settings`, ETag/If-Match and Idempotency-Key; atomic five-true PATCH leaves master unchanged | BE#811 slice 2, **no PR number found** at verification; do not use legacy per-kind preferences |
 | New category-preserving master (when response has categories) | Real PATCH adapter; legacy PUT(true) resets all categories | BE#811 slice 2, no PR found; legacy master works only for old response shape |
@@ -67,7 +71,7 @@ PR lookup via GitHub connector on 2026-11-08 found #812 (PR 1/4) under #811. Oth
 - Relative time uses numerical event age + vi/en catalog plurals, without depending on Hermes support for `Intl.RelativeTimeFormat`.
 - Existing JEV harness discovered via installed integration; `jev-prompt status` reported configured/active and `status` reported the real OpenRouter model history. No new live advisory response or approval claimed.
 
-Final command exits and suite counts: Logs are `/tmp/g10-typecheck.log`, `/tmp/g10-lint.log`, `/tmp/g10-test.log`, `/tmp/g10-test-ui.log`, `/tmp/g10-focused-ui.log`, and `/tmp/g10-route-tests.log`.
+Historical UI-only command exits and suite counts (2026-11-08): Logs are `/tmp/g10-typecheck.log`, `/tmp/g10-lint.log`, `/tmp/g10-test.log`, `/tmp/g10-test-ui.log`, `/tmp/g10-focused-ui.log`, and `/tmp/g10-route-tests.log`.
 
 | Command | Exit / result | Log |
 | --- | --- | --- |
@@ -82,3 +86,79 @@ Final command exits and suite counts: Logs are `/tmp/g10-typecheck.log`, `/tmp/g
 The new state matrix lives in `src/features/__tests__/notifications-g10.spec.tsx`; event-age boundary tests live in `src/features/notifications/__tests__/notification-time.test.ts`. Tests use fixtures only; production UI contains no fake notifications, optimistic category data, speculative endpoint calls or local implementations of backend policies.
 
 After the final Dark badge fill correction, the group 10 rendered matrix was rerun: **21/21 passed**, `/tmp/g10-state-matrix.log`.
+
+
+## Contract 7.7 continuation verification (2026-11-09)
+
+- Bell dot and exact “N mới” derive from the same summary, independent of loaded inbox pages and push preferences. Missing summary never fabricates an inbox total. Read-all requires a usable summary cursor and a positive unread count; missing/error/paused summary disables the action.
+- Read-all sends the opaque cutoff unchanged and uses the returned status for both 200 and 202. Polling keeps the control busy; completion invalidates/refetches list and summary. New arrivals above the cutoff remain whatever the new summary reports; no optimistic zero or local readAt overwrite.
+- Failure keeps unread content, shows the shared error sheet and offers reload of both sources. Existing single-read refreshes both sources too. Cursors remain opaque end-to-end.
+- The existing account lifetime cache binding removes summary on account transition; polling uses the same generation for every HTTP call and aborts even when transport ignores cancellation. Summary/cutoff is not persisted to disk.
+- Regression coverage: shared query deduplication, bell dot, exact Light/Dark count, read-all 200/202/running/error, double-tap/pending controls, automatic retry idempotency, waiting/in-flight cancellation, gate values, opaque cursor HTTP encoding and real adapter request bodies/headers. Existing routing/settings tests retained.
+- Light/Dark are verified in the rendered component matrix using shared semantic tokens; simulator/device screenshots and authenticated DEV smoke were not run in this continuation.
+
+| Command | Exit / result | Log |
+| --- | --- | --- |
+| `pnpm api:types` | 0; generated with openapi-typescript 7.13.0 | `/tmp/g10c-codegen.log` |
+| `pnpm typecheck` | 0 | `/tmp/g10c-typecheck.log` |
+| `pnpm lint` | 0; no warnings | `/tmp/g10c-lint.log` |
+| `pnpm test` | 1; 1680 passed, 39 skipped, 3 unrelated distribution-lock failures | `/tmp/g10c-test.log` |
+| `pnpm test:ui --runInBand` | 0; 210 suites, 2841 tests passed | `/tmp/g10c-test-ui.log` |
+| `pnpm api:check` | 0 | `/tmp/g10c-api-check.log` |
+| Focused notification hooks/UI/bell | 0; 3 suites, 45 tests passed (also covered by full UI run) | `/tmp/g10c-focused-ui.log` |
+| Focused real notification HTTP adapters | 0; 3 tests passed (also covered by full unit run) | `/tmp/g10c-focused-api.log` |
+
+The three full-unit failures are in unchanged `src/shared/config/__tests__/distribute-wrapper.test.ts`: owner-alive check (line 208, unavailable `ps` stdout), build-group recovery (line 234), and keeping a live build's lock (line 258). This sandbox denies `ps` (`operation not permitted`); the two group checks also observe an incorrect zero exit under that restriction. The earlier UI-only verification recorded these same three sandbox failures. No distribution scripts or tests were modified. `git diff --check` passes.
+
+
+## Unified settings UI continuation (2026-11-09)
+
+Owner instruction: [one notification settings screen](https://github.com/namnh92/GoGo-MobileApp/issues/539#issuecomment-6724345198). This continuation changes UI only, preserving the pre-existing uncommitted contract/API wiring. Branch remains `feature/GOGO-539-redesign-g10-notifications`, head `d3012e3`; no commit, push, merge or deployment.
+
+- `/settings/notifications` renders the existing `NotificationSwitchSection` instead of a second master implementation. Its account value, GET/PUT mutation, optimistic rollback (owned by the unchanged query hook), retry payload, migrated/legacy explanation, pending lock and category-response guard remain intact. It retains the original inline failure/retry feedback; the duplicate screen-local success/result-sheet implementation is removed. Loading skeleton, initial offline state and cached stale notice remain supported.
+- Device permission is shown separately on that screen. Denial opens system settings; permission is re-read on focus and foreground return, and an open-settings error remains recoverable. The five categories, Enable all and quiet hours stay disabled with explicit reasons; no preference API is enabled.
+- Permissions replaces its notification control block with one `Thông báo` row. Account on/off is displayed only after a usable read; device denial takes precedence as `Bị chặn trong cài đặt máy`. Checking/unknown states remain explicit. The row exposes its status to assistive technology and opens `/settings/notifications`; signed-out people use the same entry and retain their separate device-promotions section.
+- Inbox replaces the footer text button with an accessible gear through `AppHeader.rightAction` / `AppHeaderAction`. One settings entry remains reachable in loaded, empty, loading, error, offline and guest states.
+- New vi/en status strings use sentence case. Rendered Light/Dark checks cover the settings controls and permissions row, shared card colors and target size, plus gear navigation. No simulator/device screenshot or authenticated DEV acceptance is claimed.
+
+### Coordination with #567
+
+Read-only GitHub verification found PR #567 still **open/unmerged**, head `63897c5a1f47ba0abcbe1601e38f5bac3fd3f4de`, base `re-design`. It is absent from this branch. The system-settings section and its open-settings/error logic are untouched; the permissions diff is limited to the notification block and its now-unused imports/comment. Expected rebase after #567 lands: retain its merged system-settings layout/alignment and catalog sentence-case edits while keeping this single notification row. No rebase performed over the dirty tree.
+
+### Verification
+
+Regression-before evidence: `/tmp/g10d-before-ui.log` records **8 intended failures, 32 passes** for missing row/status/navigation and the footer settings entry. The original master/device lifecycle tests now render the dedicated settings screen, retaining the exact mutation/rollback/retry expectations. Location tests isolate the new navigation row; computed i18n status keys are registered in the catalog audit.
+
+Final command results: Unit failures remain the same three pre-existing sandbox distribution-lock cases at `distribute-wrapper.test.ts:208`, `:234`, `:258`; neither that script nor those tests was changed. Current output again shows unavailable `ps` stdout for the owner check and incorrect zero exits for the two process-group checks.
+
+
+| Command | Exit / result | Log |
+| --- | --- | --- |
+| `pnpm typecheck` | 0 | `/tmp/g10d-typecheck.log` |
+| `pnpm lint` | 0; no lint warnings | `/tmp/g10d-lint.log` |
+| `pnpm test` | 1; 1680 passed, 39 skipped, 3 existing distribution-lock failures | `/tmp/g10d-test.log` |
+| `pnpm test:ui --runInBand` | 0; 210 suites, 2860 tests passed | `/tmp/g10d-test-ui.log` |
+| Focused G10/permissions-theme/location/i18n checks | 0; 3 suites, 88 tests passed | `/tmp/g10d-focused-ui.log` |
+| `git diff --check` | 0 | Working-tree validation |
+
+Code/test/contract snapshot: `rs-1101601764a4`, `/tmp/g10d-snapshots/g10d-rs-1101601764a4/MANIFEST.txt` (scopes `src`, `openapi`; verification prose excluded). Includes the preserved API work. Created after the final UI edits, with no code changes while the final checks completed; verified unchanged before handoff. The final UI log is complete, contains no null bytes and records the 2860-test result.
+
+### Files and lines changed in this UI continuation
+
+| File:line | Change |
+| --- | --- |
+| `src/features/notifications/notification-settings.view.tsx:33` | Reuse the original master/device section; keep category/quiet-hours gates |
+| `src/features/notifications/notification-settings.style.tsx:5` | Remove styles owned by the removed duplicate master/device UI |
+| `src/features/notifications/notification-switch.view.tsx:39` | Canonical master section, unchanged mutation/rollback/retry semantics; async/device UI |
+| `src/features/notifications/notification-switch.style.tsx:6` | Standalone cards, spacing, loading skeleton |
+| `src/features/notifications/notification-settings-row.view.tsx:14` | Read-only permission/account status and navigation |
+| `src/features/notifications/notification-settings-row.style.tsx:5` | Shared-token row layout and touch target |
+| `src/features/settings/permissions.view.tsx:41` | One notification row; system-settings section unchanged |
+| `src/features/notifications/notifications.view.tsx:149` | Shared header gear; remove footer text button |
+| `src/shared/i18n/vi.ts:1641` / `src/shared/i18n/en.ts:1654` | Three status strings; Vietnamese system-notification settings CTA sentence case at `vi.ts:1653` |
+| `src/features/__tests__/notification-settings.spec.tsx:51` | Original master/device regressions now run against the dedicated screen |
+| `src/features/__tests__/settings-permissions.spec.tsx:90` | Single row, statuses, navigation |
+| `src/features/__tests__/notifications-g10.spec.tsx:199` | Light/Dark settings; header gear/state/locale navigation at `:341`; Light/Dark vi/en permissions row at `:378` |
+| `src/features/__tests__/location-settings.spec.tsx:29` | Isolate the replacement notification row in location tests |
+| `src/features/__tests__/i18n-keys.spec.tsx:110` | Register the typed dynamic status keys |
+| `docs/verification/issue-539-group-10.md:114` | This continuation, #567 coordination and verification evidence |

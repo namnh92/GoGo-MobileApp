@@ -61,6 +61,8 @@ jest.mock('@/shared/api', () => ({
     isFetchingNextPage: false,
     fetchNextPage: jest.fn(),
   }),
+  useNotificationSummary: () => ({ data: undefined }),
+  useReadAllNotifications: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useMarkNotificationRead: () => ({ mutateAsync: mockMarkRead }),
 }))
 

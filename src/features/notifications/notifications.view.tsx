@@ -1,16 +1,17 @@
-import { AppHeader } from '@/shared/ui/app-header.view'
+import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
-import { SessionCancelledError } from '@/shared/api/session'
+import { useMarkNotificationRead, useNotifications, useNotificationSummary, useReadAllNotifications, type Notification } from '@/shared/api'
+import { captureSessionScope, SessionCancelledError } from '@/shared/api/session'
 import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Atmosphere, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Badge } from '@/shared/ui/badge.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -50,7 +51,25 @@ export default function NotificationsScreen() {
   const inbox = useNotifications({ enabled: canRead })
   const markRead = useMarkNotificationRead()
   const capabilities = notificationCapabilities()
-  const [readProblem, setReadProblem] = useState(false)
+  const summary = useNotificationSummary({ enabled: canRead && capabilities.summary })
+  const readAll = useReadAllNotifications()
+  const readingAll = useRef(false)
+  const canReadAll = capabilities.readAll && !!summary.data?.readThroughCursor && !summary.isError && !summary.isPaused
+    && summary.data.unreadCount > 0 && !readAll.isPending
+  async function markAll() {
+    if (!canReadAll || readingAll.current) return
+    const scope = captureSessionScope()
+    readingAll.current = true
+    setReadProblem(null)
+    try {
+      await readAll.mutateAsync(summary.data!.readThroughCursor)
+    } catch (error) {
+      if (!(error instanceof SessionCancelledError) && !scope.signal.aborted) setReadProblem('all')
+    } finally {
+      readingAll.current = false
+    }
+  }
+  const [readProblem, setReadProblem] = useState<'single' | 'all' | null>(null)
   const [readingIds, setReadingIds] = useState<ReadonlySet<string>>(() => new Set())
   const readingNow = useRef(new Set<string>())
 
@@ -59,9 +78,9 @@ export default function NotificationsScreen() {
     if (!id || notification.readAt || readingNow.current.has(id)) return
     readingNow.current.add(id)
     setReadingIds(current => new Set(current).add(id))
-    setReadProblem(false)
+    setReadProblem(null)
     void markRead.mutateAsync(id).catch(error => {
-      if (!(error instanceof SessionCancelledError)) setReadProblem(true)
+      if (!(error instanceof SessionCancelledError)) setReadProblem('single')
     }).finally(() => {
       readingNow.current.delete(id)
       setReadingIds(current => { const next = new Set(current); next.delete(id); return next })
@@ -128,7 +147,8 @@ export default function NotificationsScreen() {
 
   const header = (
     <View>
-      <AppHeader showNotifications={false} onBack={() => goBackOrHome(router)} title={t('notifications.title')} />
+      <AppHeader showNotifications={false} onBack={() => goBackOrHome(router)} title={t('notifications.title')}
+        rightAction={<AppHeaderAction accessibilityLabel={t('g10.settingsTitle')} onPress={() => router.push('/settings/notifications')}><Icon name="settings" size={24} /></AppHeaderAction>} />
       {pushUnavailable ? (
         <Text variant="bodySmall" accessibilityLiveRegion="polite" style={styles.notice}>
           {t('notifications.pushUnavailable')}
@@ -189,11 +209,17 @@ export default function NotificationsScreen() {
         ListHeaderComponent={<View>
           <StaleNotice hasData={!!inbox.data} error={inbox.error} onRetry={() => void inbox.refetch()} />
           <View style={styles.toolbar}>
-            <Text variant="introHeading" color="redesign.ink" style={styles.kind}>{t('g10.allNotifications')}</Text>
-            <SecondaryBtn size="small" variant="neutral" label={t('g10.readAll')} disabled={!capabilities.readAll}
-              accessibilityHint={t('g10.readAllUnavailable')} onPress={() => undefined} />
+            <View style={styles.toolbarTitle}>
+              <Text variant="introHeading" color="redesign.ink">{t('g10.allNotifications')}</Text>
+              {summary.data ? <Badge label={t('g10.newCount', { count: summary.data.unreadCount })} /> : null}
+            </View>
+            <SecondaryBtn size="small" variant="neutral" label={t('g10.readAll')} disabled={!canReadAll}
+              loading={readAll.isPending} onPress={() => void markAll()} />
           </View>
-          <Text variant="introCaption" color="redesign.secondary">{t('g10.readAllUnavailable')}</Text>
+          {summary.isPending && !summary.isPaused ? <Skeleton width={80} height={14} /> : null}
+          {summary.isPaused && !summary.data ? <OfflineState /> : null}
+          <StaleNotice hasData={!!summary.data} error={summary.error} onRetry={() => void summary.refetch()} />
+          {summary.isError && !summary.data ? <ErrorState error={summary.error} onRetry={() => void summary.refetch()} /> : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
             <Chip label={t('g10.filter.all')} variant="selected" />
             <Chip label={t('g10.filter.invite')} icon="users" disabled={!capabilities.categoryFilter} onPress={() => undefined}
@@ -209,7 +235,7 @@ export default function NotificationsScreen() {
           <View style={styles.empty}>
             <View style={styles.emptyIllustration}><Icon name="mail" size={44} color="redesign.violetText" /></View>
             <EmptyState title={t('g10.emptyTitle')} body={t('g10.emptyBody')}
-              action={<SecondaryBtn variant="neutral" label={t('g10.reload')} loading={inbox.isRefetching} onPress={() => void inbox.refetch()} />} />
+              action={<SecondaryBtn variant="neutral" label={t('g10.reload')} loading={inbox.isRefetching} onPress={() => { void inbox.refetch(); void summary.refetch() }} />} />
           </View>
         }
         ListFooterComponent={
@@ -219,9 +245,9 @@ export default function NotificationsScreen() {
           busy={openingId !== null && openingId === item.id} reading={!!item.id && readingIds.has(item.id)}
           onOpen={() => void open(item)} onLater={() => mark(item)} /> }
       />
-      <GhostBtn label={t('g10.settingsTitle')} onPress={() => router.push('/settings/notifications')} />
-      <ResultSheet visible={readProblem} variant="error" title={t('g10.readFailed')} body={t('g10.readFailedBody')}
-        primaryAction={{ label: t('common.close'), onPress: () => setReadProblem(false) }} onClose={() => setReadProblem(false)} />
+      <ResultSheet visible={!!readProblem} variant="error" title={t('g10.readFailed')} body={t(readProblem === 'all' ? 'g10.readAllFailedBody' : 'g10.readFailedBody')}
+        secondaryAction={readProblem === 'all' ? { label: t('g10.reload'), onPress: () => { setReadProblem(null); void inbox.refetch(); void summary.refetch() } } : undefined}
+        primaryAction={{ label: t('common.close'), onPress: () => setReadProblem(null) }} onClose={() => setReadProblem(null)} />
     </Atmosphere>
   )
 }

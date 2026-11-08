@@ -25,7 +25,7 @@ const PERSISTED_PREFIXES: readonly string[] = ['rooms', 'plans', 'places', 'me',
  * come back from disk on the next cold start. `review-reactions` (APP-060) is
  * the caller's own helpful marks, which follow the same reviews.
  */
-const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'detail', 'public-reviews', 'review-reactions']
+const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'detail', 'public-reviews', 'review-reactions', 'notification-summary']
 
 /** Public in-memory snapshots survive logout; disk persistence is a separate policy. */
 export function isPublicAppQuery(queryKey: readonly unknown[]): boolean {

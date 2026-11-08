@@ -4,6 +4,7 @@ import { spacing } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   list: { paddingHorizontal: spacing[4], paddingTop: spacing[3] },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[1] },
+  toolbarTitle: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2] },
   filters: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
   filterNote: { marginBottom: spacing[3] },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3], padding: spacing[4], borderRadius: 16, marginBottom: spacing[3] },

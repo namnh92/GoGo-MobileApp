@@ -67,8 +67,26 @@ export function listNotifications(
   return api.get<OpResponse<'listNotifications'>>('/me/notifications', { query })
 }
 
-export function markNotificationRead(id: string): Promise<void> {
-  return api.post<void>('/me/notifications/{id}/read', undefined, { pathParams: { id } })
+export function markNotificationRead(id: string, sessionGeneration?: number): Promise<void> {
+  return api.post<void>('/me/notifications/{id}/read', undefined, { pathParams: { id }, sessionGeneration })
+}
+
+export function getNotificationSummary(signal?: AbortSignal): Promise<OpResponse<'getNotificationSummary'>> {
+  return api.get<OpResponse<'getNotificationSummary'>>('/me/notifications/summary', { signal })
+}
+
+export function readAllNotifications(
+  body: OpBody<'readAllNotifications'>,
+  idempotencyKey: string,
+  sessionGeneration: number,
+): Promise<OpResponse<'readAllNotifications'>> {
+  return api.post<OpResponse<'readAllNotifications'>>('/me/notifications/read-all', body, { idempotencyKey, sessionGeneration })
+}
+
+export function getNotificationReadOperation(operationId: string, sessionGeneration: number): Promise<OpResponse<'getNotificationReadOperation'>> {
+  return api.get<OpResponse<'getNotificationReadOperation'>>('/me/notifications/read-all/{operationId}', {
+    pathParams: { operationId }, sessionGeneration,
+  })
 }
 
 /**

@@ -26,7 +26,7 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
 }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
-jest.mock('@/features/notifications/notification-switch.view', () => ({ NotificationSwitchSection: () => null }))
+jest.mock('@/features/notifications/notification-settings-row.view', () => ({ NotificationSettingsRow: () => null }))
 
 jest.mock('expo-location', () => ({
   getForegroundPermissionsAsync: async () => {

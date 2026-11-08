@@ -2207,8 +2207,68 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** In-app notification inbox (cursor by createdAt) */
+        /**
+         * In-app notification inbox (createdAt and id descending)
+         * @description New opaque signed cursors bind the account, all-kinds filter and committed sequence snapshot for 24 hours. Equal timestamps use id as a tie breaker. Previously issued ISO timestamp cursors remain accepted during transition; these retain their original exclusive timestamp boundary. Before backfill opens the rollout gate, this endpoint stays available, includes historical rows, and issues full-precision unsigned (createdAt,id) fallback cursors. Fallback continuations retain that boundary across gate activation without acquiring a sequence snapshot; only summary/read-all are gated. No category filter is activated in this release. All inbox kinds remain visible. Invalid/foreign/purpose-mismatched cursors return INVALID_NOTIFICATION_CURSOR; expired signed cursors return NOTIFICATION_CURSOR_EXPIRED.
+         */
         get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Shared account unread count and committed read-through cutoff
+         * @description Source for the bell, new-item count and profile (#809). Counts all account-owned inbox kinds with readAt absent in the same database snapshot as the cutoff. Push preferences do not affect it. Refetch after reads; mutation replays are not a current count. Cutoff APIs return 503 until the resumable historical backfill and concurrent indexes complete.
+         */
+        get: operations["getNotificationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark unread rows through a fixed account cutoff
+         * @description Requires Idempotency-Key. The signed summary cursor is account-bound and valid for 24 hours. At most 500 rows change in one transaction. Further batches resume durably in bounded worker ticks after crashes. Each changed row receives the operation action timestamp; existing readAt is preserved. Concurrent reads count each changed row once. Arrivals above the cutoff remain unread. Retrying the same key/body replays the original operation response (even after cursor expiry); poll Location for current progress, then refetch summary. A different body with the same key returns 422.
+         */
+        post: operations["readAllNotifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/read-all/{operationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Poll an account-owned durable read-all operation */
+        get: operations["getNotificationReadOperation"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2519,6 +2579,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cms/place-submissions/{id}/credit-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moderator/editor: server credit facts for an explicit wizard selection
+         * @description Read-only, no provider request or award. Only pending submissions; rejects unavailable selected photos. Shares the award formula and ledger eligibility with approval. No replay cache.
+         */
+        post: operations["previewPlaceSubmissionCredit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cms/place-submissions/{id}/decide": {
         parameters: {
             query?: never;
@@ -2537,6 +2617,8 @@ export interface paths {
          *     #786 / ADR-0043: with provider photos enabled, approval retains at most one current first Google photo with provider provenance and per-photo credits. No image or references were stored while pending. Disabled or confirmed no-photo results permit approval without imagery; photo budget, provider or storage failures return retryable `503 SUBMISSION_PHOTO_UNAVAILABLE` and leave the submission pending. Google may change photo order since preview.
          *
          *     `rejected` creates no place. `merged` points the proposal at an existing one and attaches the explicitly selected photos to it. Every approved menu/bill photo is public in userPhotos with uploader credit, never in the official gallery or cover. Unselected menu photos are rejected and cleaned after seven days; rejected bills and their derivatives are queued for immediate cleanup. These menu/bill rules take precedence over the general cleanup description on approvedPhotoIds. Accepted menu/bill evidence adds 20 credits once; approval also grants the 50-credit base.
+         *
+         *     #806: optional enrichmentSelection explicitly keeps wizard facts and photos; everything else in that proposal is dropped. With selection present, approvedPhotoIds may select only additional ordinary photos, never wizard references. Empty arrays drop every wizard item. Omission preserves #802: no wizard facts applied, photos selected by approvedPhotoIds, approve +50 base, merge no base. Explicit selection grants +50 base for approve or merge, plus +20 for at least one kept original-contributor menu/bill photo, subject to existing unique venue/submission ledger constraints. Detail/credit-preview provide the formula as facts. Audit records kept/dropped stable keys and media ids, without their content. Send Idempotency-Key to replay the same response; changing the payload under the same key is rejected by the existing idempotency policy.
          *
          *     Approval is not verification and not publication: the administrative mapping is resolved from the new place's own coordinate and is never `VERIFIED`, and the publication blocker stays until somebody confirms it (ADM-017, GoGo-BE#525).
          */
@@ -2903,7 +2985,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark one notification read */
+        /**
+         * Mark one notification read
+         * @description Retries preserve the first readAt. Missing and foreign ids return the same success without changing another account. Does not decline or revoke an invitation. Refetch the shared notification summary after success.
+         */
         post: operations["markNotificationRead"];
         delete?: never;
         options?: never;
@@ -5870,6 +5955,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NotificationSummary: {
+            unreadCount: number;
+            /** Format: date-time */
+            asOf: string;
+            /** @description Signed opaque account cutoff; expires in 24 hours */
+            readThroughCursor: string;
+        };
+        NotificationReadOperation: {
+            /** Format: uuid */
+            operationId: string;
+            /** @enum {string} */
+            status: "running" | "completed";
+            /**
+             * Format: date-time
+             * @description Fixed action timestamp
+             */
+            asOf: string;
+            /** @description Rows changed by this operation only */
+            changedCount: number;
+        };
         AdministrativeUnit: {
             /** @description Official GSO code. Not unique on its own — see ADR-0019 §2. */
             code: string;
@@ -8339,6 +8444,7 @@ export interface components {
             locale: "vi" | "en";
         };
         PlaceDetail: {
+            contributionFacts?: components["schemas"]["KeptContributionFacts"];
             verification?: components["schemas"]["VenueVerification"];
             /** Format: uuid */
             id?: string;
@@ -9347,6 +9453,20 @@ export interface components {
             /** @description GoGo-BE#280 — evidence for `addressText`, `phone` and `website`, under the same rule as `cmsUpdatePlace`: a non-null value needs its entry, `null` needs none. Values and evidence are stored normalized (E.164, `https://`, `collectedAt` in UTC) and returned that way. */
             provenance?: components["schemas"]["PlaceContactProvenanceInput"];
         };
+        /** @description Explicit wizard selection. Stable fact keys: price (atomic range/unit), purposeKeys:<key>, vibeKeys:<key>, amenities:<key> (false is a fact), recommendedDishes, visitTips, service.rating, space.rating, service.chipKeys:<key>, space.chipKeys:<key>. Keys come from detail.enrichmentItems; photos use the proposal's mediaId, never array indexes or photo-row ids. Consent is evidence for upload, never a selectable place fact. */
+        EnrichmentSelection: {
+            keptFactKeys: string[];
+            keptPhotoMediaIds: string[];
+        };
+        SubmissionCreditFacts: {
+            base: number;
+            photoBonus: number;
+            total: number;
+        };
+        /** @description Explicitly moderated wizard facts keyed by the stable keys in EnrichmentSelection. Scalar strings, booleans, integer ratings or an atomic price object with min/max/currency/unit. Only kept items, no photos, consent, user ids or unmoderated content. Service/space ratings remain individual contribution facts, never provider/community rating aggregates. Per-group/free prices retain their original unit here; the legacy prices table only receives units it can represent. Later kept values replace the same key; absent keys remain. */
+        KeptContributionFacts: {
+            [key: string]: unknown;
+        };
         SubmissionPhoto: {
             /** Format: uuid */
             id: string;
@@ -9366,6 +9486,12 @@ export interface components {
         };
         /** @description PI-BE-031 (GoGo-BE#528) — everything a decision needs that GoGo already holds. No provider request: this endpoint costs nothing to open, and `POST /cms/place-submissions/{id}/provider-preview` is the explicit, separately-counted way to ask Google. */
         PlaceSubmissionDetail: {
+            /** @description Potential explicit-selection approval credit with all still-pending original evidence kept. Zero if contributor/ledger/state ineligible. Use credit-preview after changing selection; no client arithmetic. */
+            expectedCredit?: components["schemas"]["SubmissionCreditFacts"];
+            enrichmentItems?: {
+                factKeys: string[];
+                photoMediaIds: string[];
+            };
             /** Format: uuid */
             id: string;
             googlePlaceId: string;
@@ -11385,6 +11511,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description NOTIFICATION_INBOX_UNAVAILABLE when the inbox rollout or signing key is unavailable, or SERVICE_UNAVAILABLE (retryable true) when the authoritative consumer session lookup encounters an operational database connection, pool or query timeout/unavailability. Retry with backoff; cached state cannot authorize access. SQL/schema/permission/configuration errors retain existing error handling. Standard error envelope. */
+        NotificationInboxUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
         /** @description SERVICE_UNAVAILABLE (retryable true) — the authoritative consumer session lookup encountered an operational database connection, pool or query timeout/unavailability. Retry with backoff; cached state cannot authorize access. SQL/schema/permission/configuration errors retain existing error handling. */
         SessionLookupUnavailable: {
             headers: {
@@ -15585,7 +15720,177 @@ export interface operations {
                     };
                 };
             };
-            503: components["responses"]["SessionLookupUnavailable"];
+            /** @description INVALID_NOTIFICATION_CURSOR */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description NOTIFICATION_CURSOR_EXPIRED */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["NotificationInboxUnavailable"];
+        };
+    };
+    getNotificationSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account snapshot; never cache */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSummary"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["NotificationInboxUnavailable"];
+        };
+    };
+    readAllNotifications: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    through: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Completed immediately */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationReadOperation"];
+                };
+            };
+            /** @description Durable operation running */
+            202: {
+                headers: {
+                    /** @description Account-authenticated operation status URL */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationReadOperation"];
+                };
+            };
+            /** @description VALIDATION_FAILED, INVALID_IDEMPOTENCY_KEY or INVALID_NOTIFICATION_CURSOR */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description IDEMPOTENT_REQUEST_IN_FLIGHT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description NOTIFICATION_CURSOR_EXPIRED */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description IDEMPOTENCY_KEY_REUSED */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["NotificationInboxUnavailable"];
+        };
+    };
+    getNotificationReadOperation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current progress; never cache */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationReadOperation"];
+                };
+            };
+            /** @description VALIDATION_FAILED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description NOTIFICATION_READ_OPERATION_NOT_FOUND (foreign and missing indistinguishable) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["NotificationInboxUnavailable"];
         };
     };
     registerPushSubscription: {
@@ -16125,7 +16430,7 @@ export interface operations {
             };
         };
     };
-    decidePlaceSubmission: {
+    previewPlaceSubmissionCredit: {
         parameters: {
             query?: never;
             header?: never;
@@ -16137,6 +16442,51 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    enrichmentSelection: components["schemas"]["EnrichmentSelection"];
+                };
+            };
+        };
+        responses: {
+            /** @description Preview only; no award */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        expectedCredit: components["schemas"]["SubmissionCreditFacts"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description ALREADY_DECIDED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decidePlaceSubmission: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Client-generated key for retryable mutations. Repeating a request with the same key returns the original result instead of re-applying it. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enrichmentSelection?: components["schemas"]["EnrichmentSelection"];
+                } & ({
                     /** @enum {string} */
                     decision: "rejected";
                     rejectionReason: components["schemas"]["SubmissionRejectionReason"];
@@ -16158,7 +16508,7 @@ export interface operations {
                      * @description Required for `merged`, and the place must exist — `404 MERGE_TARGET_NOT_FOUND` otherwise (GoGo-BE#528). Merging records where this proposal went and attaches only explicitly approved photos to the target, retaining their uploader credits.
                      */
                     mergeIntoPlaceId?: string;
-                };
+                });
             };
         };
         responses: {

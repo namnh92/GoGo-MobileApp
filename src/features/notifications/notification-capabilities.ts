@@ -11,11 +11,11 @@ type InboxQuery = NonNullable<paths['/me/notifications']['get']['parameters']['q
 /** Compile-checked against the generated client. Regeneration deliberately asks
  * us to wire the real typed adapter here before a newly shipped operation opens.
  * No speculative requests, local preference persistence or page-count totals.
- * BE#811 / ADR-0039: see docs/verification/issue-539-group-10.md for unlocks.
+ * BE#811 / ADR-0050: see docs/verification/issue-539-group-10.md for unlocks.
  */
 export const generatedNotificationCapabilities = {
-  summary: false as const satisfies HasMethod<'/me/notifications/summary', 'get'>,
-  readAll: false as const satisfies HasMethod<'/me/notifications/read-all', 'post'>,
+  summary: true as const satisfies HasMethod<'/me/notifications/summary', 'get'>,
+  readAll: true as const satisfies HasMethod<'/me/notifications/read-all', 'post'>,
   categoryPatch: false as const satisfies HasMethod<'/me/notification-settings', 'patch'>,
   categoryFields: false as const satisfies ('categories' extends keyof Settings ? true : false),
   categoryFilter: false as const satisfies ('category' extends keyof InboxQuery ? true : false),

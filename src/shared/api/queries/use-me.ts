@@ -384,7 +384,7 @@ export function useToggleReviewHelpful(placeId: string) {
 
 // --- notifications ---------------------------------------------------------
 
-/** Cursor-paginated inbox; the cursor is an opaque `createdAt` marker. */
+/** Cursor-paginated inbox; pass opaque (createdAt,id) cursors back unchanged. */
 export function useNotifications(options?: { enabled?: boolean }) {
   return useInfiniteQuery({
     queryKey: queryKeys.notifications(),
@@ -398,10 +398,53 @@ export function useNotifications(options?: { enabled?: boolean }) {
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => meApi.markNotificationRead(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications() })
+    mutationFn: async (id: string) => {
+      const scope = captureSessionScope()
+      await scope.wait(meApi.markNotificationRead(id, scope.generation))
+      await scope.wait(refetchNotificationInbox(queryClient))
     },
+  })
+}
+
+/** One account cache shared by bell, profile and inbox; never persisted to disk. */
+export function useNotificationSummary(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.notificationSummary(),
+    queryFn: ({ signal }) => meApi.getNotificationSummary(signal),
+    enabled: options?.enabled ?? true,
+  })
+}
+
+function refetchNotificationInbox(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications(), exact: true }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.notificationSummary(), exact: true }),
+  ])
+}
+
+export function useReadAllNotifications() {
+  const queryClient = useQueryClient()
+  const intent = useIntentKey()
+  return useMutation({
+    mutationFn: async (through: string) => {
+      const scope = captureSessionScope()
+      let operation = await scope.wait(meApi.readAllNotifications({ through }, intent.keyFor(through), scope.generation))
+      // Both 200 and 202 carry status. A replay may still describe a running
+      // operation; only the authenticated status read establishes completion.
+      while (operation.status === 'running') {
+        let timer: ReturnType<typeof setTimeout> | undefined
+        try {
+          await scope.wait(new Promise<void>(resolve => { timer = setTimeout(resolve, 1000) }))
+        } finally {
+          clearTimeout(timer)
+        }
+        operation = await scope.wait(meApi.getNotificationReadOperation(operation.operationId, scope.generation))
+      }
+      scope.assert()
+      await scope.wait(refetchNotificationInbox(queryClient))
+      return operation
+    },
+    onSettled: (_data, _error, through) => intent.release(through),
   })
 }
 

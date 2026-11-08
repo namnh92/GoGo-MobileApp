@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Switch, View } from 'react-native'
+import { Switch, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { useNotificationSettings, useSetNotificationSettings } from '@/shared/api'
@@ -8,6 +8,8 @@ import { useNotificationDevice, type PushState } from './use-notification-device
 import { Icon } from '@/shared/ui/icons'
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
+import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
+import { Skeleton } from '@/shared/ui/skeleton.view'
 
 import { styles } from './notification-switch.style'
 import { notificationCapabilities } from './notification-capabilities'
@@ -27,7 +29,7 @@ const DEVICE_NOTE: Record<PushState, MessageKey> = {
 
 /**
  * NTF-APP-010 (#215) — one switch for every push kind (GoGo-BE#572, ADR-0025),
- * as a section of the combined settings screen (APP-058, #216).
+ * reused on the unified notification settings screen (#539).
  *
  * Two facts, never merged: the switch is what this *account* asked GoGo to do,
  * on every device; the device card is whether *this phone* lets GoGo show a
@@ -42,13 +44,15 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
 
   const { pushState, settingsError, refreshPushState, openNotificationSettings } = useNotificationDevice()
 
+  const retry = () => void settings.refetch()
   const current = settings.data
   const capabilities = notificationCapabilities(current)
   // Off because an older choice was carried over conservatively — say why.
   const carriedOver = current && !current.pushEnabled && (current.source === 'migrated' || current.source === 'legacy')
 
   return (
-    <View>
+    <View style={styles.section}>
+      <StaleNotice hasData={!!current} error={settings.error} onRetry={retry} />
       <Card appearance="stitch" padded={false} style={styles.card}>
         <View style={styles.row}>
           <View style={styles.iconTile}>
@@ -62,10 +66,12 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
           </View>
           <Switch
             style={styles.switch}
+            testID="notification-master"
             // Until the first answer there is no truthful value: off and locked.
             value={current?.pushEnabled ?? false}
             onValueChange={next => { if (capabilities.master) save.mutate({ pushEnabled: next }) }}
             disabled={!capabilities.master || save.isPending}
+            accessibilityState={{ disabled: !capabilities.master || save.isPending, busy: save.isPending }}
             trackColor={{ true: theme.accent.primary, false: theme.surface.subtle }}
             accessibilityLabel={t('notificationSettings.switchLabel')}
             accessibilityHint={t('notificationSettings.switchHint')}
@@ -74,15 +80,16 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
 
         {!current ? (
           <View accessibilityLiveRegion="polite" style={styles.syncState}>
-            {settings.isPending ? (
-              <>
-                <ActivityIndicator color={theme.accent.primary} size="small" />
+            {settings.isPaused ? <OfflineState /> : settings.isPending ? (
+              <View testID="notification-settings-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} style={styles.loading}>
+                <Skeleton width="80%" height={18} /><Skeleton width="65%" height={14} />
                 <Text variant="bodySmall" color="text.secondary">{t('common.loading')}</Text>
-              </>
+              </View>
             ) : (
               <>
                 <Text variant="bodySmall" color="status.dangerText" style={styles.error}>{t('notificationSettings.loadFailed')}</Text>
-                <GhostBtn label={t('common.retry')} onPress={() => void settings.refetch()} />
+                {settings.isError ? <ErrorState error={settings.error} onRetry={retry} />
+                  : <GhostBtn label={t('common.retry')} onPress={retry} />}
               </>
             )}
           </View>
@@ -111,11 +118,13 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
             size={20}
             color={pushState === 'granted' ? 'status.successText' : 'status.warningText'}
           />
-          <Text style={styles.deviceText} variant={!(pushState === 'granted' || pushState === 'checking') ? 'bodySmall' : pushState === 'granted' || pushState === 'checking' ? 'bodySmall' : undefined} color={!(pushState === 'granted' || pushState === 'checking') ? 'status.warningText' : pushState === 'granted' || pushState === 'checking' ? 'text.primary' : undefined}
-            accessibilityLiveRegion="polite"
-          >
-            {t(DEVICE_NOTE[pushState])}
-          </Text>
+          <View style={styles.deviceText}>
+            <Text variant="introSmall">{t('notificationSettings.deviceTitle')}</Text>
+            <Text variant="bodySmall" color={pushState === 'granted' || pushState === 'checking' ? 'text.primary' : 'status.warningText'}
+              accessibilityLiveRegion="polite">
+              {t(DEVICE_NOTE[pushState])}
+            </Text>
+          </View>
         </View>
         {!showSettingsButton ? <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.deviceSettingsHint')}</Text> : null}
         {pushState === 'askable' && showSettingsButton ? (
@@ -123,6 +132,8 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
             label={t('notificationSettings.openSettings')}
             onPress={() => void openNotificationSettings()}
           />
+        ) : pushState === 'granted' ? (
+          <GhostBtn size="small" label={t('g10.deviceSettings')} onPress={() => void openNotificationSettings()} />
         ) : pushState === 'unknown' ? (
           <GhostBtn label={t('common.retry')} onPress={refreshPushState} />
         ) : null}

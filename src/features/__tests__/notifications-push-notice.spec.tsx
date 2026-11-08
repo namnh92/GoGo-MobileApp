@@ -32,6 +32,8 @@ jest.mock('@/shared/api', () => ({
     error: null,
     refetch: jest.fn(),
   }),
+  useNotificationSummary: () => ({ data: undefined }),
+  useReadAllNotifications: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useMarkNotificationRead: () => ({ mutateAsync: jest.fn().mockResolvedValue(undefined) }),
 }))
 

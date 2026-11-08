@@ -8,6 +8,9 @@ import { viMessages } from '@/shared/i18n/vi'
 
 const mockPush = jest.fn()
 const mockRead = jest.fn()
+const mockReadAll = jest.fn()
+let mockSummary: Record<string, unknown>
+let mockReadAllPending = false
 const mockSave = jest.fn()
 const mockRefetch = jest.fn()
 const mockPermission = jest.fn()
@@ -15,6 +18,7 @@ let mockSession = 'user'
 let mockInbox: Record<string, unknown>
 let mockSettings: Record<string, unknown>
 let mockSavePending = false
+let mockSaveError = false
 const mockResolve = jest.fn()
 
 jest.mock('expo-router', () => ({
@@ -22,6 +26,9 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn(), canGoBack: () => true }),
   useLocalSearchParams: () => ({}),
 }))
+jest.mock('@/features/settings/location-permission.view', () => ({ LocationPermissionSection: () => null }))
+jest.mock('@/features/settings/tracking-consent.view', () => ({ TrackingConsentSection: () => null }))
+jest.mock('@/features/settings/device-promotions.view', () => ({ DevicePromotionsSection: () => null }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockSession }) }))
 jest.mock('@/shared/notifications/permission-bootstrap', () => ({ pushPermission: { status: () => mockPermission() } }))
 jest.mock('@/features/notifications/inbox-target', () => ({ resolveInboxTarget: (...args: unknown[]) => mockResolve(...args) }))
@@ -29,9 +36,11 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => ({ data: undefined }),
   useNotifications: () => mockInbox,
+  useNotificationSummary: () => mockSummary,
+  useReadAllNotifications: () => ({ mutateAsync: mockReadAll, isPending: mockReadAllPending }),
   useMarkNotificationRead: () => ({ mutateAsync: mockRead }),
   useNotificationSettings: () => mockSettings,
-  useSetNotificationSettings: () => ({ mutate: mockSave, isPending: mockSavePending }),
+  useSetNotificationSettings: () => ({ mutate: mockSave, isPending: mockSavePending, isError: mockSaveError, variables: { pushEnabled: false } }),
 }))
 
 // Evaluate real screen styles in both modes; Jest has no native theme switching.
@@ -47,6 +56,8 @@ const chipSpy = jest.spyOn(chipModule, 'Chip')
 const NotificationsScreen = jest.requireActual<typeof import('@/features/notifications/notifications.view')>('@/features/notifications/notifications.view').default
 const SettingsScreen = jest.requireActual<typeof import('@/features/notifications/notification-settings.view')>('@/features/notifications/notification-settings.view').default
 
+const PermissionsScreen = jest.requireActual<typeof import('@/features/settings/permissions.view')>('@/features/settings/permissions.view').default
+
 const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:00:00Z', payload: { roomName: 'Phòng thật', inviterName: 'Lan' } }
 const settingsData = { pushEnabled: true, source: 'explicit', updatedAt: null }
 const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications }] }, isPending: false, isError: false, refetch: mockRefetch })
@@ -55,12 +66,16 @@ beforeEach(() => {
   currentTheme = themes.orange
   jest.clearAllMocks()
   mockRead.mockResolvedValue(undefined)
+  mockReadAll.mockResolvedValue({ status: 'completed' })
+  mockReadAllPending = false
+  mockSummary = { data: { unreadCount: 32, asOf: '2026-11-08T12:00:00Z', readThroughCursor: 'opaque-summary-cutoff' }, refetch: mockRefetch }
   mockResolve.mockResolvedValue({ to: 'open', path: '/rooms/room-1' })
   mockPermission.mockResolvedValue('granted')
   mockInbox = loadedInbox()
   mockSettings = { data: settingsData, isPending: false, isError: false, refetch: mockRefetch }
   mockSession = 'user'
   mockSavePending = false
+  mockSaveError = false
 })
 
 it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip size and aligned in %s', async mode => {
@@ -104,10 +119,11 @@ it('inbox default uses real payload, neutral host semantics and gated controls',
   expect(screen.getByText('Người tạo lời mời: Lan')).toBeTruthy()
   expect(screen.getByText(viMessages['notifications.body.invite'])).toBeTruthy()
   const readAll = screen.getByRole('button', { name: 'Đọc tất cả' })
-  expect(readAll.props.accessibilityState.disabled).toBe(true)
+  expect(readAll.props.accessibilityState.disabled).toBe(false)
   await fireEvent.press(readAll)
+  expect(mockReadAll).toHaveBeenCalledWith('opaque-summary-cutoff')
   expect(mockRead).not.toHaveBeenCalled()
-  expect(screen.queryByText(/\d+ mới/)).toBeNull()
+  expect(screen.getByText('32 mới')).toBeTruthy()
   expect(screen.queryByText(/7 ngày/)).toBeNull()
 })
 
@@ -180,11 +196,15 @@ it('renders N-member progress, stop counts and change facts without inventing pr
   expect(screen.queryByText(/19:00|15:30|The Workshop/)).toBeNull()
 })
 
-it('settings default has a real master and six unavailable switches with reasons', async () => {
+it.each(['orange', 'orangeDark'] as const)('settings in %s has one real master and six gated switches', async mode => {
+  currentTheme = themes[mode]
   const screen = await renderScreen(<SettingsScreen />)
   const switches = screen.getAllByRole('switch')
   expect(switches).toHaveLength(7)
   expect(screen.getByTestId('notification-master').props.disabled).toBe(false)
+  let card = screen.getByTestId('notification-master').parent
+  while (card && !StyleSheet.flatten(card.props.style)?.backgroundColor) card = card.parent
+  expect(StyleSheet.flatten(card!.props.style).backgroundColor).toBe(currentTheme.redesign.card)
   for (const control of switches.filter(control => control.props.testID !== 'notification-master')) {
     expect(control.props.disabled).toBe(true)
     expect(control.props.value).toBe(false)
@@ -197,20 +217,20 @@ it('settings default has a real master and six unavailable switches with reasons
   expect(screen.queryByText('5/5 loại đang bật')).toBeNull()
 })
 
-it('master saves through the existing API and shows feedback only after success', async () => {
+it('master reuses the existing account mutation without extra fields or category writes', async () => {
   const screen = await renderScreen(<SettingsScreen />)
   await fireEvent(screen.getByTestId('notification-master'), 'valueChange', false)
-  expect(mockSave).toHaveBeenCalledWith({ pushEnabled: false }, expect.any(Object))
-  expect(screen.queryByText(viMessages['g10.saved'])).toBeNull()
-  await act(async () => mockSave.mock.calls[0][1].onSuccess())
-  expect(screen.getByText(viMessages['g10.saved'])).toBeTruthy()
+  expect(mockSave).toHaveBeenCalledTimes(1)
+  expect(mockSave).toHaveBeenCalledWith({ pushEnabled: false })
 })
 
-it('master failure gives shared retry/close actions, and save in flight locks the switch', async () => {
+it('master retains rollback feedback and retries the same choice; in-flight saves lock the switch', async () => {
+  mockSaveError = true
   const screen = await renderScreen(<SettingsScreen />)
-  await fireEvent(screen.getByTestId('notification-master'), 'valueChange', false)
-  await act(async () => mockSave.mock.calls[0][1].onError())
+  expect(screen.getByTestId('notification-master').props.value).toBe(true)
   expect(screen.getByText(viMessages['notificationSettings.saveFailed'])).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: viMessages['notificationSettings.retrySave'] }))
+  expect(mockSave).toHaveBeenCalledWith({ pushEnabled: false })
   mockSavePending = true
   const pending = await renderScreen(<SettingsScreen />)
   expect(pending.getByTestId('notification-master').props.disabled).toBe(true)
@@ -278,5 +298,103 @@ it('a denied OS permission keeps the account master separate and exposes device 
   const screen = await renderScreen(<SettingsScreen />)
   expect(screen.getByText(viMessages['notificationSettings.pushNote'])).toBeTruthy()
   expect(screen.getByTestId('notification-master').props.disabled).toBe(false)
-  expect(screen.getByRole('button', { name: viMessages['g10.deviceSettings'] })).toBeTruthy()
+  expect(screen.getByRole('button', { name: viMessages['notificationSettings.openSettings'] })).toBeTruthy()
+})
+
+it.each(['orange', 'orangeDark'] as const)('summary drives the exact inbox badge and read-all in %s', async mode => {
+  currentTheme = themes[mode]
+  mockInbox = loadedInbox([])
+  const screen = await renderScreen(<NotificationsScreen />)
+  expect(screen.getByText('32 mới')).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Đọc tất cả' }))
+  expect(mockReadAll).toHaveBeenCalledWith('opaque-summary-cutoff')
+})
+
+it('locks read-all during polling, and never substitutes a missing/error summary', async () => {
+  mockReadAllPending = true
+  const busy = await renderScreen(<NotificationsScreen />)
+  expect(busy.getByRole('button', { name: 'Đọc tất cả' }).props.accessibilityState.disabled).toBe(true)
+  mockReadAllPending = false
+  mockSummary = { isError: true, error: new Error('network'), refetch: mockRefetch }
+  const failed = await renderScreen(<NotificationsScreen />)
+  expect(failed.getByRole('button', { name: 'Đọc tất cả' }).props.accessibilityState.disabled).toBe(true)
+  expect(failed.queryByText(/\d+ mới/)).toBeNull()
+})
+
+it('deduplicates read-all taps and shows recoverable failure without clearing unread rows', async () => {
+  let fail!: (error: Error) => void
+  mockReadAll.mockReturnValue(new Promise((_resolve, reject) => { fail = reject }))
+  const screen = await renderScreen(<NotificationsScreen />)
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: 'Đọc tất cả' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Đọc tất cả' }))
+  })
+  expect(mockReadAll).toHaveBeenCalledTimes(1)
+  await act(async () => fail(new Error('network')))
+  expect(screen.getByText(viMessages['g10.readAllFailedBody'])).toBeTruthy()
+  expect(screen.getByTestId(`notification-unread-${item.id}`)).toBeTruthy()
+  await fireEvent.press(screen.getByRole('button', { name: 'Tải lại thông báo' }))
+  expect(mockRefetch).toHaveBeenCalledTimes(2)
+})
+
+
+it.each(['orange', 'orangeDark'] as const)('has exactly one header gear settings entry in %s', async mode => {
+  currentTheme = themes[mode]
+  const screen = await renderScreen(<NotificationsScreen />)
+  const entries = screen.getAllByRole('button', { name: viMessages['g10.settingsTitle'] })
+  expect(entries).toHaveLength(1)
+  expect(screen.queryByText(viMessages['g10.settingsTitle'])).toBeNull()
+  let parent = entries[0].parent
+  while (parent && parent.props.testID !== 'app-header') parent = parent.parent
+  expect(parent).not.toBeNull()
+  await fireEvent.press(entries[0])
+  expect(mockPush).toHaveBeenCalledTimes(1)
+  expect(mockPush).toHaveBeenCalledWith('/settings/notifications')
+})
+
+
+it.each(['loading', 'empty', 'error', 'offline', 'guest'] as const)('keeps one settings gear reachable in the %s inbox', async state => {
+  mockInbox = state === 'loading' ? { isPending: true } : state === 'error' ? { isError: true }
+    : state === 'offline' ? { isPending: true, isPaused: true } : loadedInbox([])
+  if (state === 'guest') mockSession = 'guest'
+  const screen = await renderScreen(<NotificationsScreen />)
+  const gears = screen.getAllByRole('button', { name: viMessages['g10.settingsTitle'] })
+  expect(gears).toHaveLength(1)
+  await fireEvent.press(gears[0])
+  expect(mockPush).toHaveBeenCalledWith('/settings/notifications')
+})
+
+it('labels the header gear in English sentence case', async () => {
+  await act(async () => { await i18n.changeLanguage('en') })
+  try {
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.queryByText('Notification settings')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Notification settings' }))
+    expect(mockPush).toHaveBeenCalledWith('/settings/notifications')
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+})
+
+
+it.each([
+  ['orange', 'vi', 'Thông báo', 'Đang bật'],
+  ['orangeDark', 'vi', 'Thông báo', 'Đang bật'],
+  ['orange', 'en', 'Notifications', 'On'],
+  ['orangeDark', 'en', 'Notifications', 'On'],
+] as const)('permissions row renders and navigates in %s/%s', async (mode, locale, title, state) => {
+  currentTheme = themes[mode]
+  await act(async () => { await i18n.changeLanguage(locale) })
+  try {
+    const screen = await renderScreen(<PermissionsScreen />)
+    const rows = screen.getAllByRole('button', { name: title })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].props.accessibilityValue.text).toBe(state)
+    expect(screen.queryAllByRole('switch')).toHaveLength(0)
+    expect(StyleSheet.flatten(rows[0].props.style).minHeight).toBeGreaterThanOrEqual(44)
+    let card = rows[0].parent
+    while (card && !StyleSheet.flatten(card.props.style)?.backgroundColor) card = card.parent
+    expect(StyleSheet.flatten(card!.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+    await fireEvent.press(rows[0])
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/settings/notifications')
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })

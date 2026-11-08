@@ -3,6 +3,8 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  section: { gap: spacing[3] },
+  loading: { flex: 1, gap: spacing[2] },
   syncState: {
     minHeight: touchTarget.min,
     marginTop: spacing[3],
@@ -15,7 +17,7 @@ export const styles = StyleSheet.create(theme => ({
     marginTop: spacing[4],
     marginBottom: spacing[2],
   },
-  card: { paddingHorizontal: spacing[4], paddingVertical: spacing[3], marginTop: 0, gap: spacing[2], borderRadius: 0, shadowOpacity: 0, elevation: 0 },
+  card: { paddingHorizontal: spacing[4], paddingVertical: spacing[3], marginTop: 0, gap: spacing[2], borderRadius: 12 },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -36,7 +38,7 @@ export const styles = StyleSheet.create(theme => ({
   rowText: { flex: 1, gap: 2 },
   rowTitle: { minHeight: 40, justifyContent: 'center' },
   switch: { alignSelf: 'center' },
-  deviceCard: { paddingHorizontal: spacing[4], paddingBottom: spacing[2], gap: spacing[2], borderRadius: 0, shadowOpacity: 0, elevation: 0 },
+  deviceCard: { padding: spacing[4], gap: spacing[2], borderRadius: 12 },
   caption: { paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
   error: { marginTop: spacing[3] },
 }))

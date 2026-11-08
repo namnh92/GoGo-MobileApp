@@ -1,0 +1,37 @@
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+
+import { getNotificationReadOperation, getNotificationSummary, listNotifications, readAllNotifications } from '../endpoints/me'
+import { clearSession, getSessionGeneration, persistSession } from '../session'
+
+beforeEach(async () => {
+  await persistSession({ kind: 'user', userId: 'A', accessToken: 'token-A', expiresAt: Date.now() + 600000 })
+})
+afterEach(async () => { vi.restoreAllMocks(); await clearSession() })
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status, headers: { 'content-type': 'application/json' },
+})
+
+it.each([200, 202])('uses the typed authenticated read APIs for HTTP %s with an unchanged opaque cutoff', async status => {
+  const snapshot = { unreadCount: 701, asOf: '2026-11-08T12:00:00Z', readThroughCursor: 'opaque.signed+cutoff/==' }
+  const operation = { operationId: 'op-id', status: status === 202 ? 'running' : 'completed', asOf: snapshot.asOf, changedCount: 500 }
+  const fetch = vi.spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(json(snapshot))
+    .mockResolvedValueOnce(json(operation, status))
+    .mockResolvedValueOnce(json({ ...operation, status: 'completed' }))
+  const summary = await getNotificationSummary()
+  expect(summary).toEqual(snapshot)
+  expect(await readAllNotifications({ through: summary.readThroughCursor }, 'read-intent-123', getSessionGeneration())).toEqual(operation)
+  const [url, request] = fetch.mock.calls[1]!
+  expect(url).toBe('http://localhost:3000/v1/me/notifications/read-all')
+  expect(request?.body).toBe(JSON.stringify({ through: snapshot.readThroughCursor }))
+  expect(request?.headers).toMatchObject({ authorization: 'Bearer token-A', 'idempotency-key': 'read-intent-123' })
+  expect(await getNotificationReadOperation(operation.operationId, getSessionGeneration())).toMatchObject({ status: 'completed' })
+  expect(fetch.mock.calls[2]![0]).toBe('http://localhost:3000/v1/me/notifications/read-all/op-id')
+})
+
+it('round-trips opaque list cursors without parsing or truncating the tuple', async () => {
+  const cursor = 'opaque.createdAt+id/=='
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ notifications: [], nextCursor: null }))
+  await listNotifications({ cursor })
+  expect(fetch.mock.calls[0]![0]).toBe(`http://localhost:3000/v1/me/notifications?cursor=${encodeURIComponent(cursor)}`)
+})
