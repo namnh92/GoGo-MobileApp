@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/button.view'
-import { accents, glassFx, redesignLight, shadows, status, surface, text, type } from '@/shared/ui/tokens'
+import { accents, buttonSizes, glassFx, redesignLight, shadows, status, surface, text, type } from '@/shared/ui/tokens'
 import * as feedback from '@/shared/ui/feedback'
 
 /**
@@ -20,7 +20,7 @@ describe.each([PrimaryBtn, SecondaryBtn, GhostBtn, DangerBtn])('wrapped action l
   it('opts default buttons into wrapping without changing their typography', async () => {
     await render(<Btn label="View all contributions" wrapLabel onPress={jest.fn()} />)
     expect(screen.getByText('View all contributions').props.numberOfLines).toBeUndefined()
-    expect(flat(screen.getByText('View all contributions'))).toMatchObject(type.label)
+    expect(flat(screen.getByText('View all contributions'))).toMatchObject(type.buttonLabel)
   })
 })
 
@@ -33,7 +33,7 @@ describe.each([false, true])('area buttons with wrapLabel=%s', wrapLabel => {
     </>)
     for (const label of ['Confirm area', 'Clear area']) {
       expect(screen.getByText(label).props.numberOfLines).toBeUndefined()
-      expect(flat(screen.getByText(label))).toMatchObject(type.introLabel)
+      expect(flat(screen.getByText(label))).toMatchObject(type.buttonLabel)
     }
     expect(flat(button('Confirm area')).backgroundColor).toBe(redesignLight.primaryFill)
     expect(labelColor('Clear area')).toBe(redesignLight.secondary)
@@ -53,18 +53,18 @@ describe('owner D1 Stitch buttons', () => {
     </>)
     for (const name of ['Reset search', 'Ask GoGo AI']) {
       expect(flat(button(name))).toMatchObject({
-        minHeight: 48, height: undefined, borderRadius: 999,
+        minHeight: buttonSizes.regular.minHeight, borderRadius: 999,
         paddingVertical: 12, paddingHorizontal: 16, gap: 4, borderWidth: 1,
       })
-      expect(flat(screen.getByText(name))).toMatchObject(type.introHeading)
+      expect(flat(screen.getByText(name))).toMatchObject(type.buttonLabel)
     }
     expect(flat(button('Reset search')).backgroundColor).toBe(orange.primary)
     expect(flat(button('Ask GoGo AI'))).toMatchObject({ backgroundColor: surface.card, borderColor: orange.primary })
   })
-  it('uses the drawn 48px CTA with a 17px label and press scale', async () => {
+  it('uses the drawn 48px CTA with a scaled label and press scale', async () => {
     await render(<PrimaryBtn variant="stitch" label="Tiếp theo" icon="arrowRight" onPress={jest.fn()} />)
     expect(flat(button('Tiếp theo'))).toMatchObject({ minHeight: 48, borderRadius: 12 })
-    expect(flat(screen.getByText('Tiếp theo'))).toMatchObject(type.introHeading)
+    expect(flat(screen.getByText('Tiếp theo'))).toMatchObject(type.buttonLabel)
     expect((await pressedStyle('Tiếp theo')).transform).toEqual([{ scale: 0.98 }])
   })
   it('keeps the static pressed response under reduced motion', async () => {
@@ -102,22 +102,23 @@ async function pressedStyle(name: string) {
 }
 
 describe.each([
-  ['PrimaryBtn', PrimaryBtn, { height: 56, bg: orange.primary, label: orange.onAccent, pressedBg: orange.pressed, spinner: orange.onAccent }],
-  ['SecondaryBtn', SecondaryBtn, { height: 52, bg: surface.card, label: orange.primary, pressedBg: orange.soft, spinner: orange.primary }],
-  ['GhostBtn', GhostBtn, { height: 44, bg: undefined, label: orange.primary, pressedBg: surface.subtle, spinner: orange.primary }],
-  ['DangerBtn', DangerBtn, { height: 52, bg: status.dangerSoft, label: status.dangerText, pressedBg: surface.subtle, spinner: status.dangerText }],
+  ['PrimaryBtn', PrimaryBtn, { bg: orange.primary, label: orange.onAccent, pressedBg: orange.pressed, spinner: orange.onAccent }],
+  ['SecondaryBtn', SecondaryBtn, { bg: surface.card, label: orange.primary, pressedBg: orange.soft, spinner: orange.primary }],
+  ['GhostBtn', GhostBtn, { bg: undefined, label: orange.primary, pressedBg: surface.subtle, spinner: orange.primary }],
+  ['DangerBtn', DangerBtn, { bg: status.dangerSoft, label: status.dangerText, pressedBg: surface.subtle, spinner: status.dangerText }],
 ] as const)('%s', (_name, Btn, look) => {
   it('default: height, fill and label colour from the theme, label in the `label` style on one line', async () => {
     await render(<Btn label="Tạo kèo" onPress={jest.fn()} />)
     const style = flat(button('Tạo kèo'))
-    expect(style.height).toBe(look.height)
+    expect(style.minHeight).toBe(buttonSizes.regular.minHeight)
+    expect(style.height).toBeUndefined()
     expect(style.backgroundColor).toBe(look.bg)
     expect(style.transform).toBeUndefined()
     const label = screen.getByText('Tạo kèo')
     expect(label.props.numberOfLines).toBe(1)
     expect(label.props.ellipsizeMode).toBe('tail')
     expect(label.props.adjustsFontSizeToFit).toBeUndefined()
-    expect(flat(label)).toMatchObject({ ...type.label, color: look.label })
+    expect(flat(label)).toMatchObject({ ...type.buttonLabel, color: look.label })
   })
 
   it('pressed: a colour change only — no scale, no fade', async () => {

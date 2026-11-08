@@ -588,7 +588,7 @@ export default function PlaceDetailScreen() {
 
       {reportOpen ? <PlaceReport placeId={id} onClose={() => setReportOpen(false)} /> : null}
       <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight}>
-        <PrimaryBtn label={t('placeDetail.createRoom')} onPress={addToPlan} icon="plus" style={styles.addBtn} />
+        <PrimaryBtn label={t('placeDetail.createRoom')} onPress={addToPlan} icon="plus" />
       </GlassBar>
     </Atmosphere>
   )

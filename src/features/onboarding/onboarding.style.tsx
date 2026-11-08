@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
   header: { minHeight: 44, flexShrink: 0, flexDirection: 'row', alignItems: 'center' },
   headerSpaced: { marginVertical: swipe.header },
   headerSpace: { flex: 1 },
-  back: { width: 44, height: 44, borderWidth: 0, backgroundColor: 'transparent' },
+  back: { borderWidth: 0, backgroundColor: 'transparent' },
   visual: { flexShrink: 0, marginTop: first.visualTop },
   lastVisual: { marginTop: last.visualTop, marginBottom: last.visualBottom },
   narrative: { flexShrink: 0, alignItems: 'center', marginTop: first.narrative, paddingHorizontal: 4 },

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native'
 import '@/shared/i18n'
-import { status } from '../tokens'
+import { buttonSizes, status } from '../tokens'
 import { ResultSheet } from '../result-sheet.view'
 
 it.each(['success', 'error', 'warning', 'info'] as const)('renders %s with optional note/actions and closes through the shared Sheet', async variant => {
@@ -49,7 +49,7 @@ it('renders arbitrary media before the message and equal-width actions on one li
   const secondary = screen.getByRole('button', { name: 'Add another' })
   expect(primary.parent).toBe(secondary.parent)
   expect(StyleSheet.flatten(primary.parent!.props.style).flexDirection).toBe('row')
-  for (const action of [primary, secondary]) expect(StyleSheet.flatten(action.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+  for (const action of [primary, secondary]) expect(StyleSheet.flatten(action.props.style)).toMatchObject({ flex: 1, minWidth: 0, minHeight: buttonSizes.regular.minHeight })
   expect(screen.getByText('View contributions').props.numberOfLines).toBeUndefined()
 })
 

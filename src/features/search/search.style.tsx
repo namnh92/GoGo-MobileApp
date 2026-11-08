@@ -5,7 +5,7 @@ export const styles = StyleSheet.create(theme => ({
   scope: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 44 },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12 },
   input: { flex: 1, height: 48, backgroundColor: theme.redesign.high, borderRadius: 12 },
-  filterToggle: { width: 48, height: 48, borderRadius: 12, backgroundColor: theme.redesign.card, borderWidth: 1, borderColor: theme.redesign.line },
+  filterToggle: { borderRadius: 12, backgroundColor: theme.redesign.card, borderWidth: 1, borderColor: theme.redesign.line },
   filterDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: theme.redesign.primaryFill },
   summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, paddingHorizontal: 16, paddingTop: 0, paddingBottom: 8 },
   summaryCount: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },

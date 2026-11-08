@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { Dimensions, StyleSheet } from 'react-native'
 import i18n from '@/shared/i18n'
+import { buttonSizes, touchTarget } from '@/shared/ui/tokens'
 import { fitIllustration } from '../onboarding/onboarding-layout'
 
 let mockInsets = { top: 20, bottom: 0, left: 0, right: 0 }
@@ -88,7 +89,9 @@ describe('S-01 measured whole-screen fit', () => {
     expect(flat(screen.getByTestId('onboarding-actions').parent!.props.style).paddingBottom).toBe(phone.bottom + 20)
     for (const key of [phone.slide === 2 ? 'onboarding.start' : 'onboarding.next', ...(phone.slide === 2 ? ['onboarding.guest'] as const : [])] as const) {
       const button = screen.getByRole('button', { name: i18n.t(key) })
-      expect(Number(flat(button.props.style).minHeight)).toBeGreaterThanOrEqual(44)
+      const height = Number(flat(button.props.style).minHeight)
+      expect(height).toBe(key === 'onboarding.guest' ? buttonSizes.small.minHeight : buttonSizes.regular.minHeight)
+      expect(height + button.props.hitSlop.top + button.props.hitSlop.bottom).toBeGreaterThanOrEqual(touchTarget.min)
       expect(button.children[0]).toBeDefined()
     }
   })

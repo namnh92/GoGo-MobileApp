@@ -19,7 +19,7 @@ export const styles = StyleSheet.create(theme => ({
   joinHeading: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   joinRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   joinInput: { ...type.introBody, color: theme.redesign.ink, flex: 1, minHeight: 48, minWidth: 0, backgroundColor: theme.redesign.container, borderRadius: 12, paddingHorizontal: 12 },
-  joinButton: { minHeight: 48, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.redesign.high, borderWidth: 0 },
+  joinButton: { borderRadius: 12, backgroundColor: theme.redesign.high, borderWidth: 0 },
   intro: {
     flexDirection: 'row',
     alignItems: 'center',
