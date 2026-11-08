@@ -1,24 +1,22 @@
-import { useFocusEffect } from 'expo-router'
-import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, AppState, Linking, Switch, View } from 'react-native'
+import { ActivityIndicator, Switch, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { useNotificationSettings, useSetNotificationSettings } from '@/shared/api'
 import type { MessageKey } from '@/shared/i18n/types'
-import { pushPermission } from '@/shared/notifications/permission-bootstrap'
+import { useNotificationDevice, type PushState } from './use-notification-device'
 import { Icon } from '@/shared/ui/icons'
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './notification-switch.style'
+import { notificationCapabilities } from './notification-capabilities'
 
 /**
  * `checking` is the first read still in flight; `unknown` is a read that came
  * back unusable. Collapsing them made a normal screen open flash "could not be
  * checked" and a Retry button before the SDK had answered at all.
  */
-type PushState = 'checking' | 'granted' | 'askable' | 'unknown'
 
 const DEVICE_NOTE: Record<PushState, MessageKey> = {
   checking: 'notificationSettings.pushChecking',
@@ -42,39 +40,10 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
   const settings = useNotificationSettings()
   const save = useSetNotificationSettings()
 
-  const [pushState, setPushState] = useState<PushState>('checking')
-  const [settingsError, setSettingsError] = useState(false)
-  const permissionRevision = useRef(0)
-  const refreshPushState = useCallback(() => {
-    const currentRevision = ++permissionRevision.current
-    void pushPermission.status().then(next => {
-      if (currentRevision !== permissionRevision.current) return
-      if (next !== 'askable') setSettingsError(false)
-      setPushState(next)
-    })
-  }, [])
-  useFocusEffect(useCallback(() => {
-    refreshPushState()
-    // Coming back from OS Settings is the common path; the card must read true.
-    const subscription = AppState.addEventListener('change', state => {
-      if (state === 'active') refreshPushState()
-    })
-    return () => {
-      permissionRevision.current += 1
-      subscription.remove()
-    }
-  }, [refreshPushState]))
-
-  async function openNotificationSettings() {
-    setSettingsError(false)
-    try {
-      await Linking.openSettings()
-    } catch {
-      setSettingsError(true)
-    }
-  }
+  const { pushState, settingsError, refreshPushState, openNotificationSettings } = useNotificationDevice()
 
   const current = settings.data
+  const capabilities = notificationCapabilities(current)
   // Off because an older choice was carried over conservatively — say why.
   const carriedOver = current && !current.pushEnabled && (current.source === 'migrated' || current.source === 'legacy')
 
@@ -95,8 +64,8 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
             style={styles.switch}
             // Until the first answer there is no truthful value: off and locked.
             value={current?.pushEnabled ?? false}
-            onValueChange={next => save.mutate({ pushEnabled: next })}
-            disabled={!current || save.isPending}
+            onValueChange={next => { if (capabilities.master) save.mutate({ pushEnabled: next }) }}
+            disabled={!capabilities.master || save.isPending}
             trackColor={{ true: theme.accent.primary, false: theme.surface.subtle }}
             accessibilityLabel={t('notificationSettings.switchLabel')}
             accessibilityHint={t('notificationSettings.switchHint')}
@@ -119,6 +88,7 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
           </View>
         ) : null}
 
+        {current && !capabilities.master ? <Text variant="bodySmall" color="text.secondary">{t('g10.categoriesUnavailable')}</Text> : null}
         {carriedOver ? <Text variant="bodySmall" color="status.warningText">{t('notificationSettings.migratedOff')}</Text> : null}
       </Card>
 

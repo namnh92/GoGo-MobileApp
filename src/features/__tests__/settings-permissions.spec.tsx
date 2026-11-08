@@ -7,6 +7,8 @@ import { renderScreen } from './harness'
  * both earlier routes, with each half shown to the people it applies to.
  */
 
+jest.mock('@/shared/notifications/permission-bootstrap', () => ({ pushPermission: { status: jest.fn().mockResolvedValue('granted') } }))
+
 const mockSession = { status: 'user' as string }
 jest.mock('@/features/settings/device-promotions.view', () => {
   const { Text } = jest.requireActual('react-native')
@@ -32,15 +34,18 @@ jest.mock('@/features/settings/tracking-consent.view', () => {
 })
 
 import PermissionsSettingsScreen from '@/features/settings/permissions.view'
+import PermissionsRoute from '@/app/settings/permissions'
 import NotificationsRoute from '@/app/settings/notifications'
+import NotificationSettingsScreen from '@/features/notifications/notification-settings.view'
 import LocationRoute from '@/app/settings/location'
 
 beforeEach(() => {
   mockSession.status = 'user'
 })
 
-it('opens the same screen from both earlier settings routes', () => {
-  expect(NotificationsRoute).toBe(PermissionsSettingsScreen)
+it('keeps permissions reachable while notifications opens its dedicated group 10 screen', () => {
+  expect(NotificationsRoute).toBe(NotificationSettingsScreen)
+  expect(PermissionsRoute).toBe(PermissionsSettingsScreen)
   expect(LocationRoute).toBe(PermissionsSettingsScreen)
 })
 

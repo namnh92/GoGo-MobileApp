@@ -106,7 +106,7 @@ const COMPUTED_KEYS: Record<string, readonly string[]> = {
     'regenerateErrorKey(regenerate.error)', // typed as key literals
   ],
   'src/features/matching/swipe.view.tsx': ['priceUnitKey(price.unit)'], // priceUnitKey returns MessageKey
-  'src/features/notifications/notifications.view.tsx': ['body'], // kindPresentation: key literals, `satisfies` the catalog
+  'src/features/notifications/notification-card.view.tsx': ['body'], // kindPresentation: key literals, `satisfies` the catalog
   'src/features/notifications/notification-switch.view.tsx': ['DEVICE_NOTE[pushState]'], // Record<PushState, MessageKey>
   'src/features/onboarding/onboarding.view.tsx': ['current.titleKey', 'current.bodyKey'], // typed as MessageKey
   'src/features/review/review.view.tsx': ['ratingLabelKey(rating)'], // returns MessageKey

@@ -1,3 +1,4 @@
+import type { MessageKey } from '@/shared/i18n/types'
 import type { IconName } from '@/shared/ui/icons'
 
 /** What a row shows for each kind the API sends today; anything else gets the fallback. */
@@ -9,7 +10,7 @@ const KINDS = {
   plan_changed: { icon: 'history', body: 'notifications.body.plan_changed' },
   date_reminder: { icon: 'bell', body: 'notifications.body.date_reminder' },
   moderation_update: { icon: 'info', body: 'notifications.body.moderation_update' },
-} as const satisfies Record<string, { icon: IconName; body: string }>
+} as const satisfies Record<string, { icon: IconName; body: MessageKey }>
 
 type KnownKind = keyof typeof KINDS
 

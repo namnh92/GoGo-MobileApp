@@ -2,45 +2,30 @@ import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { parseApiDate, useMarkNotificationRead, useNotifications, useRoom, type Notification } from '@/shared/api'
+import { useMarkNotificationRead, useNotifications, type Notification } from '@/shared/api'
 import { SessionCancelledError } from '@/shared/api/session'
-import { isUuid } from '@/shared/navigation/deep-link'
 import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-target'
 import { useSession } from '@/shared/providers/session-provider'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
-import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, Card, GhostBtn } from '@/shared/ui/primitives'
+import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
+import { Atmosphere, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInboxTarget } from './inbox-target'
-import { kindPresentation } from './notification-kind'
+import { NotificationCard } from './notification-card.view'
+import { notificationCapabilities } from './notification-capabilities'
+import { Chip } from '@/shared/ui/chip.view'
+import { Icon } from '@/shared/ui/icons'
+import { Skeleton } from '@/shared/ui/skeleton.view'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { styles } from './notifications.style'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
-/**
- * Only the first rows ask for their room's name, so a long inbox cannot fire a
- * request per row. Rows share one query per room id, and a failed or missing
- * read omits the line: it never blocks or breaks the list.
- */
-const ROOM_NAME_ROWS = 5
-
-function RoomLine({ roomId }: { roomId: string }) {
-  const { t } = useTranslation()
-  const name = useRoom(roomId).data?.title
-  if (!name) return null
-  return (
-    <Text variant="bodySmall" color="text.secondary" numberOfLines={1} style={styles.roomLine}>
-      {t('notifications.room', { name })}
-    </Text>
-  )
-}
-
 export default function NotificationsScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { status } = useSession()
@@ -64,6 +49,24 @@ export default function NotificationsScreen() {
   const canRead = status === 'user'
   const inbox = useNotifications({ enabled: canRead })
   const markRead = useMarkNotificationRead()
+  const capabilities = notificationCapabilities()
+  const [readProblem, setReadProblem] = useState(false)
+  const [readingIds, setReadingIds] = useState<ReadonlySet<string>>(() => new Set())
+  const readingNow = useRef(new Set<string>())
+
+  function mark(notification: Notification) {
+    const id = notification.id
+    if (!id || notification.readAt || readingNow.current.has(id)) return
+    readingNow.current.add(id)
+    setReadingIds(current => new Set(current).add(id))
+    setReadProblem(false)
+    void markRead.mutateAsync(id).catch(error => {
+      if (!(error instanceof SessionCancelledError)) setReadProblem(true)
+    }).finally(() => {
+      readingNow.current.delete(id)
+      setReadingIds(current => { const next = new Set(current); next.delete(id); return next })
+    })
+  }
 
   const items = useMemo(
     () => (inbox.data?.pages ?? []).flatMap(page => page.notifications ?? []),
@@ -92,7 +95,7 @@ export default function NotificationsScreen() {
     const id = notification.id ?? null
     // The same row again while it resolves is the same intent, not a new one.
     if (id !== null && openingNow.current === id) return
-    if (id && !notification.readAt) markRead.mutate(id)
+    if (id && !notification.readAt) mark(notification)
     const tap = ++latestTap.current
     openingNow.current = id
     setOpeningId(id)
@@ -141,7 +144,7 @@ export default function NotificationsScreen() {
 
   if (!canRead) {
     return (
-      <Atmosphere>
+      <Atmosphere redesign>
         {header}
         <EmptyState
           title={t('notifications.signInTitle')}
@@ -152,18 +155,20 @@ export default function NotificationsScreen() {
     )
   }
 
-  if (inbox.isPending) {
+  if (inbox.isPending || inbox.isPaused && !inbox.data) {
     return (
-      <Atmosphere>
+      <Atmosphere redesign>
         {header}
-        <LoadingState />
+        {inbox.isPaused ? <OfflineState /> : <View testID="notifications-loading" style={styles.list} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}>
+          {[0, 1, 2].map(key => <View key={key} style={styles.skeletonRow}><Skeleton width={48} height={48} radius={24} /><View style={styles.content}><Skeleton width="65%" height={14} /><Skeleton width="100%" height={48} /></View></View>)}
+        </View>}
       </Atmosphere>
     )
   }
 
-  if (inbox.isError) {
+  if (inbox.isError && !inbox.data) {
     return (
-      <Atmosphere>
+      <Atmosphere redesign>
         {header}
         <ErrorState error={inbox.error} onRetry={() => void inbox.refetch()} />
       </Atmosphere>
@@ -171,61 +176,52 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       {header}
       <FlatList
         data={items}
         keyExtractor={item => item.id ?? String(item.createdAt)}
-        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing[6] }]}
         onEndReachedThreshold={0.5}
         onEndReached={() => {
           if (inbox.hasNextPage && !inbox.isFetchingNextPage) void inbox.fetchNextPage()
         }}
+        ListHeaderComponent={<View>
+          <StaleNotice hasData={!!inbox.data} error={inbox.error} onRetry={() => void inbox.refetch()} />
+          <View style={styles.toolbar}>
+            <Text variant="introHeading" color="redesign.ink" style={styles.kind}>{t('g10.allNotifications')}</Text>
+            <SecondaryBtn size="small" variant="neutral" label={t('g10.readAll')} disabled={!capabilities.readAll}
+              accessibilityHint={t('g10.readAllUnavailable')} onPress={() => undefined} />
+          </View>
+          <Text variant="introCaption" color="redesign.secondary">{t('g10.readAllUnavailable')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+            <Chip label={t('g10.filter.all')} variant="selected" />
+            <Chip label={t('g10.filter.invite')} icon="users" disabled={!capabilities.categoryFilter} onPress={() => undefined}
+              accessibilityLabel={`${t('g10.filter.invite')}. ${t('g10.filterUnavailable')}`} />
+            <Chip label={t('g10.filter.plan')} icon="map" disabled={!capabilities.categoryFilter} onPress={() => undefined}
+              accessibilityLabel={`${t('g10.filter.plan')}. ${t('g10.filterUnavailable')}`} />
+            <Chip label={t('g10.filter.date')} icon="clock" disabled={!capabilities.categoryFilter} onPress={() => undefined}
+              accessibilityLabel={`${t('g10.filter.date')}. ${t('g10.filterUnavailable')}`} />
+          </ScrollView>
+          <Text variant="introCaption" color="redesign.secondary" style={styles.filterNote}>{t('g10.filterUnavailable')}</Text>
+        </View>}
         ListEmptyComponent={
-          <EmptyState title={t('notifications.emptyTitle')} body={t('notifications.emptyBody')} />
+          <View style={styles.empty}>
+            <View style={styles.emptyIllustration}><Icon name="mail" size={44} color="redesign.violetText" /></View>
+            <EmptyState title={t('g10.emptyTitle')} body={t('g10.emptyBody')}
+              action={<SecondaryBtn variant="neutral" label={t('g10.reload')} loading={inbox.isRefetching} onPress={() => void inbox.refetch()} />} />
+          </View>
         }
         ListFooterComponent={
           inbox.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: spacing[4] }} /> : null
         }
-        renderItem={({ item, index }) => {
-          const unread = !item.readAt
-          const created = parseApiDate(item.createdAt)
-          const busy = openingId !== null && openingId === item.id
-          const kindLabel = t(`notifications.kind.${item.kind}`, { defaultValue: item.kind ?? '' })
-          const { icon, body } = kindPresentation(item.kind)
-          const payloadRoomId = (item.payload as Record<string, unknown> | undefined)?.roomId
-          const roomId = index < ROOM_NAME_ROWS && isUuid(payloadRoomId) ? payloadRoomId : null
-          return (
-            <Pressable
-              onPress={() => void open(item)}
-              accessibilityRole="button"
-              // #271: a busy control needs a label, or Android keeps saying "busy".
-              accessibilityLabel={[kindLabel, body ? t(body) : null, created ? created.toLocaleString(i18n.language) : null].filter(Boolean).join(', ')}
-              accessibilityState={{ busy }}
-            >
-              <Card padded={false} style={[styles.row, unread && styles.rowUnread]}>
-                {/* Unread is marked by more than colour (RULE-DS-COLOR). */}
-                <View style={[styles.iconTile, unread && styles.iconTileUnread]}>
-                  <Icon name={icon} size={20} color={unread ? 'accent.onSoft' : 'text.secondary'} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text variant={unread ? 'title2' : 'body'}>{kindLabel}</Text>
-                  {body ? <Text variant="bodySmall" style={styles.body}>{t(body)}</Text> : null}
-                  {roomId ? <RoomLine roomId={roomId} /> : null}
-                  {/* TODO(https://github.com/namnh92/GoGo-BE/issues/753): inviter name, progress, stop count, change details, campaign text and the draft's "Để sau" action need data the API does not give. */}
-                  {created ? (
-                    <Text variant="caption" color="text.secondary" style={styles.time}>{created.toLocaleString(i18n.language)}</Text>
-                  ) : null}
-                </View>
-                {busy ? <ActivityIndicator /> : null}
-                <View style={styles.dotColumn}>
-                  {unread ? <View style={styles.unreadDot} /> : null}
-                </View>
-              </Card>
-            </Pressable>
-          )
-        }}
+        renderItem={({ item, index }) => <NotificationCard item={item} index={index}
+          busy={openingId !== null && openingId === item.id} reading={!!item.id && readingIds.has(item.id)}
+          onOpen={() => void open(item)} onLater={() => mark(item)} /> }
       />
+      <GhostBtn label={t('g10.settingsTitle')} onPress={() => router.push('/settings/notifications')} />
+      <ResultSheet visible={readProblem} variant="error" title={t('g10.readFailed')} body={t('g10.readFailedBody')}
+        primaryAction={{ label: t('common.close'), onPress: () => setReadProblem(false) }} onClose={() => setReadProblem(false)} />
     </Atmosphere>
   )
 }

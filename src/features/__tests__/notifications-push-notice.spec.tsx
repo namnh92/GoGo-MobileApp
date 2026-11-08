@@ -32,7 +32,7 @@ jest.mock('@/shared/api', () => ({
     error: null,
     refetch: jest.fn(),
   }),
-  useMarkNotificationRead: () => ({ mutate: jest.fn() }),
+  useMarkNotificationRead: () => ({ mutateAsync: jest.fn().mockResolvedValue(undefined) }),
 }))
 
 const MESSAGE = 'Không mở được nội dung của thông báo này. Có thể nội dung đã bị xoá hoặc bạn không còn quyền xem.'

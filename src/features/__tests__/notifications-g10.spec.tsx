@@ -1,0 +1,234 @@
+import { act, fireEvent } from '@testing-library/react-native'
+import { Linking } from 'react-native'
+import { renderScreen } from './harness'
+import i18n from '@/shared/i18n'
+import { viMessages } from '@/shared/i18n/vi'
+
+const mockPush = jest.fn()
+const mockRead = jest.fn()
+const mockSave = jest.fn()
+const mockRefetch = jest.fn()
+const mockPermission = jest.fn()
+let mockSession = 'user'
+let mockInbox: Record<string, unknown>
+let mockSettings: Record<string, unknown>
+let mockSavePending = false
+const mockResolve = jest.fn()
+
+jest.mock('expo-router', () => ({
+  useFocusEffect: (effect: () => void) => { jest.requireActual('react').useEffect(effect, [effect]) },
+  useRouter: () => ({ push: mockPush, back: jest.fn(), canGoBack: () => true }),
+  useLocalSearchParams: () => ({}),
+}))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockSession }) }))
+jest.mock('@/shared/notifications/permission-bootstrap', () => ({ pushPermission: { status: () => mockPermission() } }))
+jest.mock('@/features/notifications/inbox-target', () => ({ resolveInboxTarget: (...args: unknown[]) => mockResolve(...args) }))
+jest.mock('@/shared/api', () => ({
+  ...jest.requireActual('@/shared/api'),
+  useRoom: () => ({ data: undefined }),
+  useNotifications: () => mockInbox,
+  useMarkNotificationRead: () => ({ mutateAsync: mockRead }),
+  useNotificationSettings: () => mockSettings,
+  useSetNotificationSettings: () => ({ mutate: mockSave, isPending: mockSavePending }),
+}))
+
+import NotificationsScreen from '@/features/notifications/notifications.view'
+import SettingsScreen from '@/features/notifications/notification-settings.view'
+
+const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:00:00Z', payload: { roomName: 'Phòng thật', inviterName: 'Lan' } }
+const settingsData = { pushEnabled: true, source: 'explicit', updatedAt: null }
+const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications }] }, isPending: false, isError: false, refetch: mockRefetch })
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockRead.mockResolvedValue(undefined)
+  mockResolve.mockResolvedValue({ to: 'open', path: '/rooms/room-1' })
+  mockPermission.mockResolvedValue('granted')
+  mockInbox = loadedInbox()
+  mockSettings = { data: settingsData, isPending: false, isError: false, refetch: mockRefetch }
+  mockSession = 'user'
+  mockSavePending = false
+})
+
+it('inbox default uses real payload, neutral host semantics and gated controls', async () => {
+  const screen = await renderScreen(<NotificationsScreen />)
+  expect(screen.getByText('Phòng "Phòng thật"')).toBeTruthy()
+  expect(screen.getByText('Người tạo lời mời: Lan')).toBeTruthy()
+  expect(screen.getByText(viMessages['notifications.body.invite'])).toBeTruthy()
+  const readAll = screen.getByRole('button', { name: 'Đọc tất cả' })
+  expect(readAll.props.accessibilityState.disabled).toBe(true)
+  await fireEvent.press(readAll)
+  expect(mockRead).not.toHaveBeenCalled()
+  expect(screen.queryByText(/\d+ mới/)).toBeNull()
+  expect(screen.queryByText(/7 ngày/)).toBeNull()
+})
+
+it('Later only marks this item as read, deduplicates a double tap and never navigates', async () => {
+  let finish!: () => void
+  mockRead.mockReturnValue(new Promise<void>(resolve => { finish = resolve }))
+  const screen = await renderScreen(<NotificationsScreen />)
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: 'Để sau' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Để sau' }))
+  })
+  expect(mockRead).toHaveBeenCalledTimes(1)
+  expect(mockRead).toHaveBeenCalledWith(item.id)
+  expect(mockResolve).not.toHaveBeenCalled()
+  expect(mockPush).not.toHaveBeenCalled()
+  await act(async () => finish())
+})
+
+it('opening marks unread once and preserves the existing resolver', async () => {
+  const screen = await renderScreen(<NotificationsScreen />)
+  await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Xem phòng' })))
+  expect(mockRead).toHaveBeenCalledWith(item.id)
+  expect(mockResolve).toHaveBeenCalledWith(item)
+  expect(mockPush).toHaveBeenCalledWith('/rooms/room-1')
+})
+
+it('a read row does not send another mark-read and Later is disabled', async () => {
+  mockInbox = loadedInbox([{ ...item, readAt: '2026-11-08T11:00:00Z' }])
+  const screen = await renderScreen(<NotificationsScreen />)
+  expect(screen.getByRole('button', { name: 'Để sau' }).props.accessibilityState.disabled).toBe(true)
+  expect(screen.queryByTestId(`notification-unread-${item.id}`)).toBeNull()
+  await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Xem phòng' })))
+  expect(mockRead).not.toHaveBeenCalled()
+})
+
+it('read failure shows the shared result sheet without fabricating success', async () => {
+  mockRead.mockRejectedValue(new Error('network'))
+  const screen = await renderScreen(<NotificationsScreen />)
+  await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Để sau' })))
+  expect(screen.getByText(viMessages['g10.readFailed'])).toBeTruthy()
+  expect(screen.getByTestId(`notification-unread-${item.id}`)).toBeTruthy()
+})
+
+it.each(['loading', 'empty', 'error'] as const)('inbox state: %s', async state => {
+  mockInbox = state === 'loading' ? { isPending: true } : state === 'error'
+    ? { isError: true, error: new Error('network'), refetch: mockRefetch } : loadedInbox([])
+  const screen = await renderScreen(<NotificationsScreen />)
+  if (state === 'loading') expect(screen.getByTestId('notifications-loading')).toBeTruthy()
+  else if (state === 'empty') {
+    expect(screen.getByText(viMessages['g10.emptyTitle'])).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Tải lại thông báo' }))
+    expect(mockRefetch).toHaveBeenCalled()
+  } else {
+    expect(screen.getByText(viMessages['common.errorTitle'])).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(mockRefetch).toHaveBeenCalled()
+  }
+})
+
+it('renders N-member progress, stop counts and change facts without inventing previews', async () => {
+  mockInbox = loadedInbox([
+    { id: 'a', kind: 'preference_reminder', payload: { preferenceProgress: { completedCount: 6, memberCount: 9 } } },
+    { id: 'b', kind: 'plan_ready', payload: { stopCount: 3 } },
+    { id: 'c', kind: 'plan_changed', payload: { planChange: { action: 'edit', addedStopCount: 2 } } },
+  ])
+  const screen = await renderScreen(<NotificationsScreen />)
+  expect(screen.getByText('6/9 thành viên đã chọn xong')).toBeTruthy()
+  expect(screen.getByText('3 điểm dừng')).toBeTruthy()
+  expect(screen.getByText('Thêm 2 điểm dừng')).toBeTruthy()
+  expect(screen.queryByText(/19:00|15:30|The Workshop/)).toBeNull()
+})
+
+it('settings default has a real master and six unavailable switches with reasons', async () => {
+  const screen = await renderScreen(<SettingsScreen />)
+  const switches = screen.getAllByRole('switch')
+  expect(switches).toHaveLength(7)
+  expect(screen.getByTestId('notification-master').props.disabled).toBe(false)
+  for (const control of switches.filter(control => control.props.testID !== 'notification-master')) {
+    expect(control.props.disabled).toBe(true)
+    expect(control.props.value).toBe(false)
+    await fireEvent(control, 'valueChange', true)
+  }
+  expect(screen.getByText(viMessages['g10.categoriesUnavailable'])).toBeTruthy()
+  expect(screen.getByText(viMessages['g10.quietUnavailable'])).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Bật tất cả' }).props.accessibilityState.disabled).toBe(true)
+  expect(mockSave).not.toHaveBeenCalled()
+  expect(screen.queryByText('5/5 loại đang bật')).toBeNull()
+})
+
+it('master saves through the existing API and shows feedback only after success', async () => {
+  const screen = await renderScreen(<SettingsScreen />)
+  await fireEvent(screen.getByTestId('notification-master'), 'valueChange', false)
+  expect(mockSave).toHaveBeenCalledWith({ pushEnabled: false }, expect.any(Object))
+  expect(screen.queryByText(viMessages['g10.saved'])).toBeNull()
+  await act(async () => mockSave.mock.calls[0][1].onSuccess())
+  expect(screen.getByText(viMessages['g10.saved'])).toBeTruthy()
+})
+
+it('master failure gives shared retry/close actions, and save in flight locks the switch', async () => {
+  const screen = await renderScreen(<SettingsScreen />)
+  await fireEvent(screen.getByTestId('notification-master'), 'valueChange', false)
+  await act(async () => mockSave.mock.calls[0][1].onError())
+  expect(screen.getByText(viMessages['notificationSettings.saveFailed'])).toBeTruthy()
+  mockSavePending = true
+  const pending = await renderScreen(<SettingsScreen />)
+  expect(pending.getByTestId('notification-master').props.disabled).toBe(true)
+})
+
+it.each(['loading', 'empty', 'error'] as const)('settings state: %s never enables a made-up master', async state => {
+  mockSettings = { data: undefined, isPending: state === 'loading', isError: state === 'error', error: new Error('network'), refetch: mockRefetch }
+  const screen = await renderScreen(<SettingsScreen />)
+  expect(screen.getByTestId('notification-master').props.disabled).toBe(true)
+  expect(screen.getByTestId('notification-master').props.value).toBe(false)
+  if (state === 'loading') expect(screen.getByTestId('notification-settings-loading')).toBeTruthy()
+  else if (state === 'empty') expect(screen.getByText(viMessages['notificationSettings.loadFailed'])).toBeTruthy()
+  else expect(screen.getByText(viMessages['common.errorTitle'])).toBeTruthy()
+})
+
+it('keeps device settings available when OS permission is granted', async () => {
+  const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined)
+  const screen = await renderScreen(<SettingsScreen />)
+  await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Cài đặt máy' })))
+  expect(open).toHaveBeenCalledTimes(1)
+  open.mockRestore()
+})
+
+it('guest state cannot expose cached account settings or inbox content', async () => {
+  mockSession = 'guest'
+  const settings = await renderScreen(<SettingsScreen />)
+  expect(settings.queryAllByRole('switch')).toHaveLength(0)
+  const inbox = await renderScreen(<NotificationsScreen />)
+  expect(inbox.queryByText('Phòng "Phòng thật"')).toBeNull()
+})
+
+it('renders English sentence case and the same unavailable quiet-hours policy', async () => {
+  await act(async () => { await i18n.changeLanguage('en') })
+  try {
+    const screen = await renderScreen(<SettingsScreen />)
+    expect(screen.getByText('Notification settings')).toBeTruthy()
+    expect(screen.getByText('Members joining rooms')).toBeTruthy()
+    expect(screen.getByTestId('notification-quiet-hours').props.disabled).toBe(true)
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+})
+
+it('a server already returning category settings cannot be overwritten by legacy PUT', async () => {
+  mockSettings = { ...mockSettings, data: { ...settingsData, categories: { invite: false } } }
+  const screen = await renderScreen(<SettingsScreen />)
+  expect(screen.getByTestId('notification-master').props.disabled).toBe(true)
+  await fireEvent(screen.getByTestId('notification-master'), 'valueChange', true)
+  expect(mockSave).not.toHaveBeenCalled()
+})
+
+it('offline initial reads stop loading and cached refetch errors keep content visible', async () => {
+  mockInbox = { isPending: true, isPaused: true }
+  const offline = await renderScreen(<NotificationsScreen />)
+  expect(offline.getByText(viMessages['common.offlineTitle'])).toBeTruthy()
+  mockInbox = { ...loadedInbox(), isError: true, error: new Error('network') }
+  const cached = await renderScreen(<NotificationsScreen />)
+  expect(cached.getByText('Phòng "Phòng thật"')).toBeTruthy()
+  mockSettings = { isPending: true, isPaused: true }
+  const settings = await renderScreen(<SettingsScreen />)
+  expect(settings.getByText(viMessages['common.offlineTitle'])).toBeTruthy()
+  expect(settings.getByTestId('notification-master').props.disabled).toBe(true)
+})
+
+it('a denied OS permission keeps the account master separate and exposes device settings', async () => {
+  mockPermission.mockResolvedValue('askable')
+  const screen = await renderScreen(<SettingsScreen />)
+  expect(screen.getByText(viMessages['notificationSettings.pushNote'])).toBeTruthy()
+  expect(screen.getByTestId('notification-master').props.disabled).toBe(false)
+  expect(screen.getByRole('button', { name: viMessages['g10.deviceSettings'] })).toBeTruthy()
+})

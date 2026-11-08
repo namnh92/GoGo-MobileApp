@@ -24,7 +24,7 @@ const mockPush = jest.fn()
 const mockGetPlan = jest.fn()
 const mockGetCurrentPlan = jest.fn()
 const mockGetRoom = jest.fn()
-const mockMarkRead = jest.fn()
+const mockMarkRead = jest.fn().mockResolvedValue(undefined)
 const mockItems: { value: unknown[] } = { value: [] }
 const mockFocus: { blur: (() => void) | null } = { blur: null }
 
@@ -61,7 +61,7 @@ jest.mock('@/shared/api', () => ({
     isFetchingNextPage: false,
     fetchNextPage: jest.fn(),
   }),
-  useMarkNotificationRead: () => ({ mutate: mockMarkRead }),
+  useMarkNotificationRead: () => ({ mutateAsync: mockMarkRead }),
 }))
 
 import NotificationsScreen from '@/features/notifications/notifications.view'
@@ -274,7 +274,7 @@ it('an invite opens its room without reading anything', async () => {
   mockItems.value = [item('n-invite', 'invite', { roomId: ROOM_ID })]
   const view = await renderScreen(<NotificationsScreen />)
 
-  await tap(view, 'Lời mời vào phòng')
+  await tap(view, viMessages['notifications.kind.invite'])
 
   expect(mockPush).toHaveBeenCalledWith(`/room/${ROOM_ID}`)
   expect(mockGetCurrentPlan).not.toHaveBeenCalled()

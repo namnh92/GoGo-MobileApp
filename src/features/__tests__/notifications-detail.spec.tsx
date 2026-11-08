@@ -40,7 +40,7 @@ jest.mock('@/shared/api', () => ({
     isFetchingNextPage: false,
     fetchNextPage: jest.fn(),
   }),
-  useMarkNotificationRead: () => ({ mutate: jest.fn() }),
+  useMarkNotificationRead: () => ({ mutateAsync: jest.fn().mockResolvedValue(undefined) }),
 }))
 
 import NotificationsScreen from '@/features/notifications/notifications.view'
@@ -89,7 +89,7 @@ describe('body text per kind', () => {
     })
     try {
       const view = await renderScreen(<NotificationsScreen />)
-      expect(view.getByText('You were invited to a room. Tap to see the room.')).toBeTruthy()
+      expect(view.getByText('A member joined the room through an invitation. Tap to see the room.')).toBeTruthy()
     } finally {
       await act(async () => {
         await i18n.changeLanguage('vi')
@@ -129,7 +129,8 @@ describe('an unknown kind', () => {
     if (kind) expect(view.getByText(kind)).toBeTruthy()
     expect(view.queryByTestId('app-header-bell')).toBeNull()
     expect(view.queryByTestId('app-header-unread-dot')).toBeNull()
-    expect(view.getAllByRole('button')).toHaveLength(3) // back + two rows
+    expect(view.getByLabelText(viMessages['notifications.kind.plan_ready'], { exact: false })).toBeTruthy()
+    expect(view.getByRole('button', { name: viMessages['g10.readAll'] }).props.accessibilityState.disabled).toBe(true)
   })
 })
 

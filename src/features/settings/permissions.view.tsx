@@ -17,9 +17,9 @@ import { TrackingConsentSection } from './tracking-consent.view'
 
 /**
  * APP-058 (#216) — notifications, location and (#370) install measurement in one settings screen, reached
- * from one Profile row. Both earlier routes (`/settings/notifications`,
- * `/settings/location`) render this screen, so any link or navigation into
- * either still lands here.
+ * from the Profile permissions row. `/settings/permissions` and the legacy
+ * `/settings/location` route retain this screen. Group 10 owns the separate
+ * `/settings/notifications` screen (#539).
  *
  * The location half needs no account: it is this device's permission. The
  * notification switch belongs to an account, so a signed-out person is offered
