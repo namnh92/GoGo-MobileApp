@@ -100,6 +100,7 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
         key={entry.key}
         place={{ ...entry.place, distanceM: savedDistance(entry.place, scope.status === 'ready' && scope.source === 'gps' ? scope.position : null), discovery: { ...entry.place.discovery, tagLabels } }}
         appearance="saved"
+        variant={city ? 'saved-city' : 'saved'}
         photoCategoryLabel={entry.place.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined}
         unavailableLabel={reason ? t(`saved.unavailable.${reason}`) : undefined}
         footer={reason && canFindSimilar ? <GhostBtn label={t('saved.similar')} onPress={() => findSimilar(entry)} /> : undefined}

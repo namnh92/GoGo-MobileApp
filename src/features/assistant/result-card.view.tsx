@@ -74,7 +74,7 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
   }
   return (
     <View testID={`assistant-card-${card.placeId}`} style={styles.place}>
-      <PlaceCard place={place} showPhoto={!!place.photoUrl} onPress={card.available ? () => onOpen(card.placeId) : undefined} footer={<View style={styles.placeAction}>
+      <PlaceCard variant="assistant" place={place} showPhoto={!!place.photoUrl} onPress={card.available ? () => onOpen(card.placeId) : undefined} footer={<View style={styles.placeAction}>
         {card.available ? (
           <SecondaryBtn size="regular" variant="neutral" label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" />
         ) : <Badge tone="warning" label={t('assistant.card.unavailable')} />}

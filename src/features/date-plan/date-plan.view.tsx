@@ -426,9 +426,8 @@ export default function DatePlanScreen() {
                   padded={false}
                   style={[styles.stopCard, stop.status === 'completed' && styles.stopCardCompleted]}
                 >
-                  <View>
-                    <PlaceCard place={place ?? detailToPlaceCard({ id: stop.placeId, name })} />
-                    <View style={styles.stopHeroTop}>
+                  <PlaceCard variant="plan-stop" place={place ?? detailToPlaceCard({ id: stop.placeId, name })}
+                    photoOverlay={<View style={styles.stopHeroTop}>
                       <View style={styles.stopOrderBadge}>
                         <Text variant="label" color="text.inverse">{t('datePlan.stopOrder', { n: index + 1 })}</Text>
                       </View>
@@ -457,8 +456,7 @@ export default function DatePlanScreen() {
                           </Pressable>
                         )}
                       </View>
-                    </View>
-                  </View>
+                    </View>} />
                   <View style={styles.stopInfo}>
                     <View style={styles.stopTime}>
                       <Icon name="clock" size={16} color="text.secondary" />

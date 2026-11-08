@@ -419,7 +419,7 @@ export default function SwipeScreen() {
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.card, glassStyles.card, cardStyle]}>
             <ScrollView bounces={false}>
-            <PlaceCard variant="hero" place={place ?? detailToPlaceCard({ id: card.placeId, name: card.name })}
+            <PlaceCard variant="swipe" place={place ?? detailToPlaceCard({ id: card.placeId, name: card.name })}
               photoCategoryLabel={categoryLabel ?? undefined}
               tags={card.reasonCodes.slice(0, 2).map(code => t(`suggestion.reason.${code}`, { defaultValue: code }))} />
             </ScrollView>

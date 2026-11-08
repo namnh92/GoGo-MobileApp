@@ -85,5 +85,5 @@ export function SearchEmpty({ filters, query, onApply, onMore, onPlacePress, lab
 }
 
 function NearbyPlace({ place, onPress }: { place: PlaceCard; onPress: () => void }) {
-  return <View testID="search-nearby-place"><PlaceCardView place={place} variant="compact" onPress={onPress} /></View>
+  return <View testID="search-nearby-place"><PlaceCardView place={place} variant="nearby" onPress={onPress} /></View>
 }

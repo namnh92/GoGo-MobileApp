@@ -62,7 +62,7 @@ function PlaceSubject({ placeId, onOpenPlace }: { placeId: string; onOpenPlace: 
       ) : place.isError ? (
         <Text variant="caption" color="status.dangerText">{t('myReviews.placeLoadFailed')}</Text>
       ) : address ? (
-        <PlaceCardAddress place={place.data} />
+        <PlaceCardAddress place={place.data} compact pin={false} />
       ) : null}
     </Pressable>}</FormattedPlaceAddress>
   )

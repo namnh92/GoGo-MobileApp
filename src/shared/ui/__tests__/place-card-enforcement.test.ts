@@ -57,3 +57,28 @@ describe('place card ownership', () => {
     expect(violations(source, 'new-feature/new.view.tsx')).toContain(reason)
   })
 })
+
+// A correct shared variant is ineffective if a feature accidentally selects the generic card again.
+describe('#564 feature layout selection', () => {
+  it.each([
+    ['search/search-empty.view.tsx', 'variant="nearby"'],
+    ['search/search.view.tsx', 'appearance="discovery"'],
+    ['home/home.view.tsx', 'appearance="discovery"'],
+    ['tabs/saved.view.tsx', "variant={city ? 'saved-city' : 'saved'}"],
+    ['assistant/result-card.view.tsx', 'variant="assistant"'],
+    ['date-plan/date-plan.view.tsx', 'variant="plan-stop"'],
+    ['date-plan/plan-edit.view.tsx', 'variant="plan-edit"'],
+    ['active-date/active-date.view.tsx', 'variant="active"'],
+    ['active-date/active-date.view.tsx', 'variant="next-stop"'],
+    ['matching/swipe.view.tsx', 'variant="swipe"'],
+    ['matching/match-result.view.tsx', "variant={roomType === 'group' ? 'match-group' : 'match'}"],
+    ['review/shared-result.view.tsx', 'variant="shared-result"'],
+    ['contributions/my-contributions.view.tsx', 'appearance="contribution"'],
+    ['place-import/existing-place-result.view.tsx', 'appearance="discovery"'],
+    ['place-import/import.view.tsx', 'variant="preview"'],
+    ['review/my-reviews.view.tsx', 'compact pin={false}'],
+    ['date-plan/place-detail.view.tsx', '<RatingChips place={card} detail />'],
+  ])('%s keeps its selected layout (%s)', (path, selection) => {
+    expect(readFileSync(join(root, path), 'utf8')).toContain(selection)
+  })
+})

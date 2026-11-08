@@ -124,7 +124,7 @@ export default function SharedResultScreen() {
 
         {/* The place, not just its name — this is the card people send on. */}
         {winner ? (
-          <PlaceCard variant="hero" place={winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
+          <PlaceCard variant="shared-result" place={winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
         ) : null}
 
         {scoreParts.length > 0 ? (

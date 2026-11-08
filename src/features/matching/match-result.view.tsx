@@ -240,9 +240,8 @@ export default function MatchResultScreen() {
         ) : null}
 
         <Card padded={false} style={styles.hero}>
-          <PlaceCard place={winnerPlace ?? detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
+          <PlaceCard variant={roomType === 'group' ? 'match-group' : 'match'} photoOverlay={<View style={styles.heroBadgePosition}><Chip icon="zap" variant="info" label={roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')} /></View>} place={winnerPlace ?? detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
           <View style={styles.heroBody}>
-            <Chip icon="zap" variant="info" label={roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')} />
             {plan.data?.totals ? (
               <View style={styles.heroMeta}>
                 <Icon name="clock" size={14} color="text.secondary" />

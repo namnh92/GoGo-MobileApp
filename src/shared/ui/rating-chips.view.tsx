@@ -12,33 +12,33 @@ import { Text } from './text'
  */
 type RatingPlace = Pick<PlaceCard, 'rating' | 'ratingCount' | 'ratingSource' | 'gogoRating' | 'gogoRatingCount'>
 
-export function RatingChips({ place }: { place: RatingPlace }) {
+export function RatingChips({ place, compact = false, detail = false }: { place: RatingPlace; compact?: boolean; detail?: boolean }) {
   const { google, gogo } = ratingParts(place)
   if (!google && !gogo && place.gogoRatingCount == null) return null
-  return <View style={styles.row}>
-    {google ? <GoogleRatingBadge value={google.value} count={google.count} /> : null}
-    <GoGoRatingBadge place={place} />
+  return <View testID="place-card-ratings" style={[styles.row, compact && styles.compactRow]}>
+    {google ? <GoogleRatingBadge value={google.value} count={google.count} compact={compact} detail={detail} /> : null}
+    <GoGoRatingBadge place={place} compact={compact} detail={detail} />
   </View>
 }
 
-export function GoGoRatingBadge({ place }: { place: RatingPlace }) {
+export function GoGoRatingBadge({ place, compact = false, detail = false }: { place: RatingPlace; compact?: boolean; detail?: boolean }) {
   const { t, i18n } = useTranslation()
   const { gogo } = ratingParts(place)
   if (!gogo && place.gogoRatingCount == null) return null
-  return <View testID="place-gogo-rating" style={styles.gogo}>
+  return <View testID="place-gogo-rating" style={[styles.gogo, compact && styles.compactBadge, detail && styles.detailBadge]}>
     <Text numberOfLines={1} ellipsizeMode="tail" variant="introCaptionMedium" color="redesign.violetText">{gogo
       ? t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count!, i18n.language) })
       : `${t('discovery.gogoFewReviews')} (${formatCount(place.gogoRatingCount!, i18n.language)})`}</Text>
   </View>
 }
 
-export function GoogleRatingBadge({ value, count }: { value: number; count?: number }) {
+export function GoogleRatingBadge({ value, count, compact = false, detail = false }: { value: number; count?: number; compact?: boolean; detail?: boolean }) {
   const { t, i18n } = useTranslation()
   const label = t('discovery.googleRating', {
     score: formatRating(value, i18n.language),
     count: count == null ? '' : `(${formatCount(count, i18n.language)})`,
   }).replace(/\s+/g, ' ')
-  return <View testID="place-google-rating" style={styles.google}>
+  return <View testID="place-google-rating" style={[styles.google, compact && styles.compactBadge, detail && styles.detailBadge, detail && styles.detailGoogle]}>
     <Text numberOfLines={1} ellipsizeMode="tail" variant="introCaptionMedium" color="redesign.ink" accessibilityLabel={label}><Text variant="introCaptionMedium" color="status.warningText">★</Text>{label.slice(1)}</Text>
   </View>
 }

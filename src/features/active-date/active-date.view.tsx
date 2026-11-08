@@ -397,10 +397,9 @@ export default function ActiveDateScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Card padded={false} style={styles.card}>
-          <PlaceCard place={stopPlace ?? detailToPlaceCard({ id: stop.placeId, name: placeName })} />
-          <View style={styles.cardBody}>
-            <View style={styles.titleRow}>
-              <Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" />
+          <PlaceCard variant="active" place={stopPlace ?? detailToPlaceCard({ id: stop.placeId, name: placeName })}
+            photoOverlay={<View style={styles.photoBadge}><Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" /></View>}
+            headingAction={
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('common.directions')}
@@ -411,9 +410,8 @@ export default function ActiveDateScreen() {
                 style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
               >
                 <IconNavigation />
-              </Pressable>
-            </View>
-
+              </Pressable>} />
+          <View style={styles.cardBody}>
             <View style={styles.factRow}>
               {stop.arriveLabel ? <Chip label={stop.arriveLabel} icon="clock" variant="default" /> : null}
               {stopCost ? <Chip label={stopCost} icon="dollar" variant="default" /> : null}
@@ -442,10 +440,10 @@ export default function ActiveDateScreen() {
             </View>
             <Card padded={false} style={styles.nextCard}>
               <View style={{ flex: 1 }}>
-                <PlaceCard variant="compact" place={nextPlace ?? detailToPlaceCard({ id: nextStop.placeId, name: '' })} />
-                <Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
-                  {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)].filter(Boolean).join(' · ')}
-                </Text>
+                <PlaceCard variant="next-stop" place={nextPlace ?? detailToPlaceCard({ id: nextStop.placeId, name: '' })}
+                  bodyTrailing={<Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
+                    {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)].filter(Boolean).join(' · ')}
+                  </Text>} />
               </View>
               <IconArrowRight />
             </Card>
