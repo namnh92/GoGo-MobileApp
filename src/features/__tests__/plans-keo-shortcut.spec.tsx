@@ -34,7 +34,7 @@ jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () =
 jest.mock('@/shared/api', () => {
   const idle = { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn() }
   const rooms = {
-    data: { pages: [{ items: [] }] },
+    data: { pages: [{ items: [], nextCursor: null }] },
     isPending: false, isError: false, isFetching: false, isFetchingNextPage: false,
     hasNextPage: false, isFetchNextPageError: false, error: null, dataUpdatedAt: 0,
     fetchNextPage: jest.fn(), refetch: jest.fn(),
@@ -43,7 +43,7 @@ jest.mock('@/shared/api', () => {
     ...jest.requireActual('@/shared/api'),
     useTaxonomies: () => ({ data: { kinds: {} } }),
     useMe: () => idle, useSaved: () => idle, useMyReviews: () => idle, useNotificationSettings: () => idle,
-    useMyRooms: (options: { status: string }) => { mockStatusSeen.push(options.status); return rooms },
+    useMyRooms: (options: { status?: string }) => { if (options.status) mockStatusSeen.push(options.status); return rooms },
   }
 })
 const mockStatusSeen: string[] = []
@@ -67,7 +67,7 @@ function Tabs() {
 
 const selected = (name: string) => screen.getByRole('tab', { name }).props.accessibilityState?.selected === true
 const chooseHistory = () => fireEvent.press(screen.getByRole('tab', { name: 'Lịch sử' }))
-const tapKeo = () => fireEvent.press(screen.getByRole('button', { name: 'Kèo' }))
+const tapKeo = () => fireEvent.press(screen.getByRole('button', { name: 'Kèo: 0' }))
 
 beforeEach(() => {
   mockPush.mockReset()
@@ -114,11 +114,11 @@ it('keeps the last choice when Kế hoạch is opened from the tab bar', async (
   expect(mockPush).toHaveBeenCalledTimes(1)
 })
 
-it('leaves the other two shortcuts as they were', async () => {
+it('keeps Saved and opens reviews in the merged contributions screen', async () => {
   await render(<Tabs />)
   await chooseHistory()
   await fireEvent.press(screen.getByRole('button', { name: 'Đã lưu' }))
   await fireEvent.press(screen.getByRole('button', { name: 'Đánh giá' }))
-  expect(mockPush.mock.calls.map(c => c[0])).toEqual(['/(tabs)/saved', '/settings/reviews'])
+  expect(mockPush.mock.calls.map(c => c[0])).toEqual(['/(tabs)/saved', '/me/contributions?tab=reviews'])
   expect(selected('Lịch sử')).toBe(true)
 })

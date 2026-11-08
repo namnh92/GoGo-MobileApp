@@ -35,6 +35,7 @@ export type TextColor =
   | 'redesign.white'
   | 'redesign.mutedTitle'
   | 'redesign.mutedBody'
+  | 'surface.canvas'
   | 'text.primary'
   | 'text.secondary'
   | 'text.tertiary'
@@ -75,6 +76,7 @@ const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
   'redesign.white': theme => theme.redesign.white,
   'redesign.mutedTitle': theme => theme.redesign.mutedTitle,
   'redesign.mutedBody': theme => theme.redesign.mutedBody,
+  'surface.canvas': theme => theme.surface.canvas,
   'text.primary': theme => theme.text.primary,
   'text.secondary': theme => theme.text.secondary,
   'text.tertiary': theme => theme.text.tertiary,

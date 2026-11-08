@@ -25,7 +25,7 @@ export function SettingsPage({ title, children, footer }: { title: string; child
   return <Atmosphere redesign>
     <View style={[styles.header, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
       <IconBtn style={styles.back} accessibilityLabel={t('common.back')} onPress={() => router.back()}><MaterialIcon name="arrowBack" size={24} /></IconBtn>
-      <Text variant="introHeading" color="redesign.ink" style={styles.title} accessibilityRole="header" accessibilityLabel={title}>{t('g11.settingsTitle')}</Text>
+      <Text variant="introHeading" color="redesign.ink" style={styles.title} accessibilityRole="header" accessibilityLabel={title}>{title}</Text>
       <HeaderNotificationButton testID="settings-bell" unreadDotTestID="settings-unread" showUnread={false} />
     </View>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: footer ? insets.bottom + 96 : insets.bottom + spacing[6] }]}>{children}</ScrollView>

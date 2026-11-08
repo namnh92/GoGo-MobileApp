@@ -1,3 +1,4 @@
+import i18n from '@/shared/i18n'
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { failed, loaded, renderScreen, type QueryLike } from './harness'
@@ -169,4 +170,14 @@ it('preserves an existing custom budget when saving only mood changes', async ()
   await press(view.getByText('Sôi động'))
   await press(view.getByText('Lưu mặc định'))
   expect(mockUpdate).toHaveBeenCalledWith({ interests: { mood: ['lively'] } })
+})
+
+it.each([['vi', 'Mặc định khi tạo kèo'], ['en', 'Defaults for a new date']])('renders the loaded defaults page title in %s', async (locale, title) => {
+  await act(async () => { await i18n.changeLanguage(locale) })
+  try {
+    const view = await renderScreen(<ProfileDefaultsCard profile={profile()} page />)
+    expect(view.getByRole('header', { name: title }).props.children).toBe(title)
+  } finally {
+    await act(async () => { await i18n.changeLanguage('vi') })
+  }
 })

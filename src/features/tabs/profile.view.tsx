@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useMe, useMyReviews, useNotificationSettings, useSaved, useTaxonomies } from '@/shared/api'
+import { useMe, useMyReviews, useMyRooms, useNotificationSettings, useSaved, useTaxonomies } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { getSession, type Session } from '@/shared/api/session'
 import { useSession } from '@/shared/providers/session-provider'
@@ -17,12 +17,14 @@ import { Sheet } from '@/shared/ui/sheet.view'
 import { IconChevronRight } from '@/shared/ui/icons'
 import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { Text } from '@/shared/ui/text'
+import { Skeleton } from '@/shared/ui/skeleton.view'
 import { accentOf, DEFAULT_ACCENT } from '@/shared/ui/theme'
 import { useUnistyles } from 'react-native-unistyles'
 import { BuildVersion } from '@/features/settings/settings-page.view'
 import { ErrorState, LoadingState, OfflineState } from '@/shared/ui/async-state.view'
 import { ProfileUpcoming } from './profile-upcoming.view'
 import { SETTINGS_ROWS } from './profile-settings-rows'
+import { profileKeoCount } from './profile-keo-count'
 import { styles } from './profile.style'
 
 const SHORTCUT_ICON: Record<string, MaterialIconName> = { saved: 'bookmarkFilled', plans: 'groups', reviews: 'hotelClass' }
@@ -43,6 +45,10 @@ export default function ProfileScreen() {
   const taxonomy = useTaxonomies({ kinds: 'mood' })
   const saved = useSaved({ enabled: canRead })
   const reviews = useMyReviews({ enabled: canRead })
+  const canReadRooms = canRead || status === 'guest'
+  const rooms = useMyRooms({ enabled: canReadRooms })
+  const keoCount = canReadRooms && !rooms.isError ? profileKeoCount(rooms.data?.pages) : undefined
+  const keoLoading = canReadRooms && rooms.isPending && !rooms.isError
   useNotificationSettings({ enabled: canRead })
   const [signingOut, setSigningOut] = useState(false)
   const [logoutConfirm, setLogoutConfirm] = useState<string | null>(null)
@@ -67,8 +73,8 @@ export default function ProfileScreen() {
   }) ?? []
   const shortcuts = [
     { key: 'saved', route: '/(tabs)/saved', count: canRead ? saved.data?.length : undefined, userOnly: true },
-    { key: 'plans', route: '/(tabs)/plans', count: undefined, userOnly: false },
-    { key: 'reviews', route: '/settings/reviews', count: canRead ? reviews.data?.length : undefined, userOnly: true },
+    { key: 'plans', route: '/(tabs)/plans', count: keoCount, userOnly: false },
+    { key: 'reviews', route: '/me/contributions?tab=reviews', count: canRead ? reviews.data?.length : undefined, userOnly: true },
   ]
   async function signOutNow() {
     setSigningOut(true)
@@ -101,7 +107,7 @@ export default function ProfileScreen() {
     <View style={[styles.pageHeader, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
       <Text variant="discoveryTitle" color="redesign.primaryText">GoGo</Text><Text color="text.secondary">·</Text>
       <Text variant="introHeading" style={styles.headerText}>{t('g11.profileHeading')}</Text>
-      <HeaderNotificationButton testID="profile-bell" unreadDotTestID="profile-unread" showUnread={false} />
+      <HeaderNotificationButton testID="profile-bell" unreadDotTestID="profile-unread" />
     </View>
     <ScrollView testID="profile-list" onScroll={fab.onScroll} scrollEventThrottle={fab.scrollEventThrottle}
       contentContainerStyle={{ paddingTop: 0, paddingBottom: fab.bottomInset }}>
@@ -129,12 +135,13 @@ export default function ProfileScreen() {
       <View style={styles.shortcutRow}>{shortcuts.map(shortcut => {
         const isLocked = !canRead && shortcut.userOnly
         return <Pressable key={shortcut.key} accessibilityRole="button" accessibilityLabel={shortcut.count === undefined ? t(`profile.shortcut.${shortcut.key}`) : `${t(`profile.shortcut.${shortcut.key}`)}: ${shortcut.count}`}
+          accessibilityState={shortcut.key === 'plans' ? { busy: keoLoading } : undefined}
           accessibilityHint={isLocked ? t('g11.userOnly') : undefined}
           onPress={() => isLocked ? setLocked(true) : router.push(shortcut.key === 'plans' ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } } : shortcut.route)}
           style={({ pressed }) => [styles.shortcutPress, pressed && styles.settingRowPressed]}>
           <Card appearance="stitch" padded={false} style={styles.shortcut}>
             <View style={[styles.shortcutIcon, shortcut.key === 'plans' && styles.plansIcon, shortcut.key === 'reviews' && styles.reviewsIcon]}><MaterialIcon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color={shortcut.key === 'plans' ? 'redesign.violetText' : 'redesign.primaryText'} /></View>
-            {shortcut.count !== undefined ? <Text variant="introHeading" color="redesign.ink">{shortcut.count}</Text> : null}
+            {shortcut.key === 'plans' && keoLoading ? <View testID="profile-keo-loading"><Skeleton width={40} height={24} /></View> : shortcut.count !== undefined ? <Text variant="introHeading" color="redesign.ink">{shortcut.count}</Text> : null}
             <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
             {isLocked ? <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
           </Card>

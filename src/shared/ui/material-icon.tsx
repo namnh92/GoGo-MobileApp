@@ -4,6 +4,7 @@ import { resolveColor, type TextColor } from './text'
 
 /** Material Symbols, 24-unit outline grid, as used in the approved redesign. */
 const paths = {
+  calendar: 'M7 2h2v2h6V2h2v2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3zM4 6v3h16V6zm0 5v9h16v-9zm2 2h3v3H6zm5 0h3v3h-3zm5 0h3v3h-3z',
   bookmarkFilled: 'M6 2h12v20l-6-3-6 3z',
   hotelClass: 'M10 3l2.5 5.1 5.6.8-4.1 4 .9 5.6-4.9-2.6-4.9 2.6.9-5.6-4.1-4 5.6-.8zm10 0 1 3 3 1-3 1-1 3-1-3-3-1 3-1zm0 12 1 2 2 1-2 1-1 2-1-2-2-1 2-1z',
   edit: 'M3 17.3V21h3.7L20 7.7 16.3 4zM21.7 6a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0L16.9 3.4l3.7 3.7z',

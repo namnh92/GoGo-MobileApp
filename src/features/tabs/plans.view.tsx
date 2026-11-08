@@ -4,7 +4,7 @@ import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parseApiDate, useMyRooms, type RoomListItem } from '@/shared/api'
@@ -14,6 +14,7 @@ import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useFocusedNow } from '@/shared/hooks/use-focused-now'
 import { budgetFact } from '@/shared/pricing/budget-unit'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
+import { FilledSegmentedControl } from '@/shared/ui/filled-segmented-control.view'
 import { PlanCard } from '@/shared/ui/plan-card.view'
 import { Atmosphere, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
@@ -138,22 +139,10 @@ export default function PlansScreen() {
         <DraftResume />
       </View>
 
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {(['upcoming', 'history'] as const).map(value => (
-          <Pressable
-            key={value}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === value }}
-            onPress={() => setTab(value)}
-            style={[styles.tab, tab === value && styles.tabSelected]}
-          >
-            {/* Weight changes with the fill, so selection is never colour alone. */}
-            <Text variant={tab === value ? 'label' : 'bodySmall'} color={tab === value ? 'accent.onAccent' : 'text.primary'}>
-              {t(value === 'upcoming' ? 'plans.upcoming' : 'plans.past')}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <FilledSegmentedControl value={tab} onChange={setTab} options={[
+        { value: 'upcoming', label: t('plans.upcoming') },
+        { value: 'history', label: t('plans.past') },
+      ]} />
 
       {/* A failed refetch keeps the list that is already on screen. */}
       <StaleNotice
