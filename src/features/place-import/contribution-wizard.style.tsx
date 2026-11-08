@@ -16,6 +16,9 @@ export const styles = StyleSheet.create((theme) => ({
   header: { padding: 12, gap: 12, backgroundColor: theme.surface.subtle },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headingText: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: 4 },
+  titleRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch' },
+  sectionTitle: { flex: 1, minWidth: 0 },
+  seeAll: { minWidth: 44, minHeight: 22, alignItems: 'center', justifyContent: 'center' },
   stepHeading: {
     borderBottomWidth: 1,
     borderColor: theme.border.hairline,

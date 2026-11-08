@@ -1252,6 +1252,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'search.addNew': 'Add a place from Google Maps',
 
   "placeWizard.moreOptions": "+{{count}} more",
+  "placeWizard.all": "All",
   "placeWizard.allAmenities": "View all {{count}} amenities",
   "placeWizard.selectedCount": "Selected {{count}}",
   "placeWizard.selectedLimit": "Selected {{count}}/{{max}}",

@@ -491,7 +491,11 @@ it('uses CMS sort order, limits amenities to five rows and keeps a selected over
   await fireEvent.press(button('Cặp đôi'))
   await fireEvent.press(button('Tiếp tục'))
   expect(screen.getAllByRole('checkbox').map((row) => row.props.accessibilityLabel)).toEqual(['Tiện ích 7', 'Tiện ích 6', 'Tiện ích 5', 'Tiện ích 4', 'Tiện ích 3'])
-  await fireEvent.press(button('Xem tất cả 8 tiện ích'))
+  const title = screen.getByTestId('contribution-section-title-activity')
+  expect(within(title.parent!).getByText('Tất cả')).toBeTruthy()
+  expect(screen.queryByText('Xem tất cả 8 tiện ích')).toBeNull()
+  expect(title.parent!.parent!.children[1]).toHaveTextContent('Chạm để tick chọn')
+  await fireEvent.press(within(title.parent!).getByRole('button', { name: 'Xem tất cả 8 tiện ích' }))
   await fireEvent.changeText(screen.getByLabelText('Tìm lựa chọn'), 'Tiện ích 0')
   await fireEvent.press(screen.getByRole('checkbox', { name: 'Tiện ích 0' }))
   await fireEvent.press(button('Xong'))
@@ -860,7 +864,7 @@ describe('SA T1-T12 lifecycle regressions', () => {
 
 // CoreText CTLineGetTypographicBounds, bundled Inter SemiBold 17pt / Regular 11pt,
 // rounded UP to 0.01pt. Exact copy + font hashes prevent stale measurements passing.
-// Captions/chips sit below titles, so none consumes the title's horizontal budget.
+// Captions/chips sit below titles; amenities reserve room for the compact All action.
 describe('GOGO-566 one-line titles at 390pt', () => {
   it('keeps the measured font faces unchanged', () => {
     for (const [face, hash] of Object.entries(titleMetrics.fonts)) {
@@ -888,7 +892,9 @@ describe('GOGO-566 one-line titles at 390pt', () => {
       // Copy length guard in addition to font measurement (21/18 chars measured
       // for the longest heading/progress title; no ellipsis needed at 390pt).
       expect([...title].length).toBeLessThanOrEqual(progress ? 18 : 21)
-      expect(measurement.width).toBeLessThanOrEqual(budget)
+      // All is at most 44pt wide in these two locales, plus the row gap.
+      const actionBudget = key === 'amenities' ? 44 + StyleSheet.flatten(wizardStyles.titleRow).gap : 0
+      expect(measurement.width).toBeLessThanOrEqual(budget - actionBudget)
     }
   })
 

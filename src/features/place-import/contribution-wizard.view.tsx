@@ -2,7 +2,7 @@ import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { Chip } from '@/shared/ui/chip.view'
-import { useImperativeHandle, useState, type Ref } from 'react'
+import { useImperativeHandle, useState, type Ref, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
@@ -126,12 +126,15 @@ function Wizard(props: WizardProps) {
   const feedbackVisible = state.message !== 'newDraft' && !busy && !state.resultVisible
     && !feedbackSuppressed && dismissedFeedback !== feedbackKey
 
-  function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string) {
+  function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string, action?: ReactNode) {
     return (
       <View style={styles.heading}>
         <MaterialIcon name={icon} size={18} color="accent.primary" />
         <View style={styles.headingText}>
-          <Text testID={`contribution-section-title-${icon}`} variant="introHeading" numberOfLines={1}>{title}</Text>
+          {action ? <View style={styles.titleRow}>
+            <Text testID={`contribution-section-title-${icon}`} variant="introHeading" numberOfLines={1} style={styles.sectionTitle}>{title}</Text>
+            {action}
+          </View> : <Text testID={`contribution-section-title-${icon}`} variant="introHeading" numberOfLines={1}>{title}</Text>}
           {tag ? <Text variant="introCaption" color="text.secondary">{tag}</Text> : null}
         </View>
       </View>
@@ -404,9 +407,11 @@ function Wizard(props: WizardProps) {
                   title={t('placeWizard.vibes')} onChange={(keys) => setValue('vibeKeys', keys)} />
               </View>
               <View style={[styles.section, styles.divider]}>
-                {sectionTitle(t('placeWizard.amenities'), 'activity', t('placeWizard.tick'))}
-                <Text variant="introCaption">{t('placeWizard.amenitiesHelp')}</Text>
                 <ContributionChoices options={amenities} selected={Object.keys(form.amenities).filter((key) => form.amenities[key])}
+                  renderHeader={(action) => <>
+                    {sectionTitle(t('placeWizard.amenities'), 'activity', t('placeWizard.tick'), action)}
+                    <Text variant="introCaption">{t('placeWizard.amenitiesHelp')}</Text>
+                  </>}
                   checklist max={6} disabled={disabled} title={t('placeWizard.amenities')}
                   onChange={(keys) => setValue('amenities', Object.fromEntries([
                     ...Object.entries(form.amenities).filter(([, value]) => value === false),

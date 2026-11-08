@@ -1246,6 +1246,7 @@ export const viMessages = {
   'search.addNew': 'Thêm địa điểm từ Google Maps',
 
   "placeWizard.moreOptions": "+{{count}} khác",
+  "placeWizard.all": "Tất cả",
   "placeWizard.allAmenities": "Xem tất cả {{count}} tiện ích",
   "placeWizard.selectedCount": "Đã chọn {{count}}",
   "placeWizard.selectedLimit": "Đã chọn {{count}}/{{max}}",
