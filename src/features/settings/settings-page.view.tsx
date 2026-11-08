@@ -21,7 +21,7 @@ export function SettingsPage({ title, children, footer }: { title: string; child
   const router = useRouter()
   const insets = useSafeAreaInsets()
   return <Atmosphere redesign>
-    <AppHeader title={title} onBack={() => router.back()} bellTestID="settings-bell" unreadDotTestID="settings-unread" />
+    <AppHeader showNotifications={false} title={title} onBack={() => router.back()} bellTestID="settings-bell" unreadDotTestID="settings-unread" />
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: footer ? insets.bottom + 96 : insets.bottom + spacing[6] }]}>{children}</ScrollView>
     {footer ? <GlassBar placement="floating" style={[styles.footer, { bottom: insets.bottom + spacing[2] }]}>{footer}</GlassBar> : null}
   </Atmosphere>

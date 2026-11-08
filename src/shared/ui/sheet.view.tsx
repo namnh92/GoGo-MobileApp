@@ -25,7 +25,7 @@ import { styles } from './sheet.style'
 
 export interface SheetProps {
   swipeToClose?: boolean
-  appearance?: 'default' | 'discovery'
+  appearance?: 'default' | 'discovery' | 'avatar'
   visible: boolean
   /** Backdrop tap, Android back, the VoiceOver escape gesture. */
   onClose: () => void
@@ -210,6 +210,7 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
           style={[
             styles.panel,
             appearance === 'discovery' && styles.discoveryPanel,
+            appearance === 'avatar' && styles.avatarPanel,
             size === 'full' ? styles.panelFull : { maxHeight },
             !scroll && !footer && { paddingBottom: bottomPadding },
             !reduced && panelStyle,
@@ -217,7 +218,7 @@ export function Sheet({ swipeToClose = false, appearance = 'default', visible, o
         >
           {swipeToClose ? <GestureDetector gesture={Gesture.Pan().withTestId('sheet-dismiss').activeOffsetY(10).onEnd(event => {
             if (event.translationY > 40 || event.velocityY > 500) runOnJS(onClose)()
-          })}><View testID="sheet-drag-handle" style={styles.dragHandle}><View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle]} /></View></GestureDetector> : <View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle]} />}
+          })}><View testID="sheet-drag-handle" style={styles.dragHandle}><View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle, appearance === 'avatar' && styles.avatarHandle]} /></View></GestureDetector> : <View style={[styles.handle, appearance === 'discovery' && styles.discoveryHandle, appearance === 'avatar' && styles.avatarHandle]} />}
           {header}
           {scroll ? (
             <ScrollView

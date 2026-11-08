@@ -1,5 +1,7 @@
 import * as ImagePicker from 'expo-image-picker'
 
+import { avatarGeometry, type AvatarAdjustment } from './avatar-crop'
+
 import type { LocalImage } from '@/shared/api'
 
 /** Longest edge sent to the server; it crops to 512 px, so more is waste. */
@@ -84,4 +86,42 @@ export async function pickAvatar(): Promise<PickAvatarResult> {
   const asset = picked.canceled ? null : picked.assets[0]
   if (!asset) return { status: 'canceled' }
   return normaliseForUpload(asset)
+}
+
+export type AvatarSource = 'camera' | 'library'
+export type SelectAvatarResult =
+  | { status: 'selected'; asset: PickedAsset & { width: number; height: number } }
+  | { status: 'canceled' | 'denied' | 'unavailable' }
+
+/** No system crop: the Stitch editor owns all adjustments before any upload. */
+export async function selectAvatar(source: AvatarSource): Promise<SelectAvatarResult> {
+  try {
+    const permission = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) return { status: 'denied' }
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: false, quality: 1, exif: false }
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options)
+    const asset = result.canceled ? null : result.assets[0]
+    if (!asset) return { status: 'canceled' }
+    if (!asset.width || !asset.height) return { status: 'unavailable' }
+    return { status: 'selected', asset }
+  } catch {
+    return { status: 'unavailable' }
+  }
+}
+
+export async function cropAvatar(asset: PickedAsset & { width: number; height: number }, value: AvatarAdjustment, viewport: number): Promise<LocalImage> {
+  const manipulator = loadManipulator()
+  // Never upload the original when the binary cannot apply the visible crop.
+  if (!manipulator) throw new Error('Avatar image editor unavailable')
+  const { crop } = avatarGeometry(asset.width, asset.height, viewport, value)
+  const actions: Parameters<Manipulator['manipulateAsync']>[1] = []
+  if (value.rotation) actions.push({ rotate: value.rotation })
+  if (value.flipped) actions.push({ flip: manipulator.FlipType.Horizontal })
+  actions.push({ crop }, { resize: { width: Math.min(AVATAR_MAX_EDGE, crop.width) } })
+  const result = await manipulator.manipulateAsync(asset.uri, actions, { compress: 0.9, format: manipulator.SaveFormat.JPEG })
+  return { uri: result.uri, mimeType: 'image/jpeg' }
 }

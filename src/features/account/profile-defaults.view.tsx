@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
+import { CurrentAreaSheet } from '@/shared/location/current-area-sheet.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import type { AdministrativeSelection } from '@/shared/administrative/snapshot'
 
@@ -53,6 +53,7 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
   const taxonomies = useTaxonomies({ kinds: INTEREST_KIND })
   const waiting = useWaitingForNetwork(taxonomies)
 
+  const [areaOpen, setAreaOpen] = useState(false)
   const [area, setArea] = useState<AdministrativeSelection | null | undefined>(undefined)
   const [moods, setMoods] = useState<string[] | undefined>(undefined)
   const [budget, setBudget] = useState<number | null | undefined>(undefined)
@@ -132,14 +133,22 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
     <View style={styles.section}>
       <View style={styles.heading}><MaterialIcon name="nearMe" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('account.homeArea')}</Text><Text variant="introCaption" color="redesign.secondary">{t('g11.homeAreaHint')}</Text></View>
       <Card appearance="stitch" padded={false} style={styles.field}>
-        {area === undefined && !profile.homeAdministrativeArea && profile.homeArea ? (
-          <View>
-            <Text style={styles.value}>{areaDisplayName(profile.homeArea)}</Text>
-            <Text variant="caption" color="text.secondary">{t('account.legacyArea')}</Text>
-            <GhostBtn label={t('account.homeAreaClear')} onPress={() => { if (!saving.current) setArea(null) }} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t('account.areaLabel')} disabled={update.isPending}
+          accessibilityState={{ disabled: update.isPending }} onPress={() => setAreaOpen(true)}
+          style={({ pressed }) => [styles.areaRow, pressed && styles.pressed]}>
+          <View style={styles.areaIcon}><MaterialIcon name="location" color="redesign.primaryText" /></View>
+          <View style={styles.titleText}>
+            <Text variant="introCaption" color="text.secondary">{t('account.areaLabel')}</Text>
+            <Text variant="introBody">{currentArea
+              ? currentArea.communeName ? `${currentArea.communeName}, ${currentArea.provinceName}` : t('account.wholeProvince', { province: currentArea.provinceName })
+              : area === undefined && profile.homeArea ? areaDisplayName(profile.homeArea) : t('administrative.selectProvince')}</Text>
           </View>
-        ) : null}
-        <AdministrativePicker value={currentArea} onChange={value => { if (!saving.current) setArea(value) }} />
+          <MaterialIcon name="chevronRight" color="text.secondary" />
+        </Pressable>
+        {currentArea || (area === undefined && profile.homeArea) ? <Pressable accessibilityRole="button"
+          accessibilityLabel={t('account.areaClear')} disabled={update.isPending} onPress={() => { if (!saving.current) setArea(null) }} style={styles.areaClear}>
+          <Text variant="introSmall" color="text.secondary">{t('account.areaClear')}</Text>
+        </Pressable> : null}
       </Card>
     </View>
 
@@ -193,6 +202,8 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
         </Text>
       ) : null}
 
+    <CurrentAreaSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={() => {}}
+      selection={{ value: currentArea, onApply: value => { if (!saving.current) setArea(value) } }} />
     <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'account.defaultsFailed' : 'account.defaultsSaved')}
       body={t('account.defaultsBody')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
     </>

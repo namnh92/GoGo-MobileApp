@@ -324,6 +324,8 @@ const config: ExpoConfig = {
         // permission (App Review 5.1.1). Every caller's purpose must be
         // named here — `media-permission.test.ts` fails when a new caller
         // appears without this string naming its purpose.
+        cameraPermission: 'GoGo cần dùng máy ảnh để bạn chụp ảnh đại diện.',
+        microphonePermission: false,
         photosPermission:
           'GoGo cần truy cập thư viện ảnh để bạn thêm ảnh đại diện, ảnh check-in tại địa điểm, ảnh gửi cho GoGo AI và ảnh cho địa điểm đề xuất.',
       },

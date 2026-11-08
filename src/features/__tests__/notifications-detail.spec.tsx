@@ -127,8 +127,9 @@ describe('an unknown kind', () => {
     // The list around it is intact, and no body line is invented for it.
     expect(view.getByText(viMessages['notifications.body.plan_ready'])).toBeTruthy()
     if (kind) expect(view.getByText(kind)).toBeTruthy()
-    expect(view.getByTestId('app-header-bell')).toBeTruthy()
-    expect(view.getAllByRole('button')).toHaveLength(4) // back + shared inbox bell + two rows
+    expect(view.queryByTestId('app-header-bell')).toBeNull()
+    expect(view.queryByTestId('app-header-unread-dot')).toBeNull()
+    expect(view.getAllByRole('button')).toHaveLength(3) // back + two rows
   })
 })
 

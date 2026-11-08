@@ -11,7 +11,6 @@ export const styles = StyleSheet.create(theme => ({
   rowValue: { maxWidth: '28%' },
   banner: { marginHorizontal: spacing[4], marginBottom: spacing[5], padding: spacing[3], borderRadius: 12, backgroundColor: theme.redesign.violetSoft, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   shortcutPress: { flex: 1, minWidth: 0, borderRadius: 12 },
-  confirm: { padding: spacing[5], gap: spacing[4] },
   headerCard: {
     marginHorizontal: spacing[4],
     marginBottom: spacing[6],

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native'
 import '@/shared/i18n'
+import { status } from '../tokens'
 import { ResultSheet } from '../result-sheet.view'
 
 it.each(['success', 'error', 'warning', 'info'] as const)('renders %s with optional note/actions and closes through the shared Sheet', async variant => {
@@ -50,4 +51,22 @@ it('renders arbitrary media before the message and equal-width actions on one li
   expect(StyleSheet.flatten(primary.parent!.props.style).flexDirection).toBe('row')
   for (const action of [primary, secondary]) expect(StyleSheet.flatten(action.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
   expect(screen.getByText('View contributions').props.numberOfLines).toBeUndefined()
+})
+
+
+it('offers secondary cancel first and a danger confirmation while preserving shared action states', async () => {
+  const confirm = jest.fn(), cancel = jest.fn()
+  await render(<ResultSheet visible variant="warning" title="Confirm?" body="This ends the session."
+    actionOrder="secondary-first" primaryAction={{ label: 'Confirm', onPress: confirm, destructive: true, loading: true }}
+    secondaryAction={{ label: 'Cancel', onPress: cancel }} onClose={cancel} />)
+  const primary = screen.getByRole('button', { name: 'Confirm' })
+  const secondary = screen.getByRole('button', { name: 'Cancel' })
+  expect(StyleSheet.flatten(primary.props.style).borderColor).toBe(status.danger)
+  expect(primary.props.accessibilityState).toMatchObject({ disabled: true, busy: true })
+  expect(primary.parent).toBe(secondary.parent)
+  expect(primary.parent!.children.indexOf(secondary)).toBeLessThan(primary.parent!.children.indexOf(primary))
+  await fireEvent.press(primary)
+  expect(confirm).not.toHaveBeenCalled()
+  await fireEvent.press(secondary)
+  expect(cancel).toHaveBeenCalledTimes(1)
 })

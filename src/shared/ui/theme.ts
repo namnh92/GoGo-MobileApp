@@ -1,5 +1,6 @@
 import {
   accents,
+  photoEditor,
   border,
   darkAccents,
   darkBorder,
@@ -81,6 +82,7 @@ function buildTheme(accent: Accent, mode: Mode) {
     status: dark ? darkStatus : status,
     map: dark ? darkMapColors : mapColors,
     onDark,
+    photoEditor,
     night,
     type,
     spacing,

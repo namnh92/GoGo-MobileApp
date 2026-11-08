@@ -30,6 +30,8 @@ const wrappers: Record<string, string> = {
   'create-date/create-budget': 'WizardStep', 'create-date/create-mood': 'WizardStep',
   'assistant/assistant': 'AssistantHeader', 'assistant/history': 'AssistantHeader',
 }
+// SettingsPage covers permissions/data, defaults and theme, including embedded settings.
+const profileHeaders = ['account/account', 'contributions/my-contributions', 'notifications/notifications', 'review/my-reviews', 'settings/settings-page']
 function owns(source: string, name: string) {
   const ast = ts.createSourceFile('screen.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let found = false
@@ -53,6 +55,9 @@ function violations(file: string, source: string) {
       if (tag === 'AppHeader') {
         const props = node.attributes.properties
         if (props.some(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'titleAlign')) errors.push('header alignment override')
+        const inProfile = profileHeaders.some(screen => file.endsWith(`${screen}.view.tsx`))
+        const notifications = props.find(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'showNotifications')
+        if (inProfile && (!notifications || !ts.isJsxAttribute(notifications) || !notifications.initializer || !ts.isJsxExpression(notifications.initializer) || notifications.initializer.expression?.kind !== ts.SyntaxKind.FalseKeyword)) errors.push('profile header must omit notification navigation')
         const inSheet = file.endsWith('assistant/assistant-header.view.tsx') || file.endsWith('administrative/administrative-picker.view.tsx')
         const variant = props.find(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'variant')
         if (inSheet && (!variant || !ts.isJsxAttribute(variant) || !variant.initializer || !ts.isStringLiteral(variant.initializer) || variant.initializer.text !== 'sheet')) errors.push('sheet header must omit notification navigation')
@@ -111,6 +116,16 @@ describe('application header ownership', () => {
     const source = readFileSync(file, 'utf8')
     expect(owns(source, 'AppHeader')).toBe(true)
     expect(violations(file, source)).toEqual([])
+  })
+  it.each(profileHeaders)('%s enforces no bell on every profile sub-screen header', file => {
+    const source = read(`${file}.view.tsx`)
+    expect(owns(source, 'AppHeader')).toBe(true)
+    expect(violations(`${file}.view.tsx`, source)).toEqual([])
+    expect(violations(`${file}.view.tsx`, 'const x = <AppHeader title="T" />')).toEqual(['profile header must omit notification navigation'])
+    expect(violations(`${file}.view.tsx`, 'const x = <AppHeader showNotifications={true} title="T" />')).toEqual(['profile header must omit notification navigation'])
+  })
+  it.each(['settings/permissions', 'account/defaults-screen', 'account/profile-defaults', 'account/theme-screen'])('%s inherits the bell-free settings header', file => {
+    expect(owns(read(`${file}.view.tsx`), 'SettingsPage')).toBe(true)
   })
   it('rejects sheet navigation and per-screen title alignment overrides', () => {
     const source = 'const x = <AppHeader title="T" />'

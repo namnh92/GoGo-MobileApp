@@ -1,0 +1,287 @@
+<!DOCTYPE html><html lang="vi"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tài khoản - GoGo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#fff5f2',
+              100: '#ffe8e2',
+              500: '#ce391b',
+              600: '#b82f14',
+              700: '#9b240e',
+            },
+            surface: {
+              cream: '#FBF9F5',
+              card: '#FFFFFF',
+              subtle: '#F4EFEA',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="bg-[#FBF9F5] text-[#221B18] antialiased min-h-screen flex justify-center selection:bg-[#ce391b]/10 selection:text-[#ce391b]">
+
+  <!-- Mobile Screen Container (390px reference) -->
+  <div class="w-full max-w-[420px] min-h-screen bg-[#FBF9F5] flex flex-col pb-10 shadow-sm relative">
+
+    <!-- Sub-screen Header (Shared with Mặc định khi tạo kèo & Màu chủ đề) -->
+    <header class="sticky top-0 z-30 bg-[#FBF9F5]/95 backdrop-blur-md px-4 pt-3 pb-3 border-b border-[#F0EBE1] flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Back Arrow Button -->
+        <button type="button" aria-label="Quay lại" class="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-[#2D2421] hover:bg-black/5 active:scale-95 transition-all">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </button>
+        <!-- Left-aligned Title -->
+        <h1 class="text-[19px] font-bold tracking-tight text-[#221B18]">Tài khoản</h1>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Action "Lưu" (disabled state when no change) -->
+        <button type="button" disabled="" class="text-[15px] font-semibold text-[#A89F91] cursor-not-allowed px-1.5 py-1 transition-colors">
+          Lưu
+        </button>
+
+        <!-- Notification Bell with Red Dot -->
+        
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 px-4 pt-5 space-y-4">
+
+      <!-- 1. Profile Block -->
+      <section class="flex flex-col items-center text-center pt-1 pb-2"><div class="relative inline-block cursor-pointer" onclick="openAvatarSheet()"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVD4E4j3tvIYFYMT3jsNM6afpe_Sl_vMtIf01pSItDgf4rzuTm9roGcODZKgEDswtBa6nhvuSJ5N2FoFRy2Kh8A4SaUeJ95uAg9haNu0dsYxx24zk7mBFupPfeouGHo4GbU696u7eP3Iq4Og6RyVUG7Wdm_7myNS61P5SBBOXlnxQoUH3Bi489r0e8N9yP_16uTnvAbxwI79IXG7HzEtgCkyqhyyzLrZW4vQHex-rh" alt="Ảnh đại diện" class="w-24 h-24 rounded-full object-cover shadow-md ring-4 ring-white"><button type="button" aria-label="Đổi ảnh đại diện" class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#CE391B] text-white flex items-center justify-center shadow-md ring-2 ring-[#FBF9F5] hover:bg-[#b82f14] active:scale-90 transition-all" onclick="openAvatarSheet()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button></div></section>
+
+      <!-- 2. Card "Thông tin cá nhân" -->
+      <section class="bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-[#EFE9DF] space-y-4">
+        <div class="flex items-center gap-2 pb-0.5">
+          <span class="w-1.5 h-4 bg-[#CE391B] rounded-full"></span>
+          <h2 class="text-[15px] font-bold text-[#221B18]">Thông tin cá nhân</h2>
+        </div>
+
+        <!-- Field 1: Tên hiển thị -->
+        <div>
+          <label for="display-name" class="block text-[13px] font-semibold text-[#3E342F] mb-1.5">
+            Tên hiển thị
+          </label>
+          <div class="relative">
+            <input id="display-name" type="text" value="Max Nguyen" class="w-full bg-[#FAF8F5] border border-[#E6E0D6] rounded-xl px-3.5 py-2.5 text-[14.5px] font-medium text-[#221B18] placeholder-[#A89F91] focus:outline-none focus:ring-2 focus:ring-[#CE391B]/20 focus:border-[#CE391B] transition-all">
+          </div>
+        </div>
+
+        <!-- Field 2: Email (Read-only row with lock icon) -->
+        <div>
+          <label class="block text-[13px] font-semibold text-[#3E342F] mb-1.5">
+            Email
+          </label>
+          <div class="w-full bg-[#F5F2EB]/70 border border-[#E6E0D6] rounded-xl px-3.5 py-2.5 flex items-center justify-between text-[14.5px] text-[#554B44]">
+            <span class="font-medium select-all">namnh@gogo.id.vn</span>
+            <div class="flex items-center gap-1.5 text-[#918679]" title="Không thể chỉnh sửa email đăng nhập">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span class="text-[11.5px] font-medium uppercase tracking-wider text-[#A3998C]">Cố định</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field 3: Ngày sinh -->
+        <div>
+          <label for="birth-date" class="block text-[13px] font-semibold text-[#3E342F] mb-1.5">
+            Ngày sinh
+          </label>
+          <div class="relative">
+            <input id="birth-date" type="text" placeholder="dd/mm/yyyy" class="w-full bg-[#FAF8F5] border border-[#E6E0D6] rounded-xl px-3.5 py-2.5 text-[14.5px] font-medium text-[#221B18] placeholder-[#A89F91] focus:outline-none focus:ring-2 focus:ring-[#CE391B]/20 focus:border-[#CE391B] transition-all">
+            <div class="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9E9486] pointer-events-none">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+          </div>
+          <!-- Helper Text -->
+          <p class="text-[12px] text-[#7C7267] mt-1.5 leading-relaxed">
+            Không bắt buộc. Chỉ bạn thấy; thành viên khác trong phòng không bao giờ thấy.
+          </p>
+        </div>
+      </section>
+
+      <!-- 3. Card "Dữ liệu của bạn" -->
+      <section class="bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-[#EFE9DF]">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-4 bg-[#8C8276] rounded-full"></span>
+          <h2 class="text-[15px] font-bold text-[#221B18]">Dữ liệu của bạn</h2>
+        </div>
+        <p class="text-[13px] text-[#6E645A] leading-relaxed mb-3.5">
+          Tải toàn bộ dữ liệu GoGo lưu về bạn. Mỗi giờ tối đa 3 lần.
+        </p>
+        <!-- Secondary Button "Xuất dữ liệu" -->
+        <button type="button" class="w-full py-2.5 px-4 bg-[#F7F4EE] hover:bg-[#EFE9DD] active:scale-[0.99] border border-[#E3DC handle] border-[#E2DBD0] rounded-xl text-[13.5px] font-semibold text-[#2D2421] flex items-center justify-center gap-2 transition-all">
+          <svg class="w-4 h-4 text-[#665D54]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Xuất dữ liệu
+        </button>
+      </section>
+
+      <!-- 4. Card "Xoá tài khoản" (Danger Section, understated & not prominent) -->
+      <section class="bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#F0EBE1] space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-4 bg-[#D32F2F]/60 rounded-full"></span>
+          <h2 class="text-[14.5px] font-bold text-[#4A403A]">Xoá tài khoản</h2>
+        </div>
+        
+        <div class="space-y-2 text-[12.5px] text-[#786F66] leading-relaxed">
+          <p class="">
+            Tài khoản ngừng đăng nhập được, và GoGo xoá thông tin cá nhân của bạn: tên, ảnh đại diện, khu vực, ngân sách, sở thích, mục đã lưu và thông báo. Không hoàn tác được.
+          </p>
+          <p class="text-[#8A8077]">
+            Đánh giá và ảnh bạn đã đóng góp cho địa điểm vẫn ở lại GoGo, nhưng không còn hiện tên bạn.
+          </p>
+        </div>
+
+        <!-- Danger Text / Outline Button -->
+        <div class="pt-1">
+          <button type="button" class="w-full py-2.5 px-4 bg-transparent hover:bg-[#FDF2F2] active:scale-[0.99] border border-[#E0BCB9] rounded-xl text-[13px] font-semibold text-[#C62828] flex items-center justify-center gap-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5 text-[#C62828]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Xoá tài khoản
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+  <!-- Bottom Sheet / Action Sheet Modal for Changing Avatar -->
+<div id="avatar-action-sheet-backdrop" class="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-end justify-center transition-opacity duration-200">
+  <!-- Bottom Sheet Container (max-w matching phone container) -->
+  <div id="avatar-action-sheet" class="w-full max-w-[420px] bg-[#FBF9F5] rounded-t-[28px] p-4 pb-8 shadow-2xl border-t border-[#EFE9DF] transition-transform duration-200 ease-out flex flex-col gap-3">
+    
+    <!-- Drag Handle / Grabber -->
+    <div class="flex justify-center pt-0.5 pb-1">
+      <span class="w-9 h-1 rounded-full bg-[#D8D0C5]"></span>
+    </div>
+
+    <!-- Header / Title -->
+    <div class="text-center pb-1">
+      <h3 class="text-[15px] font-bold text-[#221B18]">Đổi ảnh đại diện</h3>
+      <p class="text-[12px] text-[#786F66] mt-0.5">Chọn nguồn ảnh hoặc xoá ảnh đại diện hiện tại</p>
+    </div>
+
+    <!-- Actions Group Card -->
+    <div class="bg-white rounded-2xl border border-[#EFE9DF] shadow-sm overflow-hidden divide-y divide-[#F4EFEA]">
+      <!-- Option 1: Chụp ảnh -->
+      <button type="button" onclick="closeAvatarSheet()" class="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-[#FAF8F5] active:bg-[#F5F1EB] transition-colors group">
+        <div class="w-9 h-9 rounded-full bg-[#FAF7F2] border border-[#EFE9DF] text-[#CE391B] flex items-center justify-center group-hover:scale-105 transition-transform">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <div class="text-[14.5px] font-semibold text-[#221B18]">Chụp ảnh</div>
+          <div class="text-[11.5px] text-[#8A8077]">Mở máy ảnh thiết bị để chụp ảnh mới</div>
+        </div>
+        <svg class="w-4 h-4 text-[#A89F91]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"></path>
+        </svg>
+      </button>
+
+      <!-- Option 2: Chọn từ thư viện -->
+      <button type="button" onclick="closeAvatarSheet()" class="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-[#FAF8F5] active:bg-[#F5F1EB] transition-colors group">
+        <div class="w-9 h-9 rounded-full bg-[#FAF7F2] border border-[#EFE9DF] text-[#CE391B] flex items-center justify-center group-hover:scale-105 transition-transform">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <div class="text-[14.5px] font-semibold text-[#221B18]">Chọn từ thư viện</div>
+          <div class="text-[11.5px] text-[#8A8077]">Tải ảnh có sẵn từ bộ sưu tập của bạn</div>
+        </div>
+        <svg class="w-4 h-4 text-[#A89F91]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"></path>
+        </svg>
+      </button>
+
+      <!-- Option 3: Gỡ ảnh -->
+      <button type="button" onclick="closeAvatarSheet()" class="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-[#FDF2F2] active:bg-[#FCE8E8] transition-colors group">
+        <div class="w-9 h-9 rounded-full bg-[#FDF2F2] border border-[#F5D5D3] text-[#C62828] flex items-center justify-center group-hover:scale-105 transition-transform">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <div class="text-[14.5px] font-semibold text-[#C62828]">Gỡ ảnh</div>
+          <div class="text-[11.5px] text-[#B75C54]">Dùng lại hình đại diện ký tự mặc định</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Cancel Button -->
+    <button type="button" onclick="closeAvatarSheet()" class="w-full py-3 bg-white hover:bg-[#FAF8F5] active:scale-[0.99] border border-[#E6E0D6] rounded-2xl text-[14.5px] font-bold text-[#4A403A] shadow-sm transition-all text-center">
+      Huỷ
+    </button>
+  </div>
+</div>
+
+<script>
+  function openAvatarSheet() {
+    const backdrop = document.getElementById('avatar-action-sheet-backdrop');
+    if (backdrop) {
+      backdrop.classList.remove('hidden');
+    }
+  }
+  function closeAvatarSheet() {
+    const backdrop = document.getElementById('avatar-action-sheet-backdrop');
+    if (backdrop) {
+      backdrop.classList.add('hidden');
+    }
+  }
+  // Dismiss when clicking the backdrop overlay outside the bottom sheet
+  document.getElementById('avatar-action-sheet-backdrop')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeAvatarSheet();
+    }
+  });
+</script></div>
+
+
+
+
+
+
+
+</body></html>

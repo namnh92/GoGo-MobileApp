@@ -1,11 +1,11 @@
-import { AppHeader } from '@/shared/ui/app-header.view'
+import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, ScrollView, Share, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, ScrollView, Share, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
@@ -22,14 +22,18 @@ import {
   type OpBody,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { pickAvatar } from '@/shared/media/pick-avatar'
+import { cropAvatar, selectAvatar, type AvatarSource, type PickedAsset } from '@/shared/media/pick-avatar'
+import type { AvatarAdjustment } from '@/shared/media/avatar-crop'
+import { AvatarEditor } from './avatar-editor.view'
+import { AvatarSourceSheet } from './avatar-source-sheet.view'
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, LoadingState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { haptic } from '@/shared/ui/feedback'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, Card, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import type { MessageKey } from '@/shared/i18n/types'
@@ -105,7 +109,15 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [avatarStep, setAvatarStep] = useState<AvatarStep>(null)
   const [avatarNotice, setAvatarNotice] = useState<string | null>(null)
+  const [avatarSheet, setAvatarSheet] = useState(false)
+  const [avatarAsset, setAvatarAsset] = useState<(PickedAsset & { width: number; height: number }) | null>(null)
+  const [avatarEditing, setAvatarEditing] = useState(false)
+  const avatarLock = useRef(false)
+  const pendingSource = useRef<AvatarSource | 'remove' | null>(null)
+  const chooseAfterEditor = useRef(false)
+  const [permissionSource, setPermissionSource] = useState<AvatarSource | null>(null)
   const { confirm, dialog } = useDialog()
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   const nameDirty = !!dirtyFields.name && (values.name ?? '').trim() !== serverValues.name
   const birthdayText = (values.birthday ?? '').trim()
@@ -180,52 +192,85 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     }
   }
 
-  /**
-   * Pick, downsize, presign + PUT, then attach. The picture on screen is the
-   * one the server answers with — a local preview is never shown as saved,
-   * because the server may still refuse the bytes.
-   */
-  async function changeAvatar() {
-    if (!canUpload || avatarStep) return
+  function chooseAvatarSource(source: AvatarSource | 'remove') {
+    pendingSource.current = source
+    setAvatarSheet(false)
+  }
+
+  function sourceSheetClosed() {
+    const source = pendingSource.current
+    pendingSource.current = null
+    if (!mounted.current || !source) return
+    if (source === 'remove') void removePicture()
+    else void changeAvatar(source)
+  }
+
+  async function changeAvatar(source: AvatarSource) {
+    if (!canUpload || avatarLock.current) return
+    avatarLock.current = true
     setAvatarNotice(null)
+    setPermissionSource(null)
     setAvatarStep('picking')
     try {
-      const picked = await pickAvatar()
+      const picked = await selectAvatar(source)
+      if (!mounted.current) return
       if (picked.status === 'canceled') return
-      if (picked.status === 'denied') {
-        setAvatarNotice(t('account.avatarPermissionDenied'))
+      if (picked.status === 'denied' || picked.status === 'unavailable') {
+        setPermissionSource(source)
+        setAvatarNotice(t(source === 'camera' ? 'account.avatarCameraUnavailable' : 'account.avatarPermissionDenied'))
         return
       }
-      if (picked.status === 'unsupported') {
-        setAvatarNotice(t('account.avatarUnsupportedType'))
-        return
-      }
-      setAvatarStep('uploading')
-      const key = await upload.mutateAsync({ image: picked.image, purpose: 'avatar' })
+      if (picked.status !== 'selected') return
+      setAvatarAsset(picked.asset)
+      setAvatarEditing(true)
+    } catch (error) {
+      if (mounted.current) setAvatarNotice(t(avatarErrorKey(error)))
+    } finally {
+      avatarLock.current = false
+      if (mounted.current) setAvatarStep(null)
+    }
+  }
+
+  async function confirmAvatar(value: AvatarAdjustment, viewport: number) {
+    if (!avatarAsset || avatarLock.current || !canUpload) return
+    avatarLock.current = true
+    setAvatarNotice(null)
+    setAvatarStep('uploading')
+    try {
+      const image = await cropAvatar(avatarAsset, value, viewport)
+      if (!mounted.current) return
+      const key = await upload.mutateAsync({ image, purpose: 'avatar' })
+      if (!mounted.current) return
       await setAvatar.mutateAsync(key)
+      if (!mounted.current) return
       haptic('success')
       track('profile_avatar_set')
+      setAvatarEditing(false)
       setAvatarNotice(t('account.avatarSaved'))
     } catch (error) {
-      setAvatarNotice(t(avatarErrorKey(error)))
+      if (mounted.current) setAvatarNotice(t(avatarErrorKey(error)))
     } finally {
-      setAvatarStep(null)
+      avatarLock.current = false
+      if (mounted.current) setAvatarStep(null)
     }
   }
 
   async function removePicture() {
-    if (avatarStep) return
+    if (avatarLock.current || !me.data?.avatarUrl) return
+    avatarLock.current = true
     setAvatarNotice(null)
     setAvatarStep('removing')
     try {
       await removeAvatar.mutateAsync()
+      if (!mounted.current) return
       haptic('success')
       track('profile_avatar_removed')
       setAvatarNotice(t('account.avatarRemoved'))
     } catch (error) {
-      setAvatarNotice(t(avatarErrorKey(error)))
+      if (mounted.current) setAvatarNotice(t(avatarErrorKey(error)))
     } finally {
-      setAvatarStep(null)
+      avatarLock.current = false
+      if (mounted.current) setAvatarStep(null)
     }
   }
 
@@ -247,20 +292,8 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     }
   }
 
-  async function onDelete() {
-    // Irreversible, so it asks first rather than relying on a button the
-    // thumb can reach by accident (#381: the in-app Dialog, not Alert.alert).
-    // ADR-0023: the dialog states both halves. Promising to delete everything
-    // and then keeping reviews is the one thing this confirmation must not do.
-    const choice = await confirm({
-      title: t('account.deleteTitle'),
-      message: `${t('account.deleteBody')}\n\n${t('account.deleteKept')}`,
-      actions: [
-        { key: 'cancel', label: t('account.deleteCancel'), style: 'cancel' },
-        { key: 'delete', label: t('account.deleteConfirm'), style: 'destructive' },
-      ],
-    })
-    if (choice !== 'delete') return
+  function onDelete() {
+    setDeleteConfirm(false)
     setBusy('delete')
     deleteAccount()
       .then(() => router.replace('/(tabs)'))
@@ -270,9 +303,11 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
 
   const header = (
     <View>
-      <AppHeader onBack={() => void goBack()} backDisabled={saving} title={t('account.title')}
-        rightAction={canManage && me.data ? <PrimaryBtn label={t('account.save')} onPress={() => void save()}
-          disabled={!dirty || !valid || saving} loading={saving} /> : undefined} />
+      <AppHeader showNotifications={false} variant="sub-screen" onBack={() => void goBack()} backDisabled={saving} title={t('account.title')}
+        rightAction={canManage && me.data ? <AppHeaderAction accessibilityLabel={t('account.save')} onPress={() => void save()}
+          disabled={!dirty || !valid || saving} accessibilityState={{ busy: saving }}>
+          {saving ? <ActivityIndicator color={theme.accent.primary} /> : <Text variant="introSmall" color="redesign.primaryText">{t('account.save')}</Text>}
+        </AppHeaderAction> : undefined} />
     </View>
   )
 
@@ -303,90 +338,91 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     <Atmosphere>
       {header}
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
+        contentContainerStyle={{ paddingHorizontal: spacing[4], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
-        <Card padded={false} style={styles.card}>
+        <View style={styles.avatarBlock}>
           <View style={styles.avatarRow}>
             <View style={styles.avatarWrap}>
-              <AvatarCircle label={initial} size={80} imageUri={me.data?.avatarUrl} />
+              <Pressable accessibilityRole="button" accessibilityLabel={t('account.avatarTitle')} style={styles.avatarPhoto} disabled={(!canUpload && !me.data?.avatarUrl) || avatarStep !== null} onPress={() => setAvatarSheet(true)}>
+              <AvatarCircle label={initial} size={96} imageUri={me.data?.avatarUrl} />
+              </Pressable>
               {avatarStep ? (
                 <View style={styles.avatarOverlay} accessibilityElementsHidden>
                   <ActivityIndicator color={theme.accent.onAccent} />
                 </View>
               ) : null}
               <Pressable accessibilityRole="button" accessibilityLabel={t('account.avatarEdit')}
-                accessibilityState={{ disabled: !canUpload || avatarStep !== null, busy: avatarStep !== null }}
-                disabled={!canUpload || avatarStep !== null} onPress={() => void changeAvatar()}
-                style={({ pressed }) => [styles.avatarEdit, pressed && styles.pressed, (!canUpload || avatarStep !== null) && styles.disabled]}>
-                <MaterialIcon name="edit" size={20} color="accent.onAccent" />
+                accessibilityState={{ disabled: (!canUpload && !me.data?.avatarUrl) || avatarStep !== null, busy: avatarStep !== null }}
+                disabled={(!canUpload && !me.data?.avatarUrl) || avatarStep !== null} onPress={() => setAvatarSheet(true)}
+                style={({ pressed }) => [styles.avatarEdit, pressed && styles.pressed, ((!canUpload && !me.data?.avatarUrl) || avatarStep !== null) && styles.disabled]}>
+                <View testID="avatar-edit-badge" style={styles.avatarEditBadge}><MaterialIcon name="edit" size={16} color="accent.onAccent" /></View>
               </Pressable>
             </View>
-            <View style={styles.avatarText}>
-              <Text variant="title2" style={styles.avatarCaption}>{t('account.avatarTitle')}</Text>
-              <Text style={styles.avatarCaption} variant={!(canUpload) ? 'bodySmall' : canUpload ? 'bodySmall' : undefined} color={!(canUpload) ? 'status.warningText' : canUpload ? 'text.secondary' : undefined}>
-                {canUpload ? t('account.avatarBody') : t('account.avatarUnavailable')}
-              </Text>
-            </View>
+
           </View>
-          <View style={styles.avatarActions}>
-            {me.data?.avatarUrl ? (
-              <GhostBtn label={t('account.avatarRemove')} onPress={removePicture} disabled={avatarStep !== null} />
-            ) : null}
-          </View>
-          {avatarNotice ? (
+          {!canUpload ? <Text style={styles.avatarCaption} variant="introSmall" color="status.warningText">{t('account.avatarUnavailable')}</Text> : null}
+          {permissionSource ? <View style={styles.avatarActions}>
+            <GhostBtn label={t('account.avatarSettings')} onPress={() => { void Linking.openSettings().catch(() => setAvatarNotice(t('account.avatarFailed'))) }} />
+            <GhostBtn label={t(permissionSource === 'camera' ? 'account.avatarLibrary' : 'account.avatarCamera')} onPress={() => void changeAvatar(permissionSource === 'camera' ? 'library' : 'camera')} />
+          </View> : null}
+          {avatarNotice && !avatarEditing ? (
             <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
               {avatarNotice}
             </Text>
           ) : null}
-        </Card>
+        </View>
 
-        <Card padded={false} style={styles.card}>
-          <Text variant="label">{t('auth.displayName')}</Text>
+        <Card appearance="stitch" padded={false} style={styles.card}>
+          <View style={styles.cardHeader}><View style={styles.sectionMark} /><Text variant="savedWardTitle" accessibilityRole="header">{t('account.personalInfo')}</Text></View>
+          <Text variant="introSmall">{t('auth.displayName')}</Text>
           <Controller control={form.control} name="name" render={({ field: { value, onChange, onBlur } }) => <TextInput
             value={value} onChangeText={onChange} onBlur={onBlur} maxLength={MAX_NAME} editable={!saving}
             placeholder={t('auth.displayNamePlaceholder')} placeholderTextColor={theme.text.secondary}
             autoCapitalize="words" accessibilityLabel={t('auth.displayName')} style={styles.input} />} />
           {form.formState.errors.name ? <Text variant="bodySmall" color="status.dangerText" accessibilityRole="alert" accessibilityLiveRegion="polite">{t(form.formState.errors.name.message as MessageKey)}</Text> : null}
-          <Text variant="bodySmall" color="text.secondary">{me.data?.email ?? ''}</Text>
-        </Card>
+          {me.data?.email ? <>
+            <Text variant="introSmall">{t('account.email')}</Text>
+            <View style={styles.emailRow} accessibilityLabel={t('account.emailReadOnly')}>
+              <Text variant="introBody" color="text.secondary" selectable style={styles.emailValue}>{me.data.email}</Text>
+              <MaterialIcon name="lock" size={16} color="text.secondary" />
+              <Text variant="introCaption" color="text.secondary">{t('account.fixed')}</Text>
+            </View>
+          </> : null}
 
 
         {/* Keyed by account: a different sign-in never inherits the last one's typing. */}
-        {me.data ? <DateOfBirthCard profile={me.data} control={form.control} busy={saving}
+        {me.data ? <DateOfBirthCard embedded profile={me.data} control={form.control} busy={saving}
           error={form.formState.errors.birthday?.message as MessageKey | undefined} onClear={() => form.setValue('birthday', '', { shouldValidate: true, shouldDirty: true })} /> : null}
+        </Card>
 
-
-        <Card padded={false} style={styles.card}>
+        <Card appearance="stitch" padded={false} style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Icon name="doc" size={20} color="accent.onSoft" />
-            </View>
-            <Text variant="title2" accessibilityRole="header">{t('account.dataTitle')}</Text>
+            <View style={[styles.sectionMark, styles.neutralMark]} />
+            <Text variant="savedWardTitle" accessibilityRole="header">{t('account.dataTitle')}</Text>
           </View>
           <Text variant="bodySmall" color="text.secondary">{t('account.exportBody')}</Text>
-          <GhostBtn
+          <SecondaryBtn leadingIcon="download"
+            disabled={busy === 'export'} loading={busy === 'export'}
             label={busy === 'export' ? t('account.exporting') : t('account.export')}
             onPress={onExport}
           />
         </Card>
 
-        <Card padded={false} style={[styles.card, styles.dangerCard]}>
+        <Card appearance="stitch" padded={false} style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={styles.dangerIcon}>
-              <Icon name="alert" size={20} color="status.dangerText" />
-            </View>
-            <Text variant="title2" color="status.dangerText" accessibilityRole="header">{t('account.deleteTitle')}</Text>
+            <View style={[styles.sectionMark, styles.dangerMark]} />
+            <Text variant="savedWardTitle" color="text.secondary" accessibilityRole="header">{t('account.deleteTitle')}</Text>
           </View>
           <Text variant="bodySmall" color="text.secondary">{t('account.deleteBody')}</Text>
           <Text variant="bodySmall" color="text.secondary">{t('account.deleteKept')}</Text>
           <Pressable
-            onPress={() => void onDelete()}
+            onPress={() => setDeleteConfirm(true)}
             disabled={busy === 'delete'}
             accessibilityRole="button"
             accessibilityLabel={busy === 'delete' ? t('account.deleting') : t('account.deleteConfirm')}
             accessibilityState={{ disabled: busy === 'delete', busy: busy === 'delete' }}
-            style={styles.deleteBtn}
+            style={({ pressed }) => [styles.deleteBtn, pressed && styles.deletePressed, busy === 'delete' && styles.disabled]}
           >
             <Icon name="trash" size={18} color="status.dangerText" />
             <Text variant="label" color="status.dangerText">
@@ -401,6 +437,16 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
           </Text>
         ) : null}
       </ScrollView>
+      <ResultSheet visible={deleteConfirm} variant="warning" title={t('account.deleteTitle')}
+        body={`${t('account.deleteBody')}\n\n${t('account.deleteKept')}`} actionOrder="secondary-first"
+        primaryAction={{ label: t('account.deleteAction'), destructive: true, onPress: onDelete }}
+        secondaryAction={{ label: t('account.deleteCancel'), onPress: () => setDeleteConfirm(false) }} onClose={() => setDeleteConfirm(false)} />
+      <AvatarSourceSheet visible={avatarSheet} hasPhoto={!!me.data?.avatarUrl} canUpload={canUpload}
+        onClose={() => { pendingSource.current = null; setAvatarSheet(false) }} onClosed={sourceSheetClosed} onChoose={chooseAvatarSource} />
+      {avatarAsset ? <AvatarEditor key={avatarAsset.uri} asset={avatarAsset} visible={avatarEditing} busy={avatarStep === 'uploading'} error={avatarNotice}
+        onClose={() => { setAvatarEditing(false); setAvatarNotice(null) }}
+        onClosed={() => { if (chooseAfterEditor.current) { chooseAfterEditor.current = false; setAvatarSheet(true) } }}
+        onChooseAnother={() => { chooseAfterEditor.current = true; setAvatarEditing(false) }} onConfirm={(value, viewport) => void confirmAvatar(value, viewport)} /> : null}
       {dialog}
     </Atmosphere>
   )

@@ -115,7 +115,7 @@ describe('profile defaults card', () => {
         })}
       />,
     )
-    await press(view.getByText('Bỏ chọn'))
+    await press(view.getByText('Xoá khu vực'))
     await press(view.getByText('Không đặt'))
     expect(view.getByText('Chọn tỉnh/thành phố')).toBeTruthy()
     await press(view.getByText('Lưu mặc định'))
@@ -124,10 +124,14 @@ describe('profile defaults card', () => {
 
   it('sends the canonical province, commune and version without display labels', async () => {
     const view = await renderScreen(<ProfileDefaultsCard profile={profile()} />)
-    await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByRole('button', { name: 'Khu vực' }))
+    await press(view.getByText('Chọn Tỉnh / Thành phố'))
     await press(view.getByText('Thành phố Hà Nội'))
-    await press(view.getByText('Toàn tỉnh/thành phố'))
+    await press(view.getByText('Chọn Phường / Xã'))
     await press(view.getByText('Phường Hoàn Kiếm'))
+    expect(mockUpdate).not.toHaveBeenCalled()
+    await press(view.getByText('Xác nhận'))
+    expect(view.getByText('Phường Hoàn Kiếm, Thành phố Hà Nội')).toBeTruthy()
     await press(view.getByText('Lưu mặc định'))
     expect(mockUpdate).toHaveBeenCalledWith({ homeAdministrativeArea: { datasetVersion: 'v1', provinceCode: '01', communeCode: '00001' } })
   })
@@ -153,7 +157,8 @@ describe('profile defaults card', () => {
     mockAreas.query = failed()
     const view = await renderScreen(<ProfileDefaultsCard profile={profile()} />)
     expect(view.getByText('Không tải được danh sách sở thích.')).toBeTruthy()
-    await press(view.getByText('Chọn tỉnh/thành phố'))
+    await press(view.getByRole('button', { name: 'Khu vực' }))
+    await press(view.getByText('Chọn Tỉnh / Thành phố'))
     expect(view.getByText('Có lỗi xảy ra')).toBeTruthy()
   })
 
@@ -180,4 +185,30 @@ it.each([['vi', 'Mặc định khi tạo kèo'], ['en', 'Defaults for a new date
   } finally {
     await act(async () => { await i18n.changeLanguage('vi') })
   }
+})
+
+
+it.each(['vi', 'en'])('keeps one area row and cancels picker drafts in %s', async locale => {
+  await act(async () => { await i18n.changeLanguage(locale) })
+  try {
+    const view = await renderScreen(<ProfileDefaultsCard profile={profile()} />)
+    expect(view.getAllByRole('button', { name: i18n.t('account.areaLabel') })).toHaveLength(1)
+    expect(view.queryByText(i18n.t('account.areaClear'))).toBeNull()
+    await press(view.getByRole('button', { name: i18n.t('account.areaLabel') }))
+    expect(view.getByRole('header', { name: i18n.t('home.chooseArea') })).toBeTruthy()
+    expect(view.getByRole('button', { name: i18n.t('areaPicker.confirm') })).toBeDisabled()
+    await press(view.getByText(i18n.t('areaPicker.selectProvince')))
+    await press(view.getByText('Thành phố Hà Nội'))
+    await press(view.getAllByRole('button', { name: i18n.t('common.close') }).at(-1)!)
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(view.queryByText(i18n.t('account.areaClear'))).toBeNull()
+    await press(view.getByRole('button', { name: i18n.t('account.areaLabel') }))
+    await press(view.getByText(i18n.t('areaPicker.selectProvince')))
+    await press(view.getByText('Thành phố Hà Nội'))
+    await press(view.getByText(i18n.t('areaPicker.confirm')))
+    expect(view.getByText(i18n.t('account.wholeProvince', { province: 'Thành phố Hà Nội' }))).toBeTruthy()
+    await press(view.getByText(i18n.t('account.areaClear')))
+    await press(view.getByText(i18n.t('account.defaultsSave')))
+    expect(mockUpdate).toHaveBeenCalledWith({ homeAdministrativeArea: null })
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })

@@ -4,6 +4,14 @@ import { resolveColor, type TextColor } from './text'
 
 /** Material Symbols, 24-unit outline grid, as used in the approved redesign. */
 const paths = {
+  photoLibrary: 'M3 3h18v18H3zm2 2v12l5-5 4 4 2-2 3 3V5zm2 2h3v3H7z',
+  trash: 'M4 6h16v2h-1v14H5V8H4zm3 2v12h10V8zm2-6h6v2h5v2H4V4h5zm0 8h2v8H9zm4 0h2v8h-2z',
+  rotate: 'M12 4V1l5 4-5 4V6a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z',
+  center: 'M3 3h6v2H5v4H3zm12 0h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  flip: 'M11 2h2v20h-2zM3 5h6v14H3zm2 2v10h2V7zm10-2h2v2h-2zm4 0h2v2h-2zm0 4h2v2h-2zm0 4h2v2h-2zm0 4h2v2h-2zm-4 0h2v2h-2z',
+  minus: 'M4 11h16v2H4z',
+
+  download: 'M11 3h2v10l3-3 1.4 1.4L12 17l-5.4-5.6L8 10l3 3zM3 15h2v5h14v-5h2v7H3z',
   calendar: 'M7 2h2v2h6V2h2v2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3zM4 6v3h16V6zm0 5v9h16v-9zm2 2h3v3H6zm5 0h3v3h-3zm5 0h3v3h-3z',
   bookmarkFilled: 'M6 2h12v20l-6-3-6 3z',
   hotelClass: 'M10 3l2.5 5.1 5.6.8-4.1 4 .9 5.6-4.9-2.6-4.9 2.6.9-5.6-4.1-4 5.6-.8zm10 0 1 3 3 1-3 1-1 3-1-3-3-1 3-1zm0 12 1 2 2 1-2 1-1 2-1-2-2-1 2-1z',

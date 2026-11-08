@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Điều chỉnh ảnh đại diện - GoGo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#fff5f2',
+              100: '#ffe8e2',
+              500: '#ce391b',
+              600: '#b82f14',
+              700: '#9b240e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #CE391B;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+    }
+    input[type=range]::-moz-range-thumb {
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #CE391B;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+    }
+  </style>
+<meta content="mobile_stack" name="shell-type"/>
+</head>
+<body class="bg-black text-white antialiased min-h-screen flex justify-center selection:bg-[#ce391b]/30">
+<!-- Mobile Screen Container (Full dark photo editing mode) -->
+<div class="w-full max-w-[420px] min-h-screen bg-[#121212] flex flex-col justify-between relative overflow-hidden shadow-2xl">
+<!-- Top Header -->
+<header class="sticky top-0 z-30 bg-[#121212]/90 backdrop-blur-md px-4 pt-3.5 pb-3 border-b border-white/10 flex items-center justify-between">
+<!-- Left: Back / Close button -->
+<button aria-label="Đóng" class="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[24px]">close</span>
+</button>
+<!-- Center: Title -->
+<h1 class="text-[17px] font-bold tracking-tight text-white">Điều chỉnh ảnh đại diện</h1>
+<!-- Right: Reset Button -->
+<button aria-label="Đặt lại" class="text-[14px] font-semibold text-white/60 hover:text-white px-2 py-1.5 rounded-lg active:scale-95 transition-colors" id="reset-crop-btn" type="button">
+        Đặt lại
+      </button>
+</header>
+<!-- Main Viewport Area -->
+<main class="flex-1 flex flex-col items-center justify-center px-4 py-2 relative">
+<!-- Center Cropping Viewport Container -->
+<div class="relative w-full aspect-square max-w-[350px] mx-auto rounded-3xl overflow-hidden bg-black shadow-2xl flex items-center justify-center touch-none">
+<!-- Manipulated Image Canvas -->
+<div class="absolute inset-0 flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing" id="crop-stage">
+<div class="relative transition-transform duration-75 ease-out will-change-transform" id="image-transform-wrapper" style="transform: translate(0px, 0px) scale(1.25) rotate(0deg) scaleX(1);">
+<img alt="Ảnh đại diện căn chỉnh" class="w-80 h-80 max-w-none object-cover pointer-events-none select-none" draggable="false" id="crop-target-image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQ1JYSUrJSJWJxPXHT1IJ0KSPsLK1f4eBRW7tE0aFgFQVshJX9MJzfQ1A58yD5YOP2e8QdPKPMV4zjzvBNfdmcUUER-jTb0w0GX9PO_wCxuAUD_HYR0O3mWWUO3_EXshuSVMQIbTQRIQ9KqN2k_DrRYBzQMm9TwknPByWbNxhKLKARNZ19z0q1fJQVpMnWEVTyLqdtmDacEePoXjzBrq_ZLEVk09TMliPHT4epDZ4X"/>
+</div>
+</div>
+<!-- Circular Crop Mask & Guidelines Overlay -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" fill="none" viewbox="0 0 350 350">
+<defs>
+<mask id="avatar-crop-mask">
+<!-- Solid white blocks out background -->
+<rect fill="white" height="350" width="350"></rect>
+<!-- Black circle cuts viewport hole -->
+<circle cx="175" cy="175" fill="black" r="140"></circle>
+</mask>
+</defs>
+<!-- Translucent Dark Overlay (Outside circle) -->
+<rect fill="#000000" fill-opacity="0.68" height="350" mask="url(#avatar-crop-mask)" width="350"></rect>
+<!-- Viewport Circle Ring -->
+<circle cx="175" cy="175" r="140" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="1.75"></circle>
+<!-- Subtle Rule-of-Thirds Grid inside circular viewport -->
+<g opacity="0.32" stroke="#FFFFFF" stroke-dasharray="2 3" stroke-width="1">
+<!-- Vertical Guidelines -->
+<line x1="128.3" x2="128.3" y1="43" y2="307"></line>
+<line x1="221.7" x2="221.7" y1="43" y2="307"></line>
+<!-- Horizontal Guidelines -->
+<line x1="43" x2="307" y1="128.3" y2="128.3"></line>
+<line x1="43" x2="307" y1="221.7" y2="221.7"></line>
+</g>
+<!-- Center Crosshair Target -->
+<circle cx="175" cy="175" fill="#FFFFFF" opacity="0.75" r="2.5"></circle>
+<line opacity="0.5" stroke="#FFFFFF" stroke-width="1.2" x1="167" x2="183" y1="175" y2="175"></line>
+<line opacity="0.5" stroke="#FFFFFF" stroke-width="1.2" x1="175" x2="175" y1="167" y2="183"></line>
+</svg>
+<!-- Floating Hint Pill -->
+<div class="absolute top-3.5 inset-x-0 flex justify-center pointer-events-none">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-lg text-white/90">
+<span class="text-[12px] leading-none">🤏</span>
+<span class="text-[11.5px] font-medium tracking-tight">Kéo để căn chỉnh • Chụm để zoom</span>
+</div>
+</div>
+<!-- Live Zoom Badge Pill -->
+<div class="absolute bottom-3 right-3 pointer-events-none">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-[10.5px] font-bold text-white tracking-wide" id="zoom-badge-pill">
+            125%
+          </span>
+</div>
+</div>
+</main>
+<!-- Bottom Controls & Action Dock Container -->
+<div class="bg-[#181818] border-t border-white/10 px-4 pt-4 pb-6 flex flex-col gap-4">
+<!-- Control Panel -->
+<div class="flex flex-col gap-3.5">
+<!-- 1. Zoom Slider Module -->
+<div class="flex items-center gap-3 px-1">
+<!-- Zoom Out Icon Button -->
+<button aria-label="Thu nhỏ" class="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-90 transition-all shrink-0" id="btn-zoom-minus" type="button">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+<!-- Slider Track -->
+<div class="relative flex-1 flex items-center">
+<input aria-label="Mức thu phóng" class="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer focus:outline-none" id="crop-zoom-slider" max="250" min="100" step="1" type="range" value="125"/>
+</div>
+<!-- Zoom In Icon Button -->
+<button aria-label="Phóng to" class="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-90 transition-all shrink-0" id="btn-zoom-plus" type="button">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<!-- Badge Value Display -->
+<span class="text-xs font-bold text-white/90 bg-neutral-800/80 px-2 py-1 rounded-md min-w-[42px] text-center" id="slider-percentage-label">
+            125%
+          </span>
+</div>
+<!-- 2. Quick Adjustment Tool Icons in Row -->
+<div class="grid grid-cols-3 gap-2.5 pt-0.5">
+<!-- Rotate 90° -->
+<button class="flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-neutral-800/70 hover:bg-neutral-800 border border-white/5 active:scale-95 transition-all text-white/80 hover:text-white" id="tool-rotate-btn" type="button">
+<span class="material-symbols-outlined text-[21px] text-white">rotate_90_degrees_cw</span>
+<span class="text-[11.5px] font-semibold tracking-tight">Xoay 90°</span>
+</button>
+<!-- Re-center -->
+<button class="flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-neutral-800/70 hover:bg-neutral-800 border border-white/5 active:scale-95 transition-all text-white/80 hover:text-white" id="tool-center-btn" type="button">
+<span class="material-symbols-outlined text-[21px] text-white">filter_center_focus</span>
+<span class="text-[11.5px] font-semibold tracking-tight">Căn giữa</span>
+</button>
+<!-- Flip -->
+<button class="flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-neutral-800/70 hover:bg-neutral-800 border border-white/5 active:scale-95 transition-all text-white/80 hover:text-white" id="tool-flip-btn" type="button">
+<span class="material-symbols-outlined text-[21px] text-white">flip</span>
+<span class="text-[11.5px] font-semibold tracking-tight">Lật ngang</span>
+</button>
+</div>
+</div>
+<!-- Bottom Action Dock -->
+<div class="grid grid-cols-5 gap-2.5 pt-1">
+<!-- Secondary button: Chọn ảnh khác -->
+<button class="col-span-2 flex items-center justify-center gap-1.5 py-3.5 px-3 rounded-2xl bg-neutral-800 hover:bg-neutral-700/80 border border-white/10 text-white font-bold text-[13.5px] active:scale-[0.98] transition-all" type="button">
+<span class="material-symbols-outlined text-[18px] text-white/70">photo_library</span>
+<span class="truncate">Chọn ảnh khác</span>
+</button>
+<!-- Primary button: Dùng ảnh này -->
+<button class="col-span-3 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-[#CE391B] hover:bg-[#B82F14] text-white font-bold text-[14px] shadow-lg shadow-[#CE391B]/25 active:scale-[0.98] transition-all" id="confirm-crop-btn" type="button">
+<span class="material-symbols-outlined text-[19px]">check</span>
+<span>Dùng ảnh này</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Interactive Cropper Scripts -->
+<script>
+    (function initAvatarCropper() {
+      const transformWrapper = document.getElementById('image-transform-wrapper');
+      const stage = document.getElementById('crop-stage');
+      const slider = document.getElementById('crop-zoom-slider');
+      const label = document.getElementById('slider-percentage-label');
+      const badge = document.getElementById('zoom-badge-pill');
+      const minusBtn = document.getElementById('btn-zoom-minus');
+      const plusBtn = document.getElementById('btn-zoom-plus');
+      const rotateBtn = document.getElementById('tool-rotate-btn');
+      const centerBtn = document.getElementById('tool-center-btn');
+      const flipBtn = document.getElementById('tool-flip-btn');
+      const resetBtn = document.getElementById('reset-crop-btn');
+      const confirmBtn = document.getElementById('confirm-crop-btn');
+
+      if (!transformWrapper || !stage) return;
+
+      // State
+      let state = {
+        x: 0,
+        y: 0,
+        scale: 1.25,
+        rotation: 0,
+        flipX: 1,
+        isDragging: false,
+        startX: 0,
+        startY: 0
+      };
+
+      function updateRender() {
+        transformWrapper.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale}) rotate(${state.rotation}deg) scaleX(${state.flipX})`;
+        const pct = Math.round(state.scale * 100) + '%';
+        if (label) label.textContent = pct;
+        if (badge) badge.textContent = pct;
+        if (slider) slider.value = Math.round(state.scale * 100);
+      }
+
+      // Slider changes
+      slider?.addEventListener('input', (e) => {
+        state.scale = parseFloat(e.target.value) / 100;
+        updateRender();
+      });
+
+      // Zoom Plus / Minus
+      minusBtn?.addEventListener('click', () => {
+        state.scale = Math.max(1.0, state.scale - 0.15);
+        updateRender();
+      });
+
+      plusBtn?.addEventListener('click', () => {
+        state.scale = Math.min(2.5, state.scale + 0.15);
+        updateRender();
+      });
+
+      // Quick Tools
+      rotateBtn?.addEventListener('click', () => {
+        state.rotation = (state.rotation + 90) % 360;
+        updateRender();
+      });
+
+      flipBtn?.addEventListener('click', () => {
+        state.flipX = state.flipX === 1 ? -1 : 1;
+        updateRender();
+      });
+
+      centerBtn?.addEventListener('click', () => {
+        state.x = 0;
+        state.y = 0;
+        updateRender();
+      });
+
+      // Reset
+      resetBtn?.addEventListener('click', () => {
+        state = {
+          x: 0,
+          y: 0,
+          scale: 1.25,
+          rotation: 0,
+          flipX: 1,
+          isDragging: false,
+          startX: 0,
+          startY: 0
+        };
+        updateRender();
+      });
+
+      // Dragging support (Pointer / Touch / Mouse)
+      function onPointerDown(clientX, clientY) {
+        state.isDragging = true;
+        state.startX = clientX - state.x;
+        state.startY = clientY - state.y;
+      }
+
+      function onPointerMove(clientX, clientY) {
+        if (!state.isDragging) return;
+        state.x = clientX - state.startX;
+        state.y = clientY - state.startY;
+        state.x = Math.max(-130, Math.min(130, state.x));
+        state.y = Math.max(-130, Math.min(130, state.y));
+        updateRender();
+      }
+
+      function onPointerUp() {
+        state.isDragging = false;
+      }
+
+      stage.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        onPointerDown(e.clientX, e.clientY);
+      });
+      window.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
+      window.addEventListener('mouseup', onPointerUp);
+
+      stage.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          onPointerDown(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1) {
+          onPointerMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchend', onPointerUp);
+
+      // Confirm feedback
+      confirmBtn?.addEventListener('click', () => {
+        const originalContent = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = `
+          <span class="material-symbols-outlined text-[19px] animate-spin">sync</span>
+          <span>Đang lưu...</span>
+        `;
+        setTimeout(() => {
+          confirmBtn.innerHTML = `
+            <span class="material-symbols-outlined text-[19px]">check_circle</span>
+            <span>Đã cập nhật!</span>
+          `;
+          setTimeout(() => {
+            confirmBtn.innerHTML = originalContent;
+          }, 1500);
+        }, 500);
+      });
+
+      updateRender();
+    })();
+  </script>
+</body></html>

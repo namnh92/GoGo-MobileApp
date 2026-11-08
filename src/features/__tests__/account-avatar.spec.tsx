@@ -1,8 +1,10 @@
 jest.mock('@/shared/administrative/queries', () => ({ useAdministrativeVersion: () => ({ data: { datasetVersion: 'v1' } }) }))
 jest.mock('@/shared/administrative/administrative-picker.view', () => ({ AdministrativePicker: () => null }))
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
+import { StyleSheet } from 'react-native'
+import i18n from '@/shared/i18n'
 
 /**
  * PROF-APP-002 (#177), ADR-0022 — the avatar control on the account screen.
@@ -22,16 +24,20 @@ const mockUpload = jest.fn()
 const mockSetAvatar = jest.fn()
 const mockRemoveAvatar = jest.fn()
 const mockPick = jest.fn()
+const mockDelete = jest.fn()
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
 }))
 
 jest.mock('@/shared/providers/session-provider', () => ({
-  useSession: () => ({ status: 'user', deleteAccount: jest.fn() }),
+  useSession: () => ({ status: 'user', deleteAccount: mockDelete }),
 }))
 
-jest.mock('@/shared/media/pick-avatar', () => ({ pickAvatar: () => mockPick() }))
+jest.mock('@/shared/media/pick-avatar', () => ({
+  selectAvatar: (source: string) => mockPick(source),
+  cropAvatar: jest.fn(async () => ({ uri: 'file:///a.jpg', mimeType: 'image/jpeg' })),
+}))
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -71,6 +77,7 @@ beforeEach(() => {
   mockSetAvatar.mockReset()
   mockRemoveAvatar.mockReset()
   mockPick.mockReset()
+  mockDelete.mockReset().mockResolvedValue(undefined)
 })
 
 describe('account screen layout (#297)', () => {
@@ -94,14 +101,14 @@ describe('account avatar', () => {
   })
 
   it('picks, uploads for the avatar purpose, attaches, and says so', async () => {
-    mockPick.mockResolvedValue({ status: 'picked', image: { uri: 'file:///a.jpg', mimeType: 'image/jpeg' } })
+    mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///a.jpg', width: 800, height: 600 } })
     mockUpload.mockResolvedValue('tmp/avatars/u1/k.jpg')
     mockSetAvatar.mockResolvedValue(profile({ avatarUrl: 'https://assets-test.local/avatars/x.webp' }))
     const view = await renderScreen(<AccountScreen />)
 
-    await act(async () => {
-      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
-    })
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    await fireEvent.press(await view.findByText('Dùng ảnh này'))
 
     expect(mockUpload).toHaveBeenCalledWith({
       image: { uri: 'file:///a.jpg', mimeType: 'image/jpeg' },
@@ -112,28 +119,28 @@ describe('account avatar', () => {
   })
 
   it('tells the person to pick another image when the server cannot read this one', async () => {
-    mockPick.mockResolvedValue({ status: 'picked', image: { uri: 'file:///a.jpg', mimeType: 'image/jpeg' } })
+    mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///a.jpg', width: 800, height: 600 } })
     mockUpload.mockResolvedValue('tmp/avatars/u1/k.jpg')
     mockSetAvatar.mockRejectedValue(
       new ApiError(422, { code: 'AVATAR_UNPROCESSABLE', message: 'The image could not be read' }),
     )
     const view = await renderScreen(<AccountScreen />)
-    await act(async () => {
-      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
-    })
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    await fireEvent.press(await view.findByText('Dùng ảnh này'))
     expect(await view.findByText('Ảnh không đọc được. Chọn ảnh khác nhé.')).toBeTruthy()
   })
 
   it('says the server is busy for a retryable refusal, and never shows a local preview as saved', async () => {
-    mockPick.mockResolvedValue({ status: 'picked', image: { uri: 'file:///a.jpg', mimeType: 'image/jpeg' } })
+    mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///a.jpg', width: 800, height: 600 } })
     mockUpload.mockResolvedValue('tmp/avatars/u1/k.jpg')
     mockSetAvatar.mockRejectedValue(
       new ApiError(503, { code: 'AVATAR_BUSY', message: 'busy', retryable: true }),
     )
     const view = await renderScreen(<AccountScreen />)
-    await act(async () => {
-      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
-    })
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    await fireEvent.press(await view.findByText('Dùng ảnh này'))
     expect(await view.findByText('Máy chủ đang bận. Thử lại sau ít phút.')).toBeTruthy()
     expect(view.queryByTestId('avatar-image')).toBeNull()
   })
@@ -141,35 +148,94 @@ describe('account avatar', () => {
   it('names the missing permission and uploads nothing', async () => {
     mockPick.mockResolvedValue({ status: 'denied' })
     const view = await renderScreen(<AccountScreen />)
-    await act(async () => {
-      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
-    })
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    if (view.queryByText('Dùng ảnh này')) await fireEvent.press(view.getByText('Dùng ảnh này'))
     expect(await view.findByText(/Chưa có quyền truy cập ảnh/)).toBeTruthy()
     expect(mockUpload).not.toHaveBeenCalled()
   })
 
-  it('refuses a format it cannot convert before any bytes move', async () => {
-    mockPick.mockResolvedValue({ status: 'unsupported' })
+  it('offers permission fallback without uploading when the library is unavailable', async () => {
+    mockPick.mockResolvedValue({ status: 'unavailable' })
     const view = await renderScreen(<AccountScreen />)
-    await act(async () => {
-      await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
-    })
-    expect(await view.findByText(/Chọn ảnh JPG hoặc PNG/)).toBeTruthy()
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
+    if (view.queryByText('Dùng ảnh này')) await fireEvent.press(view.getByText('Dùng ảnh này'))
+    expect(await view.findByText(/Chưa có quyền truy cập ảnh/)).toBeTruthy()
     expect(mockUpload).not.toHaveBeenCalled()
   })
 
   it('offers removal only when there is a picture, and removes on the server', async () => {
     const plain = await renderScreen(<AccountScreen />)
+    await fireEvent.press(plain.getByLabelText('Đổi ảnh đại diện'))
     expect(plain.queryByText('Gỡ ảnh')).toBeNull()
     await plain.unmount()
 
     mockMe.query = loaded(profile({ avatarUrl: 'https://assets-test.local/avatars/x.webp' }))
     mockRemoveAvatar.mockResolvedValue(profile())
     const view = await renderScreen(<AccountScreen />)
-    await act(async () => {
-      await fireEvent.press(view.getByText('Gỡ ảnh'))
-    })
-    expect(mockRemoveAvatar).toHaveBeenCalledTimes(1)
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: 'Gỡ ảnh' }))
+    await waitFor(() => expect(mockRemoveAvatar).toHaveBeenCalledTimes(1))
     expect(await view.findByText('✓ Đã gỡ ảnh')).toBeTruthy()
   })
+})
+
+
+it.each([['vi', 'Xác nhận'], ['en', 'Confirm']])('%s deletion confirmation keeps its warning and puts cancel left on one equal-width row', async (language, confirm) => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  const view = await renderScreen(<AccountScreen />)
+  const open = () => fireEvent.press(view.getByRole('button', { name: i18n.t('account.deleteConfirm') }))
+  await open()
+  expect(mockDelete).not.toHaveBeenCalled()
+  const sheet = within(view.getByTestId('result-sheet'))
+  expect(sheet.getByText(`${i18n.t('account.deleteBody')}\n\n${i18n.t('account.deleteKept')}`)).toBeTruthy()
+  const left = sheet.getByRole('button', { name: i18n.t('account.deleteCancel') })
+  const right = sheet.getByRole('button', { name: confirm })
+  expect(left.parent).toBe(right.parent)
+  expect(StyleSheet.flatten(left.parent!.props.style).flexDirection).toBe('row')
+  expect(left.parent!.children.indexOf(left)).toBeLessThan(left.parent!.children.indexOf(right))
+  for (const button of [left, right]) expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+  expect(within(right).getByText(confirm).props.numberOfLines).toBeUndefined()
+  await fireEvent.press(left)
+  expect(mockDelete).not.toHaveBeenCalled()
+  await open()
+  await fireEvent.press(within(view.getByTestId('result-sheet')).getByRole('button', { name: confirm }))
+  expect(mockDelete).toHaveBeenCalledTimes(1)
+  await act(async () => { await i18n.changeLanguage('vi') })
+})
+
+it.each(['vi', 'en'])('%s opens localized source actions only on demand and cancels without selecting', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  const view = await renderScreen(<AccountScreen />)
+  expect(view.queryByTestId('avatar-source-sheet')).toBeNull()
+  await fireEvent.press(view.getByLabelText(i18n.t('account.avatarEdit')))
+  const sheet = within(await view.findByTestId('avatar-source-sheet'))
+  expect(sheet.getByRole('button', { name: i18n.t('account.avatarCamera') })).toBeTruthy()
+  expect(sheet.getByRole('button', { name: i18n.t('account.avatarLibrary') })).toBeTruthy()
+  expect(sheet.queryByRole('button', { name: i18n.t('account.avatarRemove') })).toBeNull()
+  expect(mockPick).not.toHaveBeenCalled()
+  await fireEvent.press(sheet.getByRole('button', { name: i18n.t('common.cancel') }))
+  expect(mockPick).not.toHaveBeenCalled()
+  expect(mockUpload).not.toHaveBeenCalled()
+  await act(async () => { await i18n.changeLanguage('vi') })
+})
+
+it('defers upload until crop confirmation, preserves the old avatar on cancel, and can choose again', async () => {
+  mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///draft.jpg', width: 800, height: 600 } })
+  mockMe.query = loaded(profile({ avatarUrl: 'https://assets-test.local/old.webp' }))
+  const view = await renderScreen(<AccountScreen />)
+  await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+  await fireEvent.press(await view.findByRole('button', { name: 'Chụp ảnh' }))
+  expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+  expect(mockPick).toHaveBeenCalledWith('camera')
+  expect(mockUpload).not.toHaveBeenCalled()
+  await fireEvent.press(view.getByRole('button', { name: 'Chọn ảnh khác' }))
+  expect(await view.findByTestId('avatar-source-sheet')).toBeTruthy()
+  await fireEvent.press(view.getByRole('button', { name: 'Chọn từ thư viện' }))
+  expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+  await fireEvent.press(view.getByRole('button', { name: 'Đóng' }))
+  expect(mockUpload).not.toHaveBeenCalled()
+  expect(mockSetAvatar).not.toHaveBeenCalled()
+  expect(view.getByTestId('avatar-image').props.source).toEqual([{ uri: 'https://assets-test.local/old.webp' }])
 })

@@ -68,6 +68,21 @@ it('omits the bell and unread dot in a sheet while retaining local actions', asy
   expect(mockPush).not.toHaveBeenCalled()
 })
 
+it.each([0, 12])('omits profile notification navigation with %s unread items and retains back/save', async count => {
+  mockUnread = { count, more: count > 0 }
+  const back = jest.fn()
+  const save = jest.fn()
+  await render(<AppHeader showNotifications={false} title={i18n.t('account.title')} onBack={back}
+    rightAction={<AppHeaderAction accessibilityLabel="Save" onPress={save}><MaterialIcon name="check" /></AppHeaderAction>} />)
+  expect(screen.queryByTestId('app-header-bell')).toBeNull()
+  expect(screen.queryByTestId('app-header-unread-dot')).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: i18n.t('common.back') }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Save' }))
+  expect(back).toHaveBeenCalledTimes(1)
+  expect(save).toHaveBeenCalledTimes(1)
+  expect(mockPush).not.toHaveBeenCalled()
+})
+
 it('honors disabled back and modal-owned safe area', async () => {
   const back = jest.fn()
   await render(<AppHeader title="Title" safeArea={false} onBack={back} backDisabled />)

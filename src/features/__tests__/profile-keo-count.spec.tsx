@@ -136,7 +136,7 @@ it('does not carry an open confirmation across account switches', async () => {
   await view.rerender(<ProfileScreen />)
   mockSession.status = 'user'
   await view.rerender(<ProfileScreen />)
-  expect(screen.queryByText('Xác nhận đăng xuất')).toBeNull()
+  expect(screen.queryByText('Xác nhận')).toBeNull()
   expect(mockSignOut).not.toHaveBeenCalled()
 })
 
@@ -205,4 +205,28 @@ it.each(['orange', 'orangeDark'] as const)('balances four tiles in one row with 
     await act(async () => { await i18n.changeLanguage('vi') })
     UnistylesSheet.configure({ themes })
   }
+})
+
+
+it.each([
+  ['vi', 'Đăng xuất tài khoản', 'Phiên trên thiết bị này sẽ kết thúc.', 'Huỷ', 'Xác nhận'],
+  ['en', 'Sign out of account', 'Your session on this device will end.', 'Cancel', 'Confirm'],
+])('renders %s logout copy with cancel left and confirmation right on one row', async (language, open, body, cancel, confirm) => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  await render(<ProfileScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: open }))
+  expect(screen.getByText(body)).toBeTruthy()
+  const left = screen.getByRole('button', { name: cancel })
+  const right = screen.getByRole('button', { name: confirm })
+  expect(left.parent).toBe(right.parent)
+  expect(StyleSheet.flatten(left.parent!.props.style).flexDirection).toBe('row')
+  expect(left.parent!.children.indexOf(left)).toBeLessThan(left.parent!.children.indexOf(right))
+  for (const button of [left, right]) expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+  expect(screen.getByText(confirm).props.numberOfLines).toBeUndefined()
+  await fireEvent.press(left)
+  expect(mockSignOut).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: open }))
+  await fireEvent.press(screen.getByRole('button', { name: confirm }))
+  expect(mockSignOut).toHaveBeenCalledTimes(1)
+  await act(async () => { await i18n.changeLanguage('vi') })
 })

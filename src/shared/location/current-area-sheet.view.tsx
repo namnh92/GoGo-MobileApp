@@ -3,18 +3,22 @@ import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
-import { IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { Sheet } from '@/shared/ui/sheet.view'
+import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
+import type { AdministrativeSelection } from '@/shared/administrative/snapshot'
 import { useAppAreaStore } from './app-area'
 import { styles } from './current-area-sheet.style'
 
-/** One public picker for the persisted app-wide area, including guest sessions. */
-export function CurrentAreaSheet({ visible, onClose, onApplied }: { visible: boolean; onClose: () => void; onApplied: () => void }) {
+/** Shared #524 picker. A controlled selection edits a caller draft without changing the app-wide area. */
+export function CurrentAreaSheet({ visible, onClose, onApplied, selection }: { visible: boolean; onClose: () => void; onApplied: () => void; selection?: { value: AdministrativeSelection | null; onApply: (value: AdministrativeSelection) => void } }) {
   const { t } = useTranslation()
   const location = useCurrentLocation()
-  const { area, setArea } = useAppAreaStore()
+  const appArea = useAppAreaStore()
+  const area = selection ? selection.value : appArea.area
+  const setArea = appArea.setArea
   const [valid, setValid] = useState(false)
   const [choosing, setChoosing] = useState(false)
   const [draftArea, setDraftArea] = useState(area)
@@ -38,22 +42,21 @@ export function CurrentAreaSheet({ visible, onClose, onApplied }: { visible: boo
   }
   function confirm() {
     if (!draftArea || !valid) return
-    setArea(draftArea)
+    if (selection) selection.onApply(draftArea)
+    else setArea(draftArea)
     onApplied()
     onClose()
   }
   return <Sheet swipeToClose appearance="discovery" visible={visible} onClose={onClose} testID="discovery-location-sheet"
     size={choosing ? 'full' : 'content'} scroll={false}
     footer={!choosing ? <View style={styles.footer}>
-      <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} style={styles.clear} onPress={() => { setDraftArea(null); setArea(null) }} />
-      <PrimaryBtn variant="area" label={t('areaPicker.confirm')} style={styles.confirm} disabled={!draftArea || !valid || location.state.status === 'asking'} onPress={confirm} />
+      {!selection ? <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} style={styles.clear} onPress={() => { setDraftArea(null); setArea(null) }} /> : null}
+      <PrimaryBtn variant="area" label={t('areaPicker.confirm')} style={styles.confirm} disabled={!draftArea || !valid || (!selection && location.state.status === 'asking')} onPress={confirm} />
     </View> : undefined}
-    header={!choosing ? <View style={styles.header}>
-      <Text variant="introSection">{t('home.chooseArea')}</Text>
-      <IconBtn accessibilityLabel={t('common.close')} onPress={onClose} style={styles.close}><MaterialIcon name="close" /></IconBtn>
-    </View> : undefined}>
+    header={!choosing ? <AppHeader variant="sheet" safeArea={false} title={t('home.chooseArea')}
+      rightAction={<AppHeaderAction accessibilityLabel={t('common.close')} onPress={onClose}><MaterialIcon name="close" /></AppHeaderAction>} /> : undefined}>
     <View style={choosing ? styles.list : styles.content}>
-      {!choosing ? <>
+      {!choosing && !selection ? <>
         <SecondaryBtn variant="area" leadingIcon="location" label={t('home.useLocation')} onPress={() => void requestDeviceLocation()} loading={location.state.status === 'asking'} />
         {location.state.status === 'denied' || location.state.status === 'unavailable' ? <Text accessibilityLiveRegion="polite" color="text.secondary">{t(location.state.status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable')}</Text> : null}
       </> : null}

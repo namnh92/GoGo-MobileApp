@@ -11,6 +11,8 @@ import { styles } from './app-header.style'
 export type AppHeaderProps = {
   /** Sheets/modals retain local actions and omit notification navigation. */
   variant?: 'tab-root' | 'sub-screen' | 'sheet'
+  /** Profile sub-screens omit inbox navigation while keeping local actions. */
+  showNotifications?: boolean
   title: string
   subtitle?: string
   subtitleTone?: 'default' | 'danger'
@@ -30,11 +32,11 @@ export type AppHeaderProps = {
 }
 
 /** The only application navigation bar. Screen titles are localized by callers. */
-export function AppHeader({ variant = 'sub-screen', title, subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
+export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" size={24} /></AppHeaderAction> : null
-  const actions = <>{rightAction}{variant !== 'sheet' ? <HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /> : null}</>
+  const actions = <>{rightAction}{variant !== 'sheet' && showNotifications ? <HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /> : null}</>
   return <View testID={testID} style={[styles.root, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <View style={[styles.row, variant !== 'tab-root' && styles.subScreenRow]}>
       {back}{leading}
