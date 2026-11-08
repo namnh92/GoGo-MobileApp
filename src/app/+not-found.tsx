@@ -1,1 +1,5 @@
-export { default } from '@/features/deep-link/not-found.view'
+import { Redirect } from 'expo-router'
+
+export default function NotFoundRoute() {
+  return <Redirect href="/(tabs)" />
+}

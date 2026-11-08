@@ -812,8 +812,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'shareLink.unsupportedBody': 'Update GoGo, then open the link again.',
   'shareLink.retry': 'Try again',
   'shareLink.goHome': 'Go to home',
-  'notFound.title': 'Page not found',
-  'notFound.body': 'This address is not part of GoGo, or it has changed.',
   'joinByCode.title': 'Join with a code',
   'joinByCode.body': 'Enter the invite code you were given. With a link, just open it instead.',
   'joinByCode.codeLabel': 'Invite code',
