@@ -10,6 +10,7 @@ import {
 } from '@/shared/api'
 import type { OutgoingMessage } from '@/shared/store/assistantDraftStore'
 import { Text } from '@/shared/ui/text'
+import { Skeleton } from '@/shared/ui/skeleton.view'
 
 import { plainAnswer } from './answer-text'
 import { AssistantReply, type ReplyActions } from './assistant-reply.view'
@@ -105,8 +106,9 @@ export function Conversation({
 
   if (conversationId && query.isPending && outgoing.length === 0) {
     return (
-      <View style={styles.center} accessibilityRole="progressbar" accessibilityLabel={t('assistant.loading')}>
-        <ActivityIndicator />
+      <View testID="assistant-conversation-loading" style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={t('assistant.loading')}>
+        <View style={styles.loadingQuestion}><Skeleton width="100%" height={80} /></View>
+        <View style={styles.loadingAnswer}><Skeleton width={28} height={28} /><View style={styles.loadingCopy}><Skeleton width="90%" height={16} /><Skeleton width="100%" height={16} /><Skeleton width="70%" height={16} /></View></View>
         <Text variant="bodySmall" color="text.secondary">{t('assistant.loading')}</Text>
       </View>
     )
@@ -142,6 +144,7 @@ export function Conversation({
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       contentContainerStyle={styles.thread}
+      ListEmptyComponent={<StateNotice kind="empty" icon="assistant" title={t('assistant.conversation.empty.title')} body={t('assistant.conversation.empty.body')} />}
       ListHeaderComponent={footer ? <View style={styles.footer}>{footer}</View> : null}
       ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.older} /> : null}
       onEndReached={() => {

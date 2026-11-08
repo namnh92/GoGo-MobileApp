@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native'
 
-import { Icon, IconArrowRight, type IconName } from '@/shared/ui/icons'
+import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './suggestion-card.style'
@@ -30,16 +30,18 @@ export function SuggestionCard({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed, disabled && styles.cardDisabled]}
+      style={[styles.card, disabled && styles.cardDisabled]}
     >
       <View style={styles.tile}>
         <Icon name={icon} size={22} color="accent.onSoft" />
       </View>
       <View style={styles.text}>
-        <Text variant="title2" numberOfLines={2}>{title}</Text>
+        <View style={styles.heading}>
+          <Text variant="title2" numberOfLines={2} style={styles.title}>{title}</Text>
+          <Icon name="arrowRight" size={20} color={disabled ? 'text.secondary' : 'text.primary'} />
+        </View>
         <Text variant="bodySmall" color="text.secondary" numberOfLines={2}>{description}</Text>
       </View>
-      <IconArrowRight color={disabled ? 'text.secondary' : 'text.primary'} />
     </Pressable>
   )
 }

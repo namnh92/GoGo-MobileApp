@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 
 import { Text } from '@/shared/ui/text'
+import { Icon } from '@/shared/ui/icons'
 
 import { AssistantAvatar } from './assistant-avatar.view'
 import { FollowUps } from './follow-ups.view'
@@ -61,14 +62,16 @@ export function Welcome({
   return (
     <ScrollView testID="assistant-welcome" contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       <View style={styles.hero}>
-        <AssistantAvatar size="lg" />
-        <Text variant="display" accessibilityRole="header" style={styles.centered}>{t('assistant.greeting')}</Text>
+        <View style={styles.avatar}><AssistantAvatar size="lg" inverted /></View>
+        <Text variant="display" accessibilityRole="header" style={styles.centered}>{t('assistant.coachmark.title')}</Text>
         <Text variant="body" color="text.secondary" style={styles.centered}>{t('assistant.welcome.body')}</Text>
       </View>
       {notice ? <View testID="assistant-welcome-notice">{notice}</View> : null}
-      <Text variant="label" color="text.secondary" accessibilityRole="header" style={styles.sectionLabel}>
-        {t('assistant.welcome.tryAsking')}
-      </Text>
+      <View style={styles.section}>
+        <Icon name="compass" size={20} color="accent.primary" />
+        <Text variant="title2" accessibilityRole="header" style={styles.sectionTitle}>{t('assistant.welcome.helpTitle')}</Text>
+        <Text variant="caption" color="text.secondary">{t('assistant.welcome.tapHint')}</Text>
+      </View>
       <View style={styles.list}>
         {cards.map(card => (
           <SuggestionCard key={card.title} {...card} disabled={disabled} onPress={() => onAsk(card.title)} />

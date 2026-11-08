@@ -120,7 +120,7 @@ describe('shared address and rating behavior', () => {
     expect(line).toHaveTextContent(expected, { exact: true })
     expect(line.props.numberOfLines).toBe(2)
     expect(line.props.accessibilityLabel).toBe(expected)
-    expect(flat('place-card-meta')).toMatchObject({ ...type.introSmall, color: themes.orange.redesign.secondary })
+    expect(flat('place-card-meta')).toMatchObject({ ...type.introSmall, color: themes.orange.text.secondary })
   })
 
   it('omits the address line without either fact instead of using the chip or area key', async () => {

@@ -1,7 +1,7 @@
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, SectionList, View } from 'react-native'
+import { Pressable, SectionList, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
@@ -15,6 +15,7 @@ import { GhostBtn, PrimaryBtn } from '@/shared/ui/button.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { Icon } from '@/shared/ui/icons'
 import { SearchField } from '@/shared/ui/search-field.view'
+import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
 import { useToast } from '@/shared/ui/toast.view'
@@ -125,12 +126,15 @@ export function History({
       accessibilityRole="button"
       accessibilityLabel={t('assistant.newChat')}
       onPress={onNewChat}
-      style={({ pressed }) => [styles.newChat, pressed && styles.newChatPressed]}
+      style={styles.newChat}
     >
       <View style={styles.newChatTile}>
         <Icon name="sparkle" size={22} color="accent.onAccent" />
       </View>
-      <Text variant="title2" numberOfLines={1} style={styles.newChatLabel}>{t('assistant.newChat')}</Text>
+      <View style={styles.newChatLabel}>
+        <Text variant="title2" numberOfLines={1}>{t('assistant.newChat')}</Text>
+        <Text variant="bodySmall" color="text.secondary" numberOfLines={1}>{t('assistant.welcome.body')}</Text>
+      </View>
       <View style={styles.newChatPlus}>
         <Icon name="plus" size={20} color="text.primary" />
       </View>
@@ -140,8 +144,11 @@ export function History({
   let body: React.ReactNode
   if (list.isPending) {
     body = (
-      <View style={styles.center} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}>
-        <ActivityIndicator />
+      <View testID="assistant-history-loading" style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}>
+        {[0, 1, 2].map(key => <View key={key} style={styles.loadingRow}>
+          <Skeleton width={44} height={44} />
+          <View style={styles.newChatLabel}><Skeleton width="85%" height={20} /><Skeleton width="65%" height={16} /></View>
+        </View>)}
       </View>
     )
   } else if (list.isError && items.length === 0) {
@@ -291,7 +298,7 @@ function MenuRow({ icon, label, onPress, danger = false }: { icon: 'newChat' | '
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
+      style={styles.menuRow}
     >
       <Icon name={icon} size={20} color={danger ? 'status.dangerText' : 'text.primary'} />
       <Text variant="body" color={danger ? 'status.dangerText' : 'text.primary'}>{label}</Text>

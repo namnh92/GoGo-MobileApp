@@ -42,10 +42,10 @@ export function AppHeader({ variant = 'sub-screen', showNotifications = true, ti
       {back}{leading}
       <View style={styles.identity}>
         <View style={variant === 'tab-root' ? styles.brandRow : undefined}>
-          {variant === 'tab-root' ? <><Text variant="discoveryHeading" color="redesign.primaryText">{t('splash.brand')}</Text><Text variant="introSmall" color="redesign.secondary">·</Text></> : null}
-          <Text variant="introHeading" color="redesign.ink" accessibilityRole="header" style={styles.title}>{title}</Text>
+          {variant === 'tab-root' ? <><Text variant="discoveryHeading" color="accent.primary">{t('splash.brand')}</Text><Text variant="introSmall" color="text.secondary">·</Text></> : null}
+          <Text variant="introHeading" color="text.primary" accessibilityRole="header" style={styles.title}>{title}</Text>
         </View>
-        {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'redesign.secondary'} style={styles.subtitle}>{subtitle}</Text> : null}
+        {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'text.secondary'} style={styles.subtitle}>{subtitle}</Text> : null}
         {titleAccessory}
       </View>
       <View style={styles.actions}>{actions}</View>

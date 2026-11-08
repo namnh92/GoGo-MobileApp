@@ -8,7 +8,7 @@ import { touchTarget } from '@/shared/ui/tokens'
  * lines of `body` (5 × 21) and then scrolls inside.
  */
 export const styles = StyleSheet.create(theme => ({
-  bar: { paddingHorizontal: theme.spacing[3], paddingTop: theme.spacing[3], gap: theme.spacing[2] },
+  bar: { paddingHorizontal: theme.spacing[3], paddingTop: theme.spacing[2], gap: theme.spacing[2], borderTopWidth: 1, borderTopColor: theme.border.hairline },
   context: { paddingHorizontal: theme.spacing[2] },
   images: { flexDirection: 'row', gap: theme.spacing[2], paddingHorizontal: theme.spacing[2] },
   image: { width: 56, height: 56, borderRadius: theme.radius.compact, overflow: 'hidden', backgroundColor: theme.surface.subtle },
@@ -34,7 +34,6 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     backgroundColor: theme.surface.card,
   },
-  removeBtnPressed: { backgroundColor: theme.surface.subtle },
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing[2] },
   round: {
     width: touchTarget.min,
@@ -43,7 +42,6 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roundPressed: { backgroundColor: theme.surface.subtle },
   field: {
     flex: 1,
     flexDirection: 'row',
@@ -78,7 +76,6 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.accent.primary,
     ...theme.shadows.cta,
   },
-  sendPressed: { backgroundColor: theme.accent.pressed },
   sendDisabled: { backgroundColor: theme.surface.subtle, shadowOpacity: 0, elevation: 0 },
   stop: {
     width: touchTarget.min,
@@ -88,6 +85,5 @@ export const styles = StyleSheet.create(theme => ({
     justifyContent: 'center',
     backgroundColor: theme.text.primary,
   },
-  stopPressed: { backgroundColor: theme.text.secondary },
   hint: { textAlign: 'center', paddingHorizontal: theme.spacing[4] },
 }))

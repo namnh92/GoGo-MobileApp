@@ -36,7 +36,7 @@ beforeEach(() => {
 it('greets with the fixed copy and four starting points', async () => {
   installBackend()
   const view = await renderAssistant(<AssistantRoute />)
-  expect(view.getByText('Chào bạn! GoGo có thể giúp gì cho bạn hôm nay?')).toBeTruthy()
+  expect(view.getByText('Làm quen với GoGo AI')).toBeTruthy()
   expect(view.getByText('Hỏi về địa điểm, kế hoạch và phòng, hoặc cách mọi thứ trong GoGo hoạt động.')).toBeTruthy()
   for (const title of ['Khám phá GoGo', 'Cách dùng GoGo', 'Tìm thông tin', 'Nhận hỗ trợ']) {
     expect(view.getByRole('button', { name: new RegExp(`^${title}\\.`) })).toBeTruthy()

@@ -6,20 +6,14 @@ import { Icon, type IconName } from '@/shared/ui/icons'
 
 import { AssistantAvatar } from './assistant-avatar.view'
 
-/**
- * The top bar of GoGo AI (design `AssistantHeader`, GoGo-MobileApp#379/#378).
- * Opened over the app it leads with Close (×); History leads with Back. Then
- * the avatar and "GoGo AI" with its subtitle, and at most two trailing
- * actions: New chat and History in a conversation, History on Welcome, a
- * custom one (History's "New chat") through `trailing`.
- */
+/** Shared left-title sub header; the back arrow retains the existing close action. */
 export function AssistantHeader({
   onClose,
   onBack,
   title,
   subtitle,
   offline = false,
-  avatar = true,
+  avatar = false,
   onHistory,
   onNewChat,
   trailing,
@@ -37,10 +31,9 @@ export function AssistantHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <AppHeader variant="sheet" safeArea={false} title={title ?? t('assistant.name')} subtitle={subtitle} subtitleTone={offline ? 'danger' : 'default'}
-      onBack={onBack} backLabel={t('assistant.history.back')} backTestID="assistant-back"
+    <AppHeader variant="sub-screen" showNotifications={false} safeArea={false} title={title ?? t('assistant.name')} subtitle={subtitle} subtitleTone={offline ? 'danger' : 'default'}
+      onBack={onBack ?? onClose} backLabel={t(onBack ? 'assistant.history.back' : 'assistant.close')} backTestID={onBack ? 'assistant-back' : 'assistant-close'}
       leading={<>
-        {onClose ? <HeaderButton testID="assistant-close" icon="x" label={t('assistant.close')} onPress={onClose} /> : null}
         {avatar ? <AssistantAvatar size="md" /> : null}
       </>}
       rightAction={<>

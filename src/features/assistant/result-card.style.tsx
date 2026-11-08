@@ -2,6 +2,8 @@ import { StyleSheet } from 'react-native-unistyles'
 
 /** Solid card (#295): `radius-card`, `shadow-card`, `space-4` inside. */
 export const styles = StyleSheet.create(theme => ({
+  place: { borderRadius: theme.radius.card, backgroundColor: theme.surface.card, overflow: 'hidden', ...theme.shadows.card },
+  placeAction: { padding: theme.spacing[4], paddingTop: 0 },
   card: {
     gap: theme.spacing[3],
     padding: theme.spacing[4],

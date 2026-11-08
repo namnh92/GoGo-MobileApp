@@ -58,8 +58,10 @@ function violations(file: string, source: string) {
         const inProfile = profileHeaders.some(screen => file.endsWith(`${screen}.view.tsx`))
         const notifications = props.find(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'showNotifications')
         if (inProfile && (!notifications || !ts.isJsxAttribute(notifications) || !notifications.initializer || !ts.isJsxExpression(notifications.initializer) || notifications.initializer.expression?.kind !== ts.SyntaxKind.FalseKeyword)) errors.push('profile header must omit notification navigation')
-        const inSheet = file.endsWith('assistant/assistant-header.view.tsx') || file.endsWith('administrative/administrative-picker.view.tsx')
+        const inAssistant = file.endsWith('assistant/assistant-header.view.tsx')
+        const inSheet = file.endsWith('administrative/administrative-picker.view.tsx')
         const variant = props.find(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'variant')
+        if (inAssistant && (!variant || !ts.isJsxAttribute(variant) || !variant.initializer || !ts.isStringLiteral(variant.initializer) || variant.initializer.text !== 'sub-screen' || !notifications || !ts.isJsxAttribute(notifications) || !notifications.initializer || !ts.isJsxExpression(notifications.initializer) || notifications.initializer.expression?.kind !== ts.SyntaxKind.FalseKeyword)) errors.push('assistant sub-screen header must omit notification navigation')
         if (inSheet && (!variant || !ts.isJsxAttribute(variant) || !variant.initializer || !ts.isStringLiteral(variant.initializer) || variant.initializer.text !== 'sheet')) errors.push('sheet header must omit notification navigation')
       }
       // Exempt only the measured intro controls, never the entire feature file.
@@ -112,7 +114,7 @@ describe('application header ownership', () => {
   it.each([
     resolve(src, 'shared/administrative/administrative-picker.view.tsx'),
     resolve(features, 'assistant/assistant-header.view.tsx'),
-  ])('%s enforces the sheet variant for every header, including embedded pickers', file => {
+  ])('%s enforces its variant and excludes notification navigation', file => {
     const source = readFileSync(file, 'utf8')
     expect(owns(source, 'AppHeader')).toBe(true)
     expect(violations(file, source)).toEqual([])
@@ -129,11 +131,16 @@ describe('application header ownership', () => {
   })
   it('rejects sheet navigation and per-screen title alignment overrides', () => {
     const source = 'const x = <AppHeader title="T" />'
-    for (const file of ['assistant/assistant-header.view.tsx', 'administrative/administrative-picker.view.tsx']) {
+    for (const file of ['administrative/administrative-picker.view.tsx']) {
       expect(violations(file, source)).toEqual(['sheet header must omit notification navigation'])
       expect(violations(file, source.replace('<AppHeader ', '<AppHeader variant="sheet" '))).toEqual([])
       expect(violations(file, source.replace('<AppHeader ', '<AppHeader variant="sub-screen" '))).toEqual(['sheet header must omit notification navigation'])
     }
+    const assistant = 'assistant/assistant-header.view.tsx'
+    expect(violations(assistant, source)).toEqual(['assistant sub-screen header must omit notification navigation'])
+    expect(violations(assistant, '<AppHeader variant="sub-screen" showNotifications={false} title="T" />')).toEqual([])
+    expect(violations(assistant, '<AppHeader variant="sub-screen" showNotifications={true} title="T" />')).toEqual(['assistant sub-screen header must omit notification navigation'])
+    expect(violations(assistant, '<AppHeader variant="sheet" showNotifications={false} title="T" />')).toEqual(['assistant sub-screen header must omit notification navigation'])
     expect(violations('screen.view.tsx', 'const x = <AppHeader title="T" titleAlign="center" />')).toEqual(['header alignment override'])
   })
   it('cannot be bypassed with an extra shared header or a comment', () => {

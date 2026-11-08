@@ -4,8 +4,8 @@ import { touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   screen: { flex: 1 },
-  search: { paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[2] },
-  list: { paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[7] },
+  search: { paddingHorizontal: theme.spacing[4], paddingBottom: theme.spacing[2] },
+  list: { paddingHorizontal: theme.spacing[4], paddingBottom: theme.spacing[7] },
   count: { paddingTop: theme.spacing[2] },
   groupRow: {
     flexDirection: 'row',
@@ -27,7 +27,9 @@ export const styles = StyleSheet.create(theme => ({
   retentionText: { textAlign: 'center' },
   separator: { height: theme.spacing[2] },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  newChatWrap: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3], paddingBottom: theme.spacing[3] },
+  loading: { padding: theme.spacing[4], gap: theme.spacing[3] },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], padding: theme.spacing[4], borderRadius: theme.radius.card, backgroundColor: theme.surface.card },
+  newChatWrap: { paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[3], paddingBottom: theme.spacing[4] },
   newChat: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -38,7 +40,6 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.surface.card,
     ...theme.shadows.card,
   },
-  newChatPressed: { backgroundColor: theme.surface.subtle },
   newChatTile: {
     width: 48,
     height: 48,
@@ -47,7 +48,7 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  newChatLabel: { flex: 1 },
+  newChatLabel: { flex: 1, minWidth: 0, gap: theme.spacing[1] },
   newChatPlus: {
     width: touchTarget.min,
     height: touchTarget.min,
@@ -65,7 +66,6 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: theme.spacing[2],
     borderRadius: theme.radius.compact,
   },
-  menuRowPressed: { backgroundColor: theme.surface.subtle },
   field: { gap: theme.spacing[1] },
   input: {
     ...theme.type.body,

@@ -92,7 +92,7 @@ export function Composer({
                 accessibilityLabel={t('assistant.composer.removeImage', { n: index + 1 })}
                 hitSlop={hitSlop}
                 onPress={() => onRemoveImage(index)}
-                style={({ pressed }) => [styles.removeBtn, pressed && styles.removeBtnPressed]}
+                style={styles.removeBtn}
               >
                 <Icon name="x" size={12} color="text.primary" />
               </Pressable>
@@ -108,7 +108,7 @@ export function Composer({
           accessibilityState={{ disabled: attachDisabled }}
           disabled={attachDisabled}
           onPress={onAttach}
-          style={({ pressed }) => [styles.round, pressed && styles.roundPressed]}
+          style={styles.round}
         >
           <Icon name="attach" size={22} color={attachDisabled ? 'text.secondary' : 'text.primary'} />
         </Pressable>
@@ -144,7 +144,7 @@ export function Composer({
             accessibilityState={{ disabled: stopping, busy: stopping }}
             disabled={stopping}
             onPress={onStop}
-            style={({ pressed }) => [styles.stop, pressed && styles.stopPressed]}
+            style={styles.stop}
           >
             <Icon name="stop" size={18} color="text.inverse" />
           </Pressable>
@@ -156,7 +156,7 @@ export function Composer({
             accessibilityState={{ disabled: !canSend }}
             disabled={!canSend}
             onPress={onSend}
-            style={({ pressed }) => [styles.send, !canSend && styles.sendDisabled, pressed && canSend && styles.sendPressed]}
+            style={[styles.send, !canSend && styles.sendDisabled]}
           >
             <Icon name="send" size={20} color={canSend ? 'accent.onAccent' : 'text.secondary'} />
           </Pressable>

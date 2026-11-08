@@ -39,6 +39,8 @@ export interface PlaceCardProps {
   unavailableLabel?: string
   photoCategoryLabel?: string
   footer?: ReactNode
+  /** Omit the photo row when the caller has no verified image. */
+  showPhoto?: boolean
   variant?: PlaceCardVariant
   onPress?: () => void
   /** @deprecated The address row now uses street, ward and city facts. */
@@ -100,8 +102,8 @@ function SaveToggle({ saved, onToggle, compact }: {
 export function PlaceCardAddress({ place }: { place: Parameters<typeof FormattedPlaceAddress>[0]['place'] }) {
   return <FormattedPlaceAddress place={place}>{address => address.trim() ?
     <View testID="place-card-address-row" style={styles.addressRow}>
-      <MaterialIcon name="location" size={16} color="redesign.primaryText" />
-      <Text testID="place-card-meta" style={styles.addressText} variant="introSmall" color="redesign.secondary"
+      <MaterialIcon name="location" size={16} color="accent.primary" />
+      <Text testID="place-card-meta" style={styles.addressText} variant="introSmall" color="text.secondary"
         numberOfLines={2} ellipsizeMode="tail" accessibilityLabel={address}>{address}</Text>
     </View> : null}</FormattedPlaceAddress>
 }
@@ -110,22 +112,22 @@ export function PlaceCardTags({ tags = [] }: { tags?: readonly string[] }) {
   return tags.length ? <View style={styles.discoveryTags}>{[...new Set(tags)].map(tag => <Chip key={tag} label={tag} appearance="soft" />)}</View> : null
 }
 
-export function PlaceCardPhotoChips({ place, categoryLabel }: { place: PlaceCardModel; categoryLabel?: string }) {
+export function PlaceCardPhotoChips({ place, categoryLabel, inline = false }: { place: PlaceCardModel; categoryLabel?: string; inline?: boolean }) {
   const { t } = useTranslation()
   const open = useOpenLabel(place, true)
   const distance = formatDistance(place.distanceM)
   if (!open && !categoryLabel && !distance) return null
-  return <View testID="place-card-photo-badges" pointerEvents="none" style={styles.photoBadges}>
-    {distance ? <View style={styles.photoBadge}><MaterialIcon name="nearMe" size={14} color="redesign.secondary" /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoBadgeText} variant="introCaptionMedium" color="redesign.secondary" accessibilityLabel={t('saved.straightDistance', { distance })}>{distance}</Text></View> : null}
+  return <View testID="place-card-photo-badges" pointerEvents="none" style={inline ? styles.discoveryTags : styles.photoBadges}>
+    {distance ? <View style={styles.photoBadge}><MaterialIcon name="nearMe" size={14} color="text.secondary" /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoBadgeText} variant="introCaptionMedium" color="text.secondary" accessibilityLabel={t('saved.straightDistance', { distance })}>{distance}</Text></View> : null}
     {open ? <View testID="place-card-hours-badge" style={styles.photoBadge}>
       {open.open ? <View style={styles.openDot} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" /> : null}
-      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'redesign.greenText' : 'redesign.secondary'}>{open.label}</Text>
+      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoBadgeText} variant="introCaptionMedium" color={open.open ? 'status.successText' : 'text.secondary'}>{open.label}</Text>
     </View> : null}
-    {categoryLabel ? <View style={styles.photoBadge}><Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoBadgeText} variant="introCaptionMedium" color="redesign.secondary">{categoryLabel}</Text></View> : null}
+    {categoryLabel ? <View style={styles.photoBadge}><Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoBadgeText} variant="introCaptionMedium" color="text.secondary">{categoryLabel}</Text></View> : null}
   </View>
 }
 
-function CanonicalPlaceCard({ place, variant = 'list', appearance = 'default', onPress, tags,
+function CanonicalPlaceCard({ place, variant = 'list', showPhoto = true, appearance = 'default', onPress, tags,
   saved, onToggleSave, style, headerAction, unavailableLabel, footer, photoCategoryLabel, contributionBadge }: PlaceCardProps) {
   const { t, i18n } = useTranslation()
   const { price } = placeCardRatingPriceLine(place, unit => t(priceUnitKey(unit)), i18n.language)
@@ -134,19 +136,20 @@ function CanonicalPlaceCard({ place, variant = 'list', appearance = 'default', o
   return <View testID="place-card-surface" style={[styles.discoveryCard, style]}>
     <Target testID="place-card-open-target" accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? place.name : undefined} onPress={onPress}>
       <View testID={appearance === 'saved' ? 'place-card-saved' : appearance === 'discovery' ? 'place-card-discovery' : 'place-card'} style={variant === 'compact' ? styles.compactCard : undefined}>
-        <View style={[variant === 'compact' ? styles.compactCardPhoto : variant === 'hero' ? styles.heroPhoto : styles.listPhoto, unavailableLabel ? styles.unavailablePhoto : undefined]}>
+        {showPhoto ? <View style={[variant === 'compact' ? styles.compactCardPhoto : variant === 'hero' ? styles.heroPhoto : styles.listPhoto, unavailableLabel ? styles.unavailablePhoto : undefined]}>
           <PlacePhoto placeId={place.id} name={place.name} uri={place.photoUrl} style={StyleSheet.absoluteFill} />
-          {place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="redesign.white" /><Text variant="introCaptionMedium" color="redesign.white">{t('discovery.verified')}</Text></View> : null}
+          {place.discovery?.verified === true ? <View style={styles.verifiedBadge}><MaterialIcon name="verified" size={14} color="text.inverse" /><Text variant="introCaptionMedium" color="text.inverse">{t('discovery.verified')}</Text></View> : null}
           <PlaceCardPhotoChips place={place} categoryLabel={photoCategoryLabel ?? place.discovery?.categoryLabel} />
           {contributionBadge ? <View style={styles.contributionBadge}>{contributionBadge}</View> : null}
-        </View>
+        </View> : null}
         <View style={[styles.listBody, variant === 'compact' ? styles.compactCopy : undefined]}>
           <View style={styles.discoveryHead}>
-            {place.name ? <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={[styles.discoveryName, unavailableLabel ? styles.unavailableName : undefined]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text> : null}
-            {price ? <Text testID="place-card-price" variant="introLabel" color="redesign.primaryText" style={styles.discoveryPrice}>{price}</Text> : null}
+            {place.name ? <Text testID="place-card-name" variant="discoveryHeading" color="text.primary" style={[styles.discoveryName, unavailableLabel ? styles.unavailableName : undefined]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text> : null}
+            {price ? <Text testID="place-card-price" variant="introLabel" color="accent.primary" style={styles.discoveryPrice}>{price}</Text> : null}
           </View>
           <PlaceCardAddress place={place} />
           <RatingChips place={place} />
+          {!showPhoto ? <PlaceCardPhotoChips place={place} categoryLabel={photoCategoryLabel ?? place.discovery?.categoryLabel} inline /> : null}
           {unavailableLabel ? <Text variant="bodySmall" color="status.warningText">{unavailableLabel}</Text> : null}
           <PlaceCardTags tags={tags ?? place.discovery?.tagLabels} />
         </View>
@@ -217,23 +220,23 @@ function PreviewCard({ preview, compact, categoryLabel, children, headerAction, 
           {photo ? <Image testID="import-candidate-photo" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" onError={() => setFailedPhoto(photo.uri)} accessible accessibilityLabel={preview.name} /> : null}
           {headerAction ? <View style={styles.importHeaderAction}>{headerAction}</View> : null}
           <View testID="import-photo-overlays" style={styles.importPhotoOverlays}>
-            {photo ? <Text testID="import-photo-credit" numberOfLines={1} ellipsizeMode="tail" accessibilityLabel={photoCredit} variant="introCaption" color="redesign.white" style={styles.importPhotoCredit}>
-              {t('placeImport.photoCredit')}{photo.authors.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="introCaption" color="redesign.white" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)} · {photo.attribution}
+            {photo ? <Text testID="import-photo-credit" numberOfLines={1} ellipsizeMode="tail" accessibilityLabel={photoCredit} variant="introCaption" color="text.inverse" style={styles.importPhotoCredit}>
+              {t('placeImport.photoCredit')}{photo.authors.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="introCaption" color="text.inverse" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)} · {photo.attribution}
             </Text> : null}
           </View>
         </View> : null}
         <View style={styles.importBody}>
           {!hasPhoto && headerAction ? <View style={styles.importNoPhotoHead}>{headerAction}</View> : null}
           <View style={styles.listHead}>
-            <Text variant="introSection" color="redesign.ink">{preview.name}</Text>
+            <Text variant="introSection" color="text.primary">{preview.name}</Text>
             <PlaceCardAddress place={{ addressText: preview.address }} />
           </View>
-          {categoryLabel ? <Text variant="introSmall" color="redesign.secondary">{categoryLabel}</Text> : null}
+          {categoryLabel ? <Text variant="introSmall" color="text.secondary">{categoryLabel}</Text> : null}
           {preview.googleRating != null || openLabel ? <View style={styles.importFacts}>
             {preview.googleRating != null ? <GoogleRatingBadge value={preview.googleRating} count={preview.googleRatingCount ?? undefined} /> : null}
-            {openLabel ? <View testID="import-body-hours" style={styles.importFact}><Text variant="introSmall" color={open.openNow ? 'status.successText' : 'status.dangerText'}>●</Text><Text variant="introSmall" color="redesign.secondary" style={styles.importHoursLabel}>{openLabel}</Text></View> : null}
+            {openLabel ? <View testID="import-body-hours" style={styles.importFact}><Text variant="introSmall" color={open.openNow ? 'status.successText' : 'status.dangerText'}>●</Text><Text variant="introSmall" color="text.secondary" style={styles.importHoursLabel}>{openLabel}</Text></View> : null}
           </View> : null}
-          {[...new Set(preview.attributions ?? [])].filter(attribution => !photo || attribution.trim() !== photo.attribution.trim()).map(attribution => <Text key={attribution} variant="introCaption" color="redesign.secondary">{attribution}</Text>)}
+          {[...new Set(preview.attributions ?? [])].filter(attribution => !photo || attribution.trim() !== photo.attribution.trim()).map(attribution => <Text key={attribution} variant="introCaption" color="text.secondary">{attribution}</Text>)}
         </View>
       </View>
       {children ? <View style={styles.importActions}>{children}</View> : null}

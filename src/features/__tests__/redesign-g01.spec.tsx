@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { fireEvent, screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
+import { themes } from '@/shared/ui/theme'
 import { renderScreen } from './harness'
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), canGoBack: () => false }
@@ -43,7 +44,7 @@ it('keeps recovery unavailable and shows requirements in registration only', asy
   const expectHeader = (title: string) => {
     const back = screen.getByRole('button', { name: 'Quay lại' })
     const label = within(back.parent!).getByText(title)
-    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ textAlign: 'left', color: '#1D1B18' })
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ textAlign: 'left', color: themes.orange.text.primary })
     expect(StyleSheet.flatten(label.parent!.parent!.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
     expect(StyleSheet.flatten(back.parent!.props.style)).toMatchObject({ minHeight: 56, gap: 8 })
   }

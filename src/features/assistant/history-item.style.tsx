@@ -16,13 +16,12 @@ export const styles = StyleSheet.create(theme => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing[3],
-    minHeight: 64,
+    minHeight: 96,
     paddingLeft: theme.spacing[4],
     paddingRight: theme.spacing[1],
-    paddingVertical: theme.spacing[3],
+    paddingVertical: theme.spacing[4],
     borderRadius: theme.radius.compact,
   },
-  mainPressed: { backgroundColor: theme.surface.subtle },
   tile: {
     width: 44,
     height: 44,
@@ -43,6 +42,5 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuPressed: { backgroundColor: theme.surface.subtle },
   hit: { backgroundColor: theme.accent.soft },
 }))

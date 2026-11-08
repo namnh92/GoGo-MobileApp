@@ -273,6 +273,7 @@ function AssistantChat({ account, keyboardOffset }: { account: string; keyboardO
     <>
       <AssistantHeader
         onClose={close}
+        avatar={!welcome}
         subtitle={online ? t('assistant.subtitle') : t('assistant.status.offline')}
         offline={!online}
         onNewChat={welcome ? undefined : newChat}

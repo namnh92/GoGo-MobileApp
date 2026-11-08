@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 
 import { fold } from './highlight'
-import { Badge } from '@/shared/ui/badge.view'
+import { Chip } from '@/shared/ui/chip.view'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
@@ -39,7 +39,7 @@ export function HistoryItem({
         accessibilityLabel={[title, preview, time, active ? t('assistant.history.current') : null].filter(Boolean).join(', ')}
         onPress={onOpen}
         onLongPress={onMenu}
-        style={({ pressed }) => [styles.main, pressed && styles.mainPressed]}
+        style={styles.main}
       >
         <View style={styles.tile}>
           <Icon name="sparkle" size={20} color="accent.onSoft" />
@@ -56,14 +56,14 @@ export function HistoryItem({
               <Highlighted text={preview} query={query} />
             </Text>
           ) : null}
-          {active ? <Badge label={t('assistant.history.current')} style={styles.current} /> : null}
+          {active ? <Chip icon="check" label={t('assistant.history.current')} variant="info" style={styles.current} /> : null}
         </View>
       </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('assistant.history.menu', { title })}
         onPress={onMenu}
-        style={({ pressed }) => [styles.menu, pressed && styles.menuPressed]}
+        style={styles.menu}
       >
         <Icon name="more" size={20} color="text.secondary" />
       </Pressable>
