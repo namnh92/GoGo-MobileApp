@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -23,7 +24,7 @@ import { EmptyState, LoadingState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { haptic } from '@/shared/ui/feedback'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, BackHeader, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import type { MessageKey } from '@/shared/i18n/types'
@@ -82,8 +83,8 @@ export default function AccountScreen() {
   const canUpload = me.data?.capabilities?.avatarUpload === 'available'
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => router.back()} title={t('account.title')} />
+    <View>
+      <AppHeader onBack={() => router.back()} title={t('account.title')} />
     </View>
   )
 

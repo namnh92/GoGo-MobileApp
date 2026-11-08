@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +12,7 @@ import { track } from '@/shared/analytics'
 import type { MessageKey } from '@/shared/i18n/types'
 import { haptic } from '@/shared/ui/feedback'
 import { Badge } from '@/shared/ui/badge.view'
-import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -212,8 +213,8 @@ export default function ReviewScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} title={t('profile.shortcut.reviews')} />
+      <View>
+        <AppHeader onBack={() => router.back()} title={t('profile.shortcut.reviews')} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Text variant="display" style={styles.title}>

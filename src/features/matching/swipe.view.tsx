@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { usePlaceClock } from '@/shared/ui/use-place-clock'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -13,7 +14,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   detailToPlaceCard,
@@ -38,7 +38,7 @@ import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { haptic, useReducedMotion } from '@/shared/ui/feedback'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, BackHeader, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, GhostBtn, glassStyles } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
@@ -76,7 +76,6 @@ export default function SwipeScreen() {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
   const reducedMotion = useReducedMotion()
 
@@ -264,12 +263,12 @@ export default function SwipeScreen() {
   // The freshness notice sits under the header (#292), except beside a
   // full-screen offline or error state, which already says it.
   const renderHeader = (withCounter: boolean, withNotice = true) => (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader
-        title={withCounter ? t('swipe.header') : undefined}
+    <View>
+      <AppHeader
+        title={t('swipe.header')}
         subtitle={withCounter ? t('swipe.subheader') : undefined}
         onBack={() => router.back()}
-        right={
+        rightAction={
           withCounter && candidates.length > 0 ? (
             <View style={styles.counterPill}>
               <Text variant="label" color="text.secondary">

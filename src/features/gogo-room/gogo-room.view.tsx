@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { onlineManager } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import * as Clipboard from 'expo-clipboard'
@@ -7,7 +8,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, Platform, ScrollView, Share, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isRetryable,
@@ -39,7 +39,7 @@ import { alertWithHold, releaseOnReturn, useRoutingHold } from '@/shared/navigat
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
-import { Atmosphere, AvatarCircle, BackHeader, Card, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { Icon, IconCheck, IconCopy, IconUserOutline, type IconName } from '@/shared/ui/icons'
 import { Glyph, Text } from '@/shared/ui/text'
@@ -117,7 +117,6 @@ export default function GoGoRoomScreen() {
   const avatarColors = [theme.accent.primary, theme.status.info, theme.status.success, theme.status.warning]
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { roomId, notice } = useLocalSearchParams<{ roomId: string; notice?: string }>()
   // GoGo-MobileApp#203: a param that is not a room id — an invite code in a room
   // link, or an id that never arrived — must not reach the API as
@@ -367,8 +366,8 @@ export default function GoGoRoomScreen() {
   if (!validRoomId) {
     return (
       <Atmosphere>
-        <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => goBackOrHome(router)} />
+        <View>
+          <AppHeader title={t('gogoRoom.screenTitle')} onBack={() => goBackOrHome(router)} />
         </View>
         <EmptyState
           title={t('guestJoin.notFoundTitle')}
@@ -382,8 +381,8 @@ export default function GoGoRoomScreen() {
   if (room.isPending) {
     return (
       <Atmosphere>
-        <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => goBackOrHome(router)} />
+        <View>
+          <AppHeader title={t('gogoRoom.screenTitle')} onBack={() => goBackOrHome(router)} />
         </View>
         {/* Nothing cached and offline: the paused read would keep the skeleton forever (#253). */}
         {waitingForNetwork ? (
@@ -406,8 +405,8 @@ export default function GoGoRoomScreen() {
   if (!summary) {
     return (
       <Atmosphere>
-        <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => goBackOrHome(router)} />
+        <View>
+          <AppHeader title={t('gogoRoom.screenTitle')} onBack={() => goBackOrHome(router)} />
         </View>
         <ErrorState error={room.error} onRetry={() => void room.refetch()} />
       </Atmosphere>
@@ -513,8 +512,8 @@ export default function GoGoRoomScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => goBackOrHome(router)} />
+      <View>
+        <AppHeader title={t('gogoRoom.screenTitle')} onBack={() => goBackOrHome(router)} />
       </View>
       <RoomConnectionNotice
         roomId={validRoomId}

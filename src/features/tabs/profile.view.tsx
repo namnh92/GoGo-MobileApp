@@ -1,17 +1,16 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMe, useMyReviews, useMyRooms, useNotificationSettings, useSaved, useTaxonomies } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { getSession, type Session } from '@/shared/api/session'
 import { useSession } from '@/shared/providers/session-provider'
 import { signOutFailureReason, type SignOutFailure } from '@/shared/providers/sign-out-failure'
 import { Atmosphere, AvatarCircle, Card, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { IconChevronRight } from '@/shared/ui/icons'
@@ -35,7 +34,6 @@ function actorKeyOf(session: Session | null): string {
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation()
   const { rt } = useUnistyles()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   const fab = useAssistantFabScroll('profile')
   const { session, status, signOut } = useSession()
@@ -104,18 +102,14 @@ export default function ProfileScreen() {
   }
 
   return <Atmosphere redesign>
-    <View style={[styles.pageHeader, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
-      <Text variant="discoveryTitle" color="redesign.primaryText">GoGo</Text><Text color="text.secondary">·</Text>
-      <Text variant="introHeading" style={styles.headerText}>{t('g11.profileHeading')}</Text>
-      <HeaderNotificationButton testID="profile-bell" unreadDotTestID="profile-unread" />
-    </View>
+    <AppHeader variant="tab-root" title={t('g11.profileHeading')} bellTestID="profile-bell" unreadDotTestID="profile-unread" />
     <ScrollView testID="profile-list" onScroll={fab.onScroll} scrollEventThrottle={fab.scrollEventThrottle}
       contentContainerStyle={{ paddingTop: 0, paddingBottom: fab.bottomInset }}>
       {canRead && me.isPending ? (waiting ? <OfflineState /> : <LoadingState />) : canRead && me.isError ? <ErrorState error={me.error} onRetry={() => void me.refetch()} /> : (
         <Card appearance="stitch" padded={false} style={styles.headerCard}>
           <View style={styles.identity}>
             <AvatarCircle label={(profile?.displayName ?? t('profile.guestName')).trim().charAt(0).toUpperCase()} size={64} imageUri={profile?.avatarUrl} />
-            <View style={styles.headerText}>
+            <View style={styles.identityText}>
               <Text variant="introHeading" color="redesign.ink">{canRead ? profile?.displayName : t('profile.title')}</Text>
               {!canRead ? <Text variant="bodySmall" color="text.secondary">{t('profile.guestSubtitle')}</Text> : null}
               {profile?.email ? <Text variant="introSmall" color="redesign.secondary" numberOfLines={1}>{profile.email}</Text> : null}

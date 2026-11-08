@@ -1,17 +1,15 @@
 import { Image, type ImageProps } from 'expo-image'
 import { useState, type ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
-import { useTranslation } from 'react-i18next'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import { useLocaleContent } from '@/shared/i18n'
-import { Icon, IconChevronLeft, type IconName } from '@/shared/ui/icons'
+import { Icon, type IconName } from '@/shared/ui/icons'
 import { haptic } from '@/shared/ui/feedback'
 import { ScaledText, Text, type TextColor } from '@/shared/ui/text'
-import { hitSlop, touchTarget } from '@/shared/ui/tokens'
+import { hitSlop } from '@/shared/ui/tokens'
 import { AmbientGlow } from './ambient-glow.view'
 import { MaterialIcon } from './material-icon'
-import { FrostedMaterial } from './frosted-material.view'
 
 export { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn, type ButtonProps } from '@/shared/ui/button.view'
 export { Card } from '@/shared/ui/card.view'
@@ -20,7 +18,7 @@ export { Toast } from '@/shared/ui/toast.view'
 
 /**
  * Card look for the call sites that still spread it into their own style
- * arrays (7 files plus `BackHeader`, one of them a Reanimated view). Solid, no
+ * arrays (remaining call sites, one of them a Reanimated view). Solid, no
  * accent; it reads the theme, so it follows the device into dark. #298 removed
  * the `GlassCard` alias only; this goes with its last importer.
  *
@@ -147,38 +145,6 @@ export function ProgressDots({ total, current, variant = 'default' }: { total: n
   )
 }
 
-export function BackHeader({ title, subtitle, onBack, right, redesign = false }: { title?: string; subtitle?: string; onBack: () => void; right?: ReactNode; redesign?: boolean }) {
-  const { t } = useTranslation()
-  const grouped = redesign && title && !subtitle
-  const back = <Pressable
-    onPress={onBack}
-    accessibilityRole="button"
-    accessibilityLabel={t('common.back')}
-    hitSlop={hitSlop}
-    style={({ pressed }) => [styles.backBtn, !redesign && glassStyles.card, redesign && styles.redesignBack, grouped && styles.redesignGroupedBack, pressed && styles.backBtnPressed]}
-  >
-    {redesign ? <MaterialIcon name="arrowBack" size={24} /> : <IconChevronLeft />}
-  </Pressable>
-  return (
-    <View style={[styles.backHeader, redesign && styles.redesignHeader]}>
-      {redesign && <FrostedMaterial kind="header" />}
-      {grouped ? <View style={styles.redesignHeaderLeft}>
-        {back}
-        <Text variant="introHeading" color="redesign.ink" style={styles.redesignHeaderTitle}>{title}</Text>
-      </View> : <>
-        {back}
-        {title && subtitle ? (
-          <View style={styles.backTitleBlock}>
-            <Text variant="title2" numberOfLines={1}>{title}</Text>
-            <Text variant="caption" color="text.secondary" numberOfLines={1}>{subtitle}</Text>
-          </View>
-        ) : title ? <Text variant="title2" color="text.primary" style={styles.backTitle}>{title}</Text> : null}
-      </>}
-      {right ?? <View style={styles.backSpacer} />}
-    </View>
-  )
-}
-
 /**
  * One avatar for every surface (RULE-CORE-015). `imageUri` is the profile
  * picture the API composed (ADR-0022); when it is absent, or the bytes fail to
@@ -238,11 +204,6 @@ export function RemoteImage({ uri, source, style, illustration = false }: Remote
 
 const styles = StyleSheet.create(theme => ({
   redesignCanvas: { backgroundColor: theme.redesign.canvas },
-  redesignHeader: { backgroundColor: theme.redesign.canvas, minHeight: 56, paddingHorizontal: 16, paddingVertical: 0, gap: 8 },
-  redesignBack: { width: 44, height: 44, borderWidth: 0, backgroundColor: 'transparent' },
-  redesignHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, gap: 8 },
-  redesignHeaderTitle: { flexShrink: 1, minWidth: 0, textAlign: 'left' },
-  redesignGroupedBack: { marginLeft: -8, flexShrink: 0 },
   redesignDotsRow: { gap: 8 },
   debateDotsRow: { gap: 4 },
   redesignDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.redesign.highest },
@@ -306,33 +267,6 @@ const styles = StyleSheet.create(theme => ({
     width: 20,
     backgroundColor: theme.accent.primary,
   },
-
-  backHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing[5],
-    paddingVertical: theme.spacing[3],
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    minWidth: touchTarget.min - 8,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backBtnPressed: { backgroundColor: theme.surface.subtle },
-  backTitle: {
-    // Titles composed from facts (a plan's audience and date) can outgrow a
-    // narrow row; wrap between the side controls instead of pushing them out.
-    flexShrink: 1,
-    textAlign: 'center',
-    marginHorizontal: theme.spacing[2],
-  },
-  // Title with a caption under it, left-aligned beside the back button.
-  backTitleBlock: { flex: 1, marginHorizontal: theme.spacing[3] },
-  backSpacer: { width: 36 },
 
   avatarImage: { position: 'absolute', top: 0, left: 0 },
   avatar: {

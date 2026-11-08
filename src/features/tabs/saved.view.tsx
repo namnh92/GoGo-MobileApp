@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -21,7 +22,6 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { groupSavedByArea, type CurrentArea } from './saved-groups'
 import { styles } from './saved.style'
-import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { savedDistance, savedUnavailable } from './saved-facts'
 import { SavedLink } from './saved-link.view'
@@ -113,14 +113,13 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
 
   return (
     <Atmosphere style={city ? cityStyles.canvas : undefined}>
-      {renderHeader ? renderHeader(cityTitle, canSave && !saved.isPending && !saved.isError && !saved.isPaused ? (selectedCity?.kind === 'province' ? selectedCity.communes.reduce((n, ward) => n + ward.entries.length, 0) : 0) : undefined) : <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
-        <View style={styles.headerRow}>
-          <Text variant="title2" color="redesign.primaryText">GoGo · {t('saved.title')}</Text>
-          <HeaderNotificationButton testID="saved-bell" unreadDotTestID="saved-unread" />
+      {renderHeader ? renderHeader(cityTitle, canSave && !saved.isPending && !saved.isError && !saved.isPaused ? (selectedCity?.kind === 'province' ? selectedCity.communes.reduce((n, ward) => n + ward.entries.length, 0) : 0) : undefined) : <>
+        <AppHeader variant="tab-root" title={t('saved.title')} bellTestID="saved-bell" unreadDotTestID="saved-unread" />
+        <View style={styles.saveLink}>
+          {canSave ? <SavedLink onFeedback={setFeedback} /> : null}
+          {canSave && feedback ? <Text accessibilityLiveRegion="polite" testID="saved-feedback" variant="bodySmall" color="status.successText">{feedback}</Text> : null}
         </View>
-        {canSave ? <SavedLink onFeedback={setFeedback} /> : null}
-        {canSave && feedback ? <Text accessibilityLiveRegion="polite" testID="saved-feedback" variant="bodySmall" color="status.successText">{feedback}</Text> : null}
-      </View>}
+      </>}
       {city && canSave && feedback ? <Text accessibilityLiveRegion="polite" testID="saved-feedback" variant="bodySmall" color="status.successText" style={styles.feedback}>{feedback}</Text> : null}
 
       {/* Saving requires an account: a guest token gets 403 USER_ONLY. */}

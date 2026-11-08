@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -30,7 +31,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, BackHeader, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
 import { PlaceAddressText } from '@/shared/ui/place-address.view'
@@ -241,8 +242,8 @@ export default function ActiveDateScreen() {
 
   // The way back to wherever this was opened from (the inbox, a plan, a link).
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => goBackOrHome(router)} />
+    <View>
+      <AppHeader title={t('activeDate.screenTitle')} onBack={() => goBackOrHome(router)} />
     </View>
   )
 
@@ -358,7 +359,7 @@ export default function ActiveDateScreen() {
   return (
     <Atmosphere>
       {header}
-      <View style={styles.topBar}>
+      <View style={styles.stopSummary}>
         <Card style={styles.progressCard}>
           <View style={styles.liveRow}>
             <View style={styles.liveDot} />

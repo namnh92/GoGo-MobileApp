@@ -1,3 +1,4 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +12,7 @@ import { PUSH_UNAVAILABLE_NOTICE } from '@/shared/notifications/notification-tar
 import { useSession } from '@/shared/providers/session-provider'
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, BackHeader, Card, GhostBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, GhostBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -123,8 +124,8 @@ export default function NotificationsScreen() {
   }, [openProblem, t])
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => goBackOrHome(router)} title={t('notifications.title')} />
+    <View>
+      <AppHeader onBack={() => goBackOrHome(router)} title={t('notifications.title')} />
       {pushUnavailable ? (
         <Text variant="bodySmall" accessibilityLiveRegion="polite" style={styles.notice}>
           {t('notifications.pushUnavailable')}

@@ -1,8 +1,8 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isApiError,
@@ -17,7 +17,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.vi
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Icon } from '@/shared/ui/icons'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
-import { Atmosphere, BackHeader, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -36,7 +36,6 @@ interface DraftStop {
 export default function PlanEditScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { planId } = useLocalSearchParams<{ planId: string }>()
 
   const plan = usePlan(planId)
@@ -64,8 +63,8 @@ export default function PlanEditScreen() {
   const draft = edited ?? serverStops
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader onBack={() => router.back()} title={t('planEdit.title')} />
+    <View>
+      <AppHeader onBack={() => router.back()} title={t('planEdit.title')} />
     </View>
   )
 

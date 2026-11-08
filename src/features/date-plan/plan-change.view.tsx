@@ -1,15 +1,15 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isOffline, toPlanSummary, usePlan, usePlanStopPlaces } from '@/shared/api'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
-import { Atmosphere, BackHeader, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 
@@ -33,7 +33,6 @@ const OPTIONS: { key: 'keep' | 'category' | 'closer'; icon: IconName }[] = [
 export default function PlanChangeScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { planId } = useLocalSearchParams<{ planId: string }>()
   const leave = () => goBackOrHome(router)
 
@@ -42,8 +41,8 @@ export default function PlanChangeScreen() {
   const places = usePlanStopPlaces(summary?.stops ?? [])
 
   const header = (
-    <View style={{ paddingTop: insets.top }}>
-      <BackHeader title={t('planChange.title')} onBack={leave} />
+    <View>
+      <AppHeader title={t('planChange.title')} onBack={leave} />
     </View>
   )
 

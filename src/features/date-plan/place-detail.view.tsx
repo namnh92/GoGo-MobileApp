@@ -1,9 +1,9 @@
+import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWindowDimensions, Pressable, ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   detailToPlaceCard,
@@ -30,7 +30,7 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { Icon, IconBookmark, IconChevronLeft } from '@/shared/ui/icons'
+import { Icon, IconBookmark } from '@/shared/ui/icons'
 import { MapCanvas } from '@/shared/ui/map-canvas.view'
 import { PlacePhoto } from '@/shared/ui/place-photo.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
@@ -56,7 +56,6 @@ const WEEK = [1, 2, 3, 4, 5, 6, 0]
 export default function PlaceDetailScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const [actionHeight, setActionHeight] = useState(0)
   const actionInset = useBottomBarInset(actionHeight)
@@ -88,22 +87,7 @@ export default function PlaceDetailScreen() {
 
   // The draft's top bar: back, the screen's name, report and save on the right.
   const header = (saveToggle: ReactNode, reportButton?: ReactNode) => (
-    <View style={[styles.header, { paddingTop: insets.top }]}>
-      <View style={styles.headerRow}>
-        <Pressable
-          onPress={() => goBackOrHome(router)}
-          accessibilityLabel={t('common.back')}
-          accessibilityRole="button"
-          hitSlop={hitSlop}
-          style={styles.headerBtn}
-        >
-          <IconChevronLeft />
-        </Pressable>
-        <Text variant="title2" numberOfLines={1} style={styles.headerTitle}>{t('placeDetail.title')}</Text>
-        {reportButton}
-        {saveToggle}
-      </View>
-    </View>
+    <AppHeader title={t('placeDetail.title')} onBack={() => goBackOrHome(router)} rightAction={<>{reportButton}{saveToggle}</>} />
   )
   const backButton = header(null)
 
@@ -328,30 +312,26 @@ export default function PlaceDetailScreen() {
   }
 
   const saveToggle = canSave ? (
-    <Pressable
+    <AppHeaderAction
       onPress={onSave}
       accessibilityRole="togglebutton"
       accessibilityState={{ checked: currentlySaved }}
       accessibilityLabel={t(currentlySaved ? 'saved.remove' : 'placeDetail.save')}
-      hitSlop={hitSlop}
-      style={styles.headerBtn}
     >
       {/* Saved is the filled glyph, not only a colour (RULE-DS, #382). */}
       <IconBookmark filled={currentlySaved} size={22} />
-    </Pressable>
+    </AppHeaderAction>
   ) : null
 
   const reportToggle = (
-    <Pressable
+    <AppHeaderAction
       testID="place-detail-report"
       onPress={() => setReportOpen(true)}
       accessibilityRole="button"
       accessibilityLabel={t('placeDetail.report')}
-      hitSlop={hitSlop}
-      style={styles.headerBtn}
     >
       <Icon name="flag" size={22} color="text.secondary" />
-    </Pressable>
+    </AppHeaderAction>
   )
 
   return (

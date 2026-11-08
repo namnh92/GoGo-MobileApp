@@ -19,25 +19,6 @@ export const styles = StyleSheet.create(theme => {
   } as const
   return {
   // --- header bar ----------------------------------------------------------
-  header: {
-    backgroundColor: theme.surface.canvas,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border.hairline,
-  },
-  headerRow: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing[2],
-    gap: spacing[1],
-  },
-  headerBtn: {
-    width: touchTarget.min,
-    height: touchTarget.min,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { flex: 1 },
 
   // --- gallery -------------------------------------------------------------
   gallery: {

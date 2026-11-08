@@ -44,8 +44,8 @@ it('keeps recovery unavailable and shows requirements in registration only', asy
     const back = screen.getByRole('button', { name: 'Quay lại' })
     const label = within(back.parent!).getByText(title)
     expect(StyleSheet.flatten(label.props.style)).toMatchObject({ textAlign: 'left', color: '#1D1B18' })
-    expect(StyleSheet.flatten(back.parent!.props.style)).toMatchObject({ gap: 8, minWidth: 0 })
-    expect(StyleSheet.flatten(back.parent!.parent!.props.style)).toMatchObject({ minHeight: 56 })
+    expect(StyleSheet.flatten(label.parent!.parent!.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+    expect(StyleSheet.flatten(back.parent!.props.style)).toMatchObject({ minHeight: 56, gap: 8 })
   }
   expectHeader('Đăng nhập')
   expect(screen.queryByText('Auth Phone Entry')).toBeNull()

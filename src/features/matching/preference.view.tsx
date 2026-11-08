@@ -1,8 +1,8 @@
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isApiError,
@@ -17,7 +17,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, BackHeader, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 import { Icon } from '@/shared/ui/icons'
 import { Glyph, Text } from '@/shared/ui/text'
@@ -32,7 +32,6 @@ const TAXONOMY_KIND = 'mood'
 export default function PreferenceScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
 
   // Whatever the host picked in the create wizard seeds their own preferences,
@@ -127,8 +126,8 @@ export default function PreferenceScreen() {
   if (taxonomies.isPending || preferences.isPending) {
     return (
       <Atmosphere>
-        <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => router.back()} />
+        <View>
+          <AppHeader title={t('preference.headerTitle')} onBack={() => router.back()} />
         </View>
         <LoadingState />
       </Atmosphere>
@@ -138,8 +137,8 @@ export default function PreferenceScreen() {
   if (taxonomies.isError || preferences.isError) {
     return (
       <Atmosphere>
-        <View style={{ paddingTop: insets.top }}>
-          <BackHeader onBack={() => router.back()} />
+        <View>
+          <AppHeader title={t('preference.headerTitle')} onBack={() => router.back()} />
         </View>
         <ErrorState
           error={taxonomies.error ?? preferences.error}
@@ -156,8 +155,8 @@ export default function PreferenceScreen() {
 
   return (
     <Atmosphere>
-      <View style={{ paddingTop: insets.top }}>
-        <BackHeader onBack={() => router.back()} title={t('preference.headerTitle')} />
+      <View>
+        <AppHeader title={t('preference.headerTitle')} onBack={() => router.back()} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[5] }}>
         <View style={styles.countPill}>

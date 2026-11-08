@@ -1,3 +1,4 @@
+import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useUnreadInbox } from '@/features/notifications/unread-count'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
@@ -9,7 +10,6 @@ import { MaterialIcon } from '@/shared/ui/material-icon'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isSaved,
@@ -27,7 +27,6 @@ import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { scopeSearchParams, useDiscoveryScope } from '@/shared/location/use-discovery-scope'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
-import { HeaderNotificationButton } from '@/shared/ui/header-notification-button.view'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceCard } from '@/shared/ui/place-card.view'
@@ -50,7 +49,6 @@ const RAIL_SIZE = 5
 export default function HomeScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { theme } = useUnistyles()
   const { uiState, setUiState, quickPreset } = useRoom()
   // The float button (#379) collapses on scroll; the list's end clears it.
@@ -156,14 +154,8 @@ export default function HomeScreen() {
 
   return (
     <Atmosphere redesign>
-      <View testID="home-header" style={[styles.topBar, { paddingTop: insets.top, minHeight: insets.top + 64 }]}>
-        <View style={styles.brand}><MaterialIcon name="explore" color="accent.onAccent" size={19} /></View>
-        <Text variant="discoveryHeading" color="redesign.primaryText">GoGo</Text>
-        <Text variant="introSmall" color="redesign.secondary">•</Text>
-        <Text variant="introSmall" color="redesign.secondary" style={{ flex: 1 }}>{t('discovery.home')}</Text>
-        <Pressable style={styles.headerAction} onPress={() => router.push('/places/search')} accessibilityRole="button" accessibilityLabel={t('search.title')}><MaterialIcon name="search" size={22} /></Pressable>
-        <HeaderNotificationButton testID="home-bell" unreadDotTestID="home-unread-dot" />
-      </View>
+      <AppHeader variant="tab-root" title={t('discovery.home')} testID="home-header" bellTestID="home-bell" unreadDotTestID="home-unread-dot"
+        rightAction={<AppHeaderAction onPress={() => router.push('/places/search')} accessibilityLabel={t('search.title')}><MaterialIcon name="search" size={22} /></AppHeaderAction>} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         testID="home-list"
@@ -174,7 +166,7 @@ export default function HomeScreen() {
         scrollEventThrottle={fab.scrollEventThrottle}
         contentContainerStyle={{ paddingTop: spacing[1], paddingBottom: fab.bottomInset }}
       >
-        <View style={styles.header}>
+        <View style={styles.intro}>
           <View style={{ flex: 1 }}>
             <Pressable testID="home-location" accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={chooseArea} style={styles.locationRow}>
               <MaterialIcon name="location" size={15} color="redesign.primaryText" />

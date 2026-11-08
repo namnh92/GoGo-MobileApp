@@ -1,9 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 import { overlay, spacing, type } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
-  header: { backgroundColor: theme.redesign.canvas },
-  headerRow: { flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 16, gap: 8 },
-  back: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.redesign.low, justifyContent: 'center', alignItems: 'center' },
   scopeLabel: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   scope: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 44 },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12 },
