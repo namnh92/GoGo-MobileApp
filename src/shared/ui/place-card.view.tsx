@@ -312,9 +312,9 @@ function DiscoveryCard({ place, onPress, save, style, appearance, unavailableLab
 
           {unavailableLabel ? <Text variant="bodySmall" color="status.warningText">{unavailableLabel}</Text> : null}
           {saved ? (place.discovery?.tagLabels?.length || price ? <View style={styles.savedTaxonomyRow}>
-            <View style={styles.savedTags}>{place.discovery?.tagLabels?.map(label => <View key={label} style={styles.savedNeutralBadge}><Text numberOfLines={1} variant="caption" color="text.secondary">{label}</Text></View>)}</View>
+            <View style={styles.savedTags}>{place.discovery?.tagLabels?.map(label => <Chip key={label} label={label} />)}</View>
             {price ? <Text variant="savedMeta" color="redesign.savedAccent">{price}</Text> : null}
-          </View> : null) : place.discovery?.tagLabels?.length ? <View style={styles.discoveryTags}>{place.discovery.tagLabels.map(label => <View key={label} style={styles.googleBadge}><Text numberOfLines={1} variant="introCaptionMedium" color="redesign.secondary">{label}</Text></View>)}</View> : null}
+          </View> : null) : place.discovery?.tagLabels?.length ? <View style={styles.discoveryTags}>{place.discovery.tagLabels.map(label => <Chip key={label} label={label} />)}</View> : null}
         </View>
       </View>
     </Pressable>

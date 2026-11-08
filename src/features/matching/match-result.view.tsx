@@ -289,11 +289,8 @@ export default function MatchResultScreen() {
         <Card padded={false} style={styles.hero}>
           <View style={styles.heroPhoto}>
             <PlacePhoto placeId={winner.placeId} name={winner.name} uri={winnerPhoto} style={StyleSheet.absoluteFill} />
-            <View style={styles.heroBadge}>
-              <Text variant="label" color="accent.onAccent">
-                ⚡ {roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')}
-              </Text>
-            </View>
+            <View style={styles.heroBadgePosition}><Chip icon="zap" variant="info"
+              label={roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')} /></View>
           </View>
           <View style={styles.heroBody}>
             <Text variant="title1" numberOfLines={1}>{winner.name}</Text>

@@ -446,9 +446,7 @@ export default function SwipeScreen() {
               />
 
               {categoryLabel ? (
-                <View style={styles.categoryBadge}>
-                  <Text variant="caption">{categoryLabel}</Text>
-                </View>
+                <View style={styles.categoryPosition}><Chip label={categoryLabel} /></View>
               ) : null}
 
               <Animated.View
@@ -473,20 +471,12 @@ export default function SwipeScreen() {
               {/* Distance and opening state sit on the photo, as in the draft. */}
               <View style={styles.overImage}>
                 {place?.distanceM != null ? (
-                  <View style={styles.photoChip}>
-                    <Icon name="navigation" size={14} color="accent.primary" />
-                    <Text variant="caption">{formatDistance(place.distanceM)}</Text>
-                  </View>
+                  <Chip icon="navigation" label={formatDistance(place.distanceM) ?? ''} />
                 ) : (
                   <View />
                 )}
                 {hasHours ? (
-                  <View style={styles.photoChip}>
-                    <View
-                      style={[styles.openDot, { backgroundColor: open.openNow ? theme.status.success : theme.text.secondary }]}
-                    />
-                    <Text variant="caption" color={open.openNow ? 'status.successText' : 'text.secondary'}>{openLabel}</Text>
-                  </View>
+                  <Chip variant={open.openNow ? 'positive' : 'default'} label={openLabel} />
                 ) : null}
               </View>
             </View>

@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  categoryPosition: { position: 'absolute', top: spacing[3], left: spacing[3] },
 
   progressTrack: {
     marginHorizontal: spacing[5],
@@ -34,15 +35,6 @@ export const styles = StyleSheet.create(theme => ({
   },
 
   imageWrap: { height: '58%' },
-  categoryBadge: {
-    position: 'absolute',
-    top: spacing[3],
-    left: spacing[3],
-    backgroundColor: theme.surface.card,
-    paddingHorizontal: spacing[3],
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-  },
 
   overImage: {
     position: 'absolute',
@@ -53,15 +45,6 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing[2],
-  },
-  photoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing[3],
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    backgroundColor: theme.surface.card,
   },
   addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   addressText: { flexShrink: 1 },
@@ -80,7 +63,6 @@ export const styles = StyleSheet.create(theme => ({
 
   footer: { flex: 1, padding: spacing[3], gap: spacing[2], overflow: 'hidden' },
   titleCol: { gap: 2 },
-  openDot: { width: 6, height: 6, borderRadius: 3 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 
   actions: {

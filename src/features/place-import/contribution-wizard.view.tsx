@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { useImperativeHandle, type Ref } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -90,12 +91,7 @@ function Wizard({
   }
   function reward() {
     return (
-      <View style={styles.reward} accessible accessibilityLabel={t('placeResult.credit')}>
-        <MaterialIcon name="sparkle" size={14} color="redesign.white" />
-        <Text variant="introCaption" color="redesign.white" numberOfLines={1}>
-          {t('placeWizard.rewardCompact', { amount: 50 })}
-        </Text>
-      </View>
+      <Chip icon="sparkle" variant="info" label={t('placeWizard.rewardCompact', { amount: 50 })} accessibilityLabel={t('placeResult.credit')} />
     )
   }
 
@@ -253,15 +249,13 @@ function Wizard({
               {t(`placeWizard.heading${step as 1 | 2 | 3}`)}
             </Text>
             {step !== 3 ? (
-              <Text variant="introCaption" color="redesign.primaryText" style={styles.tag}>
-                {t(
+              <Chip label={t(
                   step === 2
                     ? 'placeWizard.experience'
                     : stepValid(form, 1)
                       ? 'placeWizard.filled'
                       : 'placeWizard.mandatory',
-                )}
-              </Text>
+                )} />
             ) : null}
           </View>
           {!online ? <Text color="status.warningText">{t('placeWizard.offline')}</Text> : null}

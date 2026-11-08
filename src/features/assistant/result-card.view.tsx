@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
@@ -68,12 +69,7 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
           {(facts.gogoRating != null && facts.gogoRatingCount) || facts.openNow != null ? (
             <View style={styles.badges}>
               {facts.gogoRating != null && facts.gogoRatingCount ? (
-                <View style={styles.rating}>
-                  <Icon name="star" size={14} color="status.infoText" />
-                  <Text variant="label" color="status.infoText" numberOfLines={1}>
-                    {t('assistant.card.rating', { rating: facts.gogoRating.toFixed(1), count: facts.gogoRatingCount })}
-                  </Text>
-                </View>
+                <Chip icon="star" variant="info" label={t('assistant.card.rating', { rating: facts.gogoRating.toFixed(1), count: facts.gogoRatingCount })} />
               ) : null}
               {facts.openNow != null ? (
                 <Badge tone={facts.openNow ? 'success' : 'neutral'} label={facts.openNow ? t('assistant.card.openNow') : t('assistant.card.closedNow')} />

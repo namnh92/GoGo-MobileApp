@@ -1,5 +1,5 @@
 import { Alert, StyleSheet } from 'react-native'
-import { accents, text, type } from '@/shared/ui/tokens'
+import { surface, text, type } from '@/shared/ui/tokens'
 import { act, fireEvent } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { failed, loaded, pausedOffline, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
@@ -120,12 +120,12 @@ describe('room hub × audience', () => {
     }
   })
 
-  it('puts the host badge label on the accent soft pill in the onSoft role, and the constraints in a card (#295)', async () => {
+  it('uses the shared host chip, and the constraints in a card (#295)', async () => {
     mockRoom.query = loaded(roomFor('group-host', {}, { everyonePicked: true }))
     const view = await renderScreen(<GoGoRoomScreen />)
     const label = view.getByText('Chủ phòng')
-    expect(StyleSheet.flatten(label.props.style).color).toBe(accents.orange.onSoft)
-    expect(StyleSheet.flatten(label.parent!.props.style).backgroundColor).toBe(accents.orange.soft)
+    expect(StyleSheet.flatten(label.props.style).color).toBe(text.primary)
+    expect(StyleSheet.flatten(label.parent!.props.style).backgroundColor).toBe(surface.card)
     const heading = view.getByText('Điều kiện phòng')
     expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ ...type.title2, color: text.primary })
   })

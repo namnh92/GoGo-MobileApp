@@ -229,9 +229,7 @@ function ReviewRow({
             </Text>
             {dateLabel ? <Text variant="caption" color="text.secondary">{dateLabel}</Text> : null}
           </View>
-          <View style={styles.ratingPill}>
-            <Text variant="label" color="accent.primary">{t('placeReviews.rating', { rating: review.rating })}</Text>
-          </View>
+          <Chip label={t('placeReviews.rating', { rating: review.rating })} />
         </View>
         {review.verifiedVisit ? <Text variant="caption" color="status.successText">{t('placeReviews.verifiedVisit')}</Text> : null}
         {review.text ? <Text style={styles.reviewText}>{review.text}</Text> : null}

@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -184,10 +185,7 @@ export default function GuestJoinScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.badge}>
-          <Icon name="heart" size={16} color="accent.onSoft" />
-          <Text variant="label" color="accent.onSoft">{t('guestJoin.badge')}</Text>
-        </View>
+        <Chip icon="heart" label={t('guestJoin.badge')} />
         <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title')}</Text>
 
         {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}

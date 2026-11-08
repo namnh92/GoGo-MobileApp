@@ -2,17 +2,6 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing[2],
-    backgroundColor: theme.accent.soft,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    marginBottom: spacing[4],
-  },
   title: { marginBottom: spacing[5] },
   details: { padding: spacing[5], gap: spacing[3], marginBottom: spacing[6] },
   detailsTitle: {},

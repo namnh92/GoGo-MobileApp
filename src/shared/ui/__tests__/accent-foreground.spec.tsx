@@ -119,7 +119,7 @@ describe.each(Object.entries(themes))('%s accent foreground', (_name, theme) => 
       <Chip label="Selected" variant="selected" icon="check" />
       <ThemeAccentCard />
     </>)
-    for (const label of ['Lưu thiết lập mặc định', 'Confirm area', 'M', 'Hỏi GoGo AI', '✓ Selected', 'Nút hành động chính']) {
+    for (const label of ['Lưu thiết lập mặc định', 'Confirm area', 'M', 'Hỏi GoGo AI', 'Selected', 'Nút hành động chính']) {
       const node = screen.getByText(label)
       expect(flat(node).color).toBe(foreground)
       let parent = node.parent
@@ -131,7 +131,7 @@ describe.each(Object.entries(themes))('%s accent foreground', (_name, theme) => 
     const areaIcon = within(screen.getByRole('button', { name: 'Confirm area' })).getByTestId('material-icon-checkCircle', { includeHiddenElements: true })
     expect(fills(areaIcon as unknown as HostNode)).toContainEqual({ type: 0, payload: processColor(foreground) })
     expect(screen.getByTestId('icon-arrow-right').props.stroke).toBe(foreground)
-    expect(screen.getAllByTestId('icon-check').map(node => node.props.stroke)).toContain(foreground)
+    expect(screen.getByText('Selected').parent!.queryAll(node => node.props.testID === 'icon-check')).toHaveLength(0)
     expect(flat(screen.getByRole('button', { name: 'Lưu thiết lập mặc định' })).backgroundColor).toBe(theme.accent.primary)
     expect(flat(screen.getByTestId('assistant-fab')).backgroundColor).toBe(theme.accent.primary)
     const inverted = screen.getByTestId('assistant-glyph-inverted')

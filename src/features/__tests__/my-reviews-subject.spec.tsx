@@ -127,10 +127,10 @@ describe('my reviews: status filter', () => {
     mockPlace = loaded({ id: 'p', name: 'Quán thử' })
     const view = await renderScreen(<MyReviewsScreen />)
 
-    expect(view.getByText('✓ Tất cả (4)')).toBeTruthy()
+    expect(view.getByText('Tất cả (4)')).toBeTruthy()
     expect(view.getByText('Đã hiển thị (2)')).toBeTruthy()
     await fireEvent.press(view.getByText('Chờ duyệt (1)'))
-    expect(view.getByText('✓ Chờ duyệt (1)')).toBeTruthy()
+    expect(view.getByText('Chờ duyệt (1)')).toBeTruthy()
     expect(view.getByText('Nội dung r2')).toBeTruthy()
     expect(view.queryByText('Nội dung r1')).toBeNull()
   })

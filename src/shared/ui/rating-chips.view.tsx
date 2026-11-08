@@ -4,7 +4,7 @@ import { View } from 'react-native'
 import { formatCount, formatRating, ratingParts, type PlaceCard } from '@/shared/api'
 
 import { styles } from './rating-chips.style'
-import { Text } from './text'
+import { Chip } from './chip.view'
 
 /**
  * The two rating sources side by side, never merged: Google, and GoGo only when
@@ -19,9 +19,7 @@ export function RatingChips({ place, source }: { source?: 'gogo'; place: Pick<Pl
       score: formatRating(part.value, i18n.language),
       count: part.count == null ? '' : `(${formatCount(part.count, i18n.language)})`,
     }).replace(/\s+/g, ' ')
-    return <View key={source} style={[styles.chip, source === 'gogo' && styles.chipGogo]}>
-      <Text accessibilityLabel={label} variant="caption" color={source === 'gogo' ? 'status.infoText' : 'text.primary'}>{label}</Text>
-    </View>
+    return <Chip key={source} label={label} variant={source === 'gogo' ? 'info' : 'default'} />
   }
   return (
     <View style={styles.row}>

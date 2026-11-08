@@ -119,18 +119,6 @@ export const styles = StyleSheet.create(theme => ({
   // Was body at 600. Regular: the avatar, the badge and the status chip carry
   // the row's hierarchy; the name does not need a face of its own.
   memberName: { flexShrink: 1 },
-  hostBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.accent.soft,
-  },
-  guestBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.status.infoSoft,
-  },
   sectionTitle: { flex: 1 },
   progressTrack: {
     height: 6,

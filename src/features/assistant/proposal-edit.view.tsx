@@ -1,6 +1,7 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
@@ -135,16 +136,8 @@ function EditForm({
   const chips = (options: { value: string; label: string }[]) => (
     <View style={styles.chips}>
       {options.map(option => (
-        <Pressable
-          key={option.value}
-          accessibilityRole="radio"
-          accessibilityLabel={option.label}
-          accessibilityState={{ checked: choice === option.value }}
-          onPress={() => setChoice(option.value)}
-          style={({ pressed }) => [styles.chip, choice === option.value && styles.chipOn, pressed && styles.chipPressed]}
-        >
-          <Text variant="label" color={choice === option.value ? 'accent.onSoft' : 'text.primary'}>{option.label}</Text>
-        </Pressable>
+        <Chip key={option.value} label={option.label} variant={choice === option.value ? 'selected' : 'default'}
+          onPress={() => setChoice(option.value)} />
       ))}
     </View>
   )

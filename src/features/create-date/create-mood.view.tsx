@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import { isApiError, useCreateRoom, useTaxonomies } from '@/shared/api'
 import { newIdempotencyKey } from '@/shared/api/idempotency'
@@ -204,13 +204,7 @@ export default function CreateMoodScreen() {
                 onPress={() => removeSeedPlace(place.placeId)}
               />
             ))}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push('/places/search?picker=1')}
-              style={styles.seedAddBtn}
-            >
-              <Text variant="label" color="text.secondary">{t('createMood.addPlace')}</Text>
-            </Pressable>
+            <Chip label={t('createMood.addPlace')} onPress={() => router.push('/places/search?picker=1')} />
           </View>
 
           {error ? (

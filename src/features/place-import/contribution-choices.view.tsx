@@ -42,8 +42,7 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
       </Pressable>
     )
     return <Chip key={option.key} label={label(option)} appearance="mood"
-      style={[styles.option, checked && styles.selectedOption]}
-      variant={locked ? 'disabled' : checked ? 'selected' : 'default'} onPress={() => toggle(option.key)} />
+      variant={checked ? 'selected' : 'default'} disabled={locked} onPress={() => toggle(option.key)} />
   }
   const filtered = options.filter((option) => label(option).toLocaleLowerCase(i18n.language).includes(search.trim().toLocaleLowerCase(i18n.language)))
   const groups = [...new Set(filtered.map((option) => option.group ?? ''))]
@@ -54,7 +53,7 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
         {visible.map((option) => row(option))}
         {options.length > visible.length ? <Chip
           label={checklist ? t('placeWizard.allAmenities', { count: options.length }) : t('placeWizard.moreOptions', { count: options.length - visible.length })}
-          style={[styles.option, styles.moreOptions]} variant={disabled ? 'disabled' : 'default'}
+          variant={disabled ? 'disabled' : 'default'}
           onPress={() => { setSearch(''); setOpen(true) }} /> : null}
       </View>
       <Sheet visible={open} onClose={() => setOpen(false)} size="full" appearance="discovery" swipeToClose

@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MutableRefObject } from 'react'
@@ -301,10 +302,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
             <TouchableWithoutFeedback testID="import-dismiss-keyboard" onPress={Keyboard.dismiss} accessible={false}>
               <View ref={contentRef} collapsable={false}>
                 <View style={styles.intro}>
-                  {!verified ? <View style={styles.introBadge}>
-                    <MaterialIcon name="groups" size={16} color="redesign.primaryText" />
-                    <Text variant="introLabel" color="redesign.primaryText">{t('placeImport.community')}</Text>
-                  </View> : null}
+                  {!verified ? <Chip label={t('placeImport.community')} /> : null}
                   <Text variant={verified ? 'introSection' : 'display'} color="redesign.ink">{t(verified ? 'placeImport.completeTitle' : 'placeImport.syncTitle')}</Text>
                   <Text variant={verified ? "introBody" : "bodySmall"} color="redesign.secondary" style={styles.introBody}>{t(verified ? 'placeImport.completeBody' : 'placeImport.body')}</Text>
                 </View>
@@ -314,7 +312,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                   <View style={styles.syncedText}>
                     <View style={styles.syncedTitleRow}>
                       <Text numberOfLines={1} variant="introLabel" color="redesign.ink" style={styles.syncedUrl}>{resolvedUrl?.replace(/^https?:\/\//, '')}</Text>
-                      <View testID="import-verified-confirmation" style={styles.syncedBadge}><MaterialIcon name="checkCircle" size={14} color="redesign.importSyncedText" /><Text variant="introCaptionMedium" color="redesign.importSyncedText">{t('placeImport.synced')}</Text></View>
+                      <Chip testID="import-verified-confirmation" variant="positive" label={t('placeImport.synced')} />
                     </View>
                     <Text numberOfLines={1} variant="introCaption" color="redesign.secondary">{t('placeImport.verifiedLocation', { name: candidate.name })}</Text>
                   </View>

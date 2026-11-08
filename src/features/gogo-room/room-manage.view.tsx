@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -167,17 +168,8 @@ export default function RoomManageScreen() {
             {BUDGET_TIERS.map(tier => {
               const active = selectedBudget === tier.amount
               return (
-                <Pressable
-                  key={tier.key}
-                  onPress={() => setBudgetAmount(tier.amount)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  style={[styles.tier, active && styles.tierActive]}
-                >
-                  <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>
-                    {formatMoney(tier.amount, currency)}
-                  </Text>
-                </Pressable>
+                <Chip key={tier.key} label={formatMoney(tier.amount, currency)}
+                  variant={active ? 'selected' : 'default'} onPress={() => setBudgetAmount(tier.amount)} />
               )
             })}
           </View>

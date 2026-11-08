@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
@@ -80,10 +81,7 @@ export function SuggestionRunNotice({
         {constraintChips.length > 0 ? (
           <View style={styles.constraintRow}>
             {constraintChips.map(chip => (
-              <View key={chip.key} style={styles.constraintChip}>
-                <Icon name={chip.icon} size={16} color="text.secondary" />
-                <Text variant="label" color="text.secondary" numberOfLines={1}>{chip.label}</Text>
-              </View>
+              <Chip key={chip.key} label={chip.label} icon={chip.icon} />
             ))}
           </View>
         ) : null}

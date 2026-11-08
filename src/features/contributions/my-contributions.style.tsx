@@ -3,8 +3,6 @@ import { StyleSheet } from 'react-native-unistyles'
 export const styles = StyleSheet.create(theme => ({
   list: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 24, gap: 16, flexGrow: 1 },
   filters: { gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
-  chip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 99, borderWidth: 1, borderColor: theme.border.hairline, backgroundColor: theme.surface.card },
-  selectedChip: { backgroundColor: theme.text.primary, borderColor: theme.text.primary },
   pressed: { borderColor: theme.accent.primary, borderWidth: 1 },
   unavailable: { opacity: 0.65 },
   bookmark: { position: 'absolute', top: 12, right: 12, width: 44, height: 44, borderRadius: 99, backgroundColor: theme.surface.card, alignItems: 'center', justifyContent: 'center' },

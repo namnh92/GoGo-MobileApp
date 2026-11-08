@@ -5,7 +5,6 @@ import { radius, spacing, touchTarget, shadows } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   interests: { flexDirection: 'row', gap: spacing[2] },
-  interest: { borderRadius: radius.pill, backgroundColor: theme.redesign.container, paddingHorizontal: 10, paddingVertical: spacing[1] },
   groupTitle: { marginHorizontal: spacing[5], marginBottom: spacing[2], textTransform: 'uppercase' },
   settingsCard: { marginHorizontal: spacing[4], marginBottom: spacing[6], borderRadius: 12, overflow: 'hidden', ...shadows.stitch },
   rowValue: { maxWidth: '28%' },

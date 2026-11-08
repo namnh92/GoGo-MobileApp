@@ -40,12 +40,6 @@ export const styles = StyleSheet.create(theme => ({
   rowHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   authorBlock: { flex: 1 },
   author: { flexShrink: 1 },
-  ratingPill: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-    borderRadius: radius.pill,
-    backgroundColor: theme.accent.soft,
-  },
   reviewText: { marginTop: spacing[1] },
   divider: { height: 1, marginTop: spacing[2], backgroundColor: theme.border.hairline },
   helpfulBtn: {

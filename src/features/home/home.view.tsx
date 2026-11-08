@@ -188,7 +188,7 @@ export default function HomeScreen() {
 
         <LinearGradient colors={[theme.redesign.heroStart, theme.redesign.heroMiddle, theme.redesign.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <View pointerEvents="none" style={styles.heroDecor}><MaterialIcon name="groups" size={140} color="redesign.primaryText" /></View>
-          <View style={styles.heroBadge}><MaterialIcon name="bolt" color="redesign.primaryText" size={14} /><Text variant="introCaptionMedium" color="redesign.primaryText">{t('discovery.heroBadge')}</Text></View>
+          <Chip label={t('discovery.heroBadge')} icon="zap" />
           <Text variant="discoveryTitle">{t('discovery.heroTitle')}</Text>
           <Text variant="introSmall" color="redesign.secondary" style={styles.heroBody}>{t('discovery.heroBody')}</Text>
           <Pressable accessibilityRole="button" onPress={startCreate} style={styles.heroPrimary}>

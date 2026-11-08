@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -164,10 +165,7 @@ export default function MyContributionsScreen() {
           ? t(`contributions.${value}`)
           : t('myReviews.filterChip', { label: t(`contributions.${value}`), count: value === 'places' ? `${items.length}${query.hasNextPage ? '+' : ''}` : reviewItems.length }),
         }))} />
-      <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{options.map(value => <Pressable key={value}
-        accessibilityRole="button" accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={({ pressed }) => [styles.chip, filter === value && styles.selectedChip, pressed && styles.pressed]}>
-        <Text variant="caption" numberOfLines={1} color={filter === value ? 'surface.canvas' : 'text.primary'}>{active.data == null ? t(value === 'removed' ? 'myReviews.status.removed' : `myContributions.filter.${value}`) : t('myReviews.filterChip', { label: t(value === 'removed' ? 'myReviews.status.removed' : `myContributions.filter.${value}`), count: `${statuses.filter(row => matches(row.status, value)).length}${tab === 'places' && query.hasNextPage ? '+' : ''}` })}</Text>
-      </Pressable>)}</ScrollView></View>
+      <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{options.map(value => <Chip key={value} variant={filter === value ? 'selected' : 'default'} onPress={() => setFilter(value)} label={active.data == null ? t(value === 'removed' ? 'myReviews.status.removed' : `myContributions.filter.${value}`) : t('myReviews.filterChip', { label: t(value === 'removed' ? 'myReviews.status.removed' : `myContributions.filter.${value}`), count: `${statuses.filter(row => matches(row.status, value)).length}${tab === 'places' && query.hasNextPage ? '+' : ''}` })} />)}</ScrollView></View>
       {!online && !active.isPending ? <OfflineState /> : null}
       {tab === 'places' ? <FlatList testID="my-contributions-list" data={items.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]} refreshControl={refresh} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}

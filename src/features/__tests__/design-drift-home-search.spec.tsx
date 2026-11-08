@@ -861,7 +861,7 @@ describe('#515 refreshed Stitch Home', () => {
     expect(chip.props.accessibilityState.selected).toBe(false)
     await fireEvent.press(chip)
     expect(mockQueries.at(-1)?.moods).toBe('cozy')
-    expect(section.getByText('✓ Ấm cúng')).toBeTruthy()
+    expect(section.getByText('Ấm cúng')).toBeTruthy()
     expect(mockPush).not.toHaveBeenCalled()
     await fireEvent.press(section.getByLabelText('Ấm cúng'))
     expect(mockQueries.at(-1)?.moods).toBeUndefined()
@@ -921,7 +921,7 @@ describe('owner verification round 3', () => {
     expect(view.getByLabelText(i18n.t('search.priceToLabel')).props.placeholder).toBeUndefined()
   })
 
-  it('shows a selected mood with a leading check and the Stitch chip surface', async () => {
+  it('shows a selected mood with a heavier label and the Stitch chip surface', async () => {
     mockKinds = { mood: [{ key: 'cozy', labels: { vi: 'Ấm cúng' } }] }
     const view = await renderScreen(<HomeScreen />)
     const chip = () => view.getByLabelText('Ấm cúng')
@@ -931,7 +931,8 @@ describe('owner verification round 3', () => {
     expect(chip().props.hitSlop.top + surface().height + chip().props.hitSlop.bottom).toBeGreaterThanOrEqual(44)
     await fireEvent.press(chip())
     expect(chip().props.accessibilityState.selected).toBe(true)
-    expect(view.getByText('✓ Ấm cúng')).toBeTruthy()
+    expect(view.queryByText('✓ Ấm cúng')).toBeNull()
+    expect(StyleSheet.flatten(view.getByText('Ấm cúng').props.style).fontFamily).toBe('Inter-SemiBold')
     expect(surface()).toMatchObject({ backgroundColor: '#FFE3DA' })
   })
 

@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  heroBadgePosition: { position: 'absolute', top: spacing[3], left: spacing[3] },
   intro: { paddingHorizontal: spacing[5], gap: spacing[1], marginBottom: spacing[4] },
   summary: {
     marginHorizontal: spacing[5],
@@ -12,15 +13,6 @@ export const styles = StyleSheet.create(theme => ({
   },
   hero: { marginHorizontal: spacing[5], borderRadius: radius.hero, overflow: 'hidden' },
   heroPhoto: { aspectRatio: 1.6, backgroundColor: theme.surface.subtle },
-  heroBadge: {
-    position: 'absolute',
-    top: spacing[3],
-    left: spacing[3],
-    backgroundColor: theme.accent.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-  },
   heroBody: { padding: spacing[4], gap: spacing[2] },
   heroAddress: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heroAddressText: { flexShrink: 1 },

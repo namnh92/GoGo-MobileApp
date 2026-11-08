@@ -91,7 +91,7 @@ describe('profile defaults card', () => {
       />,
     )
     expect(view.getByText('Quận 1, TP.HCM')).toBeTruthy()
-    expect(view.getByText('✓ Thư giãn')).toBeTruthy()
+    expect(view.getByText('Thư giãn')).toBeTruthy()
     expect(view.getByRole('radio', { name: '300–500k' })).toBeTruthy()
     const save = view.getByText('Lưu mặc định')
     await fireEvent.press(save)
@@ -149,7 +149,7 @@ describe('profile defaults card', () => {
     await press(view.getByText('Sôi động'))
     await press(view.getByText('Lưu mặc định'))
     expect(await view.findByText('Chưa lưu được mặc định. Thử lại nhé.')).toBeTruthy()
-    expect(view.getByText('✓ Sôi động')).toBeTruthy()
+    expect(view.getByText('Sôi động')).toBeTruthy()
   })
 
   it('loads and fails honestly: a list that cannot load says so with a retry', async () => {

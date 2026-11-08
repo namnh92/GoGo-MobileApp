@@ -1,15 +1,13 @@
 import { Image, type ImageProps } from 'expo-image'
 import { useState, type ReactNode } from 'react'
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { View, type StyleProp, type ViewStyle } from 'react-native'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import { useLocaleContent } from '@/shared/i18n'
-import { Icon, type IconName } from '@/shared/ui/icons'
-import { haptic } from '@/shared/ui/feedback'
-import { ScaledText, Text, type TextColor } from '@/shared/ui/text'
-import { hitSlop } from '@/shared/ui/tokens'
+import { ScaledText } from '@/shared/ui/text'
 import { AmbientGlow } from './ambient-glow.view'
 import { MaterialIcon } from './material-icon'
+import { Chip } from './chip.view'
 
 export { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn, type ButtonProps } from '@/shared/ui/button.view'
 export { Card } from '@/shared/ui/card.view'
@@ -51,88 +49,12 @@ export function Atmosphere({ children, style, redesign = false, glow = false }: 
 
 export type TagColor = 'coral' | 'violet' | 'green' | 'neutral'
 
-const TAG_LABEL: Record<TagColor, TextColor> = {
-  coral: 'accent.onSoft',
-  violet: 'status.infoText',
-  green: 'status.successText',
-  // `text.secondary` measures 4.12 on `surface.subtle`; a tag is not disabled.
-  neutral: 'text.primary',
-}
-
-/**
- * Chip states (spec §7). `selected` is the only interactive one; the rest are
- * read-only meaning. Selection is never colour alone — the label also carries
- * a check, because roughly one man in twelve cannot tell the accent fill from
- * the neutral one (RULE-DS colour-is-not-the-only-signal).
- */
-export type ChipVariant = 'default' | 'selected' | 'disabled' | 'info' | 'positive' | 'warning'
-
-const CHIP_LABEL: Record<ChipVariant, TextColor> = {
-  default: 'text.primary',
-  selected: 'accent.onAccent',
-  disabled: 'text.secondary',
-  info: 'status.infoText',
-  positive: 'status.successText',
-  warning: 'status.warningText',
-}
-
-export function Chip({ label, variant = 'default', icon, emoji, onPress, accessibilityLabel, style, appearance = 'default' }: {
-  appearance?: 'default' | 'discovery' | 'mood' | 'soft'
-  label: string
-  variant?: ChipVariant
-  /** A glyph from `icons.tsx`, drawn in the label's colour before it (#382). */
-  icon?: IconName
-  /**
-   * A taxonomy illustration (a mood, a category) that has no icon yet. UI copy
-   * never carries emoji (#382); this is the residue for data-driven pictures.
-   */
-  emoji?: string
-  onPress?: () => void
-  accessibilityLabel?: string
-  style?: StyleProp<ViewStyle>
-}) {
-  const selected = variant === 'selected'
-  const disabled = variant === 'disabled'
-  const labelColor: TextColor = appearance === 'soft' ? selected ? 'accent.onSoft' : 'redesign.secondary' : appearance === 'mood' ? selected ? 'redesign.primaryText' : 'redesign.secondary' : appearance === 'discovery' ? 'redesign.primaryText' : CHIP_LABEL[variant]
-
-  const body = (pressed: boolean) => (
-    <View style={[styles.chip, styles[`chip_${variant}`], pressed && styles[`chip_${variant}Pressed`], appearance === 'discovery' && styles.discoveryChip, appearance === 'discovery' && selected && styles.discoveryChipSelected, appearance === 'soft' && styles.softChip, appearance === 'soft' && selected && styles.softChipSelected, appearance === 'soft' && pressed && styles.chip_defaultPressed, appearance === 'mood' && styles.moodChip, appearance === 'mood' && selected && styles.moodChipSelected, style]}>
-      {icon ? <Icon name={icon} size={14} color={labelColor} /> : null}
-      {!icon && emoji ? <Text variant="bodySmall">{emoji}</Text> : null}
-      {/* Shrinks with a chip its row constrains, so the label ellipsises (#332). */}
-      <Text variant={appearance === 'soft' ? 'introSmall' : appearance === 'mood' ? selected ? 'introLabel' : 'introSmall' : appearance === 'discovery' ? 'introSmall' : 'label'} color={labelColor} numberOfLines={appearance === 'discovery' ? undefined : 1} style={styles.chipLabel}>
-        {selected ? `✓ ${label}` : label}
-      </Text>
-    </View>
-  )
-
-  if (!onPress) return body(false)
-
-  return (
-    <Pressable
-      onPress={() => {
-        haptic('select')
-        onPress()
-      }}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected, disabled }}
-      hitSlop={hitSlop}
-    >
-      {({ pressed }) => body(pressed && !disabled)}
-    </Pressable>
-  )
-}
+export { Chip, type ChipVariant } from './chip.view'
 
 // Canonical tag keys live in mock data; display label is locale-mapped here.
 export function TagChip({ label, color = 'neutral' }: { label: string; color?: TagColor }) {
   const { tagLabels } = useLocaleContent()
-  return (
-    <View style={[styles.tag, styles[`tag_${color}`]]}>
-      <Text variant="caption" color={TAG_LABEL[color]}>{tagLabels[label] ?? label}</Text>
-    </View>
-  )
+  return <Chip label={tagLabels[label] ?? label} variant={color === 'violet' ? 'info' : color === 'green' ? 'positive' : 'default'} />
 }
 
 export function ProgressDots({ total, current, variant = 'default' }: { total: number; current: number; variant?: 'default' | 'debate' | 'swipe' | 'plan' }) {
@@ -212,45 +134,7 @@ const styles = StyleSheet.create(theme => ({
   redesignDotActive: { width: 24, backgroundColor: theme.accent.primary, opacity: 1 },
   canvas: { flex: 1, backgroundColor: theme.surface.canvas },
 
-  tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.radius.pill,
-  },
-  tag_coral: { backgroundColor: theme.accent.soft },
-  tag_violet: { backgroundColor: theme.status.infoSoft },
-  tag_green: { backgroundColor: theme.status.successSoft },
-  tag_neutral: { backgroundColor: theme.surface.subtle },
 
-  softChip: { minHeight: 44, borderRadius: 999, borderWidth: 0, backgroundColor: theme.redesign.low },
-  softChipSelected: { backgroundColor: theme.accent.soft },
-  moodChip: { minHeight: 36, height: 36, paddingHorizontal: 14, paddingVertical: 0, borderWidth: 0, borderRadius: 999, backgroundColor: theme.redesign.card, ...theme.shadows.card },
-  moodChipSelected: { backgroundColor: theme.redesign.moodSelected },
-  discoveryChip: { minHeight: 44, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.redesign.low, borderWidth: 0 },
-  discoveryChipSelected: { backgroundColor: theme.redesign.primarySoft },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    minHeight: 32,
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: 6,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-  },
-  chipLabel: { flexShrink: 1 },
-  chip_default: { backgroundColor: theme.surface.card, borderColor: theme.border.hairline },
-  chip_defaultPressed: { backgroundColor: theme.surface.subtle },
-  chip_selected: { backgroundColor: theme.accent.primary, borderColor: theme.accent.primary },
-  chip_selectedPressed: { backgroundColor: theme.accent.pressed, borderColor: theme.accent.pressed },
-  chip_disabled: { backgroundColor: theme.surface.subtle, borderColor: theme.surface.subtle },
-  chip_disabledPressed: {},
-  chip_info: { backgroundColor: theme.status.infoSoft, borderColor: theme.status.infoSoft },
-  chip_infoPressed: {},
-  chip_positive: { backgroundColor: theme.status.successSoft, borderColor: theme.status.successSoft },
-  chip_positivePressed: {},
-  chip_warning: { backgroundColor: theme.status.warningSoft, borderColor: theme.status.warningSoft },
-  chip_warningPressed: {},
 
   dotsRow: {
     flexDirection: 'row',

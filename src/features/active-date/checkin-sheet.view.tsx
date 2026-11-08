@@ -1,3 +1,4 @@
+import { Chip } from '@/shared/ui/chip.view'
 import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
@@ -164,18 +165,8 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
           {CHECKIN_TAGS.map(tag => {
             const active = tags.includes(tag.key)
             return (
-              <Pressable
-                key={tag.key}
-                onPress={() => toggleTag(tag.key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={[styles.tagBtn, active && styles.tagBtnActive]}
-              >
-                {/* The check is the second signal: selection is never colour alone. */}
-                <Text variant="label" color={active ? 'accent.onSoft' : 'text.secondary'}>
-                  {active ? '✓ ' : ''}{tag.emoji} {t(`checkin.tag.${tag.key}`)}
-                </Text>
-              </Pressable>
+              <Chip key={tag.key} label={t(`checkin.tag.${tag.key}`)} emoji={tag.emoji}
+                variant={active ? 'selected' : 'default'} onPress={() => toggleTag(tag.key)} />
             )
           })}
         </View>

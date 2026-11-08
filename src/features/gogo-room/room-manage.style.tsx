@@ -27,13 +27,6 @@ export const styles = StyleSheet.create(theme => ({
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dangerCard: { padding: spacing[4], marginTop: spacing[2], gap: spacing[3], backgroundColor: theme.status.dangerSoft },
   tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  tier: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    borderRadius: radius.pill,
-    backgroundColor: theme.surface.subtle,
-  },
-  tierActive: { backgroundColor: theme.accent.primary },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,5 @@
-import { Pressable, View } from 'react-native'
+import { Chip } from '@/shared/ui/chip.view'
+import { View } from 'react-native'
 
 import { Text } from '@/shared/ui/text'
 
@@ -32,24 +33,10 @@ export function FollowUps({
       {label ? <Text variant="label" color="text.secondary">{label}</Text> : null}
       <View style={styles.chips}>
         {items.map(item => (
-          <Pressable
-            key={`${item.label}-${item.text}`}
-            accessibilityRole="button"
+          <Chip key={`${item.label}-${item.text}`} label={item.label}
             accessibilityLabel={label ? `${label} ${item.label}` : item.label}
-            accessibilityState={{ disabled }}
-            disabled={disabled}
-            onPress={() => onSelect(item.text)}
-            style={({ pressed }) => [
-              styles.chip,
-              item.accent && styles.chipAccent,
-              pressed && (item.accent ? styles.chipAccentPressed : styles.chipPressed),
-              disabled && styles.chipDisabled,
-            ]}
-          >
-            <Text variant="label" color={disabled ? 'text.secondary' : item.accent ? 'accent.onSoft' : 'text.primary'}>
-              {item.label}
-            </Text>
-          </Pressable>
+            variant={disabled ? 'disabled' : item.accent ? 'info' : 'default'}
+            onPress={() => onSelect(item.text)} />
         ))}
       </View>
     </View>
