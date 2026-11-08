@@ -86,6 +86,7 @@ import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { createQueryClient } from '@/shared/api/query-client'
 import { NetworkError } from '@/shared/api/errors'
 import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
+import { themes } from '@/shared/ui/theme'
 
 function emptyPage() {
   return {
@@ -1276,11 +1277,32 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
 })
 
 
-it('waits for filter dismissal before opening the shared current-area sheet', async () => {
+it.each(['orange', 'orangeDark'] as const)('keeps area selection in the header and preserves it on filter reset in %s', async themeName => {
+  const unistyles = jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles')
+  const { rt } = unistyles.useUnistyles()
+  jest.spyOn(unistyles, 'useUnistyles').mockReturnValue({ theme: themes[themeName], rt: { ...rt, themeName } })
+  const area = { datasetVersion: 'ds-2026', provinceCode: '79', provinceName: 'Thành phố Hồ Chí Minh', communeCode: '26734', communeName: 'Phường Bến Thành' }
+  useDiscoveryAreaStore.setState({ area })
+  mockScope = { status: 'ready', source: 'selected_area', area }
+  mockParams = { categories: 'cafe' }
   const view = await renderScreen(<SearchScreen />)
   await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
-  await fireEvent.press(view.getByRole('button', { name: /^Chọn khu vực:/ }))
+  expect(view.getByText(i18n.t('discovery.filterTitle'))).toBeTruthy()
+  expect(view.queryByRole('button', { name: /^Chọn khu vực:/ })).toBeNull()
+  expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
+  await fireEvent.press(view.getByText(i18n.t('discovery.openNow')))
+  await fireEvent.press(view.getByText(i18n.t('discovery.resetDefaults')))
+  expect(view.getByLabelText(i18n.t('discovery.openNow')).props.accessibilityState.selected).toBe(false)
+  expect(view.getByLabelText('Cà phê').props.accessibilityState.selected).toBe(false)
+  await fireEvent.press(view.getByText(i18n.t('discovery.apply')))
   expect(view.queryByTestId('amenity-status-options')).toBeNull()
+  expect(mockQueries.at(-1)).toMatchObject({ datasetVersion: area.datasetVersion, provinceCode: area.provinceCode, communeCode: area.communeCode })
+  expect(mockQueries.at(-1)).not.toHaveProperty('categories')
+  expect(mockQueries.at(-1)).not.toHaveProperty('openNow')
+  expect(useDiscoveryAreaStore.getState().area).toEqual(area)
+  expect(within(view.getByTestId('search-header')).getByText('Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
+  expect(view.queryByTestId('discovery-location-sheet')).toBeNull()
+  await fireEvent.press(within(view.getByTestId('search-header')).getByRole('button', { name: i18n.t('home.chooseArea') }))
   expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
   expect(view.getAllByTestId('sheet-drag-handle')).toHaveLength(1)
 })
@@ -1297,7 +1319,8 @@ it('g04 opens ordinary Search with the saved category and canonical area, withou
   expect(within(view.getByTestId('search-header')).getByText('Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
   expect(within(view.getByTestId('search-header')).queryByText('Hà Nội')).toBeNull()
   await fireEvent.press(view.getByLabelText('Bộ lọc'))
-  expect(view.getByText('Chọn khu vực: Phường Bến Thành, Thành phố Hồ Chí Minh')).toBeTruthy()
+  expect(view.getByText(i18n.t('discovery.filterTitle'))).toBeTruthy()
+  expect(view.queryByRole('button', { name: /^Chọn khu vực:/ })).toBeNull()
 })
 
 it('keeps the app-wide scope after changing areas and returning to the entry area', async () => {
