@@ -4,6 +4,8 @@ import { act, fireEvent, within } from '@testing-library/react-native'
 import { Platform, StyleSheet } from 'react-native'
 
 import { TAB_BAR_HEIGHT } from '@/shared/ui/bottom-bar-inset'
+import { touchTarget } from '@/shared/ui/tokens'
+import { constrainedTouchTarget } from '@/shared/ui/__tests__/touch-target-geometry'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
@@ -161,6 +163,24 @@ describe('Saved by area', () => {
     expect(view.queryByText('‹ Tất cả thành phố')).toBeNull()
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/city/[provinceCode]', params: { provinceCode: '79', cityName: HCM[1] } })
     expect(view.getByText('Cà phê Hồ Gươm')).toBeTruthy()
+  })
+
+  it('preserves the city action target when the province heading fits one line', async () => {
+    const view = await renderScreen(<SavedScreen />)
+    for (const action of view.getAllByRole('button', { name: 'Tất cả ›' })) {
+      const row = StyleSheet.flatten(action.parent!.props.style)
+      const button = StyleSheet.flatten(action.props.style)
+      expect(row).toMatchObject({ minHeight: touchTarget.min, alignItems: 'center' })
+      // The heading and badge are shorter than the 40pt control. Use that
+      // shortest layout, with the action aligned to the row's right edge.
+      const height = Math.max(row.minHeight ?? 0, button.minHeight)
+      const target = constrainedTouchTarget(
+        { x: 260, y: (height - button.minHeight) / 2, width: 60, height: button.minHeight },
+        { x: 0, y: 0, width: 320, height }, action.props.hitSlop,
+      )
+      expect(target.height).toBeGreaterThanOrEqual(touchTarget.min)
+      expect(target.width).toBeGreaterThanOrEqual(touchTarget.min)
+    }
   })
 
   it('includes every ward and unavailable saved place in the selected city', async () => {

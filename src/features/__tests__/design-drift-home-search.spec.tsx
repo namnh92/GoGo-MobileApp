@@ -166,10 +166,10 @@ describe('group 02 discovery behaviour', () => {
     const ai = view.getByRole('button', { name: i18n.t('discovery.askAI') })
     for (const [button, label] of [[reset, 'discovery.resetSearch'], [ai, 'discovery.askAI']] as const) {
       expect(StyleSheet.flatten(button.props.style)).toMatchObject({
-        minHeight: 48, height: undefined, borderRadius: 999,
+        minHeight: 48, borderRadius: 999,
         paddingVertical: 12, paddingHorizontal: 16, gap: 4, borderWidth: 1,
       })
-      expect(StyleSheet.flatten(view.getByText(i18n.t(label)).props.style)).toMatchObject(type.introHeading)
+      expect(StyleSheet.flatten(view.getByText(i18n.t(label)).props.style)).toMatchObject(type.buttonLabel)
       const icon = button.children[0]
       if (typeof icon === 'string') throw new Error('Expected the shared Material icon')
       expect(icon.props).toMatchObject({ bbWidth: 20, bbHeight: 20 })

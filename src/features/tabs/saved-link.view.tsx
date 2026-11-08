@@ -64,7 +64,7 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
       <MaterialIcon name="link" size={18} color="text.secondary" />
       <TextInput testID="saved-link-input" value={url} onChangeText={value => { setUrl(value); setInvalid(false) }} editable={!pending}
         accessibilityLabel={t('placeImport.linkLabel')} placeholder={t('saved.linkPlaceholder')} autoCapitalize="none" autoCorrect={false} keyboardType="url" style={styles.linkInput} />
-      <PrimaryBtn label={t('saved.saveLink')} style={styles.linkButton} onPress={() => void save()} loading={pending} disabled={pending || !url.trim()} />
+      <PrimaryBtn label={t('saved.saveLink')} size="small" onPress={() => void save()} loading={pending} disabled={pending || !url.trim()} />
     </View>
     {invalid ? <Text variant="caption" color="status.dangerText">{t('saved.googleOnly')}</Text> : null}
     <ResultSheet visible={failed} variant="error" title={t('saved.linkFailed')} body={t('saved.retryBody')}

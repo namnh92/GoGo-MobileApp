@@ -10,5 +10,4 @@ export const styles = StyleSheet.create(theme => ({
   compact: { flexDirection: 'row', flexGrow: 0, minHeight: 28, gap: 4, paddingHorizontal: 8, paddingVertical: 4 },
   selected: { backgroundColor: theme.redesign.card, ...theme.shadows.card },
   disabled: { opacity: 0.5 },
-  pressed: { backgroundColor: theme.redesign.low },
 }))

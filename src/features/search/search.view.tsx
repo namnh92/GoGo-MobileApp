@@ -264,7 +264,7 @@ export default function SearchScreen() {
       </Pressable> : undefined} />
     <View style={styles.searchRow}>
       <SearchField appearance="discovery" value={query} onChangeText={setQuery} accessibilityLabel={t('search.title')} placeholder={t('discovery.searchPlaceholder')} style={styles.input} />
-      <IconBtn onPress={openFilters} accessibilityLabel={t('search.filters')} active={activeFilterCount > 0} style={styles.filterToggle}>
+      <IconBtn size="regular" onPress={openFilters} accessibilityLabel={t('search.filters')} active={activeFilterCount > 0} style={styles.filterToggle}>
         <MaterialIcon name="tune" color="redesign.primaryText" />
         {activeFilterCount > 0 ? <View style={styles.filterDot} /> : null}
       </IconBtn>

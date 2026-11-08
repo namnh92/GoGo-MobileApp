@@ -446,6 +446,7 @@ export const type = {
   bodySmall: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
   caption: { fontFamily: fontFamily.medium, fontSize: 11, lineHeight: 15 },
   label: { fontFamily: fontFamily.semiBold, fontSize: 13, lineHeight: 18 },
+  buttonLabel: { fontFamily: fontFamily.semiBold, fontSize: 15, lineHeight: 20 },
 } as const
 
 /**
@@ -565,6 +566,13 @@ export const redesignDark = {
   scrimStart: redesignLight.scrimStart, scrimMiddle: redesignLight.scrimMiddle, clear: redesignLight.clear,
   glowWarm: '#FF746C', glowCool: '#7161E2', glowGreen: darkStatus.success,
 } as const
+
+/** Shared button geometry; minHeight allows wrapped action labels to grow. */
+export const buttonSizes = {
+  regular: { minHeight: 48, paddingHorizontal: 16, paddingVertical: 12, label: 'buttonLabel', iconSize: 20 },
+  small: { minHeight: 40, paddingHorizontal: 12, paddingVertical: 8, label: 'label', iconSize: 18 },
+} as const
+export type ButtonSize = keyof typeof buttonSizes
 
 export const touchTarget = { min: 44 } as const
 

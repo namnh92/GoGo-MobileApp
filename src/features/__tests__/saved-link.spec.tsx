@@ -1,5 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native-unistyles'
+import { StyleSheet as RNStyleSheet } from 'react-native'
+import { buttonSizes, touchTarget } from '@/shared/ui/tokens'
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { renderScreen } from './harness'
 import { SavedLink } from '@/features/tabs/saved-link.view'
@@ -177,6 +179,10 @@ it('uses the compact row with no separate quick-save title', async () => {
   const view = await renderScreen(<SavedLink onFeedback={mockFeedback} />)
   expect(view.getByPlaceholderText('Dán link Google Maps để lưu')).toBeTruthy()
   expect(view.queryByText('Lưu nhanh từ link')).toBeNull()
+  const save = view.getByRole('button', { name: 'Lưu' })
+  const height = RNStyleSheet.flatten(save.props.style).minHeight
+  expect(height).toBe(buttonSizes.small.minHeight)
+  expect(height + save.props.hitSlop.top + save.props.hitSlop.bottom).toBeGreaterThanOrEqual(touchTarget.min)
 })
 
 it.each(['orange', 'orangeDark'] as const)('keeps the quick-save row compact and uses theme colors (%s)', themeName => {
@@ -187,7 +193,6 @@ it.each(['orange', 'orangeDark'] as const)('keeps the quick-save row compact and
   const styles = factory(theme)
   create.mockRestore()
   expect(styles.linkRow).toMatchObject({ minHeight: 44, flexDirection: 'row' })
-  expect(styles.linkButton).toMatchObject({ height: 44, paddingVertical: 0 })
   expect(styles.linkCard.padding).toBeUndefined()
   expect(styles.linkInput).toMatchObject({ ...theme.type.bodySmall, color: theme.redesign.ink, backgroundColor: theme.redesign.container })
   expect(styles.countBadge).toMatchObject({ minWidth: 24, minHeight: 24, borderRadius: 12, backgroundColor: theme.surface.subtle })

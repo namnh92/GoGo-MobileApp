@@ -421,7 +421,6 @@ function Wizard({
                 label={t('common.back')}
                 disabled={busy}
                 onPress={() => move(step - 1)}
-                style={styles.back}
               />
             ) : null}
             {step < 3 ? (

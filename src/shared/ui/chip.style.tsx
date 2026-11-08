@@ -26,16 +26,10 @@ export const styles = StyleSheet.create(theme => ({
   },
   chipLabel: { flexShrink: 1 },
   chip_default: { backgroundColor: theme.surface.card, borderColor: theme.border.hairline },
-  chip_defaultPressed: { backgroundColor: theme.surface.subtle },
   chip_selected: { backgroundColor: theme.accent.primary, borderColor: theme.accent.primary },
-  chip_selectedPressed: { backgroundColor: theme.accent.pressed, borderColor: theme.accent.pressed },
   chip_disabled: { backgroundColor: theme.surface.subtle, borderColor: theme.surface.subtle },
-  chip_disabledPressed: {},
   chip_info: { backgroundColor: theme.status.infoSoft, borderColor: theme.status.infoSoft },
-  chip_infoPressed: {},
   chip_positive: { backgroundColor: theme.status.successSoft, borderColor: theme.status.successSoft },
-  chip_positivePressed: {},
   chip_warning: { backgroundColor: theme.status.warningSoft, borderColor: theme.status.warningSoft },
-  chip_warningPressed: {},
 
 }))

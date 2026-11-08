@@ -176,6 +176,5 @@ export const styles = StyleSheet.create(theme => {
 
   // --- sticky action -------------------------------------------------------
   // Position, gutter, glass and hairline are `GlassBar`'s (#296). One bar, as drawn.
-  addBtn: { height: touchTarget.min + 8 },
   }
 })

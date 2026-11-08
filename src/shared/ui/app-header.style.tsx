@@ -12,6 +12,5 @@ export const styles = StyleSheet.create(theme => ({
   subtitle: { marginTop: spacing[1] },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   button: { minWidth: touchTarget.min, minHeight: touchTarget.min, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[2] },
-  pressed: { backgroundColor: theme.redesign.low },
   disabled: { backgroundColor: theme.surface.subtle },
 }))

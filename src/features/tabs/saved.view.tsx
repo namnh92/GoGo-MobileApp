@@ -161,7 +161,7 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
                     : t(group.kind === 'unknown' ? 'saved.group.unknown' : 'saved.group.multipleProvinces')}
                 </Text>
                 <View style={styles.countBadge}><Text variant="caption" color="text.secondary">{group.kind === 'province' ? group.communes.reduce((count, commune) => count + commune.entries.length, 0) : group.entries.length}</Text></View>
-                {group.kind === 'province' ? <GhostBtn label={t('saved.viewGroup')} accessibilityHint={t('saved.cityListHint', { city: group.provinceName })} style={styles.cityAction} onPress={() => router.push({ pathname: '/saved/city/[provinceCode]', params: { provinceCode: group.provinceCode, cityName: group.provinceName } })} /> : null}
+                {group.kind === 'province' ? <GhostBtn label={t('saved.viewGroup')} accessibilityHint={t('saved.cityListHint', { city: group.provinceName })} size="small" style={styles.cityAction} onPress={() => router.push({ pathname: '/saved/city/[provinceCode]', params: { provinceCode: group.provinceCode, cityName: group.provinceName } })} /> : null}
               </View> : null}
               {group.kind === 'province' ? (
                 group.communes.map(commune => (

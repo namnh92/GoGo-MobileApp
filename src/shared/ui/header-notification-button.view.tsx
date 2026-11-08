@@ -22,7 +22,7 @@ export function HeaderNotificationButton({ testID, unreadDotTestID }: { testID: 
           ? t('home.bellUnread', { count: badgeLabel(unread.count, unread.more) })
           : t('notifications.title')
       }
-      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+      style={styles.button}
     >
       <Icon name="bell" size={22} color="redesign.primaryText" />
       {unread.count > 0 ? <View testID={unreadDotTestID} style={styles.unreadDot} /> : null}

@@ -7,6 +7,7 @@ import { scriptedTime } from './scripted-time'
 import { AccessibilityInfo, BackHandler, Linking, StyleSheet } from 'react-native'
 import { themes } from '@/shared/ui/theme'
 import i18n from '@/shared/i18n'
+import { pressAndHold } from '@/shared/ui/__tests__/press-and-hold'
 
 /**
  * PROF-APP-002 (#177), ADR-0022 — the avatar control on the account screen.
@@ -100,6 +101,19 @@ beforeEach(() => {
 
 
 describe('account screen layout (#297)', () => {
+  it('keeps the actual Account back and Save actions transparent while held', async () => {
+    const view = await renderScreen(<AccountScreen />)
+    await fireEvent.changeText(view.getByLabelText(i18n.t('auth.displayName')), 'An Nguyen')
+    for (const name of [i18n.t('common.back'), i18n.t('account.save')]) {
+      const action = view.getByRole('button', { name })
+      expect(action).toBeEnabled()
+      const resting = StyleSheet.flatten(action.props.style)
+      expect(resting.backgroundColor).toBeUndefined()
+      await pressAndHold(action)
+      expect(StyleSheet.flatten(action.props.style)).toEqual(resting)
+    }
+  })
+
   it('keeps theme and defaults on the separate approved G11 routes', async () => {
     const view = await renderScreen(<AccountScreen />)
     expect(view.queryByText('Màu chủ đề')).toBeNull()

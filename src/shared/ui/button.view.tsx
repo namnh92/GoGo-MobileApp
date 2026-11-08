@@ -7,7 +7,7 @@ import { MaterialIcon, type MaterialIconName } from './material-icon'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text, type TextColor } from '@/shared/ui/text'
 import type { AppTheme } from '@/shared/ui/theme'
-import { hitSlop } from '@/shared/ui/tokens'
+import { buttonSizes, hitSlop, type ButtonSize } from '@/shared/ui/tokens'
 
 import { styles } from './button.style'
 
@@ -24,6 +24,7 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
+  size?: ButtonSize
   variant?: 'pill' | 'default' | 'neutral' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
   /** Allow full action labels to wrap in narrow shared layouts. */
@@ -75,13 +76,12 @@ const HAPTIC: Record<Kind, Parameters<typeof haptic>[0]> = {
 function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: boolean) {
   if (onAccent && (kind === 'primary' || kind === 'secondary')) {
     const onAccentBase = kind === 'primary' ? styles.primaryOnAccent : styles.secondaryOnAccent
-    const onAccentPressed = kind === 'primary' ? styles.primaryOnAccentPressed : styles.secondaryOnAccentPressed
-    return [styles[kind], onAccentBase, pressed && onAccentPressed, disabled && styles.onAccentInactive]
+    return [styles[kind], onAccentBase, disabled && styles.onAccentInactive]
   }
-  return [styles[kind], pressed && styles[`${kind}Pressed`], disabled && styles[`${kind}Disabled`]]
+  return [styles[kind], pressed && kind === 'primary' && styles.primaryPressed, disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel = false, variant = 'default' }: ButtonProps & {
+function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel = false, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -101,6 +101,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         haptic(HAPTIC[kind])
         onPress()
       }}
+      hitSlop={hitSlop}
       disabled={inactive}
       accessibilityRole="button"
       // #271: Android writes contentDescription only when label + state is
@@ -112,22 +113,22 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         styles.base,
         // A neutral control never registers accent styles with the native
         // stylesheet, including the pressed/disabled/onAccent paths.
-        ...(neutral ? [styles.neutral, pressed && !inactive && styles.neutralPressed] : kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed)),
+        ...(neutral ? [styles.neutral] : kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed)),
         stitch && styles[variant],
         variant === 'discovery' && kind === 'primary' && styles.discoveryPrimary,
         variant === 'area' && kind === 'primary' && styles.areaPrimary,
-        variant === 'area' && pressed && !inactive && (kind === 'primary' ? styles.primaryPressed : styles.areaPressed),
         variant === 'area' && greyed && styles.primaryDisabled,
         variant === 'discovery' && greyed && styles.primaryDisabled,
         stitch && pressed && !inactive && !reduced && (variant === 'stitchSubtle' ? styles.stitchPressedSubtle : styles.stitchPressed),
+        styles[size],
         style,
       ]}
     >
       {loading ? <ActivityIndicator testID="button-spinner" size="small" color={look.spinner(theme)} /> : null}
-      {icon && !loading && !stitch ? <Icon name={icon} size={18} color={iconColor} /> : null}
-      {leadingIcon && !loading ? <MaterialIcon name={leadingIcon} size={20} color={iconColor} /> : null}
+      {icon && !loading && !stitch ? <Icon name={icon} size={buttonSizes[size].iconSize} color={iconColor} /> : null}
+      {leadingIcon && !loading ? <MaterialIcon name={leadingIcon} size={buttonSizes[size].iconSize} color={iconColor} /> : null}
       <Text
-        variant={variant === 'area' ? 'introLabel' : stitch ? (kind === 'primary' || variant === 'discovery' ? 'introHeading' : variant === 'stitchGuest' ? 'introBody' : 'introSmall') : 'label'}
+        variant={buttonSizes[size].label}
         color={greyed ? look.disabledLabel : variant === 'area' && kind === 'secondary' ? 'redesign.secondary' : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
         numberOfLines={stitch || wrapLabel ? undefined : 1}
         ellipsizeMode="tail"
@@ -135,8 +136,8 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       >
         {label}
       </Text>
-      {trailingIcon && !loading ? <MaterialIcon name={trailingIcon} size={20} color={iconColor} /> : null}
-      {stitch && icon && !trailingIcon && !loading ? <MaterialIcon name="arrowRight" size={20} color={iconColor} /> : null}
+      {trailingIcon && !loading ? <MaterialIcon name={trailingIcon} size={buttonSizes[size].iconSize} color={iconColor} /> : null}
+      {stitch && icon && !trailingIcon && !loading ? <MaterialIcon name="arrowRight" size={buttonSizes[size].iconSize} color={iconColor} /> : null}
     </Pressable>
   )
 }
@@ -167,7 +168,8 @@ export function DangerBtn(props: ButtonProps) {
  * a screen reader announcing "button" and nothing else is a dead end. Drawn at
  * 40pt with slop so the touch area still clears 44 (RULE-DS touch targets).
  */
-export function IconBtn({ children, onPress, accessibilityLabel, active = false, disabled = false, style }: {
+export function IconBtn({ children, onPress, accessibilityLabel, active = false, disabled = false, style, size = 'small' }: {
+  size?: ButtonSize
   children: ReactNode
   onPress: () => void
   accessibilityLabel: string
@@ -186,10 +188,10 @@ export function IconBtn({ children, onPress, accessibilityLabel, active = false,
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled, selected: active }}
       hitSlop={hitSlop}
-      style={({ pressed }) => [
+      style={[
         styles.icon,
+        size === 'regular' ? styles.iconRegular : styles.iconSmall,
         active && styles.iconActive,
-        pressed && !disabled && styles.iconPressed,
         disabled && styles.iconDisabled,
         style,
       ]}

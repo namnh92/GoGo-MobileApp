@@ -1,14 +1,12 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { motion, touchTarget } from '@/shared/ui/tokens'
+import { buttonSizes, motion } from '@/shared/ui/tokens'
 
 /**
- * The default button family (#293 §2). Pressed is a colour change —
- * no scale, no opacity — so a press never moves the layout and every button
- * answers a finger the same way. Disabled is a fill change, not a fade, so the
- * label keeps a colour that was measured (`text.secondary` on `surface.subtle`).
+ * Pressing keeps the resting fill/tint (owner 2026-11-08). Existing shadow
+ * feedback and tokenized Stitch scale remain unchanged. Disabled is a fill
+ * change, not a fade, so the label keeps its measured contrast.
  *
- * Owner 2026-11-06 D1 adds tokenized scale to the Stitch variants only.
  * Another exception is `onAccent`: a button sitting on an accent-coloured hero
  * has no neutral fill that still reads as "part of this surface", so its
  * disabled state fades instead.
@@ -16,77 +14,68 @@ import { motion, touchTarget } from '@/shared/ui/tokens'
 const noShadow = { shadowOpacity: 0, elevation: 0 } as const
 
 export const styles = StyleSheet.create(theme => ({
-  pill: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 999, gap: 8 },
-  area: { minHeight: 50, height: undefined, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 0, backgroundColor: theme.redesign.high, gap: 8 },
-  areaPressed: { backgroundColor: theme.redesign.container },
+  pill: { borderRadius: 999, gap: 8 },
+  area: { borderRadius: 12, borderWidth: 0, backgroundColor: theme.redesign.high, gap: 8 },
   areaPrimary: { backgroundColor: theme.accent.primary, borderColor: 'transparent' },
-  discoveryJoin: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 12, gap: 4, borderWidth: 0, backgroundColor: theme.redesign.high },
+  discoveryJoin: { borderRadius: 12, gap: 4, borderWidth: 0, backgroundColor: theme.redesign.high },
   // Reserve the same border space for filled and outlined discovery CTAs.
-  discovery: { minHeight: 48, height: undefined, paddingVertical: 12, borderRadius: 999, gap: 4, borderWidth: 1 },
+  discovery: { borderRadius: 999, gap: 4, borderWidth: 1 },
   discoveryPrimary: { backgroundColor: theme.accent.primary, borderColor: 'transparent' },
-  stitch: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
-  stitchSubtle: { minHeight: 48, height: undefined, paddingVertical: 13, borderRadius: 12, gap: 4 },
-  stitchGuest: { minHeight: 44, height: undefined, borderRadius: 12 },
-  stitchSkip: { minHeight: 44, height: undefined, paddingHorizontal: 12, borderRadius: 999 },
-  stitchSkipPill: { minHeight: 44, height: undefined, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.redesign.low },
+  stitch: { borderRadius: 12, gap: 4 },
+  stitchSubtle: { borderRadius: 12, gap: 4 },
+  stitchGuest: { borderRadius: 12 },
+  stitchSkip: { borderRadius: 999 },
+  stitchSkipPill: { borderRadius: 999, backgroundColor: theme.redesign.low },
   stitchPressed: { transform: [{ scale: motion.pressScale }] },
   stitchPressedSubtle: { transform: [{ scale: motion.pressScaleSubtle }] },
   base: {
     borderRadius: theme.radius.button,
-    paddingHorizontal: theme.spacing[4],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: theme.spacing[2],
   },
+  regular: { minWidth: buttonSizes.regular.minHeight, minHeight: buttonSizes.regular.minHeight, paddingHorizontal: buttonSizes.regular.paddingHorizontal, paddingVertical: buttonSizes.regular.paddingVertical },
+  small: { minWidth: buttonSizes.small.minHeight, minHeight: buttonSizes.small.minHeight, paddingHorizontal: buttonSizes.small.paddingHorizontal, paddingVertical: buttonSizes.small.paddingVertical },
   label: { flexShrink: 1, textAlign: 'center' },
 
-  primary: { height: 56, backgroundColor: theme.accent.primary, ...theme.shadows.cta },
-  primaryPressed: { backgroundColor: theme.accent.pressed, ...noShadow },
+  primary: { backgroundColor: theme.accent.primary, ...theme.shadows.cta },
+  primaryPressed: { ...noShadow },
   primaryDisabled: { backgroundColor: theme.surface.subtle, ...noShadow },
   primaryOnAccent: { backgroundColor: theme.accent.onAccent, ...noShadow },
-  primaryOnAccentPressed: { backgroundColor: theme.accent.soft },
 
   secondary: {
-    height: 52,
     backgroundColor: theme.surface.card,
     borderWidth: 1,
     borderColor: theme.accent.primary,
   },
-  secondaryPressed: { backgroundColor: theme.accent.soft },
   secondaryDisabled: { backgroundColor: theme.surface.subtle, borderColor: 'transparent' },
   secondaryOnAccent: { backgroundColor: 'transparent', borderColor: theme.accent.onAccent },
-  secondaryOnAccentPressed: { backgroundColor: theme.onDark.wash },
 
-  neutral: { minHeight: 52, paddingVertical: 13, borderRadius: 16, backgroundColor: theme.surface.subtle, borderWidth: 0, ...noShadow },
-  neutralPressed: { backgroundColor: theme.surface.card },
+  neutral: { borderRadius: 16, backgroundColor: theme.surface.subtle, borderWidth: 0, ...noShadow },
 
-  ghost: { height: touchTarget.min },
-  ghostPressed: { backgroundColor: theme.surface.subtle },
+  ghost: {},
   ghostDisabled: {},
 
   danger: {
-    height: 52,
     backgroundColor: theme.status.dangerSoft,
     borderWidth: 0,
   },
-  dangerPressed: { backgroundColor: theme.surface.subtle },
   dangerDisabled: { backgroundColor: theme.surface.subtle, borderColor: 'transparent' },
 
   /** A coloured ground has no neutral disabled fill; fade instead. */
   onAccentInactive: { opacity: 0.6 },
 
   icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    borderRadius: buttonSizes.small.minHeight / 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.surface.card,
     borderWidth: 1,
     borderColor: theme.border.hairline,
   },
+  iconRegular: { width: buttonSizes.regular.minHeight, height: buttonSizes.regular.minHeight, borderRadius: buttonSizes.regular.minHeight / 2 },
+  iconSmall: { width: buttonSizes.small.minHeight, height: buttonSizes.small.minHeight },
   iconActive: { backgroundColor: theme.accent.soft, borderColor: theme.accent.primary },
-  iconPressed: { backgroundColor: theme.surface.subtle },
   iconDisabled: { backgroundColor: theme.surface.subtle, borderColor: 'transparent' },
 }))

@@ -120,8 +120,7 @@ export const styles = StyleSheet.create((theme) => ({
     borderTopColor: theme.redesign.line,
     paddingTop: 12,
   },
-  back: { minHeight: 44 },
-  next: { width: '100%', minWidth: 0, height: 56 },
+  next: { width: '100%', minWidth: 0 },
   headerIcon: {
     width: 28,
     height: 28,
@@ -130,7 +129,7 @@ export const styles = StyleSheet.create((theme) => ({
     justifyContent: 'center',
     backgroundColor: theme.redesign.primarySoft,
   },
-  action: { width: '100%', height: 56 },
+  action: { width: '100%' },
   note: {
     padding: 12,
     borderRadius: 12,
@@ -142,7 +141,6 @@ export const styles = StyleSheet.create((theme) => ({
     borderStyle: 'dashed',
     borderColor: theme.redesign.primaryText,
     borderRadius: 12,
-    minHeight: 44,
     backgroundColor: theme.redesign.low,
   },
 }))

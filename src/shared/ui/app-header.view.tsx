@@ -55,5 +55,5 @@ export function AppHeader({ variant = 'sub-screen', showNotifications = true, ti
 
 /** Optional actions share the back button's target, feedback and a11y contract. */
 export function AppHeaderAction({ accessibilityLabel, children, onPress, disabled = false, testID, accessibilityRole = 'button', accessibilityState }: { accessibilityLabel: string; children: ReactNode; onPress: () => void; disabled?: boolean; testID?: string; accessibilityRole?: AccessibilityRole; accessibilityState?: AccessibilityState }) {
-  return <Pressable testID={testID} accessibilityRole={accessibilityRole} accessibilityLabel={accessibilityLabel} accessibilityState={{ ...accessibilityState, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, pressed && styles.pressed, disabled && styles.disabled]}>{children}</Pressable>
+  return <Pressable testID={testID} accessibilityRole={accessibilityRole} accessibilityLabel={accessibilityLabel} accessibilityState={{ ...accessibilityState, disabled }} disabled={disabled} onPress={onPress} style={[styles.button, disabled && styles.disabled]}>{children}</Pressable>
 }
