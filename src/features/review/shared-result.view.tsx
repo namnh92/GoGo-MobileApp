@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Share, View } from 'react-native'
-import { StyleSheet } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -18,10 +17,9 @@ import {
 import { costLineText, planCost, scopeLabel } from '@/shared/pricing/plan-cost'
 import { ErrorState } from '@/shared/ui/async-state.view'
 import { haptic } from '@/shared/ui/feedback'
-import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { PlaceCard } from '@/shared/ui/place-card.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
 import { IconShare } from '@/shared/ui/icons'
-import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -85,7 +83,6 @@ export default function SharedResultScreen() {
     .slice(0, 5)
 
   const matchScore = winner ? (winner.score * SCORE_MAX).toFixed(1) : null
-  const winnerPhoto = winnerDetail.data ? detailToPlaceCard(winnerDetail.data).photoUrl : null
 
   async function share() {
     // Plain share via the native sheet (spec: no story/social-specific CTA).
@@ -127,21 +124,7 @@ export default function SharedResultScreen() {
 
         {/* The place, not just its name — this is the card people send on. */}
         {winner ? (
-          <View style={styles.heroCard}>
-            <PlacePhoto
-              placeId={winner.placeId}
-              name={winner.name}
-              uri={winnerPhoto}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.heroScrim} />
-            <View style={styles.heroBody}>
-              <Text variant="display" color="text.inverse" style={styles.winnerName} numberOfLines={2}>{winner.name}</Text>
-              {winnerDetail.data ? (
-                <PlaceAddressText place={winnerDetail.data} variant="bodySmall" color="onDark.strong" style={styles.heroMeta} numberOfLines={1} />
-              ) : null}
-            </View>
-          </View>
+          <PlaceCard variant="hero" place={winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
         ) : null}
 
         {scoreParts.length > 0 ? (

@@ -881,7 +881,7 @@ describe('#515 refreshed Stitch Home', () => {
     const [full, sparse] = view.getAllByTestId('place-card-discovery').map(card => within(card))
     expect(full.getByText('Xác minh')).toBeTruthy()
     expect(full.queryByTestId('place-card-area-badge')).toBeNull()
-    expect(full.getByText('● Mở đến 20:00')).toBeTruthy()
+    expect(full.getByText('Mở đến 20:00')).toBeTruthy()
     expect(full.getByText('45k–90k/người')).toBeTruthy()
     expect(full.getByText('12 Nguyễn Huệ').props.numberOfLines).toBe(2)
     expect(full.getByText('Địa điểm từ API').props.numberOfLines).toBe(1)

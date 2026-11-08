@@ -648,7 +648,7 @@ it('shows a success result for the place and replaces the submitted form with co
   await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
   const row = within(screen.getByTestId('place-preview-compact'))
   expect(row.getByText('Preview')).toBeTruthy()
-  expect(row.getByText('12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh').props.numberOfLines).toBe(1)
+  expect(row.getByText('12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh').props.numberOfLines).toBe(2)
   expect(row.queryByTestId('place-preview-thumbnail')).toBeNull()
   expect(screen.getByText('Đã gửi cho GoGo duyệt')).toBeTruthy()
   expect(screen.getByText('Preview đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()

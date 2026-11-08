@@ -79,7 +79,7 @@ it.each(['detail-last', 'reviews-last'] as const)('keeps header and reviews on t
   expect(screen.getByText('Đánh giá gần nhất trên GoGo (3)')).toBeTruthy()
   const header = within(screen.getByTestId('place-detail-facts'))
   expect(header.queryByText(/^★ 4,8.*GoGo$/)).toBeNull()
-  expect(header.getByText('GoGo · 3 đánh giá · Chưa đủ 5 đánh giá')).toBeTruthy()
+  expect(header.getByText('GoGo · Chưa đủ đánh giá (3)')).toBeTruthy()
   // Reviews must not mutate the independent detail cache.
   expect(client.getQueryData(queryKeys.place('p'))).toEqual(detail)
 })

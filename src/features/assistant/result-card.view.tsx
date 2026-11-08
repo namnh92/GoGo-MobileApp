@@ -1,13 +1,12 @@
-import { Chip } from '@/shared/ui/chip.view'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
 import type { AssistantPlaceCard, AssistantPlanCard, AssistantResultCard } from '@/shared/api'
-import { formatRange } from '@/shared/pricing/money'
+import { detailToPlaceCard } from '@/shared/api'
 import { Badge } from '@/shared/ui/badge.view'
 import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
-import { PlaceAddressText } from '@/shared/ui/place-address.view'
+import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Text } from '@/shared/ui/text'
 
 import { formatWhen } from './format'
@@ -49,42 +48,18 @@ function Meta({ icon, text }: { icon: IconName; text: string }) {
 function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (placeId: string) => void }) {
   const { t } = useTranslation()
   const { facts } = card
-  const price = formatRange(facts.priceMin, facts.priceMax, facts.currency ?? 'VND')
-  return (
-    <View testID={`assistant-card-${card.placeId}`} style={styles.card}>
-      <View style={styles.head}>
-        <View style={styles.thumb}>
-          <Icon name="mapPin" size={20} color="accent.onSoft" />
-        </View>
-        <View style={styles.titles}>
-          <Text variant="title2" numberOfLines={2}>{facts.name}</Text>
-          <PlaceAddressText place={facts} variant="bodySmall" color="text.secondary" numberOfLines={2} />
-        </View>
-      </View>
-      {card.available ? (
-        <>
-          {price ? (
-            <Text variant="title2" color="accent.primary">{t('assistant.card.perPerson', { price })}</Text>
-          ) : null}
-          {(facts.gogoRating != null && facts.gogoRatingCount) || facts.openNow != null ? (
-            <View style={styles.badges}>
-              {facts.gogoRating != null && facts.gogoRatingCount ? (
-                <Chip icon="star" variant="info" label={t('assistant.card.rating', { rating: facts.gogoRating.toFixed(1), count: facts.gogoRatingCount })} />
-              ) : null}
-              {facts.openNow != null ? (
-                <Badge tone={facts.openNow ? 'success' : 'neutral'} label={facts.openNow ? t('assistant.card.openNow') : t('assistant.card.closedNow')} />
-              ) : null}
-            </View>
-          ) : null}
-          <SecondaryBtn label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" />
-        </>
-      ) : (
-        <View style={styles.badges}>
-          <Badge tone="warning" label={t('assistant.card.unavailable')} />
-        </View>
-      )}
-    </View>
-  )
+  const place = detailToPlaceCard({ id: card.placeId, name: facts.name, addressText: facts.addressText,
+    gogoRating: card.available ? facts.gogoRating : undefined,
+    gogoRatingCount: card.available ? facts.gogoRatingCount : undefined,
+
+  })
+  return <View testID={`assistant-card-${card.placeId}`}>
+    <PlaceCard place={{ ...place, openNow: card.available ? facts.openNow ?? undefined : undefined,
+      priceMin: card.available ? facts.priceMin ?? null : null, priceMax: card.available ? facts.priceMax ?? null : null,
+      currency: facts.currency ?? 'VND', priceUnit: 'per_person', priceUncertain: false }}
+      variant="compact" unavailableLabel={card.available ? undefined : t('assistant.card.unavailable')}
+      footer={card.available ? <SecondaryBtn label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" /> : undefined} />
+  </View>
 }
 
 function PlanResult({ card, onOpen }: { card: AssistantPlanCard; onOpen: (planId: string, roomId: string) => void }) {

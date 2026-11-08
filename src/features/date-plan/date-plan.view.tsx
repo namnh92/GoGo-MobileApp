@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
 
 import {
+  detailToPlaceCard,
   formatDistance,
   isApiError,
   isForbidden,
@@ -28,18 +29,16 @@ import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
-import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { PlaceCard } from '@/shared/ui/place-card.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, Toast } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon } from '@/shared/ui/icons'
-import { PlaceAddressText } from '@/shared/ui/place-address.view'
 import { Text } from '@/shared/ui/text'
 import { hitSlop, spacing } from '@/shared/ui/tokens'
 
 import { planStep, useRoomStepShown } from '@/shared/navigation/room-steps'
 
-import { PlaceDetailEmptyHero } from './place-detail-empty-hero.view'
 import { styles } from './date-plan.style'
 import { planStart, planWhen } from './plan-title'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
@@ -427,13 +426,8 @@ export default function DatePlanScreen() {
                   padded={false}
                   style={[styles.stopCard, stop.status === 'completed' && styles.stopCardCompleted]}
                 >
-                  <View style={styles.stopHero}>
-                    {place?.photoUrl ? (
-                      <PlacePhoto placeId={stop.placeId} name={name} uri={place.photoUrl} style={styles.stopImage} />
-                    ) : (
-                      <View style={styles.stopImage}><PlaceDetailEmptyHero /></View>
-                    )}
-                    <View pointerEvents="none" style={styles.stopScrim} />
+                  <View>
+                    <PlaceCard place={place ?? detailToPlaceCard({ id: stop.placeId, name })} />
                     <View style={styles.stopHeroTop}>
                       <View style={styles.stopOrderBadge}>
                         <Text variant="label" color="text.inverse">{t('datePlan.stopOrder', { n: index + 1 })}</Text>
@@ -463,12 +457,6 @@ export default function DatePlanScreen() {
                           </Pressable>
                         )}
                       </View>
-                    </View>
-                    <View pointerEvents="none" style={styles.stopHeroBottom}>
-                      <Text variant="title1" color="text.inverse" numberOfLines={1}>{name}</Text>
-                      {place ? (
-                        <PlaceAddressText place={place} variant="bodySmall" color="text.inverse" numberOfLines={1} />
-                      ) : null}
                     </View>
                   </View>
                   <View style={styles.stopInfo}>

@@ -1,19 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { usePlaceClock } from '@/shared/ui/use-place-clock'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
-import { StyleSheet } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isApiError,
   isStaleRanking,
   detailToPlaceCard,
-  formatDistance,
-  formatMinuteOfDay,
-  openStateFromHours,
-  placePriceParts,
   roomCapabilities,
   toCandidateCard,
   usePlaceDetail,
@@ -30,16 +24,13 @@ import {
 import { track } from '@/shared/analytics'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { allScopes, costLineText, planCost } from '@/shared/pricing/plan-cost'
-import { isStandalonePrice, priceUnitKey } from '@/shared/pricing/price-unit'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { PlacePhoto } from '@/shared/ui/place-photo.view'
+import { PlaceCard } from '@/shared/ui/place-card.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
-import { RatingChips } from '@/shared/ui/rating-chips.view'
 import { ResultSkeleton } from '@/shared/ui/skeleton.view'
-import { Icon, IconZap, type IconName } from '@/shared/ui/icons'
-import { PlaceAddressText } from '@/shared/ui/place-address.view'
+import { Icon, IconZap } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -51,7 +42,6 @@ import { SuggestionRunNotice } from './suggestion-run-notice.view'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 
 export default function MatchResultScreen() {
-  const now = usePlaceClock()
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -210,49 +200,12 @@ export default function MatchResultScreen() {
   const winnerTally = tally.get(winner.placeId)
 
   const winnerPlace = winnerDetail.data ? detailToPlaceCard(winnerDetail.data) : null
-  const winnerPhoto = winnerPlace?.photoUrl ?? null
-  const winnerOpen = openStateFromHours(winnerDetail.data?.hours, now)
-  const winnerPrice = winnerPlace ? placePriceParts(winnerPlace) : null
-  const winnerPriceText = winnerPrice && winnerPrice.unit !== 'unknown'
-    ? isStandalonePrice(winnerPrice.unit)
-      ? t(priceUnitKey(winnerPrice.unit))
-      : `${winnerPrice.amount}${t(priceUnitKey(winnerPrice.unit))}`
-    : null
   // Spec §36.2: the per-person figure and the group figure together.
   const planCostText = plan.data?.totals
     ? allScopes(planCost(toPlanSummary(plan.data), room.data ? toRoomAudience(room.data) : null, t))
         .map(costLineText)
         .join(' · ')
     : null
-  const winnerFacts: { key: string; label: string; icon?: IconName; variant: 'default' | 'positive' | 'warning' }[] = []
-  if (winnerPrice && winnerPrice.unit !== 'unknown') {
-    winnerFacts.push({
-      key: 'price',
-      icon: 'dollar',
-      variant: 'default',
-      label: isStandalonePrice(winnerPrice.unit)
-        ? t(priceUnitKey(winnerPrice.unit))
-        : `${winnerPrice.amount}${t(priceUnitKey(winnerPrice.unit))}`,
-    })
-  }
-  if (winnerPlace?.distanceM != null) {
-    winnerFacts.push({ key: 'distance', icon: 'mapPin', variant: 'default', label: formatDistance(winnerPlace.distanceM) ?? '' })
-  }
-  if ((winnerDetail.data?.hours ?? []).length > 0) {
-    const closes = formatMinuteOfDay(winnerOpen.closesAtMinute)
-    const opens = formatMinuteOfDay(winnerOpen.opensAtMinute)
-    winnerFacts.push({
-      key: 'open',
-      variant: winnerOpen.openNow ? 'positive' : 'warning',
-      label: winnerOpen.openNow
-        ? closes
-          ? t('search.openUntil', { time: closes })
-          : t('common.open')
-        : opens
-          ? t('search.closedOpens', { time: opens })
-          : t('common.closed'),
-    })
-  }
   // A run built before the last constraint edit is stale and must not be shown
   // as the current answer (RULE-CORE-006).
 
@@ -287,32 +240,9 @@ export default function MatchResultScreen() {
         ) : null}
 
         <Card padded={false} style={styles.hero}>
-          <View style={styles.heroPhoto}>
-            <PlacePhoto placeId={winner.placeId} name={winner.name} uri={winnerPhoto} style={StyleSheet.absoluteFill} />
-            <View style={styles.heroBadgePosition}><Chip icon="zap" variant="info"
-              label={roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')} /></View>
-          </View>
+          <PlaceCard place={winnerPlace ?? detailToPlaceCard({ id: winner.placeId, name: winner.name })} />
           <View style={styles.heroBody}>
-            <Text variant="title1" numberOfLines={1}>{winner.name}</Text>
-            {winnerDetail.data ? (
-              <View style={styles.heroAddress}>
-                <Icon name="mapPin" size={14} color="text.secondary" />
-                <PlaceAddressText place={winnerDetail.data} variant="bodySmall" color="text.secondary" style={styles.heroAddressText} />
-              </View>
-            ) : null}
-            {/* Show a known price once; omit unknown prices entirely. */}
-            {winnerPriceText && !(planCostText && planCostText.includes(winnerPriceText)) ? (
-              <Text variant="title2" color="accent.primary">{winnerPriceText}</Text>
-            ) : null}
-            {winnerPlace ? <RatingChips place={winnerPlace} /> : null}
-            {/* The facts behind the verdict, not just the verdict (spec §19). */}
-            {winnerFacts.some(fact => fact.key !== 'price') ? (
-              <View style={styles.factRow}>
-                {winnerFacts.filter(fact => fact.key !== 'price').map(fact => (
-                  <Chip key={fact.key} label={fact.label} icon={fact.icon} variant={fact.variant} />
-                ))}
-              </View>
-            ) : null}
+            <Chip icon="zap" variant="info" label={roomType === 'group' ? t('matchResult.groupTitle') : t('matchResult.matchBadge')} />
             {plan.data?.totals ? (
               <View style={styles.heroMeta}>
                 <Icon name="clock" size={14} color="text.secondary" />
