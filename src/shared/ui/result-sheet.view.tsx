@@ -59,7 +59,7 @@ export function ResultSheet({ visible, variant, icon, title, body, media, note, 
               AccessibilityInfo.announceForAccessibility([title, body, note].filter(Boolean).join('. '))
             }, reduced ? 0 : motion.standard)
           }}>{title}</Text>
-        {media}
+        {media ? <View testID="result-sheet-media" style={styles.media}>{media}</View> : null}
         <Text style={styles.copy}>{body}</Text>
         {note ? <Text variant="caption" color="text.secondary" style={styles.copy}>{note}</Text> : null}
       </View>

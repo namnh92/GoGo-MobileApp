@@ -6,6 +6,7 @@ export const styles = StyleSheet.create(theme => ({
   compactVerified: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 2, backgroundColor: theme.redesign.verifiedFill },
   factTag: { maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 4, borderRadius: theme.radius.pill, backgroundColor: theme.redesign.container },
   savedCredits: { paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
+  inlineCredits: { textAlign: 'left' },
   savedFooter: { padding: spacing[3], gap: spacing[2], backgroundColor: theme.redesign.card, borderBottomLeftRadius: theme.radius.card, borderBottomRightRadius: theme.radius.card },
   importActions: { marginTop: spacing[6], gap: spacing[3] },
   verifiedBadge: { position: 'absolute', top: spacing[3], left: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[1], borderRadius: theme.radius.pill, paddingHorizontal: spacing[2] + spacing[1] / 2, paddingVertical: spacing[1], backgroundColor: theme.redesign.verifiedFill },

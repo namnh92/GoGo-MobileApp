@@ -4,6 +4,8 @@ import { radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1 },
+  resultPreview: { width: '100%', backgroundColor: theme.redesign.high },
+  resultPreviewContent: { padding: theme.spacing[2], borderWidth: 0, backgroundColor: theme.redesign.high },
   inputCanvas: { backgroundColor: theme.redesign.importInputCanvas },
   inputPrimary: { backgroundColor: theme.redesign.importInputPrimary },
   footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 8 },

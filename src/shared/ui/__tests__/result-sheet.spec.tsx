@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native'
-import '@/shared/i18n'
+import i18n from '@/shared/i18n'
 import { buttonSizes, status } from '../tokens'
 import { ResultSheet } from '../result-sheet.view'
 
@@ -43,8 +43,9 @@ it('renders arbitrary media before the message and equal-width actions on one li
     secondaryAction={{ label: 'Add another', onPress: jest.fn() }} onClose={jest.fn()} />)
   const media = screen.getByTestId('custom-media')
   const body = screen.getByText('Review pending')
-  expect(media.parent).toBe(body.parent)
-  expect(media.parent!.children.indexOf(media)).toBeLessThan(body.parent!.children.indexOf(body))
+  expect(media.parent).toBe(screen.getByTestId('result-sheet-media'))
+  expect(StyleSheet.flatten(media.parent!.props.style)).toMatchObject({ width: '100%', marginVertical: -8 })
+  expect(body.parent!.children.indexOf(media.parent!)).toBeLessThan(body.parent!.children.indexOf(body))
   const primary = screen.getByRole('button', { name: 'View contributions' })
   const secondary = screen.getByRole('button', { name: 'Add another' })
   expect(primary.parent).toBe(secondary.parent)
@@ -69,4 +70,30 @@ it('offers secondary cancel first and a danger confirmation while preserving sha
   expect(confirm).not.toHaveBeenCalled()
   await fireEvent.press(secondary)
   expect(cancel).toHaveBeenCalledTimes(1)
+})
+
+
+// Audited all ResultSheet callers, including import cleanup/unconfirmed branches.
+// Conservative copy budget for the paired actions at 390pt; native font layout
+// and larger accessibility sizes require device acceptance.
+it.each(['vi', 'en'])('keeps every result action concise and both import actions on one row (%s)', async lng => {
+  const keys = [
+    'placeResult.viewContributions', 'placeResult.addAnother',
+    'placeWizard.lifecycle.checkContributions', 'placeWizard.lifecycle.retryCleanup',
+    'placeWizard.save', 'common.retry', 'common.close', 'common.cancel',
+    'auth.signInCta', 'g11.logoutConfirm', 'account.deleteAction', 'account.deleteCancel',
+  ]
+  for (const key of keys) {
+    const label = i18n.t(key, { lng })
+    expect(label).not.toBe(key)
+    expect(label).not.toMatch(/…|\.\.\./)
+    expect([...label].length).toBeLessThanOrEqual(13)
+  }
+  await render(<ResultSheet visible variant="success" title="Sent" body="Review pending"
+    primaryAction={{ label: i18n.t('placeResult.viewContributions', { lng }), onPress: jest.fn() }}
+    secondaryAction={{ label: i18n.t('placeResult.addAnother', { lng }), onPress: jest.fn() }} onClose={jest.fn()} />)
+  const actions = ['placeResult.viewContributions', 'placeResult.addAnother'].map(key => screen.getByRole('button', { name: i18n.t(key, { lng }) }))
+  expect(actions[0].parent).toBe(actions[1].parent)
+  expect(StyleSheet.flatten(actions[0].parent!.props.style).flexDirection).toBe('row')
+  for (const key of ['placeResult.viewContributions', 'placeResult.addAnother']) expect(screen.getByText(i18n.t(key, { lng })).props.numberOfLines).toBe(1)
 })
