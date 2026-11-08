@@ -1,5 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native'
-import { Platform, Text, UIManager, View } from 'react-native'
+import { Platform, StyleSheet, Text, UIManager, View } from 'react-native'
 import * as Unistyles from 'react-native-unistyles'
 
 import { renderScreen } from './harness'
@@ -110,7 +110,7 @@ describe('MapCanvas', () => {
           { featureType: 'water', elementType: 'geometry', stylers: [{ color: darkMapColors.water }] },
         ]))
       } else {
-        expect(map.props.customMapStyle).toEqual([])
+        expect(map.props.customMapStyle).toContainEqual({ elementType: 'geometry', stylers: [{ color: theme.map.canvas }] })
       }
     } finally { Unistyles.StyleSheet.configure({ themes }) }
   })
@@ -126,7 +126,7 @@ describe('MapCanvas', () => {
       expect(view.getByTestId('map:google').props.userInterfaceStyle).toBe('dark')
       Unistyles.StyleSheet.configure({ themes: { orange: themes.orange } as typeof themes })
       await view.rerender(<MapCanvas pins={PINS} />)
-      expect(view.getByTestId('map:google').props.customMapStyle).toEqual([])
+      expect(view.getByTestId('map:google').props.customMapStyle).toContainEqual({ elementType: 'geometry', stylers: [{ color: themes.orange.map.canvas }] })
       expect(view.getByTestId('map:google').props.userInterfaceStyle).toBe('light')
       expect(mockMapMount).toHaveBeenCalledTimes(1)
       expect(mockAnimateToRegion).not.toHaveBeenCalled()
@@ -346,4 +346,47 @@ it('restores native map gestures after switching from a static preview', async (
   expect(map.props.scrollEnabled).toBe(true)
   expect(map.props.zoomEnabled).toBe(true)
   expect(mockMapMount).toHaveBeenCalledTimes(1)
+})
+describe('category markers', () => {
+  it.each([
+    ['cafe', '☕'], ['restaurant', '🍜'], ['bar', '🍸'], ['park', '🏞️'],
+    ['museum', '🖼️'], ['cinema', '🎬'], ['shopping', '🛍️'], ['lodging', '🛏️'],
+  ])('uses the existing chip glyph for %s', async (category, glyph) => {
+    const view = await renderScreen(<MapCanvas pins={[{ ...PINS[0], category }]} />)
+    expect(view.getByTestId('place-marker-a')).toBeTruthy()
+    expect(view.getByText(glyph)).toBeTruthy()
+  })
+
+  it.each([undefined, 'new_cms_category', '__proto__', 'romantic'])('uses a generic place icon for %s', async category => {
+    const view = await renderScreen(<MapCanvas pins={[{ ...PINS[0], category }]} />)
+    expect(view.getByTestId('place-marker-a')).toBeTruthy()
+    expect(view.getByTestId('icon-map-pin')).toBeTruthy()
+  })
+
+  it.each(['light', 'dark'] as const)('enlarges selection, uses %s tokens and freezes snapshots after visual changes', async mode => {
+    jest.useFakeTimers()
+    const theme = mode === 'dark' ? themes.orangeDark : themes.orange
+    Unistyles.StyleSheet.configure({ themes: { orange: theme } as typeof themes })
+    try {
+      const pin = { ...PINS[0], category: 'cafe' }
+      const view = await renderScreen(<MapCanvas pins={[pin]} />)
+      const normal = StyleSheet.flatten(view.getByTestId('place-marker-a').props.style)
+      expect(view.getByLabelText(pin.title).props.tracksViewChanges).toBe(true)
+      await fireEvent(view.getByTestId('place-marker-a'), 'layout')
+      await act(async () => { await jest.advanceTimersByTimeAsync(100) })
+      expect(view.getByLabelText(pin.title).props.tracksViewChanges).toBe(false)
+      await view.rerender(<MapCanvas pins={[{ ...pin, selected: true }]} />)
+      const selected = StyleSheet.flatten(view.getByTestId('place-marker-a').props.style)
+      expect(selected.width).toBeGreaterThan(normal.width)
+      const bubble = view.getByTestId('place-marker-bubble-a')
+      expect(StyleSheet.flatten(bubble.props.style).backgroundColor).toBe(theme.accent.primary)
+      expect(view.getByLabelText(pin.title).props.accessibilityState.selected).toBe(true)
+      expect(view.getByLabelText(pin.title).props.tracksViewChanges).toBe(true)
+      await act(async () => { await jest.advanceTimersByTimeAsync(100) })
+      expect(view.getByLabelText(pin.title).props.tracksViewChanges).toBe(false)
+      await view.rerender(<MapCanvas pins={[{ ...pin, selected: true }]} />)
+      expect(view.getByLabelText(pin.title).props.tracksViewChanges).toBe(false)
+      expect(mockMapMount).toHaveBeenCalledTimes(1)
+    } finally { jest.useRealTimers(); Unistyles.StyleSheet.configure({ themes }) }
+  })
 })

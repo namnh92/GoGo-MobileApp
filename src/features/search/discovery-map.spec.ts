@@ -22,7 +22,7 @@ describe('O-4 all loaded markers and independent camera', () => {
 
   it.each(['selected_area', 'profile_area', 'default_area'] as const)('keeps all markers but centres top-1 for %s', source => {
     const map = discoveryMap({ status: 'ready', source, area }, places)
-    expect(map.pins).toEqual(places.map(({ name, ...place }) => ({ ...place, title: name })))
+    expect(map.pins).toEqual(places.map(({ name, ...place }) => ({ ...place, title: name, category: undefined })))
     expect(map.region).toEqual({ latitude: 21, longitude: 105, latitudeDelta: 0.01, longitudeDelta: 0.01 })
     expect(map.showsUserLocation).toBe(false)
   })
@@ -59,4 +59,10 @@ describe('viewport search scope', () => {
     for (const latitude of [NaN, Infinity, 91]) expect(viewportSearchScope({ latitude, longitude: 0, latitudeDelta: 1, longitudeDelta: 1 })).toBeNull()
     expect(viewportSearchScope({ latitude: 0, longitude: 0, latitudeDelta: 0, longitudeDelta: 1 })).toBeNull()
   })
+})
+
+it('carries the category key, never a mood or translated label, into markers', () => {
+  expect(discoveryMap(none, [{ ...places[0], taxonomies: [
+    { kind: 'mood', key: 'chill' }, { kind: 'category', key: 'cafe' },
+  ] }]).pins[0].category).toBe('cafe')
 })

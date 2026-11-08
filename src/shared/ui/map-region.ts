@@ -4,6 +4,8 @@ export interface MapPin {
   lat: number
   lng: number
   title: string
+  /** Stable category taxonomy key; unknown/missing types use a generic place icon. */
+  category?: string
   /** Rendered in place of the default pin — a price bubble, a closed marker. */
   content?: unknown
   selected?: boolean

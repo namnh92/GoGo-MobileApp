@@ -244,7 +244,7 @@ export default function SearchScreen() {
     if ((search.isPending && !viewport) || (!isPicker && scope.status !== 'ready')) return <PlaceListSkeleton count={4} />
     return <SearchMapPanel expanded={mapExpanded} onExpandedChange={setMapExpanded}><View testID="search-map" style={styles.mapBlock}>
       <View style={styles.mapBlock}>
-        <MapCanvas pins={map.pins} cameraRegion={viewport ?? map.region} cameraScopeKey={mapScopeKey} onRegionChangeComplete={exploreRegion} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => { const place = results.find(result => result.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={renderResults(true)} />
+        <MapCanvas pins={map.pins.map(pin => ({ ...pin, selected: pin.id === selectedMarker }))} cameraRegion={viewport ?? map.region} cameraScopeKey={mapScopeKey} onRegionChangeComplete={exploreRegion} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => { const place = results.find(result => result.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={renderResults(true)} />
         {selectedPlace ? <View style={[styles.mapPreview, { bottom: insets.bottom }]}>
           <Text variant="introHeading" color="redesign.ink">{selectedPlace.name}</Text>
           <GhostBtn label={t('discovery.openPlace')} onPress={() => onPlacePress(selectedPlace)} />
