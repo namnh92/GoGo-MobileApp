@@ -95,7 +95,9 @@ export function LocationPermissionSection() {
           <Icon name="navigation" size={20} color="accent.onSoft" />
         </View>
         <View style={styles.statusText}>
-          <Text variant="introHeading">{t('locationSettings.statusTitle')}</Text>
+          <View testID="location-permission-title" style={styles.statusTitle}>
+            <Text variant="introHeading">{t('locationSettings.statusTitle')}</Text>
+          </View>
           {state === 'checking' ? (
             <ActivityIndicator color={theme.accent.primary} style={{ alignSelf: 'flex-start' }} />
           ) : (
@@ -118,7 +120,7 @@ export function LocationPermissionSection() {
         </View>
       ) : state === 'granted' ? (
         <View style={styles.actions}>
-          <GhostBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} icon="settings" />
+          <GhostBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} icon="settings" style={styles.inlineAction} />
         </View>
       ) : null}
 

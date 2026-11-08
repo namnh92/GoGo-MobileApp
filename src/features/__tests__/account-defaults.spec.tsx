@@ -125,9 +125,9 @@ describe('profile defaults card', () => {
   it('sends the canonical province, commune and version without display labels', async () => {
     const view = await renderScreen(<ProfileDefaultsCard profile={profile()} />)
     await press(view.getByRole('button', { name: 'Khu vực' }))
-    await press(view.getByText('Chọn Tỉnh / Thành phố'))
+    await press(view.getByText('Chọn tỉnh / thành phố'))
     await press(view.getByText('Thành phố Hà Nội'))
-    await press(view.getByText('Chọn Phường / Xã'))
+    await press(view.getByText('Chọn phường / xã'))
     await press(view.getByText('Phường Hoàn Kiếm'))
     expect(mockUpdate).not.toHaveBeenCalled()
     await press(view.getByText('Xác nhận'))
@@ -158,7 +158,7 @@ describe('profile defaults card', () => {
     const view = await renderScreen(<ProfileDefaultsCard profile={profile()} />)
     expect(view.getByText('Không tải được danh sách sở thích.')).toBeTruthy()
     await press(view.getByRole('button', { name: 'Khu vực' }))
-    await press(view.getByText('Chọn Tỉnh / Thành phố'))
+    await press(view.getByText('Chọn tỉnh / thành phố'))
     expect(view.getByText('Có lỗi xảy ra')).toBeTruthy()
   })
 

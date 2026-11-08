@@ -368,7 +368,7 @@ it.each(['loading', 'error', 'empty'])('fails closed when taxonomy is %s', async
 it('never invokes the picker or submits local photos while the evidence path is blocked', async () => {
   await renderScreen(<ContributionWizard {...props} />)
   await completeWizard()
-  const upload = button('+ Tải thêm ảnh menu/bill (Tối đa 5 ảnh)')
+  const upload = button('+ Tải thêm ảnh menu/bill (tối đa 5 ảnh)')
   expect(upload.props.accessibilityState.disabled).toBe(true)
   expect(upload.props.accessibilityHint).toMatch(/quyền sở hữu/)
   await fireEvent.press(button('Gửi'))

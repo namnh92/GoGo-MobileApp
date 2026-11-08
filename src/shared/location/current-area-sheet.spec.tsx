@@ -31,14 +31,14 @@ const sheet = () => <CurrentAreaSheet visible onClose={close} onApplied={applied
 it('uses one sheet for dependent choices, commits canonical API codes only on confirm', async () => {
   const view = await renderScreen(sheet())
   expect(view.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
-  expect(view.getByRole('button', { name: 'Chọn Phường / Xã' })).toBeDisabled()
-  expect(view.getByText('Vui lòng chọn Tỉnh / Thành phố trước')).toBeTruthy()
-  await fireEvent.press(view.getByText('Chọn Tỉnh / Thành phố'))
+  expect(view.getByRole('button', { name: 'Chọn phường / xã' })).toBeDisabled()
+  expect(view.getByText('Vui lòng chọn tỉnh / thành phố trước')).toBeTruthy()
+  await fireEvent.press(view.getByText('Chọn tỉnh / thành phố'))
   expect(view.getAllByTestId('sheet-drag-handle')).toHaveLength(1)
   await fireEvent.press(view.getByText(province.fullName))
-  expect(view.queryByText('Vui lòng chọn Tỉnh / Thành phố trước')).toBeNull()
+  expect(view.queryByText('Vui lòng chọn tỉnh / thành phố trước')).toBeNull()
   expect(useAppAreaStore.getState().area).toBeNull()
-  await fireEvent.press(view.getByText('Chọn Phường / Xã'))
+  await fireEvent.press(view.getByText('Chọn phường / xã'))
   await fireEvent.changeText(view.getByLabelText('Tìm theo tên'), 'thao dien')
   await fireEvent.press(view.getByText(commune.fullName))
   await fireEvent.press(view.getByText('Xác nhận'))
@@ -53,7 +53,7 @@ it('clears the persisted selection and disables confirmation after clearing', as
   await fireEvent.press(view.getByText('Xóa khu vực'))
   expect(useAppAreaStore.getState().area).toBeNull()
   expect(view.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
-  expect(view.getByText('Chọn Tỉnh / Thành phố')).toBeTruthy()
+  expect(view.getByText('Chọn tỉnh / thành phố')).toBeTruthy()
 })
 
 it('does not confirm a replaced dataset until a province is selected again', async () => {
@@ -82,7 +82,7 @@ it.each(['loading', 'error', 'offline'])('keeps confirmation unavailable during 
 it('renders the empty API list and returns without changing the current area', async () => {
   mockState.empty = true
   const view = await renderScreen(sheet())
-  await fireEvent.press(view.getByText('Chọn Tỉnh / Thành phố'))
+  await fireEvent.press(view.getByText('Chọn tỉnh / thành phố'))
   expect(view.getByText('Không có đơn vị phù hợp')).toBeTruthy()
   expect(useAppAreaStore.getState().area).toBeNull()
 })
@@ -92,7 +92,7 @@ it.each(['loading', 'error', 'offline'])('handles an uncached unit list during %
   mockState.units = status
   if (status === 'offline') onlineManager.setOnline(false)
   const view = await renderScreen(sheet())
-  await fireEvent.press(view.getByText('Chọn Tỉnh / Thành phố'))
+  await fireEvent.press(view.getByText('Chọn tỉnh / thành phố'))
   await act(async () => { jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS) })
   if (status === 'loading') expect(view.getByText('Đang tải…')).toBeTruthy()
   if (status === 'offline') expect(view.getByText('Không có kết nối')).toBeTruthy()
@@ -103,7 +103,7 @@ it.each(['loading', 'error', 'offline'])('handles an uncached unit list during %
 it('selects from cached administrative data while offline', async () => {
   onlineManager.setOnline(false)
   const view = await renderScreen(sheet())
-  await fireEvent.press(view.getByText('Chọn Tỉnh / Thành phố'))
+  await fireEvent.press(view.getByText('Chọn tỉnh / thành phố'))
   await fireEvent.press(view.getByText(province.fullName))
   await fireEvent.press(view.getByText('Xác nhận'))
   expect(useAppAreaStore.getState().area).toEqual(area)
@@ -115,7 +115,7 @@ it('applies a controlled profile selection without changing the app-wide area', 
   const view = await renderScreen(<CurrentAreaSheet visible onClose={close} onApplied={applied}
     selection={{ value: null, onApply: apply }} />)
   expect(view.queryByText('Dùng vị trí của tôi')).toBeNull()
-  await fireEvent.press(view.getByText('Chọn Tỉnh / Thành phố'))
+  await fireEvent.press(view.getByText('Chọn tỉnh / thành phố'))
   await fireEvent.press(view.getByText(province.fullName))
   expect(apply).not.toHaveBeenCalled()
   expect(useAppAreaStore.getState().area).toBeNull()

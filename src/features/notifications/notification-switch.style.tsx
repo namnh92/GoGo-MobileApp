@@ -18,7 +18,7 @@ export const styles = StyleSheet.create(theme => ({
   card: { paddingHorizontal: spacing[4], paddingVertical: spacing[3], marginTop: 0, gap: spacing[2], borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing[3],
     minHeight: touchTarget.min,
@@ -34,6 +34,8 @@ export const styles = StyleSheet.create(theme => ({
   deviceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   deviceText: { flex: 1 },
   rowText: { flex: 1, gap: 2 },
+  rowTitle: { minHeight: 40, justifyContent: 'center' },
+  switch: { alignSelf: 'center' },
   deviceCard: { paddingHorizontal: spacing[4], paddingBottom: spacing[2], gap: spacing[2], borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   caption: { paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
   error: { marginTop: spacing[3] },

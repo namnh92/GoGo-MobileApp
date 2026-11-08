@@ -1,4 +1,4 @@
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
 import { AppState, Linking, type AppStateStatus } from 'react-native'
 
 import { renderScreen } from './harness'
@@ -15,7 +15,7 @@ const mockModuleMissing = { value: false }
 const mockRequest = jest.fn()
 
 const mockPush = jest.fn()
-// Its own "Mở Cài đặt" is another section's button (#370).
+// Its own "Mở cài đặt" is another section's button (#370).
 jest.mock('@/features/settings/device-promotions.view', () => {
   const { Text } = jest.requireActual('react-native')
   return { DevicePromotionsSection: () => <Text>device-promotions-section</Text> }
@@ -68,6 +68,18 @@ describe('location settings', () => {
     expect(view.queryByText('Cho phép')).toBeNull()
   })
 
+  it('aligns the title with its icon independently of the status and keeps the inline action flush left', async () => {
+    const view = await renderScreen(<LocationSettingsScreen />)
+    await view.findByText('Đã cho phép.')
+    const titleBox = view.getByTestId('location-permission-title')
+    expect(titleBox).toHaveStyle({ minHeight: 40, justifyContent: 'center' })
+    expect(within(titleBox).getByText('Quyền vị trí trên máy này')).toBeTruthy()
+    expect(within(titleBox).queryByText('Đã cho phép.')).toBeNull()
+    expect(view.getByRole('button', { name: 'Mở cài đặt' })).toHaveStyle({
+      paddingHorizontal: 0, justifyContent: 'flex-start', minHeight: 48,
+    })
+  })
+
   it('offers the prompt only when it was never shown, and re-reads after it', async () => {
     permission('undetermined')
     const view = await renderScreen(<LocationSettingsScreen />)
@@ -82,9 +94,9 @@ describe('location settings', () => {
   it('sends a refused permission to Settings instead of asking again', async () => {
     permission('denied')
     const view = await renderScreen(<LocationSettingsScreen />)
-    expect(await view.findByText(/Đang tắt trong Cài đặt/)).toBeTruthy()
+    expect(await view.findByText(/Đang tắt trong cài đặt/)).toBeTruthy()
     expect(view.queryByText('Cho phép')).toBeNull()
-    await fireEvent.press(view.getByText('Mở Cài đặt'))
+    await fireEvent.press(view.getByText('Mở cài đặt'))
     expect(Linking.openSettings).toHaveBeenCalledTimes(1)
     expect(mockRequest).not.toHaveBeenCalled()
   })
@@ -94,7 +106,7 @@ describe('location settings', () => {
     const view = await renderScreen(<LocationSettingsScreen />)
     expect(await view.findByText(/Máy này chưa lấy được vị trí/)).toBeTruthy()
     expect(view.queryByText('Cho phép')).toBeNull()
-    expect(view.queryByText('Mở Cài đặt')).toBeNull()
+    expect(view.queryByText('Mở cài đặt')).toBeNull()
   })
 
   it('re-reads the permission when the app returns from Settings', async () => {
@@ -105,7 +117,7 @@ describe('location settings', () => {
     })
     permission('denied')
     const view = await renderScreen(<LocationSettingsScreen />)
-    expect(await view.findByText(/Đang tắt trong Cài đặt/)).toBeTruthy()
+    expect(await view.findByText(/Đang tắt trong cài đặt/)).toBeTruthy()
 
     permission('granted')
     await act(async () => {
@@ -117,7 +129,7 @@ describe('location settings', () => {
   it('opens Defaults to choose the default area without requesting location', async () => {
     const view = await renderScreen(<LocationSettingsScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText('Chọn khu vực trong Cài đặt mặc định'))
+      await fireEvent.press(view.getByText('Chọn khu vực trong cài đặt mặc định'))
     })
     expect(mockPush).toHaveBeenCalledWith('/settings/defaults')
     expect(mockRequest).not.toHaveBeenCalled()

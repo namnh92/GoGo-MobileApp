@@ -86,10 +86,13 @@ export function NotificationSwitchSection() {
             <Icon name="bell" size={20} color="accent.onSoft" />
           </View>
           <View style={styles.rowText}>
-            <Text variant="introHeading">{t('notificationSettings.switchLabel')}</Text>
+            <View style={styles.rowTitle}>
+              <Text variant="introHeading">{t('notificationSettings.switchLabel')}</Text>
+            </View>
             <Text variant="introCaption" color="redesign.secondary">{t('notificationSettings.switchHint')}</Text>
           </View>
           <Switch
+            style={styles.switch}
             // Until the first answer there is no truthful value: off and locked.
             value={current?.pushEnabled ?? false}
             onValueChange={next => save.mutate({ pushEnabled: next })}

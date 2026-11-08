@@ -71,7 +71,7 @@ export default function PermissionsSettingsScreen() {
         <View style={styles.section}>
         <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.system')}</Text>
         <Card appearance="stitch" padded={false} style={styles.intro}>
-          <View style={styles.introRow}><View style={styles.systemIcon}><Icon name="settings" size={24} /></View><Text variant="introHeading" style={styles.introText}>{t('g11.systemHeading')}</Text></View>
+          <View testID="permissions-system-row" style={styles.systemRow}><View style={styles.systemIcon}><Icon name="settings" size={24} /></View><Text variant="introHeading" style={styles.introText}>{t('g11.systemHeading')}</Text></View>
           <PrimaryBtn variant="pill" label={t('g11.openSystem')} leadingIcon="external" onPress={() => void openSystemSettings()} />
           {settingsFailed ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
         </Card>
