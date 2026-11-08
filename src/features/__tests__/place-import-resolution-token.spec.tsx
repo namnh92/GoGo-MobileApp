@@ -91,7 +91,7 @@ const LINK = 'https://maps.google.com/maps?place_id=ChIJtest'
 async function pressSubmit(): Promise<void> {
   await completeWizard()
   await act(async () => {
-    await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(screen.getByText('Gửi'))
   })
 }
 
@@ -238,7 +238,7 @@ it('invalidates A preview when the user edits the link to B', async () => {
   await openWithPreview()
   if (screen.queryByTestId('import-synced-link')) await changeVerifiedLink()
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/B')
-  expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
+  expect(screen.queryByText('Gửi')).toBeNull()
   expect(mockSubmit.mutateAsync).not.toHaveBeenCalled()
 })
 
@@ -276,7 +276,7 @@ it.each(['resolve', 'submit'] as const)('rejects the old %s continuation after e
   expect(mockSubmit.mutateAsync).toHaveBeenCalledTimes(1)
   expect(mockSubmit.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ enrichment: expect.objectContaining({ visitTips: 'Old A note' }) }))
   expect(mockResolve.mutateAsync).toHaveBeenCalledTimes(pendingStep === 'resolve' ? 1 : 0)
-  expect(screen.queryByText('Gửi địa điểm cho GoGo')).toBeNull()
+  expect(screen.queryByText('Gửi')).toBeNull()
 })
 
 it('keeps a new attempt locked when an outdated retry finishes', async () => {

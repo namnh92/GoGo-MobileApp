@@ -1420,7 +1420,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'placeImport.reason.LOW_RATING': 'Rating is below the GoGo quality bar.',
   'placeImport.reason.OUT_OF_AREA': 'Outside the area GoGo currently serves.',
   'placeImport.tryAgain': 'Try another link',
-  'placeImport.submit': 'Send this place to GoGo',
+  'placeImport.submit': 'Send',
   'placeImport.submitFailed': 'Could not send it. Please try again.',
   'placeImport.pendingReview': '✓ Sent — GoGo reviews it before it appears.',
   'placeImport.existsTitle': 'Already on GoGo',

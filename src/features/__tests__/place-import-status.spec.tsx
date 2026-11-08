@@ -30,7 +30,7 @@ async function open() {
   await fireEvent.changeText(screen.getByPlaceholderText('Dán link Google Maps tại đây...'), 'https://maps.app.goo.gl/A')
   await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
   await completeWizard()
-  await fireEvent.press(screen.getByText('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(screen.getByText('Gửi'))
 }
 beforeEach(() => { mockSubmissionId.mockClear(); mockSubmit.data = { status: 'PENDING', submissionId: 's' } })
 

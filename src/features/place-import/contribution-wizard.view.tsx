@@ -91,13 +91,13 @@ function WizardActionRow({ model, onSubmit, submitting, blocked }: {
   const { t, state, step, busy, disabled, canSave, validKeys, needsDraftChoice, taxonomyReady,
     form, saveDraft, move, complete, submitDisabled } = model
   return <SheetActions>
-    {step > 1 ? <GhostBtn label={t('common.back')} disabled={busy} onPress={() => move(step - 1)} /> : null}
-    <SecondaryBtn label={t('placeWizard.save')} loading={state.phase === 'saving'}
+    {step > 1 ? <GhostBtn style={styles.action} label={t('common.back')} disabled={busy} onPress={() => move(step - 1)} /> : null}
+    <SecondaryBtn style={styles.action} label={t('placeWizard.save')} loading={state.phase === 'saving'}
       disabled={!canSave || !validKeys || needsDraftChoice} onPress={() => { void saveDraft() }} />
-    {step < 3 ? <PrimaryBtn label={t('placeWizard.next')}
+    {step < 3 ? <PrimaryBtn style={styles.action} label={t('placeWizard.next')}
       disabled={disabled || !stepValid(form, step) || !taxonomyReady || !validKeys} onPress={() => move(step + 1)} />
-      : <PrimaryBtn label={t('placeImport.submit')} accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
-        loading={submitting} leadingIcon="send" disabled={submitDisabled} onPress={() => { if (complete) onSubmit(complete) }} />}
+      : <PrimaryBtn style={styles.action} label={t('placeImport.submit')} accessibilityHint={blocked ? t('placeImport.notYetOpen') : undefined}
+        loading={submitting} disabled={submitDisabled} onPress={() => { if (complete) onSubmit(complete) }} />}
   </SheetActions>
 }
 

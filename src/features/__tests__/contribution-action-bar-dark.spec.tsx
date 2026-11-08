@@ -28,6 +28,6 @@ it('uses dark role tokens in the wizard and keeps every action in the shared row
   expect(bar.getAllByRole('button')).toHaveLength(3)
   await fireEvent.press(screen.getByRole('button', { name: 'Sôi động' }))
   await fireEvent.press(bar.getByRole('button', { name: 'Tiếp tục' }))
-  expect(bar.getByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeTruthy()
+  expect(bar.getByRole('button', { name: 'Gửi' })).toBeTruthy()
   expect(StyleSheet.flatten(bar.getByTestId('sheet-actions').props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'nowrap' })
 })

@@ -42,7 +42,7 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
         <MaterialIcon name={checked ? 'checkbox' : 'checkboxBlank'} color="redesign.primaryText" />
       </Pressable>
     )
-    return <Chip key={option.key} label={label(option)} appearance="mood"
+    return <Chip key={option.key} label={label(option)}
       variant={checked ? 'selected' : 'default'} disabled={locked} onPress={() => toggle(option.key)} />
   }
   const filtered = options.filter((option) => label(option).toLocaleLowerCase(i18n.language).includes(search.trim().toLocaleLowerCase(i18n.language)))

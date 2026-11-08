@@ -1,6 +1,8 @@
 import { StyleSheet } from 'react-native'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import actionMetrics from './fixtures/contribution-action-metrics.json'
+import { styles as glassStyles } from '@/shared/ui/glass-bar.style'
 import titleMetrics from './fixtures/contribution-title-metrics.json'
 import { styles as wizardStyles } from '@/features/place-import/contribution-wizard.style'
 import { spacing, type } from '@/shared/ui/tokens'
@@ -133,7 +135,7 @@ it('starts empty, retains selections back and forth, submits one real enrichment
   expect(screen.getByLabelText('+50 GoGo Credit khi được duyệt')).toBeTruthy()
   expect(screen.getByText('+50').props.numberOfLines).toBe(1)
   expect(screen.queryByText('Số dư credit: 123')).toBeNull()
-  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   expect(disabled('Tiếp tục')).toBe(true)
   expect(screen.queryByRole('radio')).toBeNull()
   await completeWizard()
@@ -147,7 +149,7 @@ it('starts empty, retains selections back and forth, submits one real enrichment
     }),
   )
   await fireEvent.press(button('Tiếp tục'))
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenCalledWith({
     purposeKeys: ['couple'],
     vibeKeys: ['festive'],
@@ -171,7 +173,7 @@ it('renders every API kind, including amenities and optional rating chips', asyn
   expect(disabled('Yên tĩnh')).toBe(true)
   await fireEvent.press(screen.getByRole('radio', { name: 'Phục vụ & không gian: 4 sao' }))
   await fireEvent.press(button('Yên tĩnh'))
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({
     service: { rating: 4, chipKeys: ['quiet'] }, space: { rating: 4, chipKeys: ['quiet'] },
   }))
@@ -261,7 +263,7 @@ it('retains acknowledged menu/bill uploads when a resumed draft is edited, saved
     id: photoDraft.id,
     body: { googlePlaceId: props.googlePlaceId, expectedVersion: 3, enrichment },
   })
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenCalledWith(enrichment)
 })
 describe('F-05 deleted draft media', () => {
@@ -311,7 +313,7 @@ describe('F-05 deleted draft media', () => {
       })
       expect(mockSave.mock.calls[0][0].id).not.toBe(photoDraft.id)
     } else {
-      await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+      await fireEvent.press(button('Gửi'))
       expect(onSubmit).toHaveBeenCalledWith(enrichment)
     }
     // The stale query cache must not offer to resume the deleted draft or block saving.
@@ -323,7 +325,7 @@ describe('F-05 deleted draft media', () => {
     mockRemove.mockRejectedValueOnce(new ApiError(503, { code: 'UNAVAILABLE', message: 'retry' }))
     await fireEvent.press(button('Xoá bản nháp'))
     const enrichment = { ...photoDraft.enrichment, visitTips: 'Keep my edited tips' }
-    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(button('Gửi'))
     expect(onSubmit).toHaveBeenCalledWith(enrichment)
     await fireEvent.press(button('Lưu nháp'))
     expect(mockSave).toHaveBeenCalledWith({
@@ -361,7 +363,7 @@ it.each(['loading', 'error', 'empty'])('fails closed when taxonomy is %s', async
         : { data: { kinds: {} } }
   await renderScreen(<ContributionWizard {...props} />)
   expect(disabled('Tiếp tục')).toBe(true)
-  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
 })
 it('never invokes the picker or submits local photos while the evidence path is blocked', async () => {
   await renderScreen(<ContributionWizard {...props} />)
@@ -369,7 +371,7 @@ it('never invokes the picker or submits local photos while the evidence path is 
   const upload = button('+ Tải thêm ảnh menu/bill (Tối đa 5 ảnh)')
   expect(upload.props.accessibilityState.disabled).toBe(true)
   expect(upload.props.accessibilityHint).toMatch(/quyền sở hữu/)
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('photos')
 })
 it('prefers the current locale API label, falling back to i18n only without one', async () => {
@@ -410,11 +412,11 @@ it('submits once through the sole primary action with the whole optional step em
   expect(screen.queryByText('Chưa đánh giá')).toBeNull()
   expect(screen.getAllByText('Không bắt buộc')).toHaveLength(3)
   expect(screen.queryByText('+70 GoGo Credit')).toBeNull()
-  expect(screen.getAllByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toHaveLength(1)
+  expect(screen.getAllByRole('button', { name: 'Gửi' })).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Tiếp tục' })).toBeNull()
   expect(screen.queryByRole('button', { name: 'Hoàn tất' })).toBeNull()
-  expect(disabled('Gửi địa điểm cho GoGo')).toBe(false)
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  expect(disabled('Gửi')).toBe(false)
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenCalledTimes(1)
   expect(onSubmit).toHaveBeenCalledWith({ purposeKeys: ['couple'], vibeKeys: ['festive'] })
 })
@@ -423,7 +425,7 @@ it('allows tips alone, rating alone, and clearing the optional rating without bl
   await completeWizard()
   const tips = screen.getByLabelText('Món ngon & mẹo')
   await fireEvent.changeText(tips, 'Real tip')
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenLastCalledWith({
     purposeKeys: ['couple'],
     vibeKeys: ['festive'],
@@ -436,7 +438,7 @@ it('allows tips alone, rating alone, and clearing the optional rating without bl
   await fireEvent.press(star)
   expect(star.props.accessibilityState.checked).toBe(true)
   expect(screen.queryByText('5.0 - Tuyệt vời')).toBeNull()
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenLastCalledWith({
     purposeKeys: ['couple'],
     vibeKeys: ['festive'],
@@ -444,7 +446,7 @@ it('allows tips alone, rating alone, and clearing the optional rating without bl
     space: { rating: 5, chipKeys: [] },
   })
   await fireEvent.press(star)
-  expect(disabled('Gửi địa điểm cho GoGo')).toBe(false)
+  expect(disabled('Gửi')).toBe(false)
   expect(screen.queryByText('Chưa đánh giá')).toBeNull()
 })
 
@@ -468,7 +470,7 @@ it('keeps both legacy text values visible in the single input and saves an expli
   await fireEvent.press(button('Tiếp tục'))
   const field = screen.getByLabelText('Món ngon & mẹo')
   expect(field.props.value).toBe('Cake — Morning')
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenLastCalledWith(
     expect.objectContaining({
       recommendedDishes: 'Cake',
@@ -543,7 +545,7 @@ it('caps purpose and rating chips at six, with API choices available through the
   expect(screen.getByText('Đã chọn 5/5')).toBeTruthy()
   expect(screen.getByRole('checkbox', { name: 'Đánh giá 3' }).props.accessibilityState.disabled).toBe(true)
   await fireEvent.press(button('Xong'))
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenLastCalledWith({
     purposeKeys: ['purpose_8'], vibeKeys: ['festive'],
     service: { rating: 5, chipKeys: ['tag_8', 'tag_7', 'tag_6', 'tag_5', 'tag_4'] },
@@ -558,7 +560,7 @@ it('rejects stale amenity and rating keys from a resumed draft instead of silent
   await renderScreen(<ContributionWizard {...props} />)
   await fireEvent.press(button('Tiếp tục bản nháp'))
   expect(disabled('Lưu nháp')).toBe(true)
-  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   await fireEvent.press(button('Lưu nháp'))
   expect(mockSave).not.toHaveBeenCalled()
   await fireEvent.press(button('Bỏ lựa chọn không còn khả dụng'))
@@ -580,7 +582,7 @@ it('preserves explicit false claims while editing another amenity', async () => 
 it('keeps one primary action through all steps and a compact accessible reward', async () => {
   await renderScreen(<ContributionWizard {...props} />)
   expect(screen.queryByRole('button', { name: 'Quay lại' })).toBeNull()
-  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   expect(screen.getAllByRole('button', { name: 'Tiếp tục' })).toHaveLength(1)
   expect(disabled('Tiếp tục')).toBe(true)
   expect(screen.getByLabelText('+50 GoGo Credit khi được duyệt')).toBeTruthy()
@@ -590,21 +592,21 @@ it('keeps one primary action through all steps and a compact accessible reward',
   expect(disabled('Tiếp tục')).toBe(false)
   await fireEvent.press(button('Tiếp tục'))
   expect(disabled('Tiếp tục')).toBe(true)
-  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   expect(button('Quay lại')).toBeTruthy()
   await fireEvent.press(button('Sôi động'))
   expect(disabled('Tiếp tục')).toBe(false)
   await fireEvent.press(button('Tiếp tục'))
-  const submit = button('Gửi địa điểm cho GoGo')
-  expect(screen.getAllByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toHaveLength(1)
+  const submit = button('Gửi')
+  expect(screen.getAllByRole('button', { name: 'Gửi' })).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Tiếp tục' })).toBeNull()
   const save = button('Lưu nháp')
   expect(StyleSheet.flatten(save.props.style)).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0, minHeight: 48, borderWidth: 1 })
   expect(StyleSheet.flatten(submit.props.style)).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0, minHeight: 48 })
-  expect(within(submit).getByText('Gửi địa điểm cho GoGo').props.numberOfLines).toBe(1)
+  expect(within(submit).getByText('Gửi').props.numberOfLines).toBe(1)
   await fireEvent.press(button('Quay lại'))
   expect(button('Sôi động').props.accessibilityState.selected).toBe(true)
-  expect(screen.queryByRole('button', { name: 'Gửi địa điểm cho GoGo' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Gửi' })).toBeNull()
   expect(disabled('Tiếp tục')).toBe(false)
 })
 
@@ -616,13 +618,13 @@ it.each([404, 503, 0])('offers recovery for draft-list failure %i and allows sav
   expect(disabled('Lưu nháp')).toBe(false)
   expect(mockTrack).toHaveBeenCalledWith('place_contribution_draft_read_failed', { operation: 'list', status })
   await completeWizard()
-  await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+  await fireEvent.press(button('Gửi'))
   expect(onSubmit).toHaveBeenCalled()
   expect(screen.queryByText(/Không lưu được/)).toBeNull()
   mockSave.mockRejectedValue(new ApiError(503, { code: 'UNAVAILABLE', message: 'private data' }))
   await fireEvent.press(button('Lưu nháp'))
   expect(screen.getByText(i18n.t('placeWizard.lifecycle.saveUnconfirmed'))).toBeTruthy()
-  expect(disabled('Gửi địa điểm cho GoGo')).toBe(true)
+  expect(disabled('Gửi')).toBe(true)
   expect(JSON.stringify(mockTrack.mock.calls)).not.toMatch(/private data|ChIJtest/)
 })
 
@@ -642,7 +644,7 @@ it.each([404, 503])('silently tolerates resume failure %i without changing enter
   await fireEvent.press(button('Tiếp tục'))
   await fireEvent.press(button('Sôi động'))
   await fireEvent.press(button('Tiếp tục'))
-  expect(disabled('Gửi địa điểm cho GoGo')).toBe(false)
+  expect(disabled('Gửi')).toBe(false)
 })
 
 
@@ -760,7 +762,7 @@ describe('SA T1-T12 lifecycle regressions', () => {
     mockRead.mockRejectedValueOnce(new ApiError(404, { code: 'NOT_FOUND', message: 'gone' }))
     await fireEvent.press(screen.getAllByRole('button', { name: 'Tiếp tục bản nháp' })[1])
     await fireEvent.press(button('Tiếp tục')); await fireEvent.press(button('Tiếp tục'))
-    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(button('Gửi'))
     expect(onSubmit).toHaveBeenCalledWith(photoDraft.enrichment)
     expect(mockRead).toHaveBeenLastCalledWith('other')
   })
@@ -771,10 +773,10 @@ describe('SA T1-T12 lifecycle regressions', () => {
     await fireEvent.press(screen.getAllByRole('button', { name: 'Tiếp tục bản nháp' })[0])
     await fireEvent.press(screen.getAllByRole('button', { name: 'Xoá bản nháp' })[1])
     await fireEvent.press(button('Tiếp tục')); await fireEvent.press(button('Tiếp tục'))
-    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(button('Gửi'))
     expect(onSubmit).toHaveBeenLastCalledWith(photoDraft.enrichment)
     await fireEvent.press(button('Xoá bản nháp'))
-    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(button('Gửi'))
     expect(onSubmit).toHaveBeenLastCalledWith(draft.enrichment)
     expect(mockRemove.mock.calls).toEqual([[{ id: 'other', version: 3 }], [{ id: draft.id, version: 3 }]])
   })
@@ -803,9 +805,9 @@ describe('SA T1-T12 lifecycle regressions', () => {
     await fireEvent.press(button('Lưu nháp'))
     await fireEvent.press(button('Tiếp tục'))
     await fireEvent.press(button('Tiếp tục'))
-    expect(disabled('Gửi địa điểm cho GoGo')).toBe(true)
+    expect(disabled('Gửi')).toBe(true)
     await fireEvent.press(button('Tạo bản mới với thông tin khác của tôi'))
-    await fireEvent.press(button('Gửi địa điểm cho GoGo'))
+    await fireEvent.press(button('Gửi'))
     expect(onSubmit).toHaveBeenCalledWith(draft.enrichment)
     expect(mockRemove).not.toHaveBeenCalled()
   })
@@ -914,6 +916,49 @@ describe('GOGO-566 one-line titles at 390pt', () => {
         await fireEvent.press(button(locale === 'vi' ? step === 1 ? 'Cặp đôi' : 'Sôi động' : step === 1 ? 'Couple' : 'Festive'))
         await fireEvent.press(button(i18n.t('placeWizard.next')))
       }
+    }
+  })
+})
+
+// CoreText widths, Inter SemiBold 15pt, rounded up to 0.01pt.
+// Jest has no Yoga/text layout: guard exact copy, font and rendered geometry together.
+describe('GOGO-566 action labels without truncation', () => {
+  it('pins the measured button font', () => {
+    expect(createHash('sha256').update(readFileSync('assets/fonts/Inter-SemiBold.ttf')).digest('hex')).toBe(actionMetrics.fontSha256)
+    expect(type.buttonLabel.fontSize).toBe(actionMetrics.fontSize)
+    expect(type.buttonLabel.fontFamily).toBe(type.introHeading.fontFamily)
+  })
+
+  it.each(['vi', 'en'] as const)('%s fits every step at 390pt and SE widths', async locale => {
+    await i18n.changeLanguage(locale)
+    await renderScreen(<ContributionWizard {...props} />)
+    const measurements = actionMetrics.labels[locale]
+    for (let step = 1; step <= 3; step++) {
+      const row = within(screen.getByTestId('contribution-action-bar')).getByTestId('sheet-actions')
+      const rowStyle = StyleSheet.flatten(row.props.style)
+      const keys = [...(step > 1 ? ['common.back' as const] : []), 'placeWizard.save' as const,
+        step < 3 ? 'placeWizard.next' as const : 'placeImport.submit' as const]
+      const actions = within(row).getAllByRole('button')
+      expect(actions).toHaveLength(keys.length)
+      for (const [index, key] of keys.entries()) {
+        const measurement = measurements[key]
+        const action = actions[index]
+        const style = StyleSheet.flatten(action.props.style)
+        expect(action.props.accessibilityLabel).toBe(measurement.text)
+        expect(i18n.t(key)).toBe(measurement.text)
+        expect([...measurement.text].length).toBeLessThanOrEqual(10)
+        expect(style).toMatchObject({ flex: 1, flexBasis: 0, minWidth: 0, minHeight: 48 })
+        expect(within(action).getByText(measurement.text).props.numberOfLines).toBe(1)
+        expect(within(action).queryByTestId(/^material-icon-/)).toBeNull()
+        for (const width of [320, 375, 390]) {
+          const buttonWidth = (width - 2 * glassStyles.padded.paddingHorizontal - rowStyle.gap * (actions.length - 1)) / actions.length
+          const labelWidth = buttonWidth - 2 * style.paddingHorizontal - 2 * (style.borderWidth ?? 0)
+          expect(measurement.width).toBeLessThanOrEqual(labelWidth)
+        }
+      }
+      if (step === 1) await fireEvent.press(button(locale === 'vi' ? 'Cặp đôi' : 'Couple'))
+      if (step === 2) await fireEvent.press(button(locale === 'vi' ? 'Sôi động' : 'Festive'))
+      if (step < 3) await fireEvent.press(button(i18n.t('placeWizard.next')))
     }
   })
 })

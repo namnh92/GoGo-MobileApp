@@ -73,7 +73,7 @@ const NOT_YET_OPEN = 'Google báo địa điểm này chưa khai trương. Thêm
 const UNKNOWN = 'Google chưa xác nhận địa điểm còn hoạt động.'
 const GENERIC_FAILURE = 'Gửi không thành công. Thử lại nhé.'
 const KEPT = ' Thông tin bạn nhập vẫn được giữ.'
-const SUBMIT = 'Gửi địa điểm cho GoGo'
+const SUBMIT = 'Gửi'
 
 async function failSubmission() {
   mockSubmit.mutateAsync.mockRejectedValue(mockSubmit.error)

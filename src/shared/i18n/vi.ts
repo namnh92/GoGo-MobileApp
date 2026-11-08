@@ -1413,7 +1413,7 @@ export const viMessages = {
   'placeImport.reason.LOW_RATING': 'Điểm đánh giá thấp hơn ngưỡng chất lượng của GoGo.',
   'placeImport.reason.OUT_OF_AREA': 'Địa điểm nằm ngoài khu vực GoGo đang phục vụ.',
   'placeImport.tryAgain': 'Thử link khác',
-  'placeImport.submit': 'Gửi địa điểm cho GoGo',
+  'placeImport.submit': 'Gửi',
   'placeImport.submitFailed': 'Gửi không thành công. Thử lại nhé.',
   'placeImport.pendingReview': '✓ Đã gửi — GoGo sẽ duyệt trước khi hiển thị.',
   'placeImport.existsTitle': 'Địa điểm đã có trên GoGo',

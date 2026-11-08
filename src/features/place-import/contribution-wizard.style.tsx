@@ -2,6 +2,8 @@ import { StyleSheet } from 'react-native-unistyles'
 import { type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create((theme) => ({
+  // Keep the three equal-width commands readable down to 320pt.
+  action: { paddingHorizontal: 4 },
   root: { marginTop: 24, gap: 16 },
   card: {
     borderWidth: 1,
