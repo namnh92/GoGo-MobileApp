@@ -1,5 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles'
 
+import { touchTarget } from './tokens'
+
 export const styles = StyleSheet.create(theme => ({
   softChip: { minHeight: 44, borderRadius: 999, borderWidth: 0, backgroundColor: theme.redesign.low },
   softChipSelected: { backgroundColor: theme.mode === 'dark' ? theme.redesign.moodSelected : theme.accent.soft },
@@ -7,8 +9,8 @@ export const styles = StyleSheet.create(theme => ({
   moodChipSelected: { backgroundColor: theme.redesign.moodSelected },
   discoveryChip: { minHeight: 44, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.redesign.low, borderWidth: 0 },
   discoveryChipSelected: { backgroundColor: theme.mode === 'dark' ? theme.redesign.moodSelected : theme.redesign.primarySoft },
-  remove: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  host: { maxWidth: '100%', flexShrink: 1 },
+  remove: { minWidth: touchTarget.min, minHeight: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
+  host: { maxWidth: '100%', flexShrink: 1, minWidth: touchTarget.min, minHeight: touchTarget.min, justifyContent: 'center' },
   chip: {
     maxWidth: '100%',
     flexShrink: 1,

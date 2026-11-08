@@ -556,7 +556,8 @@ export const redesignDark = {
   ink: darkText.primary, secondary: darkText.secondary, outline: darkText.tertiary, line: darkBorder.hairline,
   checklistUnmet: darkText.tertiary, recommendationFill: '#3B8365',
   mutedTitle: darkText.primary, mutedBody: darkText.secondary,
-  primary: '#A72E19', primarySoft: '#2A2A2A', moodSelected: '#57332B',
+  // Selected chips stay distinct from low/card and give primaryText >=4.5:1.
+  primary: '#A72E19', primarySoft: '#2A2A2A', moodSelected: '#472C25',
   violet: '#7161E2', violetText: '#C7BFFF',
   violetSoft: '#2F2A55', violetInk: '#C7BFFF',
   green: darkStatus.success, greenText: darkStatus.successText, greenSoft: darkStatus.successSoft,
