@@ -1,6 +1,6 @@
 import type { Ref } from 'react'
 import { Text as RNText, type StyleProp, type TextProps as RNTextProps, type TextStyle } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { useAppTheme } from '@/shared/ui/scoped-theme'
 
 import type { AppTheme } from '@/shared/ui/theme'
 import { glyphText, type GlyphSize, type TypeStyle } from '@/shared/ui/tokens'
@@ -11,9 +11,9 @@ import { glyphText, type GlyphSize, type TypeStyle } from '@/shared/ui/tokens'
  * and `color` picks a semantic colour. Both are keys, never values: nothing a
  * screen writes here can be a hex or a `fontSize`.
  *
- * Accent colours come from the active Unistyles theme, so a "Màu chủ đề"
- * change repaints every `<Text color="accent.primary">` without any screen
- * knowing the theme exists. `useUnistyles` subscribes this component to theme
+ * Accent colours come from the nearest app theme scope (or the running theme),
+ * so a "Màu chủ đề" change repaints every `<Text color="accent.primary">`
+ * without any screen knowing the theme exists. `useAppTheme` subscribes this component to theme
  * changes only (it tracks what is read, and only `theme` is), so an
  * orientation change or inset update does not re-render text.
  */
@@ -116,7 +116,7 @@ export type TextProps = Omit<RNTextProps, 'style'> & {
 }
 
 export function Text({ variant = 'body', color = 'text.primary', style, ref, ...rest }: TextProps) {
-  const { theme } = useUnistyles()
+  const theme = useAppTheme()
   return <RNText ref={ref} {...rest} allowFontScaling={false} style={[theme.type[variant], { color: COLOR[color](theme) }, style]} />
 }
 
@@ -134,7 +134,7 @@ export type GlyphProps = Omit<RNTextProps, 'style'> & {
  * face and no line height are set, so the glyph keeps its natural box.
  */
 export function Glyph({ size, color, style, ref, ...rest }: GlyphProps) {
-  const { theme } = useUnistyles()
+  const theme = useAppTheme()
   return (
     <RNText
       ref={ref}
@@ -158,7 +158,7 @@ export function ScaledText({ box, kind, color = 'accent.onAccent', children }: {
   color?: TextColor
   children: RNTextProps['children']
 }) {
-  const { theme } = useUnistyles()
+  const theme = useAppTheme()
   const style =
     kind === 'emoji'
       ? { fontSize: box * 0.45 }

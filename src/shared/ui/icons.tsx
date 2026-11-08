@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useUnistyles } from 'react-native-unistyles'
+import { useAppTheme } from '@/shared/ui/scoped-theme'
 import Svg, { Circle, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg'
 
 import { resolveColor, type TextColor } from '@/shared/ui/text'
@@ -406,7 +406,7 @@ export function Icon({ name, size = 20, color = 'text.primary', filled = false, 
   filled?: boolean
   testID?: string
 }) {
-  const { theme } = useUnistyles()
+  const theme = useAppTheme()
   return <Glyph24 name={name} size={size} color={resolveColor(theme, color)} cut={theme.surface.card} filled={filled} testID={testID} />
 }
 
@@ -419,7 +419,7 @@ export function Icon({ name, size = 20, color = 'text.primary', filled = false, 
  * Always decorative — "GoGo AI" is written or announced next to it.
  */
 export function AssistantGlyph({ size, inverted = false, testID }: { size: number; inverted?: boolean; testID?: string }) {
-  const { theme } = useUnistyles()
+  const theme = useAppTheme()
   const bubble = inverted ? theme.accent.onAccent : theme.accent.primary
   const face = inverted ? theme.accent.primary : theme.accent.onAccent
   return (
@@ -452,7 +452,7 @@ export function AssistantGlyph({ size, inverted = false, testID }: { size: numbe
  * bar's wash.
  */
 function useTabIconColors(active?: boolean) {
-  const { theme } = useUnistyles()
+  const theme = useAppTheme()
   return {
     tint: active ? theme.accent.primary : theme.text.secondary,
     /** Detail drawn inside a filled glyph — the door, the calendar rule. */
@@ -480,7 +480,7 @@ export function IconBookmark({ active, filled = false, size = 22, color }: {
   size?: number
   color?: string
 }) {
-  const { theme } = useUnistyles()
+  const theme = useAppTheme()
   const { tint, cut } = useTabIconColors(active)
   const solid = filled || active === true
   return <Glyph24 name="bookmark" size={size} color={color ?? (filled ? theme.accent.primary : tint)} cut={cut} filled={solid} />
@@ -492,8 +492,8 @@ export function IconUser({ active }: { active?: boolean }) {
 }
 
 /** Shared body of the named icons below: a theme default, a size, an optional override. */
-function useNamed(color: string | undefined, fallback: (theme: ReturnType<typeof useUnistyles>['theme']) => string) {
-  const { theme } = useUnistyles()
+function useNamed(color: string | undefined, fallback: (theme: ReturnType<typeof useAppTheme>) => string) {
+  const theme = useAppTheme()
   return { color: color ?? fallback(theme), cut: theme.surface.card }
 }
 

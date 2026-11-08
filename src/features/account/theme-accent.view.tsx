@@ -2,7 +2,7 @@ import { Chip } from '@/shared/ui/chip.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
-import { ScopedTheme, UnistylesRuntime, useUnistyles } from 'react-native-unistyles'
+import { UnistylesRuntime, useUnistyles } from 'react-native-unistyles'
 import { track } from '@/shared/analytics'
 import { saveAccentPreference } from '@/shared/theme/accent-preference'
 import { deviceThemeName } from '@/shared/theme/use-accent-bootstrap'
@@ -10,6 +10,7 @@ import { haptic } from '@/shared/ui/feedback'
 import { Icon, IconCheck } from '@/shared/ui/icons'
 import { Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
+import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
 import { Text } from '@/shared/ui/text'
 import { ACCENTS, DEFAULT_ACCENT, accentOf, themeName, themes, type Accent } from '@/shared/ui/theme'
 import type { MessageKey } from '@/shared/i18n/types'
@@ -71,10 +72,12 @@ export function ThemeAccentCard() {
       </View>
     </Card>
     </View>
-    <View style={styles.section}>
-      <View style={styles.titleRow}><Text variant="introHeading" style={styles.title} accessibilityRole="header">{t('g11.preview')}</Text><View style={styles.live}><View style={styles.liveDot} /><Text variant="introCaption" color="redesign.secondary">{t('g11.live')}</Text></View></View>
-      <ScopedTheme name={deviceThemeName(current)}><ThemePreview /></ScopedTheme>
-    </View>
+    <ThemeScopeProvider name={themeName(current, theme.mode)}>
+      <View style={styles.section}>
+        <View style={styles.titleRow}><Text variant="introHeading" style={styles.title} accessibilityRole="header">{t('g11.preview')}</Text><View style={styles.live}><View testID="theme-preview-live-dot" style={styles.liveDot} /><Text variant="introCaption" color="redesign.secondary">{t('g11.live')}</Text></View></View>
+        <ThemePreview />
+      </View>
+    </ThemeScopeProvider>
     <PrimaryBtn variant="pill" label={t('g11.applyTheme')} leadingIcon="checkCircle" onPress={() => void apply()} loading={saving} disabled={saving} />
     <Text variant="introCaption" color="redesign.secondary" style={styles.helper}>{t('account.themeHelper')}</Text>
     <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'g11.themeFailed' : 'g11.themeSaved')}
