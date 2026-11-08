@@ -182,7 +182,11 @@ export function detailToPlaceCard(detail: Partial<PlaceDetail>, labels?: Taxonom
     providerStatus: detail.providerStatus,
     moderationStatus: detail.status,
     areaSummary: detail.areaSummary,
-    discovery: { categoryLabel: detail.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels?.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined, tagLabels: [...new Set(detail.taxonomies?.flatMap(tag => tag.kind && tag.key && labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []) ?? [])] },
+    discovery: {
+      ...(detail.verification ? { verified: detail.verification.status === 'verified' } : {}),
+      categoryLabel: detail.taxonomies?.filter(tag => tag.kind === 'category').flatMap(tag => tag.key && labels?.category?.[tag.key] ? [labels.category[tag.key]!] : []).join(' · ') || undefined,
+      tagLabels: [...new Set(detail.taxonomies?.flatMap(tag => tag.kind && tag.key && labels?.[tag.kind]?.[tag.key] ? [labels[tag.kind]![tag.key]!] : []) ?? [])],
+    },
     id: detail.id ?? '',
     name: detail.name ?? '',
     areaKey: detail.areaKey,

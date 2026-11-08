@@ -1,5 +1,37 @@
 # GoGo-MobileApp #549 verification
 
+## #564 follow-up — venue verification (2026-11-08, base `438daa7`)
+
+Both common cards already read `place.discovery?.verified`: LARGE renders the badge at the photo's top-left (12pt offsets), SMALL renders it inline in the body. The existing Vietnamese translation is **“Xác minh”** (`discovery.verified`), the badge referred to as “Xác thực” in the report. No label/layout change is needed.
+
+**Confirmed UI defect:** `detailToPlaceCard` discarded `PlaceDetail.verification`, so detail-backed cards (including Saved/Saved City hydration) could never display the badge. It now maps only explicit `verification.status === 'verified'` into `discovery.verified`. Missing verification remains absent; `unverified` maps to false. Confidence, administrative mapping, photo presence, moderation and price verification never grant the venue badge. The shared adapter fixes both sizes at all detail-backed call sites without extra requests.
+
+### Endpoint audit and BE handoff
+
+Paths below include the deployed `/v1` prefix. Evidence is the checked-in OpenAPI YAML and generated `src/shared/api/schema.d.ts`, exposed through `types.ts` / `OpResponse`; this is a contract audit, not a fresh DEV payload capture.
+
+| Card data source | Verification field in contract | Current UI path / action |
+| --- | --- | --- |
+| `GET /v1/places/search` | **Required** `results[].verification`, with required `status: verified \| unverified` and optional `verifiedAt` | Home, Explore list/map and nearby recovery all use `usePlaceSearch` → `toPlaceCard`. This adapter already preserves status; both card slots already work. There is no separate Home place-list endpoint. |
+| `GET /v1/places/{id}` | **Optional** root `verification` with the same `VenueVerification` shape | `detailToPlaceCard` now preserves status for Saved/City, plan/active-date, matching detail, contributions, existing import and review cards. |
+| `GET /v1/me/saved` | **Absent** `[].verification` (`SavedItem` only carries target identity, saved time, area and selected aggregates) | Saved already fetches `GET /v1/places/{targetId}` in `useSavedEntries`; the badge uses that detail response. No invented list field or new fallback fetch. Return this exact schema gap to Claude if requesting saved-list enrichment; it does not block the hydrated Saved badge. |
+| `GET /v1/rooms/{roomId}/suggestions/current`, `POST /v1/rooms/{roomId}/suggestions` | **Absent** `candidates[].verification` (`SuggestionCandidate`) | Current/winning matching cards hydrate detail and inherit the fix; runners-up with candidate identity only keep the badge hidden. BE field required to badge candidates without hydration: `candidates[].verification: VenueVerification`. |
+| Assistant message result cards (`GET /v1/assistant/conversations/{id}/messages` and message stream) | **Absent** `AssistantPlaceCard.facts.verification` | Assistant LARGE cards keep the badge hidden. BE field required: `verification: VenueVerification` inside each place card's `facts`; “verified facts” wording and `checkedAt` are not venue verification. |
+
+**Unresolved Home/Explore runtime report:** the owner reports Landmark 81 SkyView (`5f6ea4a0-9853-497c-a06d-d54c72580643`) detail returning `{status:"verified", verifiedAt:"2026-11-08T13:07:57Z"}`. Detail does not feed Home/Explore: search must independently return `results[<Landmark index>].verification.status === 'verified'`. The existing search adapter and renderer pass the full-data regression without a code change. Direct DEV requests here failed DNS resolution (`curl: (6) Could not resolve host`); a separate web fetch was also unavailable. Therefore the actual search response/cache and simulator result remain unverified. Claude's BE investigation should capture `GET /v1/places/search?q=Landmark%2081%20SkyView&limit=20` and the actual Home/Explore scoped search: if missing, the exact missing field is **`results[].verification`**; if stale/unverified against verified detail, inspect search projection consistency. The search contract already requires the field. Do not claim that this detail-adapter fix alone resolves the observed Home/Explore runtime symptom.
+
+### Regression evidence
+
+`src/shared/ui/__tests__/place-card-layout.spec.tsx` exercises the real search/detail adapters through LARGE and SMALL in Light (`orange`) and Dark (`orangeDark`), with owner-reported Landmark identity/rating/price and representative photo/hours/tags fixtures. Verified shows the badge in each card's existing slot; rerendering with absent or unverified facts removes it. The full-data assertions retain photo, 250k–450k/người, Google 4.5 (6.100), hours and tags. Fixtures are not live DEV evidence or simulator screenshots.
+
+- Before fix: 4 detail-backed cases fail on missing badge; search-backed cases pass (`/tmp/564d-before.log`).
+- After fix: focused suite PASS, 30 tests / 8 snapshots (`/tmp/564d-focused.log`).
+- `pnpm typecheck`: PASS, exit 0 (`/tmp/564d-typecheck.log`).
+- `pnpm lint`: PASS, exit 0 (`/tmp/564d-lint.log`).
+- `pnpm test:ui --runInBand`: PASS, exit 0; 210 suites, 2,852 tests, 9 snapshots (`/tmp/564d-test-ui.log`).
+
+No BE/schema changes, commit or push. Simulator Light/Dark acceptance remains outstanding.
+
 > Historical #549 record below. The #564 audit at the end supersedes its decision to impose Explore geometry on every surface.
 
 Scope: UI only on `feature/GOGO-549-placecard-unify`, continuing the supplied uncommitted patch from `re-design`. No commits or pushes. Button and sheet components are unchanged.

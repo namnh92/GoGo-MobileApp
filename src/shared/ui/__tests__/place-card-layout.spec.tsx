@@ -1,7 +1,7 @@
 import '@/shared/i18n'
 import { fireEvent, render, screen, within } from '@testing-library/react-native'
 import { StyleSheet, View } from 'react-native'
-import type { PlaceCard as PlaceCardModel } from '@/shared/api'
+import { detailToPlaceCard, toPlaceCard, type PlaceDetail, type PlaceSearchResult, type PlaceCard as PlaceCardModel } from '@/shared/api'
 import { PlaceCardLarge } from '../place-card-large.view'
 import { PlaceCardSmall } from '../place-card-small.view'
 import { ThemeScopeProvider } from '../scoped-theme'
@@ -35,6 +35,48 @@ function structure(node: Node): unknown {
   })
 }
 const components = [['LARGE', PlaceCardLarge], ['SMALL', PlaceCardSmall]] as const
+
+// Owner-reported DEV facts, represented as DTO fixtures; no live-response claim.
+const landmark: Partial<PlaceDetail> = {
+  id: '5f6ea4a0-9853-497c-a06d-d54c72580643', name: 'Landmark 81 SkyView',
+  rating: 4.5, ratingCount: 6100, gogoRatingCount: 0,
+  photos: [{ id: 'landmark-photo', url: 'https://example.com/landmark.jpg', source: 'manual' }],
+  prices: [{ priceMin: 250000, priceMax: 450000, currency: 'VND', unit: 'per_person', confidence: 1 }],
+  hours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 0, closeMinute: 1439 })),
+  taxonomies: [{ kind: 'category', key: 'attraction' }],
+}
+const labels = { category: { attraction: 'Tham quan' } }
+const adapters = [
+  ['detail / Saved hydration', (verification: PlaceDetail['verification']) => detailToPlaceCard({ ...landmark, verification }, labels)],
+  ['search / Home / Explore', (verification: PlaceDetail['verification']) => toPlaceCard({
+    id: landmark.id!, name: landmark.name!, lat: 10.795, lng: 106.722, isLodging: false,
+    rating: landmark.rating, ratingCount: landmark.ratingCount, primaryPhoto: landmark.photos![0],
+    pricePerPerson: { min: 250000, max: 450000, currency: 'VND', confidence: 1 },
+    open: { openNow: true, closesAtMinute: 1439 }, reasonCodes: [], confidence: 1,
+    taxonomies: landmark.taxonomies, verification,
+  // Absent verification models an older/incomplete response despite the required search contract.
+  } as PlaceSearchResult, labels)],
+] as const
+
+describe.each(['orange', 'orangeDark'] as const)('#564 DTO verification / %s', theme => {
+  describe.each(adapters)('%s', (_source, adapt) => {
+    it.each(components)('%s renders explicit verified facts and hides absent/unverified facts', async (name, Component) => {
+      const view = await render(<ThemeScopeProvider name={theme}><Component place={adapt({ status: 'verified', verifiedAt: '2026-11-08T13:07:57Z' })} /></ThemeScopeProvider>)
+      const slot = within(screen.getByTestId(name === 'LARGE' ? 'place-card-photo' : 'place-card-body'))
+      expect(slot.getByTestId('place-card-verified')).toHaveTextContent('Xác minh')
+      expect(screen.getByTestId('place-card-price')).toHaveTextContent('250k–450k/người')
+      expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,5 (6.100) Google')
+      expect(screen.getByText('Tham quan')).toBeTruthy()
+      expect(screen.getByTestId('place-photo-image')).toBeTruthy()
+      expect(screen.getByTestId('place-card-hours-badge')).toBeTruthy()
+      for (const verification of [undefined, { status: 'unverified' } as const]) {
+        await view.rerender(<ThemeScopeProvider name={theme}><Component place={adapt(verification)} /></ThemeScopeProvider>)
+        expect(screen.queryByTestId('place-card-verified')).toBeNull()
+        expect(screen.getByTestId('place-card-name')).toHaveTextContent('Landmark 81 SkyView')
+      }
+    })
+  })
+})
 
 describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common cards / %s', theme => {
   it.each(components)('%s pins full-data structure and retains every conditional fact', async (name, Component) => {
