@@ -1,5 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
-import { Linking } from 'react-native'
+import { Linking, StyleSheet } from 'react-native'
+import { themes, type AppTheme } from '@/shared/ui/theme'
+import { spacing } from '@/shared/ui/tokens'
 import { renderScreen } from './harness'
 import i18n from '@/shared/i18n'
 import { viMessages } from '@/shared/i18n/vi'
@@ -32,14 +34,25 @@ jest.mock('@/shared/api', () => ({
   useSetNotificationSettings: () => ({ mutate: mockSave, isPending: mockSavePending }),
 }))
 
-import NotificationsScreen from '@/features/notifications/notifications.view'
-import SettingsScreen from '@/features/notifications/notification-settings.view'
+// Evaluate real screen styles in both modes; Jest has no native theme switching.
+let currentTheme: AppTheme = themes.orange
+const unistyles = jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles')
+const runtime = unistyles.useUnistyles().rt
+jest.spyOn(unistyles.StyleSheet, 'create').mockImplementation(factory => new Proxy({} as ReturnType<typeof unistyles.StyleSheet.create>, {
+  get: (_target, key) => key === 'useVariants' ? () => {} : Reflect.get(
+    typeof factory === 'function' ? factory(currentTheme, runtime) : factory, key),
+}))
+const chipModule = jest.requireActual<typeof import('@/shared/ui/chip.view')>('@/shared/ui/chip.view')
+const chipSpy = jest.spyOn(chipModule, 'Chip')
+const NotificationsScreen = jest.requireActual<typeof import('@/features/notifications/notifications.view')>('@/features/notifications/notifications.view').default
+const SettingsScreen = jest.requireActual<typeof import('@/features/notifications/notification-settings.view')>('@/features/notifications/notification-settings.view').default
 
 const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:00:00Z', payload: { roomName: 'Phòng thật', inviterName: 'Lan' } }
 const settingsData = { pushEnabled: true, source: 'explicit', updatedAt: null }
 const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications }] }, isPending: false, isError: false, refetch: mockRefetch })
 
 beforeEach(() => {
+  currentTheme = themes.orange
   jest.clearAllMocks()
   mockRead.mockResolvedValue(undefined)
   mockResolve.mockResolvedValue({ to: 'open', path: '/rooms/room-1' })
@@ -48,6 +61,41 @@ beforeEach(() => {
   mockSettings = { data: settingsData, isPending: false, isError: false, refetch: mockRefetch }
   mockSession = 'user'
   mockSavePending = false
+})
+
+it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip size and aligned in %s', async mode => {
+  currentTheme = themes[mode]
+  const screen = await renderScreen(<NotificationsScreen />)
+  const chips = chipSpy.mock.calls.map(([props]) => props)
+  expect(chips).toHaveLength(4)
+  for (const chip of chips) {
+    expect(chip.style).toBeUndefined()
+    expect(chip.appearance).toBeUndefined()
+    const label = screen.getByText(chip.label)
+    const labelStyle = StyleSheet.flatten(label.props.style)
+    let body = label.parent
+    while (body && StyleSheet.flatten(body.props.style)?.minHeight !== 32) body = body.parent
+    expect(body).not.toBeNull()
+    const bodyStyle = StyleSheet.flatten(body!.props.style)
+    expect(bodyStyle.height).toBeUndefined()
+    expect(bodyStyle.paddingHorizontal).toBe(spacing[3])
+    expect(bodyStyle.paddingVertical).toBe(6)
+    // Standard text + padding + border resolve to the same 32pt visual body.
+    expect(labelStyle.lineHeight + 2 * (bodyStyle.paddingVertical + bodyStyle.borderWidth)).toBe(32)
+    expect(bodyStyle.backgroundColor).toBe(chip.variant === 'selected'
+      ? currentTheme.accent.primary : currentTheme.surface.subtle)
+  }
+  let row = screen.getByText(chips[0]!.label).parent
+  while (row && !row.props.horizontal) row = row.parent
+  expect(row).not.toBeNull()
+  const rowStyle = StyleSheet.flatten(row!.props.contentContainerStyle)
+  // Without centering, Yoga stretches the bare selected chip to the siblings'
+  // 44pt touch hosts, while their visual chip bodies remain 32pt.
+  expect(rowStyle.alignItems).toBe('center')
+  expect(rowStyle.gap).toBe(spacing[2])
+  expect(rowStyle.paddingVertical).toBe(spacing[1])
+  expect(rowStyle.paddingHorizontal ?? 0).toBe(0)
+  expect(rowStyle.marginHorizontal ?? 0).toBe(0)
 })
 
 it('inbox default uses real payload, neutral host semantics and gated controls', async () => {
