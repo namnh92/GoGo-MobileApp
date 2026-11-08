@@ -454,7 +454,7 @@ export function AssistantGlyph({ size, inverted = false, testID }: { size: numbe
 function useTabIconColors(active?: boolean) {
   const theme = useAppTheme()
   return {
-    tint: active ? theme.accent.primary : theme.text.secondary,
+    tint: active ? theme.accent.text : theme.text.secondary,
     /** Detail drawn inside a filled glyph — the door, the calendar rule. */
     cut: theme.accent.onAccent,
   }

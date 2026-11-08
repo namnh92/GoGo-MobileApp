@@ -1,4 +1,4 @@
-import { Tabs, usePathname } from 'expo-router'
+import { Tabs } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -9,8 +9,7 @@ import { useUpcomingRooms } from '@/features/tabs/upcoming-rooms'
 import { screenTagLayout } from '@/shared/observability/screen-tag.view'
 import { badgeLabel, CountBadge } from '@/shared/ui/count-badge.view'
 import { GlassBar, TAB_BAR_HEIGHT } from '@/shared/ui/glass-bar.view'
-import { MaterialIcon } from '@/shared/ui/material-icon'
-import { Icon, IconBookmark, IconCalendar, IconHome, IconUser } from '@/shared/ui/icons'
+import { IconBookmark, IconCalendar, IconHome, IconUser } from '@/shared/ui/icons'
 
 /** Static, so it can go to the navigator's own background slot as-is. */
 const FILL = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const
@@ -28,7 +27,6 @@ const TAB_BADGE = { position: 'absolute', top: -6, right: -14 } as const
  */
 export default function TabsLayout() {
   const { t } = useTranslation()
-  const profile = usePathname() === '/profile'
   const insets = useSafeAreaInsets()
   const { theme } = useUnistyles()
   const upcoming = useUpcomingRooms()
@@ -40,8 +38,8 @@ export default function TabsLayout() {
       screenLayout={screenTagLayout}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: profile ? theme.redesign.ink : theme.accent.text,
-        tabBarInactiveTintColor: profile ? theme.redesign.secondary : theme.text.secondary,
+        tabBarActiveTintColor: theme.accent.text,
+        tabBarInactiveTintColor: theme.text.secondary,
         tabBarStyle: {
           position: 'absolute',
           left: 0,
@@ -56,30 +54,30 @@ export default function TabsLayout() {
           backgroundColor: 'transparent',
         },
         tabBarBackground: () => <GlassBar testID="tab-bar-glass" style={FILL} />,
-        tabBarLabelStyle: profile ? theme.type.introCaption : theme.type.caption,
+        tabBarLabelStyle: theme.type.tabLabel,
         tabBarAllowFontScaling: false,
       }}
     >
       <Tabs.Screen
         name="index"
-        options={{ title: t('tabs.home'), tabBarIcon: ({ focused }) => <>{profile ? <MaterialIcon name="explore" size={24} color="redesign.secondary" /> : <IconHome active={focused} />}</> }}
+        options={{ title: t('tabs.home'), tabBarIcon: ({ focused }) => <IconHome active={focused} /> }}
       />
       <Tabs.Screen
         name="plans"
         options={{ title: t('tabs.plans'), tabBarAccessibilityLabel: upcoming.count > 0 ? t('tabs.plansUpcoming', { count: badgeLabel(upcoming.count, upcoming.more) }) : undefined, tabBarIcon: ({ focused }) => (
             <View>
-              <>{profile ? <Icon name="calendar" size={24} color="redesign.secondary" /> : <IconCalendar active={focused} />}</>
+              <IconCalendar active={focused} />
               <CountBadge count={upcoming.count} more={upcoming.more} tone={upcoming.live ? 'live' : 'upcoming'} style={TAB_BADGE} />
             </View>
           ), }}
       />
       <Tabs.Screen
         name="saved"
-        options={{ title: t('tabs.saved'), tabBarIcon: ({ focused }) => <>{profile ? <Icon name="bookmark" size={24} color="redesign.secondary" /> : <IconBookmark active={focused} />}</> }}
+        options={{ title: t('tabs.saved'), tabBarIcon: ({ focused }) => <IconBookmark active={focused} /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: t('tabs.profile'), tabBarIcon: ({ focused }) => <>{profile ? <MaterialIcon name="user" size={24} /> : <IconUser active={focused} />}</> }}
+        options={{ title: t('tabs.profile'), tabBarIcon: ({ focused }) => <IconUser active={focused} /> }}
       />
     </Tabs>
     <AssistantEntryLayer />
