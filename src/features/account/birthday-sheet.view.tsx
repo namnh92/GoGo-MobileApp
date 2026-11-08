@@ -112,7 +112,7 @@ export function BirthdaySheet({ visible, date, onChange, onClose, onConfirm }: {
       </View>
       {!check.ok ? <Text variant="bodySmall" color="status.dangerText" accessibilityRole="alert" accessibilityLiveRegion="polite">{t(check.reason === 'future' ? 'account.dobFuture' : 'account.dobInvalid')}</Text> : null}
       <View style={styles.actions}>
-        <SecondaryBtn variant="stitch" label={t('common.cancel')} onPress={onClose} style={styles.action} />
+        <SecondaryBtn variant="neutral" label={t('common.cancel')} onPress={onClose} style={styles.action} />
         <PrimaryBtn variant="stitch" label={t('areaPicker.confirm')} disabled={!check.ok} onPress={() => { if (checkTypedDateOfBirth(typed).ok) onConfirm(typed) }} style={styles.action} />
       </View>
     </View>

@@ -421,7 +421,8 @@ it.each(['orange', 'orangeDark'] as const)('resolves birthday sheet surfaces fro
     expect(styles.close.backgroundColor).toBe(themes[name].surface.card)
     expect(styles.picker.backgroundColor).toBe(themes[name].surface.card)
     expect(styles.summary.backgroundColor).toBe(themes[name].surface.subtle)
-    expect(styles.selected.borderColor).toBe(themes[name].redesign.outline)
+    expect(styles.selected.backgroundColor).toBe(themes[name].surface.subtle)
+    for (const surface of [styles.close, styles.picker, styles.summary, styles.shortcut]) expect(surface.borderWidth).toBe(0)
   })
 })
 it('keeps picker changes out of form dirty state and cancels to the latest refetched value', async () => {

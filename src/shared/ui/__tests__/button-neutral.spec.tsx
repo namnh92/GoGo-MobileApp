@@ -21,10 +21,11 @@ function fills(node: HostNode): unknown[] {
 describe.each(Object.entries(themes))('%s shared neutral button', (_name, theme) => {
   beforeEach(() => { currentTheme = theme })
 
-  it('uses neutral surface, border, label and icon tokens at rest and while pressed', async () => {
+  it('uses a borderless neutral surface, label and icon tokens at rest and while pressed', async () => {
     await render(<SecondaryBtn variant="neutral" label="Export" leadingIcon="download" onPress={jest.fn()} />)
     const button = screen.getByRole('button', { name: 'Export' })
-    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderColor: theme.border.hairline })
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderWidth: 0 })
+    expect(StyleSheet.flatten(button.props.style).borderColor).toBeUndefined()
     expect(StyleSheet.flatten(screen.getByText('Export').props.style).color).toBe(theme.text.primary)
     const icon = within(button).getByTestId('material-icon-download', { includeHiddenElements: true })
     expect(fills(icon as unknown as HostNode)).toContainEqual({ type: 0, payload: processColor(theme.text.primary) })
@@ -34,22 +35,30 @@ describe.each(Object.entries(themes))('%s shared neutral button', (_name, theme)
         persist: () => {}, currentTarget: { measure: () => {} },
       })
     })
-    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ backgroundColor: theme.surface.card, borderColor: theme.border.hairline })
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ backgroundColor: theme.surface.card, borderWidth: 0 })
     expect(StyleSheet.flatten(screen.getByText('Export').props.style).color).toBe(theme.text.primary)
+  })
+
+  it('keeps the neutral palette even when a caller passes onAccent', async () => {
+    await render(<SecondaryBtn variant="neutral" onAccent label="Cancel" leadingIcon="download" onPress={jest.fn()} />)
+    const style = StyleSheet.flatten(screen.getByRole('button', { name: 'Cancel' }).props.style)
+    expect(style).toMatchObject({ borderWidth: 0, backgroundColor: theme.surface.subtle })
+    expect(style.borderColor).toBeUndefined()
+    expect(StyleSheet.flatten(screen.getByText('Cancel').props.style).color).toBe(theme.text.primary)
   })
 
   it('keeps loading neutral and disables duplicate presses; disabled labels and icons use secondary text', async () => {
     const onPress = jest.fn()
     const view = await render(<SecondaryBtn variant="neutral" label="Export" loading disabled onPress={onPress} />)
     const button = () => screen.getByRole('button', { name: 'Export' })
-    expect(StyleSheet.flatten(button().props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderColor: theme.border.hairline })
+    expect(StyleSheet.flatten(button().props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderWidth: 0 })
     expect(StyleSheet.flatten(screen.getByText('Export').props.style).color).toBe(theme.text.primary)
     expect(screen.getByTestId('button-spinner').props.color).toBe(theme.text.primary)
     expect(button().props.accessibilityState).toMatchObject({ busy: true, disabled: true })
     await fireEvent.press(button())
     expect(onPress).not.toHaveBeenCalled()
     await view.rerender(<SecondaryBtn variant="neutral" label="Export" leadingIcon="download" disabled onPress={onPress} />)
-    expect(StyleSheet.flatten(button().props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderColor: theme.border.hairline })
+    expect(StyleSheet.flatten(button().props.style)).toMatchObject({ backgroundColor: theme.surface.subtle, borderWidth: 0 })
     expect(StyleSheet.flatten(screen.getByText('Export').props.style).color).toBe(theme.text.secondary)
     const icon = within(button()).getByTestId('material-icon-download', { includeHiddenElements: true })
     expect(fills(icon as unknown as HostNode)).toContainEqual({ type: 0, payload: processColor(theme.text.secondary) })

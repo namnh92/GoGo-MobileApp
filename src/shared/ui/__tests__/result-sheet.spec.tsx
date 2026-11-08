@@ -61,7 +61,7 @@ it('offers secondary cancel first and a danger confirmation while preserving sha
     secondaryAction={{ label: 'Cancel', onPress: cancel }} onClose={cancel} />)
   const primary = screen.getByRole('button', { name: 'Confirm' })
   const secondary = screen.getByRole('button', { name: 'Cancel' })
-  expect(StyleSheet.flatten(primary.props.style).borderColor).toBe(status.danger)
+  expect(StyleSheet.flatten(primary.props.style)).toMatchObject({ borderWidth: 0, backgroundColor: status.dangerSoft })
   expect(primary.props.accessibilityState).toMatchObject({ disabled: true, busy: true })
   expect(primary.parent).toBe(secondary.parent)
   expect(primary.parent!.children.indexOf(secondary)).toBeLessThan(primary.parent!.children.indexOf(primary))

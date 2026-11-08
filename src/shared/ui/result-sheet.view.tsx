@@ -40,7 +40,7 @@ export function ResultSheet({ visible, variant, icon, title, body, media, note, 
   useEffect(() => () => clearTimeout(timer.current), [])
   useEffect(() => { if (!visible) clearTimeout(timer.current) }, [visible])
   const PrimaryAction = primaryAction.destructive ? DangerBtn : PrimaryBtn
-  const secondary = secondaryAction ? <SecondaryBtn {...secondaryAction} style={styles.action} wrapLabel /> : null
+  const secondary = secondaryAction ? <SecondaryBtn {...secondaryAction} variant="neutral" style={styles.action} wrapLabel /> : null
   return (
     <Sheet visible={visible} onClose={onClose} onClosed={onClosed} testID={testID}
       footer={<View style={styles.actions}>

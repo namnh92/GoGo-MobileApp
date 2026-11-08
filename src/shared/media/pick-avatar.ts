@@ -96,9 +96,16 @@ export type SelectAvatarResult =
 /** No system crop: the Stitch editor owns all adjustments before any upload. */
 export async function selectAvatar(source: AvatarSource): Promise<SelectAvatarResult> {
   try {
-    const permission = source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync()
+    let permission = source === 'camera'
+      ? await ImagePicker.getCameraPermissionsAsync()
+      : await ImagePicker.getMediaLibraryPermissionsAsync()
+    // Ask the system on the first in-context tap. A previous refusal belongs
+    // to the shared permission sheet; never repeatedly trigger system prompts.
+    if (permission.status === 'undetermined') {
+      permission = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync()
+    }
     if (!permission.granted) return { status: 'denied' }
     const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: false, quality: 1, exif: false }
     const result = source === 'camera'

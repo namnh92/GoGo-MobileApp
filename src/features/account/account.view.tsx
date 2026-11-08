@@ -5,7 +5,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Linking, Pressable, ScrollView, Share, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Linking, Pressable, ScrollView, Share, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
@@ -24,6 +24,7 @@ import {
 import { track } from '@/shared/analytics'
 import { cropAvatar, selectAvatar, type AvatarSource, type PickedAsset } from '@/shared/media/pick-avatar'
 import type { AvatarAdjustment } from '@/shared/media/avatar-crop'
+import { MediaPermissionSheet, type MediaPermissionIssue } from '@/shared/media/media-permission-sheet.view'
 import { AvatarEditor } from './avatar-editor.view'
 import { AvatarSourceSheet } from './avatar-source-sheet.view'
 import { useSession } from '@/shared/providers/session-provider'
@@ -112,8 +113,8 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
   const [avatarSheet, setAvatarSheet] = useState(false)
   const [avatarAsset, setAvatarAsset] = useState<(PickedAsset & { width: number; height: number }) | null>(null)
   const avatarLock = useRef(false)
-  const pendingSource = useRef<AvatarSource | 'remove' | null>(null)
-  const [permissionSource, setPermissionSource] = useState<AvatarSource | null>(null)
+  const pendingSource = useRef<AvatarSource | 'remove' | 'settings' | null>(null)
+  const [permissionIssue, setPermissionIssue] = useState<MediaPermissionIssue | null>(null)
   const { confirm, dialog } = useDialog()
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
@@ -199,7 +200,8 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     const source = pendingSource.current
     pendingSource.current = null
     if (!mounted.current || !source) return
-    if (source === 'remove') void removePicture()
+    if (source === 'settings') void Linking.openSettings().catch(() => { if (mounted.current) setAvatarNotice(t('account.avatarFailed')) })
+    else if (source === 'remove') void removePicture()
     else void changeAvatar(source)
   }
 
@@ -207,7 +209,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
     if (!canUpload || avatarLock.current) return
     avatarLock.current = true
     setAvatarNotice(null)
-    setPermissionSource(null)
+    setPermissionIssue(null)
     setAvatarStep('picking')
     try {
       // The upstream picker can resolve during UIKit dismissal. The editor
@@ -216,8 +218,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
       if (!mounted.current) return
       if (picked.status === 'canceled') return
       if (picked.status === 'denied' || picked.status === 'unavailable') {
-        setPermissionSource(source)
-        setAvatarNotice(t(source === 'camera' ? 'account.avatarCameraUnavailable' : 'account.avatarPermissionDenied'))
+        setPermissionIssue({ source, status: picked.status })
         return
       }
       if (picked.status !== 'selected') return
@@ -245,7 +246,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
       haptic('success')
       track('profile_avatar_set')
       setAvatarAsset(null)
-      setAvatarNotice(t('account.avatarSaved'))
+      AccessibilityInfo.announceForAccessibility(t('account.avatarSaved'))
     } catch (error) {
       if (mounted.current) setAvatarNotice(t(avatarErrorKey(error)))
     } finally {
@@ -367,10 +368,6 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
 
           </View>
           {!canUpload ? <Text style={styles.avatarCaption} variant="introSmall" color="status.warningText">{t('account.avatarUnavailable')}</Text> : null}
-          {permissionSource ? <View style={styles.avatarActions}>
-            <GhostBtn label={t('account.avatarSettings')} onPress={() => { void Linking.openSettings().catch(() => setAvatarNotice(t('account.avatarFailed'))) }} />
-            <GhostBtn label={t(permissionSource === 'camera' ? 'account.avatarLibrary' : 'account.avatarCamera')} onPress={() => void changeAvatar(permissionSource === 'camera' ? 'library' : 'camera')} />
-          </View> : null}
           {avatarNotice ? (
             <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
               {avatarNotice}
@@ -448,6 +445,10 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
         secondaryAction={{ label: t('account.deleteCancel'), onPress: () => setDeleteConfirm(false) }} onClose={() => setDeleteConfirm(false)} />
       <AvatarSourceSheet visible={avatarSheet} hasPhoto={!!me.data?.avatarUrl} canUpload={canUpload}
         onClose={() => { pendingSource.current = null; setAvatarSheet(false) }} onClosed={sourceSheetClosed} onChoose={chooseAvatarSource} />
+      <MediaPermissionSheet issue={permissionIssue}
+        onSettings={() => { pendingSource.current = 'settings'; setPermissionIssue(null) }}
+        onChoose={source => { pendingSource.current = source; setPermissionIssue(null) }}
+        onClose={() => { pendingSource.current = null; setPermissionIssue(null) }} onClosed={sourceSheetClosed} />
       {dialog}
     </Atmosphere>
   )

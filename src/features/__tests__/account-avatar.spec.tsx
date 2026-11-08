@@ -4,7 +4,7 @@ import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
 import { scriptedTime } from './scripted-time'
-import { BackHandler, StyleSheet } from 'react-native'
+import { AccessibilityInfo, BackHandler, Linking, StyleSheet } from 'react-native'
 import { themes } from '@/shared/ui/theme'
 import i18n from '@/shared/i18n'
 
@@ -27,8 +27,11 @@ const mockSetAvatar = jest.fn()
 const mockRemoveAvatar = jest.fn()
 const mockPick = jest.fn()
 const mockDelete = jest.fn()
+const mockSetOptions = jest.fn()
+const mockNavigation = { setOptions: mockSetOptions }
 
 jest.mock('expo-router', () => ({
+  useNavigation: () => mockNavigation,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
 }))
 
@@ -92,6 +95,7 @@ beforeEach(() => {
   mockRemoveAvatar.mockReset()
   mockPick.mockReset()
   mockDelete.mockReset().mockResolvedValue(undefined)
+  mockSetOptions.mockClear()
 })
 
 
@@ -115,7 +119,8 @@ describe('account avatar', () => {
     expect(mockPick).not.toHaveBeenCalled()
   })
 
-  it('picks, uploads for the avatar purpose, attaches, and says so', async () => {
+  it('picks, uploads and attaches, with only an accessibility announcement as feedback', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility')
     mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///a.jpg', width: 800, height: 600 } })
     mockUpload.mockResolvedValue('tmp/avatars/u1/k.jpg')
     mockSetAvatar.mockResolvedValue(profile({ avatarUrl: 'https://assets-test.local/avatars/x.webp' }))
@@ -130,7 +135,11 @@ describe('account avatar', () => {
       purpose: 'avatar',
     })
     expect(mockSetAvatar).toHaveBeenCalledWith('tmp/avatars/u1/k.jpg')
-    expect(await view.findByText('✓ Đã cập nhật ảnh')).toBeTruthy()
+    await waitFor(() => expect(view.queryByText('Dùng ảnh này')).toBeNull())
+    expect(view.queryByText('✓ Đã cập nhật ảnh')).toBeNull()
+    expect(view.queryByText(i18n.t('account.avatarSaved'))).toBeNull()
+    expect(announce).toHaveBeenCalledWith(i18n.t('account.avatarSaved'))
+    announce.mockRestore()
   })
 
   it('tells the person to pick another image when the server cannot read this one', async () => {
@@ -166,7 +175,7 @@ describe('account avatar', () => {
     await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
     if (view.queryByText('Dùng ảnh này')) await fireEvent.press(view.getByText('Dùng ảnh này'))
-    expect(await view.findByText(/Chưa có quyền truy cập ảnh/)).toBeTruthy()
+    expect(await view.findByTestId('media-permission-sheet')).toBeTruthy()
     expect(mockUpload).not.toHaveBeenCalled()
   })
 
@@ -176,7 +185,7 @@ describe('account avatar', () => {
     await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
     if (view.queryByText('Dùng ảnh này')) await fireEvent.press(view.getByText('Dùng ảnh này'))
-    expect(await view.findByText(/Chưa có quyền truy cập ảnh/)).toBeTruthy()
+    expect(await view.findByTestId('media-permission-sheet')).toBeTruthy()
     expect(mockUpload).not.toHaveBeenCalled()
   })
 
@@ -306,7 +315,7 @@ it('uses the shared neutral export appearance on Account', async () => {
   const view = await renderScreen(<AccountScreen />)
   const button = view.getByRole('button', { name: i18n.t('account.export') })
   expect(StyleSheet.flatten(button.props.style)).toMatchObject({
-    backgroundColor: themes.orange.surface.subtle, borderColor: themes.orange.border.hairline,
+    backgroundColor: themes.orange.surface.subtle, borderWidth: 0,
   })
   expect(StyleSheet.flatten(view.getByText(i18n.t('account.export')).props.style).color).toBe(themes.orange.text.primary)
 })
@@ -320,10 +329,12 @@ it('returns from the in-screen editor on Android back and preserves the account 
     await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
     await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
     expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false })
     const handler = back.mock.calls.at(-1)![1]
     await act(async () => { expect(handler()).toBe(true) })
     expect(view.queryByText('Dùng ảnh này')).toBeNull()
     expect(view.getByLabelText(i18n.t('auth.displayName')).props.value).toBe('Bình')
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: true })
     expect(mockUpload).not.toHaveBeenCalled()
   } finally { back.mockRestore() }
 })
@@ -339,10 +350,81 @@ it('consumes Android back while the confirmed avatar is uploading', async () => 
     await fireEvent.press(await view.findByRole('button', { name: 'Chọn từ thư viện' }))
     await fireEvent.press(await view.findByText('Dùng ảnh này'))
     await waitFor(() => expect(mockUpload).toHaveBeenCalledTimes(1))
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false })
     const handler = back.mock.calls.at(-1)![1]
     await act(async () => { expect(handler()).toBe(true) })
     expect(view.getByRole('button', { name: i18n.t('account.avatarUploading') })).toBeDisabled()
     await act(async () => { finishUpload('tmp/avatars/u1/k.jpg') })
-    expect(await view.findByText('✓ Đã cập nhật ảnh')).toBeTruthy()
+    await waitFor(() => expect(view.queryByText('Dùng ảnh này')).toBeNull())
+    expect(view.queryByText('✓ Đã cập nhật ảnh')).toBeNull()
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: true })
   } finally { back.mockRestore() }
+})
+
+it('disables iOS stack swipe-back throughout editing and restores it on close, preserving the Account draft', async () => {
+  mockPick.mockResolvedValue({ status: 'selected', asset: { uri: 'file:///local.jpg', width: 800, height: 600 } })
+  const view = await renderScreen(<AccountScreen />)
+  await fireEvent.changeText(view.getByLabelText(i18n.t('auth.displayName')), 'Bình')
+  await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+  await fireEvent.press(await view.findByRole('button', { name: 'Chụp ảnh' }))
+  expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+  expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false })
+  await fireEvent.press(view.getByRole('button', { name: 'Đóng' }))
+  expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: true })
+  expect(view.getByLabelText(i18n.t('auth.displayName')).props.value).toBe('Bình')
+})
+
+it.each([
+  ['camera', 'denied'], ['camera', 'unavailable'], ['library', 'denied'], ['library', 'unavailable'],
+] as const)('%s %s uses a permission sheet, with no inline Account permission block', async (source, status) => {
+  mockPick.mockResolvedValue({ status })
+  const view = await renderScreen(<AccountScreen />)
+  await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+  await fireEvent.press(await view.findByRole('button', { name: i18n.t(source === 'camera' ? 'account.avatarCamera' : 'account.avatarLibrary') }))
+  const root = await view.findByTestId('media-permission-sheet')
+  const sheet = within(root)
+  const title = i18n.t(`mediaPermission.${source}${status === 'denied' ? 'DeniedTitle' : 'UnavailableTitle'}`)
+  expect(sheet.getByRole('header', { name: title })).toBeTruthy()
+  expect(view.getAllByText(title)).toHaveLength(1)
+  expect(sheet.getByRole('button', { name: i18n.t('common.cancel') })).toBeTruthy()
+  expect(sheet.queryByRole('button', { name: i18n.t('account.avatarSettings') }) !== null).toBe(status === 'denied')
+  expect(sheet.queryByRole('button', { name: i18n.t('account.avatarLibrary') }) !== null).toBe(source === 'camera')
+  expect(view.queryByText(i18n.t('account.avatarPermissionDenied'))).toBeNull()
+  expect(view.queryByText(i18n.t('account.avatarCameraUnavailable'))).toBeNull()
+  await fireEvent.press(sheet.getByRole('button', { name: i18n.t('common.cancel') }))
+  await waitFor(() => expect(view.queryByTestId('media-permission-sheet')).toBeNull())
+  expect(mockUpload).not.toHaveBeenCalled()
+})
+
+it.each([
+  ['camera', 'denied'], ['camera', 'unavailable'], ['library', 'denied'], ['library', 'unavailable'],
+] as const)('dismisses the %s %s sheet before selecting the other source', async (source, status) => {
+  mockPick.mockResolvedValueOnce({ status }).mockResolvedValueOnce({ status: 'selected', asset: { uri: 'file:///fallback.jpg', width: 800, height: 600 } })
+  const view = await renderScreen(<AccountScreen />)
+  await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+  await fireEvent.press(await view.findByRole('button', { name: i18n.t(source === 'camera' ? 'account.avatarCamera' : 'account.avatarLibrary') }))
+  const sheet = within(await view.findByTestId('media-permission-sheet'))
+  await fireEvent.press(sheet.getByRole('button', { name: i18n.t(source === 'camera' ? 'account.avatarLibrary' : 'account.avatarCamera') }))
+  expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+  expect(view.queryByTestId('media-permission-sheet')).toBeNull()
+  expect(mockPick.mock.calls.map(([pickedSource]) => pickedSource)).toEqual([source, source === 'camera' ? 'library' : 'camera'])
+  expect(mockUpload).not.toHaveBeenCalled()
+})
+
+it.each(['camera', 'library'] as const)('opens Settings from the denied %s sheet, then reads fresh permission on the next attempt', async source => {
+  const settings = jest.spyOn(Linking, 'openSettings').mockResolvedValue()
+  try {
+    mockPick.mockResolvedValueOnce({ status: 'denied' }).mockResolvedValueOnce({ status: 'selected', asset: { uri: 'file:///allowed.jpg', width: 800, height: 600 } })
+    const view = await renderScreen(<AccountScreen />)
+    const label = i18n.t(source === 'camera' ? 'account.avatarCamera' : 'account.avatarLibrary')
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: label }))
+    await fireEvent.press(within(await view.findByTestId('media-permission-sheet')).getByRole('button', { name: 'Mở Cài đặt' }))
+    await waitFor(() => expect(settings).toHaveBeenCalledTimes(1))
+    expect(view.queryByTestId('media-permission-sheet')).toBeNull()
+    await fireEvent.press(view.getByLabelText('Đổi ảnh đại diện'))
+    await fireEvent.press(await view.findByRole('button', { name: label }))
+    expect(await view.findByText('Dùng ảnh này')).toBeTruthy()
+    expect(mockPick).toHaveBeenLastCalledWith(source)
+  } finally { settings.mockRestore() }
 })

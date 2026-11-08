@@ -110,7 +110,9 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [
         styles.base,
-        ...kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed),
+        // A neutral control never registers accent styles with the native
+        // stylesheet, including the pressed/disabled/onAccent paths.
+        ...(neutral ? [styles.neutral, pressed && !inactive && styles.neutralPressed] : kindStyles(kind, onAccent, pressed && !inactive, onAccent ? inactive : greyed)),
         stitch && styles[variant],
         variant === 'discovery' && kind === 'primary' && styles.discoveryPrimary,
         variant === 'area' && kind === 'primary' && styles.areaPrimary,
@@ -118,8 +120,6 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         variant === 'area' && greyed && styles.primaryDisabled,
         variant === 'discovery' && greyed && styles.primaryDisabled,
         stitch && pressed && !inactive && !reduced && (variant === 'stitchSubtle' ? styles.stitchPressedSubtle : styles.stitchPressed),
-        neutral && styles.neutral,
-        neutral && pressed && !inactive && styles.neutralPressed,
         style,
       ]}
     >

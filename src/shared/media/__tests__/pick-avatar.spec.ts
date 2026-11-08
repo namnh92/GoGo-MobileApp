@@ -3,10 +3,14 @@ import { DEFAULT_AVATAR_ADJUSTMENT } from '../avatar-crop'
 
 const mockCameraPermission = jest.fn()
 const mockLibraryPermission = jest.fn()
+const mockGetCameraPermission = jest.fn()
+const mockGetLibraryPermission = jest.fn()
 const mockCamera = jest.fn()
 const mockLibrary = jest.fn()
 const mockManipulate = jest.fn()
 jest.mock('expo-image-picker', () => ({
+  getCameraPermissionsAsync: () => mockGetCameraPermission(),
+  getMediaLibraryPermissionsAsync: () => mockGetLibraryPermission(),
   requestCameraPermissionsAsync: () => mockCameraPermission(),
   requestMediaLibraryPermissionsAsync: () => mockLibraryPermission(),
   launchCameraAsync: (options: unknown) => mockCamera(options),
@@ -19,11 +23,54 @@ jest.mock('expo-image-manipulator', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockGetCameraPermission.mockResolvedValue({ status: 'undetermined', granted: false })
+  mockGetLibraryPermission.mockResolvedValue({ status: 'undetermined', granted: false })
   mockCameraPermission.mockResolvedValue({ granted: true })
   mockLibraryPermission.mockResolvedValue({ granted: true })
   mockCamera.mockResolvedValue({ canceled: false, assets: [{ uri: 'camera.jpg', width: 800, height: 600 }] })
   mockLibrary.mockResolvedValue({ canceled: false, assets: [{ uri: 'library.heic', width: 800, height: 600 }] })
   mockManipulate.mockResolvedValue({ uri: 'cropped.jpg' })
+})
+
+it.each(['camera', 'library'] as const)('%s asks immediately only when undetermined, then opens the selected source', async source => {
+  const get = source === 'camera' ? mockGetCameraPermission : mockGetLibraryPermission
+  const request = source === 'camera' ? mockCameraPermission : mockLibraryPermission
+  const launch = source === 'camera' ? mockCamera : mockLibrary
+  expect(await selectAvatar(source)).toMatchObject({ status: 'selected' })
+  expect(get).toHaveBeenCalledTimes(1)
+  expect(request).toHaveBeenCalledTimes(1)
+  expect(launch).toHaveBeenCalledTimes(1)
+  expect(get.mock.invocationCallOrder[0]).toBeLessThan(request.mock.invocationCallOrder[0]!)
+  expect(request.mock.invocationCallOrder[0]).toBeLessThan(launch.mock.invocationCallOrder[0]!)
+})
+
+it.each(['camera', 'library'] as const)('%s opens directly when already granted', async source => {
+  const get = source === 'camera' ? mockGetCameraPermission : mockGetLibraryPermission
+  const request = source === 'camera' ? mockCameraPermission : mockLibraryPermission
+  get.mockResolvedValue({ status: 'granted', granted: true })
+  expect(await selectAvatar(source)).toMatchObject({ status: 'selected' })
+  expect(request).not.toHaveBeenCalled()
+})
+
+it.each([
+  ['camera', true], ['camera', false], ['library', true], ['library', false],
+] as const)('%s returns denied without another system request (canAskAgain=%s)', async (source, canAskAgain) => {
+  const get = source === 'camera' ? mockGetCameraPermission : mockGetLibraryPermission
+  const request = source === 'camera' ? mockCameraPermission : mockLibraryPermission
+  get.mockResolvedValue({ status: 'denied', granted: false, canAskAgain })
+  expect(await selectAvatar(source)).toEqual({ status: 'denied' })
+  expect(request).not.toHaveBeenCalled()
+  expect(mockCamera).not.toHaveBeenCalled()
+  expect(mockLibrary).not.toHaveBeenCalled()
+})
+
+it.each(['camera', 'library'] as const)('%s returns denied when the first system request is refused', async source => {
+  const request = source === 'camera' ? mockCameraPermission : mockLibraryPermission
+  request.mockResolvedValue({ status: 'denied', granted: false })
+  expect(await selectAvatar(source)).toEqual({ status: 'denied' })
+  expect(request).toHaveBeenCalledTimes(1)
+  expect(mockCamera).not.toHaveBeenCalled()
+  expect(mockLibrary).not.toHaveBeenCalled()
 })
 
 it('asks for the selected source only and defers cropping to the editor', async () => {

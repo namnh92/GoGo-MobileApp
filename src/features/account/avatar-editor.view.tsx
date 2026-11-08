@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useNavigation } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, BackHandler, Image, Pressable, View, useWindowDimensions } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -15,6 +16,13 @@ export function AvatarEditor({ asset, busy, error, onClose, onChooseAnother, onC
   onClose: () => void; onChooseAnother: () => void; onConfirm: (value: AvatarAdjustment, viewport: number) => void
 }) {
   const { t } = useTranslation()
+  const navigation = useNavigation()
+  useLayoutEffect(() => {
+    // This editor replaces Account content inside the same native stack route.
+    // An iOS pop would bypass the editor's close/upload guards and lose drafts.
+    navigation.setOptions({ gestureEnabled: false })
+    return () => navigation.setOptions({ gestureEnabled: true })
+  }, [navigation])
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!busy) onClose()

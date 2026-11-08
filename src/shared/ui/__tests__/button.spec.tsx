@@ -105,7 +105,7 @@ describe.each([
   ['PrimaryBtn', PrimaryBtn, { height: 56, bg: orange.primary, label: orange.onAccent, pressedBg: orange.pressed, spinner: orange.onAccent }],
   ['SecondaryBtn', SecondaryBtn, { height: 52, bg: surface.card, label: orange.primary, pressedBg: orange.soft, spinner: orange.primary }],
   ['GhostBtn', GhostBtn, { height: 44, bg: undefined, label: orange.primary, pressedBg: surface.subtle, spinner: orange.primary }],
-  ['DangerBtn', DangerBtn, { height: 52, bg: surface.card, label: status.dangerText, pressedBg: status.dangerSoft, spinner: status.dangerText }],
+  ['DangerBtn', DangerBtn, { height: 52, bg: status.dangerSoft, label: status.dangerText, pressedBg: surface.subtle, spinner: status.dangerText }],
 ] as const)('%s', (_name, Btn, look) => {
   it('default: height, fill and label colour from the theme, label in the `label` style on one line', async () => {
     await render(<Btn label="Tạo kèo" onPress={jest.fn()} />)

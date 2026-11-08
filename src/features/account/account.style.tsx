@@ -57,5 +57,4 @@ export const styles = StyleSheet.create(theme => ({
   },
   avatarText: { alignItems: 'center', gap: spacing[1] },
   avatarCaption: { textAlign: 'center' },
-  avatarActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] },
 }))
