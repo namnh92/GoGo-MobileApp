@@ -14,6 +14,7 @@ import { Text } from './text'
 import { usePlaceClock } from './use-place-clock'
 import { styles } from './place-card.style'
 import { touchTarget } from './tokens'
+import { PhotoSkeleton } from './skeleton.view'
 
 export interface CardControls {
   onPress?: () => void
@@ -70,14 +71,16 @@ export function useCardData(props: PlaceCardProps) {
 }
 export type CardData = ReturnType<typeof useCardData>
 
-export function CardImage({ data, small = false }: { data: CardData; small?: boolean }) {
+export function CardImage({ data, small = false, loadingSkeleton = false }: { data: CardData; small?: boolean; loadingSkeleton?: boolean }) {
   const { t } = useTranslation()
   return <>
     <PlacePhoto placeId={data.place.id} name={data.place.name} uri={data.place.photoUrl}
+      loadingSkeleton={loadingSkeleton}
       cachePolicy={data.candidate ? 'none' : undefined}
       imageTestID={data.candidate ? small ? 'place-preview-thumbnail' : 'import-candidate-photo' : undefined}
       onPhotoError={data.photoError} style={StyleSheet.absoluteFill} />
     {data.loading ? <View testID="import-candidate-photo-loading" style={StyleSheet.absoluteFill} accessible accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} /> : null}
+    {data.loading && loadingSkeleton ? <PhotoSkeleton testID="contribution-photo-fetch-loading" /> : null}
   </>
 }
 

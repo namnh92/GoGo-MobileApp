@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Animated, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native'
+import { Animated, Easing, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { useUnistyles } from 'react-native-unistyles'
 
-import { useReducedMotion } from '@/shared/ui/feedback'
+import { useReducedMotion, useReducedMotionPreference } from '@/shared/ui/feedback'
 import { Card } from '@/shared/ui/card.view'
 import { motion, radius, spacing } from '@/shared/ui/tokens'
 
@@ -61,6 +63,32 @@ export function Skeleton({ width, height = 12, radius: r = 6, style }: {
       style={[styles.block, { width, height, borderRadius: r, opacity }, style]}
     />
   )
+}
+
+/** Shared photo-frame shimmer. Unknown/reduced motion is a static skeleton. */
+export function PhotoSkeleton({ testID = 'place-photo-loading' }: { testID?: string }) {
+  const reduced = useReducedMotionPreference()
+  const { theme } = useUnistyles()
+  const [width, setWidth] = useState(0)
+  const [progress] = useState(() => new Animated.Value(0))
+  useEffect(() => {
+    progress.setValue(0)
+    if (reduced !== false || !width) return
+    const loop = Animated.loop(Animated.timing(progress, {
+      toValue: 1, duration: motion.slow * 4, easing: Easing.linear, useNativeDriver: true, isInteraction: false,
+    }))
+    loop.start()
+    return () => loop.stop()
+  }, [progress, reduced, width])
+  return <View {...HIDDEN} testID={testID} style={styles.photoFrame}
+    onLayout={event => setWidth(event.nativeEvent.layout.width)}>
+    {reduced === false && width > 0 ? <Animated.View testID="photo-skeleton-shimmer" style={[styles.photoHighlight, {
+      transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [-width, width] }) }],
+    }]}>
+      <LinearGradient colors={[theme.surface.subtle, theme.surface.card, theme.surface.subtle]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.photoFill} />
+    </Animated.View> : null}
+  </View>
 }
 
 /** Mirrors the list PlaceCard: 16:10 photo over the body lines. */

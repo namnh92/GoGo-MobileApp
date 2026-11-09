@@ -48,7 +48,7 @@ afterEach(async () => {
   await act(async () => { jest.runOnlyPendingTimers() })
   jest.useRealTimers()
 })
-it('switches real lists, resets the filter and routes creation without notification navigation without a tab dock', async () => {
+it('switches real lists, resets the filter and routes creation with the Stitch tab dock', async () => {
   await renderScreen(<MyContributionsScreen />)
   expect(screen.getAllByText('Gửi ngày 07/11/2026')).toHaveLength(4)
   expect(screen.getByText('Lý do: Sai vị trí')).toBeTruthy()
@@ -58,9 +58,9 @@ it('switches real lists, resets the filter and routes creation without notificat
   expect(screen.getByText('Reviewed café')).toBeTruthy()
   expect(screen.getByText('Verified address')).toBeTruthy()
   expect(screen.getByText('Published experience')).toBeTruthy()
-  expect(screen.getByText('Viết ngày 07/11/2026')).toBeTruthy()
+  expect(screen.getByText('07 thg 11, 2026')).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Thêm địa điểm mới' })).toBeNull()
-  await fireEvent.press(screen.getByRole('button', { name: 'Đã duyệt (1)' }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Đã hiển thị (1)' }))
   expect(screen.queryByText('My experience')).toBeNull()
   await fireEvent.press(screen.getByRole('tab', { name: /Địa điểm/ }))
   await fireEvent.press(screen.getByRole('button', { name: 'Thêm địa điểm mới' }))
@@ -68,28 +68,18 @@ it('switches real lists, resets the filter and routes creation without notificat
   expect(screen.queryByTestId('contributions-bell')).toBeNull()
   expect(screen.queryByTestId('contributions-unread')).toBeNull()
   expect(mockRouter.push).not.toHaveBeenCalledWith('/notifications')
-  expect(screen.getAllByRole('tab')).toHaveLength(2)
-  expect(screen.queryByRole('tab', { name: 'Đã lưu' })).toBeNull()
+  expect(screen.getAllByRole('tab')).toHaveLength(6)
+  expect(screen.getByRole('tab', { name: 'Đã lưu' })).toBeTruthy()
 })
-it('saves and unsaves only verified public rows, with pending/error/offline guards', async () => {
-  const view = await renderScreen(<MyContributionsScreen />)
-  await fireEvent.press(screen.getByTestId('contribution-save-Pending café'))
+it('renders contribution records without saved-place controls or duplicate statuses', async () => {
+  await renderScreen(<MyContributionsScreen />)
+  expect(screen.queryByTestId('contribution-save-Pending café')).toBeNull()
+  expect(screen.queryByTestId('contribution-save-Approved café')).toBeNull()
+  expect(screen.queryByText('Chỉ lưu được địa điểm đã duyệt và công khai.')).toBeNull()
+  expect(screen.queryByText('Đang kiểm duyệt nội dung')).toBeNull()
+  expect(screen.queryByText('Đã xuất hiện trên GoGo')).toBeNull()
+  expect(screen.getAllByTestId('contribution-place-card')).toHaveLength(4)
   expect(mockToggle).not.toHaveBeenCalled()
-  await fireEvent.press(screen.getByTestId('contribution-save-Approved café'))
-  expect(mockToggle).toHaveBeenLastCalledWith({ type: 'place', id: 'p1', saved: false })
-  mockSaved.data = [{ targetType: 'place', targetId: 'p1' }]
-  await view.rerender(<MyContributionsScreen />)
-  await fireEvent.press(screen.getByTestId('contribution-save-Approved café'))
-  expect(mockToggle).toHaveBeenLastCalledWith({ type: 'place', id: 'p1', saved: true })
-  mockMutation.isPending = true
-  await view.rerender(<MyContributionsScreen />)
-  await fireEvent.press(screen.getByTestId('contribution-save-Approved café'))
-  expect(mockToggle).toHaveBeenCalledTimes(2)
-  mockMutation.isPending = false
-  mockOnline = false
-  await view.rerender(<MyContributionsScreen />)
-  await fireEvent.press(screen.getByTestId('contribution-save-Approved café'))
-  expect(mockToggle).toHaveBeenCalledTimes(2)
 })
 it('retains rejected supplement and attribution, prefilling a real link; locks missing links', async () => {
   const url = 'https://maps.google.com/?cid=123'
@@ -120,10 +110,10 @@ it('renders loading, offline, error/retry, independent empty states and the sign
   mockQuery.data = undefined
   mockQuery.isPending = true
   const view = await renderScreen(<MyContributionsScreen />)
-  expect(screen.getByText('Đang tải…')).toBeTruthy()
+  expect(screen.getAllByTestId('contribution-places-skeleton')).toHaveLength(2)
   mockQuery.isPaused = true
   await view.rerender(<MyContributionsScreen />)
-  expect(screen.queryByText('Đang tải…')).toBeNull()
+  expect(screen.queryByTestId('contribution-places-skeleton')).toBeNull()
   mockQuery.isPending = false
   mockQuery.isError = true
   mockQuery.error = new Error('private detail')
@@ -157,24 +147,17 @@ it('opens the review tab from Profile and retains rejected/removed statuses', as
   expect(screen.queryByText('My experience')).toBeNull()
 })
 
-it('uses the shared Plans segments and a circular accessible FAB above the safe area', async () => {
+it('renders counted inset segments and the full-width add action from Stitch', async () => {
   await renderScreen(<MyContributionsScreen />)
-  expect(StyleSheet.flatten(screen.getByTestId('filled-segmented-control').props.style).gap).toBeGreaterThan(0)
+  expect(StyleSheet.flatten(screen.getByTestId('segmented-tabs').props.style)).toMatchObject({ borderRadius: 999, marginHorizontal: 20 })
   expect(screen.getByRole('tab', { name: 'Địa điểm (4)' }).props.accessibilityState.selected).toBe(true)
   expect(screen.getByRole('tab', { name: 'Đánh giá (2)' }).props.accessibilityState.selected).toBe(false)
-  const fab = screen.getByRole('button', { name: 'Thêm địa điểm mới' })
-  const fabStyle = StyleSheet.flatten(fab.props.style)
-  expect(fabStyle).toMatchObject({ position: 'absolute', right: 20, bottom: 50, width: 56, height: 56 })
-  expect(fabStyle.borderRadius).toBeGreaterThanOrEqual(28)
-  expect(StyleSheet.flatten(screen.getByTestId('my-contributions-list').props.contentContainerStyle).paddingBottom)
-    .toBeGreaterThanOrEqual(fabStyle.bottom + fabStyle.height + 16)
-  expect(screen.getByTestId('material-icon-plus', { includeHiddenElements: true })).toBeTruthy()
-  expect(screen.queryByText('Xem trước trạng thái trống (Empty states)')).toBeNull()
-  expect(screen.queryByText('Bạn chưa có đóng góp nào')).toBeNull()
-  expect(screen.queryByText('Bạn chưa viết đánh giá nào')).toBeNull()
-  await fireEvent.press(screen.getByRole('tab', { name: 'Đánh giá (2)' }))
+  expect(screen.getByRole('button', { name: 'Thêm địa điểm mới' })).toBeTruthy()
   expect(screen.queryByTestId('contributions-add-fab')).toBeNull()
-  expect(screen.getAllByRole('tab')).toHaveLength(2)
+  expect(screen.queryByText('Bạn chưa có đóng góp nào')).toBeNull()
+  await fireEvent.press(screen.getByRole('tab', { name: 'Đánh giá (2)' }))
+  expect(screen.queryByRole('button', { name: 'Thêm địa điểm mới' })).toBeNull()
+  expect(screen.getAllByRole('tab')).toHaveLength(6)
 })
 
 it.each([
@@ -205,7 +188,7 @@ it('shows a Reviews empty state only for the active filter with its explore acti
   await renderScreen(<MyContributionsScreen />)
   expect(screen.queryByText('Bạn chưa viết đánh giá nào')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Khám phá địa điểm' })).toBeNull()
-  await fireEvent.press(screen.getByRole('button', { name: 'Đã duyệt (0)' }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Đã hiển thị (0)' }))
   expect(screen.getByText('Bạn chưa có đánh giá nào được duyệt')).toBeTruthy()
   await fireEvent.press(screen.getByRole('button', { name: 'Khám phá địa điểm' }))
   expect(mockRouter.push).toHaveBeenCalledWith('/places/search')

@@ -78,7 +78,7 @@ const selections = [
   ['matching/match-result.view.tsx', ['PlaceCardLarge', 'PlaceCardSmall']],
   ['review/shared-result.view.tsx', ['PlaceCardLarge']],
   ['review/my-reviews.view.tsx', ['PlaceCardSmall']],
-  ['contributions/my-contributions.view.tsx', ['PlaceCardLarge']],
+  ['contributions/my-contributions.view.tsx', ['ContributionPlaceCard']],
 ] as const
 
 describe('#564 exactly two common place-card components', () => {
@@ -89,7 +89,7 @@ describe('#564 exactly two common place-card components', () => {
     function visit(node: ts.Node) {
       if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
         const component = node.tagName.getText(file)
-        if (component.startsWith('PlaceCard') && component !== 'PlaceCardSkeleton') cards.push({ component, props: node.attributes.properties.map(prop => ts.isJsxAttribute(prop) ? prop.name.getText(file) : 'spread') })
+        if ((component.startsWith('PlaceCard') || component === 'ContributionPlaceCard') && component !== 'PlaceCardSkeleton') cards.push({ component, props: node.attributes.properties.map(prop => ts.isJsxAttribute(prop) ? prop.name.getText(file) : 'spread') })
       }
       ts.forEachChild(node, visit)
     }

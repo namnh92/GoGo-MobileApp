@@ -1,0 +1,46 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`preserves Kế hoạch layout and typography in orangeDark 1`] = `
+{
+  "tabs": [
+    {
+      "surface": {
+        "alignItems": "center",
+        "backgroundColor": "#CA381F",
+        "borderRadius": 999,
+        "flex": 1,
+        "justifyContent": "center",
+        "minHeight": 44,
+      },
+      "typography": {
+        "fontFamily": "Inter-SemiBold",
+        "fontSize": 13,
+        "lineHeight": 18,
+      },
+    },
+    {
+      "surface": {
+        "alignItems": "center",
+        "borderRadius": 999,
+        "flex": 1,
+        "justifyContent": "center",
+        "minHeight": 44,
+      },
+      "typography": {
+        "fontFamily": "Inter-Regular",
+        "fontSize": 13,
+        "lineHeight": 18,
+      },
+    },
+  ],
+  "track": {
+    "backgroundColor": "#2A2A2A",
+    "borderRadius": 999,
+    "flexDirection": "row",
+    "gap": 4,
+    "marginBottom": 12,
+    "marginHorizontal": 20,
+    "padding": 4,
+  },
+}
+`;

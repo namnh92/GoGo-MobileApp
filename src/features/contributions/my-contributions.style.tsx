@@ -1,23 +1,10 @@
 import { StyleSheet } from 'react-native-unistyles'
 
 export const styles = StyleSheet.create(theme => ({
-  list: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 24, gap: 16, flexGrow: 1 },
-  filters: { gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
-  pressed: { borderColor: theme.accent.primary, borderWidth: 1 },
-  unavailable: { opacity: 0.65 },
-  bookmark: { width: 44, height: 44, borderRadius: 99, backgroundColor: theme.surface.card, alignItems: 'center', justifyContent: 'center' },
-  metadata: { borderTopWidth: 1, borderTopColor: theme.border.hairline, paddingTop: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  rejection: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.status.dangerSoft, borderRadius: 12, padding: 12 },
-  linkTarget: { minHeight: 44, justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  flex: { flex: 1, minWidth: 0 },
-  reviewCard: { padding: 16, gap: 12, borderRadius: 16, backgroundColor: theme.surface.card, borderWidth: 1, borderColor: theme.border.hairline, ...theme.shadows.card },
-  reviewPhoto: { width: 64, height: 64, borderRadius: 12, overflow: 'hidden' },
-  stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6 },
-  fab: {
-    position: 'absolute', right: 20, width: 56, height: 56,
-    borderRadius: theme.radius.pill, backgroundColor: theme.accent.primary,
-    alignItems: 'center', justifyContent: 'center', ...theme.shadows.cta,
-  },
-  fabPressed: { backgroundColor: theme.accent.pressed },
+  list: { paddingHorizontal: 16, paddingTop: 10, gap: 16, flexGrow: 1 },
+  filters: { gap: 8, paddingHorizontal: 16, paddingTop: 8 },
+  addAction: { paddingHorizontal: 16, paddingVertical: 12 },
+  empty: { marginTop: 14, padding: 16, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: theme.border.hairline, backgroundColor: theme.surface.subtle, alignItems: 'center', gap: 10 },
+  emptyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.border.hairline, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { textAlign: 'center' },
 }))

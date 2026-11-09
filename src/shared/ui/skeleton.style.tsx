@@ -4,6 +4,9 @@ import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   block: { backgroundColor: theme.surface.subtle },
+  photoFrame: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: theme.surface.subtle, overflow: 'hidden' },
+  photoHighlight: { position: 'absolute', top: 0, bottom: 0, width: '100%' },
+  photoFill: { flex: 1 },
 
   listCard: { overflow: 'hidden' },
   // The pulsing thumb is its own opacity layer, which the card's clip can miss
