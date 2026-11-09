@@ -38,6 +38,16 @@ function searchResult(overrides: Partial<PlaceSearchResult> = {}): PlaceSearchRe
 }
 
 describe('toPlaceCard', () => {
+  it('#561 preserves category keys for markers and resolves only verified taxonomy labels', () => {
+    const result = searchResult({ taxonomies: [{ kind: 'category', key: 'cafe' }, { kind: 'mood', key: 'cozy' }] })
+    const card = toPlaceCard(result, { category: { cafe: 'Cà phê' }, mood: { cozy: 'Ấm cúng' } })
+    expect(card.taxonomies).toEqual(result.taxonomies)
+    expect(card.discovery?.categoryLabel).toBe('Cà phê')
+    expect(card.discovery?.tagLabels).toEqual(['Cà phê', 'Ấm cúng'])
+    expect(toPlaceCard(result).discovery?.categoryLabel).toBeUndefined()
+    expect(toPlaceCard(searchResult()).taxonomies).toBeUndefined()
+  })
+
   const areaSummary: NonNullable<PlaceSearchResult['areaSummary']> = {
     datasetVersion: '2026-11', provinceCode: '79', communeCode: '26740',
     label: 'Phường Sài Gòn', locale: 'vi',

@@ -3,6 +3,10 @@ import { StyleSheet } from 'react-native'
 import { QueryClient, QueryClientProvider, notifyManager } from '@tanstack/react-query'
 import i18n from '@/shared/i18n'
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
+import { Gesture, State } from 'react-native-gesture-handler'
+import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils'
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
+import { themes } from '@/shared/ui/theme'
 
 import { loaded as mockLoaded, renderScreen } from './harness'
 import { scriptedTime } from './scripted-time'
@@ -10,9 +14,11 @@ import { scriptedTime } from './scripted-time'
 /** Owner-approved group 02 discovery behaviour. */
 
 const mockPush = jest.fn()
+const mockReplace = jest.fn()
 const mockBack = jest.fn()
 const mockRetryScope = jest.fn()
 const mockAddSeed = jest.fn()
+const mockToggleSaved = jest.fn()
 let mockSessionStatus = 'user'
 let mockRealSearch = false
 let mockRegionSearch: Record<string, unknown> | null = null
@@ -35,14 +41,14 @@ jest.mock('@/shared/ui/map-canvas.view', () => ({
     if (mockMapUnavailable) return fallback
     const React = jest.requireActual('react')
     const { View, Text } = jest.requireActual('react-native')
-    return React.createElement(View, { ...props, testID: 'discovery-native-map' }, pins.map(pin =>
+    return React.createElement(View, { ...props, pins, testID: 'discovery-native-map' }, pins.map(pin =>
       React.createElement(Text, { key: pin.id, accessibilityLabel: pin.title, onPress: () => onSelect(pin.id) }, pin.title)))
   },
 }))
 
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
-  useRouter: () => ({ push: mockPush, replace: jest.fn(), back: mockBack }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack }),
   useLocalSearchParams: () => mockParams,
 }))
 jest.mock('@/shared/providers/session-provider', () => ({
@@ -72,7 +78,7 @@ jest.mock('@/shared/api', () => ({
   useJoinRoom: () => ({ mutateAsync: jest.fn() }),
   useMe: () => mockLoaded({ homeAdministrativeArea: null }),
   useSaved: () => mockLoaded([]),
-  useToggleSaved: () => ({ mutate: jest.fn() }),
+  useToggleSaved: () => ({ mutate: mockToggleSaved }),
   useAddRoomSeedPlaces: () => ({ mutate: mockAddSeed }),
   useTaxonomies: () =>
     mockLoaded({ kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }], ...mockKinds } }),
@@ -86,7 +92,6 @@ import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { createQueryClient } from '@/shared/api/query-client'
 import { NetworkError } from '@/shared/api/errors'
 import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
-import { themes } from '@/shared/ui/theme'
 
 function emptyPage() {
   return {
@@ -119,6 +124,8 @@ beforeEach(() => {
   mockNearby.value = emptyPage()
   mockPreviewCalls.length = 0
   mockPush.mockClear()
+  mockReplace.mockClear()
+  mockToggleSaved.mockClear()
   mockBack.mockClear()
   mockRetryScope.mockClear()
   mockAddSeed.mockClear()
@@ -645,6 +652,71 @@ function mapPages() {
   return { ...emptyPage(), data: { pages: mapPlaces.map(place => ({ results: [place], meta: {} })) } }
 }
 
+describe('#561 marker selection and compact map card', () => {
+  it.each(['orange', 'orangeDark'] as const)('shows real fields, saves, dismisses and navigates in %s', async themeName => {
+    UnistylesStyleSheet.configure({ themes: { orange: themes[themeName] } as typeof themes })
+    try {
+      mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{
+        ...mapPlaces[0], addressText: '12 Nguyễn Huệ',
+        taxonomies: [{ kind: 'category', key: 'cafe' }],
+        rating: 4.6, ratingCount: 980, gogoRatingCount: 3,
+        open: { openNow: true, closesAtMinute: 1200 },
+      }], meta: {} }] } }
+      const view = await renderScreen(<SearchScreen />)
+      await fireEvent.press(view.getByText(i18n.t('discovery.map')))
+      expect(view.getByTestId('app-tab-dock')).toBeTruthy()
+      expect(view.getByRole('tab', { name: i18n.t('tabs.home') }).props.accessibilityState.selected).toBe(true)
+      expect(view.queryByTestId('search-map-card')).toBeNull()
+      const select = async () => fireEvent.press(within(view.getByTestId('discovery-native-map')).getByLabelText('Top place'))
+      await select()
+      const card = within(view.getByTestId('search-map-card'))
+      expect(view.getByTestId('discovery-native-map').props.pins).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'top', category: 'cafe', selected: true })]))
+      expect(card.getByTestId('place-card-small')).toBeTruthy()
+      expect(card.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+      expect(mockPush).not.toHaveBeenCalled()
+      expect(card.getByTestId('place-card-name')).toHaveTextContent('Top place')
+      expect(card.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ')
+      expect(card.getByTestId('place-card-body').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-card-name', 'place-card-address-row', 'place-card-ratings'])
+      expect(card.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
+      expect(StyleSheet.flatten(card.getByTestId('place-card-ratings').props.style)).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
+      for (const label of ['GoGo · Chưa đủ đánh giá (3)', '★ 4,6 (980) Google']) {
+        expect(card.getByText(label).props.numberOfLines).toBeUndefined()
+        expect(card.getByText(label).props.ellipsizeMode).toBeUndefined()
+      }
+      for (const text of ['Cà phê', 'Mở đến 20:00']) expect(card.queryByText(text)).toBeNull()
+      for (const id of ['place-card-price', 'place-card-hours-badge', 'place-card-tags', 'place-card-distance']) expect(card.queryByTestId(id)).toBeNull()
+      expect(StyleSheet.flatten(view.getByTestId('search-map-card').props.style).bottom).toBe(16)
+      await fireEvent.press(card.getByTestId('place-card-save'))
+      expect(mockToggleSaved).toHaveBeenCalledWith({ type: 'place', id: 'top', saved: false })
+      expect(mockPush).not.toHaveBeenCalled()
+      await fireEvent(view.getByTestId('discovery-native-map'), 'onDeselect')
+      expect(view.queryByTestId('search-map-card')).toBeNull()
+      await select()
+      await act(async () => {
+        fireGestureHandler<ReturnType<typeof Gesture.Pan>>(getByGestureTestId('map-card-dismiss'), [
+          { state: State.BEGAN, translationY: 0 },
+          { state: State.ACTIVE, translationY: 30 },
+          { state: State.END, translationY: 35 },
+        ])
+      })
+      expect(view.getByTestId('search-map-card')).toBeTruthy()
+      await act(async () => {
+        fireGestureHandler<ReturnType<typeof Gesture.Pan>>(getByGestureTestId('map-card-dismiss'), [
+          { state: State.BEGAN, translationY: 0 },
+          { state: State.ACTIVE, translationY: 60 },
+          { state: State.END, translationY: 100 },
+        ])
+      })
+      expect(view.queryByTestId('search-map-card')).toBeNull()
+      await select()
+      await fireEvent.press(view.getByTestId('place-card-open-target'))
+      expect(mockPush).toHaveBeenCalledWith('/places/top')
+      await fireEvent.press(view.getByRole('tab', { name: i18n.t('tabs.plans') }))
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/plans')
+    } finally { UnistylesStyleSheet.configure({ themes }) }
+  })
+})
+
 describe('owner verification round 2 — O-4 full-content map', () => {
   it.each(['vi', 'en'])('shows all loaded-page markers, no cards/caption, and opens a selected place in %s', async locale => {
     await act(async () => { await i18n.changeLanguage(locale) })
@@ -664,7 +736,7 @@ describe('owner verification round 2 — O-4 full-content map', () => {
       expect(view.queryByText('The map marks the first place in the list.')).toBeNull()
       await fireEvent.press(view.getByLabelText('Second place'))
       expect(view.getAllByText('Second place').length).toBeGreaterThan(0)
-      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.openPlace') }))
+      await fireEvent.press(view.getByTestId('place-card-open-target'))
       expect(mockPush).toHaveBeenLastCalledWith('/places/second')
       await fireEvent.press(view.getByText(i18n.t('discovery.list')))
       expect(view.getAllByTestId('place-card-open-target')).toHaveLength(2)
@@ -681,7 +753,7 @@ describe('owner verification round 2 — O-4 full-content map', () => {
     await view.rerender(<SearchScreen />)
     expect(view.queryByLabelText('Top place')).toBeNull()
     expect(view.getByLabelText('Second place')).toBeTruthy()
-    expect(view.queryByRole('button', { name: i18n.t('discovery.openPlace') })).toBeNull()
+    expect(view.queryByTestId('search-map-card')).toBeNull()
     expect(view.getByTestId('discovery-native-map').props.cameraRegion).toMatchObject({ latitude: 21, longitude: 105 })
     expect(view.getByTestId('discovery-native-map').props.showsUserLocation).toBe(false)
   })
@@ -1010,19 +1082,13 @@ describe('#515 Astra F-12..F-14', () => {
     }
   })
 
-  it.each(
-    [false, true].flatMap(existingRoom => ['callout', 'preview'].map(action => ({ existingRoom, action }))),
-  )('F-13 selects a seed from the map $action (existing room: $existingRoom)', async ({ existingRoom, action }) => {
+  it.each([false, true])('F-13 selects a seed from the shared map card (existing room: %s)', async existingRoom => {
     mockParams = { picker: '1', ...(existingRoom ? { roomId: 'room-1' } : {}) }
     mockSearch.value = mapPages()
     const view = await renderScreen(<SearchScreen />)
     await fireEvent.press(view.getByText(i18n.t('discovery.map')))
-    if (action === 'callout') {
-      await fireEvent(view.getByTestId('discovery-native-map'), 'onOpen', 'second')
-    } else {
-      await fireEvent.press(view.getByLabelText(mapPlaces[1].name))
-      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.openPlace') }))
-    }
+    await fireEvent.press(view.getByLabelText(mapPlaces[1].name))
+    await fireEvent.press(view.getByTestId('place-card-open-target'))
     expect(mockPush).not.toHaveBeenCalled()
     if (existingRoom) {
       expect(mockAddSeed).toHaveBeenCalledTimes(1)
@@ -1037,11 +1103,12 @@ describe('#515 Astra F-12..F-14', () => {
     expect(mockBack).toHaveBeenCalledTimes(1)
   })
 
-  it('F-13 keeps ordinary map callouts opening place detail', async () => {
+  it('F-13 keeps ordinary map cards opening place detail', async () => {
     mockSearch.value = mapPages()
     const view = await renderScreen(<SearchScreen />)
     await fireEvent.press(view.getByText(i18n.t('discovery.map')))
-    await fireEvent(view.getByTestId('discovery-native-map'), 'onOpen', 'second')
+    await fireEvent.press(view.getByLabelText(mapPlaces[1].name))
+    await fireEvent.press(view.getByTestId('place-card-open-target'))
     expect(mockPush).toHaveBeenCalledWith('/places/second')
     expect(mockAddSeed).not.toHaveBeenCalled()
     expect(useRoomStore.getState().seedPlaces).toEqual([])
@@ -1163,7 +1230,8 @@ it('expands on an upward header swipe, hides header/filters, and returns by cont
   expect(view.getByTestId('search-header')).toBeTruthy()
   await fireEvent.press(view.getByText(i18n.t('discovery.expandMap')))
   await act(async () => { await jest.advanceTimersByTimeAsync(240) })
-  await fireEvent(view.getByTestId('discovery-native-map'), 'onOpen', 'second')
+  await fireEvent.press(view.getByLabelText(mapPlaces[1].name))
+  await fireEvent.press(view.getByTestId('place-card-open-target'))
   await act(async () => { await jest.advanceTimersByTimeAsync(240) })
   expect(view.queryByTestId('search-map-fullscreen')).toBeNull()
   expect(mockPush).toHaveBeenLastCalledWith('/places/second')
@@ -1253,12 +1321,12 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   for (const key of ['datasetVersion', 'provinceCode', 'communeCode']) expect(mockQueries.at(-1)).not.toHaveProperty(key)
   expect(view.getByTestId('search-loading-more')).toBeTruthy()
   expect(view.getByText('Hà Nội')).toBeTruthy()
-  expect(view.getByRole('button', { name: i18n.t('discovery.openPlace') })).toBeTruthy()
+  expect(view.getByTestId('search-map-card')).toBeTruthy()
   const newPlace = { ...mapPlaces[0], id: 'new', name: 'Visible place', lat: 10, lng: 106 }
   mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [newPlace, mapPlaces[0]], meta: { location: { source: 'position' } } }] } }
   await view.rerender(<SearchScreen />)
-  for (const title of ['Top place', 'Second place', 'Visible place']) expect(view.getAllByLabelText(title)).toHaveLength(1)
-  expect(view.getByRole('button', { name: i18n.t('discovery.openPlace') })).toBeTruthy()
+  for (const title of ['Top place', 'Second place', 'Visible place']) expect(within(view.getByTestId('discovery-native-map')).getAllByLabelText(title)).toHaveLength(1)
+  expect(view.getByTestId('search-map-card')).toBeTruthy()
   expect(view.getByText('Hà Nội')).toBeTruthy()
   expect(useDiscoveryAreaStore.getState().area).toEqual(mockScope.status === 'ready' && 'area' in mockScope ? mockScope.area : null)
   await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', { ...region, latitudeDelta: 90, longitudeDelta: 180 })
@@ -1267,7 +1335,7 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [], meta: {} }] } }
   await view.rerender(<SearchScreen />)
   expect(view.getByLabelText('Visible place')).toBeTruthy()
-  await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.openPlace') }))
+  await fireEvent.press(view.getByTestId('place-card-open-target'))
   expect(mockPush).toHaveBeenLastCalledWith('/places/top')
   await fireEvent.changeText(view.getByLabelText(i18n.t('search.title')), 'coffee')
   await act(async () => { await jest.advanceTimersByTimeAsync(300) })
@@ -1275,7 +1343,7 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   expect(mockQueries.at(-1)).toMatchObject({ q: 'coffee', provinceCode: '01' })
   expect(mockQueries.at(-1)).not.toHaveProperty('radiusM')
   expect(view.queryByLabelText('Visible place')).toBeNull()
-  expect(view.queryByRole('button', { name: i18n.t('discovery.openPlace') })).toBeNull()
+  expect(view.queryByTestId('search-map-card')).toBeNull()
 })
 
 

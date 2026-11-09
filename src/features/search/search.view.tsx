@@ -1,11 +1,13 @@
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
+import { AppTabDock } from '@/shared/ui/app-tab-dock.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { ActivityIndicator, FlatList, Keyboard, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import {
   useAddRoomSeedPlaces, isSaved, toPlaceCard, useSaved, useTaxonomies, useToggleSaved, usePlaceSearch, useDiscoveryPreview, useContributionCredits, discoveryLabels,
   type PlaceCard as PlaceCardModel, type PlaceSearchQuery,
@@ -175,6 +177,10 @@ export default function SearchScreen() {
   }
   const selectedMarker = selectionIsCurrent ? markerSelection.id : null
   const selectedPlace = results.find(place => place.id === selectedMarker && map.pins.some(pin => pin.id === place.id))
+  const dismissMapCard = useCallback(() => setMarkerSelection(current => ({ ...current, id: null })), [])
+  const dismissCardGesture = useMemo(() => Gesture.Pan().withTestId('map-card-dismiss')
+    .activeOffsetY(12).failOffsetX([-24, 24]).runOnJS(true)
+    .onEnd(event => { if (event.translationY > 48) dismissMapCard() }), [dismissMapCard])
   const scopeArea = scope.status === 'ready' && 'area' in scope ? scope.area : area
   const scopeLabel = scopeArea ? administrativeAreaLabel(scopeArea) : t('home.chooseArea')
   function openFilters() { setSettledPreviewKey(''); Keyboard.dismiss(); setDraft({ ...committed, categories: [...committed.categories] }); setSheetOpen(true) }
@@ -242,21 +248,23 @@ export default function SearchScreen() {
     if (search.isError && !search.isFetchNextPageError && !viewport) return <ErrorState error={search.error} onRetry={() => void search.refetch()} />
     if (mode !== 'map' || verifiedEmpty) return renderResults()
     if ((search.isPending && !viewport) || (!isPicker && scope.status !== 'ready')) return <PlaceListSkeleton count={4} />
-    return <SearchMapPanel expanded={mapExpanded} onExpandedChange={setMapExpanded}><View testID="search-map" style={styles.mapBlock}>
+    return <View style={styles.mapBlock}><SearchMapPanel expanded={mapExpanded} onExpandedChange={setMapExpanded}><View testID="search-map" style={styles.mapBlock}>
       <View style={styles.mapBlock}>
-        <MapCanvas pins={map.pins.map(pin => ({ ...pin, selected: pin.id === selectedMarker }))} cameraRegion={viewport ?? map.region} cameraScopeKey={mapScopeKey} onRegionChangeComplete={exploreRegion} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onOpen={id => { const place = results.find(result => result.id === id); if (place) onPlacePress(place) }} style={styles.map} fallback={renderResults(true)} />
-        {selectedPlace ? <View style={[styles.mapPreview, { bottom: insets.bottom }]}>
+        <MapCanvas pins={map.pins.map(pin => ({ ...pin, selected: pin.id === selectedMarker }))} cameraRegion={viewport ?? map.region} cameraScopeKey={mapScopeKey} onRegionChangeComplete={exploreRegion} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onDeselect={dismissMapCard} style={styles.map} fallback={renderResults(true)} />
+        {selectedPlace ? <GestureDetector gesture={dismissCardGesture}><View testID="search-map-card" style={[styles.mapPreview, { bottom: (isPicker || mapExpanded ? insets.bottom : 0) + 16 }]} onAccessibilityEscape={dismissMapCard}>
           <PlaceCardSmall place={selectedPlace} onPress={() => onPlacePress(selectedPlace)}
-            accessibilityLabel={t('discovery.openPlace')} accessibilityHint={selectedPlace.name} />
-        </View> : null}
+            accessibilityLabel={t('discovery.openPlace')} accessibilityHint={selectedPlace.name}
+            saved={canSave ? isSaved(saved.data, 'place', selectedPlace.id) : undefined}
+            onToggleSave={canSave ? () => onBookmark(selectedPlace) : undefined} />
+        </View></GestureDetector> : null}
       </View>
       {viewport && (search.isPaused || (search.isError && !search.isFetchNextPageError)) ? <View testID="search-map-feedback" style={styles.mapFeedback}>
         {search.isPaused ? <OfflineState /> : <ErrorState error={search.error} onRetry={search.isFetching ? undefined : () => { if (!search.isFetching && !search.isPaused) void search.refetch() }} />}
       </View> : null}
-      {search.isFetching || search.isFetchNextPageError ? <View testID="search-map-pagination" style={[styles.mapPagination, { bottom: insets.bottom + 8 }]}>
+      {search.isFetching || search.isFetchNextPageError ? <View testID="search-map-pagination" style={[styles.mapPagination, selectedPlace ? styles.mapPaginationAboveCard : { bottom: insets.bottom + 8 }]}>
         {search.isFetching ? <ActivityIndicator testID="search-loading-more" size="small" color={theme.redesign.primaryText} /> : <GhostBtn label={t('common.retry')} disabled={search.isFetching || search.isPaused} onPress={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />}
       </View> : null}
-    </View></SearchMapPanel>
+    </View></SearchMapPanel>{!isPicker && !mapExpanded ? <AppTabDock active="home" /> : null}</View>
   }
   return <Atmosphere redesign>
     {!mapExpanded ? <><AppHeader testID="search-header" title={t('discovery.searchTitle')} onBack={() => router.back()} bellTestID="search-bell" unreadDotTestID="search-unread-dot"

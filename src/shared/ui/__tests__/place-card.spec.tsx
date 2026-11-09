@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 import { themes, type AppTheme } from '@/shared/ui/theme'
@@ -316,4 +316,52 @@ it.each([false, true])('provider preview keeps every rendered Google score marke
 it('hero keeps its Google rating visibly marked', async () => {
   await render(<PlaceCard place={fixture()} />)
   expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+})
+
+describe('#561 shared small marker card', () => {
+  it.each(['orange', 'orangeDark'] as const)('uses the common small layout, real facts and independent actions (%s)', async themeName => {
+    const theme = themes[themeName]
+    UnistylesStyleSheet.configure({ themes: { orange: theme } as typeof themes })
+    try {
+      const open = jest.fn()
+      const save = jest.fn()
+      await render(<PlaceCardSmall place={fixture({ gogoRatingCount: 3, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi'], verified: true } })} onPress={open} saved={false} onToggleSave={save} />)
+      expect(screen.getByTestId('place-card-small')).toBeTruthy()
+      expect(flat('place-card-photo')).toMatchObject({ width: 80, height: 80, overflow: 'hidden' })
+      expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+      expect(screen.getByTestId('place-card-name')).toHaveTextContent('Cà phê Đỗ Phủ')
+      expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(1)
+      expect(screen.getByTestId('place-card-body').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-card-name', 'place-card-address-row', 'place-card-ratings'])
+      for (const text of ['Cà phê', 'Wi-Fi', 'Mở đến 20:00']) expect(screen.queryByText(text)).toBeNull()
+      for (const id of ['place-card-price', 'place-card-hours-badge', 'place-card-tags', 'place-card-distance']) expect(screen.queryByTestId(id)).toBeNull()
+      expect(within(screen.getByTestId('place-card-photo')).getByTestId('place-card-verified')).toBeTruthy()
+      expect(within(screen.getByTestId('place-card-body')).queryByTestId('place-card-verified')).toBeNull()
+      expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ')
+      expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(1)
+      expect(screen.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
+      expect(flat('place-card-ratings')).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
+      for (const label of ['GoGo · Chưa đủ đánh giá (3)', '★ 4,6 (980) Google']) {
+        expect(screen.getByText(label).props.numberOfLines).toBeUndefined()
+        expect(screen.getByText(label).props.ellipsizeMode).toBeUndefined()
+      }
+      // The shell padding supplies equal left-content and right-bookmark insets.
+      expect(flat('place-card-surface').padding).toBe(theme.spacing[2])
+      expect(flat('place-card-save')).toMatchObject({ top: 0, right: 0 })
+      expect(flat('place-card-save').marginRight).toBeUndefined()
+      await fireEvent.press(screen.getByTestId('place-card-save'))
+      expect(save).toHaveBeenCalledTimes(1)
+      expect(open).not.toHaveBeenCalled()
+      await fireEvent.press(screen.getByTestId('place-card-open-target'))
+      expect(open).toHaveBeenCalledTimes(1)
+    } finally { UnistylesStyleSheet.configure({ themes }) }
+  })
+
+  it('keeps the GoGo line and placeholder while omitting unknown facts and guest save actions', async () => {
+    await render(<PlaceCardSmall place={fixture({ addressText: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, distanceM: undefined, discovery: undefined, priceMin: null, priceMax: null })} />)
+    for (const id of ['place-card-meta', 'place-google-rating', 'place-card-price', 'place-card-save', 'place-card-photo-badges']) expect(screen.queryByTestId(id)).toBeNull()
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá', { exact: true })
+    expect(screen.getByText('GoGo · Chưa đủ đánh giá').props.numberOfLines).toBeUndefined()
+    expect(screen.getByText('GoGo · Chưa đủ đánh giá').props.ellipsizeMode).toBeUndefined()
+    expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+  })
 })

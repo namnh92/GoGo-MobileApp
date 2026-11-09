@@ -32,12 +32,4 @@ export const styles = StyleSheet.create(theme => ({
     transform: [{ rotate: '45deg' }], backgroundColor: theme.map.label,
   },
   markerTipSelected: { backgroundColor: theme.accent.primary },
-  callout: {
-    backgroundColor: theme.surface.card,
-    borderColor: theme.border.hairline,
-    borderWidth: 1,
-    borderRadius: theme.radius.compact,
-    padding: theme.spacing[2],
-    maxWidth: 240,
-  },
 }))
