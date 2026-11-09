@@ -1,19 +1,13 @@
-import { useNotifications } from '@/shared/api'
+import { useNotificationSummary } from '@/shared/api'
+import { notificationCapabilities } from './notification-capabilities'
 import { useSession } from '@/shared/providers/session-provider'
 
-/**
- * Unread count for the bell and the inbox row. The API has no count, so this
- * reads the inbox's first page: `more` means there may be others beyond it, and
- * the badge says `+` instead of claiming a total it does not have.
- * Guests get 403 USER_ONLY on the inbox, so it is not asked for them.
- */
+/** Shared summary drives bell/profile counts; guests never read account data. */
 export function useUnreadInbox(): { count: number; more: boolean; refetch: () => Promise<unknown> } {
   const { status } = useSession()
-  const inbox = useNotifications({ enabled: status === 'user' })
+  const summary = useNotificationSummary({ enabled: status === 'user' && notificationCapabilities().summary })
   // A disabled query still returns its cache: after sign-out that is someone else's.
-  const refetch = () => status === 'user' ? inbox.refetch() : Promise.resolve()
+  const refetch = () => status === 'user' ? summary.refetch() : Promise.resolve()
   if (status !== 'user') return { count: 0, more: false, refetch }
-  const first = inbox.data?.pages[0]
-  const count = first?.notifications?.filter(item => !item.readAt).length ?? 0
-  return { count, more: count > 0 && !!first?.nextCursor, refetch }
+  return { count: summary.data?.unreadCount ?? 0, more: false, refetch }
 }

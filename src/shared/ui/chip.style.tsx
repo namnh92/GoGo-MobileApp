@@ -3,6 +3,8 @@ import { StyleSheet } from 'react-native-unistyles'
 import { touchTarget } from './tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  raisedChip: { backgroundColor: theme.redesign.card, borderColor: 'transparent', ...theme.shadows.card },
+  raisedChipSelected: { backgroundColor: theme.accent.primary, borderColor: 'transparent', shadowOpacity: 0, elevation: 0 },
   softChip: { minHeight: 44, borderRadius: 999, borderWidth: 0, backgroundColor: theme.redesign.low },
   softChipSelected: { backgroundColor: theme.mode === 'dark' ? theme.redesign.moodSelected : theme.accent.soft },
   moodChip: { minHeight: 36, height: 36, paddingHorizontal: 14, paddingVertical: 0, borderWidth: 0, borderRadius: 999, backgroundColor: theme.redesign.card, ...theme.shadows.card },

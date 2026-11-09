@@ -18,7 +18,7 @@ const direct = [
   'contributions/my-contributions', 'create-date/wizard-step', 'date-plan/date-plan',
   'date-plan/place-detail', 'date-plan/plan-change', 'date-plan/plan-edit',
   'gogo-room/gogo-room', 'gogo-room/guest-join', 'gogo-room/join-by-code', 'gogo-room/room-manage',
-  'home/home', 'matching/preference', 'matching/swipe', 'notifications/notifications',
+  'home/home', 'matching/preference', 'matching/swipe', 'notifications/notifications', 'notifications/notification-settings',
   'place-import/import', 'review/my-reviews', 'review/review', 'search/search',
   'settings/settings-page', 'tabs/plans', 'tabs/profile', 'tabs/saved', 'tabs/saved-city',
 ]
@@ -31,7 +31,7 @@ const wrappers: Record<string, string> = {
   'assistant/assistant': 'AssistantHeader', 'assistant/history': 'AssistantHeader',
 }
 // SettingsPage covers permissions/data, defaults and theme, including embedded settings.
-const profileHeaders = ['account/account', 'contributions/my-contributions', 'notifications/notifications', 'review/my-reviews', 'settings/settings-page']
+const profileHeaders = ['account/account', 'contributions/my-contributions', 'notifications/notifications', 'notifications/notification-settings', 'review/my-reviews', 'settings/settings-page']
 function owns(source: string, name: string) {
   const ast = ts.createSourceFile('screen.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let found = false

@@ -36,7 +36,9 @@ export const queryKeys = {
   saved: () => ['me', 'saved'] as const,
   myReviews: () => ['me', 'reviews'] as const,
   myReviewReactions: (placeId: string) => ['me', 'review-reactions', placeId] as const,
-  notifications: () => ['me', 'notifications'] as const,
+  notifications: (category?: string) => category && category !== 'all'
+    ? ['me', 'notifications', category] as const : ['me', 'notifications'] as const,
+  notificationSummary: () => ['me', 'notification-summary'] as const,
   /** Under `me`, so an account switch purges it with the rest of the profile. */
   notificationSettings: () => ['me', 'notification-settings'] as const,
 

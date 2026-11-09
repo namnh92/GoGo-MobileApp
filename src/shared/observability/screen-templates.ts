@@ -52,5 +52,6 @@ export const SCREEN_TEMPLATES: ReadonlySet<string> = new Set([
   '/settings/theme',
   '/settings/location',
   '/settings/notifications',
+  '/settings/permissions',
   '/settings/reviews',
 ])

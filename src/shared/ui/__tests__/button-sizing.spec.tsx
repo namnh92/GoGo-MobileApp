@@ -13,7 +13,7 @@ jest.spyOn(unistyles.StyleSheet, 'create').mockImplementation(factory => new Pro
   get: (_target, key) => key === 'useVariants' ? () => {} : Reflect.get(typeof factory === 'function' ? factory(currentTheme, runtime) : factory, key),
 }))
 const { PrimaryBtn, SecondaryBtn, GhostBtn, DangerBtn, IconBtn } = jest.requireActual<typeof import('../button.view')>('../button.view')
-const variants: NonNullable<ButtonProps['variant']>[] = ['default', 'pill', 'neutral', 'stitch', 'stitchSubtle', 'stitchGuest', 'stitchSkip', 'stitchSkipPill', 'discovery', 'discoveryJoin', 'area']
+const variants: NonNullable<ButtonProps['variant']>[] = ['default', 'pill', 'neutral', 'neutralPill', 'stitch', 'stitchSubtle', 'stitchGuest', 'stitchSkip', 'stitchSkipPill', 'discovery', 'discoveryJoin', 'area']
 const sizes = Object.keys(buttonSizes) as ButtonSize[]
 
 it('pins the owner-approved regular and small heights', () => {

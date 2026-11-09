@@ -8,7 +8,7 @@ import { SETTINGS_ROWS } from '../profile-settings-rows'
 describe('profile settings rows (APP-058, #216)', () => {
   it('reaches notifications and location through one row', () => {
     const routes = SETTINGS_ROWS.map(row => row.route)
-    expect(routes.filter(route => route === '/settings/notifications')).toHaveLength(1)
+    expect(routes.filter(route => route === '/settings/permissions')).toHaveLength(1)
     expect(routes).not.toContain('/settings/location')
     expect(SETTINGS_ROWS.map(row => row.key)).toEqual(['inbox', 'notificationsLocation', 'account', 'contributions', 'defaults', 'theme'])
   })

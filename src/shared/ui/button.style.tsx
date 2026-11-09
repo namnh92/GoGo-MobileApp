@@ -53,6 +53,7 @@ export const styles = StyleSheet.create(theme => ({
   secondaryOnAccent: { backgroundColor: 'transparent', borderColor: theme.accent.onAccent },
 
   neutral: { borderRadius: 16, backgroundColor: theme.surface.subtle, borderWidth: 0, ...noShadow },
+  neutralPill: { borderRadius: 999, backgroundColor: theme.redesign.high, gap: 4 },
 
   ghost: {},
   ghostDisabled: {},

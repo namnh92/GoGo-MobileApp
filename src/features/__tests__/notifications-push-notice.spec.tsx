@@ -25,6 +25,7 @@ jest.mock('@/shared/providers/session-provider', () => ({
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useSystemNotificationsQuery: () => ({ status: 'unsupported' }),
   useNotifications: () => ({
     data: { pages: [{ notifications: [] }] },
     isPending: false,
@@ -32,7 +33,9 @@ jest.mock('@/shared/api', () => ({
     error: null,
     refetch: jest.fn(),
   }),
-  useMarkNotificationRead: () => ({ mutate: jest.fn() }),
+  useNotificationSummary: () => ({ data: undefined }),
+  useReadAllNotifications: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useMarkNotificationRead: () => ({ mutateAsync: jest.fn().mockResolvedValue(undefined) }),
 }))
 
 const MESSAGE = 'Không mở được nội dung của thông báo này. Có thể nội dung đã bị xoá hoặc bạn không còn quyền xem.'

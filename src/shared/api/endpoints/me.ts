@@ -62,13 +62,31 @@ export function listMyReviewReactions(placeId: string): Promise<OpResponse<'list
 }
 
 export function listNotifications(
-  query?: OpQuery<'listNotifications'>,
+  query?: Omit<OpQuery<'listNotifications'>, 'kinds'> & { kinds?: readonly NonNullable<OpQuery<'listNotifications'>['kinds']>[number][] },
 ): Promise<OpResponse<'listNotifications'>> {
-  return api.get<OpResponse<'listNotifications'>>('/me/notifications', { query })
+  return api.get<OpResponse<'listNotifications'>>('/me/notifications', { query: query ? { ...query, kinds: query.kinds ? [...query.kinds] : undefined } : undefined })
 }
 
-export function markNotificationRead(id: string): Promise<void> {
-  return api.post<void>('/me/notifications/{id}/read', undefined, { pathParams: { id } })
+export function markNotificationRead(id: string, sessionGeneration?: number): Promise<void> {
+  return api.post<void>('/me/notifications/{id}/read', undefined, { pathParams: { id }, sessionGeneration })
+}
+
+export function getNotificationSummary(signal?: AbortSignal): Promise<OpResponse<'getNotificationSummary'>> {
+  return api.get<OpResponse<'getNotificationSummary'>>('/me/notifications/summary', { signal })
+}
+
+export function readAllNotifications(
+  body: OpBody<'readAllNotifications'>,
+  idempotencyKey: string,
+  sessionGeneration: number,
+): Promise<OpResponse<'readAllNotifications'>> {
+  return api.post<OpResponse<'readAllNotifications'>>('/me/notifications/read-all', body, { idempotencyKey, sessionGeneration })
+}
+
+export function getNotificationReadOperation(operationId: string, sessionGeneration: number): Promise<OpResponse<'getNotificationReadOperation'>> {
+  return api.get<OpResponse<'getNotificationReadOperation'>>('/me/notifications/read-all/{operationId}', {
+    pathParams: { operationId }, sessionGeneration,
+  })
 }
 
 /**
@@ -76,8 +94,28 @@ export function markNotificationRead(id: string): Promise<void> {
  * An app preference only: not this device's OS permission, not a registered
  * subscription, never evidence of delivery.
  */
-export function getNotificationSettings(): Promise<OpResponse<'getNotificationSettings'>> {
-  return api.get<OpResponse<'getNotificationSettings'>>('/me/notification-settings')
+export type NotificationSettingsResource = OpResponse<'getNotificationSettings'> & { etag?: string }
+
+export async function getNotificationSettings(): Promise<NotificationSettingsResource> {
+  let etag: string | undefined
+  const settings = await api.get<OpResponse<'getNotificationSettings'>>('/me/notification-settings', {
+    onResponseHeaders: headers => { etag = headers.get('etag') ?? undefined },
+  })
+  return { ...settings, etag }
+}
+
+export async function patchNotificationSettings(
+  body: OpBody<'patchNotificationSettings'>,
+  ifMatch: string,
+  idempotencyKey: string,
+  sessionGeneration: number,
+): Promise<NotificationSettingsResource> {
+  let etag: string | undefined
+  const settings = await api.patch<OpResponse<'patchNotificationSettings'>>('/me/notification-settings', body, {
+    ifMatch, idempotencyKey, sessionGeneration,
+    onResponseHeaders: headers => { etag = headers.get('etag') ?? undefined },
+  })
+  return { ...settings, etag }
 }
 
 export function setNotificationSettings(

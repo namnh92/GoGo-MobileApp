@@ -1,7 +1,8 @@
 openapi: 3.1.0
+x-gogo-notification-preference-semantics: master-and-five-categories-v1
 info:
   title: GoGo API
-  version: 7.5.0-alpha.1
+  version: 8.1.0-alpha.1
   description: |
     Public contract for GoGo clients (Mobile, Web, Mini App). This page is the
     integration guide — every rule below is enforced by the API, not advisory.
@@ -4685,15 +4686,229 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
+  /system-notifications:
+    get:
+      operationId: listSystemNotifications
+      tags: [profile]
+      summary: Public system announcements, available while signed out
+      security: []
+      description: >
+        Published announcements with publishedAt <= server time and no expiry or
+        expiresAt > server time. Ordered by (publishedAt DESC, id DESC), with
+        opaque full-precision tuple cursors. No account-specific fields or read
+        state. CMS-authored title/body are editorial copy, not composed facts.
+        Clients display this section above the personal inbox for signed-in
+        users; no duplication into /me/notifications or its unread summary.
+        Rate limit is 60 requests/minute per IP, including conditional GETs.
+        The shared cache can serve a representation for up to 60 seconds after
+        expiry, edit or archive. Revalidation evaluates current visibility.
+      parameters:
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 2048 } }
+        - {
+            name: If-None-Match,
+            in: header,
+            schema: { type: string },
+            description: 'Entity tags (including weak tags or a list), or *.',
+          }
+      responses:
+        '200':
+          description: Visible announcements
+          headers:
+            Cache-Control: { schema: { type: string, const: 'public, max-age=60' } }
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemNotificationPage' }
+        '304':
+          description: Current page matches If-None-Match; no response body
+          headers:
+            Cache-Control: { schema: { type: string, const: 'public, max-age=60' } }
+            ETag: { schema: { type: string } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /cms/system-notifications:
+    get:
+      operationId: cmsListSystemNotifications
+      tags: [cms]
+      summary: 'Ops/super admin: list announcements including drafts and archived rows'
+      description: Ordered by (createdAt DESC, id DESC). Cache-Control is private, no-store.
+      parameters:
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 2048 } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, published, archived] } }
+      responses:
+        '200':
+          description: Announcement page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSystemNotificationPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: cmsCreateSystemNotification
+      tags: [cms]
+      summary: 'Ops/super admin: create a draft announcement'
+      description: >
+        Idempotency-Key is mandatory (8-128 ASCII word/hyphen characters).
+        Creation, append-only audit and 24-hour replay record commit together.
+        Same actor/key/body replays the original 201 even after later edits;
+        changed body returns 422. Locale defaults to vi. No inbox/push rows.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsSystemNotificationCreate' }
+      responses:
+        '201':
+          description: Created draft (or original replay)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSystemNotification' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422':
+          description: Idempotency-Key reused with a different body
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  /cms/system-notifications/{id}:
+    patch:
+      operationId: cmsPatchSystemNotification
+      tags: [cms]
+      summary: 'Ops/super admin: edit draft or published announcement copy'
+      description: >
+        Row-locked update and append-only audit commit together. Does not change
+        status or publishedAt. Archived rows cannot be edited (409).
+        Null deepLink/expiresAt clears the field; expiry must follow publication.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CmsSystemNotificationPatch' }
+      responses:
+        '200':
+          description: Updated announcement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSystemNotification' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /cms/system-notifications/{id}/publish:
+    post:
+      operationId: cmsPublishSystemNotification
+      tags: [cms]
+      summary: 'Ops/super admin: publish announcement'
+      description: >
+        Publishes a draft immediately with a server-owned publishedAt. Expired drafts return 400. Archived rows cannot be published (409).
+        Repeating the same transition is a no-op returning 200 without another
+        audit row or changing publishedAt. State and append-only audit commit
+        together under a row lock. Creates no personal inbox or push records.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Announcement in the requested state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSystemNotification' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /cms/system-notifications/{id}/archive:
+    post:
+      operationId: cmsArchiveSystemNotification
+      tags: [cms]
+      summary: 'Ops/super admin: archive announcement'
+      description: >
+        Archives a draft or published row. Archived is terminal; data and audit history remain.
+        Repeating the same transition is a no-op returning 200 without another
+        audit row or changing publishedAt. State and append-only audit commit
+        together under a row lock. Creates no personal inbox or push records.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Announcement in the requested state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmsSystemNotification' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /me/notifications:
     get:
       operationId: listNotifications
       tags: [me]
-      summary: In-app notification inbox (cursor by createdAt)
+      summary: In-app notification inbox (createdAt and id descending)
+      description: >
+        New opaque signed cursors bind the account, canonical kinds filter and committed
+        sequence snapshot for 24 hours. Equal timestamps use id as a tie breaker.
+        Previously issued ISO timestamp cursors remain accepted during transition;
+        these retain their original exclusive timestamp boundary. Before backfill
+        opens the rollout gate, this endpoint stays available, includes historical
+        rows, and issues full-precision unsigned (createdAt,id) fallback cursors.
+        Fallback continuations retain that boundary across gate activation without
+        acquiring a sequence snapshot; only summary/read-all are gated.
+        Optional repeatable kinds query parameters select NotificationKind values
+        server-side. Unknown values return 400 VALIDATION_FAILED. Order and duplicates
+        are ignored; changing the filter on a cursor returns 400 INVALID_NOTIFICATION_CURSOR.
+        Timestamp and old unfiltered fallback cursors belong to the all-kinds filter.
+        Summary unreadCount always counts the unfiltered inbox.
+        Invalid/foreign/purpose-mismatched cursors return INVALID_NOTIFICATION_CURSOR;
+        expired signed cursors return NOTIFICATION_CURSOR_EXPIRED.
       parameters:
         - $ref: '#/components/parameters/Cursor'
+        - name: kinds
+          in: query
+          required: false
+          style: form
+          explode: true
+          description: Known NotificationKind values only; repeat for multiple kinds. Omit for all kinds.
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              allOf:
+                - $ref: '#/components/schemas/NotificationKind'
+                - enum:
+                    [
+                      invite,
+                      preference_reminder,
+                      plan_ready,
+                      plan_changed,
+                      date_reminder,
+                      moderation_update,
+                      campaign,
+                      privacy_export_ready,
+                    ]
       responses:
-        '503': { $ref: '#/components/responses/SessionLookupUnavailable' }
         '200':
           description: Notification inbox page
           content:
@@ -4705,6 +4920,143 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/Notification' }
                   nextCursor: { type: [string, 'null'] }
+        '400':
+          description: INVALID_NOTIFICATION_CURSOR
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '410':
+          description: NOTIFICATION_CURSOR_EXPIRED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/NotificationInboxUnavailable' }
+
+  /me/notifications/summary:
+    get:
+      operationId: getNotificationSummary
+      tags: [me]
+      summary: Shared account unread count and committed read-through cutoff
+      description: >
+        Source for the bell, new-item count and profile (#809). Counts all
+        account-owned inbox kinds with readAt absent in the same database snapshot
+        as the cutoff. Push preferences do not affect it. Refetch after reads;
+        mutation replays are not a current count. Cutoff APIs return 503 until
+        the resumable historical backfill and concurrent indexes complete.
+      responses:
+        '200':
+          description: Account snapshot; never cache
+          headers:
+            Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/NotificationInboxUnavailable' }
+
+  /me/notifications/read-all:
+    post:
+      operationId: readAllNotifications
+      tags: [me]
+      summary: Mark unread rows through a fixed account cutoff
+      description: >
+        Requires Idempotency-Key. The signed summary cursor is account-bound and
+        valid for 24 hours. At most 500 rows change in one transaction. Further
+        batches resume durably in bounded worker ticks after crashes. Each changed
+        row receives the operation action timestamp; existing readAt is preserved.
+        Concurrent reads count each changed row once. Arrivals above the cutoff
+        remain unread. Retrying the same key/body replays the original operation
+        response (even after cursor expiry); poll Location for current progress,
+        then refetch summary. A different body with the same key returns 422.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9_-]{8,128}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [through]
+              properties:
+                through: { type: string, minLength: 1, maxLength: 2048 }
+      responses:
+        '200':
+          description: Completed immediately
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationReadOperation' }
+        '202':
+          description: Durable operation running
+          headers:
+            Location:
+              description: Account-authenticated operation status URL
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationReadOperation' }
+        '400':
+          description: VALIDATION_FAILED, INVALID_IDEMPOTENCY_KEY or INVALID_NOTIFICATION_CURSOR
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: IDEMPOTENT_REQUEST_IN_FLIGHT
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '410':
+          description: NOTIFICATION_CURSOR_EXPIRED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '422':
+          description: IDEMPOTENCY_KEY_REUSED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/NotificationInboxUnavailable' }
+
+  /me/notifications/read-all/{operationId}:
+    get:
+      operationId: getNotificationReadOperation
+      tags: [me]
+      summary: Poll an account-owned durable read-all operation
+      parameters:
+        - { name: operationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Current progress; never cache
+          headers:
+            Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationReadOperation' }
+        '400':
+          description: VALIDATION_FAILED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: NOTIFICATION_READ_OPERATION_NOT_FOUND (foreign and missing indistinguishable)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/NotificationInboxUnavailable' }
 
   /me/push-subscriptions:
     put:
@@ -5322,11 +5674,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
-  /cms/place-submissions/{id}/decide:
+  /cms/place-submissions/{id}/credit-preview:
     post:
-      operationId: decidePlaceSubmission
+      operationId: previewPlaceSubmissionCredit
       tags: [cms]
-      summary: 'Moderator/editor: approve, reject or merge a submission (PI-CMS-007)'
+      summary: 'Moderator/editor: server credit facts for an explicit wizard selection'
+      description: Read-only, no provider request or award. Only pending submissions; rejects unavailable selected photos. Shares the award formula and ledger eligibility with approval. No replay cache.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -5334,6 +5687,41 @@ paths:
         content:
           application/json:
             schema:
+              type: object
+              additionalProperties: false
+              required: [enrichmentSelection]
+              properties:
+                enrichmentSelection: { $ref: '#/components/schemas/EnrichmentSelection' }
+      responses:
+        '201':
+          description: Preview only; no award
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [expectedCredit]
+                properties:
+                  expectedCredit: { $ref: '#/components/schemas/SubmissionCreditFacts' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: ALREADY_DECIDED }
+
+  /cms/place-submissions/{id}/decide:
+    post:
+      operationId: decidePlaceSubmission
+      tags: [cms]
+      summary: 'Moderator/editor: approve, reject or merge a submission (PI-CMS-007)'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                enrichmentSelection: { $ref: '#/components/schemas/EnrichmentSelection' }
               oneOf:
                 - type: object
                   required: [decision, rejectionReason]
@@ -5418,6 +5806,19 @@ paths:
         for immediate cleanup. These menu/bill rules take precedence over the general
         cleanup description on approvedPhotoIds. Accepted menu/bill evidence adds
         20 credits once; approval also grants the 50-credit base.
+
+
+        #806: optional enrichmentSelection explicitly keeps wizard facts and photos;
+        everything else in that proposal is dropped. With selection present, approvedPhotoIds
+        may select only additional ordinary photos, never wizard references. Empty arrays
+        drop every wizard item. Omission preserves #802: no wizard facts applied,
+        photos selected by approvedPhotoIds, approve +50 base, merge no base.
+        Explicit selection grants +50 base for approve or merge, plus +20 for at least
+        one kept original-contributor menu/bill photo, subject to existing unique venue/submission
+        ledger constraints. Detail/credit-preview provide the formula as facts.
+        Audit records kept/dropped stable keys and media ids, without their content.
+        Send Idempotency-Key to replay the same response; changing the payload under the
+        same key is rejected by the existing idempotency policy.
 
 
         Approval is not verification and not publication: the administrative
@@ -6099,6 +6500,10 @@ paths:
       operationId: markNotificationRead
       tags: [me]
       summary: Mark one notification read
+      description: >
+        Retries preserve the first readAt. Missing and foreign ids return the same
+        success without changing another account. Does not decline or revoke an
+        invitation. Refetch the shared notification summary after success.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -6463,14 +6868,14 @@ paths:
       tags: [me]
       summary: Per-channel, per-kind notification opt-ins (legacy clients)
       description: >
-        Kept for clients released before NTF-BE-014 (#572). Push is now one
-        switch per account (`GET /me/notification-settings`, ADR-0025), so every
-        push kind here reports that switch's value; email rows are returned as
-        stored. New clients read the settings resource instead.
+        ADR-0050 supersedes ADR-0025: each push kind reports its effective permission
+        (registered push support AND master AND category). Email rows remain stored
+        choices. Moderation has no authorized push producer. New clients use the
+        versioned settings resource to distinguish configured choices from suspension.
       responses:
         '503': { $ref: '#/components/responses/SessionLookupUnavailable' }
         '200':
-          description: Every push kind carrying the switch's value, then stored email rows
+          description: Effective permission per legacy push kind, then stored email rows
           content:
             application/json:
               schema:
@@ -6486,11 +6891,10 @@ paths:
       tags: [me]
       summary: Opt in/out of one notification kind on one channel (legacy clients)
       description: >
-        Kept for clients released before NTF-BE-014 (#572). The row is stored,
-        but only a push opt-out changes delivery: it turns the account's push
-        switch off (`source: legacy`), since a single kind can no longer be
-        stopped on its own. `enabled: true` never turns push back on — that is
-        `PUT /me/notification-settings`.
+        Push opt-out disables the master (source legacy), retaining category choices.
+        Push opt-in never enables the master or overrides a disabled category.
+        Effective push mirrors are maintained atomically; email behavior is unchanged.
+        No new headers are required on this existing PUT.
       requestBody:
         required: true
         content:
@@ -6511,17 +6915,21 @@ paths:
     get:
       operationId: getNotificationSettings
       tags: [me]
-      summary: The account's one push switch (NTF-BE-014)
+      summary: Account master and five category preferences (ADR-0050)
       description: >
-        ADR-0025. `pushEnabled` is what this account asked GoGo to do and
-        nothing more: it is not this device's OS notification permission, not a
-        registered push subscription (`PUT /me/push-subscriptions`), and never
-        evidence that anything was delivered. The in-app inbox is written
-        whatever it says.
+        ADR-0050. Master suspends all push including non-configurable other;
+        each of five categories independently suppresses its registered push kinds.
+        Missing category rows default true; existing master/default consent is preserved.
+        Inbox and email are independent. Not OS permission, subscription or delivery.
+        Returns a strong ETag over the decimal-string resource version.
       responses:
         '503': { $ref: '#/components/responses/SessionLookupUnavailable' }
         '200':
           description: The switch as the server applies it
+          headers:
+            ETag:
+              { schema: { type: string }, description: Strong notification settings resource ETag }
+            Cache-Control: { schema: { type: string, const: 'private, no-store' } }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/NotificationSettings' }
@@ -6532,11 +6940,10 @@ paths:
       tags: [me]
       summary: Turn every push notification kind on or off
       description: >
-        Idempotent. `true` allows every push kind GoGo sends, CMS campaigns
-        included; `false` stops all of them. Once set, per-kind rows written by
-        older clients no longer affect delivery (ADR-0025). A client should keep
-        showing the previous value until this returns, and restore it on
-        failure.
+        Existing global-enable semantics preserved: true enables master and all five
+        categories atomically; false disables master and remembers category choices.
+        Does not newly require If-Match or Idempotency-Key. During rollback freeze,
+        preference mutations return 503 NOTIFICATION_PREFERENCES_FROZEN.
       requestBody:
         required: true
         content:
@@ -6557,6 +6964,86 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403':
           description: USER_ONLY — guests have no account to hold a switch.
+
+    patch:
+      operationId: patchNotificationSettings
+      tags: [me]
+      summary: Change master and/or category choices atomically
+      description: >
+        At least one field or category is required; omitted choices remain unchanged.
+        Master changes retain category choices. Changing a category never enables master.
+        Enable all submits all five categories true and leaves master unchanged.
+        If-Match must equal the current strong ETag. Idempotency replay precedes stale
+        version rejection and returns the original response/ETag without another write.
+        Mutation, version increment, effective legacy mirrors, audit and replay commit
+        together under the account lock. Suppressed push is terminal; opt-in never
+        replays backlog. A change after the final eligibility check may race an
+        already-starting provider call.
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9_-]{8,128}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - type: object
+                  additionalProperties: false
+                  required: [pushEnabled]
+                  properties:
+                    pushEnabled: { type: boolean }
+                    categories: { $ref: '#/components/schemas/NotificationCategoryPatch' }
+                - type: object
+                  additionalProperties: false
+                  required: [categories]
+                  properties:
+                    pushEnabled: { type: boolean }
+                    categories: { $ref: '#/components/schemas/NotificationCategoryChanges' }
+      responses:
+        '200':
+          description: Updated settings or original idempotent replay
+          headers:
+            ETag: { schema: { type: string } }
+            Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: IDEMPOTENT_REQUEST_IN_FLIGHT
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '412':
+          description: NOTIFICATION_SETTINGS_VERSION_MISMATCH
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '422':
+          description: IDEMPOTENCY_KEY_REUSED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '428':
+          description: PRECONDITION_REQUIRED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: NOTIFICATION_PREFERENCES_FROZEN or dependency unavailable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /docs:
     get:
@@ -12517,6 +13004,120 @@ components:
         maximum: 100
         default: 20
   schemas:
+    SystemNotificationKind:
+      type: string
+      x-extensible-enum: [maintenance, update, general]
+      description: Consumers must tolerate future system announcement kinds.
+    SystemNotificationDeepLink:
+      type: [string, 'null']
+      description: Canonical gogo app route only; no query, fragment, encoding or credentials. Null means no destination.
+      pattern: '^gogo://(?:(?:place|room|plan)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|invite/[A-Za-z0-9_-]{6,64}|l/[A-Za-z0-9_-]{4,32}|saved|notifications|profile)$'
+    SystemNotification:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, body, deepLink, publishedAt, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/SystemNotificationKind' }
+        title:
+          { type: string, minLength: 1, maxLength: 200, description: CMS-authored editorial copy }
+        body:
+          { type: string, minLength: 1, maxLength: 10000, description: CMS-authored editorial copy }
+        deepLink: { $ref: '#/components/schemas/SystemNotificationDeepLink' }
+        publishedAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+    CmsSystemNotification:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          kind,
+          title,
+          body,
+          deepLink,
+          publishedAt,
+          expiresAt,
+          locale,
+          status,
+          createdBy,
+          updatedBy,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/SystemNotificationKind' }
+        title:
+          { type: string, minLength: 1, maxLength: 200, description: CMS-authored editorial copy }
+        body:
+          { type: string, minLength: 1, maxLength: 10000, description: CMS-authored editorial copy }
+        deepLink: { $ref: '#/components/schemas/SystemNotificationDeepLink' }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        locale: { type: string, enum: [vi] }
+        status: { type: string, enum: [draft, published, archived] }
+        createdBy: { type: string, format: uuid }
+        updatedBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CmsSystemNotificationCreate:
+      type: object
+      additionalProperties: false
+      required: [kind, title, body]
+      properties:
+        kind: { type: string, enum: [maintenance, update, general] }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 10000 }
+        locale: { type: string, enum: [vi], default: vi }
+        deepLink: { $ref: '#/components/schemas/SystemNotificationDeepLink' }
+        expiresAt: { type: [string, 'null'], format: date-time }
+    CmsSystemNotificationPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        kind: { $ref: '#/components/schemas/CmsSystemNotificationCreate/properties/kind' }
+        title: { $ref: '#/components/schemas/CmsSystemNotificationCreate/properties/title' }
+        body: { $ref: '#/components/schemas/CmsSystemNotificationCreate/properties/body' }
+        locale: { $ref: '#/components/schemas/CmsSystemNotificationCreate/properties/locale' }
+        deepLink: { $ref: '#/components/schemas/CmsSystemNotificationCreate/properties/deepLink' }
+        expiresAt: { $ref: '#/components/schemas/CmsSystemNotificationCreate/properties/expiresAt' }
+    SystemNotificationPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SystemNotification' }
+        nextCursor: { type: [string, 'null'] }
+    CmsSystemNotificationPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CmsSystemNotification' }
+        nextCursor: { type: [string, 'null'] }
+    NotificationSummary:
+      type: object
+      required: [unreadCount, asOf, readThroughCursor]
+      properties:
+        unreadCount: { type: integer, minimum: 0 }
+        asOf: { type: string, format: date-time }
+        readThroughCursor:
+          { type: string, description: Signed opaque account cutoff; expires in 24 hours }
+    NotificationReadOperation:
+      type: object
+      required: [operationId, status, asOf, changedCount]
+      properties:
+        operationId: { type: string, format: uuid }
+        status: { type: string, enum: [running, completed] }
+        asOf: { type: string, format: date-time, description: Fixed action timestamp }
+        changedCount:
+          { type: integer, minimum: 0, description: Rows changed by this operation only }
     AdministrativeUnit:
       type: object
       required: [code, name, fullName, unitType, level, status, effectiveFrom, isCurrent]
@@ -16095,7 +16696,7 @@ components:
     NotificationSettings:
       type: object
       description: >
-        ADR-0025. One app-level push switch per account. Deliberately carries no
+        ADR-0050. Account master plus five remembered category choices. Carries no
         OS permission, subscription or delivery field: the device knows its own
         permission, `PUT /me/push-subscriptions` records reachability, and only
         the provider knows about delivery.
@@ -16103,7 +16704,7 @@ components:
       properties:
         pushEnabled:
           type: boolean
-          description: Whether GoGo may ask the provider to push to this account, for every kind.
+          description: Account master gate; registered kind and category must also permit push.
         source:
           type: string
           enum: [default, explicit, migrated, legacy]
@@ -16113,10 +16714,76 @@ components:
             migration 0064 from per-kind choices: on only if every stored push
             kind was on. `legacy` — an older client turned one kind off, which
             turns push off.
+        version:
+          type: string
+          pattern: '^(0|[1-9][0-9]*)$'
+          description: Monotonic resource version represented without JavaScript precision loss.
+        categories:
+          allOf:
+            - $ref: '#/components/schemas/NotificationCategoryPatch'
+            - required: [invite, preference_reminder, plan_ready, plan_changed, date_reminder]
         updatedAt:
           type: [string, 'null']
           format: date-time
           description: When the switch was last stored; null while it is the default.
+    NotificationCategoryPatch:
+      type: object
+      additionalProperties: false
+      description: Five configurable categories only. Other is non-configurable and follows master.
+      properties:
+        invite: { type: boolean }
+        preference_reminder: { type: boolean }
+        plan_ready: { type: boolean }
+        plan_changed: { type: boolean }
+        date_reminder: { type: boolean }
+    NotificationCategoryChanges:
+      description: At least one category choice; all supplied values are booleans.
+      anyOf:
+        - type: object
+          additionalProperties: false
+          required: [invite]
+          properties:
+            invite: { type: boolean }
+            preference_reminder: { type: boolean }
+            plan_ready: { type: boolean }
+            plan_changed: { type: boolean }
+            date_reminder: { type: boolean }
+        - type: object
+          additionalProperties: false
+          required: [preference_reminder]
+          properties:
+            invite: { type: boolean }
+            preference_reminder: { type: boolean }
+            plan_ready: { type: boolean }
+            plan_changed: { type: boolean }
+            date_reminder: { type: boolean }
+        - type: object
+          additionalProperties: false
+          required: [plan_ready]
+          properties:
+            invite: { type: boolean }
+            preference_reminder: { type: boolean }
+            plan_ready: { type: boolean }
+            plan_changed: { type: boolean }
+            date_reminder: { type: boolean }
+        - type: object
+          additionalProperties: false
+          required: [plan_changed]
+          properties:
+            invite: { type: boolean }
+            preference_reminder: { type: boolean }
+            plan_ready: { type: boolean }
+            plan_changed: { type: boolean }
+            date_reminder: { type: boolean }
+        - type: object
+          additionalProperties: false
+          required: [date_reminder]
+          properties:
+            invite: { type: boolean }
+            preference_reminder: { type: boolean }
+            plan_ready: { type: boolean }
+            plan_changed: { type: boolean }
+            date_reminder: { type: boolean }
     NotificationKind:
       type: string
       description: >
@@ -16344,6 +17011,85 @@ components:
             because it embeds the slug (for a room invite, the join credential).
         source: { type: [string, 'null'] }
         campaign: { type: [string, 'null'] }
+    NotificationSourcedText:
+      type: object
+      additionalProperties: false
+      required: [value, sourceType, originType, verifiedAt]
+      description: >-
+        Independently evidenced persistable GoGo text captured at event time.
+        Provider origin requires non-Google independent evidence; a label or canonical column
+        is insufficient. Private evidence references and actors are never returned.
+      properties:
+        value: { type: string }
+        sourceType: { type: string, enum: [gogo] }
+        originType: { type: string, enum: [editorial, community, provider] }
+        verifiedAt: { type: string, format: date-time }
+        collectedAt: { type: string, format: date-time }
+    NotificationReminder:
+      type: object
+      additionalProperties: false
+      required: [trigger, triggeredAt, scheduledFor, startsAt]
+      description: >-
+        Event-time facts, never a composed countdown. This release emits only room_started,
+        meaning the outing started, with scheduledFor=null and no leadTimeSeconds.
+        scheduled is reserved for the separate advance-reminder scheduler (PR4).
+        startsAt comes only from the current room_constraints.start_at; null means unknown.
+      properties:
+        trigger: { type: string, enum: [room_started, scheduled] }
+        triggeredAt: { type: string, format: date-time }
+        scheduledFor: { type: [string, 'null'], format: date-time }
+        startsAt: { type: [string, 'null'], format: date-time }
+        leadTimeSeconds: { type: integer, minimum: 0 }
+        scheduleRevision: { type: string }
+    NotificationPlanPreview:
+      type: object
+      additionalProperties: false
+      required: [planId, planVersion, constraintVersion, capturedAt, stopCount, stops]
+      description: >-
+        Immutable event-time preview, not a promise of current plan or place availability.
+        Opening resolves the current authorized plan. Missing provenance omits text;
+        Google names/addresses/coordinates/photos/ratings/hours are never snapshotted.
+        startAt is omitted when no confirmed instant exists or the plan's constraint version
+        differs from the room's current constraints. Stop arrivals remain separate facts.
+        Current access/resource availability can suppress the preview, stop text or media references.
+        Resolve current authorized place media separately; never treat a media id as a URL.
+      properties:
+        planId: { type: string, format: uuid }
+        planVersion: { type: integer, minimum: 1 }
+        constraintVersion: { type: integer, minimum: 1 }
+        capturedAt: { type: string, format: date-time }
+        startAt: { type: string, format: date-time }
+        startAtSource: { type: string, enum: [room_constraints] }
+        stopCount: { type: integer, minimum: 0 }
+        stops:
+          type: array
+          maxItems: 3
+          description: First three stops in position order; stopCount counts the full plan.
+          items:
+            type: object
+            additionalProperties: false
+            required: [position, placeId]
+            properties:
+              position: { type: integer, minimum: 0 }
+              arriveAt: { type: string, format: date-time }
+              placeId: { type: string, format: uuid }
+              name: { $ref: '#/components/schemas/NotificationSourcedText' }
+              addressText: { $ref: '#/components/schemas/NotificationSourcedText' }
+              mediaId:
+                type: string
+                format: uuid
+                description: Approved independently uploaded GoGo place_media id; provider photos excluded.
+    NotificationInviterAvatar:
+      type: object
+      additionalProperties: false
+      required: [sourceType, mediaKey]
+      description: >-
+        GoGo-owned processed public avatar reference captured at event time, never an external URL.
+        Omitted when absent, replaced, deleted or the inviter is no longer accessible.
+        Resolve current authorized member media separately. Contains no account or actor id.
+      properties:
+        sourceType: { type: string, enum: [gogo] }
+        mediaKey: { type: string, pattern: '^avatars/[a-f0-9]{32}\.webp$' }
     Notification:
       type: object
       description: Facts only — compose the display string client-side from `kind` + `payload`.
@@ -16378,6 +17124,9 @@ components:
             inviterName:
               type: string
               description: Display name of the room member who created the invite used to join.
+            inviterAvatar: { $ref: '#/components/schemas/NotificationInviterAvatar' }
+            reminder: { $ref: '#/components/schemas/NotificationReminder' }
+            planPreview: { $ref: '#/components/schemas/NotificationPlanPreview' }
             preferenceProgress:
               type: object
               required: [completedCount, memberCount]
@@ -16552,6 +17301,7 @@ components:
       type: object
       required: [gogoRatingCount, checkedInGroupCount]
       properties:
+        contributionFacts: { $ref: '#/components/schemas/KeptContributionFacts' }
         verification: { $ref: '#/components/schemas/VenueVerification' }
         id: { type: string, format: uuid }
         name: { type: string }
@@ -18384,6 +19134,45 @@ components:
             under the same rule as `cmsUpdatePlace`: a non-null value needs its
             entry, `null` needs none. Values and evidence are stored normalized
             (E.164, `https://`, `collectedAt` in UTC) and returned that way.
+    EnrichmentSelection:
+      type: object
+      additionalProperties: false
+      required: [keptFactKeys, keptPhotoMediaIds]
+      description: >
+        Explicit wizard selection. Stable fact keys: price (atomic range/unit),
+        purposeKeys:<key>, vibeKeys:<key>, amenities:<key> (false is a fact),
+        recommendedDishes, visitTips, service.rating, space.rating,
+        service.chipKeys:<key>, space.chipKeys:<key>. Keys come from detail.enrichmentItems;
+        photos use the proposal's mediaId, never array indexes or photo-row ids.
+        Consent is evidence for upload, never a selectable place fact.
+      properties:
+        keptFactKeys:
+          type: array
+          maxItems: 64
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 128 }
+        keptPhotoMediaIds:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    SubmissionCreditFacts:
+      type: object
+      required: [base, photoBonus, total]
+      properties:
+        base: { type: integer, minimum: 0 }
+        photoBonus: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+    KeptContributionFacts:
+      type: object
+      additionalProperties: true
+      description: >
+        Explicitly moderated wizard facts keyed by the stable keys in EnrichmentSelection.
+        Scalar strings, booleans, integer ratings or an atomic price object with min/max/currency/unit.
+        Only kept items, no photos, consent, user ids or unmoderated content. Service/space ratings
+        remain individual contribution facts, never provider/community rating aggregates.
+        Per-group/free prices retain their original unit here; the legacy prices table only
+        receives units it can represent. Later kept values replace the same key; absent keys remain.
     SubmissionPhoto:
       type: object
       required: [id, mediaId, width, height, status, url]
@@ -18410,6 +19199,16 @@ components:
       required:
         [id, googlePlaceId, status, submissionCount, createdAt, updatedAt, contribution, history]
       properties:
+        expectedCredit:
+          allOf: [{ $ref: '#/components/schemas/SubmissionCreditFacts' }]
+          description: Potential explicit-selection approval credit with all still-pending original evidence kept. Zero if contributor/ledger/state ineligible. Use credit-preview after changing selection; no client arithmetic.
+        enrichmentItems:
+          type: object
+          required: [factKeys, photoMediaIds]
+          properties:
+            factKeys: { type: array, items: { type: string } }
+            photoMediaIds: { type: array, items: { type: string, format: uuid } }
+
         id: { type: string, format: uuid }
         googlePlaceId: { type: string }
         googleMapsUrl:
@@ -21343,6 +22142,18 @@ components:
       schema: { type: integer, minimum: 1 }
 
   responses:
+    NotificationInboxUnavailable:
+      description: >
+        NOTIFICATION_INBOX_UNAVAILABLE when the inbox rollout or signing key is
+        unavailable, or SERVICE_UNAVAILABLE (retryable true) when the authoritative
+        consumer session lookup encounters an operational database connection,
+        pool or query timeout/unavailability. Retry with backoff; cached state
+        cannot authorize access. SQL/schema/permission/configuration errors
+        retain existing error handling. Standard error envelope.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
     SessionLookupUnavailable:
       description: >
         SERVICE_UNAVAILABLE (retryable true) — the authoritative consumer

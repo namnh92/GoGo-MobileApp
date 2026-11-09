@@ -4,7 +4,7 @@ import { renderScreen } from './harness'
 
 /**
  * NTF-APP-010 (#215) — one switch for the account, device permission shown
- * beside it and never merged into it; rendered inside APP-058's combined screen.
+ * beside it and never merged into it; reused on the unified screen (#539).
  */
 
 const mockStatus = jest.fn()
@@ -19,6 +19,7 @@ jest.mock('@/features/settings/device-promotions.view', () => {
 jest.mock('@/shared/notifications/permission-bootstrap', () => ({ pushPermission: { status: () => mockStatus() } }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/api', () => ({
+  ...jest.requireActual('@/shared/api'),
   useNotificationSettings: () => mockSettings,
   useSetNotificationSettings: () => mockSave,
 }))
@@ -30,7 +31,7 @@ jest.mock('expo-router', () => ({
     require('react').useEffect(effect, [effect])
   },
 }))
-import { NotificationSwitchSection as NotificationSettings } from '@/features/notifications/notification-switch.view'
+import NotificationSettings from '@/features/notifications/notification-settings.view'
 
 const loaded = (settings: Partial<Settings> = {}) => ({
   data: { pushEnabled: true, source: 'explicit', updatedAt: '2026-09-14T00:00:00Z', ...settings },
@@ -49,8 +50,9 @@ beforeEach(() => {
 
 it('shows exactly one switch, carrying the account value', async () => {
   const screen = await renderScreen(<NotificationSettings />)
-  const switches = screen.getAllByRole('switch')
+  const switches = screen.getAllByRole('switch', { name: 'Thông báo' })
   expect(switches).toHaveLength(1)
+  expect(screen.getAllByRole('switch')).toHaveLength(7)
   expect(switches[0].props.value).toBe(true)
   expect(switches[0].props.disabled).toBe(false)
   expect(screen.getByRole('switch', { name: 'Thông báo' })).toBeTruthy()
@@ -59,7 +61,7 @@ it('shows exactly one switch, carrying the account value', async () => {
 it('saves the choice on toggle and nothing else', async () => {
   const screen = await renderScreen(<NotificationSettings />)
   await act(async () => {
-    await fireEvent(screen.getByRole('switch'), 'valueChange', false)
+    await fireEvent(screen.getByTestId('notification-master'), 'valueChange', false)
   })
   expect(mockMutate).toHaveBeenCalledTimes(1)
   expect(mockMutate).toHaveBeenCalledWith({ pushEnabled: false })
@@ -68,8 +70,8 @@ it('saves the choice on toggle and nothing else', async () => {
 it('stays off and locked while the first read runs, and retries a failed read in place', async () => {
   mockSettings = { data: undefined, isPending: true, isError: false, refetch: jest.fn() }
   const screen = await renderScreen(<NotificationSettings />)
-  expect(screen.getByRole('switch').props.value).toBe(false)
-  expect(screen.getByRole('switch').props.disabled).toBe(true)
+  expect(screen.getByTestId('notification-master').props.value).toBe(false)
+  expect(screen.getByTestId('notification-master').props.disabled).toBe(true)
   expect(screen.getByText('Đang tải…')).toBeTruthy()
 
   const refetch = jest.fn()
@@ -84,7 +86,7 @@ it('stays off and locked while the first read runs, and retries a failed read in
 it('locks the switch while a save is in flight, so a double tap sends one request', async () => {
   mockSave = { mutate: mockMutate, isPending: true, isError: false, variables: { pushEnabled: false } }
   const screen = await renderScreen(<NotificationSettings />)
-  expect(screen.getByRole('switch').props.disabled).toBe(true)
+  expect(screen.getByTestId('notification-master').props.disabled).toBe(true)
 })
 
 it('says a failed save was rolled back and retries the same choice', async () => {
@@ -92,7 +94,7 @@ it('says a failed save was rolled back and retries the same choice', async () =>
   mockSettings = loaded({ pushEnabled: true })
   mockSave = { mutate: mockMutate, isPending: false, isError: true, variables: { pushEnabled: false } }
   const screen = await renderScreen(<NotificationSettings />)
-  expect(screen.getByRole('switch').props.value).toBe(true)
+  expect(screen.getByTestId('notification-master').props.value).toBe(true)
   expect(screen.getByText(/Công tắc đã trở về trạng thái trước/)).toBeTruthy()
   await act(async () => {
     await fireEvent.press(screen.getByText('Thử lưu lại'))
@@ -117,7 +119,7 @@ it('on a device where the OS refuses, points to Settings and never implies notif
   expect(screen.queryByText(/Máy này cho phép GoGo hiển thị thông báo/)).toBeNull()
   expect(screen.getByText('Mở cài đặt thông báo')).toBeTruthy()
   // The account preference is still the account's to change.
-  expect(screen.getByRole('switch').props.disabled).toBe(false)
+  expect(screen.getByTestId('notification-master').props.disabled).toBe(false)
 })
 
 it('re-reads device permission when the app returns from Settings', async () => {

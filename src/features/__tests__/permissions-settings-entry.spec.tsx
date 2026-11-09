@@ -69,7 +69,12 @@ it.each([
   const controls = view.getAllByRole('button', { name: /Mở cài đặt/ })
   expect(controls).toHaveLength(1)
   expect(view.getByRole('button', { name: 'Mở cài đặt hệ thống' })).toBeTruthy()
-  expect(view.getAllByText('Đổi trong cài đặt máy.')).toHaveLength(3)
+  // The account notification row has its own settings entry; anonymous
+  // device promotions adds a third hint to location + tracking.
+  const notificationRow = view.getByRole('button', { name: 'Thông báo' })
+  expect(notificationRow.props.accessibilityHint).toBe('Cài đặt thông báo')
+  expect(within(notificationRow).queryByText('Đổi trong cài đặt máy.')).toBeNull()
+  expect(view.getAllByText('Đổi trong cài đặt máy.')).toHaveLength(status === 'user' ? 2 : 3)
   for (const hint of view.getAllByText('Đổi trong cài đặt máy.')) {
     expect(hint).toHaveStyle({ color: themes[theme].text.secondary })
   }

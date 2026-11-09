@@ -7,7 +7,7 @@ import { hitSlop } from './tokens'
 import { styles } from './chip.style'
 
 export type ChipVariant = 'default' | 'selected' | 'disabled' | 'info' | 'positive' | 'warning'
-type ChipAppearance = 'default' | 'discovery' | 'mood' | 'soft'
+type ChipAppearance = 'default' | 'discovery' | 'mood' | 'soft' | 'raised'
 
 const LABEL: Record<ChipVariant, TextColor> = {
   default: 'text.primary', selected: 'accent.onAccent', disabled: 'text.secondary',
@@ -39,8 +39,9 @@ export function Chip({ label, variant = 'default', appearance = 'default', icon,
   const disabled = disabledProp || variant === 'disabled'
   const stateVariant = disabled && !selected ? 'disabled' : variant
   // Semantic/disabled states keep their own foreground and surface in every appearance.
-  const visual = stateVariant === 'default' || selected ? appearance : 'default'
-  const labelColor: TextColor = visual === 'soft' ? selected ? 'accent.onSoft' : 'redesign.secondary'
+  const visual = stateVariant === 'default' || selected || appearance === 'raised' && stateVariant === 'disabled' ? appearance : 'default'
+  const labelColor: TextColor = visual === 'raised' ? selected ? 'accent.onAccent' : 'redesign.secondary'
+    : visual === 'soft' ? selected ? 'accent.onSoft' : 'redesign.secondary'
     : visual === 'mood' ? selected ? 'redesign.primaryText' : 'redesign.secondary'
       : visual === 'discovery' ? 'redesign.primaryText' : LABEL[stateVariant]
   const showIcon = icon && !(selected && (icon === 'check' || icon === 'checkCircle'))
@@ -53,6 +54,7 @@ export function Chip({ label, variant = 'default', appearance = 'default', icon,
         visual === 'discovery' && styles.discoveryChip, visual === 'discovery' && selected && styles.discoveryChipSelected,
         visual === 'soft' && styles.softChip, visual === 'soft' && selected && styles.softChipSelected,
         visual === 'mood' && styles.moodChip, visual === 'mood' && selected && styles.moodChipSelected,
+        visual === 'raised' && styles.raisedChip, visual === 'raised' && selected && styles.raisedChipSelected,
         style,
       ]}>
       {showIcon ? <Icon name={icon} size={14} color={labelColor} /> : null}

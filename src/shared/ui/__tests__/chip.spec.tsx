@@ -6,7 +6,7 @@ import { touchTarget } from '../tokens'
 
 const flat = (node: { props: { style?: any } }) => StyleSheet.flatten(node.props.style)
 const variants: ChipVariant[] = ['default', 'selected', 'disabled', 'info', 'positive', 'warning']
-const appearances = ['default', 'discovery', 'mood', 'soft'] as const
+const appearances = ['default', 'discovery', 'mood', 'soft', 'raised'] as const
 
 // Stock Unistyles mocks freeze stylesheet factories at import. Evaluate the real
 // factories per theme, as accent-foreground.spec does; native switching is outside Jest.
@@ -103,7 +103,7 @@ it.each(Object.entries(themes))('keeps every variant single-line and selected he
       expect(screen.getByTestId('chip').props.accessibilityState).toEqual({ selected: variant === 'selected', disabled: variant === 'disabled' })
       expect(screen.queryByText(/✓/)).toBeNull()
       const semantic = {
-        disabled: [theme.surface.subtle, theme.text.secondary],
+        disabled: appearance === 'raised' ? [theme.redesign.card, theme.redesign.secondary] : [theme.surface.subtle, theme.text.secondary],
         info: [theme.status.infoSoft, theme.status.infoText],
         positive: [theme.status.successSoft, theme.status.successText],
         warning: [theme.status.warningSoft, theme.status.warningText],
@@ -120,9 +120,9 @@ it.each(Object.entries(themes))('keeps every variant single-line and selected he
     expect(flat(screen.getByTestId('chip')).backgroundColor).not.toBe(idle)
   }
 })
-it('retains selection when disabled and never dispatches its action', async () => {
+it.each(appearances)('retains selection when disabled and never dispatches its action in %s', async appearance => {
   const onPress = jest.fn()
-  await render(<Chip label="Selected" variant="selected" disabled onPress={onPress} />)
+  await render(<Chip label="Selected" appearance={appearance} variant="selected" disabled onPress={onPress} />)
   const chip = screen.getByRole('button', { name: 'Selected' })
   expect(chip.props.accessibilityState).toEqual({ selected: true, disabled: true })
   await fireEvent.press(chip)
