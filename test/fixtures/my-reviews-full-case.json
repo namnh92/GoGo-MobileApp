@@ -1,0 +1,47 @@
+[
+  {
+    "id": "58200000-0000-4000-8000-000000000001",
+    "placeId": "58200000-0000-4000-9000-000000000001",
+    "placeName": "The Workshop Coffee",
+    "placeAddressText": "Ngô Đức Kế, Bến Nghé, TP.HCM",
+    "rating": 5,
+    "text": "Không gian thoáng, nhân viên hướng dẫn cách chọn hạt rất kỹ. Cà phê có hương hoa nhẹ, hậu vị ngọt và bánh còn ấm. Chúng tôi có một buổi trò chuyện dễ chịu, bàn ngồi thoải mái và âm nhạc vừa đủ nhỏ. Chúng tôi có một buổi trò chuyện dễ chịu, bàn ngồi thoải mái và âm nhạc vừa đủ nhỏ. Chúng tôi có một buổi trò chuyện dễ chịu, bàn ngồi thoải mái và âm nhạc vừa đủ nhỏ. Chúng tôi có một buổi trò chuyện dễ chịu, bàn ngồi thoải mái và âm nhạc vừa đủ nhỏ. Chúng tôi có một buổi trò chuyện dễ chịu, bàn ngồi thoải mái và âm nhạc vừa đủ nhỏ. ",
+    "status": "published",
+    "helpfulCount": 0,
+    "createdAt": "2026-11-09T03:15:00Z"
+  },
+  {
+    "id": "58200000-0000-4000-8000-000000000002",
+    "placeId": "58200000-0000-4000-9000-000000000002",
+    "placeName": "Mơ Concept & Roastery",
+    "placeAddressText": "Võ Thị Sáu, TP.HCM",
+    "rating": 4,
+    "text": "Quán yên tĩnh, có ổ cắm cạnh bàn. Cà phê và bánh thơm, tôi sẽ quay lại.",
+    "status": "pending",
+    "helpfulCount": 1,
+    "createdAt": "2026-11-08T03:15:00Z"
+  },
+  {
+    "id": "58200000-0000-4000-8000-000000000003",
+    "placeId": "58200000-0000-4000-9000-000000000003",
+    "placeName": "Quán Cà Phê Cũ",
+    "placeAddressText": "Nguyễn Đình Chiểu, TP.HCM",
+    "rating": 2,
+    "text": "Nước uống bình thường, phục vụ chậm.",
+    "status": "rejected",
+    "helpfulCount": 2,
+    "createdAt": "2026-11-07T03:15:00Z",
+    "rejectionReason": "Đánh giá chưa đủ chi tiết trải nghiệm thực tế"
+  },
+  {
+    "id": "58200000-0000-4000-8000-000000000004",
+    "placeId": "58200000-0000-4000-9000-000000000004",
+    "placeName": "Địa điểm từng ghé",
+    "placeAddressText": "Hà Nội",
+    "rating": 3,
+    "text": "Trải nghiệm trước đây của tôi.",
+    "status": "removed",
+    "helpfulCount": 3,
+    "createdAt": "2026-11-06T03:15:00Z"
+  }
+]

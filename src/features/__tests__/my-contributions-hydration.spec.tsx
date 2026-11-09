@@ -100,7 +100,7 @@ it.each(['budget_exhausted', 'deferred', 'unavailable', 'not_found', 'identity_m
   expect(screen.getByText('Liên kết Google Maps đã gửi')).toBeTruthy()
   expect(screen.getByText('Gửi ngày 07/11/2026')).toBeTruthy()
   expect(screen.getByText('Đang chờ duyệt')).toBeTruthy()
-  expect(screen.getByText('Đang kiểm duyệt nội dung')).toBeTruthy()
+  expect(screen.queryByText('Đang kiểm duyệt nội dung')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   expect(read).toHaveBeenCalledTimes(1)
 })
@@ -164,11 +164,11 @@ it('renders the non-retry note in English', async () => {
   }
 })
 
-it('omits the tab dock and renders supported SVG paths for the remaining contribution icons', async () => {
+it('retains the Stitch tab dock and renders supported SVG paths for contribution icons', async () => {
   mockItems = []
   await renderScreen(view())
   for (const name of ['Khám phá', 'Kế hoạch', 'Đã lưu', 'Cá nhân']) {
-    expect(screen.queryByRole('tab', { name })).toBeNull()
+    expect(screen.getByRole('tab', { name })).toBeTruthy()
   }
   expect(mockSvgPaths.length).toBeGreaterThan(0)
   for (const path of mockSvgPaths) expect(path).toEqual(expect.stringMatching(/^M/))
