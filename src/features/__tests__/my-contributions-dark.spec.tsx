@@ -59,7 +59,7 @@ it('keeps English controls and empty review actions readable with dark tokens', 
   await renderScreen(<MyContributionsScreen />)
   const selected = screen.getByRole('tab', { name: /Places/ })
   expect(StyleSheet.flatten(selected.props.style).backgroundColor).toBe(themes.orangeDark.accent.primary)
-  expect(StyleSheet.flatten(screen.getByText('Places').props.style).color).toBe(themes.orangeDark.accent.onAccent)
+  expect(StyleSheet.flatten(screen.getByText('Places (1)').props.style).color).toBe(themes.orangeDark.accent.onAccent)
   const chip = screen.getByRole('button', { name: 'All (1)' })
   expect(StyleSheet.flatten(chip.queryAll(node => node.type === 'View')[0].props.style).backgroundColor).toBe(themes.orangeDark.text.primary)
   expect(StyleSheet.flatten(screen.getByText('All (1)').props.style).color).toBe(themes.orangeDark.text.inverse)

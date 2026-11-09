@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/
 import { Atmosphere, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { Text } from '@/shared/ui/text'
+import { SegmentedTabs } from '@/shared/ui/segmented-tabs.view'
 import { ContributionPlaceCard } from '@/shared/ui/contribution-place-card.view'
 import { ContributionReviewCard } from '@/shared/ui/contribution-review-card.view'
 import { ContributionCardSkeleton } from '@/shared/ui/contribution-card.view'
@@ -125,19 +126,10 @@ export default function MyContributionsScreen() {
     <View><AppHeader showNotifications={false} title={t('myContributions.title')} onBack={() => router.back()}
       bellTestID="contributions-bell" unreadDotTestID="contributions-unread" /></View>
     {!registered ? <EmptyState title={t('notifications.signInTitle')} body={t('myContributions.signInBody')} action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} /> : <>
-      <View testID="filled-segmented-control" accessibilityRole="tablist" style={styles.segments}>
-        {(['places', 'reviews'] as const).map(value => {
-          const selected = tab === value
-          const count = value === 'places' ? `${items.length}${query.hasNextPage ? '+' : ''}` : reviewItems.length
-          const loaded = (value === 'places' ? query.data : reviews.data) != null
-          const label = t(`contributions.${value}`)
-          return <Pressable key={value} accessibilityRole="tab" accessibilityLabel={loaded ? t('myReviews.filterChip', { label, count }) : label}
-            accessibilityState={{ selected }} onPress={() => { setTab(value); setFilter('all') }} style={[styles.segment, selected && styles.segmentSelected]}>
-            <Text variant="avatarReset" color={selected ? 'accent.onAccent' : 'text.secondary'}>{label}</Text>
-            {loaded ? <View style={[styles.count, selected && styles.countSelected]}><Text variant="savedMeta" color={selected ? 'accent.onAccent' : 'text.secondary'}>{count}</Text></View> : null}
-          </Pressable>
-        })}
-      </View>
+      <SegmentedTabs value={tab} onChange={value => { setTab(value); setFilter('all') }} options={[
+        { value: 'places', label: t('contributions.places'), count: query.data == null ? undefined : `${items.length}${query.hasNextPage ? '+' : ''}` },
+        { value: 'reviews', label: t('contributions.reviews'), count: reviews.data == null ? undefined : reviewItems.length },
+      ]} />
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{options.map(value => {
         const label = tab === 'reviews' && value !== 'all' ? t(`contributions.reviewStatus.${value === 'approved' ? 'published' : value}`) : t(`myContributions.filter.${value}`)
         const fullLabel = active.data == null ? label : t('myReviews.filterChip', { label, count: `${statuses.filter(row => matches(row.status, value)).length}${tab === 'places' && query.hasNextPage ? '+' : ''}` })

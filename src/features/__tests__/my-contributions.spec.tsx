@@ -149,7 +149,7 @@ it('opens the review tab from Profile and retains rejected/removed statuses', as
 
 it('renders counted inset segments and the full-width add action from Stitch', async () => {
   await renderScreen(<MyContributionsScreen />)
-  expect(StyleSheet.flatten(screen.getByTestId('filled-segmented-control').props.style)).toMatchObject({ borderRadius: 16, marginHorizontal: 16 })
+  expect(StyleSheet.flatten(screen.getByTestId('segmented-tabs').props.style)).toMatchObject({ borderRadius: 999, marginHorizontal: 20 })
   expect(screen.getByRole('tab', { name: 'Địa điểm (4)' }).props.accessibilityState.selected).toBe(true)
   expect(screen.getByRole('tab', { name: 'Đánh giá (2)' }).props.accessibilityState.selected).toBe(false)
   expect(screen.getByRole('button', { name: 'Thêm địa điểm mới' })).toBeTruthy()

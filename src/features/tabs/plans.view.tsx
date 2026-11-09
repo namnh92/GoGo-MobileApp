@@ -14,7 +14,7 @@ import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useFocusedNow } from '@/shared/hooks/use-focused-now'
 import { budgetFact } from '@/shared/pricing/budget-unit'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
-import { FilledSegmentedControl } from '@/shared/ui/filled-segmented-control.view'
+import { SegmentedTabs } from '@/shared/ui/segmented-tabs.view'
 import { PlanCard } from '@/shared/ui/plan-card.view'
 import { Atmosphere, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
@@ -137,7 +137,7 @@ export default function PlansScreen() {
         <DraftResume />
       </View>
 
-      <FilledSegmentedControl value={tab} onChange={setTab} options={[
+      <SegmentedTabs value={tab} onChange={setTab} options={[
         { value: 'upcoming', label: t('plans.upcoming') },
         { value: 'history', label: t('plans.past') },
       ]} />
