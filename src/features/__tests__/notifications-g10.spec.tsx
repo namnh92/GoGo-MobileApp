@@ -86,6 +86,11 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
   const screen = await renderScreen(<NotificationsScreen />)
   const chips = chipSpy.mock.calls.map(([props]) => props)
   expect(chips).toHaveLength(4)
+  expect(chips.map(chip => chip.label)).toEqual([
+    viMessages['g10.filter.all'], viMessages['g10.filter.invite'], viMessages['g10.filter.plan'], viMessages['g10.filter.date'],
+  ])
+  expect(screen.getByText(viMessages['g10.filterUnavailable'])).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeEnabled()
   for (const chip of chips) {
     expect(chip.style).toBeUndefined()
     expect(chip.appearance).toBe('raised')
@@ -171,7 +176,13 @@ describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mo
     expect(screen.getByRole('header', { name: viMessages['g10.personalTitle'] })).toBeTruthy()
     expect(screen.queryByText('Phòng "Phòng thật"')).toBeNull()
     expect(screen.queryByText('32 mới')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Đọc tất cả' }).props.accessibilityState.disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    expect(screen.queryByText(viMessages['g10.allNotifications'])).toBeNull()
+    expect(chipSpy).not.toHaveBeenCalled()
+    for (const key of ['g10.filter.all', 'g10.filter.invite', 'g10.filter.plan', 'g10.filter.date', 'g10.filterUnavailable'] as const) {
+      expect(screen.queryByText(viMessages[key])).toBeNull()
+    }
+    expect(screen.getByText(viMessages['g10.personalSignInBody'])).toBeTruthy()
     expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: false })
     expect(mockSummaryQuery).toHaveBeenLastCalledWith({ enabled: false })
     expect(fetch).not.toHaveBeenCalled()

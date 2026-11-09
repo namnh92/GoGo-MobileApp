@@ -202,7 +202,7 @@ export default function NotificationsScreen() {
         onEndReached={() => {
           if (canRead && inbox.hasNextPage && !inbox.isFetchingNextPage) void inbox.fetchNextPage()
         }}
-        ListHeaderComponent={<View>
+        ListHeaderComponent={canRead ? <View>
           <StaleNotice hasData={canRead && !!inbox.data} error={inbox.error} onRetry={() => void inbox.refetch()} />
           <View style={styles.toolbar}>
             <View style={styles.toolbarTitle}>
@@ -226,7 +226,7 @@ export default function NotificationsScreen() {
               accessibilityLabel={`${t('g10.filter.date')}. ${t('g10.filterUnavailable')}`} />
           </ScrollView>
           <Text variant="introCaption" color="redesign.secondary" style={styles.filterNote}>{t('g10.filterUnavailable')}</Text>
-        </View>}
+        </View> : null}
         ListEmptyComponent={listState}
         ListFooterComponent={
           canRead && inbox.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: spacing[4] }} /> : null
