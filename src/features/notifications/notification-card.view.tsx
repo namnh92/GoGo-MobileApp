@@ -7,7 +7,7 @@ import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text, type TextColor } from '@/shared/ui/text'
 import { kindPresentation } from './notification-kind'
-import { notificationAge } from './notification-time'
+import { formatNotificationTime } from './notification-time'
 import { styles } from './notification-card.style'
 
 function RoomLine({ roomId }: { roomId: string }) {
@@ -41,9 +41,7 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
   const canOpenRoom = isUuid(payload?.roomId) && (item.kind === 'invite' || item.kind === 'preference_reminder')
   const canOpenPlan = ['plan_ready', 'plan_changed', 'date_reminder'].includes(item.kind ?? '') && (isUuid(payload?.roomId) || isUuid(payload?.planId))
   const expiry = item.kind === 'privacy_export_ready' && typeof payload?.expiresAt === 'string' ? parseApiDate(payload.expiresAt) : null
-  const age = created ? notificationAge(created) : null
-  const relativeTime = age ? t(age.unit === 'day' && age.count === 1 ? 'g10.time.yesterday' : age.unit === 'now' ? 'g10.time.now' : age.unit === 'minute'
-    ? 'g10.time.minute' : age.unit === 'hour' ? 'g10.time.hour' : 'g10.time.day', { count: age.count }) : null
+  const relativeTime = created ? formatNotificationTime(created, t) : null
 
   return <Card appearance="stitch" padded={false} style={[styles.row, unread && styles.rowUnread]}>
     <View testID={`notification-icon-${item.id}`} style={[styles.iconTile, item.kind === 'invite' || item.kind === 'preference_reminder' ? styles.infoTile : item.kind === 'plan_ready' ? styles.successTile : undefined]}>

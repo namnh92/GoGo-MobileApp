@@ -1,4 +1,4 @@
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
 import { Linking, StyleSheet } from 'react-native'
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { spacing, fontFamily } from '@/shared/ui/tokens'
@@ -566,6 +566,39 @@ describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture',
     await screen.rerender(<NotificationsScreen />)
     expect(screen.getByText('Không có thông báo loại này')).toBeTruthy()
     expect(screen.queryByTestId('notifications-loading-more')).toBeNull()
+  })
+  it.each([
+    [0, 'Vừa xong', 'Just now'],
+    [-60, 'Vừa xong', 'Just now'],
+    [60, '1 phút trước', '1 minute ago'],
+    [120, '2 phút trước', '2 minutes ago'],
+    [3600, '1 giờ trước', '1 hour ago'],
+    [7200, '2 giờ trước', '2 hours ago'],
+    [86400, 'Hôm qua', 'Yesterday'],
+    [4 * 86400, '4 ngày trước', '4 days ago'],
+  ] as const)('uses identical personal/system relative time at age %s seconds in vi/en', async (seconds, vi, en) => {
+    jest.setSystemTime(new Date('2026-11-09T10:00:00Z'))
+    const publishedAt = new Date(Date.now() - seconds * 1000).toISOString()
+    mockInbox = loadedInbox([{ ...item, createdAt: publishedAt }])
+    mockSystemInbox = { status: 'supported', data: { pages: [{ items: [{ id: 'system-time', kind: 'maintenance', title: 'System time regression', body: 'Public body', publishedAt }] }] } }
+    try {
+      for (const [locale, expected] of [['vi', vi], ['en', en]] as const) {
+        await act(async () => { await i18n.changeLanguage(locale) })
+        const screen = await renderScreen(<NotificationsScreen />)
+        expect(screen.getAllByText(expected)).toHaveLength(2)
+        expect(screen.queryByText(new Date(publishedAt).toLocaleString(locale))).toBeNull()
+        await screen.unmount()
+      }
+    } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+  })
+  it.each([null, 'not a date'])('omits invalid system publishedAt (%s) without hiding content', async publishedAt => {
+    mockSystemInbox = { status: 'supported', data: { pages: [{ items: [{ id: 'system-time', kind: 'maintenance', title: 'System time regression', body: 'Public body', publishedAt }] }] } }
+    const screen = await renderScreen(<NotificationsScreen />)
+    const section = screen.getByTestId('system-notifications-section')
+    expect(screen.getByText('System time regression')).toBeTruthy()
+    expect(screen.getByText('Public body')).toBeTruthy()
+    expect(within(section).queryAllByText(/trước|Hôm qua|Vừa xong/)).toHaveLength(0)
+    expect(screen.queryByText(/Invalid Date|NaN/)).toBeNull()
   })
   it.each(['user', 'guest'])('shows public rows above personal content for %s with independent read state', async status => {
     mockSession = status

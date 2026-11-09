@@ -10,11 +10,12 @@ import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/a
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { Skeleton } from '@/shared/ui/skeleton.view'
+import { formatNotificationTime } from './notification-time'
 import { styles } from './system-notifications.style'
 
 type Props = { inbox: ReturnType<typeof useSystemNotificationsQuery>; illustration: ReactNode }
 export function SystemNotificationsSection({ inbox, illustration }: Props) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const router = useRouter()
   const items = inbox.data?.pages.flatMap(page => page.items) ?? []
   return <View testID="system-notifications-section">
@@ -33,7 +34,7 @@ export function SystemNotificationsSection({ inbox, illustration }: Props) {
             <View style={styles.content}>
               <Text variant="introLabel" color="redesign.ink">{item.title}</Text>
               <Text variant="introBody" color="redesign.ink" style={styles.body}>{item.body}</Text>
-              {published ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{published.toLocaleString(i18n.language)}</Text> : null}
+              {published ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{formatNotificationTime(published, t)}</Text> : null}
               {canOpen ? <SecondaryBtn size="small" variant="neutralPill" label={t('g10.viewDetails')} onPress={() => router.push(routeForAction(action))} /> : null}
             </View>
           </Card>
