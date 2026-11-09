@@ -112,8 +112,8 @@ export default function ProfileScreen() {
     <AppHeader variant="tab-root" title={t('g11.profileHeading')} bellTestID="profile-bell" unreadDotTestID="profile-unread" />
     <ScrollView testID="profile-list" onScroll={fab.onScroll} scrollEventThrottle={fab.scrollEventThrottle}
       contentContainerStyle={{ paddingTop: 0, paddingBottom: fab.bottomInset }}>
-      {canRead && me.isPending ? (waiting ? <OfflineState /> : <LoadingState />) : canRead && me.isError ? <ErrorState error={me.error} onRetry={() => void me.refetch()} /> : (
-        <Card appearance="stitch" padded={false} style={styles.headerCard}>
+      {canRead && (me.isPending ? (waiting ? <OfflineState /> : <LoadingState />) : me.isError ? <ErrorState error={me.error} onRetry={() => void me.refetch()} /> : (
+        <Card testID="profile-identity-card" appearance="stitch" padded={false} style={styles.headerCard}>
           <View style={styles.identity}>
             <AvatarCircle label={(profile?.displayName ?? t('profile.guestName')).trim().charAt(0).toUpperCase()} size={64} imageUri={profile?.avatarUrl} />
             <View style={styles.identityText}>
@@ -126,7 +126,7 @@ export default function ProfileScreen() {
           </View>
           {interests.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.interests}>{interests.map(label => <Chip key={label} label={label} />)}</ScrollView> : null}
         </Card>
-      )}
+      ))}
       {!canRead ? <>
         <Card appearance="stitch" padded={false} style={styles.card}>
           <Text variant="title2">{t('g11.unlock')}</Text><Text color="text.secondary">{t('g11.unlockBody')}</Text>

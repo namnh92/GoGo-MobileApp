@@ -1,7 +1,7 @@
 let mockSubmissions = { data: { pages: [{ items: [] as { id: string }[], nextCursor: null as string | null }] }, isPending: false, isError: false }
 const mockSubmissionEnabled = jest.fn()
 jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: (enabled: boolean) => { mockSubmissionEnabled(enabled); return mockSubmissions } }))
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
 import i18n from '@/shared/i18n'
 import { StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
@@ -15,7 +15,7 @@ const mockUseMyRooms = jest.fn()
 let mockRooms = { data: { pages: [{ items: [] as { id: string }[], nextCursor: null as string | null }] }, isPending: false, isError: false, hasNextPage: false }
 const mockProfile = { displayName: 'An', homeAdministrativeArea: { provinceName: 'Hà Nội' }, interests: { mood: ['chill', 'unknown'] } }
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: jest.fn() }) }))
-jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ session: { kind: mockSession.status, userId: 'u' }, status: mockSession.status, signOut: mockSignOut }) }))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ session: mockSession.status === 'anonymous' ? null : { kind: mockSession.status, userId: 'u' }, status: mockSession.status, signOut: mockSignOut }) }))
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
 jest.mock('@/shared/api', () => ({
   useMe: () => ({ data: mockProfile }),
@@ -38,6 +38,40 @@ beforeEach(() => {
   mockUseMyRooms.mockClear()
   mockRooms = { data: { pages: [{ items: [], nextCursor: null }] }, isPending: false, isError: false, hasNextPage: false }
 })
+describe.each(['orange', 'orangeDark'] as const)('profile identity in %s', theme => {
+  beforeEach(() => {
+    UnistylesSheet.configure({ themes: { [theme]: themes[theme] } as unknown as typeof themes })
+  })
+  afterEach(() => { UnistylesSheet.configure({ themes }) })
+
+  it.each(['anonymous', 'guest'])('%s starts with the sign-in card and omits the entire identity card', async status => {
+    mockSession.status = status
+    await render(<ProfileScreen />)
+    expect(screen.queryByTestId('profile-identity-card')).toBeNull()
+    expect(screen.queryByText('Hồ sơ của bạn')).toBeNull()
+    expect(screen.queryByText('Chưa có tài khoản')).toBeNull()
+    expect(screen.queryByText('An')).toBeNull()
+    expect(screen.getByText('Mở khóa trọn vẹn GoGo')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Đăng nhập / đăng ký' })).toBeTruthy()
+  })
+
+  it('keeps the signed-in identity and removes it when the mounted tab becomes signed out', async () => {
+    const view = await render(<ProfileScreen />)
+    const identity = within(screen.getByTestId('profile-identity-card'))
+    expect(identity.getByText('A')).toBeTruthy()
+    expect(identity.getByText('An')).toBeTruthy()
+    expect(identity.getByText('Hà Nội')).toBeTruthy()
+    expect(identity.getByText('Thư giãn')).toBeTruthy()
+    expect(identity.getByRole('button', { name: i18n.t('g11.editProfile') })).toBeTruthy()
+    expect(screen.queryByText('Mở khóa trọn vẹn GoGo')).toBeNull()
+    mockSession.status = 'anonymous'
+    await view.rerender(<ProfileScreen />)
+    expect(screen.queryByTestId('profile-identity-card')).toBeNull()
+    expect(screen.queryByText('A')).toBeNull()
+    expect(screen.getByText('Mở khóa trọn vẹn GoGo')).toBeTruthy()
+  })
+})
+
 it.each(['user', 'guest'])('%s: shows zero rooms and still opens upcoming', async status => {
   mockSession.status = status
   await render(<ProfileScreen />)
