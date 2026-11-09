@@ -68,9 +68,9 @@ export function roomFor(
     members: Array.from({ length: audience === 'couple' ? 2 : 4 }, (_, index) => ({
       id: index === 0 ? 'me' : `member-${index}`,
       displayName: index === 0 ? 'Tôi' : `Người ${index}`,
-      role: (index === 0 ? 'host' : 'member') as 'host' | 'member',
+      role: (index === (audience === 'group-guest' ? 1 : 0) ? 'host' : 'member') as 'host' | 'member',
       selectionStatus: (everyonePicked ? 'completed' : 'pending') as 'completed' | 'pending',
-      isGuest: false,
+      isGuest: audience === 'group-guest' && index === 0,
     })),
   }
   const shape =

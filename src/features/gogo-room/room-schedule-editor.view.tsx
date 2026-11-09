@@ -1,6 +1,6 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
@@ -34,7 +34,7 @@ function defaultsFor(room: RoomSummary) {
   }
 }
 
-export function RoomScheduleEditor({ room, onCancel }: { room: RoomSummary; onCancel?: () => void }) {
+export function RoomScheduleEditor({ room, onCancel, blocked = false, onPendingChange, saveLabel }: { room: RoomSummary; onCancel?: () => void; blocked?: boolean; onPendingChange?: (pending: boolean) => void; saveLabel?: string }) {
   const { t } = useTranslation()
   const [notice, setNotice] = useState<string | null>(null)
   const update = useUpdateRoomConstraints(room.id)
@@ -47,6 +47,7 @@ export function RoomScheduleEditor({ room, onCancel }: { room: RoomSummary; onCa
     values,
     resetOptions: { keepDirtyValues: true },
   })
+  useEffect(() => { onPendingChange?.(update.isPending) }, [update.isPending, onPendingChange])
   const { isDirty } = form.formState
   // The room as it was when the host started typing. Sending that version,
   // not the latest one, is what turns a concurrent edit into a 409 instead
@@ -107,7 +108,7 @@ export function RoomScheduleEditor({ room, onCancel }: { room: RoomSummary; onCa
                   onChange(text)
                 }}
                 onBlur={onBlur}
-                editable={canEdit && !update.isPending}
+                editable={canEdit && !update.isPending && !blocked}
                 maxLength={16}
                 autoCorrect={false}
                 placeholder={t('roomSchedule.placeholder')}
@@ -124,11 +125,11 @@ export function RoomScheduleEditor({ room, onCancel }: { room: RoomSummary; onCa
       </View>
       <Text variant="caption" color="status.warningText">{t(canEdit ? 'roomManage.staleWarning' : 'roomSchedule.locked')}</Text>
       <SheetActions>
-      {onCancel ? <SecondaryBtn label={t('common.cancel')} onPress={onCancel} disabled={update.isPending} /> : null}
+      {onCancel ? <SecondaryBtn label={t('common.cancel')} onPress={onCancel} disabled={update.isPending || blocked} /> : null}
       <PrimaryBtn
-        label={t('account.save')}
+        label={saveLabel ?? t('account.save')}
         loading={update.isPending}
-        disabled={!canEdit || !isDirty}
+        disabled={!canEdit || !isDirty || blocked}
         onPress={() => void form.handleSubmit(submit)()}
       />
       </SheetActions>

@@ -1,4 +1,6 @@
-import { fireEvent, waitFor } from '@testing-library/react-native'
+import { fireEvent, waitFor, within } from '@testing-library/react-native'
+import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
+import { RoomEditSheet } from '@/features/gogo-room/room-edit-sheet.view'
 import { renderScreen, roomFor, type Audience } from './harness'
 let mockPending = false
 const mockMutate = jest.fn(async (body: Record<string, unknown>) => ({ ...roomFor('group-host'), constraintVersion: 8, constraints: body }))
@@ -8,6 +10,8 @@ jest.mock('@/shared/api', () => ({
 }))
 import { RoomScheduleEditor } from '@/features/gogo-room/room-schedule-editor.view'
 import { isoToLocalSchedule, localScheduleToIso } from '@/features/gogo-room/room-schedule'
+
+jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles'), 'ScopedTheme').mockImplementation(({ children }) => <>{children}</>)
 
 beforeEach(() => { mockMutate.mockClear(); mockPending = false })
 
@@ -58,20 +62,49 @@ it('does not allow an active room to be rescheduled', async () => {
 })
 
 
-describe('595 schedule editor audience × state', () => {
+
+describe.each(['orange', 'orangeDark'] as const)('595 schedule through real sheet / %s', theme => {
   const audiences: Audience[] = ['couple', 'group-host', 'group-guest']
-  it.each(audiences.flatMap(audience => ['default', 'loading', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
-    mockPending = state === 'loading'
-    const view = await renderScreen(<RoomScheduleEditor room={roomFor(audience)} onCancel={jest.fn()} />)
+  it.each(audiences.flatMap(audience => ['default', 'pending', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
+    const base = roomFor(audience)
+    const room = roomFor(audience, { constraints: { ...base.constraints!,
+      startAt: state === 'empty' ? undefined : '2026-11-14T11:30:00Z',
+      endAt: state === 'empty' ? undefined : '2026-11-14T15:00:00Z',
+    } })
+    const element = <ThemeScopeProvider name={theme}>
+      <RoomEditSheet label="Ngày giờ kèo" value="" pending={mockPending}>
+        {close => <RoomScheduleEditor room={room} onCancel={close} />}
+      </RoomEditSheet>
+    </ThemeScopeProvider>
+    const view = await renderScreen(element)
+    await fireEvent.press(view.getByText('Sửa'))
     const input = view.getByLabelText('Bắt đầu')
-    expect(input.props.editable).toBe(audience !== 'group-guest' && state !== 'loading')
-    if (state === 'empty') expect(input.props.value).toBe('')
-    if (state === 'error' && audience !== 'group-guest') {
+    expect(input.props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule('2026-11-14T11:30:00Z'))
+    expect(view.getByLabelText('Kết thúc (không bắt buộc)').props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule('2026-11-14T15:00:00Z'))
+    expect(input.props.editable).toBe(audience !== 'group-guest')
+    if (state === 'pending') {
+      mockPending = true
+      // Rerender the actual sheet with its pending close guard too.
+      await view.rerender(<ThemeScopeProvider name={theme}>
+        <RoomEditSheet label="Ngày giờ kèo" value="" pending>
+          {close => <RoomScheduleEditor room={room} onCancel={close} />}
+        </RoomEditSheet>
+      </ThemeScopeProvider>)
+      expect(view.getByLabelText('Bắt đầu', { includeHiddenElements: true }).props.editable).toBe(false)
+      expect(within(view.getByTestId('room-edit-sheet-modal')).getByTestId('blocking-loading-overlay')).toBeTruthy()
+      await fireEvent(view.getByTestId('room-edit-sheet-modal'), 'requestClose')
+      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+    } else if (state === 'error' && audience !== 'group-guest') {
       mockMutate.mockRejectedValueOnce(new Error('offline'))
-      await fireEvent.changeText(input, '12/09/2026 19:00')
+      await fireEvent.changeText(input, isoToLocalSchedule('2026-11-14T12:00:00Z'))
       await fireEvent.press(view.getByText('Lưu'))
       expect(await view.findByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
-    } else expect(mockMutate).not.toHaveBeenCalled()
-    expect(view.getByText('Huỷ')).toBeTruthy()
+      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+      expect(input.props.value).toBe(isoToLocalSchedule('2026-11-14T12:00:00Z'))
+    } else {
+      expect(mockMutate).not.toHaveBeenCalled()
+      if (audience === 'group-guest') expect(view.getByText('Không thể sửa lịch ở trạng thái hiện tại.')).toBeTruthy()
+    }
+    expect(view.getByText('Huỷ', { includeHiddenElements: true })).toBeTruthy()
   })
 })

@@ -4,6 +4,7 @@ import { touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   content: { paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[4], paddingBottom: theme.spacing[8], gap: theme.spacing[2] },
+  actions: { gap: theme.spacing[2] },
   badgeRow: { alignSelf: 'flex-start' },
   hero: { marginBottom: theme.spacing[4], gap: theme.spacing[2], backgroundColor: theme.surface.subtle },
   groupMembers: { backgroundColor: theme.surface.canvas, padding: 0, borderWidth: 0 },

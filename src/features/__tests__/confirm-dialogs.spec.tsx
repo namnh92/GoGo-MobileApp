@@ -1,5 +1,5 @@
 import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { Alert } from 'react-native'
 
 import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen, failed, pending, type Audience, type QueryLike } from './harness'
@@ -17,6 +17,8 @@ jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-na
 const mockRoomState: { query: QueryLike } = { query: mockLoaded(mockRoomFor('group-host')) }
 
 const mockClearDraft = jest.fn(async () => undefined)
+let mockConstraintsPending = false
+let mockRenamePending = false
 const mockUpdateConstraints = jest.fn(async () => mockRoomFor('group-host'))
 const mockRename = jest.fn(async (title: string) => ({ ...mockRoomFor('group-host'), title }))
 const mockTransition = jest.fn()
@@ -43,8 +45,8 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockRoomState.query,
   useRoomInvites: () => mockLoaded([]),
-  useUpdateRoomConstraints: () => ({ mutateAsync: mockUpdateConstraints, isPending: false }),
-  useRenameRoom: () => ({ mutateAsync: mockRename, isPending: false }),
+  useUpdateRoomConstraints: () => ({ mutateAsync: mockUpdateConstraints, isPending: mockConstraintsPending }),
+  useRenameRoom: () => ({ mutateAsync: mockRename, isPending: mockRenamePending }),
   useRevokeRoomInvite: () => ({ mutate: jest.fn() }),
   useRemoveRoomMember: () => ({ mutate: mockRemoveMember }),
   useTransitionRoom: () => ({ mutate: mockTransition, isPending: false }),
@@ -52,11 +54,14 @@ jest.mock('@/shared/api', () => ({
 }))
 
 import { DraftResume } from '@/features/create-date/draft-resume.view'
+import { isoToLocalSchedule } from '@/features/gogo-room/room-schedule'
 import RoomManageScreen from '@/features/gogo-room/room-manage.view'
 
 let alert: jest.SpyInstance
 beforeEach(() => {
   mockRoomState.query = mockLoaded(mockRoomFor('group-host'))
+  mockConstraintsPending = false
+  mockRenamePending = false
   jest.clearAllMocks()
   alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
 })
@@ -140,7 +145,7 @@ it('595 opens a title sheet, preserves the rename contract and closes on cancel'
   const view = await renderScreen(<RoomManageScreen />)
   await fireEvent.press(view.getAllByText('Sửa')[0])
   await fireEvent.changeText(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
-  await fireEvent.press(view.getByText('Lưu'))
+  await fireEvent.press(view.getByText('Lưu tên'))
   expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy')
   await fireEvent.press(view.getByText('Huỷ'))
   expect(view.queryByLabelText('Tên kèo')).toBeNull()
@@ -157,4 +162,141 @@ it('595 budget sheet uses selected chips and retains version, unit and other con
   expect(view.getAllByRole('button').some(node => node.props.accessibilityState?.selected === true)).toBe(true)
   await fireEvent.press(view.getByText('Lưu'))
   expect(mockUpdateConstraints).toHaveBeenCalledWith(expect.objectContaining({ expectedConstraintVersion: 9, budgetMode: room.constraints!.budgetMode, currency: room.constraints!.currency }))
+})
+
+
+describe('595 F-01 budget sheet pending', () => {
+  it('blocks inside the sheet modal and disables every budget chip until A completes', async () => {
+    let complete!: (value: ReturnType<typeof mockRoomFor>) => void
+    mockUpdateConstraints.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
+    const view = await renderScreen(<RoomManageScreen />)
+    await fireEvent.press(view.getAllByText('Sửa')[2])
+    const choices = view.getAllByRole('button').filter(node => node.props.accessibilityState?.selected === false)
+    await fireEvent.press(choices[0])
+    const choiceA = choices[0].props.accessibilityLabel
+    await fireEvent.press(view.getByText('Lưu'))
+    expect(mockUpdateConstraints).toHaveBeenCalledWith(expect.objectContaining({ budgetAmount: 500_000 }))
+    mockConstraintsPending = true
+    await view.rerender(<RoomManageScreen />)
+    const sheetModal = view.getByTestId('room-edit-sheet-modal')
+    expect(within(sheetModal).getByTestId('blocking-loading-overlay')).toBeTruthy()
+    const chips = within(sheetModal).getAllByRole('button', { includeHiddenElements: true }).filter(node => typeof node.props.accessibilityState?.selected === 'boolean')
+    expect(chips.length).toBeGreaterThan(1)
+    for (const chip of chips) expect(chip.props.accessibilityState.disabled).toBe(true)
+    await fireEvent.press(chips.find(node => node.props.accessibilityState.selected === false)!)
+    expect(chips.find(node => node.props.accessibilityLabel === choiceA)!.props.accessibilityState.selected).toBe(true)
+    await act(async () => complete(mockRoomFor('group-host')))
+    mockConstraintsPending = false
+    await view.rerender(<RoomManageScreen />)
+    expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+    await fireEvent.press(view.getByText('Huỷ'))
+    expect(view.queryByTestId('room-edit-sheet')).toBeNull()
+  })
+
+  it.each(['header', 'backdrop', 'android-back', 'escape', 'cancel'])('ignores %s close while pending', async path => {
+    const view = await renderScreen(<RoomManageScreen />)
+    await fireEvent.press(view.getAllByText('Sửa')[2])
+    mockConstraintsPending = true
+    await view.rerender(<RoomManageScreen />)
+    if (path === 'header') await fireEvent.press(view.getAllByLabelText('Quay lại', { includeHiddenElements: true }).at(-1)!)
+    if (path === 'backdrop') await fireEvent.press(view.getByLabelText('Đóng', { includeHiddenElements: true }))
+    if (path === 'android-back') await fireEvent(view.getByTestId('room-edit-sheet-modal'), 'requestClose')
+    if (path === 'escape') await fireEvent(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
+    if (path === 'cancel') await fireEvent.press(view.getByText('Huỷ', { includeHiddenElements: true }))
+    expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+  })
+})
+
+
+const scheduledConstraints = {
+  ...mockRoomFor('group-host').constraints!,
+  startAt: '2026-11-14T11:30:00Z', endAt: '2026-11-14T15:00:00Z',
+}
+
+describe.each(['orange', 'orangeDark'] as const)('595 combined manage sheet / %s', theme => {
+  it.each((['couple', 'group-host', 'group-guest'] as const).flatMap(audience =>
+    (['default', 'empty', 'pending-title', 'pending-schedule', 'error-title', 'error-schedule'] as const).map(state => [audience, state] as const),
+  ))('%s × %s', async (audience, state) => {
+    const room = mockRoomFor(audience, {
+      title: state === 'empty' ? undefined : 'Tên cũ', constraintVersion: 9,
+      constraints: state === 'empty' ? mockRoomFor(audience).constraints : scheduledConstraints,
+    })
+    mockRoomState.query = mockLoaded(room)
+    const element = () => <ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>
+    const view = await renderScreen(element())
+    if (audience === 'group-guest') {
+      expect(view.getByText('Chỉ chủ phòng')).toBeTruthy()
+      expect(view.queryByText('Sửa')).toBeNull()
+      expect(mockRename).not.toHaveBeenCalled()
+      expect(mockUpdateConstraints).not.toHaveBeenCalled()
+      return
+    }
+    // Both management rows open the same sheet containing both real editors.
+    await fireEvent.press(view.getAllByText('Sửa')[state === 'default' ? 1 : 0])
+    expect(view.getAllByTestId('room-edit-sheet')).toHaveLength(1)
+    expect(view.getByLabelText('Tên kèo').props.value).toBe(state === 'empty' ? '' : 'Tên cũ')
+    expect(view.getByLabelText('Bắt đầu').props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule(scheduledConstraints.startAt))
+    expect(view.getByLabelText('Kết thúc (không bắt buộc)').props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule(scheduledConstraints.endAt))
+    if (state.startsWith('pending')) {
+      mockRenamePending = state === 'pending-title'
+      mockConstraintsPending = state === 'pending-schedule'
+      await view.rerender(element())
+      expect(view.getByLabelText('Tên kèo', { includeHiddenElements: true }).props.editable).toBe(false)
+      expect(view.getByLabelText('Bắt đầu', { includeHiddenElements: true }).props.editable).toBe(false)
+      const modal = view.getByTestId('room-edit-sheet-modal')
+      expect(within(modal).getByTestId('blocking-loading-overlay')).toBeTruthy()
+      await fireEvent.press(view.getAllByLabelText('Quay lại', { includeHiddenElements: true }).at(-1)!)
+      await fireEvent.press(view.getByLabelText('Đóng', { includeHiddenElements: true }))
+      await fireEvent(modal, 'requestClose')
+      await fireEvent(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
+      await fireEvent.press(view.getByText('Huỷ', { includeHiddenElements: true }))
+      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+      expect(mockRename).not.toHaveBeenCalled()
+      expect(mockUpdateConstraints).not.toHaveBeenCalled()
+    } else if (state.startsWith('error')) {
+      if (state === 'error-title') {
+        mockRename.mockRejectedValueOnce(new Error('offline'))
+        await fireEvent.changeText(view.getByLabelText('Tên kèo'), 'Tên mới')
+        await fireEvent.press(view.getByText('Lưu tên'))
+        expect(mockUpdateConstraints).not.toHaveBeenCalled()
+      } else {
+        mockUpdateConstraints.mockRejectedValueOnce(new Error('offline'))
+        await fireEvent.changeText(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
+        await fireEvent.press(view.getByText('Lưu lịch'))
+        expect(mockRename).not.toHaveBeenCalled()
+      }
+      expect(await view.findByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
+      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+    }
+  })
+
+  it('saves name and schedule independently through the existing handlers and validates each form', async () => {
+    const room = mockRoomFor('group-host', { title: 'Tên cũ', constraintVersion: 9, constraints: scheduledConstraints })
+    mockRoomState.query = mockLoaded(room)
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
+    await fireEvent.press(view.getAllByText('Sửa')[0])
+    await fireEvent.changeText(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
+    await fireEvent.changeText(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
+    await fireEvent.changeText(view.getByLabelText('Kết thúc (không bắt buộc)'), '')
+    await fireEvent.press(view.getByText('Lưu tên'))
+    await waitFor(() => expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy'))
+    expect(mockUpdateConstraints).not.toHaveBeenCalled()
+    expect(view.getByLabelText('Bắt đầu').props.value).toBe(isoToLocalSchedule('2026-11-14T12:00:00Z'))
+    await fireEvent.press(view.getByText('Lưu lịch'))
+    await waitFor(() => expect(mockUpdateConstraints).toHaveBeenCalledWith({
+      ...scheduledConstraints, startAt: '2026-11-14T12:00:00.000Z', endAt: null, expectedConstraintVersion: 9,
+    }))
+    expect(mockRename).toHaveBeenCalledTimes(1)
+    await fireEvent.changeText(view.getByLabelText('Tên kèo'), 'x'.repeat(81))
+    await fireEvent.press(view.getByText('Lưu tên'))
+    expect(await view.findByText('Tên kèo tối đa 80 ký tự.')).toBeTruthy()
+    expect(mockRename).toHaveBeenCalledTimes(1)
+    await fireEvent.changeText(view.getByLabelText('Bắt đầu'), 'invalid')
+    await fireEvent.press(view.getByText('Lưu lịch'))
+    expect(await view.findByText(/Kiểm tra ngày giờ hợp lệ/)).toBeTruthy()
+    expect(mockUpdateConstraints).toHaveBeenCalledTimes(1)
+    await fireEvent.press(view.getByText('Huỷ'))
+    expect(view.queryByLabelText('Tên kèo')).toBeNull()
+    expect(view.queryByLabelText('Bắt đầu')).toBeNull()
+  })
 })

@@ -45,6 +45,7 @@ import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInviteDisplay } from './invite-state'
@@ -113,6 +114,8 @@ const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'de
 }
 
 export default function GoGoRoomScreen() {
+  const [actionHeight, setActionHeight] = useState(0)
+  const actionInset = useBottomBarInset(actionHeight)
   const { theme } = useUnistyles()
   // Avatar fills after the first, which is the theme accent (#297); the rest follow the theme.
   const avatarColors = [theme.accent.primary, theme.status.info, theme.status.success, theme.status.warning]
@@ -511,6 +514,77 @@ export default function GoGoRoomScreen() {
     ])
   }
 
+  // Stitch 5.11 fixes the host group's action deck; 5.10/5.12 keep it inline.
+  const fixedActions = roomType === 'group' && capabilities.isHost
+  const actions = <View style={styles.actions}>
+    {/* Back must not auto-open a run again, but a person can explicitly
+        return to its current decision screen without saving preferences. */}
+    {continueVoting && nextPath ? (
+      <PrimaryBtn
+        label={t('gogoRoom.continueVoting')}
+        onPress={() => router.push(nextPath)}
+        disabled={routingHold.held || startMatching.isPending}
+      />
+    ) : screen && nextPath ? (
+      <SecondaryBtn
+        label={t(screen === 'swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult')}
+        onPress={() => router.push(nextPath)}
+        disabled={routingHold.held || startMatching.isPending}
+      />
+    ) : null}
+
+    {/*
+      One dominant CTA per screen (spec §7). Choosing your own preferences
+      is the room's main job; once everyone has finished, the host's start
+      takes over as the dominant one. Host-only either way, and
+      server-enforced. Inviting lives in the code card above.
+    */}
+    {!capabilities.isHost && joinable ? <View style={styles.waitingNotice}><Icon name="clock" size={20} color="text.secondary" /><Text variant="bodySmall" color="text.secondary" style={styles.infoValue}>{t('roomLobby.waitHost')}</Text></View> : null}
+    {startVisible || continueVoting ? (
+      <SecondaryBtn
+        label={t('gogoRoom.myPreferences')}
+        onPress={() => router.push(`/room/${roomId}/preference`)}
+        style={styles.stackedBtn}
+      />
+    ) : (
+      <PrimaryBtn
+        label={t('gogoRoom.myPreferences')}
+        onPress={() => router.push(`/room/${roomId}/preference`)}
+      />
+    )}
+
+
+    {startVisible ? (
+      continueVoting ? (
+        <SecondaryBtn
+          label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+          onPress={() => { void beginMatching() }}
+          loading={startMatching.isPending}
+        />
+      ) : (
+        <PrimaryBtn
+          label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+          onPress={() => { void beginMatching() }}
+          loading={startMatching.isPending}
+        />
+      )
+    ) : null}
+
+    {capabilities.isHost && summary.matching?.canStartWithIncomplete ? (
+      <SecondaryBtn label={t('gogoRoom.partialContinue')} onPress={confirmPartialMatching} loading={startMatching.isPending} />
+    ) : null}
+    {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
+      <Text color="text.secondary" style={styles.body}>{t('gogoRoom.quorumRequired')}</Text>
+    ) : null}
+
+    {startMatching.isError ? (
+      <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
+        {t('gogoRoom.startFailed')}
+      </Text>
+    ) : null}
+
+  </View>
+
   return (
     <Atmosphere>
       <BlockingLoadingOverlay visible={startMatching.isPending || createInvite.isPending || revokeInvite.isPending} />
@@ -530,7 +604,7 @@ export default function GoGoRoomScreen() {
         </Text>
       ) : null}
       <PullToRefresh onRefresh={async () => { await room.refetch() }}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, fixedActions && { paddingBottom: actionInset + spacing[4] }]}>
         {roomType === 'couple' || !capabilities.isHost ? (
           <Card style={styles.hero}>
             <View style={styles.badgeRow}><Chip label={t(roomType === 'couple' ? 'roomLobby.couple' : 'roomLobby.group')} variant="info" /></View>
@@ -681,71 +755,7 @@ export default function GoGoRoomScreen() {
           </Card>
         ) : null}
 
-        {/* Back must not auto-open a run again, but a person can explicitly
-            return to its current decision screen without saving preferences. */}
-        {continueVoting && nextPath ? (
-          <PrimaryBtn
-            label={t('gogoRoom.continueVoting')}
-            onPress={() => router.push(nextPath)}
-            disabled={routingHold.held || startMatching.isPending}
-          />
-        ) : screen && nextPath ? (
-          <SecondaryBtn
-            label={t(screen === 'swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult')}
-            onPress={() => router.push(nextPath)}
-            disabled={routingHold.held || startMatching.isPending}
-          />
-        ) : null}
-
-        {/*
-          One dominant CTA per screen (spec §7). Choosing your own preferences
-          is the room's main job; once everyone has finished, the host's start
-          takes over as the dominant one. Host-only either way, and
-          server-enforced. Inviting lives in the code card above.
-        */}
-        {!capabilities.isHost && joinable ? <View style={styles.waitingNotice}><Icon name="clock" size={20} color="text.secondary" /><Text variant="bodySmall" color="text.secondary" style={styles.infoValue}>{t('roomLobby.waitHost')}</Text></View> : null}
-        {startVisible || continueVoting ? (
-          <SecondaryBtn
-            label={t('gogoRoom.myPreferences')}
-            onPress={() => router.push(`/room/${roomId}/preference`)}
-            style={styles.stackedBtn}
-          />
-        ) : (
-          <PrimaryBtn
-            label={t('gogoRoom.myPreferences')}
-            onPress={() => router.push(`/room/${roomId}/preference`)}
-          />
-        )}
-
-
-        {startVisible ? (
-          continueVoting ? (
-            <SecondaryBtn
-              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-              onPress={() => { void beginMatching() }}
-              loading={startMatching.isPending}
-            />
-          ) : (
-            <PrimaryBtn
-              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-              onPress={() => { void beginMatching() }}
-              loading={startMatching.isPending}
-            />
-          )
-        ) : null}
-
-        {capabilities.isHost && summary.matching?.canStartWithIncomplete ? (
-          <SecondaryBtn label={t('gogoRoom.partialContinue')} onPress={confirmPartialMatching} loading={startMatching.isPending} />
-        ) : null}
-        {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
-          <Text color="text.secondary" style={styles.body}>{t('gogoRoom.quorumRequired')}</Text>
-        ) : null}
-
-        {startMatching.isError ? (
-          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
-            {t('gogoRoom.startFailed')}
-          </Text>
-        ) : null}
+        {!fixedActions ? actions : null}
 
         {capabilities.isHost ? (
           <GhostBtn label={t('roomManage.title')} onPress={() => router.push(`/room/${roomId}/manage`)} />
@@ -759,6 +769,7 @@ export default function GoGoRoomScreen() {
         ) : null}
       </ScrollView>
       </PullToRefresh>
+      {fixedActions ? <GlassBar testID="room-lobby-actions" placement="floating" onHeightChange={setActionHeight}>{actions}</GlassBar> : null}
     </Atmosphere>
   )
 }

@@ -1,21 +1,24 @@
 # GoGo-MobileApp #595 — nhóm 05B
 
-Ngày: 2026-11-10. Phạm vi: UI-only, không commit, không push.
-Trạng thái: **chưa nghiệm thu 100% Stitch**. Đã sửa UI và bổ sung regression/state matrix;
+Ngày: 2026-11-10, round 2 trên `379a5eb`. Phạm vi: UI-only, không commit, không push.
+Trạng thái: **chưa nghiệm thu 100% Stitch**. Đã sửa F-01/F-02/F-03 và ghép tên + lịch vào một sheet UI-only;
 chưa có ảnh app Light/Dark cạnh Stitch vì CoreSimulatorService không truy cập được trong sandbox.
-Các điểm thiếu và chỗ cần owner quyết ở bảng bên dưới không được hiểu là đã được duyệt.
+Các lệch còn lại trong bảng bên dưới không được hiểu là đã được duyệt. Không có ảnh native mới trong round 2.
 
 ## Nguồn và revision
 
-- Issue được đọc qua GitHub connector: <https://github.com/namnh92/GoGo-MobileApp/issues/595>.
+- Round 1: issue được đọc qua GitHub connector: <https://github.com/namnh92/GoGo-MobileApp/issues/595>.
   `gh issue view 595 --repo namnh92/GoGo-MobileApp` thất bại kết nối `api.github.com`.
 - Nhánh: `feature/GOGO-595-redesign-g05b-room`.
-- HEAD thực tế khi kiểm tra: `c87ed82f84a1400bc68fa5c58304e1883dbc9f59`.
-  `c48d501` là ancestor; HEAD còn chứa shared refresh #590 và logo #587. Không reset/rebase.
+- HEAD khi bắt đầu/kết thúc round 2: `379a5eb737b0da0d0db3c6c84c6de2117d08ba13`.
+  Round-1 base là `c87ed82`; giữ nguyên nhánh, không reset/rebase/commit/push.
+- Đã đọc lại `dev/handoffs/codex-595.md` và `codex-review-request-595.sa.out` từ workspace cha.
+  Lệnh round 2 của owner cho phép ghép sheet UI-only, giữ riêng mutation/handler/validation.
 - Đã đọc `RTK.md` tại `~/.claude/RTK.md`, các rule `core`, `git`, `stitch-design`,
   `design-system`, `quality-gates`, `execution-policy`, cùng skill UI/Mobile/QA của workspace.
 - Đã dùng Stitch MCP `list_screens`, `get_screen`, `download_file` để đọc HTML **và ảnh** cả 5 màn.
-  Không ghi/sửa project Stitch. Inventory không có Dark cùng tên; Dark dùng AppToken Light/Dark chung
+  Round 2 đọc lại inventory, HTML và ảnh cả 5 màn qua MCP. Không ghi/sửa project Stitch.
+  Inventory không có Dark cùng tên; Dark dùng AppToken Light/Dark chung
   theo chỉ dẫn owner 2026-11-10. Không tự tạo bản Dark giả để chạy `parity.py`.
 - `parity.py` trên cặp HTML Stitch: **NOT RUN**, không có cặp HTML Dark trong project cho 5 tên này.
   Test render hai theme scope chỉ chứng minh nội dung/quyền/trạng thái; không thay thế native visual parity.
@@ -25,10 +28,10 @@ Các điểm thiếu và chỗ cần owner quyết ở bảng bên dưới khôn
 | Màn | Stitch | Light — phần đã dựng | Dark | Kết quả ảnh cạnh nhau |
 | --- | --- | --- | --- | --- |
 | 5.10 Phòng hẹn đôi | `10287728079123409484`, 780×2590 | Hero có badge couple, mã thật/copy/share theo capability, điều kiện theo thứ tự khu vực → lịch → ngân sách, roster thật, sở thích trước start. Không dựng người chưa tham gia. | Cùng component, màu theo theme semantic. | BLOCKED; chưa xác nhận 100%. |
-| 5.11 Phòng chờ nhóm | `14565909522755492896`, 780×2058 | Header mời nhóm; bỏ hero hai avatar; điều kiện có nhãn; các member là hàng riêng, badge role/status, số N và progress thật. Edit dùng route manage sẵn có. | Cùng component và AppToken. | BLOCKED; chưa xác nhận 100%. |
+| 5.11 Phòng chờ nhóm | `14565909522755492896`, 780×2058 | Header mời nhóm; bỏ hero hai avatar; điều kiện có nhãn; các member là hàng riêng, badge role/status, số N và progress thật. Edit dùng route manage sẵn có; GlassBar floating cố định CTA ngoài ScrollView, inset theo chiều cao bar thật. | Cùng component và AppToken. | BLOCKED; chưa xác nhận 100%. |
 | 5.12 Phòng chờ nhóm (Khách) | `18430637797999520424`, 780×2212 | Hero chung; điều kiện readonly; roster, trạng thái chờ host và chọn sở thích. Không lộ mã/share/start/edit host-only. | Cùng component và AppToken. | BLOCKED; chưa xác nhận 100%. |
 | 5.13 Quản lý phòng | `2792671546852313500`, 780×3396 | Cảnh báo stale đầu màn; điều kiện dạng hàng mở sheet; seed dùng PlaceCardSmall; member/remove và confirmations giữ nguyên; metadata lời mời/revoke; thẻ quyền host và vùng nguy hiểm. | Cùng component và AppToken. | BLOCKED; chưa xác nhận 100%. |
-| 5.14 Chỉnh sửa phòng hẹn | `10863076915262487091`, 780×1768 | Shared Sheet/AppHeader, input tên và editor lịch hiện hành; action Huỷ trái/Lưu phải qua SheetActions. Editor tên/lịch mở riêng để giữ từng validation/mutation, chưa phải combined editor như HTML. | Cùng component và AppToken. | BLOCKED; phần lịch của chính ảnh Stitch còn thiếu. |
+| 5.14 Chỉnh sửa phòng hẹn | `10863076915262487091`, 780×1768 | Shared Sheet/AppHeader, một sheet chứa đồng thời tên và lịch. Hai hàng Sửa cùng mở sheet này; Lưu tên (secondary) và Lưu lịch (primary) giữ nguyên từng mutation/validation. Huỷ ở trái Lưu lịch qua SheetActions. Khoá cả hai form và mọi đường đóng khi một mutation pending. | Cùng component và AppToken. | BLOCKED; phần lịch của chính ảnh Stitch còn thiếu. |
 
 ### 5.14 — phần HTML có nhưng ảnh chưa xác nhận
 
@@ -56,7 +59,7 @@ Nút dọc trong ảnh được thay bằng hàng ngang theo yêu cầu owner c�
 | Huỷ phòng “xóa mọi tin nhắn lịch trình” | 5.13 | Copy chưa có nguồn contract xác nhận xóa tin nhắn. | Giữ copy hiện hành: terminal, không khôi phục, mọi người mất quyền truy cập; giữ confirmation. |
 | Gợi ý nhanh tên, date shortcut, duration/recommendation badge | 5.14 | Không có chức năng hiện hành; ngày/giờ/duration trong HTML là mẫu, recommendation không có nguồn. | Chưa xây; owner quyết định phạm vi riêng. Giữ input ngày/giờ và parser/validation hiện hành, không giả duration. |
 | 40 ký tự, tên bắt buộc | 5.14 | Mâu thuẫn contract hiện hành: tối đa 80, tên trống xóa tên. | Giữ max 80 và nullable title, đã có test; không đổi data model/validation. |
-| Một editor lưu đồng thời tên và lịch | 5.14 | App hiện có hai form/mutation độc lập. Bản vá giữ hai editor riêng; đây là **phần chưa khớp**, không coi là đã được duyệt. | Cần chốt UX lưu một phần/thất bại một phần trước khi ghép. Nếu cần atomic: draft GoGo-BE “Atomic title + schedule patch với constraintVersion, giữ endAt:null và stale; validation toàn bộ trước write; conflict không ghi một phần.” Không mở issue. |
+| Một nút lưu đồng thời tên và lịch | 5.14 | Đã ghép **một sheet** theo lệnh owner round 2 (2026-11-10). Hai form vẫn lưu riêng qua handler hiện hành; không có atomic API. | Lưu tên (secondary), Lưu lịch (primary), notice lỗi/thành công riêng, không tự đóng khi save. Không thay payload/parser/validation. Nếu muốn một giao dịch atomic cần task logic/API riêng; không làm trong #595. |
 | Trang 10/cursor/load-more cho member/seed/invite | 5.10–5.13 | Summary chứa roster/seed đầy đủ, invites không có cursor. Không đổi API/data model. | Đã thêm PullToRefresh dùng refetch hiện hành; vẫn render đủ N. Draft GoGo-BE: “Cursor pagination limit=10 cho room members/seed/invites; total/progress toàn phòng tách khỏi số dòng đã tải; đảm bảo quyền host/member/guest và realtime reconciliation.” Không mở issue. |
 
 Không có dữ liệu thật ở khu vực/lịch/ngân sách lobby thì ẩn dòng. Giá luôn giữ unit từ budgetMode;
@@ -69,52 +72,71 @@ không đổi số tiền/divisor, không dùng “cả hai” cho nhóm. Không
 - UI bổ sung PullToRefresh trên lobby/manage, skeleton manage và offline state khi query chưa có dữ liệu.
 - Ma trận lobby/manage render couple | group-host | group-guest × default | loading | empty | error
   trong cả hai ThemeScope. Guest default/empty manage render permission-denied thay cho host controls.
-- Editor tên/lịch có ma trận audience × default | mutation-loading | empty field | mutation-error;
-  audience không được sửa luôn readonly và không gửi mutation. Có regression trim/null/max80,
+- Fixture `group-guest`: `myMemberId=me`, me là member + `isGuest:true`; host là member khác. Lobby kiểm tra badge Khách trên đúng hàng me và không có badge Chủ phòng trên hàng này.
+- Schedule matrix đi qua RoomEditSheet/Sheet thật trong cả hai theme: lịch có start/end, empty không có lịch, mutation-pending và mutation-error; guest readonly.
+- Manage matrix mở sheet combined qua cả hai hàng Sửa, kiểm tra name/start/end, pending từng mutation khoá cả hai form và mọi đường đóng, lỗi từng mutation không gọi mutation kia; guest bị chặn tại màn manage. Hai theme có test save riêng, giữ draft lịch sau rename, trim/max80, parser/validation, explicit endAt:null/version/budget.
+- Có regression trim/null/max80,
   end-before-start, explicit endAt:null, version, unit, partial-matching capability và confirmations.
 - ThemeScope trong Jest giữ context màu/text nhưng native ScopedTheme được mock: không phải bằng chứng
   về pixel/layout/native accessibility. Target/selected state dựa vào shared Button/Chip/Sheet.
 
-## Kiểm tra
+## Regression FAIL-before / PASS-after
+
+Command: `pnpm test:ui --runInBand src/features/__tests__/confirm-dialogs.spec.tsx src/features/__tests__/room-state-matrix.spec.tsx --testNamePattern='595 F-0'`.
+
+Production sources được tạm nạp nguyên bản bằng `git show 379a5eb:<path>` rồi khôi phục patch trong `finally`;
+không đổi HEAD/index. Cùng regression specs chạy trước và sau. Guest fixture mới không đổi dữ liệu host của regression.
+
+| Finding | FAIL trên production sources @379a5eb | PASS trên working tree round 2 | Evidence |
+| --- | --- | --- | --- |
+| F-01 | 5 fail / 1 pass: không tìm thấy blocking overlay bên trong sheet modal; header/backdrop/Android back/accessibility escape đóng sheet. Cancel vốn đã disabled nên pass. | 6 pass: overlay là descendant của sheet modal; tất cả chip disabled; chọn B không đổi A khi request A chưa xong; mọi close path bị chặn; hết pending có thể Huỷ. | `/tmp/595-r2/fail-before.log`, `/tmp/595-r2/pass-after.log`; `confirm-dialogs.spec.tsx:168–208` |
+| F-02 | 2 fail: cả Light/Dark đều tìm thấy CTA sở thích bên trong scroll content. | 2 pass: nhóm 30 người, CTA ngoài ScrollView trong GlassBar; measured bar height cập nhật content inset; route sở thích giữ nguyên. | Cùng hai log; `room-state-matrix.spec.tsx:333–348` |
+
+5.11 HTML có `fixed bottom-0` cho action bar và `pb-44` cho content. 5.10 chỉ cố định shell tab nav;
+Action Deck vẫn inline trong main dù comment ghi “Pinned”. 5.12 có Bottom Action Card trong content,
+không có fixed bottom CTA. Vì vậy chỉ 5.11 dùng floating GlassBar; test giữ CTA inline cho couple/guest
+ở `room-state-matrix.spec.tsx:352–358`.
+
+## Kiểm tra round 2
 
 | Command | Kết quả | Evidence |
 | --- | --- | --- |
-| `pnpm typecheck` | PASS, exit 0 | `/tmp/595-typecheck.log` |
-| `pnpm lint` | PASS, exit 0 | `/tmp/595-lint-final.log` |
-| `pnpm test` | FAIL, exit 1: 144 files PASS; 1 skipped; 1 failed. 1743 tests PASS, 39 skipped, 3 failed. | `/tmp/595-test-final.log` |
-| `pnpm test:ui --runInBand` | PASS, exit 0: 232 suites, 3425 tests, 11 snapshots. | `/tmp/595-ui-final.log` |
+| `pnpm typecheck` | PASS, exit 0 | `/tmp/595-r2/typecheck.log` |
+| `pnpm lint` | PASS, exit 0, không có diagnostics; không sửa `scripts/generate-brand-icons.mjs` | `/tmp/595-r2/lint.log` |
+| Affected specs: confirm-dialogs, room-state-matrix, room-schedule-editor, room-title-editor, room-lobby-plus, room-schedule-chip | PASS: 6 suites / 174 tests; full gate bên dưới chạy lại trên patch cuối | `/tmp/595-r2/affected.log` |
+| F-01/F-02 regression command ở trên | PASS, exit 0: 2 suites / 8 tests (116 tests ngoài filter skipped) | `/tmp/595-r2/pass-after.log` |
+| `pnpm test` | Exit 1: 1743 pass / 39 skipped / đúng 3 lỗi distribute-wrapper đã biết trong sandbox; submit-overlay guard PASS sau cập nhật hai overlay bindings | `/tmp/595-r2/unit.log` |
+| `pnpm test:ui --runInBand` | PASS, exit 0: 232 suites / 3485 tests / 11 snapshots | `/tmp/595-r2/ui.log` |
 | `git diff --check` | PASS | Không có whitespace errors. |
 
-Ba lỗi Vitest đều ở `src/shared/config/__tests__/distribute-wrapper.test.ts`:
+Round 2 còn đúng ba lỗi Vitest như round 1 ở `src/shared/config/__tests__/distribute-wrapper.test.ts`:
 `refuses while the owner is alive`, `refuses recovery while a recorded build process group is still alive`,
 `keeps the lock and run files when a recorded build group is still alive after the child exits`.
 Đây là nhóm process/liveness trong sandbox mà task giao Claude chạy lại bên ngoài; chưa coi Vitest toàn bộ xanh.
 Không sửa wrapper/test wrapper hoặc bypass sandbox để đổi kết quả.
-Ảnh app: BLOCKED (`xcrun simctl list devices booted`: CoreSimulatorService connection invalid,
-Operation not permitted, không khởi tạo được device set). Không đổi permission mode, không bypass sandbox.
+Ảnh app: BLOCKED. Round 2 chạy lại `rtk xcrun simctl list devices booted`, exit 1: CoreSimulatorService connection invalid,
+Operation not permitted, không khởi tạo được device set (`/tmp/595-r2/simulator.log`). Không đổi permission mode, không bypass sandbox.
+0/5 màn có đối chiếu ảnh app Light/Dark cạnh Stitch trong round 2; không nhận nghiệm thu pixel/native Modal từ Jest.
 Không thể ghi workspace handoff map ngoài writable root; báo cáo này là artifact trong worktree #595.
 
 
-## Files:dòng đã đổi
+## Files:dòng đã đổi round 2
 
-Các khoảng dưới đây là vị trí trong working tree cuối, gồm cả file mới. Diff thực tế là nguồn khi review.
+Các vị trí dưới đây là working tree round 2 so với HEAD `379a5eb`; dùng `git diff` làm nguồn khi review.
 
 | File | Dòng thay đổi chính |
 | --- | --- |
-| `src/features/gogo-room/gogo-room.view.tsx` | 2, 43–47, 82–111, 518, 532–540, 577–602, 620–671, 706–720, 761 |
-| `src/features/gogo-room/gogo-room.style.tsx` | 6–11, 85; xóa style hero avatar/progress không còn dùng |
-| `src/features/gogo-room/room-manage.view.tsx` | 12, 23–51, 76, 161–227, 285, 304–309, 327 |
-| `src/features/gogo-room/room-manage.style.tsx` | 6–12 |
-| `src/features/gogo-room/room-edit-sheet.view.tsx` | 1–24, mới |
-| `src/features/gogo-room/room-edit-sheet.style.tsx` | 1–7, mới |
-| `src/features/gogo-room/room-title-editor.view.tsx` | 11–13, 27, 88–96 |
-| `src/features/gogo-room/room-schedule-editor.view.tsx` | 6–13, 37, 92–134 |
-| `src/shared/i18n/vi.ts` | 768–777 |
-| `src/shared/i18n/en.ts` | 787–796 |
-| `src/features/__tests__/room-state-matrix.spec.tsx` | 1, 18–20, 78, 113, 139–142, 298–324 |
-| `src/features/__tests__/confirm-dialogs.spec.tsx` | 1–5, 14–21, 44–47, 59, 114–160 |
-| `src/features/__tests__/room-title-editor.spec.tsx` | 3–9, 25, 69–88 |
-| `src/features/__tests__/room-schedule-editor.spec.tsx` | 2–7, 12, 59–77 |
-| `src/features/__tests__/room-schedule-chip.spec.tsx` | 101, 104–105 |
-| `src/features/__tests__/room-lobby-plus.spec.tsx` | 42–46; bỏ regression của hero avatar cũ |
-| `docs/verification/issue-595-group-05b.md` | File mới: nguồn, đối chiếu 5 màn, bảng lệch, kết quả gate và danh mục file |
+| `src/features/gogo-room/room-manage.view.tsx` | 59–61, 162, 178–204: combined editor/pending; budget overlay trong sheet và chip disabled |
+| `src/features/gogo-room/room-edit-sheet.view.tsx` | 11–37: pending guard chung, header disabled, hai trigger chung một sheet |
+| `src/features/gogo-room/room-title-editor.view.tsx` | 27, 39, 57, 78, 92–97: pending callback, khoá chung, save label/secondary |
+| `src/features/gogo-room/room-schedule-editor.view.tsx` | 37, 50, 111, 128–132: pending callback, khoá chung, save label |
+| `src/features/gogo-room/gogo-room.view.tsx` | 48, 117–118, 517–586, 607, 758, 772: shared action deck + fixed GlassBar/inset trên 5.11 |
+| `src/features/gogo-room/gogo-room.style.tsx` | 7: action gap theo token |
+| `src/shared/i18n/vi.ts` | 827–829: combined sheet title / Lưu tên / Lưu lịch |
+| `src/shared/i18n/en.ts` | 846–848: combined sheet title / Save name / Save schedule |
+| `src/features/__tests__/harness.tsx` | 71, 73: guest fixture nhất quán với myRole/myMemberId |
+| `src/features/__tests__/room-state-matrix.spec.tsx` | 313–317, 333–358: guest badge, fixed CTA regression / inline couple-guest |
+| `src/features/__tests__/confirm-dialogs.spec.tsx` | 17–24, 53–54, 71–72, 148, 168–302: F-01, combined real-sheet matrix hai theme và separate saves/validation |
+| `src/features/__tests__/room-schedule-editor.spec.tsx` | 2–3, 15, 66–110: real-sheet matrix có lịch/empty/pending/error, hai theme |
+| `src/shared/ui/__tests__/submit-overlay.test.ts` | 25–29, 68–70: inventory kiểm tra cả hai overlay bindings thay vì một expression gộp |
+| `docs/verification/issue-595-group-05b.md` | Nguồn round 2, per-screen notes, deviation table, FAIL-before/PASS-after, checks và file map |

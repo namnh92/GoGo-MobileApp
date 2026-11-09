@@ -56,6 +56,9 @@ export default function RoomManageScreen() {
   const transitionRoom = useTransitionRoom(roomId)
   const removeSeedPlace = useRemoveRoomSeedPlace(roomId)
 
+  const [titlePending, setTitlePending] = useState(false)
+  const [schedulePending, setSchedulePending] = useState(false)
+  const editorPending = titlePending || schedulePending
   const [budgetAmount, setBudgetAmount] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const { confirm, dialog } = useDialog()
@@ -156,7 +159,7 @@ export default function RoomManageScreen() {
 
   return (
     <Atmosphere>
-      <BlockingLoadingOverlay visible={updateConstraints.isPending || transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending} />
+      <BlockingLoadingOverlay visible={transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending} />
       {header}
       <PullToRefresh onRefresh={async () => { await room.refetch(); await invites.refetch() }}>
       <ScrollView
@@ -172,14 +175,19 @@ export default function RoomManageScreen() {
           <Text variant="title2">{t('gogoRoom.constraints')}</Text>
         </View>
         <Card padded={false} style={styles.card}>
-        <RoomEditSheet label={t('roomTitle.title')} value={summary.title?.trim() || t('plans.untitled')}>
-          {close => <RoomTitleEditor room={summary} onCancel={close} />}
+        <RoomEditSheet pending={editorPending} title={t('roomEdit.title')} label={t('roomTitle.title')} value={summary.title?.trim() || t('plans.untitled')}
+          additionalRow={open => <View style={styles.conditionRow}>
+            <View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomSchedule.title')}</Text><Text variant="body">{roomScheduleLabel(constraints?.startAt ?? summary.scheduledDate, i18n.language) ?? t('roomSchedule.unset')}</Text></View>
+            <GhostBtn size="small" label={t('roomLobby.edit')} accessibilityHint={t('roomSchedule.title')} onPress={open} />
+          </View>}>
+          {close => <>
+            <RoomTitleEditor room={summary} blocked={editorPending} onPendingChange={setTitlePending} secondaryAction saveLabel={t('roomEdit.saveTitle')} />
+            <RoomScheduleEditor room={summary} onCancel={close} blocked={editorPending} onPendingChange={setSchedulePending} saveLabel={t('roomEdit.saveSchedule')} />
+          </>}
         </RoomEditSheet>
-        <RoomEditSheet label={t('roomSchedule.title')} value={roomScheduleLabel(constraints?.startAt ?? summary.scheduledDate, i18n.language) ?? t('roomSchedule.unset')}>
-          {close => <RoomScheduleEditor room={summary} onCancel={close} />}
-        </RoomEditSheet>
-        <RoomEditSheet onClose={() => setBudgetAmount(null)} label={t('roomManage.budgetTitle')} value={constraints?.budgetAmount ? `${formatMoney(constraints.budgetAmount, currency)} ${budgetUnitLabel(constraints.budgetMode, summary.type, t)}` : ''}>
+        <RoomEditSheet pending={updateConstraints.isPending} onClose={() => setBudgetAmount(null)} label={t('roomManage.budgetTitle')} value={constraints?.budgetAmount ? `${formatMoney(constraints.budgetAmount, currency)} ${budgetUnitLabel(constraints.budgetMode, summary.type, t)}` : ''}>
         {close => <View style={styles.editorBody}>
+          <BlockingLoadingOverlay visible={updateConstraints.isPending} />
           <Text variant="label" color="text.secondary">{t('roomManage.budgetTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary">
             {t(
@@ -193,7 +201,7 @@ export default function RoomManageScreen() {
               const active = selectedBudget === tier.amount
               return (
                 <Chip key={tier.key} label={`${formatMoney(tier.amount, currency)} ${budgetUnitLabel(constraints?.budgetMode, summary.type, t)}`}
-                  variant={active ? 'selected' : 'default'} onPress={() => setBudgetAmount(tier.amount)} />
+                  variant={active ? 'selected' : 'default'} disabled={updateConstraints.isPending} onPress={() => setBudgetAmount(tier.amount)} />
               )
             })}
           </View>

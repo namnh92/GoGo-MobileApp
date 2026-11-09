@@ -1,7 +1,7 @@
 import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
 import { Alert, StyleSheet } from 'react-native'
 import { surface, text, type } from '@/shared/ui/tokens'
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { failed, loaded, pausedOffline, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
 import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
@@ -310,6 +310,12 @@ describe.each(['orange', 'orangeDark'] as const)('595 lobby audience × state re
       if (audience === 'group-guest') {
         expect(view.queryByText('Quản lý phòng')).toBeNull()
         expect(view.queryByText('Tạo mã mời')).toBeNull()
+        if (state !== 'empty') {
+          expect(data.members!.find(member => member.id === data.myMemberId)).toMatchObject({ role: 'member', isGuest: true })
+          const meRow = view.getByText('Tôi').parent!.parent!
+          expect(within(meRow).getByText('Khách')).toBeTruthy()
+          expect(within(meRow).queryByText('Chủ phòng')).toBeNull()
+        }
       }
       if (audience !== 'couple') expect(view.queryByText(/cả hai|cho 2 người/)).toBeNull()
     }
@@ -321,4 +327,32 @@ describe.each(['orange', 'orangeDark'] as const)('595 lobby audience × state re
     for (let i = 0; i < 7; i++) expect(view.getByText(`Member ${i}`)).toBeTruthy()
     expect(view.getByText(/7 người/)).toBeTruthy()
   })
+})
+
+
+describe('595 F-02 fixed group lobby actions', () => {
+  it.each(['orange', 'orangeDark'] as const)('keeps group-host CTA outside long scroll content with a measured inset / %s', async theme => {
+    const data = roomFor('group-host', {}, { everyonePicked: true })
+    mockRoom.query = loaded({ ...data, participantCount: 30, members: Array.from({ length: 30 }, (_, i) => ({ ...data.members![i % data.members!.length], id: `p${i}`, displayName: `Member ${i}` })) })
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
+    const scroll = view.root!.queryAll(node => node.props.contentContainerStyle !== undefined)[0]
+    expect(within(scroll).queryByText('Chọn sở thích của bạn')).toBeNull()
+    expect(within(scroll).queryAllByText(START_MATCHING)).toHaveLength(0)
+    const bar = view.getByTestId('room-lobby-actions')
+    expect(within(bar).getByText('Chọn sở thích của bạn')).toBeTruthy()
+    expect(within(bar).queryAllByText(START_MATCHING)).toHaveLength(1)
+    await fireEvent(bar, 'layout', { nativeEvent: { layout: { height: 240 } } })
+    expect(StyleSheet.flatten(view.root!.queryAll(node => node.props.contentContainerStyle !== undefined)[0].props.contentContainerStyle).paddingBottom).toBeGreaterThanOrEqual(240)
+    await fireEvent.press(within(bar).getByText('Chọn sở thích của bạn'))
+    expect(mockPush).toHaveBeenCalledWith(`/room/${mockParams.roomId}/preference`)
+  })
+})
+
+
+it.each(['couple', 'group-guest'] as const)('595 retains Stitch inline action section for %s', async audience => {
+  mockRoom.query = loaded(roomFor(audience))
+  const view = await renderScreen(<GoGoRoomScreen />)
+  const scroll = view.root!.queryAll(node => node.props.contentContainerStyle !== undefined)[0]
+  expect(within(scroll).getByText('Chọn sở thích của bạn')).toBeTruthy()
+  expect(view.queryByTestId('room-lobby-actions')).toBeNull()
 })

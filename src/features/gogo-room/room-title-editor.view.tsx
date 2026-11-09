@@ -1,6 +1,6 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
@@ -24,7 +24,7 @@ const EDITABLE: readonly RoomSummary['status'][] = ['draft', 'collecting', 'matc
  * APP-049 (#202) — rename after creation. Emptying the field removes the name,
  * and every list falls back to "Kèo chưa đặt tên".
  */
-export function RoomTitleEditor({ room, onCancel }: { room: RoomSummary; onCancel?: () => void }) {
+export function RoomTitleEditor({ room, onCancel, blocked = false, onPendingChange, saveLabel, secondaryAction = false }: { room: RoomSummary; onCancel?: () => void; blocked?: boolean; onPendingChange?: (pending: boolean) => void; saveLabel?: string; secondaryAction?: boolean }) {
   const { t } = useTranslation()
   const rename = useRenameRoom(room.id)
   const [notice, setNotice] = useState<string | null>(null)
@@ -36,6 +36,7 @@ export function RoomTitleEditor({ room, onCancel }: { room: RoomSummary; onCance
     values,
     resetOptions: { keepDirtyValues: true },
   })
+  useEffect(() => { onPendingChange?.(rename.isPending) }, [rename.isPending, onPendingChange])
   const { isDirty } = form.formState
   const canEdit = room.myRole === 'host' && EDITABLE.includes(room.status)
 
@@ -52,6 +53,8 @@ export function RoomTitleEditor({ room, onCancel }: { room: RoomSummary; onCance
       )
     }
   }
+
+  const SaveButton = secondaryAction ? SecondaryBtn : PrimaryBtn
 
   return (
     <Card padded={false} style={styles.card}>
@@ -72,7 +75,7 @@ export function RoomTitleEditor({ room, onCancel }: { room: RoomSummary; onCance
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              editable={canEdit && !rename.isPending}
+              editable={canEdit && !rename.isPending && !blocked}
               maxLength={80}
               placeholder={t('plans.untitled')}
             />
@@ -86,12 +89,12 @@ export function RoomTitleEditor({ room, onCancel }: { room: RoomSummary; onCance
       />
       {canEdit ? null : <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text>}
       <SheetActions>
-      {onCancel ? <SecondaryBtn label={t('common.cancel')} onPress={onCancel} disabled={rename.isPending} /> : null}
-      <PrimaryBtn
-        label={rename.isPending ? t('account.saving') : t('account.save')}
+      {onCancel ? <SecondaryBtn label={t('common.cancel')} onPress={onCancel} disabled={rename.isPending || blocked} /> : null}
+      <SaveButton
+        label={rename.isPending ? t('account.saving') : saveLabel ?? t('account.save')}
         onPress={() => void form.handleSubmit(submit)()}
         loading={rename.isPending}
-        disabled={!canEdit || !isDirty}
+        disabled={!canEdit || !isDirty || blocked}
       />
       </SheetActions>
       {notice ? (
