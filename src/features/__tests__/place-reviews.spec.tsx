@@ -21,7 +21,6 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () =>
     mockLoaded({ id: 'place-1', name: 'Quán thử', rating: 4.6, ratingCount: 812, photos: [] }),
-  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: (placeId: string, order?: string) => mockUsePlaceReviews(placeId, order),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),

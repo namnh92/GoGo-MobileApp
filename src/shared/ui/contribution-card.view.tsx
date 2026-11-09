@@ -14,7 +14,7 @@ export function ContributionReason({ reason }: { reason?: string }) {
   </View> : null
 }
 
-/** Proxy authors are authoritative; a source is printed once even when the snapshot repeats it. */
+/** Stored photo authors are authoritative; a source is printed once even when the snapshot repeats it. */
 export function ContributionCredits({ data, sourceUrl, overlay = false }: { data: CardData; sourceUrl?: string; overlay?: boolean }) {
   const { t } = useTranslation()
   const { place } = data
@@ -24,6 +24,7 @@ export function ContributionCredits({ data, sourceUrl, overlay = false }: { data
   if (overlay) return <View testID="contribution-photo-credit" style={styles.photoCredits}>
     <Text variant="introCaption" color="onDark.strong">
       {attribution ? <Text testID={data.candidate ? 'import-photo-credit' : 'saved-photo-attribution'} variant="introCaption" color="onDark.strong"
+        accessibilityRole={sourceUrl ? 'link' : undefined} onPress={sourceUrl ? event => { event.stopPropagation(); void openWebsite(sourceUrl) } : undefined}
         accessibilityLabel={`${t('placeImport.photoCredit')}${place.photoAuthors?.map(author => author.displayName).join(', ') ?? ''} · ${attribution}`}>
         {t('placeImport.photoCredit')}{place.photoAuthors?.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="introCaption" color="onDark.strong"
           accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? event => { event.stopPropagation(); void openWebsite(author.uri!) } : undefined}>{index ? ', ' : ''}{author.displayName}</Text>)}

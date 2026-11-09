@@ -18,6 +18,7 @@ import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/
 import { Atmosphere, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { Text } from '@/shared/ui/text'
+import { usePlaceClock } from '@/shared/ui/use-place-clock'
 import { Chip } from '@/shared/ui/chip.view'
 import { SegmentedTabs } from '@/shared/ui/segmented-tabs.view'
 import { ContributionPlaceCard } from '@/shared/ui/contribution-place-card.view'
@@ -42,6 +43,7 @@ function dateLabel(value?: string, locale?: string) {
 function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const { t } = useTranslation()
   const router = useRouter()
+  const now = usePlaceClock()
   const canonical = item.status === 'approved' || item.status === 'merged'
   const detail = usePlaceDetail(canonical ? item.placeId : undefined)
   const online = useOnlineStatus()
@@ -58,8 +60,17 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const address = display.addressShort?.trim() || item.addressShort?.trim() || provider?.addressShort?.trim() || item.providerDisplay?.addressShort?.trim()
   const canRetry = submission.isError && isSubmissionDetailRetryable(submission.error)
   const factsUnavailable = submission.data && (['budget_exhausted', 'deferred'].includes(display.providerStatus ?? '') || !realName || !address)
-  const card = detailToPlaceCard({ id: item.id, name, addressText: address, ...detail.data })
-  if (!card.photoUrl && item.photoUrl) card.photoUrl = item.photoUrl
+  const deadline = display.updateDeadline ? Date.parse(display.updateDeadline) : NaN
+  const canUpdate = item.status === 'rejected' && deadline > now.getTime()
+  const photo = item.status !== 'rejected' || canUpdate ? display.photo : undefined
+  const card = detailToPlaceCard({
+    id: item.id, name, addressText: address,
+    rating: provider?.googleRating ?? undefined, ratingCount: provider?.googleRatingCount ?? undefined,
+    ...detail.data,
+    // Submission photos are stored CDN covers, never provider preview references.
+    photos: photo ? [photo] : item.status === 'rejected' ? [] : detail.data?.photos,
+  })
+  if (!card.photoUrl && item.photoUrl && item.status !== 'rejected') card.photoUrl = item.photoUrl
   const progress = <>
     {needsHydration && submission.isFetching ? <LoadingState /> : null}
     {needsHydration && submission.isError ? <ErrorState error={submission.error} /> : null}
@@ -72,14 +83,14 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
     status: item.status,
     submittedDate: dateLabel(item.createdAt),
     rejectionReason: item.rejectionReason ? t(`myContributions.rejection.${item.rejectionReason}`, { defaultValue: t('myContributions.rejection.other') }) : undefined,
-    sourceUrl: url,
+    sourceUrl: photo?.googleMapsUri ?? url,
     onSupplement: url ? () => router.push({ pathname: '/places/import', params: { url } }) : undefined,
   }
-  if (!canonical) return <ContributionPlaceCard {...common} preview={{
-    name, address, googleRating: provider?.googleRating, googleRatingCount: provider?.googleRatingCount,
-    photo: provider?.photo, attributions: provider?.attributions,
-    googlePlaceId: provider?.photo?.url.match(/^\/v1\/places\/google-provider-photo\/([A-Za-z0-9_-]{5,255})$/)?.[1],
-  }}>{progress}</ContributionPlaceCard>
+  if (!canonical) return <ContributionPlaceCard {...common} place={card}>{progress}
+    {item.status === 'rejected' && Number.isFinite(deadline) ? <Text testID="contribution-update-deadline" variant="introCaption" color="text.secondary">
+      {canUpdate ? t('contributions.updateRemaining', { hours: Math.ceil((deadline - now.getTime()) / 3_600_000) }) : t('contributions.updateExpired')}
+    </Text> : null}
+  </ContributionPlaceCard>
   return <ContributionPlaceCard {...common} place={card}
     onPress={item.placeId ? () => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } }) : undefined} />
 }

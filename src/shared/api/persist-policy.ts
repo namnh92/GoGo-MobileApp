@@ -33,7 +33,7 @@ export function isPublicAppQuery(queryKey: readonly unknown[]): boolean {
   if (root === 'system-notifications') return queryKey.length === 1
   if (root === 'administrative' || root === 'taxonomies') return true
   if (typeof id !== 'string' || !id) return false
-  if (root === 'place-provider-photos' || root === 'candidate-provider-photo') return queryKey.length === 2
+  if (root === 'candidate-provider-photo') return queryKey.length === 2
   return root === 'places' && id !== 'imports' && queryKey.length === 3 && (kind === 'detail' || kind === 'plan-summary')
 }
 
