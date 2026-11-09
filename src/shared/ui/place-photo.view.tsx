@@ -32,7 +32,6 @@ const FILL = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as c
 
 type Props = {
   /** The place's approved photo, when it has one. */
-  cachePolicy?: 'none'
   imageTestID?: string
   onPhotoError?: () => void
   /** Opt in where loading should shimmer; legacy callers retain their pin tile. */
@@ -54,7 +53,7 @@ export function PlacePhoto({ uri, style, icon, ...rest }: Props) {
   return <PhotoAttempt key={uri} uri={uri} style={style} icon={icon} {...rest} />
 }
 
-function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy, imageTestID, onPhotoError, loadingSkeleton }: Props & { uri: string }) {
+function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, imageTestID, onPhotoError, loadingSkeleton }: Props & { uri: string }) {
   const reduced = useReducedMotionPreference()
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading')
   const label = accessibilityLabel ?? name
@@ -68,8 +67,8 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy,
       {status === 'loading' && loadingSkeleton ? <PhotoSkeleton /> : <Pin icon={icon} testID={status === 'loaded' ? 'place-photo-underlay' : status === 'failed' ? 'place-photo-placeholder' : 'place-photo-loading'} style={styles.underlay} />}
       {status !== 'failed' ? <Image
         testID={imageTestID ?? 'place-photo-image'}
-        source={{ uri }}
-        cachePolicy={cachePolicy}
+        source={{ uri, cacheKey: uri }}
+        cachePolicy="memory-disk"
         // The view is not reused for another place's picture (Sol #348 F-01).
         recyclingKey={uri}
         style={FILL}

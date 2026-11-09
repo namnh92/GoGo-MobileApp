@@ -30,7 +30,7 @@ function PlanThumbnail({ stop, standalone = false }: { stop: Stop; standalone?: 
   let url: string | null = null
   try { if (photo?.url) url = new URL(photo.url, env.apiUrl).href } catch { /* Unusable media is omitted. */ }
   if (!url || url === failed || !/^https?:\/\//.test(url)) return null
-  const image = <Image testID="notification-plan-thumbnail" source={{ uri: url }}
+  const image = <Image cachePolicy="memory-disk" testID="notification-plan-thumbnail" source={{ uri: url, cacheKey: url }}
     style={styles.thumbnail} contentFit="cover" onError={() => setFailed(url)} accessible={false} />
   return standalone ? <View style={styles.preview}>{image}</View> : image
 }

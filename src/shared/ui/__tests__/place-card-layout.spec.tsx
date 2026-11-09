@@ -1,5 +1,6 @@
+import { render } from './query-render'
 import '@/shared/i18n'
-import { fireEvent, render, screen, within } from '@testing-library/react-native'
+import { fireEvent,  screen, within } from '@testing-library/react-native'
 import { StyleSheet, View } from 'react-native'
 import { detailToPlaceCard, toPlaceCard, type PlaceDetail, type PlaceSearchResult, type PlaceCard as PlaceCardModel } from '@/shared/api'
 import { PlaceCardLarge } from '../place-card-large.view'

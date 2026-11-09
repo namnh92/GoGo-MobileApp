@@ -85,7 +85,7 @@ it('renders snapshot rating and proxy credits while omitting hours with dark car
   expect(StyleSheet.flatten(screen.getByTestId('place-google-rating').props.style).backgroundColor).toBe(themes.orangeDark.surface.container)
   expect(screen.getByLabelText('★ 4,7 (123) Google')).toBeTruthy()
   expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
-  expect(screen.getByTestId('import-candidate-photo').props.source).toEqual([{ uri: 'data:image/jpeg;base64,cGhvdG8=' }])
+  expect(screen.getByTestId('import-candidate-photo').props.source).toEqual([{ uri: 'data:image/jpeg;base64,cGhvdG8=', cacheKey: 'data:image/jpeg;base64,cGhvdG8=' }])
   expect(screen.getByTestId('import-photo-credit').props.accessibilityLabel).toContain('Proxy photographer')
   expect(screen.queryByText('Xác minh')).toBeNull()
 })

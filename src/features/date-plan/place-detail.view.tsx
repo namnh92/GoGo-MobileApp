@@ -370,13 +370,12 @@ export default function PlaceDetailScreen() {
                   placeId={id}
                   name={name}
                   uri={photo.url}
-                  cachePolicy={photo.transient ? 'none' : undefined}
                   style={[styles.galleryPage, { width: galleryWidth }]}
                 />
               ))}
             </ScrollView>
           ) : (
-            <PlacePhoto placeId={id} name={name} uri={photos[0].url} cachePolicy={photos[0].transient ? 'none' : undefined} style={StyleSheet.absoluteFill} />
+            <PlacePhoto placeId={id} name={name} uri={photos[0].url} style={StyleSheet.absoluteFill} />
           )}
           {photos.length > 0 ? <View pointerEvents="none" style={styles.imageScrim} /> : null}
 

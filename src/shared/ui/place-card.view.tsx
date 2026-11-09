@@ -67,7 +67,7 @@ export function useCardData(props: PlaceCardProps) {
   const statusLabel = candidate && place.openNow && schedule ? `${t('common.open')} · ${schedule}` : undefined
   return { place, candidate, statusLabel, loading: !!candidate && candidatePhoto.status === 'loading',
     photoError: () => setFailedPhoto(photo?.uri ?? null),
-    extraCredits: [...new Set(candidate?.attributions ?? [])].filter(credit => credit.trim() !== photo?.attribution.trim()) }
+    extraCredits: photo ? [...new Set(candidate?.attributions ?? [])].filter(credit => credit.trim() !== photo.attribution.trim()) : [] }
 }
 export type CardData = ReturnType<typeof useCardData>
 
@@ -76,11 +76,10 @@ export function CardImage({ data, small = false, loadingSkeleton = false }: { da
   return <>
     <PlacePhoto placeId={data.place.id} name={data.place.name} uri={data.place.photoUrl}
       loadingSkeleton={loadingSkeleton}
-      cachePolicy={data.candidate ? 'none' : undefined}
       imageTestID={data.candidate ? small ? 'place-preview-thumbnail' : 'import-candidate-photo' : undefined}
       onPhotoError={data.photoError} style={StyleSheet.absoluteFill} />
     {data.loading ? <View testID="import-candidate-photo-loading" style={StyleSheet.absoluteFill} accessible accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} /> : null}
-    {data.loading && loadingSkeleton ? <PhotoSkeleton testID="contribution-photo-fetch-loading" /> : null}
+    {data.loading ? <PhotoSkeleton testID="contribution-photo-fetch-loading" /> : null}
   </>
 }
 

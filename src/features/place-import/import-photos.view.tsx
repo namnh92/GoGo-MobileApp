@@ -75,10 +75,10 @@ export function ImportPhotos({ photos, onChange }: { photos: string[]; onChange:
           <View key={uri} style={styles.localPhoto}>
             <Image
               testID="import-local-photo"
-              source={{ uri }}
+              source={{ uri, cacheKey: uri }}
               style={styles.photoFill}
               contentFit="cover"
-              cachePolicy="none"
+              cachePolicy="memory-disk"
               accessible
               accessibilityLabel={t('placeImport.localPhoto', { index: index + 1 })}
             />

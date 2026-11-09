@@ -197,7 +197,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
               accessibilityRole="button"
               accessibilityLabel={t('checkin.removePhoto')}
             >
-              <Image source={{ uri: photo.uri }} style={styles.photoThumb} contentFit="cover" />
+              <Image cachePolicy="memory-disk" source={{ uri: photo.uri, cacheKey: photo.uri }} style={styles.photoThumb} contentFit="cover" />
               {photo.key === null && !photo.failed ? (
                 <View style={styles.photoOverlay}>
                   <LoadingIndicator size={loadingIndicator.compactSize} />

@@ -169,7 +169,7 @@ export function usePlaceProviderPhotos(placeId: string | undefined) {
     queryKey: ['place-provider-photos', placeId],
     queryFn: () => placesApi.getPlaceProviderPhotos(placeId as string),
     enabled: Boolean(placeId),
-    gcTime: 0,
+    gcTime: Infinity,
     staleTime: Infinity,
     retry: false,
     refetchOnReconnect: false,

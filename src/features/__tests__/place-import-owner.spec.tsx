@@ -138,7 +138,7 @@ it('fetches the contract photo reference as JSON, displays returned bytes/credit
   await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
   expect(mockGet).toHaveBeenCalledTimes(1)
   expect(mockGet).toHaveBeenCalledWith('/places/google-provider-photo/ChIJtest', expect.objectContaining({ anonymous: true }))
-  expect(screen.getByTestId('import-candidate-photo').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,aGVsbG8=' }], cachePolicy: 'none' })
+  expect(screen.getByTestId('import-candidate-photo').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,aGVsbG8=' }], cachePolicy: 'memory-disk' })
   expect(screen.getByText('Ảnh: Lan · Google Maps')).toBeTruthy()
   await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&new=1')
@@ -209,10 +209,8 @@ it('drops a late candidate photo response after the link changes', async () => {
       }),
   )
   await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
-  const signal = mockGet.mock.calls[0][1].signal as AbortSignal
   await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&new=1')
-  expect(signal.aborted).toBe(true)
   await act(async () => {
     finish({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'bGF0ZQ==', authorAttributions: [] }] })
   })
@@ -683,9 +681,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps the submitted photo frame with
   const response = { status: 'ok', attribution: 'Google Maps', photos: [
     { contentType: 'image/jpeg', dataBase64: 'AA==', authorAttributions: [{ displayName: 'Photo author' }] },
   ] }
-  let finish!: (value: unknown) => void
-  mockGet.mockResolvedValueOnce(response)
-  mockGet.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  mockGet.mockResolvedValue(response)
   await preview({ ...candidate, address: '12 Nguyễn Huệ', attributions: ['Distinct provider credit'], googleRating: 4.6, googleRatingCount: 980,
     openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 420, closeMinute: 600 })),
     photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
@@ -696,12 +692,11 @@ it.each(['orange', 'orangeDark'] as const)('keeps the submitted photo frame with
   const frameStyle = () => StyleSheet.flatten(photo.props.style)
   const before = frameStyle()
   expect(before).toMatchObject({ width: 80, height: 80 })
-  expect(row.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
-  await act(async () => { finish(response) })
+  expect(mockGet).toHaveBeenCalledTimes(1)
   expect(frameStyle()).toEqual(before)
   expect(row.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
   await waitFor(() => expect(row.getByTestId('place-preview-thumbnail')).toBeTruthy())
-  expect(row.getByTestId('place-preview-thumbnail').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,AA==' }], cachePolicy: 'none' })
+  expect(row.getByTestId('place-preview-thumbnail').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,AA==' }], cachePolicy: 'memory-disk' })
   const body = row.getByTestId('place-card-body')
   const credit = within(body).getByText('Ảnh: Photo author · Google Maps')
   expect(within(body).getByText('12 Nguyễn Huệ')).toBeTruthy()

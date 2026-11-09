@@ -282,7 +282,7 @@ it('defers upload until crop confirmation, preserves the old avatar on cancel, a
   await fireEvent.press(view.getByRole('button', { name: 'Đóng' }))
   expect(mockUpload).not.toHaveBeenCalled()
   expect(mockSetAvatar).not.toHaveBeenCalled()
-  expect(view.getByTestId('avatar-image').props.source).toEqual([{ uri: 'https://assets-test.local/old.webp' }])
+  expect(view.getByTestId('avatar-image').props.source).toEqual([{ uri: 'https://assets-test.local/old.webp', cacheKey: 'https://assets-test.local/old.webp' }])
 })
 
 it.each(['camera', 'library'])('waits for %s completion before showing the in-screen editor on every selection', async source => {

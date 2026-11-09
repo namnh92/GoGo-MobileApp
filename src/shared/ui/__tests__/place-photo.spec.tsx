@@ -129,7 +129,7 @@ describe('PlacePhoto', () => {
     await fire('onError')
     await view.rerender(<PlacePhoto placeId="p1" uri={other} />)
     await view.rerender(<PlacePhoto placeId="p1" uri={PHOTO} />)
-    expect(screen.getByTestId('place-photo-image').props.source).toEqual({ uri: PHOTO })
+    expect(screen.getByTestId('place-photo-image').props.source).toEqual({ uri: PHOTO, cacheKey: PHOTO })
     expect(screen.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
   })
 
@@ -144,9 +144,10 @@ describe('PlacePhoto', () => {
 })
 
 
-it('never hands transient provider bytes to the disk cache', async () => {
-  await render(<PlacePhoto placeId="p1" uri="data:image/jpeg;base64,YQ==" cachePolicy="none" />)
-  expect(screen.getByTestId('place-photo-image').props.cachePolicy).toBe('none')
+it('caches provider data URIs with a stable key across mounts', async () => {
+  await render(<PlacePhoto placeId="p1" uri="data:image/jpeg;base64,YQ==" />)
+  expect(screen.getByTestId('place-photo-image').props.cachePolicy).toBe('memory-disk')
+  expect(screen.getByTestId('place-photo-image').props.source).toMatchObject({ cacheKey: 'data:image/jpeg;base64,YQ==' })
 })
 
 
