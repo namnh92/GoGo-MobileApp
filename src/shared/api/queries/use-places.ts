@@ -1,3 +1,4 @@
+import { firstPageRefetch } from './first-page-refetch'
 import { captureSessionScope } from '../session'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
@@ -20,7 +21,8 @@ const PAGE_SIZE = 20
  * matching what the ranking actually did.
  */
 export function usePlaceSearch(query: PlaceSearchQuery, options?: { enabled?: boolean }) {
-  return useInfiniteQuery({
+  const client = useQueryClient()
+  const result = useInfiniteQuery({
     queryKey: queryKeys.placeSearch(query),
     queryFn: ({ pageParam }) =>
       countedSearch({ ...query, includeTotal: pageParam ? undefined : query.includeTotal, limit: query.limit ?? PAGE_SIZE, cursor: pageParam }),
@@ -28,6 +30,7 @@ export function usePlaceSearch(query: PlaceSearchQuery, options?: { enabled?: bo
     getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
     enabled: options?.enabled ?? true,
   })
+  return { ...result, refetch: firstPageRefetch(client, queryKeys.placeSearch(query), result.refetch) }
 }
 
 export function usePlaceDetail(placeId: string | undefined) {

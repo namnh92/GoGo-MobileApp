@@ -1,3 +1,4 @@
+import { firstPageRefetch } from './first-page-refetch'
 import { type QueryClient, type UseMutationResult, useInfiniteQuery, useIsMutating, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 
@@ -392,7 +393,8 @@ export function useToggleReviewHelpful(placeId: string) {
 export function useNotifications(options?: { enabled?: boolean; category?: InboxCategory }) {
   const category = options?.category ?? 'all'
   const kinds = inboxKinds[category]
-  return useInfiniteQuery({
+  const client = useQueryClient()
+  const result = useInfiniteQuery({
     queryKey: queryKeys.notifications(category),
     queryFn: async ({ pageParam }) => {
       const cursor = pageParam?.cursor
@@ -415,6 +417,7 @@ export function useNotifications(options?: { enabled?: boolean; category?: Inbox
       ? { cursor: lastPage.nextCursor, clientFilter: lastPage.clientFilter } : undefined,
     enabled: options?.enabled ?? true,
   })
+  return { ...result, refetch: firstPageRefetch(client, queryKeys.notifications(category), result.refetch) }
 }
 
 export function useMarkNotificationRead() {

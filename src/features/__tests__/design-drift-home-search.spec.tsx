@@ -1159,7 +1159,7 @@ describe('#515 Astra F-12..F-14', () => {
         expect(url.searchParams.get('moods')).toBe('cozy')
         expect(url.searchParams.get('lat')).toBe('21')
         expect(url.searchParams.get('lng')).toBe('105')
-        expect(url.searchParams.get('limit')).toBe('20')
+        expect(url.searchParams.get('limit')).toBe('10')
       }
       expect(urls.slice(1).every(url => !url.searchParams.has('includeTotal'))).toBe(true)
       await fireEvent.press(view.getByText(i18n.t('discovery.list')))
@@ -1413,4 +1413,13 @@ it('keeps the app-wide scope after changing areas and returning to the entry are
   await act(async () => { useDiscoveryAreaStore.setState({ area: entryArea }) })
   expect(mockQueries.at(-1)).toMatchObject({ provinceCode: '01' })
   expect(within(view.getByTestId('search-header')).getByText('Hà Nội')).toBeTruthy()
+})
+
+it('pulls to refresh the explore list and requests pages of ten', async () => {
+  const refetch = jest.fn().mockResolvedValue(undefined)
+  mockSearch.value = { ...emptyPage(), refetch }
+  const screen = await renderScreen(<SearchScreen />)
+  await act(async () => { screen.getByTestId('search-results').props.refreshControl.props.onRefresh() })
+  expect(refetch).toHaveBeenCalledTimes(1)
+  expect(mockQueries.at(-1)).toMatchObject({ limit: 10 })
 })

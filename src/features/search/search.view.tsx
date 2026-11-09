@@ -101,9 +101,9 @@ export default function SearchScreen() {
   const activeFilterCount = Object.keys(applied).length
   const searchQuery: PlaceSearchQuery = useMemo(() => ({
     ...scopeSearchParams(scope),
-    locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true, ...(suggestions === '1' && !isPicker ? { limit: 10 } : {}),
+    locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true, limit: 10,
     ...applied, ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
-  }), [isPicker, scope, applied, debouncedQuery, i18n.language, suggestions])
+  }), [scope, applied, debouncedQuery, i18n.language])
   const baseKey = JSON.stringify(searchQuery)
   const [exploration, setExploration] = useState<{ key: string; region: NonNullable<ReturnType<typeof discoveryMap>['region']> } | null>(null)
   const viewport = mode === 'map' && exploration?.key === baseKey ? exploration.region : null
@@ -225,7 +225,7 @@ export default function SearchScreen() {
     return null
   }
   function renderResults(mapFallback = false) {
-    return <PullToRefresh onRefresh={() => search.refetch()} enabled={!search.isPending && !search.isPaused}><FlatList
+    return <PullToRefresh onRefresh={() => search.refetch()} refreshing={search.isRefetching && !search.isFetchingNextPage} enabled={!search.isPending && !search.isPaused}><FlatList
       testID="search-results" data={results} keyExtractor={place => place.id}
       contentContainerStyle={[styles.results, { paddingBottom: insets.bottom + 24 }]}
       keyboardShouldPersistTaps="handled" onTouchStart={() => Keyboard.dismiss()}
