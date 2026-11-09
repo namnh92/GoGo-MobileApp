@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { AccessibilityInfo, RefreshControl, StyleSheet, View } from 'react-native'
+import { AccessibilityInfo, Platform, RefreshControl, StyleSheet, ScrollView } from 'react-native'
 import { cancelAnimation, useAnimatedProps, withRepeat } from 'react-native-reanimated'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import '@/shared/i18n'
@@ -7,7 +7,7 @@ import { themes } from '../theme'
 import { loadingIndicator as token } from '../tokens'
 import { LoadingIndicator } from '../loading-indicator.view'
 import { PrimaryBtn } from '../button.view'
-import { RefreshIndicatorHeader, ThemedRefreshControl } from '../refresh-control.view'
+import { PullToRefresh } from '../refresh-control.view'
 
 jest.mock('react-native-reanimated', () => {
   const mock = jest.requireActual('react-native-reanimated/mock')
@@ -49,18 +49,29 @@ describe.each(['orange', 'orangeDark'] as const)('%s loading', name => {
     expect(screen.queryByRole('progressbar')).toBeNull()
   })
 
-  it('tints the native refresh control and removes the branded header when finished', async () => {
-    const refresh = jest.fn()
-    const view = await render(<View><ThemedRefreshControl refreshing onRefresh={refresh} /><RefreshIndicatorHeader refreshing /></View>)
-    // RN's official mock renders an empty host, but retains the real props.
+  it.each([['ios', 'resolve'], ['ios', 'reject'], ['android', 'resolve'], ['android', 'reject']] as const)('hides native refresh artwork on %s, guards duplicate pulls and clears on %s', async (os, outcome) => {
+    jest.replaceProperty(Platform, 'OS', os)
+    let finish!: () => void
+    let fail!: (error: Error) => void
+    const refresh = jest.fn(() => new Promise<void>((resolve, reject) => { finish = resolve; fail = reject }))
+    await render(<PullToRefresh onRefresh={refresh}><ScrollView testID="list" /></PullToRefresh>)
+    const control = () => screen.getByTestId('list').props.refreshControl
     const native = (RefreshControl as unknown as { latestRef: { props: import('react-native').RefreshControlProps } }).latestRef
-    expect(native.props.tintColor).toBe(themes[name].accent.primary)
-    expect(native.props.colors).toEqual([themes[name].accent.primary])
-    expect(native.props.progressBackgroundColor).toBe(themes[name].surface.card)
-    await act(async () => native.props.onRefresh?.())
+    expect(native.props.tintColor).toBe('transparent')
+    expect(native.props.colors).toEqual(['transparent'])
+    expect(native.props.progressBackgroundColor).toBe('transparent')
+    if (os === 'ios') expect(StyleSheet.flatten(control().props.style)).toMatchObject({ opacity: 0 })
+    else {
+      expect(control().props.style).toBeUndefined()
+      expect(native.props.progressViewOffset).toBeLessThan(-token.size)
+    }
+    expect(screen.getByTestId('list').props.alwaysBounceVertical).toBe(true)
+    await act(async () => { control().props.onRefresh(); control().props.onRefresh() })
     expect(refresh).toHaveBeenCalledTimes(1)
+    expect(control().props.refreshing).toBe(true)
     expect(screen.getByTestId('refresh-loading-indicator')).toBeTruthy()
-    await view.rerender(<RefreshIndicatorHeader refreshing={false} />)
+    await act(async () => { if (outcome === 'resolve') finish(); else fail(new Error('offline')) })
+    expect(control().props.refreshing).toBe(false)
     expect(screen.queryByTestId('refresh-loading-indicator')).toBeNull()
   })
 

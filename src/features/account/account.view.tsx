@@ -1,4 +1,5 @@
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
@@ -440,6 +441,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
           </Text>
         ) : null}
       </ScrollView>
+      <BlockingLoadingOverlay visible={saving} />
       <ResultSheet visible={deleteConfirm} variant="warning" title={t('account.deleteTitle')}
         body={t('account.deleteConfirmBody')}
         primaryAction={{ label: t('account.deleteAction'), destructive: true, onPress: onDelete }}

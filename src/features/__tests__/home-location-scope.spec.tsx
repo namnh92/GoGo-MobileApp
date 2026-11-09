@@ -2,7 +2,6 @@ import { act, fireEvent, waitFor } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { AccessibilityInfo, RefreshControl } from 'react-native'
 import { motion } from '@/shared/ui/tokens'
-import { themes } from '@/shared/ui/theme'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
@@ -358,8 +357,8 @@ describe('Home pull to refresh', () => {
     const control = () => view.getByTestId('home-list').props.refreshControl
     expect(control().props.refreshing).toBe(false)
     const native = (RefreshControl as unknown as { latestRef: { props: import('react-native').RefreshControlProps } }).latestRef
-    expect(native.props.tintColor).toBe(themes.orange.accent.primary)
-    expect(native.props.colors).toEqual([themes.orange.accent.primary])
+    expect(native.props.tintColor).toBe('transparent')
+    expect(native.props.colors).toEqual(['transparent'])
     await act(async () => { control().props.onRefresh(); control().props.onRefresh() })
     expect(refetch).toHaveBeenCalledTimes(1)
     expect(mockRoomRefetch).toHaveBeenCalledTimes(1)

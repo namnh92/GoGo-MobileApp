@@ -1,4 +1,5 @@
 import { useRouter, type Href } from 'expo-router'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View, type LayoutChangeEvent } from 'react-native'
@@ -172,10 +173,9 @@ export function PlaceReviews({ placeId, reviews, order, onOrderChange, onLayout 
         </View>
       ) : null}
       {body}
-      {reviews.hasNextPage ? (
+      {reviews.isFetchingNextPage ? <LoadingIndicator /> : reviews.hasNextPage ? (
         <GhostBtn
           label={t(reviews.isFetchNextPageError ? 'common.retry' : 'placeReviews.loadMore')}
-          loading={reviews.isFetchingNextPage}
           onPress={() => { if (!reviews.isFetchingNextPage) void reviews.fetchNextPage() }}
         />
       ) : null}

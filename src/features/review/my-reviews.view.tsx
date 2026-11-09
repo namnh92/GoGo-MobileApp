@@ -1,3 +1,4 @@
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
@@ -162,7 +163,7 @@ export default function MyReviewsScreen() {
   return (
     <Atmosphere>
       {header}
-      <ScrollView
+      <PullToRefresh onRefresh={() => reviews.refetch()}><ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
@@ -287,7 +288,7 @@ export default function MyReviewsScreen() {
             </Card>
           )
         })}
-      </ScrollView>
+      </ScrollView></PullToRefresh>
     </Atmosphere>
   )
 }

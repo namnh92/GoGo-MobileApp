@@ -1,4 +1,5 @@
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { OfflineState } from '@/shared/ui/async-state.view'
 import { useMemo, useRef, useState } from 'react'
@@ -58,6 +59,9 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
   const [budget, setBudget] = useState<number | null | undefined>(undefined)
   const [notice, setNotice] = useState<string | null>(null)
   const [result, setResult] = useState<'success' | 'error' | null>(null)
+  const [blocking, setBlocking] = useState(false)
+  const [overlayClosed, setOverlayClosed] = useState(true)
+  if (blocking && overlayClosed) setOverlayClosed(false)
 
   const currentArea = area === undefined ? (profile.homeAdministrativeArea ?? null) : area
   const currentMoods = moods ?? profile.interests?.mood ?? []
@@ -101,6 +105,7 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
     if (moods !== undefined) patch.interests = moods.length > 0 ? { mood: moods } : null
     if (budget !== undefined) patch.usualBudget = budget === null ? null : { perPerson: budget, currency: 'VND' }
     saving.current = true
+    setBlocking(true)
     try {
       await update.mutateAsync(patch)
       setArea(undefined)
@@ -111,7 +116,7 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
       setResult('success')
     } catch {
       setResult('error')
-    } finally { saving.current = false }
+    } finally { saving.current = false; setBlocking(false) }
   }
 
   const saveButton = <PrimaryBtn label={t(page ? 'g11.saveDefaults' : 'account.defaultsSave')} onPress={save}
@@ -203,7 +208,8 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
 
     <CurrentAreaSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={() => {}}
       selection={{ value: currentArea, onApply: value => { if (!saving.current) setArea(value) } }} />
-    <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'account.defaultsFailed' : 'account.defaultsSaved')}
+    <BlockingLoadingOverlay visible={blocking} onClosed={() => setOverlayClosed(true)} />
+    <ResultSheet visible={result !== null && overlayClosed} variant={result ?? 'success'} title={t(result === 'error' ? 'account.defaultsFailed' : 'account.defaultsSaved')}
       body={t('account.defaultsBody')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
     </>
   return page ? <SettingsPage title={t('account.defaultsTitle')} footer={saveButton}>{content}</SettingsPage> : content

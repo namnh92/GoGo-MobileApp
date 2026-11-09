@@ -1,5 +1,7 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
-import { AccessibilityInfo, TextInput } from 'react-native'
+import { AccessibilityInfo, Keyboard, TextInput } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
+import { themes } from '@/shared/ui/theme'
 
 import { ApiError, TimeoutError } from '@/shared/api'
 
@@ -48,6 +50,33 @@ jest.mock('@/shared/providers/session-provider', () => ({
 
 import SignInScreen from '@/features/auth/sign-in.view'
 import { classifyAuthFailure } from '@/features/auth/auth-failure'
+
+describe.each(['orange', 'orangeDark'] as const)('%s blocking auth submits', name => {
+  afterEach(() => { jest.restoreAllMocks(); StyleSheet.configure({ themes }) })
+  it.each(['signIn', 'signUp'] as const)('blocks the whole screen for %s, dismisses the keyboard, then restores the failed form', async mode => {
+    StyleSheet.configure({ themes: { [name]: themes[name] } as unknown as typeof themes })
+    const dismiss = jest.spyOn(Keyboard, 'dismiss')
+    let fail!: (error: Error) => void
+    const submit = mode === 'signIn' ? mockSignIn : mockSignUp
+    submit.mockImplementation(() => new Promise((_resolve, reject) => { fail = reject }))
+    const view = mode === 'signIn' ? await renderScreen(<SignInScreen />) : await openSignUp()
+    if (mode === 'signUp') await type(view.getByLabelText('Tên hiển thị'), 'An')
+    await type(view.getByLabelText('Email'), 'an@example.com')
+    await type(view.getByLabelText('Mật khẩu'), 'Long-enough-1!')
+    const cta = mode === 'signIn' ? 'Đăng nhập' : 'Tạo tài khoản'
+    await press(view.getByRole('button', { name: cta }))
+    expect(submit).toHaveBeenCalledTimes(1)
+    expect(view.getByTestId('blocking-loading-overlay').props.accessibilityState.busy).toBe(true)
+    expect(dismiss).toHaveBeenCalled()
+    expect(view.getByLabelText('Email').props.editable).toBe(false)
+    await act(async () => { fail(new Error('request failed')) })
+    expect(view.queryByTestId('blocking-loading-overlay')).toBeNull()
+    expect(view.getByLabelText('Email').props.value).toBe('an@example.com')
+    expect(view.getByLabelText('Email').props.editable).toBe(true)
+    expect(view.getByRole('button', { name: cta }).props.accessibilityState.busy).toBe(false)
+    expect(await view.findByText(COPY.unexpected)).toBeTruthy()
+  })
+})
 
 const COPY = {
   emailInvalid: 'Email chưa đúng định dạng.',

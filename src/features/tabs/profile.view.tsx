@@ -3,7 +3,8 @@ import { AppHeader } from '@/shared/ui/app-header.view'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
 import { useMe, useMyReviews, useMyRooms, useNotificationSettings, useSaved, useTaxonomies } from '@/shared/api'
@@ -55,10 +56,15 @@ export default function ProfileScreen() {
   const keoLoading = canReadRooms && rooms.isPending && !rooms.isError
   useNotificationSettings({ enabled: canRead })
   const [signingOut, setSigningOut] = useState(false)
+  const signOutQueued = useRef<string | null>(null)
+  const [logoutResultReady, setLogoutResultReady] = useState(false)
+  const [logoutOverlayClosed, setLogoutOverlayClosed] = useState(true)
+  if (signingOut && logoutOverlayClosed) setLogoutOverlayClosed(false)
   const [logoutConfirm, setLogoutConfirm] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [failed, setFailed] = useState<{ reason: SignOutFailure; actor: string } | null>(null)
   const actor = actorKeyOf(session)
+  useEffect(() => { signOutQueued.current = null }, [actor])
   const [dialogActor, setDialogActor] = useState(actor)
   // The mounted tab may change accounts. Reset only transient dialogs before
   // rendering the new actor; sign-out results keep their existing actor tags.
@@ -82,6 +88,7 @@ export default function ProfileScreen() {
     { key: 'contributions', route: '/me/contributions?tab=places', count: contributionCount, userOnly: true },
   ]
   async function signOutNow() {
+    setLogoutResultReady(true)
     setSigningOut(true)
     setFailed(null)
     try {
@@ -166,16 +173,18 @@ export default function ProfileScreen() {
         </View>
       })}
       {status !== 'anonymous' ? <SecondaryBtn label={signingOut ? t('profile.loggingOut') : t('g11.logout')} onPress={() => setLogoutConfirm(actor)} disabled={signingOut} loading={signingOut} style={styles.logout} leadingIcon="logout" /> : null}
-      {signOutFailure ? <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.logoutError}>
-        {t(({ offline: 'profile.logoutFailedOffline', timeout: 'profile.logoutFailedTimeout', push_unconfirmed: 'profile.logoutFailedPush', session_ended: 'profile.logoutSessionEnded', other: 'profile.logoutFailed' } as const satisfies Record<SignOutFailure, string>)[signOutFailure])}
-      </Text> : null}
       <BuildVersion />
     </ScrollView>
     <ResultSheet visible={locked && !canRead} variant="info" title={t('notifications.signInTitle')} body={t('g11.userOnly')}
       primaryAction={{ label: t('auth.signInCta'), onPress: () => { setLocked(false); router.push('/auth/sign-in') } }} onClose={() => setLocked(false)} />
     <ResultSheet visible={logoutConfirm !== null && logoutConfirm === actor} variant="warning"
       testID="profile-logout-confirm" title={t('g11.logoutTitle')} body={t('g11.logoutBody')}
-      primaryAction={{ label: t('g11.logoutConfirm'), destructive: true, onPress: () => { setLogoutConfirm(null); void signOutNow() } }}
-      secondaryAction={{ label: t('common.cancel'), onPress: () => setLogoutConfirm(null) }} onClose={() => setLogoutConfirm(null)} />
+      primaryAction={{ label: t('g11.logoutConfirm'), destructive: true, onPress: () => { signOutQueued.current = actor; setLogoutConfirm(null) } }}
+      secondaryAction={{ label: t('common.cancel'), onPress: () => setLogoutConfirm(null) }} onClose={() => setLogoutConfirm(null)}
+      onClosed={() => { const queued = signOutQueued.current; signOutQueued.current = null; if (queued === actor) void signOutNow() }} />
+    <BlockingLoadingOverlay visible={signingOut} accessibilityLabel={t('profile.loggingOut')} onClosed={() => setLogoutOverlayClosed(true)} />
+    <ResultSheet visible={!!signOutFailure && logoutResultReady && logoutOverlayClosed} variant="error" title={t('profile.logout')}
+      body={signOutFailure ? t(({ offline: 'profile.logoutFailedOffline', timeout: 'profile.logoutFailedTimeout', push_unconfirmed: 'profile.logoutFailedPush', session_ended: 'profile.logoutSessionEnded', other: 'profile.logoutFailed' } as const)[signOutFailure]) : ''}
+      primaryAction={{ label: t('common.close'), onPress: () => setLogoutResultReady(false) }} onClose={() => setLogoutResultReady(false)} />
   </Atmosphere>
 }

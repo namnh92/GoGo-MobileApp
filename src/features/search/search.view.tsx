@@ -1,5 +1,6 @@
 import { loadingIndicator } from '@/shared/ui/tokens'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { AppTabDock } from '@/shared/ui/app-tab-dock.view'
@@ -224,7 +225,7 @@ export default function SearchScreen() {
     return null
   }
   function renderResults(mapFallback = false) {
-    return <FlatList
+    return <PullToRefresh onRefresh={() => search.refetch()} enabled={!search.isPending && !search.isPaused}><FlatList
       testID="search-results" data={results} keyExtractor={place => place.id}
       contentContainerStyle={[styles.results, { paddingBottom: insets.bottom + 24 }]}
       keyboardShouldPersistTaps="handled" onTouchStart={() => Keyboard.dismiss()}
@@ -242,7 +243,7 @@ export default function SearchScreen() {
         const card = <PlaceCardLarge place={place} onPress={() => onPlacePress(place)} saved={canSave ? isSaved(saved.data, 'place', place.id) : undefined} onToggleSave={canSave ? () => onBookmark(place) : undefined} style={styles.place} />
         return mapFallback ? <View>{card}<GhostBtn label={t('common.directions')} accessibilityHint={place.name} onPress={() => openGoogleMapsDirections(map.pins.find(pin => pin.id === place.id) ? `${place.lat},${place.lng}` : place.name)} /></View> : card
       }}
-    />
+    /></PullToRefresh>
   }
   function renderContent() {
     if (!isPicker && scope.status === 'unavailable') return scope.offline ? <OfflineState /> : <ErrorState error={scope.error} onRetry={() => void retryScope()} />

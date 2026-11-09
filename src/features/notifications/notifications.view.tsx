@@ -1,3 +1,4 @@
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
@@ -208,7 +209,13 @@ export default function NotificationsScreen() {
   return (
     <Atmosphere redesign>
       {header}
-      <FlatList
+      <PullToRefresh
+        refreshing={canRead && (publicOnly ? !!systemInbox.isRefetching : !!inbox.isRefetching && !inbox.isFetchingNextPage)}
+        onRefresh={() => Promise.all([
+          ...(canRead && !publicOnly ? [inbox.refetch(), summary.refetch()] : []),
+          ...(filter === 'all' || publicOnly || !canRead ? [systemInbox.refetch()] : []),
+        ])}
+      ><FlatList
         testID="notifications-feed"
         data={listItems}
         keyExtractor={row => `${row.source}:${row.item.id ?? (row.source === 'personal' ? row.item.createdAt : row.item.publishedAt)}`}
@@ -254,7 +261,7 @@ export default function NotificationsScreen() {
         renderItem={({ item: row, index }) => row.source === 'system' ? <SystemNotificationRow item={row.item} /> : <NotificationCard item={row.item} index={index}
           busy={openingId !== null && openingId === row.item.id} reading={!!row.item.id && readingIds.has(row.item.id)}
           onOpen={() => void open(row.item)} onLater={() => mark(row.item)} /> }
-      />
+      /></PullToRefresh>
       <ResultSheet visible={!!readProblem} variant="error" title={t('g10.readFailed')} body={t(readProblem === 'all' ? 'g10.readAllFailedBody' : 'g10.readFailedBody')}
         secondaryAction={readProblem === 'all' ? { label: t('g10.reload'), onPress: () => { setReadProblem(null); void inbox.refetch(); void summary.refetch() } } : undefined}
         primaryAction={{ label: t('common.close'), onPress: () => setReadProblem(null) }} onClose={() => setReadProblem(null)} />

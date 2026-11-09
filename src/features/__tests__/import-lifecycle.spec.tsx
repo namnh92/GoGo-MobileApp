@@ -88,6 +88,18 @@ it('M12 ALREADY_EXISTS retains active recovery and photos, without cleanup', asy
   expect(screen.getByText(i18n.t('placeWizard.lifecycle.alreadyExists'))).toBeTruthy()
   expect(button('Xoá bản nháp')).toBeTruthy(); expect(button('Xoá ảnh hoá đơn')).toBeTruthy(); expect(mockRemove).not.toHaveBeenCalled()
 })
+
+it('blocks place submission until the server answers and removes the overlay before the result sheet', async () => {
+  let answer!: (value: unknown) => void
+  mockPost.mockImplementationOnce(() => new Promise(resolve => { answer = resolve }))
+  await resume()
+  await fireEvent.press(button('Gửi'))
+  expect(screen.getByTestId('blocking-loading-overlay').props.accessibilityState.busy).toBe(true)
+  expect(screen.queryByTestId('result-sheet')).toBeNull()
+  await act(async () => { answer({ status: 'PENDING', submissionId: 'submission-a' }) })
+  expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull()
+  expect(screen.getByTestId('result-sheet')).toBeTruthy()
+})
 it('M09 invalid submit media exposes usable no-photo recovery with unchanged draft version', async () => {
   mockPost.mockRejectedValueOnce(new ApiError(400, { code: 'INVALID_SUBMISSION_PHOTOS', message: 'invalid' }))
   await resume(); await fireEvent.press(button('Gửi')); await fireEvent.press(button('Tiếp tục không có ảnh'))

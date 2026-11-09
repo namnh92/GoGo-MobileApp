@@ -1,3 +1,4 @@
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -337,7 +338,7 @@ export default function PlaceDetailScreen() {
   return (
     <Atmosphere>
       {header(saveToggle, reportToggle)}
-      <ScrollView
+      <PullToRefresh onRefresh={() => Promise.allSettled([place.refetch(), reviews.refetch()])}><ScrollView
         ref={scroll}
         testID="place-detail-scroll"
         contentContainerStyle={{ paddingBottom: actionInset }}
@@ -583,7 +584,7 @@ export default function PlaceDetailScreen() {
               error states, so the facts above never wait on them. */}
           <PlaceReviews placeId={id} reviews={reviews} order={reviewOrder} onOrderChange={setReviewOrder} onLayout={event => setReviewsY(event.nativeEvent.layout.y)} />
         </View>
-      </ScrollView>
+      </ScrollView></PullToRefresh>
 
       {reportOpen ? <PlaceReport placeId={id} onClose={() => setReportOpen(false)} /> : null}
       <GlassBar placement="floating" testID="place-detail-action-bar" onHeightChange={setActionHeight}>
