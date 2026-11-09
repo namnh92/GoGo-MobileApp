@@ -92,7 +92,6 @@ import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { createQueryClient } from '@/shared/api/query-client'
 import { NetworkError } from '@/shared/api/errors'
 import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
-import { themes } from '@/shared/ui/theme'
 
 function emptyPage() {
   return {
