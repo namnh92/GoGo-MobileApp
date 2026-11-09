@@ -4,7 +4,7 @@ import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { FlatList, RefreshControl, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { detailToPlaceCard, useMyReviews, usePlaceDetail } from '@/shared/api'
 import { useMyPlaceSubmission, useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/
 import { Atmosphere, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { Text } from '@/shared/ui/text'
+import { Chip } from '@/shared/ui/chip.view'
 import { SegmentedTabs } from '@/shared/ui/segmented-tabs.view'
 import { ContributionPlaceCard } from '@/shared/ui/contribution-place-card.view'
 import { ContributionReviewCard } from '@/shared/ui/contribution-review-card.view'
@@ -133,9 +134,7 @@ export default function MyContributionsScreen() {
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{options.map(value => {
         const label = tab === 'reviews' && value !== 'all' ? t(`contributions.reviewStatus.${value === 'approved' ? 'published' : value}`) : t(`myContributions.filter.${value}`)
         const fullLabel = active.data == null ? label : t('myReviews.filterChip', { label, count: `${statuses.filter(row => matches(row.status, value)).length}${tab === 'places' && query.hasNextPage ? '+' : ''}` })
-        return <Pressable key={value} accessibilityRole="button" accessibilityLabel={fullLabel} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={styles.filterTarget}>
-          <View style={[styles.chip, filter === value && styles.chipSelected]}><Text variant="savedMeta" color={filter === value ? 'text.inverse' : 'text.secondary'} numberOfLines={1}>{fullLabel}</Text></View>
-        </Pressable>
+        return <Chip key={value} label={fullLabel} variant={filter === value ? 'selected' : 'default'} onPress={() => setFilter(value)} />
       })}</ScrollView></View>
       {!online && !active.isPending ? <OfflineState /> : null}
       {tab === 'places' ? <FlatList testID="my-contributions-list" data={items.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
