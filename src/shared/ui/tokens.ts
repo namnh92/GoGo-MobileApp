@@ -297,9 +297,8 @@ export const overlay = {
   /** Under white text on a photo: 0.6 black keeps 4.5:1 even over a white picture. */
   scrimText: 'rgba(0,0,0,0.6)',
   backdrop: 'rgba(33,31,28,0.55)',
-  /** Theme canvas at 85%: keep the form faintly visible during submit. */
-  submitLight: 'rgba(246,243,238,0.85)',
-  submitDark: 'rgba(24,23,21,0.85)',
+  /** Dark canvas at 85% in both modes: keep the form faintly visible during submit. */
+  submit: 'rgba(24,23,21,0.85)',
 } as const
 
 /**

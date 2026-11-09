@@ -32,7 +32,7 @@ export function BlockingLoadingOverlay({ visible, accessibilityLabel, onClosed }
       accessibilityViewIsModal accessibilityRole="progressbar" accessibilityLabel={label}
       accessibilityState={{ busy: true }} accessibilityLiveRegion="polite"
       onAccessibilityEscape={blockDismiss} onStartShouldSetResponder={() => true}>
-      <LoadingIndicator decorative />
+      <LoadingIndicator variant="dark" decorative />
     </View>
   </Modal>
 }
