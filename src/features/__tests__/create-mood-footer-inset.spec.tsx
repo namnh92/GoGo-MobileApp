@@ -1,7 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
-import { failed, pending, renderScreen, type QueryLike } from './harness'
+import { failed, loaded, pausedOffline, pending, renderScreen, type QueryLike } from './harness'
 
 /**
  * #296 F-03: the floating footer on the mood step also covers the skeleton and
@@ -44,4 +44,29 @@ it.each([
   await layoutFooter(view, 100)
   // 100pt bar + 16pt gap; the jest safe-area mock reports a zero bottom inset.
   expect(paddingBottom(view, testID)).toBeGreaterThanOrEqual(100)
+})
+
+it('shows an explicit empty state while preserving optional taxonomy submission', async () => {
+  mockTaxonomies = loaded({ kinds: {} })
+  const view = await renderScreen(<CreateMoodScreen />)
+  expect(view.getByTestId('create-mood-empty')).toBeTruthy()
+  expect(view.getByText('Chưa có tiêu chí')).toBeTruthy()
+  expect(view.getByRole('button', { name: 'Tạo GoGo Room' }).props.accessibilityState.disabled).toBe(false)
+})
+
+it('renders paused offline separately from first-load skeletons', async () => {
+  mockTaxonomies = pausedOffline()
+  const view = await renderScreen(<CreateMoodScreen />)
+  expect(view.getByTestId('create-mood-offline')).toBeTruthy()
+  expect(view.queryByTestId('create-mood-pending')).toBeNull()
+  expect(view.getByRole('button', { name: 'Tạo GoGo Room' }).props.accessibilityState.disabled).toBe(true)
+})
+
+it('renders only API taxonomy chips and exposes their selected state', async () => {
+  mockTaxonomies = loaded({ kinds: { mood: [{ key: 'chill', labels: { vi: 'Chill trò chuyện' } }], setting: [], spending_style: [] } })
+  const view = await renderScreen(<CreateMoodScreen />)
+  const chip = view.getByRole('button', { name: 'Chill trò chuyện' })
+  await fireEvent.press(chip)
+  expect(view.getByRole('button', { name: 'Chill trò chuyện' }).props.accessibilityState.selected).toBe(true)
+  expect(view.queryByText('Cà phê acoustic')).toBeNull()
 })

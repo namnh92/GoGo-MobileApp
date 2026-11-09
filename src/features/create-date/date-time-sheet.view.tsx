@@ -6,7 +6,7 @@ import { Pressable, ScrollView, View } from 'react-native'
 import i18n from '@/shared/i18n'
 
 import { Icon } from '@/shared/ui/icons'
-import { PrimaryBtn } from '@/shared/ui/primitives'
+import { PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
 import { dayLabel, dayTimeLabel, monthLabel, weekdayShort } from './day-format'
@@ -22,7 +22,8 @@ import { styles } from './date-time-sheet.style'
  * says today. "Giờ khác" swaps the body for the 30-minute grid in the same
  * sheet: iOS refuses a second modal opened over this one.
  */
-export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDone }: {
+export function DateTimeSheet({ inline = false, visible, initialDay, initialTime, onClose, onDone }: {
+  inline?: boolean
   visible: boolean
   /** `YYYY-MM-DD`, or null for today. */
   initialDay: string | null
@@ -65,7 +66,16 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
   function chooseDay(key: string) {
     setDay(key)
     setView(monthOf(key))
+    const nextDay = key === todayKey ? null : key
+    if (inline && time !== null) onDone(nextDay, time)
   }
+
+  function chooseTime(slot: string) {
+    setTime(slot)
+    if (inline) onDone(dayArg, slot)
+  }
+
+  const prefix = inline ? 'date-inline' : 'date-sheet'
 
   function shift(delta: number) {
     const next = new Date(view.year, view.month + delta, 1)
@@ -77,20 +87,20 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
     return (
       <Chip key={label} label={label} appearance="soft" variant={active ? 'selected' : 'default'}
         onPress={() => chooseDay(key)} accessibilityLabel={`${label}, ${dayLabel(date, locale)}`}
-        testID={`date-sheet-shortcut-${id}`} />
+        testID={`${prefix}-shortcut-${id}`} />
     )
   }
 
   const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2026, 10, 2 + i))
 
-  return (
-    <Sheet visible={visible} onClose={onClose} maxHeight="92%" testID="date-time-sheet">
-      <View style={styles.head}>
+  const content = (
+    <>
+      {!inline ? <View style={styles.head}>
         <Text variant="title1" style={styles.headTitle}>{t('createTime.sheetTitle')}</Text>
-        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('common.close')} testID="date-sheet-close" style={styles.iconBtn}>
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('common.close')} testID={`${prefix}-close`} style={styles.iconBtn}>
           <Icon name="x" size={22} />
         </Pressable>
-      </View>
+      </View> : null}
 
       {slots ? (
         <>
@@ -104,7 +114,7 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
                   key={slot}
                   disabled={off}
                   onPress={() => {
-                    setTime(slot)
+                    chooseTime(slot)
                     setSlots(false)
                   }}
                   accessibilityRole="button"
@@ -119,6 +129,7 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
         </>
       ) : (
         <>
+          <View style={inline ? styles.calendar : undefined}>
           <View style={styles.shortcutRow}>
             {shortcut('today', todayKey, t('createTime.today'), now)}
             {shortcut('tomorrow', localDayKey(tomorrow), t('createTime.tomorrow'), tomorrow)}
@@ -175,7 +186,7 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
                       accessibilityRole="button"
                       accessibilityLabel={isToday ? `${label}, ${t('createTime.today')}` : label}
                       accessibilityState={{ selected, disabled: off }}
-                      testID={`date-sheet-day-${key}`}
+                      testID={`${prefix}-day-${key}`}
                       style={[styles.cell, selected && styles.cellSelected, off && styles.cellOff]}
                     >
                       <Text
@@ -192,6 +203,7 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
             </View>
           ))}
 
+          </View>
           <View style={styles.sectionHead}>
             <Icon name="clock" size={18} />
             <Text variant="title2">{t('createTime.startTimeLabel')}</Text>
@@ -201,33 +213,37 @@ export function DateTimeSheet({ visible, initialDay, initialTime, onClose, onDon
               const off = isPastSlot(slot, dayArg, now)
               const active = time === slot
               return (
-                <Chip key={slot} label={slot} appearance="soft" variant={active ? 'selected' : 'default'} disabled={off}
-                  onPress={() => setTime(slot)} testID={`date-sheet-time-${slot}`} />
+                <Chip key={slot} label={slot} appearance="raised" variant={active ? 'selected' : 'default'} disabled={off}
+                  onPress={() => chooseTime(slot)} testID={`${prefix}-time-${slot}`} />
               )
             })}
             <Chip label={t('createTime.otherTime')} icon="clock" appearance="soft"
               variant={time !== null && !(EVENING_STARTS as readonly string[]).includes(time) ? 'selected' : 'default'}
-              onPress={() => setSlots(true)} testID="date-sheet-other-time" />
+              onPress={() => setSlots(true)} testID={`${prefix}-other-time`} />
           </ScrollView>
 
-          <View testID="date-sheet-summary" style={[styles.summary, past && styles.summaryInvalid]}>
+          {!inline ? <View testID="date-sheet-summary" style={[styles.summary, past && styles.summaryInvalid]}>
             <Icon name="calendar" size={18} color={past ? 'status.dangerText' : 'accent.onSoft'} />
             <Text variant="label" color={past ? 'status.dangerText' : 'accent.onSoft'} style={styles.headTitle}>
               {dayTimeLabel(pickedDay, time ?? t('createTime.notSet'), locale)}
             </Text>
-          </View>
-          {past ? <Text variant="caption" color="status.dangerText">{t('createTime.startPast')}</Text> : null}
+          </View> : null}
+          {past && !inline ? <Text variant="caption" color="status.dangerText">{t('createTime.startPast')}</Text> : null}
         </>
       )}
 
-      {slots ? null : (
-        <SheetActions><PrimaryBtn
+      {inline && slots ? <SheetActions><SecondaryBtn label={t('common.cancel')} onPress={() => setSlots(false)} /></SheetActions> : null}
+      {slots || inline ? null : (
+        <SheetActions><SecondaryBtn label={t('common.cancel')} onPress={onClose} /><PrimaryBtn
           label={t('createTime.done')}
           disabled={!canDone}
           onPress={() => onDone(dayArg, time as string)}
         /></SheetActions>
       )}
-    </Sheet>
+    </>
+  )
+  return inline ? <View testID="date-time-inline">{content}</View> : (
+    <Sheet visible={visible} onClose={onClose} maxHeight="92%" testID="date-time-sheet">{content}</Sheet>
   )
 }
 

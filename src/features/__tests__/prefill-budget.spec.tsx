@@ -29,9 +29,9 @@ jest.mock('@/shared/api', () => ({
 
 import CreateBudgetScreen from '@/features/create-date/create-budget.view'
 import { tierForAmount } from '@/features/create-date/budget-tiers'
-import { useRoomStore } from '@/shared/store/roomStore'
+import { toCreateRoomBody, useRoomStore } from '@/shared/store/roomStore'
 
-const CHIP = /Dùng ngân sách thường dùng: 300–500k/
+const CHIP = /Dùng ngân sách thường dùng: 300.000đ – 500.000đ \/người/
 
 beforeEach(() => {
   useRoomStore.getState().resetDraft()
@@ -110,4 +110,19 @@ it('keeps the last tier inside the step scroll view (#333)', async () => {
   const scroll = view.getByTestId('create-budget-scroll')
   expect(scroll.type).toBe('RCTScrollView')
   expect(within(scroll).getByText('Không quan trọng')).toBeTruthy()
+})
+
+// #594: the same stored tier keeps its scope on every rendered amount.
+it.each([
+  ['couple', 'per_person', '/ cả phòng (2 người)', 'total'],
+  ['group-host', 'per_person', '/người', 'per_person'],
+  ['group-host', 'total', ' · tổng nhóm', 'total'],
+] as const)('shows units for %s / %s without changing the submitted amount', async (audience, mode, unit, expectedMode) => {
+  useRoomStore.getState().setAudience(audience)
+  useRoomStore.getState().setBudgetMode(mode)
+  const view = await renderScreen(<CreateBudgetScreen />)
+  await fireEvent.press(view.getByText(`300.000đ – 500.000đ ${unit}`))
+  await fireEvent.press(view.getByText('Tiếp tục'))
+  expect(toCreateRoomBody(useRoomStore.getState()).constraint).toMatchObject({ budgetMode: expectedMode, budgetAmount: 500_000 })
+  if (audience === 'group-host') expect(view.queryByText(/cả hai|hai người/)).toBeNull()
 })

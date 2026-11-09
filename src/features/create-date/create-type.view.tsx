@@ -11,9 +11,9 @@ import { useUnistyles } from 'react-native-unistyles'
 import { track } from '@/shared/analytics'
 import { useRoom, useRoomStore, type RoomType } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
-import { Icon, IconCheck, type IconName } from '@/shared/ui/icons'
+import { Icon, type IconName } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -69,11 +69,12 @@ export default function CreateTypeScreen() {
   }
 
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       <WizardStep step="type" onBack={() => router.back()} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}>
-        <Text variant="display" style={styles.title}>{t('createType.title')}</Text>
-        <View style={{ gap: spacing[3], marginTop: spacing[4] }}>
+        <Text variant="introTitle" style={styles.title}>{t('createType.title')}</Text>
+        <Text color="text.secondary" style={styles.body}>{t('createType.body')}</Text>
+        <View style={styles.options} accessibilityRole="radiogroup">
           {options.map(option => {
             const active = selected === option.type
             return (
@@ -82,29 +83,23 @@ export default function CreateTypeScreen() {
                 onPress={() => pick(option.type)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                style={({ pressed }) => [
-                  styles.option,
-                  active ? styles.optionActive : glassStyles.card,
-                  pressed && (active ? styles.optionActivePressed : styles.optionPressed),
-                ]}
+                style={[styles.option, active && styles.optionActive]}
               >
                 <View style={[styles.iconTile, active && styles.iconTileActive]}>
                   <Icon name={option.icon} size={28} color={active ? 'accent.onAccent' : 'text.secondary'} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>
+                <View style={styles.optionBody}>
+                  <View style={styles.optionHeading}>
+                  <Text variant="discoveryHeading" color={active ? 'accent.onSoft' : 'text.primary'}>
                     {t(option.titleKey)}
                   </Text>
+                  {active ? <Chip label={t('createType.selected')} variant="selected" appearance="soft" /> : null}
+                  </View>
                   <Text variant="bodySmall" color="text.secondary" style={styles.optionDesc}>
                     {t(option.descKey)}
                   </Text>
                 </View>
-                {/* Selection is not colour alone. */}
-                {active ? (
-                  <View style={styles.check}>
-                    <IconCheck color={theme.accent.onAccent} size={14} />
-                  </View>
-                ) : null}
+
               </Pressable>
             )
           })}
@@ -131,7 +126,7 @@ export default function CreateTypeScreen() {
         />
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={handleSubmit(next)} disabled={!selected} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={handleSubmit(next)} disabled={!selected} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

@@ -15,7 +15,7 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon, IconCheck, IconMapPin } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, glassStyles, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -119,10 +119,10 @@ export default function CreateLocationScreen() {
         : t('createLocation.useMyLocation')
 
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       <WizardStep step="location" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[6] }]} keyboardShouldPersistTaps="handled">
-        <Text variant="display">{t('createLocation.title')}</Text>
+        <Text variant="discoveryTitle">{t('createLocation.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createLocation.body')}</Text>
 
         {/* Current location — the permission is asked here, on tap, never on
@@ -138,8 +138,8 @@ export default function CreateLocationScreen() {
             <View style={styles.rowIcon}>
               <IconMapPin />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text variant="title2">{t('createLocation.current')}</Text>
+            <View style={styles.rowBody}>
+              <Text variant="discoveryHeading">{t('createLocation.current')}</Text>
               <Text variant="bodySmall" color="text.secondary">{currentSubtitle}</Text>
             </View>
             {location.state.status === 'asking' ? <LoadingIndicator /> : usingCurrent && <IconCheck />}
@@ -158,8 +158,8 @@ export default function CreateLocationScreen() {
           <>
             <View style={styles.distanceHeader}>
               <Icon name="navigation" size={20} color="text.secondary" />
-              <Text variant="title2" style={styles.distanceTitle}>{t('createLocation.maxDistance')}</Text>
-              <Text variant="title2" color="accent.primary">
+              <Text variant="discoveryHeading" style={styles.distanceTitle}>{t('createLocation.maxDistance')}</Text>
+              <Text variant="discoveryHeading" color="accent.primary">
                 {radiusM === null ? t('createLocation.anywhere') : `${radiusM / 1000} km`}
               </Text>
             </View>
@@ -168,24 +168,14 @@ export default function CreateLocationScreen() {
                 const active = radiusM === option
                 const label = option === null ? t('createLocation.anywhere') : `${option / 1000} km`
                 return (
-                  <Pressable
-                    key={label}
-                    onPress={() => setRadiusM(option)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    style={[styles.radiusBtn, active ? styles.radiusBtnActive : glassStyles.card]}
-                  >
-                    <Text variant="label" color={active ? 'accent.onSoft' : 'text.secondary'}>
-                      {label}
-                    </Text>
-                  </Pressable>
+                  <Chip key={label} label={label} appearance="soft" variant={active ? 'selected' : 'default'} onPress={() => setRadiusM(option)} />
                 )
               })}
             </View>
           </>
         ) : null}
 
-        <Text variant="title2" style={styles.sectionTitle}>{t('createLocation.areaTitle')}</Text>
+        <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createLocation.areaTitle')}</Text>
         {offerHomeArea ? (
           <View style={styles.prefillRow}>
             <Chip
@@ -205,7 +195,7 @@ export default function CreateLocationScreen() {
       </ScrollView>
       <CurrentAreaSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={() => setStaleArea(false)} />
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={next} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

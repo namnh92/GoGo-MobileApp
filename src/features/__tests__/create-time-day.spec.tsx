@@ -241,3 +241,46 @@ describe('the date and time sheet', () => {
     expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(false)
   })
 })
+
+describe('Stitch inline calendar (#594)', () => {
+  it('uses the existing schedule path for an inline day and time', async () => {
+    const view = await renderScreen(<CreateTimeScreen />)
+    await press(view.getByTestId('date-inline-shortcut-tomorrow'))
+    await press(view.getByTestId('date-inline-time-19:00'))
+    expect(useRoomStore.getState().scheduleDay).toBe('2026-11-06')
+    expect(useRoomStore.getState().startTime).toBe('19:00')
+    await press(view.getByText('Tiếp tục'))
+    expect(startOf().getDate()).toBe(6)
+    expect(mockPush).toHaveBeenCalledWith('/create/budget')
+  })
+
+  it('Huỷ cancels staged sheet edits and keeps the saved start', async () => {
+    useRoomStore.setState({ startTime: '18:00' })
+    const view = await renderScreen(<CreateTimeScreen />)
+    await openSheet(view)
+    await press(view.getByTestId('date-sheet-shortcut-tomorrow'))
+    await chooseTime(view, '20:00')
+    await press(view.getByText('Huỷ'))
+    expect(useRoomStore.getState().scheduleDay).toBeNull()
+    expect(useRoomStore.getState().startTime).toBe('18:00')
+    expect(view.queryByTestId('date-time-sheet')).toBeNull()
+  })
+})
+
+it('blocks Continue when an inline change puts the saved time in the past', async () => {
+  useRoomStore.setState({ startTime: '09:00', scheduleDay: '2026-11-06' })
+  const view = await renderScreen(<CreateTimeScreen />)
+  await press(view.getByTestId('date-inline-shortcut-today'))
+  expect(useRoomStore.getState().scheduleDay).toBeNull()
+  expect(view.getByText('Giờ bắt đầu hôm nay đã qua — chọn giờ khác hoặc ngày khác.')).toBeTruthy()
+  await press(view.getByText('Tiếp tục'))
+  expect(mockPush).not.toHaveBeenCalled()
+})
+
+it('returns from inline other-time slots without inventing a start', async () => {
+  const view = await renderScreen(<CreateTimeScreen />)
+  await press(view.getByTestId('date-inline-other-time'))
+  await press(view.getByText('Huỷ'))
+  expect(view.getByTestId('date-inline-shortcut-today')).toBeTruthy()
+  expect(useRoomStore.getState().startTime).toBeNull()
+})

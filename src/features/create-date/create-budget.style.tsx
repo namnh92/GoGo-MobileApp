@@ -2,16 +2,21 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  scope: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], backgroundColor: theme.accent.soft, borderRadius: radius.compact, minHeight: 44, padding: spacing[3], marginBottom: spacing[5] },
+  options: { gap: spacing[3] },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: spacing[5] },
+  content: { paddingHorizontal: spacing[4] },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
   option: {
     borderRadius: radius.card,
     padding: spacing[4],
+    minHeight: 88,
+    gap: spacing[2],
     flexDirection: 'row',
     alignItems: 'center',
   },
-  optionActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.primary },
+  optionActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.soft },
+  optionBody: { flex: 1 },
   optionSub: { marginTop: 2 },
   checkBubble: {
     width: 24,

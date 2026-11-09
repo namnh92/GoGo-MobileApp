@@ -6,9 +6,10 @@ import { Alert } from 'react-native'
 import { useSession } from '@/shared/providers/session-provider'
 import { saveRoomDraft, type DraftStep } from '@/shared/store/savedRoomDraft'
 import { useRoomStore } from '@/shared/store/roomStore'
-import { GhostBtn } from '@/shared/ui/primitives'
+import { GhostBtn, IconBtn } from '@/shared/ui/primitives'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 
-export function SaveDraftButton({ step }: { step: DraftStep }) {
+export function SaveDraftButton({ step, compact = false }: { step: DraftStep; compact?: boolean }) {
   const { t } = useTranslation()
   const router = useRouter()
   const { session } = useSession()
@@ -30,6 +31,6 @@ export function SaveDraftButton({ step }: { step: DraftStep }) {
   }
   return <>
     <BlockingLoadingOverlay visible={saving} />
-    <GhostBtn label={t(saving ? 'account.saving' : 'draft.save')} onPress={() => void save()} disabled={saving || creating} loading={saving} />
+    {compact ? <IconBtn size="regular" accessibilityLabel={t(saving ? 'account.saving' : 'draft.save')} onPress={() => void save()} disabled={saving || creating}><MaterialIcon name="save" size={20} /></IconBtn> : <GhostBtn label={t(saving ? 'account.saving' : 'draft.save')} onPress={() => void save()} disabled={saving || creating} loading={saving} />}
   </>
 }

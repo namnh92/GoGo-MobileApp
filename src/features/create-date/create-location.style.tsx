@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing } from '@/shared/ui/tokens'
+import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  content: { paddingHorizontal: spacing[5], paddingBottom: spacing[6] },
+  content: { paddingHorizontal: spacing[4], paddingBottom: spacing[6] },
+  rowBody: { flex: 1 },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
   rowCard: {
     flexDirection: 'row',
@@ -23,14 +24,6 @@ export const styles = StyleSheet.create(theme => ({
   distanceHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
   distanceTitle: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  radiusBtn: {
-    width: '48%',
-    height: 48,
-    borderRadius: radius.compact,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radiusBtnActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.primary },
   locationFallback: {
     marginTop: spacing[2],
   },

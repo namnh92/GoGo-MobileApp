@@ -21,6 +21,7 @@ export default function CreateBudgetScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const { roomType, budgetMode } = useRoom()
+  const unit = t(roomType === 'couple' ? 'createBudget.unit.couple' : budgetMode === 'per_person' ? 'price.unit.per_person' : 'price.unit.per_group')
   const patchDraft = useRoomStore(state => state.patchDraft)
   const draftBudgetAmount = useRoomStore(state => state.budgetAmount)
   const { status } = useSession()
@@ -58,28 +59,29 @@ export default function CreateBudgetScreen() {
       : t('createBudget.body')
 
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       <WizardStep step="budget" onBack={() => router.back()} />
       <ScrollView
         testID="create-budget-scroll"
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
       >
-        <Text variant="display">{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
+        <Text variant="discoveryTitle">{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{subtitle}</Text>
+        <View style={styles.scope}><IconCheck color={theme.accent.onSoft} size={18} /><Text variant="introLabel" color="accent.onSoft">{roomType === 'couple' ? t('createBudget.scope.couple') : t(budgetMode === 'per_person' ? 'groupSetup.perPerson' : 'groupSetup.groupTotal')}</Text></View>
 
         {offerUsual && usualTier ? (
           <View style={styles.prefillRow}>
             <Chip
               icon="dollar"
-              label={t('createBudget.useUsual', { tier: t(`createBudget.tier.${usualTier.key}`) })}
+              label={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
               variant={selected.key === usualTier.key ? 'selected' : 'info'}
               onPress={useUsualBudget}
             />
           </View>
         ) : null}
 
-        <View style={{ gap: spacing[2] }}>
+        <View style={styles.options}>
           {BUDGET_TIERS.map(tier => {
             const active = selected.key === tier.key
             return (
@@ -90,12 +92,12 @@ export default function CreateBudgetScreen() {
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? styles.optionActive : glassStyles.card]}
               >
-                <View style={{ flex: 1 }}>
-                  <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>
-                    {t(`createBudget.tier.${tier.key}`)}
+                <View style={styles.optionBody}>
+                  <Text variant="discoveryHeading" color={active ? 'accent.onSoft' : 'text.primary'}>
+                    {t(`createBudget.range.${tier.key}`)}{tier.key !== 'flexible' ? ` ${unit}` : ''}
                   </Text>
                   <Text variant="bodySmall" color="text.secondary" style={styles.optionSub}>
-                    {t(`createBudget.tier.${tier.key}.sub`)}
+                    {t(`createBudget.range.${tier.key}.sub`)}
                   </Text>
                 </View>
                 {/* Selection is a tint, a ring and a check, never colour alone. */}
@@ -108,7 +110,7 @@ export default function CreateBudgetScreen() {
         </View>
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={next} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

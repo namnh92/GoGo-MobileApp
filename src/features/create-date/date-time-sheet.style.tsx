@@ -4,6 +4,7 @@ import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 export const CELL = touchTarget.min
 
 export const styles = StyleSheet.create(theme => ({
+  calendar: { borderRadius: radius.compact, backgroundColor: theme.surface.card, padding: spacing[2], marginBottom: spacing[3] },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[4] },
   headTitle: { flex: 1 },
   iconBtn: { width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },

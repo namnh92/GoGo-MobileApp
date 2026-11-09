@@ -105,17 +105,23 @@ export default function CreateTimeScreen() {
   const slotOptions = startTime ? TIME_SLOTS.filter(s => s > startTime) : TIME_SLOTS
 
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       <WizardStep step="time" onBack={() => router.back()} />
       <ScrollView
         testID="create-time-scroll"
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
       >
-        <Text variant="display">{t('createTime.title', { context: roomType })}</Text>
+        <Text variant="discoveryTitle">{t('createTime.title', { context: roomType })}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
 
-        {/* Start and end, each as one line: day and time. */}
+        {!dateSheet && pickerFor === null ? <DateTimeSheet
+          key={`${day}-${startTime}`}
+          inline visible initialDay={day} initialTime={startTime}
+          onClose={() => setDateSheet(false)} onDone={finishDateSheet}
+        /> : null}
+
+        {/* Summary reopens the staged picker; optional end/duration remain available. */}
         <View style={styles.rows}>
           <Pressable
             onPress={() => setDateSheet(true)}
@@ -127,7 +133,7 @@ export default function CreateTimeScreen() {
             <Icon name="calendar" size={20} color={startPast ? 'status.dangerText' : 'accent.primary'} />
             <Text variant="label" color="text.secondary">{t('createTime.start')} *</Text>
             <Text
-              variant="title2"
+              variant="discoveryHeading"
               color={startPast ? 'status.dangerText' : startTime === null ? 'accent.primary' : 'text.primary'}
               numberOfLines={1}
               style={styles.rowValue}
@@ -145,7 +151,7 @@ export default function CreateTimeScreen() {
           >
             <Icon name="calendar" size={20} color="text.secondary" />
             <Text variant="label" color="text.secondary">{t('createTime.end')}</Text>
-            <Text variant="title2" numberOfLines={1} style={styles.rowValue}>
+            <Text variant="discoveryHeading" numberOfLines={1} style={styles.rowValue}>
               {endTime
                 ? dayTimeLabel(endDate, endTime, locale)
                 : t(durationPreset === 'evening' ? 'createTime.openEnd' : 'createTime.notSet')}
@@ -169,7 +175,7 @@ export default function CreateTimeScreen() {
         ) : null}
 
         <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
-        <View style={{ gap: spacing[2], marginBottom: spacing[6] }}>
+        <View style={styles.options}>
           {DURATION_PRESETS.map(preset => {
             const active = durationPreset === preset.key
             const label = t(`createTime.preset.${preset.key}`)
@@ -182,9 +188,9 @@ export default function CreateTimeScreen() {
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? styles.optionActive : glassStyles.card]}
               >
-                <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>{label}</Text>
+                <Text variant="discoveryHeading" color={active ? 'accent.onSoft' : 'text.primary'}>{label}</Text>
                 {/* Selection is never colour alone. */}
-                {active ? <Text variant="title2" color="accent.onSoft">✓</Text> : null}
+                {active ? <Text variant="discoveryHeading" color="accent.onSoft">✓</Text> : null}
               </Pressable>
             )
           })}
@@ -192,7 +198,7 @@ export default function CreateTimeScreen() {
 
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} disabled={!canContinue} icon="arrowRight" />
       </GlassBar>
 
       <DateTimeSheet

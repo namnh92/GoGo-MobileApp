@@ -3,15 +3,16 @@ import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   scroll: { flex: 1 },
-  content: { paddingHorizontal: spacing[5] },
+  content: { paddingHorizontal: spacing[4] },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
+  options: { gap: spacing[2], marginBottom: spacing[6] },
   option: {
     height: 56,
     borderRadius: radius.compact,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing[5],
+    paddingHorizontal: spacing[4],
   },
   optionActive: { backgroundColor: theme.accent.soft, borderWidth: 1, borderColor: theme.accent.primary },
   rows: { gap: spacing[2], marginBottom: spacing[6] },

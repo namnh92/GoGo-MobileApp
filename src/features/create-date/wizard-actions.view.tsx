@@ -1,17 +1,19 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
-import { useState } from 'react'
+import { isValidElement, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Alert, View } from 'react-native'
 import { useSession } from '@/shared/providers/session-provider'
 import { clearSavedRoomDraft, saveRoomDraft, type DraftStep } from '@/shared/store/savedRoomDraft'
 import { useRoomStore } from '@/shared/store/roomStore'
-import { useDialog } from '@/shared/ui/dialog.view'
-import { GhostBtn } from '@/shared/ui/primitives'
+import { useDialog, type DialogProps } from '@/shared/ui/dialog.view'
+import { GhostBtn, IconBtn } from '@/shared/ui/primitives'
+import { Icon } from '@/shared/ui/icons'
 import { SaveDraftButton } from './save-draft.view'
+import { WizardExitPrompt } from './wizard-exit-prompt.view'
 import { styles } from './wizard-actions.style'
 
-export function WizardActions({ step }: { step: DraftStep }) {
+export function WizardActions({ step, compact = false }: { step: DraftStep; compact?: boolean }) {
   const router = useRouter()
   const { t } = useTranslation()
   const { session } = useSession()
@@ -56,8 +58,8 @@ export function WizardActions({ step }: { step: DraftStep }) {
 
   return <View style={styles.actions}>
     <BlockingLoadingOverlay visible={leaving} />
-    <SaveDraftButton step={step} />
-    <GhostBtn label={t('draft.close')} onPress={() => void close()} disabled={creating || leaving} />
-    {dialog}
+    <SaveDraftButton step={step} compact={compact} />
+    {compact ? <IconBtn size="regular" accessibilityLabel={t('draft.close')} onPress={() => void close()} disabled={creating || leaving}><Icon name="x" size={20} /></IconBtn> : <GhostBtn label={t('draft.close')} onPress={() => void close()} disabled={creating || leaving} />}
+    {isValidElement<DialogProps>(dialog) ? <WizardExitPrompt {...dialog.props} /> : dialog}
   </View>
 }

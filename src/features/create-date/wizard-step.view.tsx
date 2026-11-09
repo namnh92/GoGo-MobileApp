@@ -37,12 +37,15 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
   return (
     <>
       <View>
-        <AppHeader onBack={onBack} title={t('home.createDate')} rightAction={<WizardActions step={step} />} />
+        <AppHeader onBack={onBack} title={t('home.createDate')} rightAction={<WizardActions step={step} compact />} />
       </View>
       {/* The bar repeats the count visually; the label carries it for a screen
           reader, so the bar itself stays decorative. */}
       <View style={styles.progress}>
-        <Text variant="label" color="accent.primary" accessibilityLabel={`${index + 1}/${total}`}>{label}</Text>
+        <View style={styles.progressLabels}>
+          <Text variant="introSmall" color="text.secondary" style={styles.context}>{t(`createWizard.context.${step}`)}</Text>
+          <Text variant="introLabel" color="accent.onSoft" accessibilityLabel={`${index + 1}/${total}`}>{label}</Text>
+        </View>
         <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <View style={[styles.fill, { width: `${((index + 1) / total) * 100}%` }]} />
         </View>

@@ -47,3 +47,16 @@ it('keeps editing when the dialog is cancelled', async () => {
   expect(mockSave).not.toHaveBeenCalled()
   expect(mockClear).not.toHaveBeenCalled()
 })
+
+it('discards the saved draft and resets the in-progress room', async () => {
+  useRoomStore.getState().patchDraft({ title: 'Cuối tuần' })
+  const view = await renderScreen(<WizardActions step="mood" />)
+  await fireEvent.press(view.getByText('Đóng'))
+  expect(view.getByTestId('wizard-exit-prompt')).toBeTruthy()
+  expect(view.getByTestId('sheet-actions')).toBeTruthy()
+  await act(async () => { await fireEvent.press(view.getByRole('button', { name: 'Bỏ bản nháp' })) })
+  await waitFor(() => expect(mockDismiss).toHaveBeenCalledWith('/(tabs)'))
+  expect(mockClear).toHaveBeenCalledTimes(1)
+  expect(useRoomStore.getState().title).toBe('')
+  expect(mockSave).not.toHaveBeenCalled()
+})

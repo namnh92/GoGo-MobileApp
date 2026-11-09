@@ -3,13 +3,18 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  sizes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[3] },
+  sizeChoice: { width: '48%' },
+  sizeChip: { justifyContent: 'center', borderRadius: radius.compact },
+  content: { paddingHorizontal: spacing[4], paddingBottom: spacing[6] },
+  body: { marginTop: spacing[2] },
   title: {
     marginTop: spacing[2],
   },
   stepper: {
     borderRadius: radius.hero,
     padding: spacing[5],
-    marginTop: spacing[7],
+    marginTop: spacing[1],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

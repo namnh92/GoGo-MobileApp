@@ -1,21 +1,28 @@
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { hitSlop, spacing } from '@/shared/ui/tokens'
+import { hitSlop } from '@/shared/ui/tokens'
 
 import { WizardStep } from './wizard-step.view'
 import { styles } from './group-setup.style'
 
 const MIN_PEOPLE = 3
 const MAX_PEOPLE = 12
+
+const SIZE_CHOICES = [
+  { min: 3, max: 4, count: 4 },
+  { min: 5, max: 6, count: 6 },
+  { min: 7, max: 10, count: 8 },
+  { min: 11, max: MAX_PEOPLE, count: 12 },
+] as const
 
 const BUDGET_MODES: { mode: BudgetMode; labelKey: 'groupSetup.perPerson' | 'groupSetup.groupTotal' }[] = [
   { mode: 'per_person', labelKey: 'groupSetup.perPerson' },
@@ -36,15 +43,26 @@ export default function GroupSetupScreen() {
   }
 
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       <WizardStep step="group-setup" onBack={() => router.back()} />
-      <View style={{ flex: 1, paddingHorizontal: spacing[5] }}>
-        <Text variant="display" style={styles.title}>{t('groupSetup.title')}</Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text variant="discoveryTitle" style={styles.title}>{t('groupSetup.title')}</Text>
+        <Text color="text.secondary" style={styles.body}>{t('groupSetup.body')}</Text>
+        <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('groupSetup.countTitle')}</Text>
 
+        <View style={styles.sizes}>
+          {SIZE_CHOICES.map(choice => <View key={choice.min} style={styles.sizeChoice}>
+            <Chip appearance="soft"
+              label={choice.min === 11 ? t('groupSetup.overTen') : t('groupSetup.range', { min: choice.min, max: choice.max })}
+              variant={participantCount >= choice.min && participantCount <= choice.max ? 'selected' : 'default'}
+              onPress={() => setParticipantCount(choice.count)} style={styles.sizeChip} />
+          </View>)}
+        </View>
         <Card padded={false} style={styles.stepper}>
           <Pressable
             onPress={() => step(-1)}
             disabled={participantCount <= MIN_PEOPLE}
+            accessibilityState={{ disabled: participantCount <= MIN_PEOPLE }}
             accessibilityRole="button"
             accessibilityLabel={t('groupSetup.decrease')}
             hitSlop={hitSlop}
@@ -58,6 +76,7 @@ export default function GroupSetupScreen() {
           <Pressable
             onPress={() => step(1)}
             disabled={participantCount >= MAX_PEOPLE}
+            accessibilityState={{ disabled: participantCount >= MAX_PEOPLE }}
             accessibilityRole="button"
             accessibilityLabel={t('groupSetup.increase')}
             hitSlop={hitSlop}
@@ -67,7 +86,7 @@ export default function GroupSetupScreen() {
           </Pressable>
         </Card>
 
-        <Text variant="title2" style={styles.sectionTitle}>{t('groupSetup.budgetBy')}</Text>
+        <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('groupSetup.budgetBy')}</Text>
         {/* Which mode is chosen changes what every price in the room means, so
             each option spells out its own meaning instead of leaving it to the
             label alone. */}
@@ -86,7 +105,7 @@ export default function GroupSetupScreen() {
                 style={[styles.mode, active && styles.modeActive]}
               >
                 <View style={styles.modeBody}>
-                  <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>
+                  <Text variant="discoveryHeading" color={active ? 'accent.onSoft' : 'text.primary'}>
                     {t(option.labelKey)}
                   </Text>
                   <Text variant="bodySmall" color="text.secondary" style={styles.modeHelp}>
@@ -103,9 +122,9 @@ export default function GroupSetupScreen() {
             )
           })}
         </View>
-      </View>
+      </ScrollView>
       <GlassBar placement="docked" testID="create-footer">
-        <PrimaryBtn label={t('common.continue')} onPress={() => router.push('/create/location')} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={() => router.push('/create/location')} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

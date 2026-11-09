@@ -12,7 +12,7 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { ErrorState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
@@ -21,7 +21,6 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-mood.style'
-import { taxonomyEmoji } from './taxonomy-emoji'
 
 const MAX_MOODS = 3
 const MAX_SETTINGS = 2
@@ -32,7 +31,6 @@ const TAXONOMY_KINDS = 'mood,setting,spending_style'
 interface ChipOption {
   key: string
   label: string
-  emoji?: string
 }
 
 function ChipGrid({ options, selected, onToggle }: {
@@ -46,7 +44,7 @@ function ChipGrid({ options, selected, onToggle }: {
         <Chip
           key={option.key}
           label={option.label}
-          emoji={option.emoji}
+          appearance="soft"
           variant={selected.includes(option.key) ? 'selected' : 'default'}
           onPress={() => onToggle(option.key)}
         />
@@ -85,7 +83,6 @@ export default function CreateMoodScreen() {
     return entries.map(entry => ({
       key: entry.key ?? '',
       label: entry.labels?.[locale] ?? entry.labels?.vi ?? entry.key ?? '',
-      emoji: taxonomyEmoji(entry.key ?? ''),
     }))
   }
 
@@ -150,11 +147,13 @@ export default function CreateMoodScreen() {
   }
 
   return (
-    <Atmosphere>
+    <Atmosphere redesign>
       <BlockingLoadingOverlay visible={createRoom.isPending} />
       <WizardStep step="mood" onBack={() => router.back()} />
 
-      {taxonomies.isPending ? (
+      {taxonomies.isPaused && !taxonomies.data ? (
+        <View testID="create-mood-offline" style={[styles.errorWrap, { paddingBottom: footerInset + spacing[4] }]}><OfflineState /></View>
+      ) : taxonomies.isPending ? (
         // A grid of chips is coming; say so with its shape, not a spinner.
         <View testID="create-mood-pending" style={[styles.pending, { paddingBottom: footerInset + spacing[4] }]}>
           <Skeleton width="55%" height={22} />
@@ -176,34 +175,36 @@ export default function CreateMoodScreen() {
           <ErrorState error={taxonomies.error} onRetry={() => void taxonomies.refetch()} />
         </View>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: footerInset + spacing[4] }}>
-          <Text variant="display">{t('createMood.title')}</Text>
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingHorizontal: spacing[4], paddingBottom: footerInset + spacing[4] }}>
+          <Text variant="discoveryTitle">{t('createMood.title')}</Text>
           <Text color="text.secondary" style={styles.body}>{t('createMood.body', { max: MAX_MOODS })}</Text>
 
-          <Text variant="title2" style={styles.moodTitle}>{t('createMood.moodTitle')}</Text>
+          {toOptions('mood').length + toOptions('setting').length + toOptions('spending_style').length === 0 ? <View testID="create-mood-empty"><EmptyState title={t('createMood.emptyTitle')} body={t('createMood.emptyBody')} /></View> : null}
+          {toOptions('mood').length ? <Text variant="discoveryHeading" style={styles.moodTitle}>{t('createMood.moodTitle')}</Text> : null}
           <ChipGrid options={toOptions('mood')} selected={moods} onToggle={toggleCapped(setMoods, MAX_MOODS)} />
 
-          <Text variant="title2" style={styles.sectionTitle}>{t('createMood.settingTitle')}</Text>
+          {toOptions('setting').length ? <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.settingTitle')}</Text> : null}
           <ChipGrid options={toOptions('setting')} selected={settings} onToggle={toggleCapped(setSettings, MAX_SETTINGS)} />
 
-          <Text variant="title2" style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text>
+          {toOptions('spending_style').length ? <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text> : null}
           <ChipGrid
             options={toOptions('spending_style')}
             selected={spending ? [spending] : []}
             onToggle={key => setSpending(current => (current === key ? null : key))}
           />
 
-          <Text variant="title2" style={styles.sectionTitle}>{t('createMood.seedTitle')}</Text>
+          <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.seedTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary" style={styles.seedHint}>{t('createMood.seedHint')}</Text>
           <View style={styles.seedRow}>
             {seedPlaces.map(place => (
               <Chip
                 key={place.placeId}
-                label={`${place.name}  ✕`}
+                label={place.name}
                 icon="mapPin"
                 variant="info"
                 accessibilityLabel={t('createMood.removePlace', { name: place.name })}
-                onPress={() => removeSeedPlace(place.placeId)}
+                onRemove={() => removeSeedPlace(place.placeId)}
+                removeAccessibilityLabel={t('createMood.removePlace', { name: place.name })}
               />
             ))}
             <Chip label={t('createMood.addPlace')} onPress={() => router.push('/places/search?picker=1')} />
@@ -219,6 +220,7 @@ export default function CreateMoodScreen() {
 
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn
+          variant="stitch"
           label={createRoom.isPending ? t('createMood.creating') : t('createMood.cta')}
           onPress={submit}
           icon="arrowRight"
