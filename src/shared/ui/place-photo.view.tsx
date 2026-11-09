@@ -27,7 +27,7 @@ import { styles } from './place-photo.style'
  * bytes never arrive — HTTP error, not an image, offline. A failed photo is
  * never an empty frame, and never announced as a photo.
  */
-const FILL = { width: '100%', height: '100%' } as const
+const FILL = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as const
 
 type Props = {
   /** The place's approved photo, when it has one. */
@@ -45,7 +45,7 @@ type Props = {
 }
 
 export function PlacePhoto({ uri, style, icon, ...rest }: Props) {
-  if (!uri) return <Pin icon={icon} testID="place-photo-placeholder" style={[styles.placeholder, style]} />
+  if (!uri) return <View testID="place-photo-frame" style={[styles.image, style]}><Pin icon={icon} testID="place-photo-placeholder" style={styles.underlay} /></View>
   // One attempt per URL: a new URL — or the same one again later — starts
   // from "loading", never from what an earlier URL ended in (Sol #348 F-02).
   return <PhotoAttempt key={uri} uri={uri} style={style} icon={icon} {...rest} />
@@ -56,17 +56,14 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy,
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading')
   const label = accessibilityLabel ?? name
 
-  if (status === 'failed') {
-    return <Pin icon={icon} testID="place-photo-placeholder" style={[styles.placeholder, style]} />
-  }
-
   // `expo-image` is not a React Native view, so Unistyles cannot bind a
   // style to it. The caller's size, radius and clip go on a plain `View`;
-  // the image only fills it, with a static style.
+  // the image only fills it, with a static style. Keep the neutral tile under
+  // the full native fade; neither layer contributes to the frame's geometry.
   return (
-    <View style={[styles.image, style]}>
-      {status === 'loading' ? <Pin icon={icon} testID="place-photo-loading" style={styles.underlay} /> : null}
-      <Image
+    <View testID="place-photo-frame" style={[styles.image, style]}>
+      <Pin icon={icon} testID={status === 'loaded' ? 'place-photo-underlay' : status === 'failed' ? 'place-photo-placeholder' : 'place-photo-loading'} style={styles.underlay} />
+      {status !== 'failed' ? <Image
         testID={imageTestID ?? 'place-photo-image'}
         source={{ uri }}
         cachePolicy={cachePolicy}
@@ -83,7 +80,7 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy,
         // its own is never read. Opt in only when there is one (Sol #348 F-06).
         accessible={label !== undefined}
         accessibilityLabel={label}
-      />
+      /> : null}
     </View>
   )
 }

@@ -185,6 +185,28 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     expect(save).toHaveBeenCalledTimes(1)
     expect(open).not.toHaveBeenCalled()
   })
+  it('SMALL appends a generic caption after name, address and ratings', async () => {
+    await render(<PlaceCardSmall place={full} caption={<View testID="custom-caption" />} />)
+    const body = screen.getByTestId('place-card-body')
+    expect(body.children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-card-name', 'place-card-address-row', 'place-card-ratings', 'custom-caption'])
+    expect(screen.getByTestId('saved-photo-attribution')).toBeTruthy()
+  })
+  it.each(components)('%s keeps its photo frame while loading, loaded and failed', async (_name, Component) => {
+    await render(<Component place={full} />)
+    const photo = screen.getByTestId('place-card-photo')
+    const frame = screen.getByTestId('place-photo-frame')
+    const geometry = StyleSheet.flatten(photo.props.style)
+    const frameGeometry = StyleSheet.flatten(frame.props.style)
+    expect(screen.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
+    await fireEvent(screen.getByTestId('place-photo-image'), 'load', { nativeEvent: {} })
+    expect(screen.getByTestId('place-photo-underlay', { includeHiddenElements: true })).toBeTruthy()
+    await fireEvent(screen.getByTestId('place-photo-image'), 'error', { nativeEvent: {} })
+    expect(screen.queryByTestId('place-photo-image')).toBeNull()
+    expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-photo').props.style)).toEqual(geometry)
+    expect(StyleSheet.flatten(screen.getByTestId('place-photo-frame').props.style)).toEqual(frameGeometry)
+    expect(within(photo).getByTestId('place-card-verified')).toBeTruthy()
+  })
   it('SMALL uses the theme’s solid verified fill over photos in Light and Dark', () => {
     // Unistyles' Jest mock resolves styles with the first theme; evaluate the
     // production factory explicitly to cover the Dark surface too.

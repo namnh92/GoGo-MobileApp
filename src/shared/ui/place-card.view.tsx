@@ -91,27 +91,29 @@ export function CardTags({ place, tags, categoryLabel }: { place: PlaceCardModel
   return <PlaceCardTags tags={[categoryLabel ?? place.discovery?.categoryLabel, ...(tags ?? place.discovery?.tagLabels ?? [])].filter((tag): tag is string => !!tag)} />
 }
 
-export function CardCredits({ data }: { data: CardData }) {
+export function CardCredits({ data, inline = false }: { data: CardData; inline?: boolean }) {
   const { t } = useTranslation()
   const { place, candidate, extraCredits } = data
+  const credits = extraCredits.map(credit => <Text key={credit} variant="caption" color="text.secondary">{credit}</Text>)
   return <>
-    {place.photoAttribution ? <Text testID={candidate ? 'import-photo-credit' : 'saved-photo-attribution'} variant="caption" color="text.secondary" style={styles.savedCredits}>
+    {inline ? credits : null}
+    {place.photoAttribution ? <Text testID={candidate ? 'import-photo-credit' : 'saved-photo-attribution'} variant="caption" color="text.secondary" style={inline ? styles.inlineCredits : styles.savedCredits}>
       {candidate ? t('placeImport.photoCredit') : place.photoSource === 'google' ? 'Google · ' : ''}
       {candidate ? null : place.photoAttribution}
       {place.photoAuthors?.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="caption" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{candidate ? index ? ', ' : '' : ' · '}{author.displayName}</Text>)}
       {candidate ? ` · ${place.photoAttribution}` : null}
     </Text> : null}
-    {extraCredits.map(credit => <Text key={credit} variant="caption" color="text.secondary">{credit}</Text>)}
+    {inline ? null : credits}
   </>
 }
 
-export function CardShell({ props, data, small = false, children, style }: { props: PlaceCardProps; data: CardData; small?: boolean; children: ReactNode; style: StyleProp<ViewStyle> }) {
+export function CardShell({ props, data, small = false, showCredits = true, children, style }: { props: PlaceCardProps; data: CardData; small?: boolean; showCredits?: boolean; children: ReactNode; style: StyleProp<ViewStyle> }) {
   const Target = props.onPress ? Pressable : View
   return <View testID="place-card-surface" style={[styles.discoveryCard, style, props.style]}>
     <View testID={data.candidate ? small ? 'place-preview-compact' : 'import-preview-card' : undefined}>
       <Target testID="place-card-open-target" accessibilityRole={props.onPress ? 'button' : undefined} accessibilityLabel={props.accessibilityLabel ?? (props.onPress ? data.place.name : undefined)} accessibilityHint={props.accessibilityHint} accessibilityState={{ disabled: props.disabled, selected: props.selected }} disabled={props.disabled} onPress={props.onPress}>{children}</Target>
       {props.headerAction ? <View style={small ? styles.saveSmall : styles.saveOnPhoto}>{props.headerAction}</View> : props.saved != null && props.onToggleSave ? <SaveToggle compact={small} saved={props.saved} onToggle={props.onToggleSave} /> : null}
-      <CardCredits data={data} />
+      {showCredits ? <CardCredits data={data} /> : null}
       {props.footer ? <View style={styles.savedFooter}>{props.footer}</View> : null}
       {props.children ? <View style={styles.importActions}>{props.children}</View> : null}
     </View>

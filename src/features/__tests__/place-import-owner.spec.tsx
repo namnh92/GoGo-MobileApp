@@ -124,7 +124,7 @@ it('shows the menu/bill upload visibly unavailable and never requests picker per
 it('omits candidate imagery and performs no photo request when the contract field is absent', async () => {
   await preview()
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
-  expect(screen.queryByTestId('place-photo-placeholder')).toBeNull()
+  expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
   expect(mockGet).not.toHaveBeenCalled()
 })
 
@@ -219,7 +219,7 @@ it('drops a late candidate photo response after the link changes', async () => {
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
 })
 
-it('hides a failed candidate image and its credits without placeholder art', async () => {
+it('keeps a failed candidate image frame and hides its credits', async () => {
   mockGet.mockResolvedValue({
     status: 'ok',
     attribution: 'Google Maps',
@@ -230,10 +230,10 @@ it('hides a failed candidate image and its credits without placeholder art', asy
   await fireEvent(screen.getByTestId('import-candidate-photo'), 'error', { nativeEvent: { error: 'decode failed' } })
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
   expect(screen.queryByText('Ảnh: Lan · Google Maps')).toBeNull()
-  expect(screen.queryByTestId('place-photo-placeholder')).toBeNull()
+  expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
 })
 
-it('shows photo loading without blocking submit, then removes the image slot when the BFF has no photo', async () => {
+it('shows photo loading without blocking submit and retains the frame when the BFF has no photo', async () => {
   let finish: (response: unknown) => void = () => {}
   mockGet.mockResolvedValue({ status: 'unavailable', photos: [] })
   mockGet.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
@@ -246,7 +246,7 @@ it('shows photo loading without blocking submit, then removes the image slot whe
   await act(async () => { finish({ status: 'unavailable', photos: [] }) })
   expect(screen.queryByTestId('import-candidate-photo-loading')).toBeNull()
   expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
-  expect(screen.queryByTestId('place-photo-placeholder')).toBeNull()
+  expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
 })
 
 it('renders only the first Google photo with its own response credits', async () => {
@@ -627,7 +627,11 @@ it('shows a success result for the place and replaces the submitted form with co
   await preview({ ...candidate, address: '12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh' })
   await completeWizard()
   await fireEvent.press(screen.getByText('Gửi'))
-  const row = within(screen.getByTestId('place-preview-compact'))
+  const card = screen.getByTestId('place-result-card')
+  expect(StyleSheet.flatten(card.props.style)).toMatchObject({ width: '100%', backgroundColor: themes.orange.redesign.high, borderRadius: themes.orange.radius.card, ...themes.orange.shadows.card })
+  const row = within(card)
+  expect(row.getByTestId('place-card-small')).toBeTruthy()
+  expect(StyleSheet.flatten(row.getByTestId('place-card-surface').props.style)).toMatchObject({ padding: 8, borderWidth: 0 })
   expect(row.getByText('Preview')).toBeTruthy()
   expect(row.getByText('12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh').props.numberOfLines).toBe(1)
   expect(row.queryByTestId('place-preview-thumbnail')).toBeNull()
@@ -635,14 +639,14 @@ it('shows a success result for the place and replaces the submitted form with co
   expect(screen.getByText('Preview đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()
   expect(screen.getByText('+50 GoGo Credit khi được duyệt')).toBeTruthy()
   expect(screen.queryByText('✓ Đã gửi — GoGo sẽ duyệt trước khi hiển thị.')).toBeNull()
-  await fireEvent.press(screen.getByText('Xem đóng góp của tôi'))
+  await fireEvent.press(screen.getByText('Xem đóng góp'))
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/me/contributions'))
 })
 it('resets a successful flow to Nhập link through the secondary action', async () => {
   await preview()
   await completeWizard()
   await fireEvent.press(screen.getByText('Gửi'))
-  await fireEvent.press(screen.getByText('Thêm địa điểm khác'))
+  await fireEvent.press(screen.getByText('Thêm địa điểm'))
   await waitFor(() => expect(screen.getByTestId('import-link-input').props.value).toBe(''))
   expect(screen.queryByTestId('contribution-wizard')).toBeNull()
 })
@@ -672,19 +676,48 @@ it('saves the retained form as a draft from the error sheet', async () => {
   expect(screen.getByLabelText('Món ngon & mẹo').props.value).toBe('Saved after failure')
 })
 
-it('shows the submitted photo thumbnail with attribution and omits it on image failure', async () => {
-  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [
+it.each(['orange', 'orangeDark'] as const)('keeps the submitted photo frame with attribution last in the text column and no open-status line (%s)', async themeName => {
+  const unistyles = jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles')
+  const { rt } = unistyles.useUnistyles()
+  jest.spyOn(unistyles, 'useUnistyles').mockReturnValue({ theme: themes[themeName], rt: { ...rt, themeName } })
+  const response = { status: 'ok', attribution: 'Google Maps', photos: [
     { contentType: 'image/jpeg', dataBase64: 'AA==', authorAttributions: [{ displayName: 'Photo author' }] },
-  ] })
-  await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+  ] }
+  let finish!: (value: unknown) => void
+  mockGet.mockResolvedValueOnce(response)
+  mockGet.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  await preview({ ...candidate, address: '12 Nguyễn Huệ', attributions: ['Distinct provider credit'], googleRating: 4.6, googleRatingCount: 980,
+    openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 420, closeMinute: 600 })),
+    photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await completeWizard()
   await fireEvent.press(screen.getByRole('button', { name: 'Gửi' }))
   const row = within(screen.getByTestId('place-preview-compact'))
+  const photo = row.getByTestId('place-card-photo')
+  const frameStyle = () => StyleSheet.flatten(photo.props.style)
+  const before = frameStyle()
+  expect(before).toMatchObject({ width: 80, height: 80 })
+  expect(row.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+  await act(async () => { finish(response) })
+  expect(frameStyle()).toEqual(before)
+  expect(row.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
   await waitFor(() => expect(row.getByTestId('place-preview-thumbnail')).toBeTruthy())
   expect(row.getByTestId('place-preview-thumbnail').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,AA==' }], cachePolicy: 'none' })
-  expect(row.getByText('Ảnh: Photo author · Google Maps')).toBeTruthy()
+  const body = row.getByTestId('place-card-body')
+  const credit = within(body).getByText('Ảnh: Photo author · Google Maps')
+  expect(within(body).getByText('12 Nguyễn Huệ')).toBeTruthy()
+  expect(within(body).getByTestId('place-google-rating')).toHaveTextContent('★ 4,6 (980) Google')
+  expect(within(body).getByText('Distinct provider credit')).toBeTruthy()
+  expect(body.children[body.children.length - 1]).toBe(credit)
+  expect(row.getAllByText('Ảnh: Photo author · Google Maps')).toHaveLength(1)
+  expect(StyleSheet.flatten(credit.props.style).textAlign).toBe('left')
+  expect(row.queryByTestId('place-card-hours-badge')).toBeNull()
+  expect(row.queryByText(/Đã đóng|Đang mở|Mở 07:00/)).toBeNull()
+  await fireEvent(row.getByTestId('place-preview-thumbnail'), 'load', { nativeEvent: {} })
+  expect(frameStyle()).toEqual(before)
   await fireEvent(row.getByTestId('place-preview-thumbnail'), 'error', { nativeEvent: { error: 'decode failed' } })
   expect(row.queryByTestId('place-preview-thumbnail')).toBeNull()
+  expect(row.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+  expect(frameStyle()).toEqual(before)
   expect(row.queryByText('Ảnh: Photo author · Google Maps')).toBeNull()
 })
 
@@ -710,4 +743,23 @@ it.each(['orange', 'orangeDark'] as const)('keeps the synced card without a chan
   expect(screen.queryByTestId('import-synced-link')).toBeNull()
   expect(screen.getByTestId('import-link-input').props.value).toBe('')
   expect(mockRouter.back).not.toHaveBeenCalled()
+})
+
+
+it.each(['orange', 'orangeDark'] as const)('raises the result card over the sheet with tight inner padding (%s)', themeName => {
+  const create = jest.spyOn(UnistylesStyleSheet, 'create')
+  try {
+    jest.isolateModules(() => {
+      jest.requireActual('@/features/place-import/import.style')
+      jest.requireActual('@/shared/ui/card.style')
+      jest.requireActual('@/shared/ui/sheet.style')
+    })
+    const [screenStyle, cardStyle, sheetStyle] = create.mock.calls.map(([factory]) =>
+      (factory as (theme: AppTheme) => Record<string, any>)(themes[themeName]))
+    const theme = themes[themeName]
+    expect({ ...cardStyle.card, ...screenStyle.resultPreview }).toMatchObject({ width: '100%', backgroundColor: theme.redesign.high, borderRadius: theme.radius.card, ...theme.shadows.card })
+    expect(screenStyle.resultPreviewContent).toMatchObject({ padding: 8, borderWidth: 0, backgroundColor: theme.redesign.high })
+    expect(screenStyle.resultPreview.backgroundColor).not.toBe(sheetStyle.panel.backgroundColor)
+    expect(cardStyle.card.overflow).not.toBe('hidden')
+  } finally { create.mockRestore() }
 })

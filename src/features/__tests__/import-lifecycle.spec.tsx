@@ -56,7 +56,7 @@ it('M11 accepted POST retires immediately, shows retry cleanup, never resubmits 
   expect(mockRemove).toHaveBeenCalledWith({ id: mockDraft.id, version: 3 })
   expect(screen.queryByTestId('contribution-wizard')).toBeNull()
   expect(screen.getAllByText(i18n.t('placeWizard.lifecycle.submittedCleanupPending')).length).toBeGreaterThan(0)
-  const retry = screen.getAllByRole('button', { name: 'Thử dọn bản nháp lại' })[0]
+  const retry = screen.getAllByRole('button', { name: 'Dọn nháp lại' })[0]
   await fireEvent.press(retry)
   expect(mockPost).toHaveBeenCalledTimes(1); expect(mockRemove).toHaveBeenCalledTimes(2)
   expect(mockRemove).toHaveBeenLastCalledWith({ id: mockDraft.id, version: 3 })
@@ -80,7 +80,7 @@ it('M12 lost submission response offers Check my contributions, no blind retry/s
   expect(sheet.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   expect(sheet.getByRole('button', { name: 'Lưu nháp' }).props.accessibilityState.disabled).toBe(true)
   expect(mockRemove).not.toHaveBeenCalled(); expect(mockPost).toHaveBeenCalledTimes(1)
-  await fireEvent.press(sheet.getByRole('button', { name: 'Kiểm tra đóng góp của tôi' }))
+  await fireEvent.press(sheet.getByRole('button', { name: 'Xem đóng góp' }))
   expect(mockPost).toHaveBeenCalledTimes(1)
 })
 it('M12 ALREADY_EXISTS retains active recovery and photos, without cleanup', async () => {

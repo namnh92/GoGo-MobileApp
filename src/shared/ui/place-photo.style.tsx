@@ -2,12 +2,7 @@ import { StyleSheet } from 'react-native-unistyles'
 
 export const styles = StyleSheet.create(theme => ({
   image: { backgroundColor: theme.surface.subtle, overflow: 'hidden' },
-  placeholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.surface.subtle,
-  },
-  /** The placeholder tile, drawn under an image that has not arrived yet. */
+  /** The neutral tile remains beneath the image throughout its fade. */
   underlay: {
     position: 'absolute',
     top: 0,

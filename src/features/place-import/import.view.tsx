@@ -18,6 +18,7 @@ import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
+import { Card } from '@/shared/ui/card.view'
 import { openWebsite } from '@/shared/navigation/external-links'
 import { useSession } from '@/shared/providers/session-provider'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
@@ -528,7 +529,9 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
           : state.phase === 'submissionUnknown' ? t('placeWizard.lifecycle.submissionUnconfirmed')
           : t('placeResult.errorBody', { reason: t(state.message === 'notYetOpen' ? 'placeImport.notYetOpen' : 'placeImport.submitFailed') })}
         media={outcome === 'success' && resultVisible && submittedPreview ? (
-          <PlaceCardSmall preview={submittedPreview} />
+          <Card testID="place-result-card" padded={false} style={styles.resultPreview}>
+            <PlaceCardSmall preview={submittedPreview} style={styles.resultPreviewContent} photoCaption />
+          </Card>
         ) : undefined}
         note={outcome === 'success' ? t('placeResult.credit') : undefined}
         primaryAction={{ label: t(outcome === 'success' ? 'placeResult.viewContributions' : state.phase === 'submissionUnknown' ? 'placeWizard.lifecycle.checkContributions' : 'common.retry'), onPress: outcome === 'success' || state.phase === 'submissionUnknown' ? viewContributions : () => closeResult(() => { if (contributionPlaceId) void onSubmitPlace() }) }}

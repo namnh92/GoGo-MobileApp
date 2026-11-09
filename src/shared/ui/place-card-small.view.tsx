@@ -1,14 +1,22 @@
+import type { ReactNode } from 'react'
 import { View } from 'react-native'
-import { CardImage, CardShell, PlaceCardAddress, Verified, useCardData, type PlaceCardProps } from './place-card.view'
+import { CardCredits, CardImage, CardShell, PlaceCardAddress, Verified, useCardData, type PlaceCardProps } from './place-card.view'
 import { RatingChips } from './rating-chips.view'
 import { Text } from './text'
 import { styles } from './place-card-small.style'
 
 /** Thumbnail-left common card; exported for the #561 map-marker branch. */
-export function PlaceCardSmall(props: PlaceCardProps) {
+export type PlaceCardSmallProps = PlaceCardProps & {
+  /** Optional supporting content after the common facts. */
+  caption?: ReactNode
+  /** Move the shared photo credits to the final caption in the text column. */
+  photoCaption?: boolean
+}
+
+export function PlaceCardSmall(props: PlaceCardSmallProps) {
   const data = useCardData(props)
   const { place } = data
-  return <CardShell props={props} data={data} small style={styles.surface}>
+  return <CardShell props={props} data={data} small showCredits={!props.photoCaption} style={styles.surface}>
     <View testID="place-card">
       <View testID="place-card-small" style={styles.row}>
         <View testID="place-card-photo" style={[styles.photo, props.unavailableLabel && styles.unavailablePhoto]}>
@@ -20,9 +28,10 @@ export function PlaceCardSmall(props: PlaceCardProps) {
           <Text testID="place-card-name" variant="introLabel" color="redesign.ink" style={[styles.name, (!!props.headerAction || props.saved != null && !!props.onToggleSave) && styles.withAction, props.unavailableLabel && styles.unavailableName]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
           <PlaceCardAddress place={place} compact />
           <RatingChips place={place} compact />
+          {props.caption}
+          {props.photoCaption ? <CardCredits data={data} inline /> : null}
         </View>
       </View>
     </View>
   </CardShell>
 }
-export type { PlaceCardProps as PlaceCardSmallProps } from './place-card.view'

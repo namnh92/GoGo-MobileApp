@@ -1,4 +1,7 @@
-import { act, render, screen } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
+import { themes, type AppTheme } from '@/shared/ui/theme'
+import { act, render, screen, within } from '@testing-library/react-native'
 
 // The native expo-image adapter cannot receive synthetic load/error events
 // under jest; React Native's Image keeps `onLoad`/`onError` as plain props,
@@ -63,11 +66,12 @@ describe('PlacePhoto', () => {
     expect(image.props.accessible).not.toBe(true)
   })
 
-  it('loaded: the stand-in goes away', async () => {
+  it('loaded: the neutral tile remains beneath the native fade', async () => {
     await render(<PlacePhoto placeId="p1" name="Cà phê" uri={PHOTO} />)
     await fire('onLoad')
     expect(screen.queryByTestId('place-photo-loading', { includeHiddenElements: true })).toBeNull()
     expect(screen.getByTestId('place-photo-image')).toBeTruthy()
+    expect(screen.getByTestId('place-photo-underlay', { includeHiddenElements: true })).toBeTruthy()
   })
 
   it('failed: the same pin tile as no photo, and no image left to announce', async () => {
@@ -143,4 +147,41 @@ describe('PlacePhoto', () => {
 it('never hands transient provider bytes to the disk cache', async () => {
   await render(<PlacePhoto placeId="p1" uri="data:image/jpeg;base64,YQ==" cachePolicy="none" />)
   expect(screen.getByTestId('place-photo-image').props.cachePolicy).toBe('none')
+})
+
+
+it('reserves identical geometry before URI arrival, during decode, after load and on error', async () => {
+  const size = { width: 80, height: 80, borderRadius: 10, flexShrink: 0 }
+  const view = await render(<PlacePhoto placeId="p1" style={size} />)
+  const frame = () => StyleSheet.flatten(screen.getByTestId('place-photo-frame').props.style)
+  const initial = frame()
+  expect(initial).toMatchObject(size)
+  await view.rerender(<PlacePhoto placeId="p1" uri={PHOTO} style={size} />)
+  expect(screen.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
+  expect(frame()).toEqual(initial)
+  expect(StyleSheet.flatten(screen.getByTestId('place-photo-image').props.style)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 })
+  await fire('onLoad')
+  expect(frame()).toEqual(initial)
+  await fire('onError')
+  expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+  expect(frame()).toEqual(initial)
+})
+
+it.each(['orange', 'orangeDark'] as const)('uses a role surface and neutral icon in every state (%s)', async themeName => {
+  const create = jest.spyOn(UnistylesStyleSheet, 'create')
+  try {
+    jest.isolateModules(() => { jest.requireActual('@/shared/ui/place-photo.style') })
+    const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
+    expect(factory(themes[themeName]).image.backgroundColor).toBe(themes[themeName].surface.subtle)
+  } finally { create.mockRestore() }
+  const unistyles = jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles')
+  const { rt } = unistyles.useUnistyles()
+  jest.spyOn(unistyles, 'useUnistyles').mockReturnValue({ theme: themes[themeName], rt })
+  try {
+    await render(<PlacePhoto placeId="p1" uri={PHOTO} />)
+    const tile = screen.getByTestId('place-photo-loading', { includeHiddenElements: true })
+    expect(within(tile).getByTestId('icon-map-pin', { includeHiddenElements: true }).props.color).toBe(themes[themeName].text.secondary)
+    await fire('onError')
+    expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+  } finally { jest.restoreAllMocks() }
 })

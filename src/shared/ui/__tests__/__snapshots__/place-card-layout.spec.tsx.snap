@@ -13,17 +13,23 @@ exports[`owner 2026-11-08 two common cards / orange LARGE pins full-data structu
                   {
                     "children": [
                       {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-loading",
+                        "lines": undefined,
+                      },
+                      {
                         "children": [],
-                        "id": "icon-map-pin",
+                        "id": "place-photo-image",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-loading",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-photo-image",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                   {
@@ -178,12 +184,18 @@ exports[`owner 2026-11-08 two common cards / orange LARGE pins minimal structure
                   {
                     "children": [
                       {
-                        "children": [],
-                        "id": "icon-map-pin",
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-placeholder",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-placeholder",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                   {
@@ -240,17 +252,23 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structu
                   {
                     "children": [
                       {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-loading",
+                        "lines": undefined,
+                      },
+                      {
                         "children": [],
-                        "id": "icon-map-pin",
+                        "id": "place-photo-image",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-loading",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-photo-image",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                   {
@@ -355,12 +373,18 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins minimal structure
                   {
                     "children": [
                       {
-                        "children": [],
-                        "id": "icon-map-pin",
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-placeholder",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-placeholder",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                 ],
@@ -417,17 +441,23 @@ exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins full-data str
                   {
                     "children": [
                       {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-loading",
+                        "lines": undefined,
+                      },
+                      {
                         "children": [],
-                        "id": "icon-map-pin",
+                        "id": "place-photo-image",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-loading",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-photo-image",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                   {
@@ -582,12 +612,18 @@ exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins minimal struc
                   {
                     "children": [
                       {
-                        "children": [],
-                        "id": "icon-map-pin",
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-placeholder",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-placeholder",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                   {
@@ -644,17 +680,23 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data str
                   {
                     "children": [
                       {
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-loading",
+                        "lines": undefined,
+                      },
+                      {
                         "children": [],
-                        "id": "icon-map-pin",
+                        "id": "place-photo-image",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-loading",
-                    "lines": undefined,
-                  },
-                  {
-                    "children": [],
-                    "id": "place-photo-image",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                   {
@@ -759,12 +801,18 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins minimal struc
                   {
                     "children": [
                       {
-                        "children": [],
-                        "id": "icon-map-pin",
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "icon-map-pin",
+                            "lines": undefined,
+                          },
+                        ],
+                        "id": "place-photo-placeholder",
                         "lines": undefined,
                       },
                     ],
-                    "id": "place-photo-placeholder",
+                    "id": "place-photo-frame",
                     "lines": undefined,
                   },
                 ],
