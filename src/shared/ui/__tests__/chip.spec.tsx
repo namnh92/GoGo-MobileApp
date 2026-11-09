@@ -103,7 +103,7 @@ it.each(Object.entries(themes))('keeps every variant single-line and selected he
       expect(screen.getByTestId('chip').props.accessibilityState).toEqual({ selected: variant === 'selected', disabled: variant === 'disabled' })
       expect(screen.queryByText(/✓/)).toBeNull()
       const semantic = {
-        disabled: appearance === 'raised' ? [theme.redesign.card, theme.redesign.secondary] : [theme.surface.subtle, theme.text.secondary],
+        disabled: appearance === 'raised' ? [theme.surface.card, theme.text.secondary] : [theme.surface.subtle, theme.text.secondary],
         info: [theme.status.infoSoft, theme.status.infoText],
         positive: [theme.status.successSoft, theme.status.successText],
         warning: [theme.status.warningSoft, theme.status.warningText],

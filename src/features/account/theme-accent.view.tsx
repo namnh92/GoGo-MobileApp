@@ -50,8 +50,8 @@ export function ThemeAccentCard() {
     <BlockingLoadingOverlay visible={saving} onClosed={overlay.onClosed} />
     <View style={styles.intro}>
       <Chip label={t('g11.themePersonalise')} />
-      <Text variant="introSection" color="redesign.ink" accessibilityRole="header">{t('g11.themeHeading')}</Text>
-      <Text variant="introBody" color="redesign.secondary">{t('g11.themeIntro')}</Text>
+      <Text variant="introSection" color="text.primary" accessibilityRole="header">{t('g11.themeHeading')}</Text>
+      <Text variant="introBody" color="text.secondary">{t('g11.themeIntro')}</Text>
     </View>
     <View style={styles.section}>
     <View style={styles.titleRow}>
@@ -78,12 +78,12 @@ export function ThemeAccentCard() {
     </View>
     <ThemeScopeProvider name={themeName(current, theme.mode)}>
       <View style={styles.section}>
-        <View style={styles.titleRow}><Text variant="introHeading" style={styles.title} accessibilityRole="header">{t('g11.preview')}</Text><View style={styles.live}><View testID="theme-preview-live-dot" style={styles.liveDot} /><Text variant="introCaption" color="redesign.secondary">{t('g11.live')}</Text></View></View>
+        <View style={styles.titleRow}><Text variant="introHeading" style={styles.title} accessibilityRole="header">{t('g11.preview')}</Text><View style={styles.live}><View testID="theme-preview-live-dot" style={styles.liveDot} /><Text variant="introCaption" color="text.secondary">{t('g11.live')}</Text></View></View>
         <ThemePreview />
       </View>
     </ThemeScopeProvider>
     <PrimaryBtn variant="pill" label={t('g11.applyTheme')} leadingIcon="checkCircle" onPress={() => void apply()} loading={saving} disabled={saving} />
-    <Text variant="introCaption" color="redesign.secondary" style={styles.helper}>{t('account.themeHelper')}</Text>
+    <Text variant="introCaption" color="text.secondary" style={styles.helper}>{t('account.themeHelper')}</Text>
     <ResultSheet visible={result !== null && overlay.closed} variant={result ?? 'success'} title={t(result === 'error' ? 'g11.themeFailed' : 'g11.themeSaved')}
       body={t('account.themeHelper')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
   </>
@@ -106,7 +106,7 @@ function ThemePreview() {
           <View style={[styles.sampleButton, styles.title, styles.sampleNeutral]}><Icon name="info" size={18} /><Text variant="introHeading">{t('g11.sampleDetail')}</Text></View>
         </View>
       </Card>
-      <View><Text variant="introCaption" color="redesign.secondary">{t('g11.previewTabs')}</Text><View style={styles.sampleTabs}>{(['compass', 'calendar', 'bookmark', 'user'] as const).map((icon, index) => <View key={icon} style={styles.sampleTab}>
+      <View><Text variant="introCaption" color="text.secondary">{t('g11.previewTabs')}</Text><View style={styles.sampleTabs}>{(['compass', 'calendar', 'bookmark', 'user'] as const).map((icon, index) => <View key={icon} style={styles.sampleTab}>
         <Icon name={icon} color={index === 1 ? 'accent.primary' : 'text.secondary'} />
         <Text variant="caption" color={index === 1 ? 'accent.primary' : 'text.secondary'}>{t((['tabs.home', 'tabs.plans', 'tabs.saved', 'tabs.profile'] as const)[index])}</Text>{index === 1 ? <View style={styles.activeDot} /> : null}
       </View>)}</View></View>

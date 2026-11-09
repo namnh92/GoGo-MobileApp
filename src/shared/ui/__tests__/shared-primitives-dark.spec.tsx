@@ -50,13 +50,13 @@ describe('shared primitives on a dark device', () => {
     expect(props.source).toBe(106)
     expect(props.contentFit).toBe('contain')
     expect(props.transition).toBe(0)
-    expect(flat(props.style)).toMatchObject({ backgroundColor: themes.orangeDark.redesign.low, width: 4, height: 4 })
+    expect(flat(props.style)).toMatchObject({ backgroundColor: themes.orangeDark.surface.low, width: 4, height: 4 })
   })
 
   it('the AppHeader canvas follows the dark device', async () => {
     const { AppHeader } = jest.requireActual<typeof import('@/shared/ui/app-header.view')>('@/shared/ui/app-header.view')
     await render(<AppHeader title="T" onBack={jest.fn()} />)
-    expect(flat(screen.getByTestId('app-header').props.style).backgroundColor).toBe(themes.orangeDark.redesign.canvas)
+    expect(flat(screen.getByTestId('app-header').props.style).backgroundColor).toBe(themes.orangeDark.surface.canvas)
   })
 
   it('the map fallback surface is not the light map green', async () => {

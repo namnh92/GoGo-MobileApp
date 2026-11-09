@@ -90,6 +90,23 @@ describe('Adjust app tokens (GoGo-MobileApp#367, AC-A1)', () => {
   })
 })
 
+describe('official brand native assets (#587)', () => {
+  it('keeps the Deep Navy icon and distinct Light/Dark launch artwork', async () => {
+    const config = await loadConfig('dev')
+    expect(config.android?.adaptiveIcon).toMatchObject({
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundImage: './assets/adaptive-icon-background.png',
+      backgroundColor: '#20124A',
+    })
+    const splash = config.plugins?.find(plugin => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen')
+    expect(splash).toEqual(['expo-splash-screen', {
+      image: './assets/splash-icon.png', imageWidth: 180, resizeMode: 'contain',
+      backgroundColor: '#FFF8F3',
+      dark: { image: './assets/splash-icon-dark.png', backgroundColor: '#181715' },
+    }])
+  })
+})
+
 describe('app identity', () => {
   it.each([
     ['dev', 'max.gogo.dev', 'GoGo Dev', 'gogo-dev'],

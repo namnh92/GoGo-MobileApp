@@ -28,8 +28,8 @@ export function ExistingPlaceResult({ placeId, onReset }: { placeId: string; onR
   return (
     <View style={styles.resultCard}>
       <View style={styles.existingHeading}>
-        <MaterialIcon name="checkCircle" color="redesign.greenText" />
-        <Text variant="introHeading" color="redesign.ink" style={styles.existsTitle}>{t('placeImport.existsBody')}</Text>
+        <MaterialIcon name="checkCircle" color="status.successText" />
+        <Text variant="introHeading" color="text.primary" style={styles.existsTitle}>{t('placeImport.existsBody')}</Text>
       </View>
       {detail.isPending ? (
         <Skeleton height={200} />

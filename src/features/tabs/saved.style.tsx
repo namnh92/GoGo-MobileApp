@@ -5,7 +5,7 @@ import { spacing, tabRootSpacing, touchTarget } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   linkCard: { gap: spacing[1] },
   linkRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center', minHeight: 44 },
-  linkInput: { ...theme.type.bodySmall, flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 8, borderRadius: 8, backgroundColor: theme.redesign.container, color: theme.redesign.ink },
+  linkInput: { ...theme.type.bodySmall, flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 8, borderRadius: 8, backgroundColor: theme.surface.container, color: theme.text.primary },
   list: { paddingHorizontal: spacing[5] },
   /** ADM-205 — province, then commune; each header is a screen-reader heading. */
   group: { marginBottom: tabRootSpacing.section },

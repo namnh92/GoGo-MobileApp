@@ -40,10 +40,10 @@ export function Chip({ label, variant = 'default', appearance = 'default', icon,
   const stateVariant = disabled && !selected ? 'disabled' : variant
   // Semantic/disabled states keep their own foreground and surface in every appearance.
   const visual = stateVariant === 'default' || selected || appearance === 'raised' && stateVariant === 'disabled' ? appearance : 'default'
-  const labelColor: TextColor = visual === 'raised' ? selected ? 'accent.onAccent' : 'redesign.secondary'
-    : visual === 'soft' ? selected ? 'accent.onSoft' : 'redesign.secondary'
-    : visual === 'mood' ? selected ? 'redesign.primaryText' : 'redesign.secondary'
-      : visual === 'discovery' ? 'redesign.primaryText' : LABEL[stateVariant]
+  const labelColor: TextColor = visual === 'raised' ? selected ? 'accent.onAccent' : 'text.secondary'
+    : visual === 'soft' ? selected ? 'accent.onSoft' : 'text.secondary'
+    : visual === 'mood' ? selected ? 'accent.onSoft' : 'text.secondary'
+      : visual === 'discovery' ? selected ? 'accent.onSoft' : 'accent.text' : LABEL[stateVariant]
   const showIcon = icon && !(selected && (icon === 'check' || icon === 'checkCircle'))
 
   const body = (

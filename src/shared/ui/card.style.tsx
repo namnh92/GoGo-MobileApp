@@ -1,8 +1,8 @@
 import { StyleSheet } from 'react-native-unistyles'
 
 export const styles = StyleSheet.create(theme => ({
-  stitch: { backgroundColor: theme.redesign.card, borderRadius: 16 },
-  stitchLow: { backgroundColor: theme.redesign.low, borderRadius: 12 },
+  stitch: { backgroundColor: theme.surface.card, borderRadius: 16 },
+  stitchLow: { backgroundColor: theme.surface.low, borderRadius: 12 },
   card: {
     backgroundColor: theme.surface.card,
     borderRadius: theme.radius.card,

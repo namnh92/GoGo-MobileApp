@@ -194,6 +194,6 @@ it.each(['orange', 'orangeDark'] as const)('keeps the quick-save row compact and
   create.mockRestore()
   expect(styles.linkRow).toMatchObject({ minHeight: 44, flexDirection: 'row' })
   expect(styles.linkCard.padding).toBeUndefined()
-  expect(styles.linkInput).toMatchObject({ ...theme.type.bodySmall, color: theme.redesign.ink, backgroundColor: theme.redesign.container })
+  expect(styles.linkInput).toMatchObject({ ...theme.type.bodySmall, color: theme.text.primary, backgroundColor: theme.surface.container })
   expect(styles.countBadge).toMatchObject({ minWidth: 24, minHeight: 24, borderRadius: 12, backgroundColor: theme.surface.subtle })
 })

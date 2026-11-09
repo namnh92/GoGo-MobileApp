@@ -23,6 +23,9 @@ const { AvatarSourceSheet } = jest.requireActual<typeof import('@/features/accou
 const { BirthdaySheet } = jest.requireActual<typeof import('@/features/account/birthday-sheet.view')>('@/features/account/birthday-sheet.view')
 const { CurrentAreaSheet } = jest.requireActual<typeof import('@/shared/location/current-area-sheet.view')>('@/shared/location/current-area-sheet.view')
 const { ResultSheet } = jest.requireActual<typeof import('../result-sheet.view')>('../result-sheet.view')
+const { AppHeader } = jest.requireActual<typeof import('../app-header.view')>('../app-header.view')
+const { Sheet } = jest.requireActual<typeof import('../sheet.view')>('../sheet.view')
+const { AdministrativePicker } = jest.requireActual<typeof import('@/shared/administrative/administrative-picker.view')>('@/shared/administrative/administrative-picker.view')
 
 function expectHorizontalActions() {
   for (const row of screen.getAllByTestId('sheet-actions')) {
@@ -35,6 +38,37 @@ function expectHorizontalActions() {
 
 describe.each(Object.entries(themes))('%s sheet surfaces', (_name, theme) => {
   beforeEach(() => { currentTheme = theme })
+
+  it('sheet header shares the panel surface; all headers retain re-design row insets', async () => {
+    await render(<Sheet visible onClose={jest.fn()} testID="header-sheet"
+      header={<AppHeader variant="sheet" safeArea={false} title="Sheet" />}>
+      <AppHeader testID="screen-header" safeArea={false} title="Screen" />
+    </Sheet>)
+    const header = screen.getByTestId('app-header')
+    const panel = StyleSheet.flatten(screen.getByTestId('header-sheet').props.style)
+    expect(panel.backgroundColor).toBe(theme.surface.card)
+    expect(StyleSheet.flatten(header.props.style).backgroundColor).toBe(panel.backgroundColor)
+    expect(StyleSheet.flatten((header.children[0] as typeof header).props.style).paddingHorizontal).toBe(theme.spacing[4])
+    const screenHeader = screen.getByTestId('screen-header')
+    expect(StyleSheet.flatten(screenHeader.props.style).backgroundColor).toBe(theme.surface.canvas)
+    expect(StyleSheet.flatten((screenHeader.children[0] as typeof screenHeader).props.style).paddingHorizontal).toBe(theme.spacing[4])
+  })
+
+  it('area header and embedded province list share the discovery sheet surface', async () => {
+    await render(<CurrentAreaSheet visible onClose={jest.fn()} onApplied={jest.fn()} />)
+    const surface = StyleSheet.flatten(screen.getByTestId('discovery-location-sheet').props.style).backgroundColor
+    expect(StyleSheet.flatten(screen.getByTestId('app-header').props.style).backgroundColor).toBe(surface)
+    await fireEvent.press(screen.getByRole('button', { name: i18n.t('areaPicker.selectProvince') }))
+    expect(screen.getByRole('header', { name: i18n.t('administrative.province') })).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId('app-header').props.style).backgroundColor).toBe(surface)
+  })
+
+  it.each(['province', 'commune'] as const)('standalone administrative %s list uses the sheet surface', async level => {
+    await render(<AdministrativePicker value={{ datasetVersion: 'v1', provinceCode: '01', provinceName: 'Province', communeCode: null, communeName: null }} onChange={jest.fn()} />)
+    await fireEvent.press(screen.getByRole('button', { name: level === 'province' ? 'Province' : i18n.t('administrative.wholeProvince') }))
+    expect(screen.getByRole('header', { name: i18n.t(`administrative.${level}`) })).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId('app-header').props.style).backgroundColor).toBe(theme.surface.card)
+  })
 
   it('uses a raised option surface, soft icon tints and a borderless neutral cancel; keeps only the hairline row divider', async () => {
     const choose = jest.fn()
@@ -73,7 +107,7 @@ describe.each(Object.entries(themes))('%s sheet surfaces', (_name, theme) => {
 
   it('area picker actions are borderless; province fields use only the existing hairline token', async () => {
     await render(<CurrentAreaSheet visible onClose={jest.fn()} onApplied={jest.fn()} />)
-    expect(StyleSheet.flatten(screen.getByRole('button', { name: i18n.t('home.useLocation') }).props.style)).toMatchObject({ backgroundColor: theme.redesign.high, borderWidth: 0 })
+    expect(StyleSheet.flatten(screen.getByRole('button', { name: i18n.t('home.useLocation') }).props.style)).toMatchObject({ backgroundColor: theme.surface.high, borderWidth: 0 })
     expect(StyleSheet.flatten(screen.getByRole('button', { name: i18n.t('administrative.clear') }).props.style).borderWidth).toBe(0)
     expect(StyleSheet.flatten(screen.getByRole('button', { name: i18n.t('areaPicker.selectProvince') }).props.style)).toMatchObject({ borderColor: theme.border.hairline })
     expectHorizontalActions()

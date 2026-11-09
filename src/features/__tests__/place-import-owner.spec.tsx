@@ -628,7 +628,7 @@ it('shows a success result for the place and replaces the submitted form with co
   await completeWizard()
   await fireEvent.press(screen.getByText('Gửi'))
   const card = screen.getByTestId('place-result-card')
-  expect(StyleSheet.flatten(card.props.style)).toMatchObject({ width: '100%', backgroundColor: themes.orange.redesign.high, borderRadius: themes.orange.radius.card, ...themes.orange.shadows.card })
+  expect(StyleSheet.flatten(card.props.style)).toMatchObject({ width: '100%', backgroundColor: themes.orange.surface.high, borderRadius: themes.orange.radius.card, ...themes.orange.shadows.card })
   const row = within(card)
   expect(row.getByTestId('place-card-small')).toBeTruthy()
   expect(StyleSheet.flatten(row.getByTestId('place-card-surface').props.style)).toMatchObject({ padding: 8, borderWidth: 0 })
@@ -728,7 +728,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps the synced card without a chan
   const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
   const styles = factory(themes[themeName])
   create.mockRestore()
-  expect(styles.syncedRow).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderColor: themes[themeName].redesign.line })
+  expect(styles.syncedRow).toMatchObject({ backgroundColor: themes[themeName].surface.card, borderColor: themes[themeName].border.hairline })
   expect(styles.syncedText).toMatchObject({ flex: 1, minWidth: 0 })
   expect(styles.syncedUrl).toMatchObject({ flex: 1, minWidth: 0 })
   await preview()
@@ -757,8 +757,8 @@ it.each(['orange', 'orangeDark'] as const)('raises the result card over the shee
     const [screenStyle, cardStyle, sheetStyle] = create.mock.calls.map(([factory]) =>
       (factory as (theme: AppTheme) => Record<string, any>)(themes[themeName]))
     const theme = themes[themeName]
-    expect({ ...cardStyle.card, ...screenStyle.resultPreview }).toMatchObject({ width: '100%', backgroundColor: theme.redesign.high, borderRadius: theme.radius.card, ...theme.shadows.card })
-    expect(screenStyle.resultPreviewContent).toMatchObject({ padding: 8, borderWidth: 0, backgroundColor: theme.redesign.high })
+    expect({ ...cardStyle.card, ...screenStyle.resultPreview }).toMatchObject({ width: '100%', backgroundColor: theme.surface.high, borderRadius: theme.radius.card, ...theme.shadows.card })
+    expect(screenStyle.resultPreviewContent).toMatchObject({ padding: 8, borderWidth: 0, backgroundColor: theme.surface.high })
     expect(screenStyle.resultPreview.backgroundColor).not.toBe(sheetStyle.panel.backgroundColor)
     expect(cardStyle.card.overflow).not.toBe('hidden')
   } finally { create.mockRestore() }

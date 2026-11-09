@@ -167,7 +167,7 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
                 group.communes.map((commune, index) => (
                   <View key={commune.key} style={city ? cityStyles.subgroup : [styles.subgroup, index === group.communes.length - 1 && styles.lastSubgroup]}>
                     <View style={city ? cityStyles.wardHeader : [styles.groupHeader, styles.wardHeader]}>
-                      <Text variant={city ? "savedWardTitle" : "bodySmall"} color={city ? "redesign.ink" : "text.secondary"} accessibilityRole="header" style={styles.groupTitle}>
+                      <Text variant={city ? "savedWardTitle" : "bodySmall"} color={city ? "text.primary" : "text.secondary"} accessibilityRole="header" style={styles.groupTitle}>
                         {commune.kind === 'commune' ? commune.communeName : t('saved.group.multipleCommunes')}
                       </Text>
                       <View style={city ? cityStyles.wardCount : styles.countBadge}><Text variant="caption" color="text.secondary">{commune.entries.length}</Text></View>

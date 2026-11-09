@@ -178,11 +178,11 @@ export default function NotificationsScreen() {
     : mergeNotificationFeed(items, filter === 'all' ? systemItems : [], !inbox.data || !!inbox.hasNextPage)
   const showSystemStatus = canRead && (filter === 'all' || publicOnly)
   const emptyIllustration = <View style={styles.emptyHalo}><View style={styles.emptyWash} /><View style={styles.emptyIllustration}>
-    <MaterialIcon name="markChatRead" size={44} color="redesign.violetText" />
+    <MaterialIcon name="markChatRead" size={44} color="status.infoText" />
   </View></View>
   const listState = !canRead ? <View>
     <View style={styles.personalSection}>
-      <Text accessibilityRole="header" variant="introHeading" color="redesign.ink" style={styles.sectionTitle}>{t('g10.personalTitle')}</Text>
+      <Text accessibilityRole="header" variant="introHeading" color="text.primary" style={styles.sectionTitle}>{t('g10.personalTitle')}</Text>
       <View style={styles.empty}><EmptyState appearance="stitch"
         title={t('notifications.signInTitle')} body={t('g10.personalSignInBody')}
         action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} /></View>
@@ -211,7 +211,7 @@ export default function NotificationsScreen() {
       {canRead ? <View testID="notifications-personal-section" style={styles.pinnedToolbar}>
           <View testID="notifications-toolbar" style={styles.toolbar}>
             <View style={styles.toolbarTitle}>
-              <Text accessibilityRole="header" variant="introHeading" color="redesign.ink" numberOfLines={1} style={styles.toolbarHeading}>{t('g10.allNotifications')}</Text>
+              <Text accessibilityRole="header" variant="introHeading" color="text.primary" numberOfLines={1} style={styles.toolbarHeading}>{t('g10.allNotifications')}</Text>
               <View testID="notifications-unread-badge" style={[styles.unreadBadge, !showUnread && styles.hiddenBadge]}
                 accessibilityElementsHidden={!showUnread} importantForAccessibility={showUnread ? 'auto' : 'no-hide-descendants'}>
                 <Badge appearance="solid" label={t('g10.newCount', { count: summary.data?.unreadCount ?? 0 })} />
@@ -253,7 +253,7 @@ export default function NotificationsScreen() {
           {canRead && summary.isPaused && !summary.data ? <OfflineState /> : null}
           {canRead && summary.isError && !summary.data && !inbox.isError ? <ErrorState error={summary.error} onRetry={retryInbox} /> : null}
           {showSystemStatus && systemInbox.isError ? <View testID="system-notifications-retry" style={styles.systemRetry} accessibilityLiveRegion="polite">
-            <Text variant="bodySmall" color="redesign.secondary">{t('g10.systemFetchFailed')}</Text>
+            <Text variant="bodySmall" color="text.secondary">{t('g10.systemFetchFailed')}</Text>
             <GhostBtn label={t('common.retry')} loading={systemInbox.isFetching} onPress={() => void systemInbox.refetch()} />
           </View> : null}
           {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) && !systemInbox.isFetchingNextPage ? <LoadingIndicator testID="system-notifications-loading" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : null}

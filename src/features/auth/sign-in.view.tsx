@@ -204,8 +204,8 @@ export default function SignInScreen() {
             </View>
             <View style={styles.editorial}>
               <Badge appearance="stitchViolet" icon="room" label={t('auth.hostBadge')} style={styles.hostBadge} />
-              <Text variant="introSection" color="redesign.ink" style={styles.title}>{t(mode === 'signUp' ? 'auth.signUpTitle' : next === 'assistant' ? 'auth.signInTitleAssistant' : 'auth.signInTitle')}</Text>
-              <Text variant="introBody" color="redesign.secondary">{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
+              <Text variant="introSection" color="text.primary" style={styles.title}>{t(mode === 'signUp' ? 'auth.signUpTitle' : next === 'assistant' ? 'auth.signInTitleAssistant' : 'auth.signInTitle')}</Text>
+              <Text variant="introBody" color="text.secondary">{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
             </View>
             <View style={styles.coffee}><InfoBanner coffee title={t('auth.coffeeTitle')} body={t('auth.coffeeBody')} /></View>
             <View style={styles.form}>
@@ -230,7 +230,7 @@ export default function SignInScreen() {
                   trailing={<Pressable testID="password-visibility" onPress={() => { setShowPassword(shown => !shown); schedule() }}
                     accessibilityRole="button" accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
                     hitSlop={6} style={styles.visibility}>
-                    <MaterialIcon name={showPassword ? 'eyeOff' : 'eye'} size={20} color="redesign.outline" />
+                    <MaterialIcon name={showPassword ? 'eyeOff' : 'eye'} size={20} color="border.outline" />
                   </Pressable>}
                   error={fieldState.error ? t(mode === 'signIn' ? 'auth.signInPasswordInvalid' : 'auth.passwordInvalid') : undefined}>
                   {mode === 'signUp' && <PasswordRequirements value={field.value as string} />}

@@ -31,7 +31,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.compact,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.redesign.container,
+    backgroundColor: theme.surface.container,
   },
   deviceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   deviceText: { flex: 1 },

@@ -210,11 +210,11 @@ export default function SearchScreen() {
     return Object.entries(available).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={draft[field].includes(key) ? 'selected' : draft[field].length >= 10 ? 'disabled' : 'default'} onPress={() => toggleOption(field, key)} />)
   }
   const contribution = <View style={styles.contribution}>
-    <View style={styles.contributionIcon}><MaterialIcon name="storefront" color="redesign.primaryText" size={28} /></View>
-    <Text variant="introHeading" color="redesign.ink" style={styles.centerText}>{t('discovery.contributeTitle')}</Text>
-    <Text variant="introSmall" color="redesign.secondary" style={styles.centerText}>{t('discovery.contributeBody')}</Text>
+    <View style={styles.contributionIcon}><MaterialIcon name="storefront" color="accent.text" size={28} /></View>
+    <Text variant="introHeading" color="text.primary" style={styles.centerText}>{t('discovery.contributeTitle')}</Text>
+    <Text variant="introSmall" color="text.secondary" style={styles.centerText}>{t('discovery.contributeBody')}</Text>
     <PrimaryBtn variant="discovery" label={t('discovery.addPlace')} onPress={() => router.push('/places/import')} leadingIcon="addLocation" />
-    {canSave && credits.data?.creditBalance !== undefined ? <Text variant="introCaption" color="redesign.secondary" style={styles.centerText}>{t('discovery.approvalReward')}</Text> : null}
+    {canSave && credits.data?.creditBalance !== undefined ? <Text variant="introCaption" color="text.secondary" style={styles.centerText}>{t('discovery.approvalReward')}</Text> : null}
   </View>
   function loadMore() {
     if (search.hasNextPage && !search.isFetching && !search.isPaused && !search.isFetchingNextPage && !search.isFetchNextPageError) void search.fetchNextPage({ cancelRefetch: false })
@@ -230,7 +230,7 @@ export default function SearchScreen() {
       contentContainerStyle={[styles.results, { paddingBottom: insets.bottom + 24 }]}
       keyboardShouldPersistTaps="handled" onTouchStart={() => Keyboard.dismiss()}
       onEndReachedThreshold={0.5} onEndReached={loadMore}
-      ListHeaderComponent={mapFallback ? <Text variant="introSmall" color="redesign.secondary">{t('discovery.mapFallback')}</Text> : null}
+      ListHeaderComponent={mapFallback ? <Text variant="introSmall" color="text.secondary">{t('discovery.mapFallback')}</Text> : null}
       ListEmptyComponent={search.isPending ? <PlaceListSkeleton count={4} /> : verifiedEmpty && !sheetOpen ? <SearchEmpty
         key={JSON.stringify(searchQuery)} filters={committed} labels={labels}
         query={{ ...scopeSearchParams(scope), locale: searchQuery.locale, q: debouncedQuery.trim() || undefined }}
@@ -272,17 +272,17 @@ export default function SearchScreen() {
   return <Atmosphere redesign>
     {!mapExpanded ? <><AppHeader testID="search-header" title={t('discovery.searchTitle')} onBack={() => router.back()} bellTestID="search-bell" unreadDotTestID="search-unread-dot"
       titleAccessory={!isPicker ? <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setLocationOpen(true)}>
-        <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="redesign.primaryText" /><Text variant="introCaptionMedium" color="redesign.secondary" numberOfLines={1}>{scopeLabel}</Text><MaterialIcon name="expandMore" size={16} color="redesign.secondary" /></View>
+        <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="accent.text" /><Text variant="introCaptionMedium" color="text.secondary" numberOfLines={1}>{scopeLabel}</Text><MaterialIcon name="expandMore" size={16} color="text.secondary" /></View>
       </Pressable> : undefined} />
     <View style={styles.searchRow}>
       <SearchField appearance="discovery" value={query} onChangeText={setQuery} accessibilityLabel={t('search.title')} placeholder={t('discovery.searchPlaceholder')} style={styles.input} />
       <IconBtn size="regular" onPress={openFilters} accessibilityLabel={t('search.filters')} active={activeFilterCount > 0} style={styles.filterToggle}>
-        <MaterialIcon name="tune" color="redesign.primaryText" />
+        <MaterialIcon name="tune" color="accent.text" />
         {activeFilterCount > 0 ? <View style={styles.filterDot} /> : null}
       </IconBtn>
     </View>
     <View testID="search-summary-row" style={styles.summaryRow}>
-      <View style={styles.summaryCount}><MaterialIcon name="filterList" size={16} color="redesign.secondary" /><Text variant="introCaptionMedium" numberOfLines={1} color="redesign.secondary" style={styles.summaryText}>{total !== undefined || verifiedEmpty ? <Trans i18nKey="discovery.resultSummary" count={total ?? 0} components={{ primary: <Text variant="introCaptionMedium" color="redesign.primaryText" /> }} /> : t('discovery.results')}</Text></View>
+      <View style={styles.summaryCount}><MaterialIcon name="filterList" size={16} color="text.secondary" /><Text variant="introCaptionMedium" numberOfLines={1} color="text.secondary" style={styles.summaryText}>{total !== undefined || verifiedEmpty ? <Trans i18nKey="discovery.resultSummary" count={total ?? 0} components={{ primary: <Text variant="introCaptionMedium" color="accent.text" /> }} /> : t('discovery.results')}</Text></View>
       <SegmentedControl compact options={[{ value: 'list', label: t('discovery.list'), icon: 'list' }, { value: 'map', label: t('discovery.map'), icon: 'map' }]} value={mode} onChange={setMode} />
     </View>
     </> : null}
@@ -292,15 +292,15 @@ export default function SearchScreen() {
       {isAssistantEntryOn() ? <SecondaryBtn variant="discovery" label={t('discovery.askAI')} leadingIcon="sparkle" onPress={() => router.push(assistantHref())} /> : null}
     </View> : null}
     <Sheet appearance="discovery" visible={sheetOpen} onClose={() => { setSheetOpen(false); setDraft(committed) }}
-      header={<View style={styles.sheetHeader}><View style={styles.sheetTitle}><MaterialIcon name="tune" color="redesign.primaryText" size={22} /><Text variant="introHeading">{t('discovery.filterTitle')}</Text></View></View>}
+      header={<View style={styles.sheetHeader}><View style={styles.sheetTitle}><MaterialIcon name="tune" color="accent.text" size={22} /><Text variant="introHeading">{t('discovery.filterTitle')}</Text></View></View>}
       footer={<SheetActions><SecondaryBtn label={t('discovery.resetDefaults')} onPress={() => setDraft(emptyFilters())} /><PrimaryBtn variant="discovery" label={previewTotal !== undefined ? t('discovery.previewCount', { count: previewTotal }) : t('discovery.apply')} disabled={!valid} onPress={() => { if (valid) { Keyboard.dismiss(); setCommitted(draft); setSheetOpen(false) } }} /></SheetActions>}>
       <Text variant="introHeading" style={styles.sheetSection}>{t('discovery.amenities')}</Text>
       <View testID="amenity-status-options" style={styles.sheetOptionRow}><Chip appearance="discovery" label={t('discovery.openNow')} variant={draft.openNow ? 'selected' : 'default'} onPress={() => setDraft(prev => ({ ...prev, openNow: !prev.openNow }))} />{supports774 ? options('amenity', 'amenities') : null}</View>
       <View style={styles.priceHeading}><Text variant="introHeading">{t('discovery.priceRange')}</Text></View>
       <FieldFocusGroup>
       <View style={styles.priceRow}>
-        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceFrom')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceFrom} onChangeText={priceFrom => setDraft(prev => ({ ...prev, priceFrom }))} accessibilityLabel={t('search.priceFromLabel')} keyboardType="numeric" placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
-        <View style={styles.priceField}><Text variant="introCaption" color="redesign.secondary">{t('discovery.priceTo')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceTo} onChangeText={priceTo => setDraft(prev => ({ ...prev, priceTo }))} accessibilityLabel={t('search.priceToLabel')} keyboardType="numeric" placeholderTextColor={theme.redesign.secondary} style={styles.priceText} /><Text variant="introHeading" color="redesign.ink">{t('search.priceSuffix')}</Text></View></View>
+        <View style={styles.priceField}><Text variant="introCaption" color="text.secondary">{t('discovery.priceFrom')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceFrom} onChangeText={priceFrom => setDraft(prev => ({ ...prev, priceFrom }))} accessibilityLabel={t('search.priceFromLabel')} keyboardType="numeric" placeholderTextColor={theme.text.secondary} style={styles.priceText} /><Text variant="introHeading" color="text.primary">{t('search.priceSuffix')}</Text></View></View>
+        <View style={styles.priceField}><Text variant="introCaption" color="text.secondary">{t('discovery.priceTo')}</Text><View style={styles.priceInputRow}><TextInput value={draft.priceTo} onChangeText={priceTo => setDraft(prev => ({ ...prev, priceTo }))} accessibilityLabel={t('search.priceToLabel')} keyboardType="numeric" placeholderTextColor={theme.text.secondary} style={styles.priceText} /><Text variant="introHeading" color="text.primary">{t('search.priceSuffix')}</Text></View></View>
       </View>
       {!valid ? <Text variant="introSmall" color="status.dangerText" accessibilityLiveRegion="polite">{t('discovery.invalidPrice')}</Text> : null}
       </FieldFocusGroup>
@@ -311,7 +311,7 @@ export default function SearchScreen() {
       {(Object.keys(labels.setting ?? {}).length || draft.settings.length) ? <><Text variant="introHeading" style={styles.sheetSection}>{t('discovery.settings')}</Text><View style={styles.sheetOptionRow}>{options('setting', 'settings')}</View></> : null}
       <Text variant="introHeading" style={styles.sheetSection}>{t('search.filterCategory')}</Text>
       <View style={styles.sheetOptionRow}>{Object.entries(labels.category ?? {}).map(([key, label]) => <Chip appearance="discovery" key={key} label={label} variant={draft.categories.includes(key) ? 'selected' : draft.categories.length >= 10 ? 'disabled' : 'default'} onPress={() => toggleCategory(key)} />)}</View>
-      <View style={styles.smartBanner}><MaterialIcon name="sparkle" size={24} color="redesign.violetText" /><View style={{ flex: 1 }}><Text variant="introLabel">{t('discovery.smartTitle')}</Text><Text variant="introSmall" color="redesign.secondary">{t('discovery.smartBody')}</Text></View></View>
+      <View style={styles.smartBanner}><MaterialIcon name="sparkle" size={24} color="status.infoText" /><View style={{ flex: 1 }}><Text variant="introLabel">{t('discovery.smartTitle')}</Text><Text variant="introSmall" color="text.secondary">{t('discovery.smartBody')}</Text></View></View>
     </Sheet>
     <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => {}} />
   </Atmosphere>

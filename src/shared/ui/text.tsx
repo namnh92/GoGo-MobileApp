@@ -19,34 +19,26 @@ import { glyphText, type GlyphSize, type TypeStyle } from '@/shared/ui/tokens'
  */
 
 export type TextColor =
-  | 'redesign.savedAccent'
-  | 'redesign.savedMuted'
-  | 'redesign.savedGoogleText'
-  | 'redesign.importSyncedText'
-  | 'redesign.importPhotoBadgeText'
-  | 'redesign.primaryText'
-  | 'redesign.ink'
-  | 'redesign.secondary'
-  | 'redesign.outline'
-  | 'redesign.checklistUnmet'
-  | 'redesign.greenText'
-  | 'redesign.violetText'
-  | 'redesign.violetInk'
-  | 'redesign.white'
-  | 'redesign.mutedTitle'
-  | 'redesign.mutedBody'
-  | 'surface.canvas'
+  | 'accent.textMuted'
+  | 'status.onSuccessContainer'
+  | 'accent.text'
   | 'text.primary'
   | 'text.secondary'
-  | 'text.tertiary'
+  | 'border.outline'
+  | 'text.supporting'
+  | 'status.successText'
+  | 'status.infoText'
+  | 'status.infoInk'
   | 'text.inverse'
+  | 'text.neutralPrimary'
+  | 'text.neutralSecondary'
+  | 'surface.canvas'
+  | 'text.tertiary'
   | 'accent.primary'
   | 'accent.onAccent'
   | 'accent.onSoft'
-  | 'status.successText'
   | 'status.warningText'
   | 'status.dangerText'
-  | 'status.infoText'
   | 'onDark.success'
   | 'onDark.danger'
   | 'onDark.strong'
@@ -54,42 +46,34 @@ export type TextColor =
   | 'onDark.soft'
 
 /**
- * `accent.primary` as text resolves to `accent.text`: the same colour in light,
- * the AA tint in dark, where `primary` is a fill.
+ * `accent.primary` as text resolves to the Stitch `accent.text` shade. It can
+ * differ from the fill in either mode; selected washes use `accent.onSoft`.
  *
  * A lookup rather than `key.split('.')`: the compiler checks every key resolves
  * to a string on the theme, and a renamed token fails here instead of at
  * runtime as `color: undefined`.
  */
 const COLOR: Record<TextColor, (theme: AppTheme) => string> = {
-  'redesign.savedAccent': theme => theme.redesign.savedAccent,
-  'redesign.savedMuted': theme => theme.redesign.savedMuted,
-  'redesign.savedGoogleText': theme => theme.redesign.savedGoogleText,
-  'redesign.importSyncedText': theme => theme.redesign.importSyncedText,
-  'redesign.importPhotoBadgeText': theme => theme.redesign.importPhotoBadgeText,
-  'redesign.primaryText': theme => theme.redesign.primaryText,
-  'redesign.ink': theme => theme.redesign.ink,
-  'redesign.secondary': theme => theme.redesign.secondary,
-  'redesign.outline': theme => theme.redesign.outline,
-  'redesign.checklistUnmet': theme => theme.redesign.checklistUnmet,
-  'redesign.greenText': theme => theme.redesign.greenText,
-  'redesign.violetText': theme => theme.redesign.violetText,
-  'redesign.violetInk': theme => theme.redesign.violetInk,
-  'redesign.white': theme => theme.redesign.white,
-  'redesign.mutedTitle': theme => theme.redesign.mutedTitle,
-  'redesign.mutedBody': theme => theme.redesign.mutedBody,
-  'surface.canvas': theme => theme.surface.canvas,
+  'accent.textMuted': theme => theme.accent.textMuted,
+  'status.onSuccessContainer': theme => theme.status.onSuccessContainer,
+  'accent.text': theme => theme.accent.text,
   'text.primary': theme => theme.text.primary,
   'text.secondary': theme => theme.text.secondary,
-  'text.tertiary': theme => theme.text.tertiary,
+  'border.outline': theme => theme.border.outline,
+  'text.supporting': theme => theme.text.supporting,
+  'status.successText': theme => theme.status.successText,
+  'status.infoText': theme => theme.status.infoText,
+  'status.infoInk': theme => theme.status.infoInk,
   'text.inverse': theme => theme.text.inverse,
+  'text.neutralPrimary': theme => theme.text.neutralPrimary,
+  'text.neutralSecondary': theme => theme.text.neutralSecondary,
+  'surface.canvas': theme => theme.surface.canvas,
+  'text.tertiary': theme => theme.text.tertiary,
   'accent.primary': theme => theme.accent.text,
   'accent.onAccent': theme => theme.accent.onAccent,
   'accent.onSoft': theme => theme.accent.onSoft,
-  'status.successText': theme => theme.status.successText,
   'status.warningText': theme => theme.status.warningText,
   'status.dangerText': theme => theme.status.dangerText,
-  'status.infoText': theme => theme.status.infoText,
   'onDark.success': theme => theme.onDark.success,
   'onDark.danger': theme => theme.onDark.danger,
   'onDark.strong': theme => theme.onDark.strong,

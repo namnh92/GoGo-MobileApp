@@ -32,13 +32,13 @@ export default function SavedCityScreen() {
 
   return <SavedPlacesScreen city={{ provinceCode, name }} renderHeader={(title, count) => (
     <AppHeader title={title} subtitle={t('saved.citySubtitle')} onBack={() => goBackOrHome(router)} bellTestID="saved-city-bell" unreadDotTestID="saved-city-unread"
-      titleAccessory={count != null ? <Text variant="savedMeta" color="redesign.savedAccent">{t('saved.cityCount', { count })}</Text> : undefined} />
+      titleAccessory={count != null ? <Text variant="savedMeta" color="accent.textMuted">{t('saved.cityCount', { count })}</Text> : undefined} />
   )} renderBottomBar={() => (
     <GlassBar testID="saved-city-tabs" style={[styles.dock, { paddingBottom: insets.bottom }]}>
       <View style={styles.tabs}>
         {tabs.map(({ key, href, icon: TabIcon }) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={t(`tabs.${key}`)} accessibilityState={{ selected: key === 'saved' }} onPress={() => router.replace(href)} style={styles.tab}>
           <TabIcon active={key === 'saved'} />
-          <Text variant="caption" color={key === 'saved' ? 'redesign.primaryText' : 'text.secondary'}>{t(`tabs.${key}`)}</Text>
+          <Text variant="caption" color={key === 'saved' ? 'accent.text' : 'text.secondary'}>{t(`tabs.${key}`)}</Text>
           {key === 'saved' ? <View style={styles.activeDot} /> : null}
         </Pressable>)}
       </View>

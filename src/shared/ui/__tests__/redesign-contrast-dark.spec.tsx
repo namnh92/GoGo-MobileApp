@@ -16,8 +16,8 @@ it('Dark checklist resolves text and SVG against the Dark theme', async () => {
   await render(<PasswordRequirements value="" />)
   const row = screen.getByTestId('password-requirement-length')
   const label = within(row).getByText('Ít nhất 8 ký tự')
-  expect(StyleSheet.flatten(label.props.style).color).toBe(themes.orangeDark.redesign.outline)
-  expect(fills(row)).toContain(processColor(themes.orangeDark.redesign.outline))
+  expect(StyleSheet.flatten(label.props.style).color).toBe(themes.orangeDark.border.outline)
+  expect(fills(row)).toContain(processColor(themes.orangeDark.border.outline))
 })
 it('Dark recommendation binds opaque scoped fill and white label/SVG', async () => {
   await render(<Badge appearance="stitchGreen" icon="verified" label="Gợi ý" />)

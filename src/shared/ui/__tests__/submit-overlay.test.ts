@@ -64,9 +64,11 @@ describe('submit overlay coverage', () => {
     expect(bindings).toContain(pending)
   })
 
-  it.each(Object.entries(themes))('%s submit backdrop is the canvas at exactly 85 percent', (_name, theme) => {
-    const channels = theme.surface.canvas.slice(1).match(/../g)!.map(channel => parseInt(channel, 16))
-    expect(theme.overlay.submit).toBe(`rgba(${channels.join(',')},0.85)`)
+  it.each(Object.entries(themes))('%s preserves the approved submit material at exactly 85 percent', (_name, theme) => {
+    // The re-design submit material predates the Stitch canvas migration.
+    // Preserve its rendered value rather than repainting every submit overlay.
+    expect(theme.overlay.submit).toBe(theme.mode === 'dark'
+      ? 'rgba(24,23,21,0.85)' : 'rgba(246,243,238,0.85)')
     expect(theme.overlay.submit).toBe(theme.mode === 'dark' ? overlay.submitDark : overlay.submitLight)
   })
 

@@ -59,13 +59,14 @@ describe.each(['orange', 'orangeDark'] as const)('official brand in %s', mode =>
       const mark = header.getByTestId(`${headerID}-logo-compact`)
       expect(mark.props.width).toBe(32)
       expect(mark.props.height).toBe(32)
-      expect(header.getByTestId(`${headerID}-logo-text`).props.fill).toEqual({ type: 0, payload: parseInt(`ff${themes[mode].text.primary.slice(1)}`, 16) })
+      expect(header.getByTestId(`${headerID}-logo-text`).props.fill).toEqual({ type: 0, payload: parseInt(`ff${themes[mode].text.neutralPrimary.slice(1)}`, 16) })
       expect(header.getByTestId(`${headerID}-logo-text`).props.font.fontSize * mark.props.width / 400).toBe(9)
       expect(header.queryAllByTestId(new RegExp(`${headerID}-logo-dot-`))).toHaveLength(0)
       const wordmark = header.getByTestId(`${headerID}-logo-text`).children[0]
       expect(typeof wordmark !== 'string' && wordmark.props.content).toBe('go go')
+      expect(themes[mode].text.neutralPrimary).toBe(mode === 'orange' ? '#211F1C' : '#E6E6E6')
       const divider = header.getByTestId(`${headerID}-brand-divider`)
-      expect(divider).toHaveStyle({ width: 1, height: 20, backgroundColor: themes[mode].border.strong })
+      expect(divider).toHaveStyle({ width: 1, height: 20, backgroundColor: themes[mode].border.outline })
       expect(divider.props.accessible).toBe(false)
       const styles = jest.requireActual<typeof import('@/shared/ui/app-header.style')>('@/shared/ui/app-header.style').styles
       expect(styles.row).toMatchObject({ minHeight: 56, paddingVertical: spacing[1], alignItems: 'center' })
@@ -87,7 +88,7 @@ describe.each(['orange', 'orangeDark'] as const)('official brand in %s', mode =>
     const logo = within(screen.getByTestId('splash-logo'))
     expect(logo.getByTestId('splash-logo-wordmark').props.width).toBe(120)
     expect(logo.getByTestId('splash-logo-wordmark').props.height).toBe(120)
-    expect(logo.getByTestId('splash-logo-text').props.fill).toEqual({ type: 0, payload: parseInt(`ff${themes[mode].text.primary.slice(1)}`, 16) })
+    expect(logo.getByTestId('splash-logo-text').props.fill).toEqual({ type: 0, payload: parseInt(`ff${themes[mode].text.neutralPrimary.slice(1)}`, 16) })
     const span = logo.getByTestId('splash-logo-text').children[0]
     expect(typeof span !== 'string' && span.props.content).toBe('go go')
     expect(logo.getAllByTestId(/splash-logo-dot-/)).toHaveLength(3)

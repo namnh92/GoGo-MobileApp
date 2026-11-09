@@ -1,6 +1,6 @@
 import {
   accents,
-  photoEditor,
+  workspace,
   border,
   darkAccents,
   darkBorder,
@@ -12,11 +12,9 @@ import {
   glass,
   mapColors,
   night,
-  onDark,
   overlay,
+  onDark,
   radius,
-  redesignLight,
-  redesignDark,
   shadows,
   spacing,
   status,
@@ -42,7 +40,7 @@ export const ACCENTS = ['orange', 'green', 'blue', 'purple'] as const satisfies 
 
 export type Accent = (typeof ACCENTS)[number]
 
-/** Closest to the coral the app shipped with, so an unchanged user sees no change. */
+/** Stitch default orange. The persisted accent key is unchanged. */
 export const DEFAULT_ACCENT: Accent = 'orange'
 
 /** The device's appearance. There is no in-app switch: the setting is the device's. */
@@ -73,18 +71,18 @@ export function modeOf(scheme: string | null | undefined): Mode {
 function buildTheme(accent: Accent, mode: Mode) {
   const dark = mode === 'dark'
   const palette = (dark ? darkAccents : accents)[accent]
+  const material = dark ? darkGlass : glass
   return {
     mode,
-    redesign: dark ? redesignDark : redesignLight,
     accent: palette,
     surface: dark ? darkSurface : surface,
     border: dark ? darkBorder : border,
     text: dark ? darkText : text,
     status: dark ? darkStatus : status,
     map: dark ? darkMapColors : mapColors,
-    overlay: { submit: dark ? overlay.submitDark : overlay.submitLight },
     onDark,
-    photoEditor,
+    overlay: { ...overlay, submit: dark ? overlay.submitDark : overlay.submitLight },
+    workspace,
     night,
     type,
     spacing,
@@ -94,7 +92,7 @@ function buildTheme(accent: Accent, mode: Mode) {
       toast: shadows.toast,
       cta: { ...shadows.cta, shadowColor: palette.primary },
     },
-    glass: { bar: dark ? darkGlass.bar : glass.bar },
+    glass: { bar: material.bar, opaque: material.opaque, translucent: material.translucent, header: material.header },
   }
 }
 

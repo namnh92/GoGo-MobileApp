@@ -66,10 +66,10 @@ export function QuickJoin({ knownName }: { knownName?: string | null }) {
   return <>
       <BlockingLoadingOverlay visible={pending} />
     <View style={styles.join}>
-      <View style={styles.joinHeading}><MaterialIcon name="room" color="redesign.violetText" size={18} /><Text variant="introLabel">{t('discovery.joinTitle')}</Text></View>
+      <View style={styles.joinHeading}><MaterialIcon name="room" color="status.infoText" size={18} /><Text variant="introLabel">{t('discovery.joinTitle')}</Text></View>
       <View style={styles.joinRow}>
         <TextInput value={code} onChangeText={value => { setCode(value); setError(null) }} editable={!pending} autoCapitalize="none" autoCorrect={false}
-          accessibilityLabel={t('joinByCode.codeLabel')} placeholder={t('discovery.inviteCode')} placeholderTextColor={theme.redesign.secondary} style={styles.joinInput} onSubmitEditing={() => void submit()} />
+          accessibilityLabel={t('joinByCode.codeLabel')} placeholder={t('discovery.inviteCode')} placeholderTextColor={theme.text.secondary} style={styles.joinInput} onSubmitEditing={() => void submit()} />
         <SecondaryBtn variant="discoveryJoin" label={t('discovery.enterRoom')} onPress={() => void submit()} disabled={!code.trim() || status === 'hydrating'} loading={pending} trailingIcon="arrowRight" style={styles.joinButton} />
       </View>
       {error ? <Text variant="introSmall" color="status.dangerText" accessibilityLiveRegion="polite">{error}</Text> : null}
@@ -79,7 +79,7 @@ export function QuickJoin({ knownName }: { knownName?: string | null }) {
     }}>
       <FieldFocusGroup><Text variant="introHeading">{t('guestJoin.nameLabel')}</Text>
       <TextInput value={name} onChangeText={setName} maxLength={50} accessibilityLabel={t('guestJoin.nameLabel')} placeholder={t('guestJoin.namePlaceholder')} style={[styles.joinInput, { flex: 0 }]} />
-      <Text variant="introSmall" color="redesign.secondary">{t('guestJoin.noAccount')}</Text></FieldFocusGroup>
+      <Text variant="introSmall" color="text.secondary">{t('guestJoin.noAccount')}</Text></FieldFocusGroup>
       <SheetActions><PrimaryBtn label={t('discovery.enterRoom')} disabled={!name.trim()} onPress={() => { Keyboard.dismiss(); continueAfterClose.current = true; setNameOpen(false) }} /></SheetActions>
     </Sheet>
     {dialog}

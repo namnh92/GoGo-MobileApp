@@ -214,7 +214,7 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     try {
       jest.isolateModules(() => { jest.requireActual('../place-card.style') })
       const factory = create.mock.calls[0][0] as (value: typeof themes.orange) => { compactVerified: { backgroundColor: string } }
-      expect(factory(themes[theme]).compactVerified.backgroundColor).toBe(themes[theme].redesign.verifiedFill)
+      expect(factory(themes[theme]).compactVerified.backgroundColor).toBe(themes[theme].status.successStrongFill)
     } finally { create.mockRestore() }
   })
   it('LARGE retains the existing status-pill fix at narrow widths', async () => {
