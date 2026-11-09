@@ -3,13 +3,6 @@ import { StyleSheet } from 'react-native'
 import { loaded, loaded as mockLoaded, roomFor, renderScreen, type QueryLike } from './harness'
 import { text } from '@/shared/ui/tokens'
 
-/**
- * The "+" between the two avatars in a couple's lobby hero was drawn with no
- * colour, so it fell back to the platform default: near-black on a dark card.
- * It takes the theme's secondary text colour.
- */
-
-
 const mockIdleMutation = {
   mutate: jest.fn(),
   mutateAsync: jest.fn(async () => ({ code: 'ABC123' })),
@@ -46,8 +39,9 @@ jest.mock('@/shared/api', () => ({
 
 import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 
-it('draws the + between the avatars in a theme text colour', async () => {
+it('renders the couple hero copy in a theme text colour without a fabricated partner', async () => {
   const view = await renderScreen(<GoGoRoomScreen />)
-  const plus = view.getByText('+')
-  expect(StyleSheet.flatten(plus.props.style).color).toBe(text.secondary)
+  const body = view.getByText('Hai người sẽ chọn riêng. Không ai thấy lựa chọn của người kia cho tới khi match.')
+  expect(StyleSheet.flatten(body.props.style).color).toBe(text.secondary)
+  expect(view.queryByText('+')).toBeNull()
 })

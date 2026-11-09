@@ -3,12 +3,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { z } from 'zod'
 
 import { isApiError, useUpdateRoomConstraints, type RoomSummary } from '@/shared/api'
-import { Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 
 import { isoToLocalSchedule, localScheduleToIso } from './room-schedule'
 import { styles } from './room-manage.style'
@@ -32,7 +34,7 @@ function defaultsFor(room: RoomSummary) {
   }
 }
 
-export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
+export function RoomScheduleEditor({ room, onCancel }: { room: RoomSummary; onCancel?: () => void }) {
   const { t } = useTranslation()
   const [notice, setNotice] = useState<string | null>(null)
   const update = useUpdateRoomConstraints(room.id)
@@ -87,13 +89,14 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
       <BlockingLoadingOverlay visible={update.isPending} />
       <Text variant="title2">{t('roomSchedule.title')}</Text>
       <Text variant="bodySmall" color="text.secondary">{t('roomSchedule.format')}</Text>
+      <View style={styles.scheduleFields}>
       {(['start', 'end'] as const).map(name => (
         <Controller
           key={name}
           control={form.control}
           name={name}
           render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
-            <>
+            <View style={styles.flex}>
               <Text variant="label">{t(`roomSchedule.${name}`)}</Text>
               <TextInput
                 accessibilityLabel={t(`roomSchedule.${name}`)}
@@ -114,17 +117,21 @@ export function RoomScheduleEditor({ room }: { room: RoomSummary }) {
                   {t('roomSchedule.invalid')}
                 </Text>
               ) : null}
-            </>
+            </View>
           )}
         />
       ))}
+      </View>
       <Text variant="caption" color="status.warningText">{t(canEdit ? 'roomManage.staleWarning' : 'roomSchedule.locked')}</Text>
+      <SheetActions>
+      {onCancel ? <SecondaryBtn label={t('common.cancel')} onPress={onCancel} disabled={update.isPending} /> : null}
       <PrimaryBtn
         label={t('account.save')}
         loading={update.isPending}
         disabled={!canEdit || !isDirty}
         onPress={() => void form.handleSubmit(submit)()}
       />
+      </SheetActions>
       {notice ? (
         <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}

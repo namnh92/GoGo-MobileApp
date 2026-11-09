@@ -1,7 +1,8 @@
+import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
 import { act, fireEvent } from '@testing-library/react-native'
 import { Alert } from 'react-native'
 
-import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen } from './harness'
+import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen, failed, pending, type Audience, type QueryLike } from './harness'
 
 /**
  * GoGo-MobileApp#381 — confirmations with consequences used `Alert.alert`: the
@@ -10,7 +11,14 @@ import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen } from './ha
  * what a person presses. They render the shared in-app `Dialog` now.
  */
 
+// Native ScopedTheme is absent in Jest; retain its children and the app theme context.
+jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles'), 'ScopedTheme').mockImplementation(({ children }) => <>{children}</>)
+
+const mockRoomState: { query: QueryLike } = { query: mockLoaded(mockRoomFor('group-host')) }
+
 const mockClearDraft = jest.fn(async () => undefined)
+const mockUpdateConstraints = jest.fn(async () => mockRoomFor('group-host'))
+const mockRename = jest.fn(async (title: string) => ({ ...mockRoomFor('group-host'), title }))
 const mockTransition = jest.fn()
 const mockRemoveMember = jest.fn()
 const mockReplace = jest.fn()
@@ -33,22 +41,22 @@ jest.mock('@/shared/store/savedRoomDraft', () => {
 })
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  useRoom: () => mockLoaded(mockRoomFor('group-host')),
+  useRoom: () => mockRoomState.query,
   useRoomInvites: () => mockLoaded([]),
-  useUpdateRoomConstraints: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useUpdateRoomConstraints: () => ({ mutateAsync: mockUpdateConstraints, isPending: false }),
+  useRenameRoom: () => ({ mutateAsync: mockRename, isPending: false }),
   useRevokeRoomInvite: () => ({ mutate: jest.fn() }),
   useRemoveRoomMember: () => ({ mutate: mockRemoveMember }),
   useTransitionRoom: () => ({ mutate: mockTransition, isPending: false }),
   useRemoveRoomSeedPlace: () => ({ mutate: jest.fn() }),
 }))
-jest.mock('@/features/gogo-room/room-schedule-editor.view', () => ({ RoomScheduleEditor: () => null }))
-jest.mock('@/features/gogo-room/room-title-editor.view', () => ({ RoomTitleEditor: () => null }))
 
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import RoomManageScreen from '@/features/gogo-room/room-manage.view'
 
 let alert: jest.SpyInstance
 beforeEach(() => {
+  mockRoomState.query = mockLoaded(mockRoomFor('group-host'))
   jest.clearAllMocks()
   alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
 })
@@ -102,4 +110,51 @@ describe('room management', () => {
     await press(view.getByRole('button', { name: 'Huỷ' }))
     expect(mockRemoveMember).not.toHaveBeenCalled()
   })
+})
+
+
+describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state matrix / %s', theme => {
+  const audiences: Audience[] = ['couple', 'group-host', 'group-guest']
+  it.each(audiences.flatMap(audience => ['default', 'loading', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
+    mockRoomState.query = state === 'loading' ? pending() : state === 'error' ? failed() : mockLoaded(mockRoomFor(audience, state === 'empty' ? { members: [], seedPlaces: [] } : {}))
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
+    if (state === 'loading') expect(view.queryByText('Huỷ phòng')).toBeNull()
+    else if (state === 'error') expect(view.getByText('Thử lại')).toBeTruthy()
+    else if (audience === 'group-guest') {
+      expect(view.getByText('Chỉ chủ phòng')).toBeTruthy()
+      expect(view.queryByText('Huỷ phòng')).toBeNull()
+      expect(view.queryByText('Sửa')).toBeNull()
+    } else {
+      expect(view.getByText('Lưu ý quan trọng')).toBeTruthy()
+      expect(view.getByText('Huỷ phòng')).toBeTruthy()
+      if (state === 'empty') expect(view.getByText('Chưa ai tham gia.')).toBeTruthy()
+      expect(view.queryByLabelText('Tên kèo')).toBeNull()
+      await fireEvent.press(view.getAllByText('Sửa')[0])
+      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+    }
+  })
+})
+
+
+it('595 opens a title sheet, preserves the rename contract and closes on cancel', async () => {
+  const view = await renderScreen(<RoomManageScreen />)
+  await fireEvent.press(view.getAllByText('Sửa')[0])
+  await fireEvent.changeText(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy')
+  await fireEvent.press(view.getByText('Huỷ'))
+  expect(view.queryByLabelText('Tên kèo')).toBeNull()
+})
+
+it('595 budget sheet uses selected chips and retains version, unit and other constraints', async () => {
+  const room = mockRoomFor('group-host', { constraintVersion: 9 })
+  mockRoomState.query = mockLoaded(room)
+  const view = await renderScreen(<RoomManageScreen />)
+  await fireEvent.press(view.getAllByText('Sửa')[2])
+  const options = view.getAllByRole('button').filter(node => node.props.accessibilityState?.selected === false)
+  expect(options.length).toBeGreaterThan(0)
+  await fireEvent.press(options[0])
+  expect(view.getAllByRole('button').some(node => node.props.accessibilityState?.selected === true)).toBe(true)
+  await fireEvent.press(view.getByText('Lưu'))
+  expect(mockUpdateConstraints).toHaveBeenCalledWith(expect.objectContaining({ expectedConstraintVersion: 9, budgetMode: room.constraints!.budgetMode, currency: room.constraints!.currency }))
 })

@@ -3,8 +3,13 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  loading: { padding: spacing[4] },
+  conditionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], minHeight: 64 },
+  scheduleFields: { flexDirection: 'row', gap: spacing[3] },
+  editorBody: { gap: spacing[3] },
+  permissionCard: { padding: spacing[4], marginVertical: spacing[4], gap: spacing[2], backgroundColor: theme.status.infoSoft },
   scheduleInput: { ...type.body, color: theme.text.primary, backgroundColor: theme.surface.subtle, borderRadius: radius.compact, padding: spacing[3], minHeight: touchTarget.min },
-  card: { padding: spacing[5], marginBottom: spacing[4], gap: spacing[3] },
+  card: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[3] },
   flex: { flex: 1 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

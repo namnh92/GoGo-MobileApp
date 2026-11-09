@@ -765,6 +765,16 @@ export const viMessages = {
   'createMood.creating': 'Đang tạo phòng…',
   'createMood.createFailed': 'Không tạo được phòng. Thử lại nhé.',
 
+  'roomLobby.couple': 'Hẹn hò đôi',
+  'roomLobby.coupleTitle': 'Phòng hẹn hò đôi',
+  'roomLobby.group': 'Phòng chờ chung',
+  'roomLobby.area': 'Khu vực',
+  'roomLobby.edit': 'Sửa',
+  'roomLobby.setByHost': 'Thiết lập bởi chủ phòng',
+  'roomLobby.waitHost': 'Đợi chủ phòng bắt đầu ghép khi mọi người chọn xong.',
+  'roomLobby.warning': 'Lưu ý quan trọng',
+  'roomLobby.danger': 'Vùng nguy hiểm',
+
   'gogoRoom.createInvite': 'Tạo mã mời',
   'gogoRoom.inviteFailed': 'Chưa tạo được mã mời. Bạn vẫn có thể quản lý phòng và chọn sở thích.',
   // #199: mã chỉ được trả về một lần và chỉ lưu trên máy đã tạo.

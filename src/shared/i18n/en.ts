@@ -784,6 +784,16 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createMood.creating': 'Creating room…',
   'createMood.createFailed': 'Could not create the room. Please try again.',
 
+  'roomLobby.couple': 'Couple date',
+  'roomLobby.coupleTitle': 'Couple room',
+  'roomLobby.group': 'Group lobby',
+  'roomLobby.area': 'Area',
+  'roomLobby.edit': 'Edit',
+  'roomLobby.setByHost': 'Set by the host',
+  'roomLobby.waitHost': 'Wait for the host to start matching after everyone finishes choosing.',
+  'roomLobby.warning': 'Important',
+  'roomLobby.danger': 'Danger zone',
+
   'gogoRoom.createInvite': 'Create invite code',
   'gogoRoom.inviteFailed': 'Could not create an invite code. You can still manage the room and choose preferences.',
   'gogoRoom.inviteActive': 'This room has an invite code valid until {{time}}. The code only shows on the device that created it.',

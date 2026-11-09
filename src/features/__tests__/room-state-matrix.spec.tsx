@@ -1,3 +1,4 @@
+import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
 import { Alert, StyleSheet } from 'react-native'
 import { surface, text, type } from '@/shared/ui/tokens'
 import { act, fireEvent } from '@testing-library/react-native'
@@ -13,6 +14,9 @@ import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
  * Every binding a jest.mock factory touches must be `mock`-prefixed; the
  * factories are hoisted above the imports.
  */
+
+// Native ScopedTheme is absent in Jest; retain its children and the app theme context.
+jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles'), 'ScopedTheme').mockImplementation(({ children }) => <>{children}</>)
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -71,7 +75,7 @@ import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 const AUDIENCES: Audience[] = ['couple', 'group-host', 'group-guest']
 
 /** The host-only affordance this screen must never show a member. */
-const START_MATCHING = /Bắt đầu ghép|Tìm điểm chung|ghép/i
+const START_MATCHING = /^Bắt đầu ghép$|^Tìm điểm chung$/i
 
 beforeEach(() => {
   mockParams.roomId = '311f5bd8-f853-4ced-af68-e04398d1451a'
@@ -106,7 +110,7 @@ describe('room hub × state', () => {
     const trees = new Set<string>()
     for (const state of [pending(), failed(), loaded(roomFor('couple'))]) {
       mockRoom.query = state
-      trees.add(JSON.stringify((await renderScreen(<GoGoRoomScreen />)).toJSON()))
+      trees.add(JSON.stringify((await renderScreen(<GoGoRoomScreen />)).toJSON(), (key, value) => key === 'refreshControl' ? '[native refresh control]' : value))
     }
     expect(trees.size).toBe(3)
   })
@@ -132,10 +136,10 @@ describe('room hub × audience', () => {
 
   it('gives a member a different screen than a host', async () => {
     mockRoom.query = loaded(roomFor('group-host', {}, { everyonePicked: true }))
-    const host = JSON.stringify((await renderScreen(<GoGoRoomScreen />)).toJSON())
+    const host = JSON.stringify((await renderScreen(<GoGoRoomScreen />)).toJSON(), (key, value) => key === 'refreshControl' ? '[native refresh control]' : value)
 
     mockRoom.query = loaded(roomFor('group-guest', {}, { everyonePicked: true }))
-    const guest = JSON.stringify((await renderScreen(<GoGoRoomScreen />)).toJSON())
+    const guest = JSON.stringify((await renderScreen(<GoGoRoomScreen />)).toJSON(), (key, value) => key === 'refreshControl' ? '[native refresh control]' : value)
 
     expect(host).not.toEqual(guest)
   })
@@ -289,5 +293,32 @@ describe('room hub × connectivity', () => {
       onlineManager.setOnline(true)
     })
     expect(view.queryByText(NO_CONNECTION)).toBeNull()
+  })
+})
+
+
+describe.each(['orange', 'orangeDark'] as const)('595 lobby audience × state render matrix / %s', theme => {
+  it.each(AUDIENCES.flatMap(audience => ['default', 'loading', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
+    const data = roomFor(audience, state === 'empty' ? { members: [] } : {})
+    mockRoom.query = state === 'loading' ? pending() : state === 'error' ? failed() : loaded(data)
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
+    if (state === 'loading') expect(view.queryByText('Điều kiện phòng')).toBeNull()
+    else if (state === 'error') expect(view.getByText('Thử lại')).toBeTruthy()
+    else {
+      expect(view.getByText('Điều kiện phòng')).toBeTruthy()
+      expect(view.queryAllByText('Tôi')).toHaveLength(state === 'empty' ? 0 : 1)
+      if (audience === 'group-guest') {
+        expect(view.queryByText('Quản lý phòng')).toBeNull()
+        expect(view.queryByText('Tạo mã mời')).toBeNull()
+      }
+      if (audience !== 'couple') expect(view.queryByText(/cả hai|cho 2 người/)).toBeNull()
+    }
+  })
+  it('renders every real member in a group larger than a couple', async () => {
+    const data = roomFor('group-host')
+    mockRoom.query = loaded({ ...data, participantCount: 7, members: Array.from({ length: 7 }, (_, i) => ({ ...data.members![0], id: `p${i}`, displayName: `Member ${i}` })) })
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
+    for (let i = 0; i < 7; i++) expect(view.getByText(`Member ${i}`)).toBeTruthy()
+    expect(view.getByText(/7 người/)).toBeTruthy()
   })
 })

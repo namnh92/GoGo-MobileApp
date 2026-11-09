@@ -1,14 +1,15 @@
 import { fireEvent, waitFor } from '@testing-library/react-native'
-import { renderScreen, roomFor } from './harness'
+import { renderScreen, roomFor, type Audience } from './harness'
+let mockPending = false
 const mockMutate = jest.fn(async (body: Record<string, unknown>) => ({ ...roomFor('group-host'), constraintVersion: 8, constraints: body }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  useUpdateRoomConstraints: () => ({ mutateAsync: mockMutate, isPending: false }),
+  useUpdateRoomConstraints: () => ({ mutateAsync: mockMutate, isPending: mockPending }),
 }))
 import { RoomScheduleEditor } from '@/features/gogo-room/room-schedule-editor.view'
 import { isoToLocalSchedule, localScheduleToIso } from '@/features/gogo-room/room-schedule'
 
-beforeEach(() => mockMutate.mockClear())
+beforeEach(() => { mockMutate.mockClear(); mockPending = false })
 
 it('sends an explicit local schedule with the version being edited', async () => {
   const room = roomFor('group-host', { constraintVersion: 7 })
@@ -54,4 +55,23 @@ it('does not allow an active room to be rescheduled', async () => {
   const view = await renderScreen(<RoomScheduleEditor room={roomFor('group-host', { status: 'active' })} />)
   expect(view.getByLabelText('Bắt đầu').props.editable).toBe(false)
   expect(view.getByText('Không thể sửa lịch ở trạng thái hiện tại.')).toBeTruthy()
+})
+
+
+describe('595 schedule editor audience × state', () => {
+  const audiences: Audience[] = ['couple', 'group-host', 'group-guest']
+  it.each(audiences.flatMap(audience => ['default', 'loading', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
+    mockPending = state === 'loading'
+    const view = await renderScreen(<RoomScheduleEditor room={roomFor(audience)} onCancel={jest.fn()} />)
+    const input = view.getByLabelText('Bắt đầu')
+    expect(input.props.editable).toBe(audience !== 'group-guest' && state !== 'loading')
+    if (state === 'empty') expect(input.props.value).toBe('')
+    if (state === 'error' && audience !== 'group-guest') {
+      mockMutate.mockRejectedValueOnce(new Error('offline'))
+      await fireEvent.changeText(input, '12/09/2026 19:00')
+      await fireEvent.press(view.getByText('Lưu'))
+      expect(await view.findByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
+    } else expect(mockMutate).not.toHaveBeenCalled()
+    expect(view.getByText('Huỷ')).toBeTruthy()
+  })
 })

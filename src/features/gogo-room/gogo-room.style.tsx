@@ -3,27 +3,12 @@ import { StyleSheet } from 'react-native-unistyles'
 import { touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  avatarRow: { flexDirection: 'row' },
-  avatarWrap: {
-    marginLeft: -12,
-    borderWidth: 2,
-    borderColor: theme.surface.canvas,
-    borderRadius: 26,
-  },
-  morePeople: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.surface.subtle,
-    borderStyle: 'dashed',
-    borderColor: theme.text.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  joined: { marginTop: theme.spacing[2] },
-  hero: { marginBottom: theme.spacing[4], gap: theme.spacing[2], backgroundColor: theme.accent.soft },
-  heroBody: { marginBottom: theme.spacing[1] },
-  heroPeople: { marginTop: theme.spacing[2] },
+  content: { paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[4], paddingBottom: theme.spacing[8], gap: theme.spacing[2] },
+  badgeRow: { alignSelf: 'flex-start' },
+  hero: { marginBottom: theme.spacing[4], gap: theme.spacing[2], backgroundColor: theme.surface.subtle },
+  groupMembers: { backgroundColor: theme.surface.canvas, padding: 0, borderWidth: 0 },
+  hostMemberRow: { backgroundColor: theme.surface.card, padding: theme.spacing[4], borderRadius: theme.radius.card },
+  waitingNotice: { flexDirection: 'row', gap: theme.spacing[3], padding: theme.spacing[4], borderRadius: theme.radius.compact, backgroundColor: theme.surface.subtle },
   sectionCard: { marginBottom: theme.spacing[4], gap: theme.spacing[3] },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
   infoRow: {
@@ -42,23 +27,6 @@ export const styles = StyleSheet.create(theme => ({
   infoIcon_warning: { backgroundColor: theme.status.warningSoft },
   infoValue: { flex: 1 },
   stackedBtn: { marginTop: theme.spacing[2] },
-  couplePair: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing[3],
-    marginTop: theme.spacing[2],
-  },
-  emptySeat: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.surface.subtle,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: theme.text.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   body: {
     textAlign: 'center',
     marginTop: theme.spacing[2],
@@ -93,7 +61,6 @@ export const styles = StyleSheet.create(theme => ({
    */
   code: { flex: 1, letterSpacing: 0.5, color: theme.accent.primary },
   copyBtn: { flexShrink: 0 },
-  copyBtnDone: { backgroundColor: theme.status.successSoft, borderColor: theme.status.success },
   noApp: {
     marginTop: theme.spacing[2],
     paddingVertical: theme.spacing[3],
@@ -115,17 +82,9 @@ export const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.surface.subtle,
     minHeight: touchTarget.min,
   },
-  memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], flex: 1 },
+  memberNameRow: { alignItems: 'flex-start', gap: theme.spacing[1], flex: 1 },
   // Was body at 600. Regular: the avatar, the badge and the status chip carry
   // the row's hierarchy; the name does not need a face of its own.
   memberName: { flexShrink: 1 },
   sectionTitle: { flex: 1 },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.surface.subtle,
-    overflow: 'hidden',
-    marginBottom: theme.spacing[1],
-  },
-  progressFill: { height: '100%', backgroundColor: theme.accent.primary, borderRadius: 3 },
 }))

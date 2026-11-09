@@ -8,8 +8,9 @@ import { TextInput } from '@/shared/ui/text-input'
 import { z } from 'zod'
 
 import { isApiError, useRenameRoom, type RoomSummary } from '@/shared/api'
-import { Card, SecondaryBtn } from '@/shared/ui/primitives'
+import { Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
 
 import { styles } from './room-manage.style'
 
@@ -23,7 +24,7 @@ const EDITABLE: readonly RoomSummary['status'][] = ['draft', 'collecting', 'matc
  * APP-049 (#202) — rename after creation. Emptying the field removes the name,
  * and every list falls back to "Kèo chưa đặt tên".
  */
-export function RoomTitleEditor({ room }: { room: RoomSummary }) {
+export function RoomTitleEditor({ room, onCancel }: { room: RoomSummary; onCancel?: () => void }) {
   const { t } = useTranslation()
   const rename = useRenameRoom(room.id)
   const [notice, setNotice] = useState<string | null>(null)
@@ -84,12 +85,15 @@ export function RoomTitleEditor({ room }: { room: RoomSummary }) {
         )}
       />
       {canEdit ? null : <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text>}
-      <SecondaryBtn
+      <SheetActions>
+      {onCancel ? <SecondaryBtn label={t('common.cancel')} onPress={onCancel} disabled={rename.isPending} /> : null}
+      <PrimaryBtn
         label={rename.isPending ? t('account.saving') : t('account.save')}
         onPress={() => void form.handleSubmit(submit)()}
         loading={rename.isPending}
         disabled={!canEdit || !isDirty}
       />
+      </SheetActions>
       {notice ? (
         <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   isApiError,
+  detailToPlaceCard,
   roomCapabilities,
   useRemoveRoomMember,
   useRemoveRoomSeedPlace,
@@ -19,25 +20,35 @@ import {
   useUpdateRoomConstraints,
 } from '@/shared/api'
 import { formatMoney } from '@/shared/pricing/money'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
+import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
+import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { spacing } from '@/shared/ui/tokens'
 
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { RoomScheduleEditor } from './room-schedule-editor.view'
 import { RoomTitleEditor } from './room-title-editor.view'
+import { RoomEditSheet } from './room-edit-sheet.view'
+import { roomScheduleLabel } from './room-schedule'
+import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
+import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
+import { SheetActions } from '@/shared/ui/sheet-actions.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { styles } from './room-manage.style'
 
 export default function RoomManageScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
 
   const room = useRoom(roomId)
+  const waitingForNetwork = useWaitingForNetwork(room)
   const invites = useRoomInvites(roomId)
   const updateConstraints = useUpdateRoomConstraints(roomId)
   const revokeInvite = useRevokeRoomInvite(roomId)
@@ -62,7 +73,7 @@ export default function RoomManageScreen() {
     return (
       <Atmosphere>
         {header}
-        <LoadingState />
+        <View style={styles.loading}>{waitingForNetwork ? <OfflineState /> : <RoomMemberSkeleton count={4} />}</View>
       </Atmosphere>
     )
   }
@@ -147,17 +158,28 @@ export default function RoomManageScreen() {
     <Atmosphere>
       <BlockingLoadingOverlay visible={updateConstraints.isPending || transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending} />
       {header}
+      <PullToRefresh onRefresh={async () => { await room.refetch(); await invites.refetch() }}>
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={styles.warnBox}>
+          <Icon name="alert" size={22} color="status.warningText" />
+          <View style={styles.flex}><Text variant="title2" color="status.warningText">{t('roomLobby.warning')}</Text><Text variant="bodySmall" color="status.warningText">{t('roomManage.staleWarning')}</Text></View>
+        </View>
         <View style={styles.sectionHead}>
           <Icon name="sliders" size={20} color="accent.primary" />
           <Text variant="title2">{t('gogoRoom.constraints')}</Text>
         </View>
-        <RoomTitleEditor room={summary} />
-        <RoomScheduleEditor room={summary} />
         <Card padded={false} style={styles.card}>
+        <RoomEditSheet label={t('roomTitle.title')} value={summary.title?.trim() || t('plans.untitled')}>
+          {close => <RoomTitleEditor room={summary} onCancel={close} />}
+        </RoomEditSheet>
+        <RoomEditSheet label={t('roomSchedule.title')} value={roomScheduleLabel(constraints?.startAt ?? summary.scheduledDate, i18n.language) ?? t('roomSchedule.unset')}>
+          {close => <RoomScheduleEditor room={summary} onCancel={close} />}
+        </RoomEditSheet>
+        <RoomEditSheet onClose={() => setBudgetAmount(null)} label={t('roomManage.budgetTitle')} value={constraints?.budgetAmount ? `${formatMoney(constraints.budgetAmount, currency)} ${budgetUnitLabel(constraints.budgetMode, summary.type, t)}` : ''}>
+        {close => <View style={styles.editorBody}>
           <Text variant="label" color="text.secondary">{t('roomManage.budgetTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary">
             {t(
@@ -170,7 +192,7 @@ export default function RoomManageScreen() {
             {BUDGET_TIERS.map(tier => {
               const active = selectedBudget === tier.amount
               return (
-                <Chip key={tier.key} label={formatMoney(tier.amount, currency)}
+                <Chip key={tier.key} label={`${formatMoney(tier.amount, currency)} ${budgetUnitLabel(constraints?.budgetMode, summary.type, t)}`}
                   variant={active ? 'selected' : 'default'} onPress={() => setBudgetAmount(tier.amount)} />
               )
             })}
@@ -179,12 +201,19 @@ export default function RoomManageScreen() {
             <Icon name="alert" size={18} color="status.warningText" />
             <Text variant="caption" color="status.warningText" style={styles.flex}>{t('roomManage.staleWarning')}</Text>
           </View>
+          <SheetActions>
+          <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={updateConstraints.isPending} />
           <PrimaryBtn
             label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
             onPress={saveConstraints}
             disabled={!budgetDirty}
             loading={updateConstraints.isPending}
           />
+          </SheetActions>
+          {notice ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{notice}</Text> : null}
+        </View>}
+        </RoomEditSheet>
+        {constraints?.administrativeArea ? <View style={styles.conditionRow}><View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomLobby.area')}</Text><Text variant="body">{administrativeAreaLabel(constraints.administrativeArea)}</Text></View></View> : null}
         </Card>
 
         <View style={styles.sectionHead}>
@@ -193,22 +222,9 @@ export default function RoomManageScreen() {
         </View>
         <Card padded={false} style={styles.card}>
           <Text variant="bodySmall" color="text.secondary">{t('createMood.seedHint')}</Text>
-          {(summary.seedPlaces ?? []).map(seed => (
-            <View key={seed.placeId} style={styles.row}>
-              <Text variant="body" style={styles.flex} numberOfLines={1}>
-                {seed.name}
-              </Text>
-              <Pressable
-                onPress={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)}
-                accessibilityRole="button"
-                accessibilityLabel={t('roomManage.removeConfirm')}
-                style={styles.rowAction}
-              >
-                <Icon name="trash" size={16} color="status.dangerText" />
-                <Text variant="label" color="status.dangerText">{t('roomManage.removeConfirm')}</Text>
-              </Pressable>
-            </View>
-          ))}
+          {(summary.seedPlaces ?? []).map(seed => seed.placeId && seed.name ? (
+            <PlaceCardSmall key={seed.placeId} place={detailToPlaceCard({ id: seed.placeId, name: seed.name })} headerAction={<GhostBtn size="small" label={t('roomManage.removeConfirm')} onPress={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)} />} />
+          ) : null)}
           <GhostBtn
             label={t('roomManage.addSeedPlaces')}
             onPress={() => router.push(`/places/search?picker=1&roomId=${roomId}`)}
@@ -266,6 +282,7 @@ export default function RoomManageScreen() {
                 <Pressable
                   onPress={() => invite.inviteId && revokeInvite.mutate(invite.inviteId)}
                   accessibilityRole="button"
+                  accessibilityLabel={t('roomManage.revoke')}
                   style={styles.rowAction}
                 >
                   <Text variant="label" color="status.dangerText">{t('roomManage.revoke')}</Text>
@@ -284,7 +301,12 @@ export default function RoomManageScreen() {
           </View>
         </Card>
 
+        <Card padded={false} style={styles.permissionCard}>
+          <Text variant="title2" color="status.infoText">{t('roomManage.hostOnlyTitle')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('roomManage.hostOnlyBody')}</Text>
+        </Card>
         <Card padded={false} style={styles.dangerCard}>
+          <Text variant="title2" color="status.dangerText">{t('roomLobby.danger')}</Text>
           <View style={styles.noteRow}>
             <Icon name="alert" size={18} color="status.dangerText" />
             <Text variant="bodySmall" color="text.secondary" style={styles.flex}>{t('roomManage.cancelBody')}</Text>
@@ -302,6 +324,7 @@ export default function RoomManageScreen() {
           </Text>
         ) : null}
       </ScrollView>
+      </PullToRefresh>
       {dialog}
     </Atmosphere>
   )

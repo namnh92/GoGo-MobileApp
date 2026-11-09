@@ -1,11 +1,12 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
 
-import { renderScreen, roomFor } from './harness'
+import { renderScreen, roomFor, type Audience } from './harness'
 
+let mockPending = false
 const mockRename = jest.fn()
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  useRenameRoom: () => ({ mutateAsync: (...args: unknown[]) => mockRename(...args), isPending: false }),
+  useRenameRoom: () => ({ mutateAsync: (...args: unknown[]) => mockRename(...args), isPending: mockPending }),
 }))
 import { ApiError } from '@/shared/api/errors'
 import { RoomTitleEditor } from '@/features/gogo-room/room-title-editor.view'
@@ -21,7 +22,7 @@ async function type(element: Parameters<typeof fireEvent.changeText>[0], text: s
   })
 }
 
-beforeEach(() => mockRename.mockReset())
+beforeEach(() => { mockRename.mockReset(); mockPending = false })
 
 it('sends a trimmed name and confirms the rename', async () => {
   mockRename.mockResolvedValue({ ...roomFor('group-host'), title: 'Cà phê cuối tuần' })
@@ -64,4 +65,24 @@ it('explains a server refusal instead of a generic failure', async () => {
   await press(view.getByText('Lưu'))
   expect(await view.findByText('Không thể đổi tên ở trạng thái hiện tại.')).toBeTruthy()
   expect(view.queryByText('Chưa lưu được. Thử lại nhé.')).toBeNull()
+})
+
+
+describe('595 title editor audience × state', () => {
+  const audiences: Audience[] = ['couple', 'group-host', 'group-guest']
+  it.each(audiences.flatMap(audience => ['default', 'loading', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
+    mockPending = state === 'loading'
+    const room = roomFor(audience, { title: state === 'empty' ? undefined : 'Tên cũ' })
+    const view = await renderScreen(<RoomTitleEditor room={room} onCancel={jest.fn()} />)
+    const input = view.getByLabelText('Tên kèo')
+    expect(input.props.editable).toBe(audience !== 'group-guest' && state !== 'loading')
+    if (state === 'empty') expect(input.props.value).toBe('')
+    if (state === 'error' && audience !== 'group-guest') {
+      mockRename.mockRejectedValueOnce(new Error('offline'))
+      await type(input, 'Tên mới')
+      await press(view.getByText('Lưu'))
+      expect(await view.findByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
+    } else expect(mockRename).not.toHaveBeenCalled()
+    expect(view.getByText('Huỷ')).toBeTruthy()
+  })
 })
