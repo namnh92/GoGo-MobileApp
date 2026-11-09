@@ -118,6 +118,7 @@ export default function CreateTimeScreen() {
         {!dateSheet && pickerFor === null ? <DateTimeSheet
           key={`${day}-${startTime}`}
           inline visible initialDay={day} initialTime={startTime}
+          onDayChange={scheduleDay => patchDraft({ scheduleDay })}
           onClose={() => setDateSheet(false)} onDone={finishDateSheet}
         /> : null}
 

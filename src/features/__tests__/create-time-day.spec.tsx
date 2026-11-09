@@ -16,6 +16,7 @@ jest.mock('@/shared/providers/session-provider', () => ({
 
 import CreateTimeScreen from '@/features/create-date/create-time.view'
 import { useRoomStore } from '@/shared/store/roomStore'
+import { loadRoomDraft, restoreRoomDraft, saveRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
 
 const HOUR = 3_600_000
 type View = Awaited<ReturnType<typeof renderScreen>>
@@ -243,6 +244,42 @@ describe('the date and time sheet', () => {
 })
 
 describe('Stitch inline calendar (#594)', () => {
+  it('keeps an inline day without a time when opening the staged sheet (#594 F-01)', async () => {
+    const view = await renderScreen(<CreateTimeScreen />)
+    await press(view.getByTestId('date-inline-shortcut-tomorrow'))
+    await openSheet(view)
+    expect(state(view, 'date-sheet-day-2026-11-06').selected).toBe(true)
+    expect(state(view, 'date-sheet-shortcut-today').selected).toBe(false)
+    await press(view.getByTestId('date-sheet-shortcut-weekend'))
+    await chooseTime(view, '20:00')
+    await press(view.getByText('Huỷ'))
+    expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-06', startTime: null, startAt: null })
+    await openSheet(view)
+    expect(state(view, 'date-sheet-day-2026-11-06').selected).toBe(true)
+    await chooseTime(view, '19:00')
+    expect(useRoomStore.getState().startTime).toBeNull()
+    await press(view.getByText('Xong'))
+    expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-06', startTime: '19:00' })
+  })
+
+  it('saves and resumes an inline day before choosing any time (#594 F-01)', async () => {
+    const view = await renderScreen(<CreateTimeScreen />)
+    await press(view.getByTestId('date-inline-day-2026-11-07'))
+    await saveRoomDraft('user-1', 'time')
+    await view.unmount()
+    useRoomStore.getState().resetDraft()
+    useSavedRoomDraft.setState({ draft: null })
+    await loadRoomDraft('user-1')
+    expect(restoreRoomDraft('user-1')).toBe('time')
+    const resumed = await renderScreen(<CreateTimeScreen />)
+    expect(state(resumed, 'date-inline-day-2026-11-07').selected).toBe(true)
+    expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-07', startTime: null, startAt: null })
+    await press(resumed.getByText('Tiếp tục'))
+    expect(mockPush).not.toHaveBeenCalled()
+    await openSheet(resumed)
+    expect(state(resumed, 'date-sheet-day-2026-11-07').selected).toBe(true)
+  })
+
   it('uses the existing schedule path for an inline day and time', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await press(view.getByTestId('date-inline-shortcut-tomorrow'))

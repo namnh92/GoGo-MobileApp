@@ -748,6 +748,7 @@ export const viMessages = {
   'createBudget.tier.flexible': 'Không quan trọng',
   'createBudget.tier.flexible.sub': 'Miễn là vui là được',
   'createBudget.useUsual': 'Dùng ngân sách thường dùng: {{tier}}',
+  'createBudget.useUsualAction': 'Dùng mức thường dùng',
 
   'createMood.title': 'Mood tối nay?',
   'createMood.moodTitle': 'Tâm trạng & trải nghiệm',

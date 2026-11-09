@@ -767,6 +767,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createBudget.tier.flexible': "Doesn't matter",
   'createBudget.tier.flexible.sub': 'As long as it is fun',
   'createBudget.useUsual': 'Use my usual budget: {{tier}}',
+  'createBudget.useUsualAction': 'Use usual budget',
 
   'createMood.title': 'What is the mood?',
   'createMood.moodTitle': 'Mood & experience',

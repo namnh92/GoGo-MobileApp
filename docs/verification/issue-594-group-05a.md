@@ -8,19 +8,19 @@ Issue đọc qua GitHub connector sau khi `gh issue view 594 --repo namnh92/GoGo
 
 ## Nguồn và ghi chú từng màn
 
-Project `17315762413421369447`. Đã gọi `get_screen` và `download_file` cho HTML và screenshot của từng ID dưới đây. `list_screens` chỉ có hai màn mang tên Dark (`Bảng màu`, `Bạn đang muốn gì hơn`), không có Dark cùng tên của nhóm 05A. Cả 9 màn dùng fallback Dark theo AppToken roles, đúng yêu cầu task/precedent owner 2026-11-07/08; không tạo/sửa màn trên Stitch. Không có cặp nguồn Light/Dark để chạy `parity.py`: **0/9 cặp nguồn đo được**, không báo PASS thay cho nguồn thiếu.
+Project `17315762413421369447`. Round 1 đã gọi `get_screen` và `download_file` cho HTML và screenshot của từng ID dưới đây. `list_screens` chỉ có hai màn mang tên Dark (`Bảng màu`, `Bạn đang muốn gì hơn`), không có Dark cùng tên của nhóm 05A. **Owner 2026-11-10:** màn không có Stitch Dark dùng bộ AppToken Light/Dark toàn app; wizard giữ một màn riêng cho mỗi bước; 5.1 single-form **not built as a screen — owner 2026-11-10**, chỉ làm tham chiếu visual. Đây là quyết định đã chốt, không phải deviation cần duyệt lại. Không tạo/sửa màn trên Stitch. Không có cặp nguồn Light/Dark để chạy `parity.py`: **0/9 cặp nguồn đo được**, không báo PASS thay cho nguồn thiếu.
 
 | Màn | Stitch ID | Light: phần đã áp dụng | Dark |
 | --- | --- | --- | --- |
-| 5.1 Tạo phòng hẹn | `11616575349645775674` | Chỉ ánh xạ visual vào bước hiện hữu: thẻ lựa chọn, chip, scope ngân sách, lịch/thời lượng. Giữ wizard, không tạo route form tổng hợp. | Cùng cây UI; role canvas/card/text/accent theo theme; chưa so ảnh. |
-| 5.2 Đối tượng | `12897203841795461814` | Tiêu đề, mô tả, hai thẻ icon + trạng thái chọn, input tên và counter, CTA dùng chung. Giữ maxLength 80. | Fallback roles, cùng copy/layout; chưa so ảnh. |
-| 5.3 Chế độ nhóm | `6534318264704160088` | Tiêu đề, mô tả, lưới bốn chip quy mô, bộ đếm chính xác, nội dung cuộn. Giữ 3–12 người và hai lựa chọn budgetMode hiện hữu. | Fallback roles, cùng copy/layout; chưa so ảnh. |
-| 5.4 Địa điểm | `10366405716754660736` | Tiêu đề, mô tả, thẻ GPS, chip bán kính dùng chung, chọn khu vực qua sheet hiện hữu, CTA. Giữ permission/fallback/prefill/version validation. | Fallback roles, cùng trạng thái GPS/khu vực; chưa so ảnh. |
-| 5.5 Thời gian | `14694142646341612511` | Lịch nội tuyến, shortcut ngày, đổi tháng, giờ bắt đầu và giờ khác dùng lại component của 5.6. Dòng tổng kết vẫn mở sheet chọn tạm; giữ giờ kết thúc và duration preset. | Fallback roles, cùng lịch/ngày giờ được tính lúc chạy; chưa so ảnh. |
-| 5.6 Chọn ngày giờ | `6910860286766835350` | Sheet hiện hữu có lịch, shortcut, giờ, summary. Huỷ trái/Xong phải dùng `SheetActions`; Huỷ giữ nguyên draft trước khi mở. | Fallback roles, cùng validation/past-slot state; chưa so ảnh. |
-| 5.7 Ngân sách | `9352497074123873706` | Thẻ tier, scope ngân sách chỉ đọc, số tiền VND đầy đủ, đơn vị trên từng mức và profile prefill, chọn có check. Không thay tier/default/amount. | Fallback roles, cùng scope và đơn vị; chưa so ảnh. |
-| 5.8 Mood & Tạo phòng | `7359368928226437041` | Tiêu đề, chip taxonomy theo API có highlight, seed chỉ hiện tên thật và nút bỏ, thêm địa điểm qua route cũ. Skeleton/error/offline/empty rõ ràng; CTA/loading dùng chung. | Fallback roles, cùng dữ liệu và trạng thái; chưa so ảnh. |
-| 5.9 Thoát tạo kèo? | `18282881640925513825` | Sheet icon/tiêu đề/mô tả; đủ ba hành động dùng chung, một hàng bằng nhau, save là primary. Dùng nguyên promise/handlers của `useDialog`. | Fallback roles, cùng save/discard/continue; chưa so ảnh. |
+| 5.1 Tạo phòng hẹn | `11616575349645775674` | Chỉ tham chiếu visual cho bước hiện hữu; not built as a screen — owner 2026-11-10. | Không dựng màn riêng; phần tử dùng chung dùng AppToken Light/Dark toàn app (owner 2026-11-10); chưa so ảnh. |
+| 5.2 Đối tượng | `12897203841795461814` | Tiêu đề, mô tả, hai thẻ icon + trạng thái chọn, input tên và counter, CTA dùng chung. Giữ maxLength 80. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng copy/layout; chưa so ảnh. |
+| 5.3 Chế độ nhóm | `6534318264704160088` | Tiêu đề, mô tả, lưới bốn chip quy mô, bộ đếm chính xác, nội dung cuộn. Giữ 3–12 người và hai lựa chọn budgetMode hiện hữu. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng copy/layout; chưa so ảnh. |
+| 5.4 Địa điểm | `10366405716754660736` | Tiêu đề, mô tả, thẻ GPS, chip bán kính dùng chung, chọn khu vực qua sheet hiện hữu, CTA. Giữ permission/fallback/prefill/version validation. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng trạng thái GPS/khu vực; chưa so ảnh. |
+| 5.5 Thời gian | `14694142646341612511` | Lịch nội tuyến, shortcut ngày, đổi tháng, giờ bắt đầu và giờ khác dùng lại component của 5.6. Dòng tổng kết vẫn mở sheet chọn tạm; giữ giờ kết thúc và duration preset. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng lịch/ngày giờ được tính lúc chạy; chưa so ảnh. |
+| 5.6 Chọn ngày giờ | `6910860286766835350` | Sheet hiện hữu có lịch, shortcut, giờ, summary. Huỷ trái/Xong phải dùng `SheetActions`; Huỷ giữ nguyên draft trước khi mở. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng validation/past-slot state; chưa so ảnh. |
+| 5.7 Ngân sách | `9352497074123873706` | Thẻ tier, scope ngân sách chỉ đọc, số tiền VND đầy đủ, đơn vị trên từng mức và profile prefill, chọn có check. Không thay tier/default/amount. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng scope và đơn vị; chưa so ảnh. |
+| 5.8 Mood & Tạo phòng | `7359368928226437041` | Tiêu đề, chip taxonomy theo API có highlight, seed chỉ hiện tên thật và nút bỏ, thêm địa điểm qua route cũ. Skeleton/error/offline/empty rõ ràng; CTA/loading dùng chung. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng dữ liệu và trạng thái; chưa so ảnh. |
+| 5.9 Thoát tạo kèo? | `18282881640925513825` | Sheet icon/tiêu đề/mô tả; đủ ba hành động dùng chung, một hàng bằng nhau, save là primary. Dùng nguyên promise/handlers của `useDialog`. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng save/discard/continue; chưa so ảnh. |
 
 `AppHeader` vẫn giữ chức năng hiện hữu; save/close chuyển sang icon có nhãn truy cập, mục tiêu 48pt để chừa chỗ cho tiêu đề. Progress tính đúng 5 bước couple hoặc 6 bước group. Button sử dụng biến thể/kích thước chung; không thêm pressed highlight. Không thêm màu hex/rgba hay palette của màn; typography lấy token.
 
@@ -30,8 +30,6 @@ Các dòng dưới đây là phần chưa giống nguồn hoặc cần quyết �
 
 | Stitch element | Screen | Reason | Proposal |
 | --- | --- | --- | --- |
-| Bản Dark cùng tên | 5.1–5.9 | Không tồn tại trong inventory project hiện tại. | Dùng AppToken roles theo task và precedent owner 2026-11-07/08; cần ảnh app Light/Dark trước acceptance. |
-| Form tổng hợp năm section, bước 4/4, share header, CTA mời bạn bè | 5.1 | Task NAVIGATION yêu cầu giữ luồng step-by-step; không tự hợp nhất/drop/reroute flow cạnh tranh. | Owner quyết định riêng sự tồn tại/entry point của form tổng hợp; không thêm route/share/invite action trong #594. |
 | Header “Create Room Occasion/Location/Schedule/Budget/Preferences” và avatar | 5.2–5.8 | Header mẫu không dùng copy i18n của app; avatar trong thiết kế không có chức năng trong wizard hiện hữu. Task yêu cầu AppHeader và không đổi navigation/auth. | Giữ AppHeader i18n, notification/save/close hiện hữu. Owner xác nhận mapping header khi xem ảnh. |
 | Bước luôn `/6` | 5.2–5.8 | Luồng couple không có group-setup nên thực tế 5 bước. | Giữ count theo route hiện hữu, không thêm bước chỉ để giống số mẫu. |
 | Tên kèo 40 ký tự | 5.2 | Validation hiện hữu và createRoom OpenAPI cho phép 80 ký tự (`openapi/gogo.v1.yaml:744`). Task yêu cầu giữ validation. | Giữ input/counter `/80`; thay limit cần task hành vi riêng. |
@@ -59,7 +57,7 @@ Các dòng dưới đây là phần chưa giống nguồn hoặc cần quyết �
 
 ## Hành vi giữ nguyên và kiểm tra
 
-Không sửa `src/app`, API client/OpenAPI, auth/session, `roomStore`, `savedRoomDraft`, `schedule.ts`, `schedule-day.ts`, `budget-tiers.ts`, duration/calendar logic hoặc submit handlers. Request mapping vẫn ở `toCreateRoomBody`: couple total, group theo budgetMode; không nhân/chia lại amount. Chọn lịch nội tuyến gọi lại `finishDateSheet`/`applyStart`; sheet vẫn chọn tạm và chỉ Xong mới áp dụng. Inline thay ngày làm start trở thành quá khứ vẫn chặn Continue.
+Không sửa `src/app`, API client/OpenAPI, auth/session, `roomStore`, `savedRoomDraft`, `schedule.ts`, `schedule-day.ts`, `budget-tiers.ts`, duration/calendar rules hoặc submit handlers. Request mapping vẫn ở `toCreateRoomBody`: couple total, group theo budgetMode; không nhân/chia lại amount. Chọn ngày inline khi chưa có giờ ghi riêng `scheduleDay` qua `patchDraft` hiện hữu; khi đã có giờ vẫn gọi `finishDateSheet`/`applyStart`. Sheet vẫn chọn tạm và chỉ Xong mới áp dụng. Inline thay ngày làm start trở thành quá khứ vẫn chặn Continue.
 
 State matrix:
 
@@ -71,7 +69,7 @@ State matrix:
 | Mood | Chip từ API; selected state | Skeleton + footer inset | Explicit empty state; taxonomy vẫn optional như trước | ErrorState/refetch, OfflineState khi paused không cache, submit error và loading overlay cũ |
 | Draft exit/resume | Save/discard/keep đúng step/owner | LoadingIndicator trong overlay; action disabled | Clean draft thoát thẳng Home | Alert lỗi/save sign-in và resume validation giữ nguyên |
 
-Kết quả trên source cuối (không sửa code sau khi chạy):
+Kết quả round 1 tại head `8f68365` (lịch sử; kết quả round 2 ghi bên dưới):
 
 | Lệnh | Kết quả |
 | --- | --- |
@@ -90,9 +88,47 @@ Regression toàn repo phát hiện profile-defaults cũng dùng `createBudget.ti
 
 Còn mở trước acceptance: chạy lại unit trong môi trường có quyền process inspection; chụp/so Light/Dark thực tế và xử lý các dòng lệch cần owner quyết định. Không có commit, push, issue mới hay thay đổi remote.
 
-## Files:lines đã thay đổi
+## Round 2 — Astra F-01/F-02/F-03
 
-Các khoảng dòng là phía working tree, tính từ diff với base `c48d501`.
+Basis: `8f68365ab8b59183735430f581b631f8f2fcd1b5` + working-tree diff, 2026-11-10. Không commit/push. SHA-256 của `git diff -- src`: `7a7b0545768f4a75a3a96e984dcfe8a7c5ce65308c650cd92a86c3f140d6c2dd`.
+
+| Finding | Sửa và bằng chứng |
+| --- | --- |
+| F-01 P2 | Ngày inline chưa có giờ ghi vào `scheduleDay` qua `patchDraft`, dùng nguyên store/schema/draft save/load/restore. Mở sheet lấy lại ngày đó; chọn trong sheet vẫn tạm cho tới Xong, Huỷ không ghi. Hai regression tại `create-time-day.spec.tsx:247` và `:265`: trên production `8f68365` đều FAIL (`selected` expected true, received false); sau sửa đều PASS, gồm save → unmount → reset → disk load → restore → render → mở sheet. Chưa chọn giờ vẫn chặn Continue. |
+| F-02 P2 | Chip chỉ giữ action vi/en ngắn; amount + unit chuyển sang Text riêng, không giới hạn dòng/ellipsis, có thể wrap theo chiều rộng. Accessible label của action vẫn chứa cả amount và `/người`. Regression tại `prefill-budget.spec.tsx:53`: trên `8f68365` FAIL (`numberOfLines` expected 0, received 1); sau sửa PASS. Test scope/submit cũ chọn đúng tier button khi prefill và tier cùng hiển thị giá. Shared Chip không đổi. |
+| F-03 P3 | Bỏ hai deviation Dark và 5.1 owner-decides; ghi quyết định owner 2026-11-10 tại phần nguồn và cột Dark: AppToken Light/Dark toàn app khi thiếu Stitch Dark; wizard một màn mỗi bước; single-form 5.1 không dựng thành màn. |
+
+Lệnh tái hiện giống nhau trước/sau: `pnpm test:ui --runInBand src/features/__tests__/create-time-day.spec.tsx src/features/__tests__/prefill-budget.spec.tsx -t '#594 F-'`. Trước: **3 failed / 32 skipped**, exit 1; sau: **3 passed / 32 skipped**, exit 0. Lượt FAIL-before chỉ thêm các regression test trên production chưa sửa tại `8f68365`.
+
+| Kiểm tra round 2 | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm lint` | PASS, exit 0 |
+| Affected UI: create-time-day, prefill-budget, create-time, wizard-exit (`pnpm test:ui --runInBand` + 4 paths) | PASS, exit 0: 4 suites / 46 tests |
+| Affected unit: saved-room-day, saved-room-draft, room-draft, create-date/__tests__ (`pnpm exec vitest run` + paths) | PASS, exit 0: 7 suites / 49 tests |
+| `pnpm test` | FAIL, exit 1: 143 files pass, 1 fail, 1 skipped; 1.733 tests pass, 3 fail, 39 skipped. Đúng ba lỗi distribute-wrapper/process inspection sandbox đã biết; Claude chạy lại ngoài sandbox. |
+| `pnpm test:ui --maxWorkers=2` | PASS, exit 0: 231 suites / 3.340 tests / 11 snapshots |
+| `git diff --check` | PASS, exit 0 |
+
+Lượt UI toàn repo đầu có 230 suites PASS và một test selector cũ FAIL vì hai Text giờ cùng chứa giá prefill/tier. Đã scope selector vào tier button, chạy lại 4 affected suites PASS và chạy lại toàn bộ UI trên bản cuối. Không thay amount/unit hoặc mapping để xử lý test.
+
+[Log FAIL-before/PASS-after và checks round 2](issue-594-round-2-checks.txt). Acceptance ảnh Light/Dark vẫn chưa hoàn tất; các test này không chứng minh pixel parity.
+
+| File round 2 | Dòng working tree |
+| --- | --- |
+| [date-time-sheet.view.tsx](../../src/features/create-date/date-time-sheet.view.tsx) | 25–34, 68–75 |
+| [create-time.view.tsx](../../src/features/create-date/create-time.view.tsx) | 121 |
+| [create-budget.view.tsx](../../src/features/create-date/create-budget.view.tsx) | 77–84 |
+| [create-budget.style.tsx](../../src/features/create-date/create-budget.style.tsx) | 31–32 |
+| [create-time-day.spec.tsx](../../src/features/__tests__/create-time-day.spec.tsx) | 19, 247–281 |
+| [prefill-budget.spec.tsx](../../src/features/__tests__/prefill-budget.spec.tsx) | 50, 53–61, 66, 134–136 |
+| [vi.ts](../../src/shared/i18n/vi.ts) / [en.ts](../../src/shared/i18n/en.ts) | 751 / 770 |
+| [issue-594-group-05a.md](issue-594-group-05a.md) | 11–23, 29–33, 60, 72, 91–127 |
+| [issue-594-round-2-checks.txt](issue-594-round-2-checks.txt) | 1–230: log round 2 |
+
+## Files:lines đã thay đổi — round 1
+
+Các khoảng dòng dưới đây thuộc snapshot round 1 tại `8f68365`, tính từ diff với base `c48d501`. Dòng working tree hiện tại của bản sửa round 2 ở bảng phía trên.
 
 | File | Dòng thay đổi |
 | --- | --- |

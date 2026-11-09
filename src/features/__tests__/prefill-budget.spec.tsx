@@ -47,13 +47,23 @@ beforeEach(() => {
 describe('usual budget prefill on the budget step', () => {
   it('offers the tier the usual amount falls into', async () => {
     const view = await renderScreen(<CreateBudgetScreen />)
-    expect(view.getByText(CHIP)).toBeTruthy()
+    expect(view.getByRole('button', { name: CHIP })).toBeTruthy()
+  })
+
+  it('renders the prefill amount and unit without ellipsis and includes both in its accessible label (#594 F-02)', async () => {
+    const view = await renderScreen(<CreateBudgetScreen />)
+    const action = view.getByRole('button', { name: CHIP })
+    expect(action.props.accessibilityLabel).toContain('300.000đ – 500.000đ /người')
+    for (const amount of view.getAllByText(/300.000đ – 500.000đ \/người/)) {
+      expect(amount.props.numberOfLines ?? 0).toBe(0)
+      expect(amount.props.ellipsizeMode).not.toBe('tail')
+    }
   })
 
   it('keeps a tapped tier in the resumable draft before continuing', async () => {
     const view = await renderScreen(<CreateBudgetScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText(CHIP))
+      await fireEvent.press(view.getByRole('button', { name: CHIP }))
     })
     expect(useRoomStore.getState().budgetAmount).toBe(500_000)
     await act(async () => {
@@ -121,7 +131,9 @@ it.each([
   useRoomStore.getState().setAudience(audience)
   useRoomStore.getState().setBudgetMode(mode)
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByText(`300.000đ – 500.000đ ${unit}`))
+  const tier = view.getByRole('button', { name: /^300.000đ – 500.000đ / })
+  expect(within(tier).getByText(`300.000đ – 500.000đ ${unit}`)).toBeTruthy()
+  await fireEvent.press(tier)
   await fireEvent.press(view.getByText('Tiếp tục'))
   expect(toCreateRoomBody(useRoomStore.getState()).constraint).toMatchObject({ budgetMode: expectedMode, budgetAmount: 500_000 })
   if (audience === 'group-host') expect(view.queryByText(/cả hai|hai người/)).toBeNull()

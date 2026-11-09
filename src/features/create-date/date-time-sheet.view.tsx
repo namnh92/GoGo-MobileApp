@@ -22,12 +22,14 @@ import { styles } from './date-time-sheet.style'
  * says today. "Giờ khác" swaps the body for the 30-minute grid in the same
  * sheet: iOS refuses a second modal opened over this one.
  */
-export function DateTimeSheet({ inline = false, visible, initialDay, initialTime, onClose, onDone }: {
+export function DateTimeSheet({ inline = false, visible, initialDay, initialTime, onDayChange, onClose, onDone }: {
   inline?: boolean
   visible: boolean
   /** `YYYY-MM-DD`, or null for today. */
   initialDay: string | null
   initialTime: string | null
+  /** Inline day-only edits belong to the draft even before a time is chosen. */
+  onDayChange?: (day: string | null) => void
   onClose: () => void
   onDone: (day: string | null, time: string) => void
 }) {
@@ -67,7 +69,10 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
     setDay(key)
     setView(monthOf(key))
     const nextDay = key === todayKey ? null : key
-    if (inline && time !== null) onDone(nextDay, time)
+    if (inline) {
+      if (time !== null) onDone(nextDay, time)
+      else onDayChange?.(nextDay)
+    }
   }
 
   function chooseTime(slot: string) {

@@ -28,5 +28,6 @@ export const styles = StyleSheet.create(theme => ({
   },
   checkBubbleActive: { backgroundColor: theme.accent.primary },
   /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
-  prefillRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[4] },
+  prefillRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2], marginBottom: spacing[4] },
+  prefillAmount: { maxWidth: '100%', flexShrink: 1 },
 }))

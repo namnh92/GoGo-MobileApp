@@ -74,10 +74,14 @@ export default function CreateBudgetScreen() {
           <View style={styles.prefillRow}>
             <Chip
               icon="dollar"
-              label={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
+              label={t('createBudget.useUsualAction')}
+              accessibilityLabel={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
               variant={selected.key === usualTier.key ? 'selected' : 'info'}
               onPress={useUsualBudget}
             />
+            <Text variant="bodySmall" style={styles.prefillAmount}>
+              {t(`createBudget.range.${usualTier.key}`)} {unit}
+            </Text>
           </View>
         ) : null}
 
