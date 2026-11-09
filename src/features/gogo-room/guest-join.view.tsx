@@ -9,13 +9,14 @@ import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { isApiError, useJoinRoom } from '@/shared/api'
+import { isApiError, isOffline, useJoinRoom, useInvitePreview } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
+import { InvitePreview, InvitePreviewSkeleton } from './invite-preview.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -50,6 +51,9 @@ export default function GuestJoinScreen() {
   const [displayName, setDisplayName] = useState('')
   const [pending, setPending] = useState(false)
   const [expired, setExpired] = useState(false)
+  const preview = useInvitePreview(inviteCode, status !== 'hydrating')
+  const [blockedRoom, setBlockedRoom] = useState(false)
+  const [unusable, setUnusable] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const asUser = status === 'user'
@@ -78,6 +82,7 @@ export default function GuestJoinScreen() {
     // Any other 410 keeps that reading, as before.
     if (isApiError(caught) && caught.status === 410) return t('guestJoin.expiredBody')
     if (isApiError(caught) && caught.status === 404) return t('guestJoin.notFoundBody')
+    if (isOffline(caught)) return t('common.offlineBody')
     if (isApiError(caught) && caught.status === 429) return t('auth.rateLimited')
     return t('guestJoin.failed')
   }
@@ -126,6 +131,8 @@ export default function GuestJoinScreen() {
       }
       if (stillHere()) router.replace(`/room/${session.roomId}/preference`)
     } catch (caught) {
+      setBlockedRoom(isApiError(caught) && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(caught.code))
+      setUnusable(isApiError(caught) && (caught.status === 404 || (caught.status === 410 && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(caught.code))))
       setExpired(
         isApiError(caught) &&
           caught.status === 410 &&
@@ -165,11 +172,14 @@ export default function GuestJoinScreen() {
     )
   }
 
-  if (expired) {
+  const previewFailure = preview.error
+  const unavailable = isApiError(previewFailure) && [404, 410].includes(previewFailure.status)
+  const previewExpired = isApiError(previewFailure) && previewFailure.status === 410 && !['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(previewFailure.code)
+  if (expired || unusable || unavailable) {
     return (
       <Atmosphere>
         {header}
-        <InviteExpired />
+        <InviteExpired canRequestLink={!blockedRoom && !(isApiError(previewFailure) && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(previewFailure.code))} unusable={unusable || (unavailable && !previewExpired)} message={error ?? (previewFailure ? toMessage(previewFailure) : undefined)} />
       </Atmosphere>
     )
   }
@@ -180,15 +190,16 @@ export default function GuestJoinScreen() {
       {header}
       <ScrollView
         contentContainerStyle={{
-          flexGrow: 1,
-          paddingTop: spacing[4],
-          paddingHorizontal: spacing[5],
+          ...styles.content,
           paddingBottom: insets.bottom + spacing[6],
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Chip icon="heart" label={t('guestJoin.badge')} />
+        <Chip style={styles.badge} appearance="discovery" icon="heart" label={t('guestJoin.badge')} />
         <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title')}</Text>
+
+        {preview.isPending ? <InvitePreviewSkeleton /> : preview.data ? <InvitePreview data={preview.data} /> : null}
+        {previewFailure ? <View style={styles.errorBox}><Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>{toMessage(previewFailure)}</Text><SecondaryBtn label={t('common.retry')} onPress={() => { void preview.refetch() }} /></View> : null}
 
         {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
@@ -197,7 +208,7 @@ export default function GuestJoinScreen() {
             <Text variant="bodySmall" color="text.secondary">{t('guestJoin.asAccount')}</Text>
           ) : (
             <>
-              <Text variant="title2" style={styles.detailsTitle}>{t('guestJoin.nameLabel')}</Text>
+              <View style={styles.hostHeading}><Text variant="title2" style={styles.factText}>{t('guestJoin.nameLabel')}</Text><Text variant="caption" color="text.secondary">{t('invitePreview.required')}</Text></View>
               <TextInput
                 value={displayName}
                 onChangeText={value => {
@@ -228,6 +239,7 @@ export default function GuestJoinScreen() {
           ) : null}
 
           <PrimaryBtn
+            variant="pill"
             label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
             onPress={join}
             icon="arrowRight"

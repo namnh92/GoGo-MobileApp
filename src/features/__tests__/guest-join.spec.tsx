@@ -44,6 +44,7 @@ jest.mock('@/shared/providers/session-provider', () => ({
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useInvitePreview: () => ({ data: undefined, error: null, isPending: false }),
   useJoinRoom: () => ({ mutateAsync: (...args: unknown[]) => mockJoinRoom(...args), isPending: false }),
 }))
 

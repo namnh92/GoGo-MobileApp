@@ -36,6 +36,7 @@ jest.mock('@/shared/providers/session-provider', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useInvitePreview: () => ({ data: undefined, error: null, isPending: false }),
   useJoinRoom: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }))
 jest.mock('@/shared/store/recentRoomsStore', () => ({
@@ -82,7 +83,7 @@ async function fillAndJoin(screen: Screen) {
     await fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
   })
   await act(async () => {
-    await fireEvent.press(view.getByText(JOIN))
+    await fireEvent.press(view.getByText(screen === 'typed code' ? 'Vào phòng' : JOIN))
   })
   return view
 }

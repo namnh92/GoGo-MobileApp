@@ -33,6 +33,7 @@ jest.mock('@/shared/providers/session-provider', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useInvitePreview: () => ({ data: undefined, error: null, isPending: false }),
   useJoinRoom: () => ({ mutateAsync: (...args: unknown[]) => mockJoinRoom(...args), isPending: false }),
 }))
 jest.mock('@/shared/store/recentRoomsStore', () => ({
@@ -52,7 +53,7 @@ const joined = () => mockTrack.mock.calls.filter(([name]) => name === 'gogo_part
 async function joinByCode() {
   const view = await renderScreen(<JoinByCodeScreen />)
   await fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
-  await fireEvent.press(view.getByText(JOIN))
+  await fireEvent.press(view.getByText('Vào phòng'))
   await waitFor(() => expect(mockReplace).toHaveBeenCalled())
   return view
 }
@@ -108,7 +109,7 @@ it('still counts a guest join, which carries no such flag', async () => {
   const view = await renderScreen(<JoinByCodeScreen />)
   await fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
   await fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
-  await fireEvent.press(view.getByText(JOIN))
+  await fireEvent.press(view.getByText('Vào phòng'))
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM}/preference`))
   expect(joined()).toEqual([['gogo_partner_joined', { role: 'guest' }]])
 })
