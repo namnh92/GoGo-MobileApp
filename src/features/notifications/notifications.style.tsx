@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native-unistyles'
 import { buttonSizes, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  pinnedToolbar: { paddingHorizontal: spacing[4], paddingTop: spacing[3], backgroundColor: theme.surface.canvas },
   list: { paddingHorizontal: spacing[4], paddingTop: spacing[3] },
   toolbar: { height: buttonSizes.small.minHeight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[1], marginBottom: spacing[2] },
   toolbarTitle: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },

@@ -1,10 +1,12 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { firstPageRefetch } from './first-page-refetch'
+import { useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { listSystemNotifications } from '../system-notifications'
 
 const MAX_AUTO_PAGES = 5
 
 export function useSystemNotificationsQuery({ loadAll = false }: { loadAll?: boolean } = {}) {
+  const client = useQueryClient()
   const query = useInfiniteQuery({
     queryKey: ['system-notifications'],
     queryFn: ({ pageParam, signal }) => listSystemNotifications(pageParam, signal),
@@ -18,5 +20,5 @@ export function useSystemNotificationsQuery({ loadAll = false }: { loadAll?: boo
   useEffect(() => {
     if (loadingAll && !isFetching) void fetchNextPage({ cancelRefetch: false }).catch(() => undefined)
   }, [loadingAll, isFetching, fetchNextPage, query.data])
-  return { ...query, loadingAll, status: query.data?.pages[0]?.status ?? query.status }
+  return { ...query, refetch: firstPageRefetch(client, ['system-notifications'], query.refetch), loadingAll, status: query.data?.pages[0]?.status ?? query.status }
 }

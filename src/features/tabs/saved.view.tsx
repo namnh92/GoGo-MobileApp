@@ -138,9 +138,9 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
           ))}
         </View>
       ) : saved.isError ? (
-        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView><ErrorState error={saved.error} onRetry={() => void saved.refetch()} /></ScrollView></PullToRefresh>
+        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView testID="saved-list"><ErrorState error={saved.error} onRetry={() => void saved.refetch()} /></ScrollView></PullToRefresh>
       ) : visibleGroups.length === 0 ? (
-        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView><EmptyState
+        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView testID="saved-list"><EmptyState
           title={t(city ? 'saved.cityEmptyTitle' : 'saved.emptyTitle')}
           body={city ? t('saved.cityEmptyBody', { city: cityTitle }) : t('saved.emptyBody')}
           action={<GhostBtn label={t('saved.browse')} onPress={() => router.push('/places/search')} />}

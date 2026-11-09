@@ -386,3 +386,12 @@ describe('Saved by area', () => {
     expect(view.getByText('Đăng nhập để lưu địa điểm')).toBeTruthy()
   })
 })
+
+it.each([false, true])('pulls to refresh saved entries (empty=%s)', async empty => {
+  const refetch = jest.fn().mockResolvedValue(undefined)
+  mockSaved.value = { entries: empty ? [] : ENTRIES, isPending: false, isError: false, refetch }
+  const screen = await renderScreen(<SavedScreen />)
+  const list = screen.getByTestId('saved-list')
+  await act(async () => { list.props.refreshControl.props.onRefresh() })
+  expect(refetch).toHaveBeenCalledTimes(1)
+})

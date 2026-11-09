@@ -82,7 +82,7 @@ beforeEach(() => {
   mockSummary = { data: { unreadCount: 32, asOf: '2026-11-08T12:00:00Z', readThroughCursor: 'opaque-summary-cutoff' }, refetch: mockRefetch }
   mockResolve.mockResolvedValue({ to: 'open', path: '/rooms/room-1' })
   mockPermission.mockResolvedValue('granted')
-  mockSystemInbox = { status: 'unsupported' }
+  mockSystemInbox = { status: 'unsupported', refetch: jest.fn() }
   mockInbox = loadedInbox()
   mockSettings = { data: settingsData, isPending: false, isError: false, refetch: mockRefetch }
   mockSession = 'user'
@@ -166,7 +166,8 @@ describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mo
       if (state === 'empty') {
         expect(screen.getByText(viMessages['g10.emptyTitle'])).toBeTruthy()
         expect(screen.getAllByTestId('material-icon-markChatRead', { includeHiddenElements: true })).toHaveLength(1)
-        await fireEvent.press(screen.getByRole('button', { name: 'Tải lại thông báo' }))
+        expect(screen.queryByRole('button', { name: 'Tải lại thông báo' })).toBeNull()
+        await act(async () => { screen.getByTestId('notifications-feed').props.refreshControl.props.onRefresh() })
         expect(mockRefetch).toHaveBeenCalledTimes(2)
       } else {
         expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
@@ -292,7 +293,8 @@ it.each(['loading', 'empty', 'error'] as const)('inbox state: %s', async state =
   if (state === 'loading') expect(screen.getByTestId('notifications-loading')).toBeTruthy()
   else if (state === 'empty') {
     expect(screen.getByText(viMessages['g10.emptyTitle'])).toBeTruthy()
-    await fireEvent.press(screen.getByRole('button', { name: 'Tải lại thông báo' }))
+    expect(screen.queryByRole('button', { name: 'Tải lại thông báo' })).toBeNull()
+        await act(async () => { screen.getByTestId('notifications-feed').props.refreshControl.props.onRefresh() })
     expect(mockRefetch).toHaveBeenCalled()
   } else {
     expect(screen.getByText(viMessages['common.errorTitle'])).toBeTruthy()
@@ -1092,4 +1094,43 @@ describe.each(['orange', 'orangeDark'] as const)('event-time facts and category 
     expect(failed.getByTestId('notification-category-invite').props.value).toBe(true)
     expect(failed.getByText(viMessages['notificationSettings.saveFailed'])).toBeTruthy()
   })
+})
+
+// GOGO-589: the fixed toolbar is a sibling of the refreshable feed.
+it.each(['orange', 'orangeDark'] as const)('pins filters outside the list in %s', async mode => {
+  currentTheme = themes[mode]
+  const screen = await renderScreen(<NotificationsScreen />)
+  const feed = screen.getByTestId('notifications-feed')
+  expect(within(feed).queryByTestId('notifications-filters')).toBeNull()
+  expect(within(screen.getByTestId('notifications-personal-section')).getByTestId('notifications-filters')).toBeTruthy()
+  await fireEvent.scroll(screen.getByTestId('notifications-feed'), { nativeEvent: { contentOffset: { y: 500 } } })
+  expect(screen.getByTestId('notifications-filters')).toBeTruthy()
+})
+
+it.each(['all', 'invite', 'publicSystem'] as const)('refreshes the %s inbox by pulling, with no empty reload button', async filter => {
+  mockInbox = loadedInbox([])
+  const systemRefetch = jest.fn().mockResolvedValue(undefined)
+  mockSystemInbox = { status: 'supported', data: { pages: [{ items: [] }] }, refetch: systemRefetch }
+  const screen = await renderScreen(<NotificationsScreen />)
+  if (filter !== 'all') await fireEvent.press(screen.getByRole('button', { name: viMessages[`g10.filter.${filter}`] }))
+  expect(screen.queryByRole('button', { name: viMessages['g10.reload'] })).toBeNull()
+  expect(within(screen.getByTestId('notifications-empty')).getByText(/Kéo xuống để làm mới/)).toBeTruthy()
+  await act(async () => { screen.getByTestId('notifications-feed').props.refreshControl.props.onRefresh() })
+  if (filter === 'publicSystem') {
+    expect(systemRefetch).toHaveBeenCalledTimes(1)
+    expect(mockRefetch).not.toHaveBeenCalled()
+  } else {
+    expect(mockRefetch).toHaveBeenCalledTimes(2) // inbox and unread summary
+    expect(systemRefetch).toHaveBeenCalledTimes(filter === 'all' ? 1 : 0)
+  }
+})
+
+it.each(['all', 'publicSystem'] as const)('loads another system page at the end of %s, after the personal cursor ends', async filter => {
+  const fetchNextPage = jest.fn()
+  mockInbox = { ...loadedInbox([]), hasNextPage: false }
+  mockSystemInbox = { status: 'supported', data: { pages: [{ items: [] }] }, hasNextPage: true, fetchNextPage }
+  const screen = await renderScreen(<NotificationsScreen />)
+  if (filter !== 'all') await fireEvent.press(screen.getByRole('button', { name: viMessages[`g10.filter.${filter}`] }))
+  await fireEvent(screen.getByTestId('notifications-feed'), 'onEndReached')
+  expect(fetchNextPage).toHaveBeenCalledWith({ cancelRefetch: false })
 })
