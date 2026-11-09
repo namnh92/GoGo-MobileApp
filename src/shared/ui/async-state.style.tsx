@@ -3,6 +3,9 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  stitchContainer: { gap: spacing[1], paddingHorizontal: spacing[4] },
+  stitchBody: { maxWidth: 280, marginBottom: spacing[5] },
+  illustration: { marginBottom: spacing[2] },
   container: {
     alignItems: 'center',
     justifyContent: 'center',

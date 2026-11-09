@@ -20,6 +20,8 @@ let mockSettings: Record<string, unknown>
 let mockSavePending = false
 let mockSaveError = false
 const mockResolve = jest.fn()
+const mockInboxQuery = jest.fn()
+const mockSummaryQuery = jest.fn()
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (effect: () => void) => { jest.requireActual('react').useEffect(effect, [effect]) },
@@ -35,8 +37,8 @@ jest.mock('@/features/notifications/inbox-target', () => ({ resolveInboxTarget: 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => ({ data: undefined }),
-  useNotifications: () => mockInbox,
-  useNotificationSummary: () => mockSummary,
+  useNotifications: (options: unknown) => { mockInboxQuery(options); return mockInbox },
+  useNotificationSummary: (options: unknown) => { mockSummaryQuery(options); return mockSummary },
   useReadAllNotifications: () => ({ mutateAsync: mockReadAll, isPending: mockReadAllPending }),
   useMarkNotificationRead: () => ({ mutateAsync: mockRead }),
   useNotificationSettings: () => mockSettings,
@@ -47,6 +49,7 @@ jest.mock('@/shared/api', () => ({
 let currentTheme: AppTheme = themes.orange
 const unistyles = jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles')
 const runtime = unistyles.useUnistyles().rt
+jest.spyOn(unistyles, 'useUnistyles').mockImplementation(() => ({ theme: currentTheme, rt: runtime }))
 jest.spyOn(unistyles.StyleSheet, 'create').mockImplementation(factory => new Proxy({} as ReturnType<typeof unistyles.StyleSheet.create>, {
   get: (_target, key) => key === 'useVariants' ? () => {} : Reflect.get(
     typeof factory === 'function' ? factory(currentTheme, runtime) : factory, key),
@@ -85,7 +88,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
   expect(chips).toHaveLength(4)
   for (const chip of chips) {
     expect(chip.style).toBeUndefined()
-    expect(chip.appearance).toBeUndefined()
+    expect(chip.appearance).toBe('raised')
     const label = screen.getByText(chip.label)
     const labelStyle = StyleSheet.flatten(label.props.style)
     let body = label.parent
@@ -98,7 +101,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
     // Standard text + padding + border resolve to the same 32pt visual body.
     expect(labelStyle.lineHeight + 2 * (bodyStyle.paddingVertical + bodyStyle.borderWidth)).toBe(32)
     expect(bodyStyle.backgroundColor).toBe(chip.variant === 'selected'
-      ? currentTheme.accent.primary : currentTheme.surface.subtle)
+      ? currentTheme.accent.primary : currentTheme.redesign.card)
   }
   let row = screen.getByText(chips[0]!.label).parent
   while (row && !row.props.horizontal) row = row.parent
@@ -111,6 +114,99 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
   expect(rowStyle.paddingVertical).toBe(spacing[1])
   expect(rowStyle.paddingHorizontal ?? 0).toBe(0)
   expect(rowStyle.marginHorizontal ?? 0).toBe(0)
+})
+
+describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mode => {
+  beforeEach(() => { currentTheme = themes[mode] })
+
+  it('uses a solid exact-count badge, neutral pill read-all and aligned kind/time rows', async () => {
+    const screen = await renderScreen(<NotificationsScreen />)
+    const badgeText = screen.getByText('32 mới')
+    let badge = badgeText.parent
+    while (badge && !StyleSheet.flatten(badge.props.style)?.backgroundColor) badge = badge.parent
+    expect(StyleSheet.flatten(badge!.props.style).backgroundColor).toBe(currentTheme.accent.primary)
+    expect(StyleSheet.flatten(badgeText.props.style).color).toBe(currentTheme.accent.onAccent)
+    const readAll = screen.getByRole('button', { name: 'Đọc tất cả' })
+    expect(StyleSheet.flatten(readAll.props.style)).toMatchObject({ borderRadius: 999, backgroundColor: currentTheme.redesign.high })
+    expect(screen.getByTestId('material-icon-doneAll', { includeHiddenElements: true })).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId(`notification-heading-${item.id}`).props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'flex-start' })
+    expect(StyleSheet.flatten(screen.getByTestId(`notification-heading-${item.id}`).props.style).flexWrap).toBeUndefined()
+    expect(StyleSheet.flatten(screen.getByTestId(`notification-icon-${item.id}`).props.style)).toMatchObject({ width: 48, height: 48 })
+    expect(StyleSheet.flatten(screen.getByTestId(`notification-unread-${item.id}`).props.style).backgroundColor).toBe(currentTheme.accent.primary)
+    expect(screen.getByRole('button', { name: 'Để sau' }).props.accessibilityHint).toBe(viMessages['g10.laterHint'])
+  })
+
+  it.each(['loading', 'empty', 'error'] as const)('keeps the heading and filters above the %s state', async state => {
+    mockInbox = state === 'loading' ? { isPending: true } : state === 'error'
+      ? { isError: true, error: new Error('network'), refetch: mockRefetch } : loadedInbox([])
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByRole('header', { name: 'Tất cả thông báo' })).toBeTruthy()
+    expect(screen.getByText('Tất cả')).toBeTruthy()
+    if (state === 'loading') expect(screen.getByTestId('notifications-loading')).toBeTruthy()
+    else {
+      const surface = screen.getByTestId(state === 'error' ? 'notifications-error' : 'notifications-empty')
+      expect(StyleSheet.flatten(surface.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+      expect(screen.queryByTestId('notifications-loading')).toBeNull()
+      if (state === 'empty') {
+        expect(screen.getByText(viMessages['g10.emptyTitle'])).toBeTruthy()
+        expect(screen.getByTestId('material-icon-markChatRead', { includeHiddenElements: true })).toBeTruthy()
+        await fireEvent.press(screen.getByRole('button', { name: 'Tải lại thông báo' }))
+        expect(mockRefetch).toHaveBeenCalledTimes(2)
+      } else {
+        expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
+        await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+        expect(mockRefetch).toHaveBeenCalledTimes(1)
+      }
+    }
+  })
+
+  it.each(['anonymous', 'guest'])('%s sees unavailable public structure and personal sign-in, with no cached private data', async status => {
+    mockSession = status
+    // Both disabled account queries deliberately retain another account's cache.
+    const fetch = jest.spyOn(globalThis, 'fetch')
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByRole('header', { name: viMessages['g10.systemTitle'] })).toBeTruthy()
+    expect(screen.getByTestId('system-notifications-unsupported')).toBeTruthy()
+    expect(screen.getByText(viMessages['g10.systemUnavailableBody'])).toBeTruthy()
+    expect(screen.getByRole('header', { name: viMessages['g10.personalTitle'] })).toBeTruthy()
+    expect(screen.queryByText('Phòng "Phòng thật"')).toBeNull()
+    expect(screen.queryByText('32 mới')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Đọc tất cả' }).props.accessibilityState.disabled).toBe(true)
+    expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: false })
+    expect(mockSummaryQuery).toHaveBeenLastCalledWith({ enabled: false })
+    expect(fetch).not.toHaveBeenCalled()
+    fetch.mockRestore()
+    await fireEvent.press(screen.getByRole('button', { name: viMessages['auth.signInCta'] }))
+    expect(mockPush).toHaveBeenCalledWith('/auth/sign-in')
+    expect(mockReadAll).not.toHaveBeenCalled()
+  })
+
+  it('renders the supported row facts and read states without sample media or appointment details', async () => {
+    mockInbox = loadedInbox([
+      { id: 'prefs', kind: 'preference_reminder', payload: { preferenceProgress: { completedCount: 6, memberCount: 9 } } },
+      { id: 'plan', kind: 'plan_ready', readAt: '2026-11-09T01:00:00Z', payload: { stopCount: 3 } },
+      { id: 'change', kind: 'plan_changed', payload: { planChange: { action: 'edit', addedStopCount: 2 } } },
+      { id: 'date', kind: 'date_reminder' },
+    ])
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByText('6/9 thành viên đã chọn xong')).toBeTruthy()
+    expect(screen.getByText('3 điểm dừng')).toBeTruthy()
+    expect(screen.getByText('Thêm 2 điểm dừng')).toBeTruthy()
+    expect(screen.getByTestId('notification-unread-prefs')).toBeTruthy()
+    expect(screen.queryByTestId('notification-unread-plan')).toBeNull()
+    expect(screen.getByTestId('material-icon-dining', { includeHiddenElements: true })).toBeTruthy()
+    expect(screen.queryByText(/19:00|15:30|The Workshop|Minh Triết|Sài Gòn|7 ngày/)).toBeNull()
+  })
+
+  it('uses the Stitch yesterday label for a one-day-old event', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 10, 9, 10))
+    try {
+      mockInbox = loadedInbox([{ ...item, createdAt: '2026-11-08T10:00:00Z' }])
+      const screen = await renderScreen(<NotificationsScreen />)
+      expect(screen.getByText('Hôm qua')).toBeTruthy()
+      expect(screen.queryByText('1 ngày trước')).toBeNull()
+    } finally { now.mockRestore() }
+  })
 })
 
 it('inbox default uses real payload, neutral host semantics and gated controls', async () => {

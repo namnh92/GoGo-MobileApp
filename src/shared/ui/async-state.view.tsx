@@ -25,11 +25,16 @@ export function LoadingState({ label }: { label?: string }) {
   )
 }
 
-export function EmptyState({ title, body, action }: { title: string; body?: string; action?: React.ReactNode }) {
+export function EmptyState({ title, body, action, illustration, appearance = 'default' }: {
+  title: string; body?: string; action?: React.ReactNode; illustration?: React.ReactNode
+  appearance?: 'default' | 'stitch'
+}) {
+  const stitch = appearance === 'stitch'
   return (
-    <View style={styles.container}>
-      <Text variant="title2" style={styles.title}>{title}</Text>
-      {body ? <Text variant="bodySmall" color="text.secondary" style={styles.body}>{body}</Text> : null}
+    <View style={[styles.container, stitch && styles.stitchContainer]}>
+      {illustration ? <View style={styles.illustration}>{illustration}</View> : null}
+      <Text variant={stitch ? 'introSection' : 'title2'} color={stitch ? 'redesign.ink' : 'text.primary'} style={styles.title}>{title}</Text>
+      {body ? <Text variant={stitch ? 'introBody' : 'bodySmall'} color={stitch ? 'redesign.secondary' : 'text.secondary'} style={[styles.body, stitch && styles.stitchBody]}>{body}</Text> : null}
       {action}
     </View>
   )

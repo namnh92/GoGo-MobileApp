@@ -15,6 +15,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "placeWizard.exit.saveFailed": 'The draft could not be saved. Your changes are still here. Check your selections and connection, then try again.',
 
   "g10.time.now": "Just now",
+  "g10.time.yesterday": "Yesterday",
   "g10.time.minute": "{{count}} minutes ago",
   "g10.time.minute_one": "{{count}} minute ago",
   "g10.time.hour": "{{count}} hours ago",
@@ -31,6 +32,13 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
 
   "g10.settingsTitle": "Notification settings",
   "g10.allNotifications": "All notifications",
+  "g10.systemTitle": "System notifications",
+  "g10.systemUnavailableTitle": "System notifications are not available yet",
+  "g10.systemUnavailableBody": "GoGo does not support displaying system notifications here yet. Sign-in will not be required to view this section when it is available.",
+  "g10.personalTitle": "Personal notifications",
+  "g10.personalSignInBody": "Sign in to see updates about your rooms and plans.",
+  "g10.unread": "Unread",
+  "g10.read": "Read",
   "g10.masterBadge": "Master",
   "g10.masterHint": "Enable or pause push notifications for this account on every device.",
   "g10.masterPaused": "All push notifications are paused.",
