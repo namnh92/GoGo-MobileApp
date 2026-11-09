@@ -447,6 +447,8 @@ export const type = {
   body: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 21 },
   bodySmall: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
   caption: { fontFamily: fontFamily.medium, fontSize: 11, lineHeight: 15 },
+  /** Shared tab labels: Stitch caption size at semibold weight (#575). */
+  tabLabel: { fontFamily: fontFamily.semiBold, fontSize: 11, lineHeight: 15 },
   label: { fontFamily: fontFamily.semiBold, fontSize: 13, lineHeight: 18 },
   buttonLabel: { fontFamily: fontFamily.semiBold, fontSize: 15, lineHeight: 20 },
 } as const
