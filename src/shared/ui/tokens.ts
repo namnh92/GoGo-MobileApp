@@ -7,6 +7,24 @@
 // `theme.ts`, which turns these static roles plus an accent palette into the
 // four Unistyles themes. Nothing here may import `react-native-unistyles`.
 
+/** Official option A/B ribbon palette (Stitch ed67babc, owner 2026-11-09).
+ * Brand artwork stays fixed across user accents and light/dark modes. */
+export const brandLogo = {
+  background: '#20124A',
+  highlight: '#FFFFFF',
+  stars: ['#91ECD4', '#FFEAA7'],
+  dots: ['#FF5252', '#FF9E66', '#55D8C1'],
+  spectrum: [
+    [0, '#FF5252'], [16, '#FF6558'], [30, '#FF8264'],
+    [42, '#FFA872'], [50, '#FFCA7D'], [58, '#B2EAB8'],
+    [70, '#72E3C0'], [84, '#55D8C7'], [100, '#3DCBC8'],
+  ],
+  bridge: [
+    [0, '#FFA46E', 0], [26, '#FFB675', 0.92], [50, '#FFCA7D', 1],
+    [74, '#A6ECC8', 0.92], [100, '#60E2C2', 0],
+  ],
+} as const
+
 export const colors = {
   brand: {
     // No coral here any more (#297): the accent is a theme role
@@ -59,6 +77,8 @@ export const surface = {
 export const border = {
   /** List-row dividers, the top edge of a glass bar. */
   hairline: colors.neutral[100],
+  /** Visible separators: approved Stitch Light outline, >=3:1 on canvas/card. */
+  strong: '#8E706A',
 } as const
 
 /**
@@ -162,6 +182,8 @@ export const darkSurface = {
 export const darkBorder = {
   // border-[#333333] (Home), outline-variant (Splash)
   hairline: '#333333',
+  // Approved Stitch Dark outline.
+  strong: '#999999',
 } as const satisfies Record<keyof typeof border, string>
 
 export const darkText = {
@@ -498,6 +520,13 @@ export const fill = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0
 
 export const spacing = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48] as const
 
+/** Outer rhythm shared by the four tab roots; card internals keep their own scale. */
+export const tabRootSpacing = {
+  headerContent: spacing[4],
+  section: spacing[5],
+  headingContent: spacing[3],
+} as const
+
 export const radius = {
   sheet: 28,
   hero: 24,
@@ -511,16 +540,28 @@ export const radius = {
 export const motion = {
   loadingBounce: 2000,
   loadingBeam: 2400,
-  mapReveal: 350,
-  pinDrop: 250,
-  pinFirstDelay: 350,
-  pinStep: 200,
-  brandDelay: 1000,
-  brandReveal: 450,
-  markerBounce: 400,
-  ripple: 600,
+  instant: 0,
+  logoBounce: 2000,
+  logoBeam: 2400,
+  logoStarFirst: 2400,
+  logoStarSecond: 2800,
+  logoStarDelay: 500,
+  logoDot: 1200,
+  logoDotDelay: 200,
+  logoBounceEasing: [0.28, 0.84, 0.42, 1],
+  logoPulseEasing: [0.42, 0, 0.58, 1],
+  // Owner's splash pacing: 1.5× the original entrance and hold.
+  mapReveal: 525,
+  pinDrop: 375,
+  pinFirstDelay: 525,
+  pinStep: 300,
+  brandDelay: 1500,
+  brandReveal: 675,
+  markerBounce: 600,
+  ripple: 900,
+
   ping: 1000,
-  splashHold: 1500,
+  splashHold: 2250,
   ambientWarm: 8000,
   ambientCool: 10000,
   pressScale: 0.98,
@@ -530,21 +571,13 @@ export const motion = {
   slow: 320,
 } as const
 
-/** Approved GoGo mark: fixed brand artwork, identical on light/dark/brand grounds.
- * Stitch “So sánh Logo GoGo”, option A; owner motion specification 2026-11-09 (#584).
- * These are artwork colours, independent of the user's action accent.
- */
-export const brandLogo = {
-  spectrum: ['#FF5252', '#FF6558', '#FF8264', '#FFA872', '#FFCA7D', '#B2EAB8', '#72E3C0', '#55D8C7', '#3DCBC8'],
-  offsets: ['0%', '18%', '32%', '44%', '50%', '58%', '70%', '84%', '100%'],
-  bridge: ['#FFA46E', '#FFB675', '#FFCA7D', '#A6ECC8', '#60E2C2'],
-  sheen: '#FFFFFF',
-  sparkleMint: '#7EE7CC',
-  sparkleAmber: '#FFEAA7',
+/** Loading geometry and shadow remain independent of the shared logo artwork. */
+export const loadingIndicator = {
+  size: 48,
+  compactSize: 24,
+  ...brandLogo,
   shadow: { shadowColor: '#363254', shadowOffset: { width: 0, height: 1.8 }, shadowOpacity: 0.28, shadowRadius: 1.8 },
 } as const
-
-export const loadingIndicator = { size: 48, compactSize: 24, ...brandLogo } as const
 
 /** Approved project 17315762413421369447. Screen-specific material roles. */
 export const redesignLight = {

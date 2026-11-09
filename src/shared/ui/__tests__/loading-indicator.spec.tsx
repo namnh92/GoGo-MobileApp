@@ -4,7 +4,8 @@ import { cancelAnimation, useAnimatedProps, withRepeat } from 'react-native-rean
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import '@/shared/i18n'
 import { themes } from '../theme'
-import { loadingIndicator as token } from '../tokens'
+import { brandLogo, loadingIndicator as token } from '../tokens'
+import { logoPaths } from '../gogo-logo.asset'
 import { LoadingIndicator } from '../loading-indicator.view'
 import { PrimaryBtn } from '../button.view'
 import { PullToRefresh } from '../refresh-control.view'
@@ -29,10 +30,11 @@ describe.each(['orange', 'orangeDark'] as const)('%s loading', name => {
     expect(StyleSheet.flatten(screen.getByTestId('loading-indicator').props.style)).toMatchObject({ width: 48, height: 48, transform: [{ translateY: 0 }] })
     expect(screen.getByRole('progressbar').props.accessibilityState.busy).toBe(true)
     const gradients = screen.root!.queryAll(node => node.type === 'RNSVGLinearGradient')
-    expect(gradients).toHaveLength(1)
-    expect(gradients[0].props.children.map((stop: { props: { stopColor: string } }) => stop.props.stopColor)).toEqual(token.spectrum)
+    expect(gradients).toHaveLength(2)
+    expect(gradients[0].props.children.map((stop: { props: { stopColor: string } }) => stop.props.stopColor)).toEqual(brandLogo.spectrum.map(([, color]) => color))
     const beam = screen.getByTestId('loading-indicator-beam')
-    expect(beam.props.d).toBe('M 200,160 C 164,96 92,80 56,124 C 22,168 32,220 120,278 C 152,250 178,208 200,160 C 222,208 248,250 280,278 C 368,220 378,168 344,124 C 308,80 236,96 200,160')
+    expect(beam.props.d).toBe(logoPaths.ribbon.replace(/ Z$/, ''))
+    expect(beam.props.stroke).toEqual({ type: 0, payload: 0xffffffff })
     expect(beam.props.strokeWidth).toBe(7)
     expect(beam.props.strokeDasharray.map(Number)).toEqual([85, 255])
     expect(withRepeat).not.toHaveBeenCalled()

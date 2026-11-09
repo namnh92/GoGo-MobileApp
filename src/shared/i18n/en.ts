@@ -378,6 +378,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "discovery.gogoFewReviews": "GoGo · Not enough reviews",
 
   'splash.brand': "GoGo",
+  'splash.wordmark': 'go go',
   'splash.mapLabel': "Interactive destination map",
   'onboarding.art.debatePlace': "Cà phê Bưu Điện, Q.1",
   'onboarding.art.quick': "Plan agreed in 15 seconds",

@@ -356,6 +356,7 @@ export const viMessages = {
   "discovery.gogoFewReviews": "GoGo · Chưa đủ đánh giá",
 
   'splash.brand': "GoGo",
+  'splash.wordmark': 'go go',
   'splash.mapLabel': "Bản đồ tương tác các điểm đến",
   'onboarding.art.debatePlace': "Cà phê Bưu Điện, Q.1",
   'onboarding.art.quick': "Chốt kèo sau 15 giây",

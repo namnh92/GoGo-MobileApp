@@ -1,18 +1,18 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget, shadows } from '@/shared/ui/tokens'
+import { radius, spacing, tabRootSpacing, touchTarget, shadows } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   interests: { flexDirection: 'row', gap: spacing[2] },
-  groupTitle: { marginHorizontal: spacing[5], marginBottom: spacing[2], textTransform: 'uppercase' },
-  settingsCard: { marginHorizontal: spacing[4], marginBottom: spacing[6], borderRadius: 12, overflow: 'hidden', ...shadows.stitch },
+  groupTitle: { marginHorizontal: spacing[5], marginBottom: tabRootSpacing.headingContent, textTransform: 'uppercase' },
+  settingsCard: { marginHorizontal: spacing[4], marginBottom: tabRootSpacing.section, borderRadius: 12, overflow: 'hidden', ...shadows.stitch },
   rowValue: { maxWidth: '28%' },
   banner: { marginHorizontal: spacing[4], marginBottom: spacing[5], padding: spacing[3], borderRadius: 12, backgroundColor: theme.redesign.violetSoft, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   shortcutPress: { flex: 1, minWidth: 0, borderRadius: 12 },
   headerCard: {
     marginHorizontal: spacing[4],
-    marginBottom: spacing[6],
+    marginBottom: tabRootSpacing.section,
     padding: spacing[4],
     borderRadius: 12,
     ...shadows.stitch,
@@ -21,7 +21,7 @@ export const styles = StyleSheet.create(theme => ({
   identityText: { flex: 1, minWidth: 0 },
   email: { marginTop: 2 },
 
-  card: { marginHorizontal: spacing[4], padding: spacing[4], marginBottom: spacing[6], gap: spacing[3], borderRadius: 12, ...shadows.stitch },
+  card: { marginHorizontal: spacing[4], padding: spacing[4], marginBottom: tabRootSpacing.section, gap: spacing[3], borderRadius: 12, ...shadows.stitch },
   caption: {
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -33,7 +33,7 @@ export const styles = StyleSheet.create(theme => ({
     flexDirection: 'row',
     gap: spacing[2],
     marginHorizontal: spacing[4],
-    marginBottom: spacing[6],
+    marginBottom: tabRootSpacing.section,
   },
   shortcut: {
     flex: 1,

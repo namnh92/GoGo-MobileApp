@@ -20,6 +20,13 @@ function contrast(a: string, b: string) {
 }
 
 describe.each(Object.entries(themes))('%s actual redesign pairs', (_name, theme) => {
+  it('visible header divider reaches 3:1 against the actual header canvas', () => {
+    const header = source('app-header.style.tsx')
+    expect(header).toContain('backgroundColor: theme.surface.canvas')
+    expect(header).toContain('brandDivider: { width: 1, height: spacing[5], backgroundColor: theme.border.strong }')
+    expect(theme.border.strong).toBe(theme.redesign.outline)
+    expect(contrast(theme.border.strong, theme.surface.canvas)).toBeGreaterThanOrEqual(3)
+  })
   it('unmet checklist foreground/canvas reaches AA', () => {
     expect(unmetRoles).toHaveLength(2)
     for (const role of unmetRoles) {
