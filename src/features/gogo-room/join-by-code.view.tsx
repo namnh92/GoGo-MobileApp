@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -90,6 +91,7 @@ export default function JoinByCodeScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={pending} />
       <View>
         <AppHeader onBack={() => router.back()} title={t('joinByCode.title')} />
       </View>

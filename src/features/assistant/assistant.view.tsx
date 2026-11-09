@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -271,6 +272,7 @@ function AssistantChat({ account, keyboardOffset }: { account: string; keyboardO
 
   return (
     <>
+      <BlockingLoadingOverlay visible={sending} />
       <AssistantHeader
         onClose={close}
         avatar={!welcome}

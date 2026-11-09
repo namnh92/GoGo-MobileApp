@@ -441,7 +441,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
           </Text>
         ) : null}
       </ScrollView>
-      <BlockingLoadingOverlay visible={saving} />
+      <BlockingLoadingOverlay visible={saving || avatarStep === 'removing' || busy !== null} />
       <ResultSheet visible={deleteConfirm} variant="warning" title={t('account.deleteTitle')}
         body={t('account.deleteConfirmBody')}
         primaryAction={{ label: t('account.deleteAction'), destructive: true, onPress: onDelete }}

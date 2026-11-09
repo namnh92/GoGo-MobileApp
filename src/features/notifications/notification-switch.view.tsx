@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useTranslation } from 'react-i18next'
 import { Switch, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -52,6 +53,7 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
 
   return (
     <View style={styles.section}>
+      <BlockingLoadingOverlay visible={save.isPending} />
       <StaleNotice hasData={!!current} error={settings.error} onRetry={retry} />
       <Card appearance="stitch" padded={false} style={styles.card}>
         <View style={styles.row}>

@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -150,6 +151,7 @@ export default function CreateMoodScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={createRoom.isPending} />
       <WizardStep step="mood" onBack={() => router.back()} />
 
       {taxonomies.isPending ? (

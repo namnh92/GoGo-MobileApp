@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, Keyboard, Modal, Platform, View } from 'react-native'
 import { LoadingIndicator } from './loading-indicator.view'
@@ -35,4 +35,11 @@ export function BlockingLoadingOverlay({ visible, accessibilityLabel, onClosed }
       <LoadingIndicator decorative />
     </View>
   </Modal>
+}
+
+/** Delay result sheets until the submit modal has actually left its presenter. */
+export function useSubmitOverlay(visible: boolean) {
+  const [closed, setClosed] = useState(true)
+  if (visible && closed) setClosed(false)
+  return { closed, onClosed: () => setClosed(true) }
 }

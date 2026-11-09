@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
@@ -162,6 +163,7 @@ export default function MyReviewsScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={updateReview.isPending} />
       {header}
       <PullToRefresh onRefresh={() => reviews.refetch()}><ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}

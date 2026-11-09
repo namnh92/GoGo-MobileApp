@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useRef, useState } from 'react'
 import { Keyboard, View } from 'react-native'
@@ -63,6 +64,7 @@ export function QuickJoin({ knownName }: { knownName?: string | null }) {
     } finally { busy.current = false; setPending(false) }
   }
   return <>
+      <BlockingLoadingOverlay visible={pending} />
     <View style={styles.join}>
       <View style={styles.joinHeading}><MaterialIcon name="room" color="redesign.violetText" size={18} /><Text variant="introLabel">{t('discovery.joinTitle')}</Text></View>
       <View style={styles.joinRow}>

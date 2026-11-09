@@ -16,6 +16,9 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => ({}),
+  useSystemNotificationsQuery: () => ({ status: 'unsupported', refetch: jest.fn() }),
+  useNotificationSummary: () => ({ data: undefined, refetch: jest.fn() }),
+  useReadAllNotifications: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useNotifications: () => ({
     isPending: mockPending, isError: false, isFetchingNextPage: mockNextPage,
     refetch: mockRefetch,
@@ -37,16 +40,16 @@ describe.each(['orange', 'orangeDark'] as const)('%s list loading', name => {
 
   it('uses row skeletons for page one and the mark only while loading another page', async () => {
     const view = await render(<NotificationsScreen />)
-    expect(screen.getByTestId('notifications-first-load-skeleton')).toBeTruthy()
-    expect(screen.queryByTestId('loading-indicator')).toBeNull()
+    expect(screen.getByTestId('notifications-loading')).toBeTruthy()
+    expect(screen.queryByTestId('notifications-loading-more')).toBeNull()
     mockPending = false
     mockNextPage = true
     await view.rerender(<NotificationsScreen />)
-    expect(screen.queryByTestId('notifications-first-load-skeleton')).toBeNull()
-    expect(screen.getByTestId('loading-indicator')).toBeTruthy()
+    expect(screen.queryByTestId('notifications-loading')).toBeNull()
+    expect(screen.getByTestId('notifications-loading-more')).toBeTruthy()
     mockNextPage = false
     await view.rerender(<NotificationsScreen />)
-    expect(screen.queryByTestId('loading-indicator')).toBeNull()
+    expect(screen.queryByTestId('notifications-loading-more')).toBeNull()
   })
 
   it('uses the branded refresh overlay while keeping loaded inbox rows', async () => {
@@ -54,12 +57,12 @@ describe.each(['orange', 'orangeDark'] as const)('%s list loading', name => {
     let finish!: () => void
     mockRefetch.mockImplementation(() => new Promise<void>(resolve => { finish = resolve }))
     await render(<NotificationsScreen />)
-    const control = () => screen.getByTestId('notifications-list').props.refreshControl
+    const control = () => screen.getByTestId('notifications-feed').props.refreshControl
     await act(async () => { control().props.onRefresh() })
     expect(mockRefetch).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('refresh-loading-indicator')).toBeTruthy()
-    expect(screen.getByTestId('notifications-list').props.data).toHaveLength(1)
-    expect(screen.queryByTestId('notifications-first-load-skeleton')).toBeNull()
+    expect(screen.getByTestId('notifications-feed').props.data).toHaveLength(1)
+    expect(screen.queryByTestId('notifications-loading')).toBeNull()
     await act(async () => { finish() })
     expect(screen.queryByTestId('refresh-loading-indicator')).toBeNull()
   })

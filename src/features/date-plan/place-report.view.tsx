@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -34,6 +35,7 @@ export function PlaceReport({ placeId, onClose }: { placeId: string; onClose: ()
 
   return (
     <Sheet visible={!closing} onClose={close} onClosed={onClose} header={<Text variant="title2">{t('placeDetail.report')}</Text>} testID="place-report-sheet">
+      <BlockingLoadingOverlay visible={report.isPending} />
       <View style={styles.body}>
         {!canReport ? <Text>{t('placeReport.signIn')}</Text> : report.isSuccess ? <Text accessibilityLiveRegion="polite">{t('placeReport.sent')}</Text> : (
           <>

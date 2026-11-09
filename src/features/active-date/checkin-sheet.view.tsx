@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { loadingIndicator } from '@/shared/ui/tokens'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
@@ -128,6 +129,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
 
   return (
     <Sheet visible={visible} onClose={skip} scroll={false}>
+      <BlockingLoadingOverlay visible={Boolean(pending)} />
       <ScrollView style={styles.scroll} bounces={false} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <Icon name="mapPin" size={28} color="accent.primary" />

@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
@@ -27,5 +28,8 @@ export function SaveDraftButton({ step }: { step: DraftStep }) {
       Alert.alert(t('draft.saveFailed'))
     } finally { setSaving(false) }
   }
-  return <GhostBtn label={t(saving ? 'account.saving' : 'draft.save')} onPress={() => void save()} disabled={saving || creating} />
+  return <>
+    <BlockingLoadingOverlay visible={saving} />
+    <GhostBtn label={t(saving ? 'account.saving' : 'draft.save')} onPress={() => void save()} disabled={saving || creating} loading={saving} />
+  </>
 }

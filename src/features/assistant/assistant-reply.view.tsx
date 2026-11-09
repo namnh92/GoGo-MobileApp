@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
@@ -213,6 +214,7 @@ function ProposalBlock({
   const error = confirm.error ?? dismiss.error
   return (
     <>
+      <BlockingLoadingOverlay visible={confirm.isPending || dismiss.isPending} />
       <ConfirmationCard
         proposal={proposal}
         context={rowContext}

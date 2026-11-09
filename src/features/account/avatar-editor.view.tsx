@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { loadingIndicator } from '@/shared/ui/tokens'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -60,6 +61,7 @@ export function AvatarEditor({ asset, busy, error, onClose, onChooseAnother, onC
     .onUpdate(e => update({ ...current.current, zoom: 1 + Math.max(0, Math.min(1, e.x / sliderWidth.current)) * 1.5 }))
   /* eslint-enable react-hooks/refs */
   return <GestureHandlerRootView style={styles.root}>
+      <BlockingLoadingOverlay visible={busy} />
       <View onAccessibilityEscape={() => { if (!busy) onClose() }} style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
           <EditorButton icon="close" label={t('common.close')} onPress={onClose} busy={busy} />

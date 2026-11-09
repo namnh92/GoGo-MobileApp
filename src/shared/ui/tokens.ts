@@ -228,6 +228,9 @@ export const overlay = {
   /** Under white text on a photo: 0.6 black keeps 4.5:1 even over a white picture. */
   scrimText: 'rgba(0,0,0,0.6)',
   backdrop: 'rgba(33,31,28,0.55)',
+  /** Theme canvas at 85%: keep the form faintly visible during submit. */
+  submitLight: 'rgba(246,243,238,0.85)',
+  submitDark: 'rgba(24,23,21,0.85)',
 } as const
 
 /**
@@ -506,8 +509,8 @@ export const radius = {
 } as const
 
 export const motion = {
-  loadingBounce: 1800,
-  loadingBeam: 2200,
+  loadingBounce: 2000,
+  loadingBeam: 2400,
   mapReveal: 350,
   pinDrop: 250,
   pinFirstDelay: 350,
@@ -528,12 +531,10 @@ export const motion = {
 } as const
 
 /** Approved GoGo mark: fixed brand artwork, identical on light/dark/brand grounds.
- * Stitch e5c97105afea4cc3a2755cd171af5b81, ANIMATION_264 (#584).
+ * Stitch “So sánh Logo GoGo”, option A; owner motion specification 2026-11-09 (#584).
  * These are artwork colours, independent of the user's action accent.
  */
-export const loadingIndicator = {
-  size: 48,
-  compactSize: 24,
+export const brandLogo = {
   spectrum: ['#FF5252', '#FF6558', '#FF8264', '#FFA872', '#FFCA7D', '#B2EAB8', '#72E3C0', '#55D8C7', '#3DCBC8'],
   offsets: ['0%', '18%', '32%', '44%', '50%', '58%', '70%', '84%', '100%'],
   bridge: ['#FFA46E', '#FFB675', '#FFCA7D', '#A6ECC8', '#60E2C2'],
@@ -542,6 +543,8 @@ export const loadingIndicator = {
   sparkleAmber: '#FFEAA7',
   shadow: { shadowColor: '#363254', shadowOffset: { width: 0, height: 1.8 }, shadowOpacity: 0.28, shadowRadius: 1.8 },
 } as const
+
+export const loadingIndicator = { size: 48, compactSize: 24, ...brandLogo } as const
 
 /** Approved project 17315762413421369447. Screen-specific material roles. */
 export const redesignLight = {

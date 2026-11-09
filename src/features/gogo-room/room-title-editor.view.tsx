@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -53,6 +54,7 @@ export function RoomTitleEditor({ room }: { room: RoomSummary }) {
 
   return (
     <Card padded={false} style={styles.card}>
+      <BlockingLoadingOverlay visible={rename.isPending} />
       <Text variant="bodySmall" color="text.secondary">{t('roomTitle.body')}</Text>
       <Controller
         control={form.control}

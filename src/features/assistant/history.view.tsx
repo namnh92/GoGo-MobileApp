@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
@@ -332,6 +333,7 @@ function RenameForm({
   const { theme } = useUnistyles()
   return (
     <View style={styles.menu}>
+      <BlockingLoadingOverlay visible={saving} />
       <Text variant="title2" accessibilityRole="header">{t('assistant.history.renameTitle')}</Text>
       <View style={styles.field}>
         <Text variant="caption" color="text.secondary">{t('assistant.history.renameField')}</Text>

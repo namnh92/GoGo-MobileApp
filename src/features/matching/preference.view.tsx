@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -156,6 +157,7 @@ export default function PreferenceScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={pending} />
       <View>
         <AppHeader title={t('preference.headerTitle')} onBack={() => router.back()} />
       </View>

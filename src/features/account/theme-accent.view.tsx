@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay, useSubmitOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -29,6 +30,8 @@ export function ThemeAccentCard() {
   const [saving, setSaving] = useState(false)
   const [result, setResult] = useState<'success' | 'error' | null>(null)
 
+  const overlay = useSubmitOverlay(saving)
+
   async function apply() {
     if (saving) return
     setSaving(true)
@@ -44,6 +47,7 @@ export function ThemeAccentCard() {
   }
 
   return <>
+    <BlockingLoadingOverlay visible={saving} onClosed={overlay.onClosed} />
     <View style={styles.intro}>
       <Chip label={t('g11.themePersonalise')} />
       <Text variant="introSection" color="redesign.ink" accessibilityRole="header">{t('g11.themeHeading')}</Text>
@@ -80,7 +84,7 @@ export function ThemeAccentCard() {
     </ThemeScopeProvider>
     <PrimaryBtn variant="pill" label={t('g11.applyTheme')} leadingIcon="checkCircle" onPress={() => void apply()} loading={saving} disabled={saving} />
     <Text variant="introCaption" color="redesign.secondary" style={styles.helper}>{t('account.themeHelper')}</Text>
-    <ResultSheet visible={result !== null} variant={result ?? 'success'} title={t(result === 'error' ? 'g11.themeFailed' : 'g11.themeSaved')}
+    <ResultSheet visible={result !== null && overlay.closed} variant={result ?? 'success'} title={t(result === 'error' ? 'g11.themeFailed' : 'g11.themeSaved')}
       body={t('account.themeHelper')} primaryAction={{ label: t('common.close'), onPress: () => setResult(null) }} onClose={() => setResult(null)} />
   </>
 }

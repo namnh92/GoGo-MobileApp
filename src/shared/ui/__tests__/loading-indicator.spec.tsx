@@ -24,16 +24,19 @@ describe.each(['orange', 'orangeDark'] as const)('%s loading', name => {
     jest.mocked(cancelAnimation).mockClear()
   })
 
-  it.each(['light', 'dark', 'brand'] as const)('preserves the SVG spectrum and crossover on %s backgrounds', async variant => {
+  it.each(['light', 'dark', 'brand'] as const)('preserves the option A ribbon and beam on %s backgrounds', async variant => {
     await render(<LoadingIndicator variant={variant} />)
     expect(StyleSheet.flatten(screen.getByTestId('loading-indicator').props.style)).toMatchObject({ width: 48, height: 48, transform: [{ translateY: 0 }] })
     expect(screen.getByRole('progressbar').props.accessibilityState.busy).toBe(true)
     const gradients = screen.root!.queryAll(node => node.type === 'RNSVGLinearGradient')
-    expect(gradients).toHaveLength(2)
+    expect(gradients).toHaveLength(1)
     expect(gradients[0].props.children.map((stop: { props: { stopColor: string } }) => stop.props.stopColor)).toEqual(token.spectrum)
-    expect(gradients[1].props.children.map((stop: { props: { stopColor: string } }) => stop.props.stopColor)).toEqual(token.bridge)
-    expect(screen.root!.queryAll(node => node.type === 'RNSVGPath').some(path => path.props.d === 'M 21.2,28.3 C 22.8,25.6 25,22.4 26.8,19.7' && path.props.strokeWidth === 5.5)).toBe(true)
+    const beam = screen.getByTestId('loading-indicator-beam')
+    expect(beam.props.d).toBe('M 200,160 C 164,96 92,80 56,124 C 22,168 32,220 120,278 C 152,250 178,208 200,160 C 222,208 248,250 280,278 C 368,220 378,168 344,124 C 308,80 236,96 200,160')
+    expect(beam.props.strokeWidth).toBe(7)
+    expect(beam.props.strokeDasharray.map(Number)).toEqual([85, 255])
     expect(withRepeat).not.toHaveBeenCalled()
+    expect(jest.mocked(useAnimatedProps).mock.results.map(result => result.value)).toContainEqual({ opacity: 0.9, matrix: [1, 0, 0, 1, 0, 0] })
   })
 
   it('keeps the busy button labelled and blocks duplicate submissions', async () => {
@@ -83,7 +86,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s loading', name => {
     const view = await render(<LoadingIndicator />)
     expect(withRepeat).not.toHaveBeenCalled()
     await act(async () => answer(false))
-    expect(withRepeat).toHaveBeenCalledTimes(2)
+    expect(withRepeat).toHaveBeenCalledTimes(4)
     const handler = (listen.mock.calls as unknown as [string, (value: boolean) => void][]).find(([event]) => event === 'reduceMotionChanged')![1]
     jest.mocked(withRepeat).mockClear()
     jest.mocked(cancelAnimation).mockClear()
@@ -91,7 +94,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s loading', name => {
     expect(cancelAnimation).toHaveBeenCalled()
     expect(withRepeat).not.toHaveBeenCalled()
     expect(StyleSheet.flatten(screen.getByTestId('loading-indicator').props.style).transform).toEqual([{ translateY: 0 }])
-    expect(jest.mocked(useAnimatedProps).mock.results.at(-1)!.value).toEqual({ strokeDashoffset: 0 })
+    expect(jest.mocked(useAnimatedProps).mock.results.map(result => result.value)).toContainEqual({ strokeDashoffset: 0 })
     await view.unmount()
   })
 })

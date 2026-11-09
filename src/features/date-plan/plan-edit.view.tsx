@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
@@ -142,6 +143,7 @@ export default function PlanEditScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={editStops.isPending} />
       {header}
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}

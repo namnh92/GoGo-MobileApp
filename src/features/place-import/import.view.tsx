@@ -523,7 +523,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
         </KeyboardAvoidingView>
       </FocusedFieldGroup.Provider>
       {exit.sheet}
-      <BlockingLoadingOverlay visible={state.phase === 'submitting'} onClosed={() => setSubmitOverlayClosed(true)} />
+      <BlockingLoadingOverlay visible={state.phase === 'submitting' || resolve.isPending} onClosed={() => setSubmitOverlayClosed(true)} />
       <ResultSheet
         visible={resultVisible && submitOverlayClosed}
         variant={outcome === 'success' ? 'success' : 'error'}
