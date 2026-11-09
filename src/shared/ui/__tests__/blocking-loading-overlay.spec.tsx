@@ -4,18 +4,24 @@ import { StyleSheet } from 'react-native-unistyles'
 import { withRepeat } from 'react-native-reanimated'
 import '@/shared/i18n'
 import { themes } from '../theme'
+import { LoadingIndicator } from '../loading-indicator.view'
 import { BlockingLoadingOverlay, useSubmitOverlay } from '../blocking-loading-overlay.view'
+
+jest.mock('../loading-indicator.view', () => ({
+  LoadingIndicator: jest.fn(jest.requireActual('../loading-indicator.view').LoadingIndicator),
+}))
 
 jest.mock('react-native-reanimated', () => {
   const mock = jest.requireActual('react-native-reanimated/mock')
   return { ...mock, withRepeat: jest.fn(mock.withRepeat) }
 })
 
-describe.each(['orange', 'orangeDark'] as const)('%s blocking loading', name => {
+describe.each(Object.keys(themes) as (keyof typeof themes)[])('%s blocking loading', name => {
   beforeEach(() => {
     StyleSheet.configure({ themes: { [name]: themes[name] } as unknown as typeof themes })
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
     jest.mocked(withRepeat).mockClear()
+    jest.mocked(LoadingIndicator).mockClear()
   })
   afterEach(() => jest.restoreAllMocks())
 
@@ -33,7 +39,10 @@ describe.each(['orange', 'orangeDark'] as const)('%s blocking loading', name => 
     const overlay = screen.getByTestId('blocking-loading-overlay')
     expect(overlay.props.accessibilityViewIsModal).toBe(true)
     expect(overlay.props.accessibilityState).toEqual({ busy: true })
-    expect(NativeStyles.flatten(screen.getByTestId('loading-indicator').props.style).transform).toEqual([{ translateY: 0 }])
+    expect(jest.mocked(LoadingIndicator).mock.calls.at(-1)?.[0]).toMatchObject({ variant: 'dark', decorative: true, size: 80 })
+    expect(NativeStyles.flatten(screen.getByTestId('loading-indicator').props.style)).toMatchObject({ width: 80, height: 80, transform: [{ translateY: 0 }] })
+    const svg = screen.root!.queryAll(node => node.type === (os === 'android' ? 'RNSVGSvgViewAndroid' : 'RNSVGSvgView'))[0]
+    expect(svg.props).toMatchObject({ width: 80, height: 80, vbWidth: 400, vbHeight: 320 })
     expect(withRepeat).not.toHaveBeenCalled()
     await fireEvent(modal, 'requestClose')
     await fireEvent(overlay, 'accessibilityEscape')

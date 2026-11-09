@@ -81,7 +81,7 @@ function buildTheme(accent: Accent, mode: Mode) {
     status: dark ? darkStatus : status,
     map: dark ? darkMapColors : mapColors,
     onDark,
-    overlay: { ...overlay, submit: dark ? overlay.submitDark : overlay.submitLight },
+    overlay,
     workspace,
     night,
     type,
