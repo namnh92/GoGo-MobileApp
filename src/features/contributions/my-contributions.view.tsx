@@ -47,7 +47,7 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const online = useOnlineStatus()
   const needsHydration = !canonical && (item.providerStatus === 'deferred' || !item.name?.trim() || !item.addressShort?.trim())
   const submission = useMyPlaceSubmission(item, needsHydration && online)
-  const display = needsHydration && submission.data ? { ...item, ...submission.data } : item
+  const display = !canonical && submission.data ? { ...item, ...submission.data } : item
   const provider = display.providerDisplay ?? item.providerDisplay
   const link = mapsUrlSchema.safeParse(provider?.googleMapsUri ?? item.providerDisplay?.googleMapsUri)
   const url = link.success ? link.data : undefined
@@ -63,17 +63,15 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const canSave = canonical && !!item.placeId && !!detail.data && !detail.isError && saved.data != null && !saved.isError && online
   const isSaved = saved.data?.some(row => row.targetType === 'place' && row.targetId === item.placeId) ?? false
   const saveReason = !canonical ? t('contributions.saveLocked') : !online ? t('common.offlineBody') : t('contributions.saveUnavailable')
-  return <PlaceCardLarge place={card}
-    onPress={canonical && item.placeId ? () => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } }) : undefined}
-    contributionBadge={<Badge appearance="solid" icon={item.status === 'pending' ? 'clock' : item.status === 'rejected' ? 'close' : 'checkCircle'}
-      tone={item.status === 'pending' ? 'warning' : item.status === 'rejected' ? 'danger' : 'success'} label={t(`myContributions.status.${item.status}`)} />}
-    headerAction={<Pressable testID={`contribution-save-${item.id}`} accessibilityRole="button" accessibilityState={{ disabled: !canSave || toggle.isPending, selected: isSaved, busy: toggle.isPending }}
+  const contributionBadge = <Badge appearance="solid" icon={item.status === 'pending' ? 'clock' : item.status === 'rejected' ? 'close' : 'checkCircle'}
+      tone={item.status === 'pending' ? 'warning' : item.status === 'rejected' ? 'danger' : 'success'} label={t(`myContributions.status.${item.status}`)} />
+  const headerAction = <Pressable testID={`contribution-save-${item.id}`} accessibilityRole="button" accessibilityState={{ disabled: !canSave || toggle.isPending, selected: isSaved, busy: toggle.isPending }}
       accessibilityLabel={canSave ? t(isSaved ? 'saved.remove' : 'placeDetail.save') : saveReason}
       disabled={!canSave || toggle.isPending} onPress={() => toggle.mutate({ type: 'place', id: item.placeId!, saved: isSaved })}
       style={({ pressed }) => [styles.bookmark, pressed && styles.pressed, !canSave && styles.unavailable]}>
       <MaterialIcon name={!canSave ? 'lock' : isSaved ? 'bookmarkFilled' : 'bookmark'} size={22} color="text.secondary" />
-    </Pressable>}
-    footer={<>
+    </Pressable>
+  const footer = <>
       {[...new Set(provider?.attributions ?? [])].map(attribution => <Text key={attribution} variant="caption" color="text.secondary"
         accessibilityRole={url ? 'link' : undefined} onPress={url ? () => { void openWebsite(url) } : undefined}>{attribution}</Text>)}
       {needsHydration && submission.isFetching ? <LoadingState /> : null}
@@ -93,7 +91,21 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
         </Pressable> : <Badge label={t(canonical ? 'contributions.live' : 'contributions.moderating')} tone={canonical ? 'success' : 'warning'} />}
       </View>
       {item.status === 'rejected' && !url ? <Text variant="caption" color="text.secondary">{t('contributions.linkUnavailable')}</Text> : null}
-    </>} />
+    </>
+  if (!canonical) return <PlaceCardLarge preview={{
+    name,
+    address,
+    googleRating: provider?.googleRating,
+    googleRatingCount: provider?.googleRatingCount,
+    openingHours: provider?.openingHours,
+    photo: provider?.photo,
+    // Submission snapshots expose the proxy reference rather than a separate
+    // provider ID. The shared loader validates both before fetching any bytes.
+    googlePlaceId: provider?.photo?.url.match(/^\/v1\/places\/google-provider-photo\/([A-Za-z0-9_-]{5,255})$/)?.[1],
+  }} contributionBadge={contributionBadge} headerAction={headerAction}>{footer}</PlaceCardLarge>
+  return <PlaceCardLarge place={card}
+    onPress={item.placeId ? () => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } }) : undefined}
+    contributionBadge={contributionBadge} headerAction={headerAction} footer={footer} />
 }
 
 function ContributionReview({ review }: { review: Review }) {

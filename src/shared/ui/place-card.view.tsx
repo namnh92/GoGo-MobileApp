@@ -97,7 +97,8 @@ export function CardCredits({ data, inline = false }: { data: CardData; inline?:
   const credits = extraCredits.map(credit => <Text key={credit} variant="caption" color="text.secondary">{credit}</Text>)
   return <>
     {inline ? credits : null}
-    {place.photoAttribution ? <Text testID={candidate ? 'import-photo-credit' : 'saved-photo-attribution'} variant="caption" color="text.secondary" style={inline ? styles.inlineCredits : styles.savedCredits}>
+    {place.photoAttribution ? <Text testID={candidate ? 'import-photo-credit' : 'saved-photo-attribution'} variant="caption" color="text.secondary" style={inline ? styles.inlineCredits : styles.savedCredits}
+      accessibilityLabel={candidate ? `${t('placeImport.photoCredit')}${place.photoAuthors?.map(author => author.displayName).join(', ')} · ${place.photoAttribution}` : undefined}>
       {candidate ? t('placeImport.photoCredit') : place.photoSource === 'google' ? 'Google · ' : ''}
       {candidate ? null : place.photoAttribution}
       {place.photoAuthors?.map((author, index) => <Text key={`${index}-${author.displayName}`} variant="caption" accessibilityRole={author.uri ? 'link' : undefined} onPress={author.uri ? () => { void openWebsite(author.uri!) } : undefined}>{candidate ? index ? ', ' : '' : ' · '}{author.displayName}</Text>)}
