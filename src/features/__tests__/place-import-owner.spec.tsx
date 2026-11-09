@@ -1,6 +1,7 @@
 import { completeWizard } from './contribution-fixtures'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
 import { Keyboard, Linking, ScrollView, StyleSheet, View } from 'react-native'
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 import { onlineManager } from '@tanstack/react-query'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { renderScreen } from './harness'
@@ -38,7 +39,7 @@ jest.mock('@/shared/api', () => ({
   useSaved: () => ({ data: [] }),
   useToggleSaved: () => ({ mutate: mockToggleSaved }),
 }))
-import { themes } from '@/shared/ui/theme'
+import { themes, type AppTheme } from '@/shared/ui/theme'
 import PlaceImportScreen from '@/features/place-import/import.view'
 const mockNow = { value: new Date('2026-11-07T05:00:00Z') }
 jest.mock('@/shared/ui/use-place-clock', () => ({ usePlaceClock: () => mockNow.value }))
