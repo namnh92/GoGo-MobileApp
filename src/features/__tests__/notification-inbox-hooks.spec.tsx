@@ -1,3 +1,4 @@
+import { useNotificationFilter, type InboxCategory } from '@/shared/api/queries/use-notification-filter'
 import type { ReactNode } from 'react'
 import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
@@ -19,6 +20,7 @@ import { useMarkNotificationRead, useNotificationSummary, useNotifications, useR
 import { queryKeys } from '@/shared/api/query-keys'
 import { bindSessionCaches } from '@/shared/api/session-query-cache'
 import { clearSession, persistSession, SessionCancelledError } from '@/shared/api/session'
+import { ApiError } from '@/shared/api/errors'
 import { shouldPersistQuery } from '@/shared/api/persist-policy'
 import { generatedNotificationCapabilities } from '@/features/notifications/notification-capabilities'
 
@@ -152,4 +154,89 @@ it.each(['waiting', 'in-flight poll'])('account switch cancels %s and removes A 
   expect(mockPoll).toHaveBeenCalledTimes(stage === 'waiting' ? 0 : 1)
   expect(mockSummary).toHaveBeenCalledTimes(1)
   expect(mockList).toHaveBeenCalledTimes(1)
+})
+
+function useFilteredInbox(category: InboxCategory, enabled = true) {
+  const inbox = useNotifications({ enabled, category })
+  return { ...inbox, ...useNotificationFilter(inbox, category, enabled) }
+}
+
+it.each([
+  ['invite', ['invite']],
+  ['plan', ['plan_ready', 'plan_changed', 'preference_reminder']],
+  ['date', ['date_reminder']],
+  ['system', ['campaign', 'moderation_update', 'privacy_export_ready']],
+] as const)('sends %s kinds to the server on every page', async (category, kinds) => {
+  mockList.mockResolvedValueOnce({ notifications: [{ kind: kinds[0] }], nextCursor: 'bound-cursor' })
+    .mockResolvedValueOnce({ notifications: [], nextCursor: null })
+  const { result } = await renderHook(() => useFilteredInbox(category), { wrapper })
+  expect(mockList).toHaveBeenCalledTimes(1) // Server filtering never scans ahead.
+  expect(mockList.mock.calls[0]![0]).toEqual({ kinds })
+  await act(async () => { await result.current.fetchNextPage() })
+  expect(mockList.mock.calls[1]![0]).toEqual({ kinds, cursor: 'bound-cursor' })
+})
+
+it('keeps separate chip caches and restores the selected filter without reusing another cursor', async () => {
+  mockList.mockResolvedValueOnce({ notifications: [{ id: 'invite', kind: 'invite' }], nextCursor: 'invite-cursor' })
+    .mockResolvedValueOnce({ notifications: [{ id: 'plan', kind: 'plan_ready' }], nextCursor: 'plan-cursor' })
+  const { result, rerender } = await renderHook(({ category }: { category: InboxCategory }) => useFilteredInbox(category), {
+    wrapper, initialProps: { category: 'invite' as InboxCategory },
+  })
+  await rerender({ category: 'plan' })
+  expect(result.current.items[0]?.id).toBe('plan')
+  expect(mockList.mock.calls[1]![0]).toEqual({ kinds: ['plan_ready', 'plan_changed', 'preference_reminder'] })
+  await rerender({ category: 'invite' })
+  expect(result.current.items[0]?.id).toBe('invite')
+  expect(mockList).toHaveBeenCalledTimes(2)
+  expect(client.getQueryData(queryKeys.notifications('plan'))).toBeDefined()
+})
+
+const unsupportedKinds = () => new ApiError(400, { code: 'VALIDATION_ERROR', message: 'Unsupported kinds parameter' })
+it('falls back only after a filtered 400, scans sparse pages, and keeps unfiltered cursors', async () => {
+  mockList.mockRejectedValueOnce(unsupportedKinds())
+    .mockResolvedValueOnce({ notifications: [{ kind: 'invite' }], nextCursor: 'two' })
+    .mockResolvedValueOnce({ notifications: [], nextCursor: 'three' })
+    .mockResolvedValueOnce({ notifications: Array.from({ length: 10 }, () => ({ kind: 'plan_ready' })), nextCursor: 'four' })
+  const { result } = await renderHook(() => useFilteredInbox('plan'), { wrapper })
+  expect(result.current.items).toHaveLength(10)
+  expect(result.current.filling).toBe(false)
+  expect(mockList.mock.calls.map(call => call[0])).toEqual([
+    { kinds: ['plan_ready', 'plan_changed', 'preference_reminder'] }, undefined, { cursor: 'two' }, { cursor: 'three' },
+  ])
+})
+it('stops fallback scanning on a failed page and retries the same unfiltered cursor', async () => {
+  mockList.mockRejectedValueOnce(unsupportedKinds())
+    .mockResolvedValueOnce({ notifications: [{ kind: 'invite' }], nextCursor: 'two' })
+    .mockRejectedValueOnce(new Error('offline'))
+  const { result } = await renderHook(() => useFilteredInbox('date'), { wrapper })
+  expect(result.current.isFetchNextPageError).toBe(true)
+  expect(result.current.filling).toBe(false)
+  mockList.mockResolvedValueOnce({ notifications: [{ kind: 'date_reminder' }], nextCursor: null })
+  await act(async () => { await result.current.fetchNextPage() })
+  expect(mockList.mock.calls[3]![0]).toEqual({ cursor: 'two' })
+  expect(result.current.items).toHaveLength(1)
+})
+it.each([401, 403, 503])('does not fall back for HTTP %s', async status => {
+  mockList.mockRejectedValue(new ApiError(status, { code: 'ERROR', message: 'failed' }))
+  const { result } = await renderHook(() => useFilteredInbox('date'), { wrapper })
+  expect(result.current.isError).toBe(true)
+  expect(mockList).toHaveBeenCalledTimes(1)
+})
+it('never replays a server-filtered cursor without kinds after a page 400', async () => {
+  mockList.mockResolvedValueOnce({ notifications: [], nextCursor: 'bound' }).mockRejectedValueOnce(unsupportedKinds())
+  const { result } = await renderHook(() => useFilteredInbox('invite'), { wrapper })
+  await act(async () => { await result.current.fetchNextPage() })
+  expect(result.current.isFetchNextPageError).toBe(true)
+  expect(mockList).toHaveBeenCalledTimes(2)
+  expect(mockList.mock.calls[1]![0]).toEqual({ kinds: ['invite'], cursor: 'bound' })
+})
+it('single-read invalidates every cached filter and the shared summary', async () => {
+  const { result } = await renderHook(() => ({ all: useFilteredInbox('all'), plan: useFilteredInbox('plan'), read: useMarkNotificationRead() }), { wrapper })
+  expect(mockList).toHaveBeenCalledTimes(2)
+  await act(async () => { await result.current.read.mutateAsync('n-1') })
+  expect(mockList).toHaveBeenCalledTimes(4)
+})
+it('disabled account reads never fetch retained private pages', async () => {
+  await renderHook(() => useFilteredInbox('date', false), { wrapper })
+  expect(mockList).not.toHaveBeenCalled()
 })

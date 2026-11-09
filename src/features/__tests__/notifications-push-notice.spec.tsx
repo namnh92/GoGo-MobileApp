@@ -25,6 +25,7 @@ jest.mock('@/shared/providers/session-provider', () => ({
 
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useSystemNotificationsQuery: () => ({ status: 'unsupported' }),
   useNotifications: () => ({
     data: { pages: [{ notifications: [] }] },
     isPending: false,

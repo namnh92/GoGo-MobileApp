@@ -62,9 +62,9 @@ export function listMyReviewReactions(placeId: string): Promise<OpResponse<'list
 }
 
 export function listNotifications(
-  query?: OpQuery<'listNotifications'>,
+  query?: OpQuery<'listNotifications'> & { kinds?: readonly import('../types').NotificationKind[] },
 ): Promise<OpResponse<'listNotifications'>> {
-  return api.get<OpResponse<'listNotifications'>>('/me/notifications', { query })
+  return api.get<OpResponse<'listNotifications'>>('/me/notifications', { query: query ? { ...query, kinds: query.kinds ? [...query.kinds] : undefined } : undefined })
 }
 
 export function markNotificationRead(id: string, sessionGeneration?: number): Promise<void> {

@@ -162,3 +162,60 @@ Code/test/contract snapshot: `rs-1101601764a4`, `/tmp/g10d-snapshots/g10d-rs-110
 | `src/features/__tests__/location-settings.spec.tsx:29` | Isolate the replacement notification row in location tests |
 | `src/features/__tests__/i18n-keys.spec.tsx:110` | Register the typed dynamic status keys |
 | `docs/verification/issue-539-group-10.md:114` | This continuation, #567 coordination and verification evidence |
+
+## Owner simulator follow-up — PR #573, 2026-11-09
+
+Basis: `5008cbe`, same worktree/branch. Owner reports signed-in chips cannot be tapped and requests client filtering now, public system rows for both session states, all kind variants and a proxy-ready JSON fixture. This dated instruction supersedes the historical filter-disabled deviation above. UI/client adapters only; no generated contract edits, backend changes, commit or push.
+
+- Chips now select All / Members / Plans / Appointments / System-other. Mapping is exactly `invite` → Members; `preference_reminder`, `plan_ready`, `plan_changed` → Plans; `date_reminder` → Appointments; every other/missing kind → System-other. Selection uses the shared raised Chip highlight, heavier Inter-SemiBold face (unselected Inter-Medium), and accessibility selected state. The unavailable-filter catalog line was removed.
+- `useNotificationFilter` is the BE#811 PR2 replacement seam. It selects over the shared loaded pages, automatically follows opaque next cursors until at least ten matches or exhaustion, and stops on error/offline or account read disable. Requests use `cancelRefetch: false` to deduplicate concurrent automatic/list-end pagination. Changing chips reuses the same account cache and never re-labels an old response as a server-filtered response. Filtering never changes the summary total or read-all cutoff. No-match copy is exactly `Không có thông báo loại này`; loading has a footer and does not flash this empty state. Pagination errors remain retryable.
+- BE#815 public fetch is isolated in `src/shared/api/system-notifications.ts`, runtime-validated with zod against `{ items: [{ id, kind, title, body, deepLink, publishedAt, expiresAt }], nextCursor }`. It omits Authorization, treats only HTTP 404 as the old-backend capability result, and leaves transport/other HTTP/schema failures as errors. The hook follows `nextCursor`; both signed-in and signed-out use the same section above personal content, with the existing unavailable illustration/copy or `Chưa có thông báo hệ thống`. Valid supported app links open through the existing parser/router; unsupported links have no CTA. Public rows have no fabricated unread state. Their public memory cache survives session transitions; it is not persisted to disk. Replace the narrow adapter with generated types/endpoint after the 7.8.0 contract lands.
+- `test/fixtures/notifications-full-case.json` is a development/test-only GET-inbox envelope: exactly one realistic row for each of nine kinds, fake UUIDs, UTC timestamps and mixed omitted/present `readAt`. Every top-level field is declared by the vendored OpenAPI Notification schema; `exportId`/`expiresAt` use its explicitly free-form payload (also documented by NotificationKind). No null `readAt`, avatar, media, venue, schedule or invented preview fields. Production code never imports the fixture; the owner's proxy can serve it as-is.
+
+### Fresh Stitch comparison
+
+Read live HTML and the complete screenshot of `Thông báo - GoGo`, screen `1871420597720396095` in project `17315762413421369447`; HTML file `1871420597720396493`, screenshot file `1871420597720398342`. The supplied screenshot depicts five personal row kinds; it does not depict campaign/moderation/export/unknown or a public-system section. Those use the shared row structure and neutral fallback roles; no unsupported pixel-parity claim is made.
+
+| Kind | Tile / title role and payload rendering | Actions / remaining data gap |
+| --- | --- | --- |
+| invite | 48px violet tile, violet title, type badge, real roomName and inviterName, relative time/unread dot | View room only with a valid room target; Later preserves mark-read-only semantics. No sourced portrait; host-facing joined-member semantics retained (ADR-0039). |
+| preference_reminder | Violet tile with dining icon (corrected to violetInk), accent title, real roomName and validated N-member progress pill | View room when supported; progress does not claim the host must complete someone else's preferences. |
+| plan_ready | Green tile/title and map badge, real roomName/stopCount, time/unread | View plan when supported. Event-time place/media/start-time preview still unavailable in 7.7 payload. |
+| plan_changed | Neutral history tile/title and calendar badge, real structured added/removed/reordered/duration/lock/optional facts | View plan when supported. No new appointment time in current payload, so no fabricated changed-time sentence. |
+| date_reminder | Neutral tile, accent bell/title, real room context, time/unread | View plan when supported. No confirmed start/venue/address/120-minute facts in this contract. |
+| moderation_update | Neutral info tile/title, localized result copy, time/unread | No destination/status facts sufficient for another CTA. |
+| campaign | Neutral tile/title, actual CMS title/body with localized fallback, time/unread | No supported destination in the fixture; no invented destination CTA. |
+| privacy_export_ready | Neutral lock tile, dedicated localized export title/body and actual expiry when present, time/unread | No authenticated export artifact route in this screen; no authorization URL fabricated. |
+| unknown (including missing/future kinds) | Neutral bell tile, readable localized fallback title/body, time/unread | No invented navigation CTA; row can still mark read. |
+
+Shared Card/Chip/Button/typography and semantic theme roles cover Light and Dark. Existing owner decisions still govern the shared AppHeader and absence of automatic seven-day cleanup. This turn compares implementation roles/content with the live Stitch source and renders tests in both themes; **simulator screenshots, side-by-side pixel parity and authenticated DEV acceptance remain unverified**.
+
+### Verification for this continuation
+
+The pre-fix mechanism is directly visible at `5008cbe`: the three category controls have `disabled={!capabilities.categoryFilter}` with `categoryFilter: false`, and the system hook returns only `unsupported` without a request. Owner's signed-in simulator report is the reproduction evidence. New regression coverage taps every chip in Light/Dark and exercises real infinite-query pagination; it also covers cursor exhaustion, no matches, ten-match stop, in-flight chip changes, failures/retry, disabled account reads, public pagination/404 recovery, no bearer, schema validation and session-cache transitions. Every fixture kind is rendered separately in both themes with title/body/facts, tile role, time, unread/read and supported actions checked.
+
+| Command | Exit / result | Log |
+| --- | --- | --- |
+| `pnpm typecheck` | 0 | `/tmp/573v-typecheck.log` |
+| `pnpm lint` | 0, no warnings | `/tmp/573v-lint.log` |
+| `pnpm test:ui --runInBand` (no test filter) | 0; 220 suites, 3103 tests, 9 snapshots passed | `/tmp/573v-test-ui.log` |
+| `pnpm test src/shared/api/__tests__/system-notifications.test.ts src/shared/api/__tests__/session-public-cache.test.ts` | 0; 2 files, 15 tests passed | `/tmp/573v-api.log` |
+| `git diff --check` | 0 | Working-tree validation |
+
+Source/test evidence snapshot: `rs-d22628791381`, generated by the workspace snapshot tool with scopes `src` and `test` (verification prose excluded), manifest `/tmp/573v-snapshots/573v-rs-d22628791381/MANIFEST.txt`. It retains the tracked patch and new files; generated client and vendored OpenAPI remain unchanged. The source/test scope was verified unchanged after the checks. No device build, simulator acceptance, full Vitest run, commit or push is claimed.
+
+
+## PR #573 follow-up — inbox failures and server filters (2026-11-09)
+
+Owner's local-proxy reproduction covers list + summary HTTP 503 after a cached empty page and forced empty responses. The personal inbox now renders one combined stale notice; its retry refetches list and summary together. A failed list without cached pages keeps the shared ErrorState and retry inside the list card, with no empty-state copy. The unread badge requires a positive, known, non-error/non-paused summary. Read-all is hidden when unavailable (zero/unknown/error summary, empty/loading/error/paused list), and remains visibly disabled during its pending operation.
+
+Chips send repeatable `kinds` on the first page and every server-filtered cursor page: invite; plan_ready/plan_changed/preference_reminder; date_reminder; campaign/moderation_update/privacy_export_ready. Each category has its own account-scoped query key; single/read-all invalidation covers every category. Only an initial filtered HTTP 400 negotiates the old-BE client fallback. That fallback restarts without a cursor and carries its unfiltered cursor mode through subsequent pages. A server-filtered cursor is never replayed without kinds. Other errors stay errors; a later fresh refetch probes server support again so a BE deploy does not require an app restart.
+
+This is Mobile wiring only, per the owner's supplied BE#811 PR2 contract. The endpoint wrapper temporarily extends the generated query with generated NotificationKind values; vendored OpenAPI and generated schema stay unchanged pending the published BE contract. No backend edits, commit, push, simulator acceptance or deployment claim. Previous uncommitted work remains in this worktree.
+
+Regression proof renders cached-empty, cached-populated and uncached errors in Light/Dark; checks one stale banner and combined retry, zero/unknown/error badge suppression, and no dead read-all. Hook tests cover all four kinds maps, separate caches, cursor binding, old-BE sparse-page fallback, failed-page retry, non-400 errors, disabled reads and invalidation across filters. The API test verifies repeated query serialization and opaque cursor round-trip.
+
+Verification logs: `/tmp/573w-typecheck.log`, `/tmp/573w-lint.log`, `/tmp/573w-ui.log`, `/tmp/573w-api.log`. The default parallel UI run passed the inbox suites but encountered one unrelated act-warning timing failure in create-time-day; retained at `/tmp/573w-ui-parallel.log`. The full serial rerun uses `pnpm test:ui --runInBand` with no test filter.
+
+
+Final checks: `pnpm typecheck` exit 0; `pnpm lint` exit 0; `pnpm test:ui --runInBand` exit 0 (220 suites, 3127 tests, 9 snapshots); targeted notification-inbox API tests exit 0 (4 tests); `git diff --check` exit 0. UI coverage includes both Light and Dark. The serial UI run retained all tests with no test filter. No simulator rerun was performed.

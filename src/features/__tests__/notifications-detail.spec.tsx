@@ -29,6 +29,7 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useSystemNotificationsQuery: () => ({ status: 'unsupported' }),
   useRoom: (id: string | undefined) => mockRoomRead(id),
   useNotifications: () => ({
     data: { pages: [{ notifications: mockItems.value }] },
@@ -114,10 +115,10 @@ describe('the row accessibility label', () => {
     expect(parts.slice(2).join(', ')).toBe(new Date('2026-09-15T14:09:27Z').toLocaleString('vi'))
   })
 
-  it('is the title alone for a kind with no body line and no valid date', async () => {
+  it('uses readable fallback copy for an unknown kind with no valid date', async () => {
     mockItems.value = [{ ...row('n-x', 'brand_new_kind'), createdAt: 'not a date' }]
     const view = await renderScreen(<NotificationsScreen />)
-    expect(view.getByLabelText('brand_new_kind', { exact: true })).toBeTruthy()
+    expect(view.getByLabelText(`${viMessages['notifications.kind.unknown']}, ${viMessages['notifications.body.unknown']}`, { exact: true })).toBeTruthy()
   })
 })
 
@@ -126,13 +127,13 @@ describe('an unknown kind', () => {
     mockItems.value = [row('n-x', kind), row('n-ok', 'plan_ready')]
     const view = await renderScreen(<NotificationsScreen />)
 
-    // The list around it is intact, and no body line is invented for it.
+    // The surrounding list stays intact; the unknown row gets readable generic copy.
     expect(view.getByText(viMessages['notifications.body.plan_ready'])).toBeTruthy()
-    if (kind) expect(view.getByText(kind)).toBeTruthy()
+    expect(view.getByText(viMessages['notifications.kind.unknown'])).toBeTruthy()
     expect(view.queryByTestId('app-header-bell')).toBeNull()
     expect(view.queryByTestId('app-header-unread-dot')).toBeNull()
     expect(view.getByLabelText(viMessages['notifications.kind.plan_ready'], { exact: false })).toBeTruthy()
-    expect(view.getByRole('button', { name: viMessages['g10.readAll'] }).props.accessibilityState.disabled).toBe(true)
+    expect(view.queryByRole('button', { name: viMessages['g10.readAll'] })).toBeNull()
   })
 })
 

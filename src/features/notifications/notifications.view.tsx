@@ -1,6 +1,6 @@
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -15,6 +15,8 @@ import { Badge } from '@/shared/ui/badge.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
+import { useNotificationFilter, type InboxCategory } from '@/shared/api/queries/use-notification-filter'
+import { SystemNotificationsSection } from './system-notifications.view'
 import { resolveInboxTarget } from './inbox-target'
 import { NotificationCard } from './notification-card.view'
 import { notificationCapabilities } from './notification-capabilities'
@@ -50,14 +52,16 @@ export default function NotificationsScreen() {
   // Guests get 403 USER_ONLY on the inbox.
   const canRead = status === 'user'
   const systemInbox = useSystemNotificationsQuery()
-  const inbox = useNotifications({ enabled: canRead })
+  const [category, setCategory] = useState<InboxCategory>('all')
+  const inbox = useNotifications({ enabled: canRead, category })
+  const { items, filling } = useNotificationFilter(inbox, category, canRead)
   const markRead = useMarkNotificationRead()
   const capabilities = notificationCapabilities()
   const summary = useNotificationSummary({ enabled: canRead && capabilities.summary })
   const readAll = useReadAllNotifications()
   const readingAll = useRef(false)
   const canReadAll = canRead && capabilities.readAll && !!summary.data?.readThroughCursor && !summary.isError && !summary.isPaused
-    && summary.data.unreadCount > 0 && !readAll.isPending
+    && summary.data.unreadCount > 0 && items.length > 0 && !inbox.isError && !inbox.isPending && !inbox.isPaused && !readAll.isPending
   async function markAll() {
     if (!canReadAll || readingAll.current) return
     const scope = captureSessionScope()
@@ -88,11 +92,6 @@ export default function NotificationsScreen() {
       setReadingIds(current => { const next = new Set(current); next.delete(id); return next })
     })
   }
-
-  const items = useMemo(
-    () => (inbox.data?.pages ?? []).flatMap(page => page.notifications ?? []),
-    [inbox.data],
-  )
 
   // Where a row opens is a request away (#198, see inbox-target.ts). The latest
   // tap wins, the row being resolved says so, and nothing opens once the
@@ -147,6 +146,8 @@ export default function NotificationsScreen() {
     )
   }, [openProblem, t])
 
+  function retryInbox() { void inbox.refetch(); void summary.refetch() }
+
   const header = (
     <View>
       <AppHeader showNotifications={false} onBack={() => goBackOrHome(router)} title={t('notifications.title')}
@@ -171,10 +172,6 @@ export default function NotificationsScreen() {
     <MaterialIcon name="markChatRead" size={44} color="redesign.violetText" />
   </View></View>
   const listState = !canRead ? <View>
-    <Text accessibilityRole="header" variant="introHeading" color="redesign.ink" style={styles.sectionTitle}>{t('g10.systemTitle')}</Text>
-    {systemInbox.status === 'unsupported' ? <View testID="system-notifications-unsupported" style={styles.empty}>
-      <EmptyState appearance="stitch" title={t('g10.systemUnavailableTitle')} body={t('g10.systemUnavailableBody')} illustration={emptyIllustration} />
-    </View> : null}
     <View style={styles.personalSection}>
       <Text accessibilityRole="header" variant="introHeading" color="redesign.ink" style={styles.sectionTitle}>{t('g10.personalTitle')}</Text>
       <View style={styles.empty}><EmptyState appearance="stitch"
@@ -185,9 +182,10 @@ export default function NotificationsScreen() {
     : inbox.isPending ? <View testID="notifications-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}>
       {[0, 1, 2].map(key => <View key={key} style={styles.skeletonRow}><Skeleton width={48} height={48} radius={24} /><View style={styles.content}><Skeleton width="65%" height={14} /><Skeleton width="100%" height={48} /></View></View>)}
     </View> : inbox.isError && !inbox.data ? <View testID="notifications-error" style={styles.empty}>
-      <ErrorState error={inbox.error} onRetry={() => void inbox.refetch()} />
-    </View> : <View testID="notifications-empty" style={styles.empty}>
-      <EmptyState appearance="stitch" title={t('g10.emptyTitle')} body={t('g10.emptyBody')} illustration={emptyIllustration}
+      <ErrorState error={inbox.error} onRetry={retryInbox} />
+    </View> : category !== 'all' && inbox.hasNextPage && inbox.isPaused ? <OfflineState />
+      : filling || (category !== 'all' && inbox.hasNextPage && inbox.isError) ? null : <View testID="notifications-empty" style={styles.empty}>
+      <EmptyState appearance="stitch" title={t(category === 'all' ? 'g10.emptyTitle' : 'g10.filterEmpty')} body={category === 'all' ? t('g10.emptyBody') : undefined} illustration={emptyIllustration}
         action={<SecondaryBtn size="small" variant="neutralPill" label={t('g10.reload')} loading={inbox.isRefetching} onPress={() => { void inbox.refetch(); void summary.refetch() }} />} />
     </View>
 
@@ -200,36 +198,33 @@ export default function NotificationsScreen() {
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing[6] }]}
         onEndReachedThreshold={0.5}
         onEndReached={() => {
-          if (canRead && inbox.hasNextPage && !inbox.isFetchingNextPage) void inbox.fetchNextPage()
+          if (canRead && inbox.hasNextPage && !inbox.isFetching && !inbox.isFetchNextPageError) void inbox.fetchNextPage({ cancelRefetch: false })
         }}
-        ListHeaderComponent={canRead ? <View>
-          <StaleNotice hasData={canRead && !!inbox.data} error={inbox.error} onRetry={() => void inbox.refetch()} />
+        ListHeaderComponent={<View>
+          <SystemNotificationsSection inbox={systemInbox} illustration={emptyIllustration} />
+          {canRead ? <View style={styles.personalSection}>
+          <StaleNotice hasData={!!inbox.data || !!summary.data} error={(inbox.data ? inbox.error : null) ?? (summary.data ? summary.error : null)} onRetry={retryInbox} />
           <View style={styles.toolbar}>
             <View style={styles.toolbarTitle}>
               <Text accessibilityRole="header" variant="introHeading" color="redesign.ink">{t('g10.allNotifications')}</Text>
-              {canRead && summary.data ? <Badge appearance="solid" label={t('g10.newCount', { count: summary.data.unreadCount })} /> : null}
+              {canRead && !summary.isError && !summary.isPaused && summary.data && summary.data.unreadCount > 0 ? <Badge appearance="solid" label={t('g10.newCount', { count: summary.data.unreadCount })} /> : null}
             </View>
-            <SecondaryBtn size="small" variant="neutralPill" leadingIcon="doneAll" label={t('g10.readAll')} disabled={!canReadAll}
-              loading={readAll.isPending} onPress={() => void markAll()} />
+            {canReadAll || readAll.isPending ? <SecondaryBtn size="small" variant="neutralPill" leadingIcon="doneAll" label={t('g10.readAll')} disabled={!canReadAll}
+              loading={readAll.isPending} onPress={() => void markAll()} /> : null}
           </View>
           {canRead && summary.isPending && !summary.isPaused ? <Skeleton width={80} height={14} /> : null}
           {canRead && summary.isPaused && !summary.data ? <OfflineState /> : null}
-          <StaleNotice hasData={canRead && !!summary.data} error={summary.error} onRetry={() => void summary.refetch()} />
-          {canRead && summary.isError && !summary.data ? <ErrorState error={summary.error} onRetry={() => void summary.refetch()} /> : null}
+          {canRead && summary.isError && !summary.data && !inbox.isError ? <ErrorState error={summary.error} onRetry={retryInbox} /> : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            <Chip appearance="raised" label={t('g10.filter.all')} variant="selected" />
-            <Chip appearance="raised" label={t('g10.filter.invite')} icon="users" disabled={!capabilities.categoryFilter} onPress={() => undefined}
-              accessibilityLabel={`${t('g10.filter.invite')}. ${t('g10.filterUnavailable')}`} />
-            <Chip appearance="raised" label={t('g10.filter.plan')} icon="map" disabled={!capabilities.categoryFilter} onPress={() => undefined}
-              accessibilityLabel={`${t('g10.filter.plan')}. ${t('g10.filterUnavailable')}`} />
-            <Chip appearance="raised" label={t('g10.filter.date')} icon="clock" disabled={!capabilities.categoryFilter} onPress={() => undefined}
-              accessibilityLabel={`${t('g10.filter.date')}. ${t('g10.filterUnavailable')}`} />
+            {(['all', 'invite', 'plan', 'date', 'system'] as const).map(value => <Chip key={value} appearance="raised"
+              label={t(`g10.filter.${value}`)} icon={value === 'invite' ? 'users' : value === 'plan' ? 'map' : value === 'date' ? 'clock' : value === 'system' ? 'info' : undefined}
+              variant={category === value ? 'selected' : 'default'} onPress={() => setCategory(value)} />)}
           </ScrollView>
-          <Text variant="introCaption" color="redesign.secondary" style={styles.filterNote}>{t('g10.filterUnavailable')}</Text>
-        </View> : null}
+        </View> : null}</View>}
         ListEmptyComponent={listState}
         ListFooterComponent={
-          canRead && inbox.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: spacing[4] }} /> : null
+          canRead && (inbox.isFetchingNextPage || filling) ? <ActivityIndicator testID="notifications-loading-more" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} />
+            : canRead && inbox.isFetchNextPageError && !!inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.fetchNextPage({ cancelRefetch: false })} /> : null
         }
         renderItem={({ item, index }) => <NotificationCard item={item} index={index}
           busy={openingId !== null && openingId === item.id} reading={!!item.id && readingIds.has(item.id)}

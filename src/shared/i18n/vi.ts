@@ -1,6 +1,16 @@
-
 // Vietnamese is the source locale: message keys are derived from this object.
 export const viMessages = {
+  "g10.filter.system": "Hệ thống/khác",
+  "g10.filterEmpty": "Không có thông báo loại này",
+  "g10.systemEmpty": "Chưa có thông báo hệ thống",
+  "g10.viewDetails": "Xem chi tiết",
+  "g10.loadMore": "Xem thêm",
+  "notifications.kind.privacy_export_ready": "Bản xuất dữ liệu đã sẵn sàng",
+  "notifications.body.privacy_export_ready": "Bản xuất dữ liệu cá nhân của bạn đã sẵn sàng.",
+  "notifications.kind.unknown": "Thông báo khác",
+  "notifications.body.unknown": "Bạn có một thông báo mới.",
+  "g10.viewPlan": "Xem kế hoạch",
+  "g10.exportExpires": "Hết hạn: {{date}}",
   "placeWizard.exit.title": 'Lưu nháp trước khi thoát?',
   "placeWizard.exit.body": 'Bạn có thay đổi chưa lưu. Bạn muốn lưu nháp trước khi thoát không?',
   "placeWizard.exit.discard": 'Không lưu',
@@ -50,7 +60,6 @@ export const viMessages = {
   "g10.filter.invite": "Thành viên",
   "g10.filter.plan": "Kế hoạch",
   "g10.filter.date": "Lịch hẹn",
-  "g10.filterUnavailable": "Lọc theo loại chưa khả dụng. Đang hiển thị tất cả thông báo.",
   "g10.emptyTitle": "Hộp thư gọn gàng!",
   "g10.emptyBody": "Bạn chưa có thông báo nào. Tin mới về phòng và kế hoạch sẽ xuất hiện ở đây.",
   "g10.reload": "Tải lại thông báo",

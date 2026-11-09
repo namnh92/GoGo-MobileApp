@@ -30,6 +30,7 @@ const EXCLUDED_SEGMENTS: readonly string[] = ['search', 'detail', 'public-review
 /** Public in-memory snapshots survive logout; disk persistence is a separate policy. */
 export function isPublicAppQuery(queryKey: readonly unknown[]): boolean {
   const [root, id, kind] = queryKey
+  if (root === 'system-notifications') return queryKey.length === 1
   if (root === 'administrative' || root === 'taxonomies') return true
   if (typeof id !== 'string' || !id) return false
   if (root === 'place-provider-photos') return queryKey.length === 2

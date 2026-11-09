@@ -35,3 +35,12 @@ it('round-trips opaque list cursors without parsing or truncating the tuple', as
   await listNotifications({ cursor })
   expect(fetch.mock.calls[0]![0]).toBe(`http://localhost:3000/v1/me/notifications?cursor=${encodeURIComponent(cursor)}`)
 })
+
+
+it('serializes kinds as repeated parameters alongside an opaque cursor', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ notifications: [], nextCursor: null }))
+  await listNotifications({ kinds: ['plan_ready', 'plan_changed'], cursor: 'bound+cursor/==' })
+  const url = new URL(String(fetch.mock.calls[0]![0]))
+  expect(url.searchParams.getAll('kinds')).toEqual(['plan_ready', 'plan_changed'])
+  expect(url.searchParams.get('cursor')).toBe('bound+cursor/==')
+})

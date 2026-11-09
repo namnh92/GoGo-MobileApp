@@ -46,6 +46,7 @@ jest.mock('expo-router', () => {
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useSystemNotificationsQuery: () => ({ status: 'unsupported' }),
   getPlan: (...args: unknown[]) => mockGetPlan(...args),
   getCurrentPlan: (...args: unknown[]) => mockGetCurrentPlan(...args),
   getRoom: (...args: unknown[]) => mockGetRoom(...args),

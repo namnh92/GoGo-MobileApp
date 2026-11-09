@@ -6,7 +6,7 @@ export const styles = StyleSheet.create(theme => ({
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: spacing[1], paddingBottom: spacing[2] },
   toolbarTitle: { flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   filters: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
-  filterNote: { marginBottom: spacing[3], marginTop: spacing[1] },
+  loadingFooter: { marginVertical: spacing[4] },
   sectionTitle: { marginBottom: spacing[2] },
   personalSection: { marginTop: spacing[6] },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3], padding: spacing[4], borderRadius: 16, marginBottom: spacing[3] },

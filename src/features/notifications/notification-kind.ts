@@ -9,13 +9,14 @@ const KINDS = {
   plan_ready: { icon: 'sparkle', body: 'notifications.body.plan_ready' },
   plan_changed: { icon: 'history', body: 'notifications.body.plan_changed' },
   date_reminder: { icon: 'bell', body: 'notifications.body.date_reminder' },
+  privacy_export_ready: { icon: 'lock', body: 'notifications.body.privacy_export_ready' },
   moderation_update: { icon: 'info', body: 'notifications.body.moderation_update' },
 } as const satisfies Record<string, { icon: IconName; body: MessageKey }>
 
 type KnownKind = keyof typeof KINDS
 
-/** An unknown or missing kind is a neutral bell and no body line, never a crash. */
-export function kindPresentation(kind: string | undefined): { icon: IconName; body: (typeof KINDS)[KnownKind]['body'] | null } {
+/** An unknown or missing kind uses a readable neutral fallback. */
+export function kindPresentation(kind: string | undefined): { icon: IconName; body: (typeof KINDS)[KnownKind]['body'] | 'notifications.body.unknown' } {
   if (kind && Object.prototype.hasOwnProperty.call(KINDS, kind)) return KINDS[kind as KnownKind]
-  return { icon: 'bell', body: null }
+  return { icon: 'bell', body: 'notifications.body.unknown' }
 }

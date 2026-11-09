@@ -11,6 +11,7 @@ vi.mock('expo-network', () => ({ addNetworkStateListener: vi.fn(), getNetworkSta
 afterEach(async () => { vi.restoreAllMocks(); await clearSession() })
 
 it.each([
+  ['system-notifications'],
   ['administrative', 'version'],
   ['taxonomies', 'vi', 'current'],
   queryKeys.place('public-place'),

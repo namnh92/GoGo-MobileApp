@@ -1,7 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { Linking, StyleSheet } from 'react-native'
 import { themes, type AppTheme } from '@/shared/ui/theme'
-import { spacing } from '@/shared/ui/tokens'
+import { spacing, fontFamily } from '@/shared/ui/tokens'
 import { renderScreen } from './harness'
 import i18n from '@/shared/i18n'
 import { viMessages } from '@/shared/i18n/vi'
@@ -15,6 +15,7 @@ const mockSave = jest.fn()
 const mockRefetch = jest.fn()
 const mockPermission = jest.fn()
 let mockSession = 'user'
+let mockSystemInbox: Record<string, unknown>
 let mockInbox: Record<string, unknown>
 let mockSettings: Record<string, unknown>
 let mockSavePending = false
@@ -36,6 +37,7 @@ jest.mock('@/shared/notifications/permission-bootstrap', () => ({ pushPermission
 jest.mock('@/features/notifications/inbox-target', () => ({ resolveInboxTarget: (...args: unknown[]) => mockResolve(...args) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useSystemNotificationsQuery: () => mockSystemInbox,
   useRoom: () => ({ data: undefined }),
   useNotifications: (options: unknown) => { mockInboxQuery(options); return mockInbox },
   useNotificationSummary: (options: unknown) => { mockSummaryQuery(options); return mockSummary },
@@ -61,9 +63,9 @@ const SettingsScreen = jest.requireActual<typeof import('@/features/notification
 
 const PermissionsScreen = jest.requireActual<typeof import('@/features/settings/permissions.view')>('@/features/settings/permissions.view').default
 
-const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:00:00Z', payload: { roomName: 'Phòng thật', inviterName: 'Lan' } }
+const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:00:00Z', payload: { roomName: 'Phòng thật', inviterName: 'Lan', roomId: '11111111-1111-4111-8111-111111111111' } }
 const settingsData = { pushEnabled: true, source: 'explicit', updatedAt: null }
-const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications }] }, isPending: false, isError: false, refetch: mockRefetch })
+const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications, clientFilter: true }] }, isPending: false, isError: false, refetch: mockRefetch })
 
 beforeEach(() => {
   currentTheme = themes.orange
@@ -74,6 +76,7 @@ beforeEach(() => {
   mockSummary = { data: { unreadCount: 32, asOf: '2026-11-08T12:00:00Z', readThroughCursor: 'opaque-summary-cutoff' }, refetch: mockRefetch }
   mockResolve.mockResolvedValue({ to: 'open', path: '/rooms/room-1' })
   mockPermission.mockResolvedValue('granted')
+  mockSystemInbox = { status: 'unsupported' }
   mockInbox = loadedInbox()
   mockSettings = { data: settingsData, isPending: false, isError: false, refetch: mockRefetch }
   mockSession = 'user'
@@ -85,11 +88,11 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
   currentTheme = themes[mode]
   const screen = await renderScreen(<NotificationsScreen />)
   const chips = chipSpy.mock.calls.map(([props]) => props)
-  expect(chips).toHaveLength(4)
+  expect(chips).toHaveLength(5)
   expect(chips.map(chip => chip.label)).toEqual([
-    viMessages['g10.filter.all'], viMessages['g10.filter.invite'], viMessages['g10.filter.plan'], viMessages['g10.filter.date'],
+    viMessages['g10.filter.all'], viMessages['g10.filter.invite'], viMessages['g10.filter.plan'], viMessages['g10.filter.date'], viMessages['g10.filter.system'],
   ])
-  expect(screen.getByText(viMessages['g10.filterUnavailable'])).toBeTruthy()
+  expect(screen.queryByText(/Lọc theo loại chưa khả dụng/)).toBeNull()
   expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeEnabled()
   for (const chip of chips) {
     expect(chip.style).toBeUndefined()
@@ -154,13 +157,13 @@ describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mo
       expect(screen.queryByTestId('notifications-loading')).toBeNull()
       if (state === 'empty') {
         expect(screen.getByText(viMessages['g10.emptyTitle'])).toBeTruthy()
-        expect(screen.getByTestId('material-icon-markChatRead', { includeHiddenElements: true })).toBeTruthy()
+        expect(screen.getAllByTestId('material-icon-markChatRead', { includeHiddenElements: true })).toHaveLength(2)
         await fireEvent.press(screen.getByRole('button', { name: 'Tải lại thông báo' }))
         expect(mockRefetch).toHaveBeenCalledTimes(2)
       } else {
         expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
         await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
-        expect(mockRefetch).toHaveBeenCalledTimes(1)
+        expect(mockRefetch).toHaveBeenCalledTimes(2)
       }
     }
   })
@@ -179,11 +182,11 @@ describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mo
     expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
     expect(screen.queryByText(viMessages['g10.allNotifications'])).toBeNull()
     expect(chipSpy).not.toHaveBeenCalled()
-    for (const key of ['g10.filter.all', 'g10.filter.invite', 'g10.filter.plan', 'g10.filter.date', 'g10.filterUnavailable'] as const) {
+    for (const key of ['g10.filter.all', 'g10.filter.invite', 'g10.filter.plan', 'g10.filter.date', 'g10.filter.system'] as const) {
       expect(screen.queryByText(viMessages[key])).toBeNull()
     }
     expect(screen.getByText(viMessages['g10.personalSignInBody'])).toBeTruthy()
-    expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: false })
+    expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: false, category: 'all' })
     expect(mockSummaryQuery).toHaveBeenLastCalledWith({ enabled: false })
     expect(fetch).not.toHaveBeenCalled()
     fetch.mockRestore()
@@ -410,7 +413,7 @@ it('a denied OS permission keeps the account master separate and exposes device 
 
 it.each(['orange', 'orangeDark'] as const)('summary drives the exact inbox badge and read-all in %s', async mode => {
   currentTheme = themes[mode]
-  mockInbox = loadedInbox([])
+  mockInbox = loadedInbox()
   const screen = await renderScreen(<NotificationsScreen />)
   expect(screen.getByText('32 mới')).toBeTruthy()
   await fireEvent.press(screen.getByRole('button', { name: 'Đọc tất cả' }))
@@ -424,7 +427,7 @@ it('locks read-all during polling, and never substitutes a missing/error summary
   mockReadAllPending = false
   mockSummary = { isError: true, error: new Error('network'), refetch: mockRefetch }
   const failed = await renderScreen(<NotificationsScreen />)
-  expect(failed.getByRole('button', { name: 'Đọc tất cả' }).props.accessibilityState.disabled).toBe(true)
+  expect(failed.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
   expect(failed.queryByText(/\d+ mới/)).toBeNull()
 })
 
@@ -504,4 +507,135 @@ it.each([
     expect(mockPush).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledWith('/settings/notifications')
   } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+})
+
+const NotificationCard = jest.requireActual<typeof import('@/features/notifications/notification-card.view')>('@/features/notifications/notification-card.view').NotificationCard
+const fullCase = require('../../../test/fixtures/notifications-full-case.json') as { notifications: import('@/shared/api').Notification[] }
+describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture', mode => {
+  beforeEach(() => { jest.useFakeTimers(); currentTheme = themes[mode]; mockInbox = loadedInbox(fullCase.notifications) })
+  afterEach(async () => { await act(async () => { jest.runOnlyPendingTimers() }); jest.useRealTimers() })
+  it('taps every chip, uses selected weight/highlight/a11y and restores all rows', async () => {
+    const screen = await renderScreen(<NotificationsScreen />)
+    for (const [label, kinds] of [
+      ['Thành viên', ['invite']], ['Kế hoạch', ['preference_reminder', 'plan_ready', 'plan_changed']],
+      ['Lịch hẹn', ['date_reminder']], ['Hệ thống/khác', ['campaign', 'moderation_update', 'privacy_export_ready', 'unknown']],
+      ['Tất cả', fullCase.notifications.map(row => row.kind)],
+    ] as const) {
+      await fireEvent.press(screen.getByRole('button', { name: label }))
+      expect(screen.getByRole('button', { name: label }).props.accessibilityState).toMatchObject({ selected: true, disabled: false })
+      const text = screen.getByText(label)
+      expect(StyleSheet.flatten(text.props.style).fontFamily).toBe(fontFamily.semiBold)
+      for (const other of ['Tất cả', 'Thành viên', 'Kế hoạch', 'Lịch hẹn', 'Hệ thống/khác'].filter(value => value !== label)) {
+        expect(screen.getByRole('button', { name: other }).props.accessibilityState.selected).toBe(false)
+        expect(StyleSheet.flatten(screen.getByText(other).props.style).fontFamily).toBe(fontFamily.medium)
+      }
+      for (const row of fullCase.notifications) {
+        const icon = screen.queryByTestId(`notification-icon-${row.id}`)
+        expect(!!icon).toBe((kinds as readonly unknown[]).includes(row.kind))
+      }
+    }
+  })
+  it.each(fullCase.notifications)('renders $kind facts, semantic tile role, read state, time and supported actions', async row => {
+      const screen = await renderScreen(<NotificationCard item={row} index={0} busy={false} reading={false} onOpen={mockResolve} onLater={mockRead} />)
+      const tile = StyleSheet.flatten(screen.getByTestId(`notification-icon-${row.id}`).props.style)
+      expect(tile.backgroundColor).toBe(row.kind === 'invite' || row.kind === 'preference_reminder' ? currentTheme.redesign.violetSoft
+        : row.kind === 'plan_ready' ? currentTheme.redesign.greenSoft : currentTheme.redesign.high)
+      expect(!!screen.queryByTestId(`notification-unread-${row.id}`)).toBe(!row.readAt)
+      expect(screen.getByTestId(`notification-heading-${row.id}`)).toBeTruthy()
+      if (row.kind === 'invite') expect(screen.getByRole('button', { name: 'Xem phòng' })).toBeTruthy()
+      if (row.kind === 'plan_ready' || row.kind === 'plan_changed' || row.kind === 'date_reminder') expect(screen.getByRole('button', { name: 'Xem kế hoạch' })).toBeTruthy()
+      expect(screen.getByText(row.kind === 'campaign' ? row.payload!.title! : i18n.t(`notifications.kind.${row.kind}`))).toBeTruthy()
+      expect(screen.getByText(row.kind === 'campaign' ? row.payload!.body! : i18n.t(`notifications.body.${row.kind}`))).toBeTruthy()
+      expect(screen.getByText(/trước|Hôm qua|Vừa xong/)).toBeTruthy()
+      if (row.payload?.roomName) expect(screen.getByText(`Phòng "${row.payload.roomName}"`)).toBeTruthy()
+      if (row.kind === 'invite') expect(screen.getByText('Người tạo lời mời: An Nguyễn')).toBeTruthy()
+      if (row.kind === 'preference_reminder') expect(screen.getByText('3/5 thành viên đã chọn xong')).toBeTruthy()
+      if (row.kind === 'plan_ready') expect(screen.getByText('3 điểm dừng')).toBeTruthy()
+      if (row.kind === 'plan_changed') {
+        for (const fact of ['Thêm 1 điểm dừng', 'Bỏ 1 điểm dừng', 'Đổi thứ tự 2 điểm dừng']) expect(screen.getByText(fact)).toBeTruthy()
+      }
+      if (row.kind === 'privacy_export_ready') expect(screen.getByText(/Hết hạn:/)).toBeTruthy()
+  })
+  it('shows the exact filter empty copy and a loading footer while searching more pages', async () => {
+    mockInbox = { ...loadedInbox([item]), hasNextPage: true, isFetching: true, isFetchingNextPage: true }
+    const screen = await renderScreen(<NotificationsScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Lịch hẹn' }))
+    expect(screen.getByTestId('notifications-loading-more')).toBeTruthy()
+    expect(screen.queryByText('Không có thông báo loại này')).toBeNull()
+    mockInbox = loadedInbox([item])
+    await screen.rerender(<NotificationsScreen />)
+    expect(screen.getByText('Không có thông báo loại này')).toBeTruthy()
+    expect(screen.queryByTestId('notifications-loading-more')).toBeNull()
+  })
+  it.each(['user', 'guest'])('shows public rows above personal content for %s with independent read state', async status => {
+    mockSession = status
+    mockSystemInbox = { status: 'supported', data: { pages: [{ items: [{ id: 'system-1', kind: 'maintenance', title: 'Bảo trì GoGo', body: 'Bảo trì lúc 23:00.', deepLink: 'gogo://saved', publishedAt: '2026-11-09T01:00:00Z', expiresAt: null }] }] } }
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByText('Bảo trì GoGo')).toBeTruthy()
+    expect(screen.getByText('Bảo trì lúc 23:00.')).toBeTruthy()
+    expect(screen.queryByTestId('notification-unread-system-1')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Xem chi tiết' }))
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/saved')
+    expect(mockRead).not.toHaveBeenCalled()
+  })
+  it('shows public empty, loading, offline and error states independently of personal rows', async () => {
+    mockSystemInbox = { status: 'supported', data: { pages: [{ items: [] }] } }
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByText('Chưa có thông báo hệ thống')).toBeTruthy()
+    mockSystemInbox = { status: 'pending', isPending: true }
+    await screen.rerender(<NotificationsScreen />)
+    expect(screen.getByTestId('system-notifications-loading')).toBeTruthy()
+    mockSystemInbox = { status: 'pending', isPending: true, isPaused: true }
+    await screen.rerender(<NotificationsScreen />)
+    expect(screen.queryByTestId('system-notifications-loading')).toBeNull()
+    mockSystemInbox = { status: 'error', isError: true, error: new Error('network'), refetch: mockRefetch }
+    await screen.rerender(<NotificationsScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+
+describe.each(['orange', 'orangeDark'] as const)('%s inbox error regression', mode => {
+  beforeEach(() => { currentTheme = themes[mode] })
+  it.each([{ rows: [] }, { rows: [item] }])('shows one stale notice for cached list + summary failures ($rows.length rows)', async ({ rows }) => {
+    mockInbox = { ...loadedInbox(rows), isError: true, error: new Error('503') }
+    mockSummary = { ...mockSummary, isError: true, error: new Error('503') }
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getAllByText(viMessages['common.staleError'])).toHaveLength(1)
+    expect(screen.queryByText('32 mới')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(mockRefetch).toHaveBeenCalledTimes(2)
+    expect(screen.queryByTestId('notifications-error')).toBeNull()
+  })
+  it('renders shared ErrorState in the list card with no empty copy or duplicate error retry', async () => {
+    mockInbox = { isError: true, error: new Error('503'), refetch: mockRefetch }
+    mockSummary = { isError: true, error: new Error('503'), refetch: mockRefetch }
+    const screen = await renderScreen(<NotificationsScreen />)
+    const card = screen.getByTestId('notifications-error')
+    expect(StyleSheet.flatten(card.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+    expect(screen.getByText(viMessages['common.errorTitle'])).toBeTruthy()
+    expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
+    expect(screen.queryByText(viMessages['common.staleError'])).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(mockRefetch).toHaveBeenCalledTimes(2)
+  })
+  it.each(['zero', 'unknown', 'error', 'empty'] as const)('hides dead read-all for %s and hides zero/unknown/error badge', async state => {
+    if (state === 'zero') mockSummary = { ...mockSummary, data: { unreadCount: 0, readThroughCursor: 'cutoff' } }
+    if (state === 'unknown') mockSummary = { refetch: mockRefetch }
+    if (state === 'error') mockSummary = { ...mockSummary, isError: true, error: new Error('503') }
+    if (state === 'empty') mockInbox = loadedInbox([])
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    expect(screen.queryByText('0 mới')).toBeNull()
+    if (state !== 'empty') expect(screen.queryByText('32 mới')).toBeNull()
+    expect(mockReadAll).not.toHaveBeenCalled()
+  })
+  it('passes the selected chip to the server query', async () => {
+    const screen = await renderScreen(<NotificationsScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Kế hoạch' }))
+    expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: true, category: 'plan' })
+  })
 })

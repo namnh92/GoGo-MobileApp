@@ -26,7 +26,7 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
   const { icon, body } = kindPresentation(item.kind)
   const payload = item.payload
   const kindLabel = item.kind === 'campaign' && payload?.title
-    ? payload.title : t(`notifications.kind.${item.kind}`, { defaultValue: item.kind ?? '' })
+    ? payload.title : t(`notifications.kind.${item.kind}`, { defaultValue: t('notifications.kind.unknown') })
   const bodyText = item.kind === 'campaign' && payload?.body ? payload.body : body ? t(body) : null
   const roomId = index < 5 && !payload?.roomName && isUuid(payload?.roomId) ? payload.roomId : null
   const tone: TextColor = item.kind === 'invite' ? 'redesign.violetText' : item.kind === 'plan_ready'
@@ -38,15 +38,18 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
   const stopCount = payload?.stopCount
   const hasStopCount = item.kind === 'plan_ready' && typeof stopCount === 'number' && Number.isInteger(stopCount) && stopCount >= 0
   const OpenButton = index === 0 ? PrimaryBtn : SecondaryBtn
+  const canOpenRoom = isUuid(payload?.roomId) && (item.kind === 'invite' || item.kind === 'preference_reminder')
+  const canOpenPlan = ['plan_ready', 'plan_changed', 'date_reminder'].includes(item.kind ?? '') && (isUuid(payload?.roomId) || isUuid(payload?.planId))
+  const expiry = item.kind === 'privacy_export_ready' && typeof payload?.expiresAt === 'string' ? parseApiDate(payload.expiresAt) : null
   const age = created ? notificationAge(created) : null
   const relativeTime = age ? t(age.unit === 'day' && age.count === 1 ? 'g10.time.yesterday' : age.unit === 'now' ? 'g10.time.now' : age.unit === 'minute'
     ? 'g10.time.minute' : age.unit === 'hour' ? 'g10.time.hour' : 'g10.time.day', { count: age.count }) : null
 
   return <Card appearance="stitch" padded={false} style={[styles.row, unread && styles.rowUnread]}>
     <View testID={`notification-icon-${item.id}`} style={[styles.iconTile, item.kind === 'invite' || item.kind === 'preference_reminder' ? styles.infoTile : item.kind === 'plan_ready' ? styles.successTile : undefined]}>
-      {item.kind === 'preference_reminder' ? <MaterialIcon name="dining" size={24} color="redesign.violetText" />
+      {item.kind === 'preference_reminder' ? <MaterialIcon name="dining" size={24} color="redesign.violetInk" />
         : item.kind === 'plan_ready' ? <MaterialIcon name="sparkle" size={24} color={tone} /> : <Icon name={icon} size={24} color={tone} />}
-      <View style={[styles.typeBadge, item.kind === 'plan_ready' ? styles.successBadge : item.kind === 'invite' ? styles.infoBadge : item.kind === 'plan_changed' ? styles.neutralBadge : styles.accentBadge]}>
+      <View testID={`notification-type-badge-${item.id}`} style={[styles.typeBadge, item.kind === 'plan_ready' ? styles.successBadge : item.kind === 'invite' ? styles.infoBadge : item.kind === 'plan_changed' ? styles.neutralBadge : styles.accentBadge]}>
         {item.kind === 'plan_changed' ? <MaterialIcon name="calendar" size={12} color="accent.onAccent" />
           : <Icon name={item.kind === 'plan_ready' ? 'map' : icon} size={12} color="accent.onAccent" />}
       </View>
@@ -79,12 +82,15 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
           {(['addedStopCount', 'removedStopCount', 'movedStopCount', 'durationChangedStopCount', 'lockChangedStopCount', 'optionalChangedStopCount'] as const).map(key =>
             Number.isInteger(change[key]) && change[key]! > 0 ? <Text key={key} variant="introCaption" color="redesign.secondary">{t(`g10.change.${key}`, { count: change[key] })}</Text> : null)}
         </View> : null}
+        {expiry ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{t('g10.exportExpires', { date: expiry.toLocaleString(i18n.language) })}</Text> : null}
         {busy ? <ActivityIndicator /> : null}
       </Pressable>
       {item.kind === 'invite' ? <View style={styles.actions}>
-        <OpenButton size="small" variant="pill" trailingIcon="arrowRight" label={t('g10.viewRoom')} loading={busy} onPress={onOpen} />
+        {canOpenRoom ? <OpenButton size="small" variant="pill" trailingIcon="arrowRight" label={t('g10.viewRoom')} loading={busy} onPress={onOpen} /> : null}
         <SecondaryBtn size="small" variant="neutralPill" label={t('g10.later')} loading={reading} disabled={!item.id || !unread || reading}
           accessibilityHint={t('g10.laterHint')} onPress={onLater} />
+      </View> : canOpenRoom || canOpenPlan ? <View style={styles.actions}>
+        <SecondaryBtn size="small" variant="neutralPill" trailingIcon="arrowRight" label={t(canOpenRoom ? 'g10.viewRoom' : 'g10.viewPlan')} loading={busy} onPress={onOpen} />
       </View> : null}
     </View>
   </Card>

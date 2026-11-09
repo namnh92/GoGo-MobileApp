@@ -9,6 +9,17 @@ import type { MessageKey, LocaleContent } from '@/shared/i18n/types'
 type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
 
 export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
+  "g10.viewPlan": "View plan",
+  "g10.exportExpires": "Expires: {{date}}",
+  "g10.filter.system": "System/other",
+  "g10.filterEmpty": "No notifications in this category",
+  "g10.systemEmpty": "No system notifications yet",
+  "g10.viewDetails": "View details",
+  "g10.loadMore": "Load more",
+  "notifications.kind.privacy_export_ready": "Data export ready",
+  "notifications.body.privacy_export_ready": "Your personal data export is ready.",
+  "notifications.kind.unknown": "Other notification",
+  "notifications.body.unknown": "You have a new notification.",
   "placeWizard.exit.title": 'Save a draft before leaving?',
   "placeWizard.exit.body": 'You have unsaved changes. Would you like to save a draft before leaving?',
   "placeWizard.exit.discard": 'Don’t save',
@@ -68,7 +79,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "g10.filter.invite": "Members",
   "g10.filter.plan": "Plans",
   "g10.filter.date": "Appointments",
-  "g10.filterUnavailable": "Category filtering is not available yet. Showing all notifications.",
   "g10.emptyTitle": "A tidy inbox!",
   "g10.emptyBody": "You have no notifications yet. Room and plan updates will appear here.",
   "g10.reload": "Reload notifications",

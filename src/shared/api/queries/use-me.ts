@@ -10,6 +10,8 @@ import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState, type Revie
 import { captureSessionScope, getSessionGeneration } from '../session'
 import type { MyReviewReactions, OpBody, OpResponse, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
+import { isApiError } from '../errors'
+import { inboxKinds, type InboxCategory } from './use-notification-filter'
 import { useIntentKey } from './use-intent-key'
 
 /** Current actor facts: `actorType` distinguishes a signed-in user from a guest. */
@@ -385,12 +387,30 @@ export function useToggleReviewHelpful(placeId: string) {
 // --- notifications ---------------------------------------------------------
 
 /** Cursor-paginated inbox; pass opaque (createdAt,id) cursors back unchanged. */
-export function useNotifications(options?: { enabled?: boolean }) {
+export function useNotifications(options?: { enabled?: boolean; category?: InboxCategory }) {
+  const category = options?.category ?? 'all'
+  const kinds = inboxKinds[category]
   return useInfiniteQuery({
-    queryKey: queryKeys.notifications(),
-    queryFn: ({ pageParam }) => meApi.listNotifications(pageParam ? { cursor: pageParam } : undefined),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
+    queryKey: queryKeys.notifications(category),
+    queryFn: async ({ pageParam }) => {
+      const cursor = pageParam?.cursor
+      const clientFilter = pageParam?.clientFilter ?? false
+      const query = { ...(cursor ? { cursor } : {}), ...(!clientFilter && kinds ? { kinds } : {}) }
+      try {
+        const page = await meApi.listNotifications(Object.keys(query).length ? query : undefined)
+        return { ...page, clientFilter }
+      } catch (error) {
+        // Only the first request can negotiate an old BE. Never replay a
+        // filter-bound cursor against an unfiltered feed.
+        if (!cursor && kinds && !clientFilter && isApiError(error) && error.status === 400) {
+          return { ...await meApi.listNotifications(), clientFilter: true }
+        }
+        throw error
+      }
+    },
+    initialPageParam: undefined as { cursor: string; clientFilter: boolean } | undefined,
+    getNextPageParam: lastPage => lastPage.nextCursor
+      ? { cursor: lastPage.nextCursor, clientFilter: lastPage.clientFilter } : undefined,
     enabled: options?.enabled ?? true,
   })
 }
@@ -417,7 +437,7 @@ export function useNotificationSummary(options?: { enabled?: boolean }) {
 
 function refetchNotificationInbox(queryClient: QueryClient) {
   return Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.notifications(), exact: true }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.notificationSummary(), exact: true }),
   ])
 }
