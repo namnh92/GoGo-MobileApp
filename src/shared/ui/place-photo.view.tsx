@@ -9,6 +9,7 @@ import { Glyph } from '@/shared/ui/text'
 import { motion } from '@/shared/ui/tokens'
 
 import { styles } from './place-photo.style'
+import { PhotoSkeleton } from './skeleton.view'
 
 /**
  * A place image, or an honest stand-in.
@@ -34,6 +35,8 @@ type Props = {
   cachePolicy?: 'none'
   imageTestID?: string
   onPhotoError?: () => void
+  /** Opt in where loading should shimmer; legacy callers retain their pin tile. */
+  loadingSkeleton?: boolean
   uri?: string | null
   /** Kept for callers; the placeholder no longer varies per place. */
   placeId: string
@@ -51,7 +54,7 @@ export function PlacePhoto({ uri, style, icon, ...rest }: Props) {
   return <PhotoAttempt key={uri} uri={uri} style={style} icon={icon} {...rest} />
 }
 
-function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy, imageTestID, onPhotoError }: Props & { uri: string }) {
+function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy, imageTestID, onPhotoError, loadingSkeleton }: Props & { uri: string }) {
   const reduced = useReducedMotionPreference()
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading')
   const label = accessibilityLabel ?? name
@@ -62,7 +65,7 @@ function PhotoAttempt({ uri, name, icon, style, accessibilityLabel, cachePolicy,
   // the full native fade; neither layer contributes to the frame's geometry.
   return (
     <View testID="place-photo-frame" style={[styles.image, style]}>
-      <Pin icon={icon} testID={status === 'loaded' ? 'place-photo-underlay' : status === 'failed' ? 'place-photo-placeholder' : 'place-photo-loading'} style={styles.underlay} />
+      {status === 'loading' && loadingSkeleton ? <PhotoSkeleton /> : <Pin icon={icon} testID={status === 'loaded' ? 'place-photo-underlay' : status === 'failed' ? 'place-photo-placeholder' : 'place-photo-loading'} style={styles.underlay} />}
       {status !== 'failed' ? <Image
         testID={imageTestID ?? 'place-photo-image'}
         source={{ uri }}

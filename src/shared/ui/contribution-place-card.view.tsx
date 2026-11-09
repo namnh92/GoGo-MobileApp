@@ -29,10 +29,13 @@ export function ContributionPlaceCard(props: Props) {
   const Target = props.onPress ? Pressable : View
   return <View testID="contribution-place-card" style={[shared.surface, styles.card]}>
     <Target accessibilityRole={props.onPress ? 'button' : undefined} accessibilityLabel={props.onPress ? place.name : undefined} onPress={props.onPress}>
-      <View style={styles.photo}><CardImage data={data} /><View style={styles.badge}>
+      <View testID="contribution-place-photo" style={styles.photo}><CardImage data={data} loadingSkeleton /><View testID="contribution-photo-header" style={styles.photoHeader}>
+        <View testID="contribution-status" style={styles.badge}>
         <Badge appearance="solid" icon={status === 'pending' ? 'clock' : status === 'rejected' ? 'close' : 'checkCircle'}
           tone={status === 'pending' ? 'warning' : status === 'rejected' ? 'danger' : 'success'} label={t(`myContributions.status.${status}`)} />
-      </View></View>
+        </View>
+        {props.submittedDate ? <Text testID="contribution-submitted-date" variant="introCaption" color="onDark.strong" style={styles.date}>{t('myContributions.sentDate', { date: props.submittedDate })}</Text> : null}
+      </View><ContributionCredits data={data} sourceUrl={props.sourceUrl} overlay /></View>
       <View style={styles.body}>
         <Text testID="place-card-name" variant="savedCardTitle" numberOfLines={1}>{place.name}</Text>
         {place.addressText ? <View style={styles.address}><MaterialIcon name="location" size={14} color="text.secondary" />
@@ -42,14 +45,10 @@ export function ContributionPlaceCard(props: Props) {
       </View>
     </Target>
     <View style={styles.details}>
-      <ContributionCredits data={data} sourceUrl={props.sourceUrl} />
       {props.children}
       <ContributionReason reason={status === 'rejected' ? props.rejectionReason : undefined} />
-      <View style={styles.footer}>
-        {props.submittedDate ? <Text variant="avatarSubtitle" color="text.secondary">{t('myContributions.sentDate', { date: props.submittedDate })}</Text> : null}
-        {status === 'rejected' ? <Pressable accessibilityRole="link" disabled={!props.onSupplement} accessibilityState={{ disabled: !props.onSupplement }}
-          onPress={props.onSupplement} style={styles.supplement}><Text variant="savedMeta" color={props.onSupplement ? 'accent.primary' : 'text.secondary'}>{t('contributions.supplement')}</Text></Pressable> : null}
-      </View>
+      {status === 'rejected' ? <View style={styles.footer}><Pressable accessibilityRole="link" disabled={!props.onSupplement} accessibilityState={{ disabled: !props.onSupplement }}
+        onPress={props.onSupplement} style={styles.supplement}><Text variant="savedMeta" color={props.onSupplement ? 'accent.primary' : 'text.secondary'}>{t('contributions.supplement')}</Text></Pressable></View> : null}
       {status === 'rejected' && !props.onSupplement ? <Text variant="introCaption" color="text.secondary">{t('contributions.linkUnavailable')}</Text> : null}
     </View>
   </View>
