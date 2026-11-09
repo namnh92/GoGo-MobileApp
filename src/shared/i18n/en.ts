@@ -83,6 +83,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "g10.saveRetryHint": "You can try saving your last choice again.",
   "g10.newCount": "{{count}} new",
   "g10.readAll": "Read all",
+  "g10.readAllDisabledHint": "Available when the personal list has loaded and has unread notifications.",
   "g10.readAllUnavailable": "Unavailable: read all and total unread count are not supported yet.",
   "g10.filter.all": "All",
   "g10.filter.invite": "Members",

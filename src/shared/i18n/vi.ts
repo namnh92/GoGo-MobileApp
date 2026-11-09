@@ -62,6 +62,7 @@ export const viMessages = {
   "g10.saveRetryHint": "Bạn có thể thử lưu lại lựa chọn vừa rồi.",
   "g10.newCount": "{{count}} mới",
   "g10.readAll": "Đọc tất cả",
+  "g10.readAllDisabledHint": "Chỉ khả dụng khi danh sách cá nhân đã tải xong và có thông báo chưa đọc.",
   "g10.readAllUnavailable": "Chưa khả dụng: hệ thống chưa hỗ trợ đọc tất cả và tổng số chưa đọc.",
   "g10.filter.all": "Tất cả",
   "g10.filter.invite": "Thành viên",

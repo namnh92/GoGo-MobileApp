@@ -63,8 +63,9 @@ export default function NotificationsScreen() {
   const summary = useNotificationSummary({ enabled: canRead && capabilities.summary })
   const readAll = useReadAllNotifications()
   const readingAll = useRef(false)
+  const showUnread = !summary.isPending && !summary.isError && !summary.isPaused && !!summary.data && summary.data.unreadCount > 0
   const canReadAll = canRead && !publicOnly && capabilities.readAll && !!summary.data?.readThroughCursor && !summary.isError && !summary.isPaused
-    && summary.data.unreadCount > 0 && items.length > 0 && !inbox.isError && !inbox.isPending && !inbox.isPaused && !readAll.isPending
+    && !summary.isPending && summary.data.unreadCount > 0 && items.length > 0 && !inbox.isError && !inbox.isPending && !inbox.isPaused && !readAll.isPending
   async function markAll() {
     if (!canReadAll || readingAll.current) return
     const scope = captureSessionScope()
@@ -219,15 +220,18 @@ export default function NotificationsScreen() {
           {!canRead ? <SystemNotificationsSection inbox={systemInbox} illustration={emptyIllustration} /> : null}
           {canRead ? <View testID="notifications-personal-section">
           <StaleNotice hasData={!!inbox.data || !!summary.data} error={(inbox.data ? inbox.error : null) ?? (summary.data ? summary.error : null)} onRetry={retryInbox} />
-          <View style={styles.toolbar}>
+          <View testID="notifications-toolbar" style={styles.toolbar}>
             <View style={styles.toolbarTitle}>
-              <Text accessibilityRole="header" variant="introHeading" color="redesign.ink">{t('g10.allNotifications')}</Text>
-              {canRead && !summary.isError && !summary.isPaused && summary.data && summary.data.unreadCount > 0 ? <Badge appearance="solid" label={t('g10.newCount', { count: summary.data.unreadCount })} /> : null}
+              <Text accessibilityRole="header" variant="introHeading" color="redesign.ink" numberOfLines={1} style={styles.toolbarHeading}>{t('g10.allNotifications')}</Text>
+              <View testID="notifications-unread-badge" style={[styles.unreadBadge, !showUnread && styles.hiddenBadge]}
+                accessibilityElementsHidden={!showUnread} importantForAccessibility={showUnread ? 'auto' : 'no-hide-descendants'}>
+                <Badge appearance="solid" label={t('g10.newCount', { count: summary.data?.unreadCount ?? 0 })} />
+              </View>
             </View>
-            {canReadAll || (!publicOnly && readAll.isPending) ? <SecondaryBtn size="small" variant="neutralPill" leadingIcon="doneAll" label={t('g10.readAll')} disabled={!canReadAll}
-              loading={readAll.isPending} onPress={() => void markAll()} /> : null}
+            <SecondaryBtn size="small" variant="neutralPill" leadingIcon="doneAll" label={t('g10.readAll')} disabled={!canReadAll}
+              accessibilityHint={!canReadAll ? t('g10.readAllDisabledHint') : undefined} style={styles.readAll}
+              loading={readAll.isPending} onPress={() => void markAll()} />
           </View>
-          {canRead && summary.isPending && !summary.isPaused ? <Skeleton width={80} height={14} /> : null}
           {canRead && summary.isPaused && !summary.data ? <OfflineState /> : null}
           {canRead && summary.isError && !summary.data && !inbox.isError ? <ErrorState error={summary.error} onRetry={retryInbox} /> : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>

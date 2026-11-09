@@ -1,7 +1,7 @@
 import { act, fireEvent, within } from '@testing-library/react-native'
 import { AppState, Linking, StyleSheet, type AppStateStatus } from 'react-native'
 import { themes, type AppTheme } from '@/shared/ui/theme'
-import { spacing, fontFamily } from '@/shared/ui/tokens'
+import { buttonSizes, spacing, fontFamily } from '@/shared/ui/tokens'
 import { renderScreen } from './harness'
 import i18n from '@/shared/i18n'
 import { viMessages } from '@/shared/i18n/vi'
@@ -435,7 +435,7 @@ it('locks read-all during polling, and never substitutes a missing/error summary
   mockReadAllPending = false
   mockSummary = { isError: true, error: new Error('network'), refetch: mockRefetch }
   const failed = await renderScreen(<NotificationsScreen />)
-  expect(failed.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+  expect(failed.getByRole('button', { name: 'Đọc tất cả' })).toBeDisabled()
   expect(failed.queryByText(/\d+ mới/)).toBeNull()
 })
 
@@ -711,7 +711,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s unified inbox', mode => {
     await screen.rerender(<NotificationsScreen />)
     expect(rows(screen)).toEqual(['system-notification-new', 'system-notification-middle', 'system-notification-old'])
     expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeDisabled()
   })
   it('waits for the initial personal boundary before merging, while the system chip works independently', async () => {
     mockInbox = { isPending: true }
@@ -756,7 +756,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s unified inbox', mode => {
     expect(rows(screen)).toEqual(['system-notification-new', 'system-notification-middle', 'system-notification-old'])
     expect(screen.queryAllByTestId(/^notification-heading-/)).toHaveLength(0)
     expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: true, category: 'all' })
-    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeDisabled()
   })
   it('never marks public rows unread or sends them to read actions', async () => {
     const screen = await renderScreen(<NotificationsScreen />)
@@ -800,13 +800,59 @@ describe.each(['orange', 'orangeDark'] as const)('%s unified inbox', mode => {
 
 describe.each(['orange', 'orangeDark'] as const)('%s inbox error regression', mode => {
   beforeEach(() => { currentTheme = themes[mode] })
+  it('keeps toolbar geometry across loading, unread, zero, error, busy and every chip', async () => {
+    mockInbox = { isPending: true }
+    mockSummary = { isPending: true }
+    const screen = await renderScreen(<NotificationsScreen />)
+    const toolbarStyle = () => StyleSheet.flatten(screen.getByTestId('notifications-toolbar').props.style)
+    const initial = toolbarStyle()
+    expect(initial).toMatchObject({ height: buttonSizes.small.minHeight, flexDirection: 'row', alignItems: 'center' })
+    expect(initial.flexWrap).toBeUndefined()
+    const check = (disabled: boolean) => {
+      expect(toolbarStyle()).toEqual(initial)
+      const button = screen.getByRole('button', { name: 'Đọc tất cả' })
+      expect(StyleSheet.flatten(button.props.style)).toMatchObject({ height: initial.height, minHeight: initial.height, flexShrink: 0 })
+      expect(button.props.accessibilityState.disabled).toBe(disabled)
+      expect(button.props.accessibilityHint).toBe(disabled ? viMessages['g10.readAllDisabledHint'] : undefined)
+      expect(screen.getByRole('header', { name: 'Tất cả thông báo' }).props.numberOfLines).toBe(1)
+    }
+    check(true)
+    expect(screen.queryByText('0 mới')).toBeNull()
+    mockInbox = loadedInbox()
+    mockSummary = { data: { unreadCount: 32, readThroughCursor: 'cutoff' } }
+    await screen.rerender(<NotificationsScreen />)
+    check(false)
+    expect(screen.getByText('32 mới')).toBeTruthy()
+    for (const label of ['Thành viên', 'Kế hoạch', 'Lịch hẹn', 'Khác', 'Hệ thống', 'Tất cả']) {
+      await fireEvent.press(screen.getByRole('button', { name: label }))
+      // This fixture has only an invite; the other personal filters are empty.
+      check(label !== 'Thành viên' && label !== 'Tất cả')
+    }
+    mockReadAllPending = true
+    await screen.rerender(<NotificationsScreen />)
+    check(true)
+    mockReadAllPending = false
+    mockSummary = { data: { unreadCount: 0, readThroughCursor: 'cutoff' } }
+    await screen.rerender(<NotificationsScreen />)
+    check(true)
+    const badge = screen.getByTestId('notifications-unread-badge', { includeHiddenElements: true })
+    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ opacity: 0, flexShrink: 0 })
+    expect(badge.props.accessibilityElementsHidden).toBe(true)
+    expect(badge.props.importantForAccessibility).toBe('no-hide-descendants')
+    await fireEvent.press(screen.getByRole('button', { name: 'Đọc tất cả' }))
+    expect(mockReadAll).not.toHaveBeenCalled()
+    mockSummary = { isError: true, error: new Error('503'), refetch: mockRefetch }
+    mockInbox = { isError: true, error: new Error('503'), refetch: mockRefetch }
+    await screen.rerender(<NotificationsScreen />)
+    check(true)
+  })
   it.each([{ rows: [] }, { rows: [item] }])('shows one stale notice for cached list + summary failures ($rows.length rows)', async ({ rows }) => {
     mockInbox = { ...loadedInbox(rows), isError: true, error: new Error('503') }
     mockSummary = { ...mockSummary, isError: true, error: new Error('503') }
     const screen = await renderScreen(<NotificationsScreen />)
     expect(screen.getAllByText(viMessages['common.staleError'])).toHaveLength(1)
     expect(screen.queryByText('32 mới')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeDisabled()
     await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
     expect(mockRefetch).toHaveBeenCalledTimes(2)
     expect(screen.queryByTestId('notifications-error')).toBeNull()
@@ -820,17 +866,17 @@ describe.each(['orange', 'orangeDark'] as const)('%s inbox error regression', mo
     expect(screen.getByText(viMessages['common.errorTitle'])).toBeTruthy()
     expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
     expect(screen.queryByText(viMessages['common.staleError'])).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeDisabled()
     await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
     expect(mockRefetch).toHaveBeenCalledTimes(2)
   })
-  it.each(['zero', 'unknown', 'error', 'empty'] as const)('hides dead read-all for %s and hides zero/unknown/error badge', async state => {
+  it.each(['zero', 'unknown', 'error', 'empty'] as const)('disables read-all for %s and hides zero/unknown/error badge', async state => {
     if (state === 'zero') mockSummary = { ...mockSummary, data: { unreadCount: 0, readThroughCursor: 'cutoff' } }
     if (state === 'unknown') mockSummary = { refetch: mockRefetch }
     if (state === 'error') mockSummary = { ...mockSummary, isError: true, error: new Error('503') }
     if (state === 'empty') mockInbox = loadedInbox([])
     const screen = await renderScreen(<NotificationsScreen />)
-    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeDisabled()
     expect(screen.queryByText('0 mới')).toBeNull()
     if (state !== 'empty') expect(screen.queryByText('32 mới')).toBeNull()
     expect(mockReadAll).not.toHaveBeenCalled()

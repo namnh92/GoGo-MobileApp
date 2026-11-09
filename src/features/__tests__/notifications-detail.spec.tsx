@@ -133,7 +133,7 @@ describe('an unknown kind', () => {
     expect(view.queryByTestId('app-header-bell')).toBeNull()
     expect(view.queryByTestId('app-header-unread-dot')).toBeNull()
     expect(view.getByLabelText(viMessages['notifications.kind.plan_ready'], { exact: false })).toBeTruthy()
-    expect(view.queryByRole('button', { name: viMessages['g10.readAll'] })).toBeNull()
+    expect(view.getByRole('button', { name: viMessages['g10.readAll'] })).toBeDisabled()
   })
 })
 

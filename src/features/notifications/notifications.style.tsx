@@ -1,10 +1,14 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { spacing } from '@/shared/ui/tokens'
+import { buttonSizes, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   list: { paddingHorizontal: spacing[4], paddingTop: spacing[3] },
-  toolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: spacing[1], paddingBottom: spacing[2] },
-  toolbarTitle: { flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  toolbar: { height: buttonSizes.small.minHeight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[1], marginBottom: spacing[2] },
+  toolbarTitle: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  toolbarHeading: { flexShrink: 1 },
+  unreadBadge: { flexShrink: 0 },
+  hiddenBadge: { opacity: 0 },
+  readAll: { height: buttonSizes.small.minHeight, flexShrink: 0 },
   filters: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
   systemRetry: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
   loadingFooter: { marginVertical: spacing[4] },
