@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-import { getNotificationReadOperation, getNotificationSummary, listNotifications, readAllNotifications } from '../endpoints/me'
+import { getNotificationReadOperation, getNotificationSummary, getNotificationSettings, patchNotificationSettings, listNotifications, readAllNotifications } from '../endpoints/me'
 import { clearSession, getSessionGeneration, persistSession } from '../session'
 
 beforeEach(async () => {
@@ -43,4 +43,22 @@ it('serializes kinds as repeated parameters alongside an opaque cursor', async (
   const url = new URL(String(fetch.mock.calls[0]![0]))
   expect(url.searchParams.getAll('kinds')).toEqual(['plan_ready', 'plan_changed'])
   expect(url.searchParams.get('cursor')).toBe('bound+cursor/==')
+})
+
+
+it('uses the BFF strong ETag verbatim for the authenticated category PATCH and retains the new validator', async () => {
+  const categories = { invite: false, preference_reminder: true, plan_ready: true, plan_changed: true, date_reminder: false }
+  const settings = { pushEnabled: false, source: 'explicit', updatedAt: null, version: '9007199254740993', categories }
+  const fetch = vi.spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response(JSON.stringify(settings), { headers: { 'content-type': 'application/json', ETag: '"opaque-get-validator"' } }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ...settings, version: '9007199254740994', categories: { ...categories, invite: true } }), { headers: { 'content-type': 'application/json', ETag: '"opaque-patch-validator"' } }))
+  const before = await getNotificationSettings()
+  expect(before.etag).toBe('"opaque-get-validator"')
+  const after = await patchNotificationSettings({ categories: { invite: true } }, before.etag!, 'category-intent-123', getSessionGeneration())
+  expect(after).toMatchObject({ pushEnabled: false, version: '9007199254740994', etag: '"opaque-patch-validator"', categories: { ...categories, invite: true } })
+  const [url, request] = fetch.mock.calls[1]!
+  expect(url).toBe('http://localhost:3000/v1/me/notification-settings')
+  expect(request?.method).toBe('PATCH')
+  expect(request?.headers).toMatchObject({ authorization: 'Bearer token-A', 'if-match': before.etag, 'idempotency-key': 'category-intent-123' })
+  expect(request?.body).toBe(JSON.stringify({ categories: { invite: true } }))
 })

@@ -16,16 +16,20 @@ type InboxQuery = NonNullable<paths['/me/notifications']['get']['parameters']['q
 export const generatedNotificationCapabilities = {
   summary: true as const satisfies HasMethod<'/me/notifications/summary', 'get'>,
   readAll: true as const satisfies HasMethod<'/me/notifications/read-all', 'post'>,
-  categoryPatch: false as const satisfies HasMethod<'/me/notification-settings', 'patch'>,
-  categoryFields: false as const satisfies ('categories' extends keyof Settings ? true : false),
-  categoryFilter: false as const satisfies ('category' extends keyof InboxQuery ? true : false),
+  categoryPatch: true as const satisfies HasMethod<'/me/notification-settings', 'patch'>,
+  categoryFields: true as const satisfies ('categories' extends keyof Settings ? true : false),
+  categoryFilter: true as const satisfies ('kinds' extends keyof InboxQuery ? true : false),
   quietHours: false as const satisfies ('quietHours' extends keyof Settings ? true : false),
 }
 
-export function notificationCapabilities(settings?: Settings) {
+export function notificationCapabilities(settings?: Settings & { etag?: string }) {
+  const categories = notificationCategories.every(key => typeof settings?.categories?.[key] === 'boolean')
+    && typeof settings?.version === 'string' && /^(0|[1-9][0-9]*)$/.test(settings.version)
+    && typeof settings?.etag === 'string' && /^"[^"\r\n]+"$/.test(settings.etag)
   return {
     ...generatedNotificationCapabilities,
+    categories,
     // Missing settings never has a meaningful off/on value.
-    master: typeof settings?.pushEnabled === 'boolean' && !('categories' in settings),
+    master: typeof settings?.pushEnabled === 'boolean' && (!('categories' in settings) || categories),
   }
 }

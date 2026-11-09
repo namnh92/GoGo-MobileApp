@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import type { Notification, NotificationKind } from '../types'
+import type { Notification, OpQuery } from '../types'
 import type { useNotifications } from './use-me'
 
 export type InboxCategory = 'all' | 'invite' | 'plan' | 'date' | 'system'
@@ -12,7 +12,7 @@ export function notificationCategory(kind: string | undefined): Exclude<InboxCat
   }
 }
 
-export const inboxKinds: Record<InboxCategory, readonly NotificationKind[] | undefined> = {
+export const inboxKinds: Record<InboxCategory, readonly NonNullable<OpQuery<'listNotifications'>['kinds']>[number][] | undefined> = {
   all: undefined,
   invite: ['invite'],
   plan: ['plan_ready', 'plan_changed', 'preference_reminder'],

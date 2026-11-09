@@ -26,7 +26,7 @@ export function NotificationRow({ id, testID, headingTestID, title, titleColor =
   return <Card testID={testID} appearance="stitch" padded={false} style={[styles.row, unread && styles.rowUnread]}>
     <View testID={`notification-icon-${id}`} style={[styles.iconTile, iconStyle]}>{icon}</View>
     <View style={styles.content}>
-      {openTarget ? <Pressable {...openTarget} style={styles.openTarget}>{content}</Pressable> : content}
+      {openTarget ? <Pressable {...openTarget} accessibilityRole={openTarget.accessibilityRole ?? 'button'} style={styles.openTarget}>{content}</Pressable> : content}
       {actions}
     </View>
   </Card>

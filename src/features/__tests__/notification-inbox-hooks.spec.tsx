@@ -57,9 +57,9 @@ beforeEach(async () => {
 })
 afterEach(async () => { client.clear(); await clearSession(); jest.useRealTimers() })
 
-it('opens exactly summary/read-all and keeps the shared count under the purged account prefix, off disk', () => {
-  expect(generatedNotificationCapabilities).toEqual({ summary: true, readAll: true, categoryPatch: false,
-    categoryFields: false, categoryFilter: false, quietHours: false })
+it('opens summary/read-all, category PATCH and kinds filtering; keeps the count account-scoped and off disk', () => {
+  expect(generatedNotificationCapabilities).toEqual({ summary: true, readAll: true, categoryPatch: true,
+    categoryFields: true, categoryFilter: true, quietHours: false })
   expect(queryKeys.notificationSummary()[0]).toBe('me')
   expect(shouldPersistQuery(queryKeys.notificationSummary())).toBe(false)
 })

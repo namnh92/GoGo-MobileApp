@@ -1,8 +1,20 @@
 # GoGo-MobileApp #539 — Group 10 notifications
 
-Current basis: `feature/GOGO-539-redesign-g10-notifications`, `d3012e3`, worktree `mobile-g10`, PR #573. Continuation date: 2026-11-09. UI + API wiring against BE `origin/re-design` at `a9c84a728964676cc36a9776cb0bb268c4ad9c50` (BE#812). Owner confirms DEV deployment and inbox backfill; this continuation does not independently claim DEV acceptance. No commit or push.
+Current basis: `feature/GOGO-539-redesign-g10-notifications`, HEAD `1070912`, worktree `mobile-g10`, PR #573. Continuation **573p**, 2026-11-09: UI + generated client/wiring for GoGo-BE#817/#818 at `origin/re-design` `f81383a8bbbc0f4146c8b43370efae5b1940d044`. No commit/push; DEV deployment and authenticated device acceptance are not independently verified here.
 
-The vendored client contract pin is `openapi/gogo.v1.yaml` → **7.7.0-alpha.1** (repo convention: ADR-0001). Copied verbatim with `git -C /Users/maxnguyen/MyWorks/GoGo/GoGo-BE show origin/re-design:openapi/gogo.v1.yaml > openapi/gogo.v1.yaml`; generated with **`pnpm api:types`** (`openapi-typescript openapi/gogo.v1.yaml -o src/shared/api/schema.d.ts`). Existing CI `pnpm api:check` regenerates and compares this same vendored contract; no hand edits to generated types.
+The vendored contract declaration is `openapi/gogo.v1.yaml` → **8.1.0-alpha.1** (ADR-0001). Copied verbatim using `git -C /Users/maxnguyen/MyWorks/GoGo/GoGo-BE show origin/re-design:openapi/gogo.v1.yaml > openapi/gogo.v1.yaml`, then generated with **`pnpm api:types`**. `pnpm api:check` checks that declaration against the generated client. This checkout has no separate runtime API SemVer pin; it checks generated types at build time and gates category controls on the returned resource capabilities. No schema.d.ts hand edits.
+
+## Continuation 573p — event-time facts and category settings
+
+This section supersedes the historical missing-facts/category-switch rows in the deviation table below. Re-read Stitch `Thông báo - GoGo` (`1871420597720396095`) HTML and full screenshot through Stitch MCP. Light/Dark use the same layout and shared role tokens; native screenshot parity remains **0/2** and is not claimed by render tests.
+
+- Invite rows with `inviterAvatar` resolve the exact GoGo processed `mediaKey` against current authorized room-member avatar URLs. The shared 48px avatar falls back to initials on unavailable/failed media. No CDN host or actor identity is invented. A legacy row without the new fact retains its kind icon and existing copy; host-facing event semantics remain unchanged.
+- Plan-ready and plan-changed rows show event-time stop names in position order and confirmed start time, with a 40px thumbnail when the exact `mediaId` is still returned in the place's GoGo gallery (`manual`/`community` only). Names/addresses come exclusively from `NotificationSourcedText` facts, never current place display/provider fields. Unavailable, mismatched, Google and failed imagery is omitted. Navigation still resolves the current authorized plan.
+- Date rows show confirmed start time, the first stop's GoGo name/address when supplied, and a localized client countdown from `startsAt`. It refreshes each minute and on foreground. Positive sub-hour times use minutes; past times say the start has arrived. `room_started` always describes the start event and never claims an advance reminder. Missing or invalid schedule/provenance facts do not gain invented values. The 120-minute scheduler and quiet hours remain PR4.
+- All five category controls read the real resource and PATCH only the changed category. “Bật tất cả” sends all five true in one request and leaves master unchanged. New-resource master changes use PATCH too, preserving remembered categories; legacy PUT remains only for a resource with no categories. Device permission remains independent.
+- The typed transport retains the server's opaque strong ETag, sends `If-Match` plus `Idempotency-Key`, and keeps decimal-string versions intact. Optimistic settings roll back on failure; a definitive 412 refetches before a new conditional intent. Ambiguous retries preserve their original key/validator. Saving/refetching/offline locks the controls, saving is shared across the master/category observers, and late responses cannot repopulate another account's settings.
+
+Verification results and the final source snapshot for this continuation are recorded at the end of this document. Earlier `/tmp/g10*` and `/tmp/573y-*` results apply only to their historical bases.
 
 Initial UI-only basis was `f28f617`; the original visual evidence below remains historical.
 
@@ -241,3 +253,48 @@ Final requested gates (all exit 0):
 | `git diff --check` | Pass | `/tmp/573y-diff-check.log` |
 
 The nine changed source/test files are recorded in `/tmp/573y-source.sha256` and verified unchanged after the final checks. The worktree retains the patch for review; no commit or push was performed. This continuation does not claim a simulator rerun or authenticated DEV acceptance.
+
+
+## 573p verification and files:lines — 2026-11-09
+
+Final source/test/contract snapshot: **`rs-1c01b95dc8eb`**, scope `src` + `openapi`, manifest `/tmp/573p-snapshots/573p-rs-1c01b95dc8eb/MANIFEST.txt`. Documentation is outside that source snapshot. The contract is byte-identical to BE `origin/re-design`; provenance/SHA-256 are in `/tmp/573p-contract-provenance.log`. Worktree HEAD remains `1070912`; no commit/push.
+
+Regression proof: `/tmp/573p-regression-before.log` temporarily substitutes the four original HEAD UI components while retaining the new contract and scenarios, and restores the edited components byte-for-byte in `finally`. Runner: **16 failed / 4 passed / 152 skipped**; the failures show the missing avatar/preview/countdown and locked category controls. This is a focused baseline run, not full-suite evidence. Subsequent focused proof: **182/182** UI/hook tests passed in `/tmp/573p-focused-ui.log`; **73/73** contract-capability/i18n assertions passed in `/tmp/573p-contract-ui.log`; **10/10** focused API/accessibility checks passed in `/tmp/573p-focused-unit.log`. The final full-suite run below supersedes focused results for the final snapshot.
+
+| Check | Result | Log |
+| --- | --- | --- |
+| `pnpm typecheck` | PASS, exit 0 | `/tmp/573p-typecheck.log` |
+| `pnpm lint` | PASS, exit 0 | `/tmp/573p-lint.log` |
+| `pnpm api:check` | PASS, exit 0 | `/tmp/573p-api-check.log` |
+| `pnpm test:ui --runInBand` (no filter) | PASS, exit 0: 220 suites, 3220 tests, 9 snapshots | `/tmp/573p-test-ui.log` |
+| Extra `pnpm test` | Environment-blocked: runner reports 1691 passed, 3 failed, 39 skipped; 142 files passed, 1 failed, 1 skipped | `/tmp/573p-test.log` |
+
+Final `git diff --check` passes (`/tmp/573p-diff-check.log`); the post-gate manifest verification returns **MATCH rs-1c01b95dc8eb** (`/tmp/573p-snapshot-verify.log`).
+
+The three extra Vitest failures are in unchanged `src/shared/config/__tests__/distribute-wrapper.test.ts`: live-owner/process-group lock checks require process inspection. A direct probe returns `PermissionError(1, 'Operation not permitted')` for `ps` (`/tmp/573p-environment.log`). No distribution scripts, test expectations for those lock checks, or permissions were changed. API and accessibility tests pass; this does not relabel the full Vitest run green.
+
+Historical/intermediate logs (`*-initial.log`, `*-pre-contract.log`, `typecheck-initial.log`) are diagnostic only. The initial i18n computed-key registration and old capability expectations were corrected without weakening either guard. Final gate results refer only to the final snapshot. No simulator/theme screenshot or authenticated DEV acceptance run was performed.
+
+| File:line | Change |
+| --- | --- |
+| `openapi/gogo.v1.yaml:5` | Contract declaration 8.1.0-alpha.1, verbatim upstream |
+| `src/shared/api/schema.d.ts:8313` | Regenerated settings and event-time payload types; operation definitions regenerated too |
+| `src/shared/api/client.ts:40` | If-Match and response-header metadata |
+| `src/shared/api/endpoints/me.ts:64` | Generated kinds query typing |
+| `src/shared/api/endpoints/me.ts:97` | Typed settings GET/PATCH with opaque ETag |
+| `src/shared/api/queries/use-me.ts:493` | Category/master conditional intents, optimistic rollback, retry and account isolation |
+| `src/shared/api/queries/use-notification-filter.ts:16` | Chip kinds derived from generated query types |
+| `src/features/notifications/notification-capabilities.ts:17` | Supported operations plus validated runtime category/version/ETag capability |
+| `src/features/notifications/notification-card.view.tsx:41` | Event-time count, avatar, facts and screen-reader description |
+| `src/features/notifications/notification-facts.view.tsx:17` | Authorized avatar/media resolution, preview and live appointment facts |
+| `src/features/notifications/notification-facts.ts:7` | GoGo text/media guards and countdown calculation |
+| `src/features/notifications/notification-facts.style.tsx:4` | Shared theme-role preview/venue layout |
+| `src/features/notifications/notification-row.view.tsx:29` | Explicit control role while retaining supplied accessibility label |
+| `src/features/notifications/notification-settings.view.tsx:20` | Five real category switches, atomic enable-all, count and master suspension |
+| `src/features/notifications/notification-switch.view.tsx:72` | Shared master save/refetch/offline guard |
+| `src/shared/i18n/vi.ts:3` / `src/shared/i18n/en.ts:12` | Localized facts/count and truthful room-start category hint |
+| `src/features/__tests__/notifications-g10.spec.tsx:860` | Light/Dark facts, legacy, media failure/provenance, schedule and switch regressions |
+| `src/features/__tests__/notification-settings-hook.spec.tsx:95` | Real hooks: PATCH intent, master preservation, rollback/replay/conflict/account races |
+| `src/shared/api/__tests__/notification-inbox.test.ts:49` | Real transport: conditional authenticated PATCH, opaque validators and decimal versions |
+| `src/features/__tests__/notification-inbox-hooks.spec.tsx:60` | Contract capability expectations updated for #817 |
+| `src/features/__tests__/i18n-keys.spec.tsx:110` | Register typed countdown key union with the existing i18n guard |

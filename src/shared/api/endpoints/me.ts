@@ -62,7 +62,7 @@ export function listMyReviewReactions(placeId: string): Promise<OpResponse<'list
 }
 
 export function listNotifications(
-  query?: OpQuery<'listNotifications'> & { kinds?: readonly import('../types').NotificationKind[] },
+  query?: Omit<OpQuery<'listNotifications'>, 'kinds'> & { kinds?: readonly NonNullable<OpQuery<'listNotifications'>['kinds']>[number][] },
 ): Promise<OpResponse<'listNotifications'>> {
   return api.get<OpResponse<'listNotifications'>>('/me/notifications', { query: query ? { ...query, kinds: query.kinds ? [...query.kinds] : undefined } : undefined })
 }
@@ -94,8 +94,28 @@ export function getNotificationReadOperation(operationId: string, sessionGenerat
  * An app preference only: not this device's OS permission, not a registered
  * subscription, never evidence of delivery.
  */
-export function getNotificationSettings(): Promise<OpResponse<'getNotificationSettings'>> {
-  return api.get<OpResponse<'getNotificationSettings'>>('/me/notification-settings')
+export type NotificationSettingsResource = OpResponse<'getNotificationSettings'> & { etag?: string }
+
+export async function getNotificationSettings(): Promise<NotificationSettingsResource> {
+  let etag: string | undefined
+  const settings = await api.get<OpResponse<'getNotificationSettings'>>('/me/notification-settings', {
+    onResponseHeaders: headers => { etag = headers.get('etag') ?? undefined },
+  })
+  return { ...settings, etag }
+}
+
+export async function patchNotificationSettings(
+  body: OpBody<'patchNotificationSettings'>,
+  ifMatch: string,
+  idempotencyKey: string,
+  sessionGeneration: number,
+): Promise<NotificationSettingsResource> {
+  let etag: string | undefined
+  const settings = await api.patch<OpResponse<'patchNotificationSettings'>>('/me/notification-settings', body, {
+    ifMatch, idempotencyKey, sessionGeneration,
+    onResponseHeaders: headers => { etag = headers.get('etag') ?? undefined },
+  })
+  return { ...settings, etag }
 }
 
 export function setNotificationSettings(

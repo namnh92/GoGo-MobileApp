@@ -1,5 +1,5 @@
 import { act, fireEvent, within } from '@testing-library/react-native'
-import { Linking, StyleSheet } from 'react-native'
+import { AppState, Linking, StyleSheet, type AppStateStatus } from 'react-native'
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { spacing, fontFamily } from '@/shared/ui/tokens'
 import { renderScreen } from './harness'
@@ -23,6 +23,8 @@ let mockSaveError = false
 const mockResolve = jest.fn()
 const mockInboxQuery = jest.fn()
 const mockSummaryQuery = jest.fn()
+const mockMembersRead = jest.fn()
+const mockPlaceRead = jest.fn()
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (effect: () => void) => { jest.requireActual('react').useEffect(effect, [effect]) },
@@ -39,6 +41,8 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useSystemNotificationsQuery: () => mockSystemInbox,
   useRoom: () => ({ data: undefined }),
+  useRoomMembers: (id: unknown) => mockMembersRead(id),
+  usePlaceDetail: (id: unknown) => mockPlaceRead(id),
   useNotifications: (options: unknown) => { mockInboxQuery(options); return mockInbox },
   useNotificationSummary: (options: unknown) => { mockSummaryQuery(options); return mockSummary },
   useReadAllNotifications: () => ({ mutateAsync: mockReadAll, isPending: mockReadAllPending }),
@@ -84,6 +88,8 @@ beforeEach(() => {
   mockSession = 'user'
   mockSavePending = false
   mockSaveError = false
+  mockMembersRead.mockReturnValue({ data: [] })
+  mockPlaceRead.mockReturnValue({ data: undefined })
 })
 
 it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip size and aligned in %s', async mode => {
@@ -833,5 +839,179 @@ describe.each(['orange', 'orangeDark'] as const)('%s inbox error regression', mo
     const screen = await renderScreen(<NotificationsScreen />)
     await fireEvent.press(screen.getByRole('button', { name: 'Kế hoạch' }))
     expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: true, category: 'plan' })
+  })
+})
+
+
+const categoryChoices = { invite: true, preference_reminder: false, plan_ready: true, plan_changed: false, date_reminder: true }
+const categorySettings = (pushEnabled = false) => ({ ...settingsData, pushEnabled, version: '9007199254740993', etag: '"settings-opaque-v12"', categories: categoryChoices })
+const sourced = (value: string) => ({ value, sourceType: 'gogo', originType: 'editorial', verifiedAt: '2026-11-09T00:00:00Z' })
+const mediaKey = `avatars/${'a'.repeat(32)}.webp`
+const placeId = '22222222-2222-4222-8222-222222222222'
+const mediaId = '33333333-3333-4333-8333-333333333333'
+const startsAt = '2026-11-09T12:00:00Z'
+const eventPreview = {
+  planId: '44444444-4444-4444-8444-444444444444', planVersion: 2, constraintVersion: 3,
+  capturedAt: '2026-11-09T09:00:00Z', stopCount: 2, startAt: startsAt, startAtSource: 'room_constraints',
+  stops: [{ position: 0, placeId, mediaId, name: sourced('Quán GoGo'), addressText: sourced('27 Đường GoGo') },
+    { position: 1, placeId, name: sourced('Bếp GoGo') }],
+}
+
+describe.each(['orange', 'orangeDark'] as const)('event-time facts and category preferences in %s', mode => {
+  beforeEach(() => { currentTheme = themes[mode] })
+
+  it('renders event-time inviter, exact GoGo thumbnail, ordered stops, start time and client countdown', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-09T10:00:00Z'))
+    mockMembersRead.mockReturnValue({ data: [{ avatarUrl: `https://media.gogo.id.vn/${mediaKey}` }] })
+    mockPlaceRead.mockReturnValue({ data: { photos: [
+      { id: 'unrelated', source: 'manual', url: 'https://media.gogo.id.vn/wrong.webp' },
+      { id: mediaId, source: 'community', url: '/v1/media/gogo.webp' },
+    ] } })
+    mockInbox = loadedInbox([
+      { ...item, payload: { ...item.payload, inviterName: 'Nguyễn Lan', inviterAvatar: { sourceType: 'gogo', mediaKey } } },
+      { id: 'ready', kind: 'plan_ready', payload: { planPreview: eventPreview } },
+      { id: 'changed', kind: 'plan_changed', payload: { planPreview: { ...eventPreview, stops: [] } } },
+      { id: 'date', kind: 'date_reminder', payload: { reminder: { trigger: 'scheduled', startsAt }, planPreview: eventPreview } },
+    ])
+    try {
+      const screen = await renderScreen(<NotificationsScreen />)
+      expect(screen.getByText('1. Quán GoGo • 2. Bếp GoGo')).toBeTruthy()
+      expect(screen.getByText('Còn 2 giờ nữa là đến giờ hẹn')).toBeTruthy()
+      expect(screen.getByText('Quán GoGo')).toBeTruthy()
+      expect(screen.getByText('27 Đường GoGo')).toBeTruthy()
+      expect(screen.getAllByRole('button').some(control => control.props.accessibilityLabel?.includes('Quán GoGo'))).toBe(true)
+      const time = new Date(startsAt).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })
+      expect(screen.getAllByText(`Bắt đầu lúc ${time}`)).toHaveLength(3)
+      expect(screen.getByTestId('notification-plan-thumbnail').props.source[0].uri).toMatch(/\/v1\/media\/gogo.webp$/)
+      const avatar = screen.getByTestId('avatar-image')
+      expect(avatar.props.source[0].uri).toBe(`https://media.gogo.id.vn/${mediaKey}`)
+      await fireEvent(avatar, 'load', { nativeEvent: {} })
+      await fireEvent(avatar, 'error', { nativeEvent: {} })
+      expect(screen.getByText('NL')).toBeTruthy()
+      expect(mockMembersRead).toHaveBeenCalledWith(item.payload.roomId)
+      expect(mockPlaceRead).toHaveBeenCalledWith(placeId)
+    } finally { now.mockRestore() }
+  })
+
+  it('keeps legacy rendering and makes no media reads when facts are absent', async () => {
+    mockInbox = loadedInbox(['invite', 'preference_reminder', 'plan_ready', 'plan_changed', 'date_reminder'].map(kind => ({ id: kind, kind })))
+    const screen = await renderScreen(<NotificationsScreen />)
+    for (const kind of ['invite', 'preference_reminder', 'plan_ready', 'plan_changed', 'date_reminder'] as const) {
+      expect(screen.getByText(viMessages[`notifications.body.${kind}`])).toBeTruthy()
+    }
+    expect(screen.queryByTestId('notification-plan-preview')).toBeNull()
+    expect(screen.queryByTestId('notification-appointment')).toBeNull()
+    expect(screen.queryByTestId('avatar-image')).toBeNull()
+    expect(mockMembersRead).not.toHaveBeenCalled()
+    expect(mockPlaceRead).not.toHaveBeenCalled()
+  })
+
+  it('uses initials for unavailable inviter media and hides Google or unrelated place imagery', async () => {
+    mockMembersRead.mockReturnValue({ data: [{ avatarUrl: 'https://foreign.example/avatar.jpg' }] })
+    mockPlaceRead.mockReturnValue({ data: { photos: [{ id: mediaId, source: 'google', url: 'https://google.example/photo.jpg' }] } })
+    mockInbox = loadedInbox([
+      { ...item, payload: { ...item.payload, inviterName: 'Nguyễn Lan', inviterAvatar: { sourceType: 'gogo', mediaKey } } },
+      { id: 'ready', kind: 'plan_ready', payload: { planPreview: { ...eventPreview, stops: [
+        { position: 0, placeId, mediaId, name: { ...sourced('Google name'), sourceType: 'google' }, addressText: { ...sourced('Google address'), sourceType: 'google' } },
+      ] } } },
+    ])
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByText('NL')).toBeTruthy()
+    expect(screen.queryByTestId('avatar-image')).toBeNull()
+    expect(screen.queryByTestId('notification-plan-thumbnail')).toBeNull()
+    expect(screen.queryByText(/Google name|Google address/)).toBeNull()
+  })
+
+  it.each(['room_started', 'scheduled'] as const)('never shows negative hours for %s after the start', async trigger => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse(startsAt) + 60000)
+    mockInbox = loadedInbox([{ id: 'date', kind: 'date_reminder', payload: { reminder: { trigger, startsAt } } }])
+    try {
+      const screen = await renderScreen(<NotificationsScreen />)
+      expect(screen.getByText('Đã đến giờ hẹn')).toBeTruthy()
+      expect(screen.queryByText(/Còn .*giờ/)).toBeNull()
+    } finally { now.mockRestore() }
+  })
+
+  it('recomputes the countdown on app resume and treats room_started as an event rather than an advance reminder', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse(startsAt) - 30 * 60000)
+    mockInbox = loadedInbox([{ id: 'scheduled', kind: 'date_reminder', payload: { reminder: { trigger: 'scheduled', startsAt } } }])
+    try {
+      const screen = await renderScreen(<NotificationsScreen />)
+      const resume = jest.mocked(AppState.addEventListener).mock.calls.at(-1)?.[1] as ((state: AppStateStatus) => void) | undefined
+      expect(screen.getByText('Còn 30 phút nữa là đến giờ hẹn')).toBeTruthy()
+      now.mockReturnValue(Date.parse(startsAt))
+      await act(async () => { resume?.('active') })
+      expect(screen.getByText('Đã đến giờ hẹn')).toBeTruthy()
+      expect(screen.queryByText(/Còn .*phút/)).toBeNull()
+      now.mockReturnValue(Date.parse(startsAt) - 2 * 3600000)
+      mockInbox = loadedInbox([{ id: 'started', kind: 'date_reminder', payload: { reminder: { trigger: 'room_started', startsAt } } }])
+      const started = await renderScreen(<NotificationsScreen />)
+      expect(started.getByText('Đã đến giờ hẹn')).toBeTruthy()
+      expect(started.queryByText(/Còn .*giờ/)).toBeNull()
+    } finally { now.mockRestore() }
+  })
+
+  it('omits unavailable/failed GoGo media without replacing it with another photo', async () => {
+    mockPlaceRead.mockReturnValue({ data: { photos: [{ id: 'different', source: 'manual', url: 'https://media.gogo.id.vn/wrong.webp' }] } })
+    mockInbox = loadedInbox([{ id: 'ready', kind: 'plan_ready', payload: { planPreview: eventPreview } }])
+    const absent = await renderScreen(<NotificationsScreen />)
+    expect(absent.queryByTestId('notification-plan-thumbnail')).toBeNull()
+    expect(absent.getByText('1. Quán GoGo • 2. Bếp GoGo')).toBeTruthy()
+    mockPlaceRead.mockReturnValue({ data: { photos: [{ id: mediaId, source: 'manual', url: 'https://media.gogo.id.vn/real.webp' }] } })
+    const loaded = await renderScreen(<NotificationsScreen />)
+    await fireEvent(loaded.getByTestId('notification-plan-thumbnail'), 'error', { nativeEvent: {} })
+    expect(loaded.queryByTestId('notification-plan-thumbnail')).toBeNull()
+    expect(loaded.getByText('1. Quán GoGo • 2. Bếp GoGo')).toBeTruthy()
+  })
+
+  it('omits invalid/missing start times and unverified venue text', async () => {
+    mockInbox = loadedInbox([{ id: 'date', kind: 'date_reminder', payload: {
+      reminder: { trigger: 'scheduled', startsAt: 'invalid' },
+      planPreview: { ...eventPreview, stops: [{ position: 0, placeId, name: { ...sourced('Unverified'), verifiedAt: 'invalid' } }] },
+    } }])
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.queryByTestId('notification-appointment')).toBeNull()
+    expect(screen.queryByText(/Unverified|Còn .*giờ|Bắt đầu lúc/)).toBeNull()
+  })
+
+  it('wires all five category preferences while master is off; enable all never changes master', async () => {
+    mockSettings = { ...mockSettings, data: categorySettings() }
+    const screen = await renderScreen(<SettingsScreen />)
+    expect(screen.queryByText(viMessages['g10.categoriesUnavailable'])).toBeNull()
+    expect(screen.getByText('3/5 loại đang bật')).toBeTruthy()
+    expect(screen.getByText(viMessages['g10.masterPaused'])).toBeTruthy()
+    expect(screen.getByTestId('notification-master').props.value).toBe(false)
+    for (const [category, enabled] of Object.entries(categoryChoices)) {
+      const control = screen.getByTestId(`notification-category-${category}`)
+      expect(control.props.value).toBe(enabled)
+      expect(control.props.disabled).toBe(false)
+      await fireEvent(control, 'valueChange', !enabled)
+      expect(mockSave).toHaveBeenLastCalledWith({ categories: { [category]: !enabled } })
+    }
+    await fireEvent.press(screen.getByRole('button', { name: 'Bật tất cả' }))
+    expect(mockSave).toHaveBeenLastCalledWith({ categories: { invite: true, preference_reminder: true, plan_ready: true, plan_changed: true, date_reminder: true } })
+    expect(mockSave.mock.calls.every(([body]) => !('pushEnabled' in body))).toBe(true)
+    expect(screen.getByTestId('notification-master').props.value).toBe(false)
+    expect(screen.getByTestId('notification-quiet-hours').props.disabled).toBe(true)
+    await fireEvent(screen.getByTestId('notification-master'), 'valueChange', true)
+    expect(mockSave).toHaveBeenLastCalledWith({ pushEnabled: true })
+  })
+
+  it('locks category preferences during save/refetch/offline, and retains server values on failure', async () => {
+    mockSettings = { ...mockSettings, data: categorySettings(), isFetching: true }
+    const screen = await renderScreen(<SettingsScreen />)
+    expect(screen.getByTestId('notification-category-invite').props.disabled).toBe(true)
+    await fireEvent(screen.getByTestId('notification-category-invite'), 'valueChange', false)
+    expect(mockSave).not.toHaveBeenCalled()
+    mockSettings = { ...mockSettings, isFetching: false }
+    mockSavePending = true
+    const pending = await renderScreen(<SettingsScreen />)
+    expect(pending.getByTestId('notification-category-invite').props.disabled).toBe(true)
+    expect(pending.getByTestId('notification-master').props.disabled).toBe(true)
+    mockSavePending = false
+    mockSaveError = true
+    const failed = await renderScreen(<SettingsScreen />)
+    expect(failed.getByTestId('notification-category-invite').props.value).toBe(true)
+    expect(failed.getByText(viMessages['notificationSettings.saveFailed'])).toBeTruthy()
   })
 })

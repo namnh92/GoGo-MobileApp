@@ -69,9 +69,9 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
             testID="notification-master"
             // Until the first answer there is no truthful value: off and locked.
             value={current?.pushEnabled ?? false}
-            onValueChange={next => { if (capabilities.master) save.mutate({ pushEnabled: next }) }}
-            disabled={!capabilities.master || save.isPending}
-            accessibilityState={{ disabled: !capabilities.master || save.isPending, busy: save.isPending }}
+            onValueChange={next => { if (capabilities.master && !save.isPending && !settings.isFetching && !settings.isPaused) save.mutate({ pushEnabled: next }) }}
+            disabled={!capabilities.master || save.isPending || !!settings.isFetching || !!settings.isPaused}
+            accessibilityState={{ disabled: !capabilities.master || save.isPending || !!settings.isFetching || !!settings.isPaused, busy: save.isPending }}
             trackColor={{ true: theme.accent.primary, false: theme.surface.subtle }}
             accessibilityLabel={t('notificationSettings.switchLabel')}
             accessibilityHint={t('notificationSettings.switchHint')}

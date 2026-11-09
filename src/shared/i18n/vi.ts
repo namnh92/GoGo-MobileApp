@@ -1,5 +1,10 @@
 // Vietnamese is the source locale: message keys are derived from this object.
 export const viMessages = {
+  "g10.categoryCount": "{{count}}/5 loại đang bật",
+  "g10.startsAt": "Bắt đầu lúc {{time}}",
+  "g10.remainingHours": "Còn {{count}} giờ nữa là đến giờ hẹn",
+  "g10.remainingMinutes": "Còn {{count}} phút nữa là đến giờ hẹn",
+  "g10.appointmentStarted": "Đã đến giờ hẹn",
   "g10.filter.system": "Khác",
   "g10.filter.publicSystem": "Hệ thống",
   "g10.systemFetchFailed": "Chưa tải được thông báo hệ thống.",
@@ -49,7 +54,7 @@ export const viMessages = {
   "g10.categoryHint.preference_reminder": "Báo cho chủ phòng khi thành viên hoàn thành chọn sở thích.",
   "g10.categoryHint.plan_ready": "Báo khi kế hoạch của phòng đã được công bố.",
   "g10.categoryHint.plan_changed": "Báo khi kế hoạch của phòng được cập nhật.",
-  "g10.categoryHint.date_reminder": "Nhắc trước 120 phút khi giờ bắt đầu đã được xác nhận. Chức năng nhắc trước chưa khả dụng.",
+  "g10.categoryHint.date_reminder": "Báo khi buổi đi chơi bắt đầu.",
   "g10.quietHours": "Giờ yên lặng · 23:00–07:00",
   "g10.quietHint": "Mặc định tắt. Khi bạn bật, GoGo sẽ hoãn thông báo đẩy đến hết giờ yên lặng; hộp thư vẫn cập nhật ngay. Không có ngoại lệ khẩn cấp.",
   "g10.quietUnavailable": "Chưa khả dụng: hệ thống chưa hỗ trợ giờ yên lặng.",

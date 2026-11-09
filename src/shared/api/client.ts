@@ -37,6 +37,9 @@ export interface RequestOptions {
   idempotencyKey?: string
   /** Conditional public reference-data reads. */
   ifNoneMatch?: string
+  /** Strong resource validator returned by the BFF for conditional writes. */
+  ifMatch?: string
+  onResponseHeaders?: (headers: Headers) => void
   revalidate?: boolean
   timeoutMs?: number
   signal?: AbortSignal
@@ -202,6 +205,7 @@ async function send<T>(options: RequestOptions, accessToken: string | null, scop
   else if (accessToken) headers.authorization = `Bearer ${accessToken}`
   if (options.idempotencyKey) headers['idempotency-key'] = options.idempotencyKey
   if (options.ifNoneMatch) headers['if-none-match'] = options.ifNoneMatch
+  if (options.ifMatch) headers['if-match'] = options.ifMatch
   if (options.revalidate) headers['cache-control'] = 'no-cache'
 
   try {
@@ -266,6 +270,7 @@ export async function request<T>(options: RequestOptions): Promise<T> {
   const consume = async (response: Response): Promise<T> => {
     scope.assert()
     if (!response.ok) throw await scope.wait(toApiError(response))
+    options.onResponseHeaders?.(response.headers)
     return scope.wait(parseBody<T>(response))
   }
   return send(options, accessToken, scope, async response => {

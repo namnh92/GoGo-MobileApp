@@ -9,6 +9,13 @@ import type { MessageKey, LocaleContent } from '@/shared/i18n/types'
 type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
 
 export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
+  "g10.categoryCount": "{{count}}/5 categories enabled",
+  "g10.startsAt": "Starts at {{time}}",
+  "g10.remainingHours": "{{count}} hours until your outing",
+  "g10.remainingHours_one": "{{count}} hour until your outing",
+  "g10.remainingMinutes": "{{count}} minutes until your outing",
+  "g10.remainingMinutes_one": "{{count}} minute until your outing",
+  "g10.appointmentStarted": "It's time for your outing",
   "g10.viewPlan": "View plan",
   "g10.exportExpires": "Expires: {{date}}",
   "g10.filter.system": "Other",
@@ -68,7 +75,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "g10.categoryHint.preference_reminder": "Notify the host when members finish choosing preferences.",
   "g10.categoryHint.plan_ready": "Notify when a room plan is published.",
   "g10.categoryHint.plan_changed": "Notify when a room plan is updated.",
-  "g10.categoryHint.date_reminder": "Remind 120 minutes before a confirmed start. Advance reminders are not available yet.",
+  "g10.categoryHint.date_reminder": "Notify when the outing starts.",
   "g10.quietHours": "Quiet hours · 23:00–07:00",
   "g10.quietHint": "Off by default. When enabled, GoGo will defer push until quiet hours end; your inbox still updates immediately. There are no emergency exceptions.",
   "g10.quietUnavailable": "Unavailable: quiet hours are not supported yet.",

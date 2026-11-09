@@ -9,6 +9,8 @@ import { Text, type TextColor } from '@/shared/ui/text'
 import { NotificationRow } from './notification-row.view'
 import { kindPresentation } from './notification-kind'
 import { formatNotificationTime } from './notification-time'
+import { NotificationFacts, NotificationInviter } from './notification-facts.view'
+import { notificationText } from './notification-facts'
 import { styles } from './notification-card.style'
 
 function RoomLine({ roomId }: { roomId: string }) {
@@ -36,18 +38,20 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
   const validProgress = progress && Number.isInteger(progress.completedCount) && Number.isInteger(progress.memberCount)
     && progress.memberCount > 0 && progress.completedCount >= 0 && progress.completedCount <= progress.memberCount
   const change = payload?.planChange
-  const stopCount = payload?.stopCount
+  const stopCount = payload?.planPreview?.stopCount ?? payload?.stopCount
   const hasStopCount = item.kind === 'plan_ready' && typeof stopCount === 'number' && Number.isInteger(stopCount) && stopCount >= 0
   const OpenButton = index === 0 ? PrimaryBtn : SecondaryBtn
   const canOpenRoom = isUuid(payload?.roomId) && (item.kind === 'invite' || item.kind === 'preference_reminder')
   const canOpenPlan = ['plan_ready', 'plan_changed', 'date_reminder'].includes(item.kind ?? '') && (isUuid(payload?.roomId) || isUuid(payload?.planId))
   const expiry = item.kind === 'privacy_export_ready' && typeof payload?.expiresAt === 'string' ? parseApiDate(payload.expiresAt) : null
   const relativeTime = created ? formatNotificationTime(created, t) : null
+  const factStart = payload?.reminder ? parseApiDate(payload.reminder.startsAt) : parseApiDate(payload?.planPreview?.startAt)
+  const stopFacts = (payload?.planPreview?.stops ?? []).flatMap(stop => [notificationText(stop.name), notificationText(stop.addressText)])
 
   return <NotificationRow id={item.id} title={kindLabel} titleColor={tone} relativeTime={relativeTime} unread={unread}
     iconStyle={item.kind === 'invite' || item.kind === 'preference_reminder' ? styles.infoTile : item.kind === 'plan_ready' ? styles.successTile : undefined}
     icon={<>
-      {item.kind === 'preference_reminder' ? <MaterialIcon name="dining" size={24} color="redesign.violetInk" />
+      {item.kind === 'invite' && payload?.inviterAvatar ? <NotificationInviter payload={payload} /> : item.kind === 'preference_reminder' ? <MaterialIcon name="dining" size={24} color="redesign.violetInk" />
         : item.kind === 'plan_ready' ? <MaterialIcon name="sparkle" size={24} color={tone} /> : <Icon name={icon} size={24} color={tone} />}
       <View testID={`notification-type-badge-${item.id}`} style={[styles.typeBadge, item.kind === 'plan_ready' ? styles.successBadge : item.kind === 'invite' ? styles.infoBadge : item.kind === 'plan_changed' ? styles.neutralBadge : styles.accentBadge]}>
         {item.kind === 'plan_changed' ? <MaterialIcon name="calendar" size={12} color="accent.onAccent" />
@@ -55,7 +59,8 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
       </View>
     </>}
     openTarget={{ onPress: onOpen, disabled: busy, accessibilityRole: 'button',
-      accessibilityLabel: [kindLabel, bodyText, created ? created.toLocaleString(i18n.language) : null, payload?.roomName, payload?.inviterName].filter(Boolean).join(', '),
+      accessibilityLabel: [kindLabel, bodyText, created ? created.toLocaleString(i18n.language) : null, payload?.roomName, payload?.inviterName,
+        factStart ? t('g10.startsAt', { time: factStart.toLocaleString(i18n.language) }) : null, ...stopFacts].filter(Boolean).join(', '),
       accessibilityHint: t(unread ? 'g10.unread' : 'g10.read'), accessibilityState: { busy, disabled: busy } }}
     actions={
       item.kind === 'invite' ? <View style={styles.actions}>
@@ -82,6 +87,7 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
       {(['addedStopCount', 'removedStopCount', 'movedStopCount', 'durationChangedStopCount', 'lockChangedStopCount', 'optionalChangedStopCount'] as const).map(key =>
         Number.isInteger(change[key]) && change[key]! > 0 ? <Text key={key} variant="introCaption" color="redesign.secondary">{t(`g10.change.${key}`, { count: change[key] })}</Text> : null)}
     </View> : null}
+    {payload ? <NotificationFacts kind={item.kind} payload={payload} /> : null}
     {expiry ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{t('g10.exportExpires', { date: expiry.toLocaleString(i18n.language) })}</Text> : null}
     {busy ? <ActivityIndicator /> : null}
   </NotificationRow>

@@ -1,4 +1,5 @@
-import { type QueryClient, type UseMutationResult, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, type UseMutationResult, useInfiniteQuery, useIsMutating, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
 
 import * as meApi from '../endpoints/me'
 import type { SavedTargetType } from '../endpoints/me'
@@ -7,12 +8,13 @@ import * as profileApi from '../endpoints/profile'
 import * as sessionsApi from '../endpoints/sessions'
 import { queryKeys } from '../query-keys'
 import { helpfulDelta, withHelpfulDelta, withMyMark, withServerState, type ReviewCache } from '../review-reactions'
-import { captureSessionScope, getSessionGeneration } from '../session'
+import { assertSessionGeneration, captureSessionScope, getSessionGeneration } from '../session'
 import type { MyReviewReactions, OpBody, OpResponse, SavedItem } from '../types'
 import { detailToPlaceCard, type PlaceCard } from '../view-models'
 import { isApiError } from '../errors'
 import { inboxKinds, type InboxCategory } from './use-notification-filter'
 import { useIntentKey } from './use-intent-key'
+import { newIdempotencyKey } from '../idempotency'
 
 /** Current actor facts: `actorType` distinguishes a signed-in user from a guest. */
 export function useMe(options?: { enabled?: boolean }) {
@@ -483,7 +485,7 @@ export function useNotificationSettings(options?: { enabled?: boolean }) {
 }
 
 /**
- * Optimistic: the switch moves on tap and moves back if the PUT fails, then the
+ * Optimistic: the switch moves on tap and moves back if the write fails, then the
  * server's answer wins. It writes the preference and nothing else — no push
  * subscription, no inbox — so a toggle cannot duplicate a device registration
  * or empty the inbox.
@@ -491,34 +493,59 @@ export function useNotificationSettings(options?: { enabled?: boolean }) {
 export function useSetNotificationSettings() {
   const queryClient = useQueryClient()
   const key = queryKeys.notificationSettings()
+  type Body = OpBody<'patchNotificationSettings'>
+  type Resource = meApi.NotificationSettingsResource
+  // Keep the original validator/key on ambiguous failures, including a manual
+  // retry. A 412 is definitive: refetch before making a new conditional intent.
+  const intents = useRef(new WeakMap<Body, { etag: string; key: string; generation: number }>())
+  const pending = useIsMutating({ mutationKey: key })
 
-  return useMutation({
-    mutationFn: (body: OpBody<'setNotificationSettings'>) => meApi.setNotificationSettings(body),
+  const mutation = useMutation({
+    mutationKey: key,
+    mutationFn: (body: Body) => {
+      const current = queryClient.getQueryData<Resource>(key)
+      const intent = intents.current.get(body)!
+      assertSessionGeneration(intent.generation)
+      if (current?.categories || body.categories) {
+        if (!/^"[^"\r\n]+"$/.test(intent.etag)) throw new Error('Notification settings need a fresh validator')
+        return meApi.patchNotificationSettings(body, intent.etag, intent.key, intent.generation)
+      }
+      // Compatibility for a deployment still serving the pre-category resource.
+      if (typeof body.pushEnabled !== 'boolean') throw new Error('Notification settings unavailable')
+      return meApi.setNotificationSettings({ pushEnabled: body.pushEnabled })
+    },
 
     onMutate: async body => {
       const scope = captureSessionScope()
       await queryClient.cancelQueries({ queryKey: key, exact: true })
       scope.assert()
-      const previous = queryClient.getQueryData<OpResponse<'getNotificationSettings'>>(key)
+      const previous = queryClient.getQueryData<Resource>(key)
+      const intent = intents.current.get(body)
+      if (intent) assertSessionGeneration(intent.generation)
+      else intents.current.set(body, { etag: previous?.etag ?? '', key: newIdempotencyKey(), generation: scope.generation })
       if (previous) {
-        queryClient.setQueryData<OpResponse<'getNotificationSettings'>>(key, {
+        queryClient.setQueryData<Resource>(key, {
           ...previous,
-          pushEnabled: body.pushEnabled,
+          ...(typeof body.pushEnabled === 'boolean' ? { pushEnabled: body.pushEnabled } : {}),
+          ...(body.categories && previous.categories ? { categories: { ...previous.categories, ...body.categories } } : {}),
         })
       }
-      return { previous }
+      return { previous, generation: scope.generation }
     },
 
-    onError: (_error, _body, context) => {
-      if (context?.previous) queryClient.setQueryData(key, context.previous)
+    onError: (error, body, context) => {
+      if (isApiError(error) && error.status === 412) intents.current.delete(body)
+      if (context?.previous && context.generation === getSessionGeneration()) queryClient.setQueryData(key, context.previous)
     },
 
-    onSuccess: settings => {
-      queryClient.setQueryData(key, settings)
+    onSuccess: (settings, body, context) => {
+      intents.current.delete(body)
+      if (context?.generation === getSessionGeneration()) queryClient.setQueryData(key, settings)
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key, exact: true })
+    onSettled: (_data, _error, _body, context) => {
+      if (context?.generation === getSessionGeneration()) return queryClient.invalidateQueries({ queryKey: key, exact: true })
     },
   })
+  return { ...mutation, isPending: mutation.isPending || pending > 0 }
 }
