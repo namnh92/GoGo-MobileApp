@@ -1,6 +1,66 @@
 # GoGo-MobileApp #596 — nhóm 05C: Lời mời và vào phòng
 
-Ngày: 2026-11-10 (Asia/Ho_Chi_Minh). Nhánh `feature/GOGO-596-redesign-g05c-invite`, HEAD thực tế `c87ed82` (cũng là merge-base với `origin/re-design` local), đã gồm #587 và #590 sau `c48d501` được mô tả trong task. Giữ nguyên HEAD/branch, không rebase/reset. Không commit, push, mở issue hay PR.
+Ngày: 2026-11-10 (Asia/Ho_Chi_Minh). Round 2 trên nhánh `feature/GOGO-596-redesign-g05c-invite`, HEAD `ab7d056` (round 1), base review `c87ed82`. Giữ nguyên HEAD/branch, không rebase/reset. Không commit, push, mở issue hay PR.
+
+## Round 2 — Astra F-01 đến F-04
+
+Nguồn: `dev/handoffs/codex-596.md` và `dev/handoffs/codex-review-request-596.sa.out` trong workspace gốc. Worktree sạch tại `ab7d056` trước lượt sửa này.
+
+- **F-01:** preview anonymous không quyết định quyền re-entry của tài khoản. Với session `user`, preview 404/410 chỉ hiện thông báo + retry; CTA join cũ vẫn gọi server. Chỉ phản hồi join mới chuyển tài khoản sang terminal. Host/member nhận membership vẫn đi `/room/{roomId}`, không thay session khách và không đếm `alreadyMember: true` là join mới. Giữ endpoint và hành vi re-entry của base `c87ed82`.
+- **F-02:** component xử lý invite được key theo `inviteCode`. Warm link A → B reset toàn bộ lỗi, pending, tên và confirmation của A. Cleanup đánh dấu attempt cũ không còn active; các kết quả join/guest-join muộn không set state, track hay điều hướng vào A. Preview tiếp tục dùng query identity opaque, abort và loại query cũ như round 1. Không thay session/auth implementation.
+- **F-03:** render dialog thật trong terminal branch. Preview 404/410 tới sau khi mở confirmation không làm mất nút giữ/thay phiên; cả hai lựa chọn settle promise, chạy `finally` và reset pending. Xác nhận vẫn đi qua join server cũ; hủy không thay phiên. Khi đổi mã, unmount hook dialog cũ settle confirmation bằng cancel.
+- **F-04:** suite preview giữ hook TanStack Query + Zod + API boundary thật, chỉ mock `api.post` của preview và kết quả join/session. Không stub `useInvitePreview` hay confirmation trong suite tích hợp. Typed-code cũng dùng dialog thật và kiểm tra nội dung lỗi.
+
+### FAIL-before / PASS-after
+
+Command cho cả hai lần: `pnpm test:ui --runInBand src/features/__tests__/invite-preview.spec.tsx -t 'F-01|F-02|F-03'`. Thêm regression trước, chạy trên source `ab7d056` chưa sửa, rồi chạy lại cùng tên test sau patch.
+
+| Finding | Regression | FAIL-before @ ab7d056 | PASS-after @ working tree |
+| --- | --- | --- | --- |
+| F-01 | Couple / group-host / group-guest × preview 410 INVITE_NOT_USABLE / ROOM_NOT_JOINABLE / ROOM_EXPIRED; join trả membership `alreadyMember: true` | 9/9 FAIL: không có nút `Tham gia` sau preview 410 | 9/9 PASS: gọi join đúng mã, route membership, không guest join/analytics |
+| F-02 | Join A trả 404 hoặc 410 (ba mã) → warm link B → preview B 200 | 4/4 FAIL: không tìm được inviter B (`Lan`), terminal A còn giữ | 4/4 PASS: inviter B hiện, lỗi A mất, CTA gọi join B và route B |
+| F-03 | Guest bấm join lúc preview pending → dialog thật → preview 404/410 INVITE_NOT_USABLE/ROOM_EXPIRED → giữ hoặc thay phiên | 6/6 FAIL: dialog mất nút `Giữ phiên hiện tại` / `Thay và tham gia` | 6/6 PASS: chọn được cả hai nhánh; refetch cùng mã về 200 xác nhận pending đã reset |
+
+Tổng regression: **19 FAIL trước → 19 PASS sau**. Log: `/tmp/596-round2-before.log`, `/tmp/596-round2-after.log`. Lần before có 105 test khác được skip; after có 108 test khác được skip do bổ sung thêm ba test delayed-result, không thay đổi 19 regression này.
+
+Ngoài 19 ca: kiểm tra join A success/failure tới lúc B pending, guest-join A success/failure tới sau B, preview A success/failure muộn, đổi mã khi confirmation đang mở. Kết quả cũ không phá pending, copy hay navigation của B.
+
+### Matrix tích hợp và N/A
+
+Mỗi hàng preview chạy cho **couple (2 người), group-host (7), group-guest (4)** × session **user / anonymous / guest**. DTO preview không có actor role: chỉ join membership trả host/member; không gán quyền host hoặc badge chủ phòng từ preview.
+
+| Screen/state | Coverage và content assertions | N/A có lý do |
+| --- | --- | --- |
+| 5.15 default | 18 ca: ba audience × ba session × budget `total` / `per_person`; inviter, email verified, type/count, thời gian, area, tiền VND + `/ nhóm` hoặc `/ người`, form tài khoản/tên khách và guest notice. English USD total có assertion riêng. Không tự join. | Host-only controls N/A: preview public không trả role hay quyền. |
+| 5.15 loading | 9 ca: skeleton, title, CTA và không tự join. | Budget/room facts N/A khi response chưa tới; không dựng dữ liệu chờ. |
+| 5.15 error | 63 ca: 400, 404, ba mã 410, 429, offline × ba audience × ba session; assert câu lỗi cụ thể. User 404/410 vẫn có join/retry; anonymous/guest đi terminal; 400/429/offline có retry. | Hai budget modes N/A trên error: error response không có facts/budget. |
+| 5.18 expired | Anonymous/guest: 410 INVITE_NOT_USABLE hiện title, body, recovery, không join. Signed-in: join-rejected expired được kiểm tra cùng preview thật trong F-02. | Terminal chỉ do preview cho signed-in N/A: F-01 buộc server join xác nhận re-entry trước. Terminal loading/budget N/A: không có request/data riêng. |
+| 5.19 unusable | 404 và 410 ROOM_NOT_JOINABLE/ROOM_EXPIRED có title/body, recovery; phòng đóng/hết hạn không khuyên xin link mới. Signed-in join rejection trong F-02. | Terminal chỉ do preview cho signed-in N/A như trên; terminal loading/budget N/A vì không có request/data riêng. |
+| 5.16 typed-code default/loading/error | Suite hiện hữu kiểm tra paste/clear, tên, hydration, pending và chống bấm lặp. Bổ sung 18 ca 400/404/ba mã 410/429 × user/anonymous/guest: câu lỗi đúng, giữ nguyên mã, CTA dùng lại được, đi đúng join path, guest xác nhận thật. Offline có assertion riêng. | Audience/budget/preview N/A: màn nhập mã không gọi preview và không có dữ kiện phòng trước join. Expired/unusable giữ inline copy cũ, không chuyển 5.18/5.19. |
+
+### Gate round 2
+
+- `pnpm typecheck`: **PASS**, exit 0.
+- `pnpm lint` và kiểm tra lại `pnpm lint --no-cache`: **PASS**, exit 0. Không sửa `scripts/generate-brand-icons.mjs`; cả hai lần không phát sinh hai no-undef nền được task cho phép. Logs `/tmp/596-round2-lint.log`, `/tmp/596-round2-lint-nocache.log`.
+- Affected UI specs: **7 suites / 203 tests PASS**, exit 0 (`/tmp/596-round2-focused.log`). Bao gồm preview (127 ca), typed-code redesign, guest-join, guest-replace-confirm, join-tracks-real-join, join-by-code, redesign-missing-screens.
+- `pnpm exec vitest run src/shared/api/__tests__/invite-preview.test.ts`: **10/10 PASS**, exit 0; thêm 400 vào boundary/error mapping (`/tmp/596-round2-api.log`).
+- `pnpm test -- src/shared/api/__tests__/invite-preview.test.ts`: Vitest chạy **toàn bộ** suite vì dấu `--`; **145 files PASS, 1 FAIL, 1 SKIP; 1.753 tests PASS, 3 FAIL, 39 SKIP**, exit 1. Chỉ ba failure `distribute-wrapper.test.ts` đã ghi round 1: owner alive, recorded process group alive, lock/run-files after child exit. Sandbox cấm `ps` (`operation not permitted`); cần chạy ngoài sandbox để chốt gate này. Không sửa scripts/tests distribute. Log `/tmp/596-round2-unit-focused.log`.
+- `pnpm test:ui --runInBand`: **234 suites / 3.497 tests / 11 snapshots PASS**, exit 0, 159,912 giây. Bao gồm `notifications-g10.spec.tsx` từng lỗi timing ở round 1. Log `/tmp/596-round2-ui.log`.
+- `git diff --check`: **PASS**.
+
+Round 2 đọc lại bốn screenshot nguồn qua Stitch MCP và list project: không có Dark cùng tên. Không đổi layout/token/copy; sửa điều kiện hiển thị/action theo contract. Bảng lệch dưới đây tiếp tục áp dụng. **Visual acceptance vẫn incomplete, 0/4 màn có ảnh app đối chiếu cả Light/Dark**; không coi test render là native/pixel acceptance.
+
+### Files:lines round 2
+
+Các dòng dưới tính trên working tree round 2; danh sách round 1 phía cuối chỉ là lịch sử.
+
+| File | Dòng và nội dung |
+| --- | --- |
+| `src/features/gogo-room/guest-join.view.tsx` | 39–59 key theo code + active lifetime; 116–158 chặn stale async results; 192–200 signed-in re-entry và dialog terminal |
+| `src/features/__tests__/invite-preview.spec.tsx` | 23–36 bỏ stub dialog/reset fixtures; 101–338 integrated matrix, F-01/F-02/F-03 và delayed-result regressions |
+| `src/features/__tests__/invite-code-redesign.spec.tsx` | 44–74 content matrix 400/404/410/429 × ba session, dialog thật |
+| `src/shared/api/__tests__/invite-preview.test.ts` | 16 thêm preview 400 preservation |
+| `docs/verification/issue-596-group-05c.md` | Round 2 evidence, matrix/N/A, gate và chỉnh deviation preview/re-entry |
 
 ## Nguồn và phạm vi
 
@@ -38,10 +98,10 @@ Preview: generated `OpBody<'previewRoomInvite'>` / `OpResponse<'previewRoomInvit
 | Tự lên kèo nhóm / Tạo ngay | 5.18 | Nút Stitch không có handler; thêm nhánh tạo phòng sẽ mở rộng navigation ngoài task. | Không dựng; owner quyết định nối flow tạo phòng ở task riêng. |
 | Chẩn đoán / ERR_LINK_INVALID_SESSION, mã sáu số, footer Sài Gòn | 5.19 | Không phải mã lỗi contract, không có room length constraint/thành phố như hình. | Không dựng dữ liệu mẫu; hướng dẫn dùng mã thật không cố định độ dài. Không hiển thị error code bịa. |
 | Drawer nhập mã riêng | 5.19 | Chưa có drawer chức năng trong flow hiện hữu; đã có route `/join`. | Giữ recovery route `/join` cũ; không thêm flow/drawer mới. |
-| Mapping màn unusable cho 404 / ROOM_NOT_JOINABLE / ROOM_EXPIRED | 5.19 | Nhánh UI mới trong guest-join error handling; trước đây inline error. | Giữ nghĩa thông báo cũ và endpoint/handler join; room closed/expired không khuyên xin link mới. INVITE_NOT_USABLE/410 khác → 5.18. Typed-code giữ inline mapping cũ. |
+| Mapping màn unusable cho 404 / ROOM_NOT_JOINABLE / ROOM_EXPIRED | 5.19 | Nhánh UI mới trong guest-join error handling; trước đây inline error. | Giữ nghĩa thông báo cũ và endpoint/handler join; room closed/expired không khuyên xin link mới. INVITE_NOT_USABLE/410 khác → 5.18. Round 2: signed-in preview lỗi chỉ informational, join mới quyết định terminal; dialog chờ xác nhận vẫn mounted. Typed-code giữ inline mapping cũ. |
 | AppHeader, tên khách bắt buộc, thông báo thay phiên, spinner, token font/button/accent | Cả nhóm | Thành phần dùng chung và hành vi hiện hữu phải được giữ; Stitch không mô tả đầy đủ các trạng thái này. | Giữ shared AppHeader/Button/LoadingIndicator và token role; CTA một filled primary; không override pressed highlight. Guest form giữ max 50 và trim. |
 
-## Kiểm tra
+## Kiểm tra round 1 — lịch sử trước Astra review
 
 - `pnpm typecheck`: PASS, exit 0 (bản cuối).
 - `pnpm lint`: PASS, exit 0, không warning (bản cuối).
@@ -55,9 +115,9 @@ Preview: generated `OpBody<'previewRoomInvite'>` / `OpResponse<'previewRoomInvit
 
 Log tạm: `/tmp/596-typecheck.log`, `/tmp/596-lint.log`, `/tmp/596-test.log`, `/tmp/596-ui.log`, `/tmp/596-ui-focused.log`.
 
-## Files:lines thay đổi
+## Files:lines round 1 — lịch sử
 
-Các dòng dưới tính trên working tree cuối; không có commit mới.
+Các dòng dưới được ghi ở round 1, trước `ab7d056`; không phải line references của patch round 2.
 
 | File | Dòng thêm/sửa |
 | --- | --- |

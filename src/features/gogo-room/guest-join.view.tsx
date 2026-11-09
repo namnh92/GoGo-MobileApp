@@ -2,7 +2,7 @@ import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.vie
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
@@ -37,6 +37,12 @@ const MAX_DISPLAY_NAME = 50
  * own account by opening an invite.
  */
 export default function GuestJoinScreen() {
+  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  // A warm link starts a separate attempt, including errors, pending and dialog.
+  return <GuestJoinInvite key={inviteCode} inviteCode={inviteCode} />
+}
+
+function GuestJoinInvite({ inviteCode }: { inviteCode: string }) {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
@@ -46,7 +52,11 @@ export default function GuestJoinScreen() {
   const { status, guestRoomId, joinAsGuest } = useSession()
   const joinRoom = useJoinRoom()
   const forget = useRecentRoomsStore(state => state.forget)
-  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  const active = useRef(true)
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
 
   const [displayName, setDisplayName] = useState('')
   const [pending, setPending] = useState(false)
@@ -103,6 +113,7 @@ export default function GuestJoinScreen() {
     try {
       if (asUser) {
         const result = await joinRoom.mutateAsync({ inviteCode })
+        if (!active.current) return
         // GoGo-BE#607: count a join only when the server says this request created
         // the membership. A member or the host reopening the invite gets
         // `alreadyMember: true`; a server older than alpha.49 sends no flag, which is
@@ -119,9 +130,11 @@ export default function GuestJoinScreen() {
       }
 
       if (holdsGuestRoom && !(await confirmReplaceGuest())) return
+      if (!active.current) return
       // Issues a room-scoped guest session and persists it to the Keychain —
       // no account, and the token reaches no other room.
       const session = await joinAsGuest({ inviteCode, displayName: trimmedName })
+      if (!active.current) return
       track('gogo_partner_joined', { role: 'guest' })
       // Routes carry the room id from here on; the invite code is a credential.
       // A grant without one would build `/room/undefined/...` and 400 on every read.
@@ -131,6 +144,7 @@ export default function GuestJoinScreen() {
       }
       if (stillHere()) router.replace(`/room/${session.roomId}/preference`)
     } catch (caught) {
+      if (!active.current) return
       setBlockedRoom(isApiError(caught) && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(caught.code))
       setUnusable(isApiError(caught) && (caught.status === 404 || (caught.status === 410 && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(caught.code))))
       setExpired(
@@ -141,7 +155,7 @@ export default function GuestJoinScreen() {
       )
       setError(toMessage(caught))
     } finally {
-      setPending(false)
+      if (active.current) setPending(false)
     }
   }
 
@@ -175,11 +189,15 @@ export default function GuestJoinScreen() {
   const previewFailure = preview.error
   const unavailable = isApiError(previewFailure) && [404, 410].includes(previewFailure.status)
   const previewExpired = isApiError(previewFailure) && previewFailure.status === 410 && !['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(previewFailure.code)
-  if (expired || unusable || unavailable) {
+  // Anonymous preview cannot decide whether an account is already a member.
+  // Only join's response may reject signed-in re-entry (#596 F-01).
+  if (expired || unusable || (unavailable && !asUser)) {
     return (
       <Atmosphere>
         {header}
         <InviteExpired canRequestLink={!blockedRoom && !(isApiError(previewFailure) && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(previewFailure.code))} unusable={unusable || (unavailable && !previewExpired)} message={error ?? (previewFailure ? toMessage(previewFailure) : undefined)} />
+        {/* A late preview must not strand an awaited guest confirmation. */}
+        {dialog}
       </Atmosphere>
     )
   }

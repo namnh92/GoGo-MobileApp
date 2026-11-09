@@ -13,7 +13,7 @@ it('reads 200 through the existing client with a body credential, and never join
   expect(api.post).toHaveBeenCalledExactlyOnceWith('/rooms/invites/preview', { inviteCode: 'secret' }, { anonymous: true, signal: abort.signal })
   expect(shouldPersistQuery(['invite-preview', 1])).toBe(false)
 })
-it.each([[404, 'INVITE_NOT_FOUND'], [410, 'INVITE_NOT_USABLE'], [410, 'ROOM_NOT_JOINABLE'], [410, 'ROOM_EXPIRED'], [429, 'RATE_LIMITED']])('preserves %s %s for guest-join error handling', async (status, code) => {
+it.each([[400, 'VALIDATION_ERROR'], [404, 'INVITE_NOT_FOUND'], [410, 'INVITE_NOT_USABLE'], [410, 'ROOM_NOT_JOINABLE'], [410, 'ROOM_EXPIRED'], [429, 'RATE_LIMITED']])('preserves %s %s for guest-join error handling', async (status, code) => {
   const error = new ApiError(status as number, { code: code as string, message: 'generic' })
   vi.mocked(api.post).mockRejectedValue(error)
   await expect(previewRoomInvite({ inviteCode: 'secret' })).rejects.toBe(error)
