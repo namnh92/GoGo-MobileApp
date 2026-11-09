@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 400 320"><defs>
+  <linearGradient id="spectrum" x1="0%" x2="100%" y1="58%" y2="42%"><stop offset="0%" stop-color="#FF5252" stop-opacity="1"/><stop offset="16%" stop-color="#FF6558" stop-opacity="1"/><stop offset="30%" stop-color="#FF8264" stop-opacity="1"/><stop offset="42%" stop-color="#FFA872" stop-opacity="1"/><stop offset="50%" stop-color="#FFCA7D" stop-opacity="1"/><stop offset="58%" stop-color="#B2EAB8" stop-opacity="1"/><stop offset="70%" stop-color="#72E3C0" stop-opacity="1"/><stop offset="84%" stop-color="#55D8C7" stop-opacity="1"/><stop offset="100%" stop-color="#3DCBC8" stop-opacity="1"/></linearGradient>
+  <linearGradient id="bridge" x1="0%" x2="100%" y1="100%" y2="0%"><stop offset="0%" stop-color="#FFA46E" stop-opacity="0"/><stop offset="26%" stop-color="#FFB675" stop-opacity="0.92"/><stop offset="50%" stop-color="#FFCA7D" stop-opacity="1"/><stop offset="74%" stop-color="#A6ECC8" stop-opacity="0.92"/><stop offset="100%" stop-color="#60E2C2" stop-opacity="0"/></linearGradient>
+</defs>
+<path d="M200 42 Q200 54 188 54 Q200 54 200 66 Q200 54 212 54 Q200 54 200 42 Z" fill="#91ECD4" opacity="0.95"/>
+<path d="M324 56 Q324 64 316 64 Q324 64 324 72 Q324 64 332 64 Q324 64 324 56 Z" fill="#FFEAA7" opacity="0.9"/>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M200 160 C164 96 92 80 56 124 C22 168 32 220 120 278 C152 250 178 208 200 160 C222 208 248 250 280 278 C368 220 378 168 344 124 C308 80 236 96 200 160 Z" stroke="url(#spectrum)" stroke-width="42"/>
+  <path d="M176 196 C190 174 208 148 222 126" stroke="url(#bridge)" stroke-width="42"/>
+  <path d="M72 114 C94 94 142 94 178 136" stroke="#FFFFFF" stroke-width="7" opacity="0.42"/>
+<path d="M222 136 C258 94 306 94 328 114" stroke="#FFFFFF" stroke-width="7" opacity="0.45"/>
+</g></svg>

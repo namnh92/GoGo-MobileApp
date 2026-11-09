@@ -30,7 +30,7 @@ export const labelFontUnits = (width: number) => {
   return type.mapLabel.fontSize
 }
 
-/** The map entrance is about 1.2 s; the screen holds for 1.5 s (`SPLASH_MIN_MS`). */
+/** Map entrance uses the splash pacing tokens; minimum visibility is `SPLASH_MIN_MS`. */
 export const MAP_FADE_MS = motion.mapReveal
 const FIRST_DROP_MS = motion.pinFirstDelay
 const DROP_STEP_MS = motion.pinStep

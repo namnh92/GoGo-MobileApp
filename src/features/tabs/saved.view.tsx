@@ -164,9 +164,9 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
                 {group.kind === 'province' ? <GhostBtn label={t('saved.viewGroup')} accessibilityHint={t('saved.cityListHint', { city: group.provinceName })} size="small" style={styles.cityAction} onPress={() => router.push({ pathname: '/saved/city/[provinceCode]', params: { provinceCode: group.provinceCode, cityName: group.provinceName } })} /> : null}
               </View> : null}
               {group.kind === 'province' ? (
-                group.communes.map(commune => (
-                  <View key={commune.key} style={city ? cityStyles.subgroup : styles.subgroup}>
-                    <View style={city ? cityStyles.wardHeader : styles.groupHeader}>
+                group.communes.map((commune, index) => (
+                  <View key={commune.key} style={city ? cityStyles.subgroup : [styles.subgroup, index === group.communes.length - 1 && styles.lastSubgroup]}>
+                    <View style={city ? cityStyles.wardHeader : [styles.groupHeader, styles.wardHeader]}>
                       <Text variant={city ? "savedWardTitle" : "bodySmall"} color={city ? "redesign.ink" : "text.secondary"} accessibilityRole="header" style={styles.groupTitle}>
                         {commune.kind === 'commune' ? commune.communeName : t('saved.group.multipleCommunes')}
                       </Text>

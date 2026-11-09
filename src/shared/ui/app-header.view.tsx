@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { HeaderNotificationButton } from './header-notification-button.view'
 import { MaterialIcon } from './material-icon'
+import { GoGoLogo } from './gogo-logo.view'
 import { Text } from './text'
 import { styles } from './app-header.style'
 
@@ -37,12 +38,12 @@ export function AppHeader({ variant = 'sub-screen', showNotifications = true, ti
   const { t } = useTranslation()
   const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" size={24} /></AppHeaderAction> : null
   const actions = <>{rightAction}{variant !== 'sheet' && showNotifications ? <HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /> : null}</>
-  return <View testID={testID} style={[styles.root, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
+  return <View testID={testID} style={[styles.root, variant === 'tab-root' && styles.tabRoot, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <View style={[styles.row, variant !== 'tab-root' && styles.subScreenRow]}>
       {back}{leading}
       <View style={styles.identity}>
         <View style={variant === 'tab-root' ? styles.brandRow : undefined}>
-          {variant === 'tab-root' ? <><Text variant="discoveryHeading" color="accent.primary">{t('splash.brand')}</Text><Text variant="introSmall" color="text.secondary">·</Text></> : null}
+          {variant === 'tab-root' ? <><GoGoLogo variant="compact" size={32} testID={`${testID}-logo`} /><View testID={`${testID}-brand-divider`} accessible={false} style={styles.brandDivider} /></> : null}
           <Text variant="introHeading" color="text.primary" accessibilityRole="header" style={styles.title}>{title}</Text>
         </View>
         {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'text.secondary'} style={styles.subtitle}>{subtitle}</Text> : null}

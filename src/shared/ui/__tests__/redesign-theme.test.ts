@@ -13,8 +13,8 @@ describe('approved group 01 theme and copy', () => {
     expect(theme.redesign.ink).toBe(theme.mode === 'dark' ? '#E6E6E6' : '#1D1B18')
     expect(theme.redesign.secondary).toBe(theme.mode === 'dark' ? '#CCCCCC' : '#5A413B')
   })
-  it('carries exact Stitch motion timings', () => {
-    expect([motion.mapReveal, motion.brandReveal, motion.markerBounce, motion.ripple, motion.ambientWarm, motion.ambientCool]).toEqual([350, 450, 400, 600, 8000, 10000])
+  it('carries owner-adjusted splash pacing and unchanged ambient timings', () => {
+    expect([motion.mapReveal, motion.brandReveal, motion.markerBounce, motion.ripple, motion.ambientWarm, motion.ambientCool]).toEqual([525, 675, 600, 900, 8000, 10000])
   })
   it('translates every auth, splash and illustration key in both locales', () => {
     for (const key of Object.keys(viMessages) as (keyof typeof viMessages)[]) {

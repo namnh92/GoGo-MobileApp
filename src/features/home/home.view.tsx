@@ -164,7 +164,7 @@ export default function HomeScreen() {
         onTouchStart={() => Keyboard.dismiss()}
         onScroll={fab.onScroll}
         scrollEventThrottle={fab.scrollEventThrottle}
-        contentContainerStyle={{ paddingTop: spacing[1], paddingBottom: fab.bottomInset }}
+        contentContainerStyle={{ paddingBottom: fab.bottomInset }}
       >
         <View style={styles.intro}>
           <View style={{ flex: 1 }}>

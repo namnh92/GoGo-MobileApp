@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSession } from '@/shared/providers/session-provider'
 import { hasCompletedOnboarding, markOnboardingComplete } from '@/shared/storage/onboarding'
 
+import { GoGoLogo } from '@/shared/ui/gogo-logo.view'
 import { useReducedMotion } from '@/shared/ui/feedback'
 import { Text } from '@/shared/ui/text'
 import { Atmosphere } from '@/shared/ui/primitives'
@@ -16,11 +17,11 @@ import { SplashMap } from './splash-map.view'
 import { Reveal } from './splash-reveal.view'
 import { styles } from './splash.style'
 
-/** The animation plays once and the screen holds this long; readiness can only add to it. */
+/** Minimum splash hold; readiness can only add to it. */
 export const SPLASH_MIN_MS = motion.splashHold
-/** Stitch reveals the wordmark and line together once the pins are down. */
-const LOGO_REVEAL = { delay: motion.brandDelay, duration: motion.brandReveal }
-const LINE_REVEAL = LOGO_REVEAL
+const SPLASH_LOGO_SIZE = 120
+/** Reveal the tagline once the pins are down; the logo is visible immediately. */
+const LINE_REVEAL = { delay: motion.brandDelay, duration: motion.brandReveal }
 /** Keep at least a 111.5 × 174.5-point map unless the safe width is narrower. */
 const MIN_MAP_SCALE = 0.5
 
@@ -68,7 +69,7 @@ export default function SplashScreen() {
 function SplashComposition({ reduced, width, height }: { reduced: boolean; width: number; height: number }) {
   const { t } = useTranslation()
   const [size, setSize] = useState({ width, height })
-  const [brandHeight, setBrandHeight] = useState(type.brand.lineHeight + spacing[2] + type.introTagline.lineHeight * 2)
+  const [brandHeight, setBrandHeight] = useState(SPLASH_LOGO_SIZE + spacing[2] + type.introTagline.lineHeight * 2)
   // The half-point SVG stroke needs 0.25 units on each side. Pin drop starts
   // at 51.4 - 16.5 - 40 = -5.1, but is fully transparent there; reserve its
   // complete travel anyway. Other markers, labels and ripples stay in viewBox.
@@ -86,9 +87,7 @@ function SplashComposition({ reduced, width, height }: { reduced: boolean; width
       const { height } = event.nativeEvent.layout
       if (height > 0) setBrandHeight(previous => previous === height ? previous : height)
     }}>
-      <Reveal testID="splash-reveal-logo" reduced={reduced} {...LOGO_REVEAL}>
-        <Text variant="brand" color="accent.primary" style={styles.wordmark} accessibilityRole="header">{t('splash.brand')}</Text>
-      </Reveal>
+      <GoGoLogo animated={!reduced} variant="wordmark" size={SPLASH_LOGO_SIZE} height={SPLASH_LOGO_SIZE} testID="splash-logo" />
       <Reveal testID="splash-reveal-line" reduced={reduced} {...LINE_REVEAL}>
         <Text variant="introTagline" color="redesign.ink" style={styles.tagline}>{t('splash.tagline')}</Text>
       </Reveal>

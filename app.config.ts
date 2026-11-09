@@ -229,6 +229,7 @@ const config: ExpoConfig = {
   backgroundColor: '#F6F3EE',
   icon: './assets/icon.png',
   ios: {
+    icon: './assets/icon.png',
     bundleIdentifier: identity.bundleId,
     ...(appleTeamId ? { appleTeamId } : {}),
     buildNumber: iosBuildNumber,
@@ -260,7 +261,9 @@ const config: ExpoConfig = {
       : {}),
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#D84F4A',
+      backgroundImage: './assets/adaptive-icon-background.png',
+      // Fixed official brand canvas; the user's accent never recolours the icon.
+      backgroundColor: '#20124A',
     },
   },
   plugins: [
@@ -313,6 +316,7 @@ const config: ExpoConfig = {
         resizeMode: 'contain',
         backgroundColor: '#FFF8F3',
         dark: {
+          image: './assets/splash-icon-dark.png',
           backgroundColor: '#181715',
         },
       },
