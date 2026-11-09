@@ -30,7 +30,7 @@ jest.mock('expo-router', () => ({
     require('react').useEffect(effect, [effect])
   },
 }))
-import NotificationSettings from '@/features/settings/permissions.view'
+import { NotificationSwitchSection as NotificationSettings } from '@/features/notifications/notification-switch.view'
 
 const loaded = (settings: Partial<Settings> = {}) => ({
   data: { pushEnabled: true, source: 'explicit', updatedAt: '2026-09-14T00:00:00Z', ...settings },
@@ -113,9 +113,9 @@ it('explains an off carried over from older per-kind choices, and only then', as
 it('on a device where the OS refuses, points to Settings and never implies notifications will show', async () => {
   mockStatus.mockResolvedValue('askable')
   const screen = await renderScreen(<NotificationSettings />)
-  expect(await screen.findByText(/đang tắt trong Cài đặt của máy này/)).toBeTruthy()
+  expect(await screen.findByText(/đang tắt trong cài đặt của máy này/)).toBeTruthy()
   expect(screen.queryByText(/Máy này cho phép GoGo hiển thị thông báo/)).toBeNull()
-  expect(screen.getByText('Mở Cài đặt thông báo')).toBeTruthy()
+  expect(screen.getByText('Mở cài đặt thông báo')).toBeTruthy()
   // The account preference is still the account's to change.
   expect(screen.getByRole('switch').props.disabled).toBe(false)
 })
@@ -128,14 +128,14 @@ it('re-reads device permission when the app returns from Settings', async () => 
   })
   mockStatus.mockResolvedValue('askable')
   const screen = await renderScreen(<NotificationSettings />)
-  expect(await screen.findByText(/đang tắt trong Cài đặt của máy này/)).toBeTruthy()
+  expect(await screen.findByText(/đang tắt trong cài đặt của máy này/)).toBeTruthy()
 
   mockStatus.mockResolvedValue('granted')
   await act(async () => {
     resume?.('active')
   })
   expect(screen.getByText('Máy này cho phép GoGo hiển thị thông báo.')).toBeTruthy()
-  expect(screen.queryByText('Mở Cài đặt thông báo')).toBeNull()
+  expect(screen.queryByText('Mở cài đặt thông báo')).toBeNull()
 })
 
 it('does not claim the permission check failed while the first read is pending', async () => {
@@ -152,7 +152,7 @@ it('describes an unreadable permission without claiming anything about it', asyn
   mockStatus.mockResolvedValue('unknown')
   const screen = await renderScreen(<NotificationSettings />)
   expect(await screen.findByText('Không kiểm tra được quyền thông báo trên máy này.')).toBeTruthy()
-  expect(screen.queryByText(/đang tắt trong Cài đặt/)).toBeNull()
+  expect(screen.queryByText(/đang tắt trong cài đặt/)).toBeNull()
 })
 
 it('shows a recoverable error when Settings cannot be opened, and drops it once permission is granted', async () => {
@@ -165,11 +165,11 @@ it('shows a recoverable error when Settings cannot be opened, and drops it once 
   jest.spyOn(Linking, 'openSettings').mockRejectedValueOnce(new Error('unavailable'))
   const screen = await renderScreen(<NotificationSettings />)
   await act(async () => {
-    await fireEvent.press(await screen.findByText('Mở Cài đặt thông báo'))
+    await fireEvent.press(await screen.findByText('Mở cài đặt thông báo'))
   })
-  expect(screen.getByText(/Không mở được Cài đặt/)).toBeTruthy()
+  expect(screen.getByText(/Không mở được cài đặt/)).toBeTruthy()
 
   mockStatus.mockResolvedValue('granted')
   await act(async () => { resume?.('active') })
-  expect(screen.queryByText(/Không mở được Cài đặt/)).toBeNull()
+  expect(screen.queryByText(/Không mở được cài đặt/)).toBeNull()
 })

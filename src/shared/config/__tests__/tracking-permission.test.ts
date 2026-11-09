@@ -111,7 +111,7 @@ describe('tracking permission string', () => {
           'GoGo dùng mã quảng cáo của thiết bị để biết bạn cài app từ lời mời hay liên kết nào, và để đo hiệu quả các chiến dịch quảng cáo của GoGo. GoGo không hiển thị quảng cáo trong app.',
         'consent.tracking.title': 'Giúp GoGo biết bạn đến từ đâu',
         'consent.tracking.body':
-          'Ở bước tiếp theo, iPhone sẽ hỏi bạn có cho GoGo theo dõi không. Nếu bạn cho phép, GoGo dùng mã quảng cáo của thiết bị để biết lời mời hay liên kết nào đã đưa bạn đến, và để đo hiệu quả quảng cáo của GoGo. Từ chối thì mọi tính năng vẫn dùng bình thường; GoGo vẫn đo lượt cài đặt và mở app, nhưng không kèm mã quảng cáo. Bạn đổi lại được trong Cài đặt.',
+          'Ở bước tiếp theo, iPhone sẽ hỏi bạn có cho GoGo theo dõi không. Nếu bạn cho phép, GoGo dùng mã quảng cáo của thiết bị để biết lời mời hay liên kết nào đã đưa bạn đến, và để đo hiệu quả quảng cáo của GoGo. Từ chối thì mọi tính năng vẫn dùng bình thường; GoGo vẫn đo lượt cài đặt và mở app, nhưng không kèm mã quảng cáo. Bạn đổi lại được trong cài đặt.',
         'consent.tracking.continue': 'Tiếp tục',
         'consent.tracking.later': 'Để sau',
       },
@@ -120,7 +120,7 @@ describe('tracking permission string', () => {
           "GoGo uses your device's advertising identifier to know which invite or link led you to install the app, and to measure how well GoGo's ad campaigns work. GoGo does not show ads in the app.",
         'consent.tracking.title': 'Help GoGo see where you came from',
         'consent.tracking.body':
-          "Next, your iPhone will ask whether GoGo may track you. If you allow it, GoGo uses your device's advertising identifier to know which invite or link brought you here, and to measure GoGo's ads. If you decline, every feature still works; GoGo still measures installs and app opens, but without the advertising identifier. You can change this in Settings.",
+          "Next, your iPhone will ask whether GoGo may track you. If you allow it, GoGo uses your device's advertising identifier to know which invite or link brought you here, and to measure GoGo's ads. If you decline, every feature still works; GoGo still measures installs and app opens, but without the advertising identifier. You can change this in settings.",
         'consent.tracking.continue': 'Continue',
         'consent.tracking.later': 'Not now',
       },

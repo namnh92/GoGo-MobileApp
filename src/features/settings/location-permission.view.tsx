@@ -46,7 +46,7 @@ async function readPermission(): Promise<LocationPermissionState> {
  * own and stores nothing. A profile's default *area* is an account choice, not a
  * permission, and is edited in Defaults (ADR-0022, ADM-203).
  */
-export function LocationPermissionSection() {
+export function LocationPermissionSection({ showSettingsButton = true }: { showSettingsButton?: boolean } = {}) {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
@@ -95,7 +95,9 @@ export function LocationPermissionSection() {
           <Icon name="navigation" size={20} color="accent.onSoft" />
         </View>
         <View style={styles.statusText}>
-          <Text variant="introHeading">{t('locationSettings.statusTitle')}</Text>
+          <View testID="location-permission-title" style={styles.statusTitle}>
+            <Text variant="introHeading">{t('locationSettings.statusTitle')}</Text>
+          </View>
           {state === 'checking' ? (
             <ActivityIndicator color={theme.accent.primary} style={{ alignSelf: 'flex-start' }} />
           ) : (
@@ -108,7 +110,9 @@ export function LocationPermissionSection() {
 
       <Text variant="introCaption" color="redesign.secondary">{t('locationSettings.body')}</Text>
 
-      {state === 'denied' ? (
+      {!showSettingsButton ? <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.deviceSettingsHint')}</Text> : null}
+
+      {state === 'denied' && showSettingsButton ? (
         <View style={styles.actions}>
           <SecondaryBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} icon="settings" />
         </View>
@@ -116,9 +120,9 @@ export function LocationPermissionSection() {
         <View style={styles.actions}>
           <SecondaryBtn label={t('locationSettings.allow')} onPress={allow} icon="navigation" />
         </View>
-      ) : state === 'granted' ? (
+      ) : state === 'granted' && showSettingsButton ? (
         <View style={styles.actions}>
-          <GhostBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} icon="settings" />
+          <GhostBtn label={t('locationSettings.openSettings')} onPress={() => void Linking.openSettings()} icon="settings" style={styles.inlineAction} />
         </View>
       ) : null}
 

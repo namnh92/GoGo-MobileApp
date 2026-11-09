@@ -111,7 +111,7 @@ it('spaces the card/actions and individual buttons, and removes the lone entered
 it('shows the menu/bill upload visibly unavailable and never requests picker permission', async () => {
   await preview()
   await completeWizard()
-  const button = screen.getByRole('button', { name: '+ Tải thêm ảnh menu/bill (Tối đa 5 ảnh)' })
+  const button = screen.getByRole('button', { name: '+ Tải thêm ảnh menu/bill (tối đa 5 ảnh)' })
   expect(button.props.accessibilityState.disabled).toBe(true)
   await fireEvent.press(button)
   expect(mockPermission).not.toHaveBeenCalled()

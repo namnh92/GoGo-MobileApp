@@ -111,7 +111,7 @@ it('shows only real profile fields, resolved interests and full saved/review cou
 it('guests have a sign-in card, locks with a reason and CTA, and accessible local theme settings', async () => {
   mockSession.status = 'guest'
   await render(<ProfileScreen />)
-  expect(screen.getByRole('button', { name: 'Đăng nhập / Đăng ký' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Đăng nhập / đăng ký' })).toBeTruthy()
   expect(screen.queryByText('An')).toBeNull()
   await fireEvent.press(screen.getByTestId('profile-setting-Màu chủ đề'))
   expect(mockPush).toHaveBeenCalledWith('/settings/theme')
