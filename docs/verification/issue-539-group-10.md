@@ -219,3 +219,25 @@ Verification logs: `/tmp/573w-typecheck.log`, `/tmp/573w-lint.log`, `/tmp/573w-u
 
 
 Final checks: `pnpm typecheck` exit 0; `pnpm lint` exit 0; `pnpm test:ui --runInBand` exit 0 (220 suites, 3127 tests, 9 snapshots); targeted notification-inbox API tests exit 0 (4 tests); `git diff --check` exit 0. UI coverage includes both Light and Dark. The serial UI run retained all tests with no test filter. No simulator rerun was performed.
+
+## PR #573 — unified signed-in system notifications (2026-11-09)
+
+Owner simulator feedback (real DEV data, BE#816 reported live): system notifications belong inside “Tất cả thông báo” with a child “Hệ thống” chip; the separate section remains only when signed out. This continuation follows that explicit UI scope and retains the prior branch changes. No backend, generated contract, commit or push changes.
+
+- Signed in: one feed sorts personal `createdAt` and public `publishedAt` newest first. The existing public row component is shared between the merged feed and signed-out section; public rows have no unread indicator or mark-read handler. The summary count and read-all cursor remain exclusively backend personal-inbox values. Read-all is hidden on the public-only chip and when no personal rows are loaded.
+- Chip order: Tất cả / Thành viên / Kế hoạch / Lịch hẹn / Khác / Hệ thống, using the same shared Chip component, selected state and theme tokens. The existing internal personal category `system` and its server kinds remain unchanged; its visible label is now “Khác”. The new public chip uses the unfiltered personal query cache without consuming its pagination and displays only public rows.
+- Public pages automatically load when signed in, up to five pages. When the personal cursor has more pages, public rows older than the oldest loaded personal row wait behind that boundary. Initial personal loading establishes the boundary before interleaving; cursor exhaustion releases the remaining public tail, including when the personal inbox is empty. The public-only chip displays the complete loaded public collection immediately. Signed-out public pagination remains manual.
+- A failed initial or later public request preserves the personal feed, badge and read-all; a small inline message/retry targets only the public query. Existing public rows remain available after a later-page error. Public loading/empty/offline states also leave personal rows usable. Signed out, the separate public section and personal sign-in prompt remain unchanged and cached private rows stay hidden.
+
+Regression evidence: `/tmp/573y-before-ui.log` records 26 failing updated/new expectations before implementation (110 existing tests passed). `/tmp/573y-focused-ui.log` records 143 passing focused tests after the main implementation, before the final initial-boundary and pagination UI cases. New screen scenarios run in Light and Dark and cover merge order/page boundaries, exhausted/empty inbox, every chip, read-state isolation, public failures with/without cache, loading/offline/empty isolation and signed-out layout. Real-query hook tests cover deduplication, opaque cursors, five-page stop, sign-in transition and failed-page recovery. `/tmp/573y-ui-pre-final.log` is an interrupted intermediate run containing a test-helper error corrected before the final run.
+
+Final requested gates (all exit 0):
+
+| Command | Result | Log |
+| --- | --- | --- |
+| `pnpm typecheck` | Pass | `/tmp/573y-typecheck.log` |
+| `pnpm lint` | Pass; no warnings | `/tmp/573y-lint.log` |
+| `pnpm test:ui --runInBand` (no test filter) | 220 suites, 3177 tests, 9 snapshots passed | `/tmp/573y-test-ui.log` |
+| `git diff --check` | Pass | `/tmp/573y-diff-check.log` |
+
+The nine changed source/test files are recorded in `/tmp/573y-source.sha256` and verified unchanged after the final checks. The worktree retains the patch for review; no commit or push was performed. This continuation does not claim a simulator rerun or authenticated DEV acceptance.

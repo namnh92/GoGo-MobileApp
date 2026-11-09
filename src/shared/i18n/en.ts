@@ -11,7 +11,9 @@ type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
 export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "g10.viewPlan": "View plan",
   "g10.exportExpires": "Expires: {{date}}",
-  "g10.filter.system": "System/other",
+  "g10.filter.system": "Other",
+  "g10.filter.publicSystem": "System",
+  "g10.systemFetchFailed": "Couldn't load system notifications.",
   "g10.filterEmpty": "No notifications in this category",
   "g10.systemEmpty": "No system notifications yet",
   "g10.viewDetails": "View details",

@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import type { useSystemNotificationsQuery } from '@/shared/api/queries/use-system-notifications'
 import { parseApiDate } from '@/shared/api'
+import type { SystemNotification } from '@/shared/api/system-notifications'
 import { parseDeepLink, routeForAction } from '@/shared/navigation/deep-link'
 import { Card, SecondaryBtn } from '@/shared/ui/primitives'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
@@ -16,7 +17,6 @@ import { styles } from './system-notifications.style'
 type Props = { inbox: ReturnType<typeof useSystemNotificationsQuery>; illustration: ReactNode }
 export function SystemNotificationsSection({ inbox, illustration }: Props) {
   const { t } = useTranslation()
-  const router = useRouter()
   const items = inbox.data?.pages.flatMap(page => page.items) ?? []
   return <View testID="system-notifications-section">
     <Text accessibilityRole="header" variant="introHeading" color="redesign.ink" style={styles.sectionTitle}>{t('g10.systemTitle')}</Text>
@@ -25,22 +25,27 @@ export function SystemNotificationsSection({ inbox, illustration }: Props) {
     </View> : inbox.isPaused && !inbox.data ? <OfflineState /> : inbox.isPending ? <View testID="system-notifications-loading"><Skeleton width="100%" height={96} /></View>
       : inbox.isError && !inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.refetch()} /> : <>
         <StaleNotice hasData={!!inbox.data} error={inbox.error} onRetry={() => void inbox.refetch()} />
-        {items.map(item => {
-          const action = parseDeepLink(item.deepLink)
-          const canOpen = action.kind !== 'unknown'
-          const published = parseApiDate(item.publishedAt)
-          return <Card key={item.id} appearance="stitch" padded={false} style={styles.row}>
-            <View style={styles.iconTile}><Icon name={item.kind === 'maintenance' ? 'settings' : item.kind === 'update' ? 'sparkle' : 'info'} size={24} color="redesign.secondary" /></View>
-            <View style={styles.content}>
-              <Text variant="introLabel" color="redesign.ink">{item.title}</Text>
-              <Text variant="introBody" color="redesign.ink" style={styles.body}>{item.body}</Text>
-              {published ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{formatNotificationTime(published, t)}</Text> : null}
-              {canOpen ? <SecondaryBtn size="small" variant="neutralPill" label={t('g10.viewDetails')} onPress={() => router.push(routeForAction(action))} /> : null}
-            </View>
-          </Card>
-        })}
+        {items.map(item => <SystemNotificationRow key={item.id} item={item} />)}
         {!items.length ? <View style={styles.empty}><EmptyState appearance="stitch" title={t('g10.systemEmpty')} illustration={illustration} /></View> : null}
         {inbox.isFetchingNextPage ? <ActivityIndicator accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : inbox.hasNextPage ? <SecondaryBtn size="small" variant="neutralPill" label={t('g10.loadMore')} onPress={() => void inbox.fetchNextPage({ cancelRefetch: false })} /> : null}
       </>}
   </View>
+}
+
+/** Public broadcasts have no per-user read state. Reuse this row in both session layouts. */
+export function SystemNotificationRow({ item }: { item: SystemNotification }) {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const action = parseDeepLink(item.deepLink)
+  const canOpen = action.kind !== 'unknown'
+  const published = parseApiDate(item.publishedAt)
+  return <Card testID={`system-notification-${item.id}`} appearance="stitch" padded={false} style={styles.row}>
+    <View style={styles.iconTile}><Icon name={item.kind === 'maintenance' ? 'settings' : item.kind === 'update' ? 'sparkle' : 'info'} size={24} color="redesign.secondary" /></View>
+    <View style={styles.content}>
+      <Text variant="introLabel" color="redesign.ink">{item.title}</Text>
+      <Text variant="introBody" color="redesign.ink" style={styles.body}>{item.body}</Text>
+      {published ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{formatNotificationTime(published, t)}</Text> : null}
+      {canOpen ? <SecondaryBtn size="small" variant="neutralPill" label={t('g10.viewDetails')} onPress={() => router.push(routeForAction(action))} /> : null}
+    </View>
+  </Card>
 }

@@ -6,6 +6,7 @@ export const styles = StyleSheet.create(theme => ({
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: spacing[1], paddingBottom: spacing[2] },
   toolbarTitle: { flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   filters: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
+  systemRetry: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
   loadingFooter: { marginVertical: spacing[4] },
   sectionTitle: { marginBottom: spacing[2] },
   personalSection: { marginTop: spacing[6] },

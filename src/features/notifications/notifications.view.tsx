@@ -16,7 +16,8 @@ import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { useNotificationFilter, type InboxCategory } from '@/shared/api/queries/use-notification-filter'
-import { SystemNotificationsSection } from './system-notifications.view'
+import { SystemNotificationRow, SystemNotificationsSection } from './system-notifications.view'
+import { mergeNotificationFeed } from './notification-feed'
 import { resolveInboxTarget } from './inbox-target'
 import { NotificationCard } from './notification-card.view'
 import { notificationCapabilities } from './notification-capabilities'
@@ -51,8 +52,10 @@ export default function NotificationsScreen() {
 
   // Guests get 403 USER_ONLY on the inbox.
   const canRead = status === 'user'
-  const systemInbox = useSystemNotificationsQuery()
-  const [category, setCategory] = useState<InboxCategory>('all')
+  const systemInbox = useSystemNotificationsQuery({ loadAll: canRead })
+  const [filter, setFilter] = useState<InboxCategory | 'publicSystem'>('all')
+  const publicOnly = filter === 'publicSystem'
+  const category = publicOnly ? 'all' : filter
   const inbox = useNotifications({ enabled: canRead, category })
   const { items, filling } = useNotificationFilter(inbox, category, canRead)
   const markRead = useMarkNotificationRead()
@@ -60,7 +63,7 @@ export default function NotificationsScreen() {
   const summary = useNotificationSummary({ enabled: canRead && capabilities.summary })
   const readAll = useReadAllNotifications()
   const readingAll = useRef(false)
-  const canReadAll = canRead && capabilities.readAll && !!summary.data?.readThroughCursor && !summary.isError && !summary.isPaused
+  const canReadAll = canRead && !publicOnly && capabilities.readAll && !!summary.data?.readThroughCursor && !summary.isError && !summary.isPaused
     && summary.data.unreadCount > 0 && items.length > 0 && !inbox.isError && !inbox.isPending && !inbox.isPaused && !readAll.isPending
   async function markAll() {
     if (!canReadAll || readingAll.current) return
@@ -167,7 +170,10 @@ export default function NotificationsScreen() {
 
   // Keep the same feed frame in every state. Disabled account queries may
   // still contain cached data during a session transition; never render it.
-  const listItems = canRead ? items : []
+  const systemItems = systemInbox.data?.pages.flatMap(page => page.items) ?? []
+  const listItems = !canRead ? [] : publicOnly ? mergeNotificationFeed([], systemItems, false)
+    : mergeNotificationFeed(items, filter === 'all' ? systemItems : [], !inbox.data || !!inbox.hasNextPage)
+  const showSystemStatus = canRead && (filter === 'all' || publicOnly)
   const emptyIllustration = <View style={styles.emptyHalo}><View style={styles.emptyWash} /><View style={styles.emptyIllustration}>
     <MaterialIcon name="markChatRead" size={44} color="redesign.violetText" />
   </View></View>
@@ -178,13 +184,21 @@ export default function NotificationsScreen() {
         title={t('notifications.signInTitle')} body={t('g10.personalSignInBody')}
         action={<GhostBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} /></View>
     </View>
-  </View> : inbox.isPaused && !inbox.data ? <OfflineState />
+  </View> : publicOnly ? (
+    systemInbox.isError ? null
+      : systemInbox.isPaused ? <OfflineState />
+        : systemInbox.isPending || systemInbox.loadingAll ? null
+          : <View testID="notifications-empty" style={styles.empty}><EmptyState appearance="stitch"
+            title={t(systemInbox.status === 'unsupported' ? 'g10.systemUnavailableTitle' : 'g10.systemEmpty')}
+            illustration={emptyIllustration} /></View>
+  ) : inbox.isPaused && !inbox.data ? <OfflineState />
     : inbox.isPending ? <View testID="notifications-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}>
       {[0, 1, 2].map(key => <View key={key} style={styles.skeletonRow}><Skeleton width={48} height={48} radius={24} /><View style={styles.content}><Skeleton width="65%" height={14} /><Skeleton width="100%" height={48} /></View></View>)}
     </View> : inbox.isError && !inbox.data ? <View testID="notifications-error" style={styles.empty}>
       <ErrorState error={inbox.error} onRetry={retryInbox} />
     </View> : category !== 'all' && inbox.hasNextPage && inbox.isPaused ? <OfflineState />
-      : filling || (category !== 'all' && inbox.hasNextPage && inbox.isError) ? null : <View testID="notifications-empty" style={styles.empty}>
+      : filling || (category !== 'all' && inbox.hasNextPage && inbox.isError)
+        || (filter === 'all' && (systemInbox.isPending || systemInbox.loadingAll)) ? null : <View testID="notifications-empty" style={styles.empty}>
       <EmptyState appearance="stitch" title={t(category === 'all' ? 'g10.emptyTitle' : 'g10.filterEmpty')} body={category === 'all' ? t('g10.emptyBody') : undefined} illustration={emptyIllustration}
         action={<SecondaryBtn size="small" variant="neutralPill" label={t('g10.reload')} loading={inbox.isRefetching} onPress={() => { void inbox.refetch(); void summary.refetch() }} />} />
     </View>
@@ -193,15 +207,16 @@ export default function NotificationsScreen() {
     <Atmosphere redesign>
       {header}
       <FlatList
+        testID="notifications-feed"
         data={listItems}
-        keyExtractor={item => item.id ?? String(item.createdAt)}
+        keyExtractor={row => `${row.source}:${row.item.id ?? (row.source === 'personal' ? row.item.createdAt : row.item.publishedAt)}`}
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing[6] }]}
         onEndReachedThreshold={0.5}
         onEndReached={() => {
-          if (canRead && inbox.hasNextPage && !inbox.isFetching && !inbox.isFetchNextPageError) void inbox.fetchNextPage({ cancelRefetch: false })
+          if (canRead && !publicOnly && inbox.hasNextPage && !inbox.isFetching && !inbox.isFetchNextPageError) void inbox.fetchNextPage({ cancelRefetch: false })
         }}
         ListHeaderComponent={<View>
-          <SystemNotificationsSection inbox={systemInbox} illustration={emptyIllustration} />
+          {!canRead ? <SystemNotificationsSection inbox={systemInbox} illustration={emptyIllustration} /> : null}
           {canRead ? <View style={styles.personalSection}>
           <StaleNotice hasData={!!inbox.data || !!summary.data} error={(inbox.data ? inbox.error : null) ?? (summary.data ? summary.error : null)} onRetry={retryInbox} />
           <View style={styles.toolbar}>
@@ -209,26 +224,31 @@ export default function NotificationsScreen() {
               <Text accessibilityRole="header" variant="introHeading" color="redesign.ink">{t('g10.allNotifications')}</Text>
               {canRead && !summary.isError && !summary.isPaused && summary.data && summary.data.unreadCount > 0 ? <Badge appearance="solid" label={t('g10.newCount', { count: summary.data.unreadCount })} /> : null}
             </View>
-            {canReadAll || readAll.isPending ? <SecondaryBtn size="small" variant="neutralPill" leadingIcon="doneAll" label={t('g10.readAll')} disabled={!canReadAll}
+            {canReadAll || (!publicOnly && readAll.isPending) ? <SecondaryBtn size="small" variant="neutralPill" leadingIcon="doneAll" label={t('g10.readAll')} disabled={!canReadAll}
               loading={readAll.isPending} onPress={() => void markAll()} /> : null}
           </View>
           {canRead && summary.isPending && !summary.isPaused ? <Skeleton width={80} height={14} /> : null}
           {canRead && summary.isPaused && !summary.data ? <OfflineState /> : null}
           {canRead && summary.isError && !summary.data && !inbox.isError ? <ErrorState error={summary.error} onRetry={retryInbox} /> : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            {(['all', 'invite', 'plan', 'date', 'system'] as const).map(value => <Chip key={value} appearance="raised"
-              label={t(`g10.filter.${value}`)} icon={value === 'invite' ? 'users' : value === 'plan' ? 'map' : value === 'date' ? 'clock' : value === 'system' ? 'info' : undefined}
-              variant={category === value ? 'selected' : 'default'} onPress={() => setCategory(value)} />)}
+            {(['all', 'invite', 'plan', 'date', 'system', 'publicSystem'] as const).map(value => <Chip key={value} appearance="raised"
+              label={t(`g10.filter.${value}`)} icon={value === 'invite' ? 'users' : value === 'plan' ? 'map' : value === 'date' ? 'clock' : value === 'system' || value === 'publicSystem' ? 'info' : undefined}
+              variant={filter === value ? 'selected' : 'default'} onPress={() => setFilter(value)} />)}
           </ScrollView>
+          {showSystemStatus && systemInbox.isError ? <View testID="system-notifications-retry" style={styles.systemRetry} accessibilityLiveRegion="polite">
+            <Text variant="bodySmall" color="redesign.secondary">{t('g10.systemFetchFailed')}</Text>
+            <GhostBtn label={t('common.retry')} loading={systemInbox.isFetching} onPress={() => void systemInbox.refetch()} />
+          </View> : null}
+          {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) ? <ActivityIndicator testID="system-notifications-loading" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : null}
         </View> : null}</View>}
         ListEmptyComponent={listState}
         ListFooterComponent={
-          canRead && (inbox.isFetchingNextPage || filling) ? <ActivityIndicator testID="notifications-loading-more" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} />
-            : canRead && inbox.isFetchNextPageError && !!inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.fetchNextPage({ cancelRefetch: false })} /> : null
+          canRead && !publicOnly && (inbox.isFetchingNextPage || filling) ? <ActivityIndicator testID="notifications-loading-more" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} />
+            : canRead && !publicOnly && inbox.isFetchNextPageError && !!inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.fetchNextPage({ cancelRefetch: false })} /> : null
         }
-        renderItem={({ item, index }) => <NotificationCard item={item} index={index}
-          busy={openingId !== null && openingId === item.id} reading={!!item.id && readingIds.has(item.id)}
-          onOpen={() => void open(item)} onLater={() => mark(item)} /> }
+        renderItem={({ item: row, index }) => row.source === 'system' ? <SystemNotificationRow item={row.item} /> : <NotificationCard item={row.item} index={index}
+          busy={openingId !== null && openingId === row.item.id} reading={!!row.item.id && readingIds.has(row.item.id)}
+          onOpen={() => void open(row.item)} onLater={() => mark(row.item)} /> }
       />
       <ResultSheet visible={!!readProblem} variant="error" title={t('g10.readFailed')} body={t(readProblem === 'all' ? 'g10.readAllFailedBody' : 'g10.readFailedBody')}
         secondaryAction={readProblem === 'all' ? { label: t('g10.reload'), onPress: () => { setReadProblem(null); void inbox.refetch(); void summary.refetch() } } : undefined}

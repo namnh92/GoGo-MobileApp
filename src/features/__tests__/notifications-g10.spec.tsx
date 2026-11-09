@@ -88,9 +88,9 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
   currentTheme = themes[mode]
   const screen = await renderScreen(<NotificationsScreen />)
   const chips = chipSpy.mock.calls.map(([props]) => props)
-  expect(chips).toHaveLength(5)
+  expect(chips).toHaveLength(6)
   expect(chips.map(chip => chip.label)).toEqual([
-    viMessages['g10.filter.all'], viMessages['g10.filter.invite'], viMessages['g10.filter.plan'], viMessages['g10.filter.date'], viMessages['g10.filter.system'],
+    viMessages['g10.filter.all'], viMessages['g10.filter.invite'], viMessages['g10.filter.plan'], viMessages['g10.filter.date'], viMessages['g10.filter.system'], viMessages['g10.filter.publicSystem'],
   ])
   expect(screen.queryByText(/Lọc theo loại chưa khả dụng/)).toBeNull()
   expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeEnabled()
@@ -157,7 +157,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mo
       expect(screen.queryByTestId('notifications-loading')).toBeNull()
       if (state === 'empty') {
         expect(screen.getByText(viMessages['g10.emptyTitle'])).toBeTruthy()
-        expect(screen.getAllByTestId('material-icon-markChatRead', { includeHiddenElements: true })).toHaveLength(2)
+        expect(screen.getAllByTestId('material-icon-markChatRead', { includeHiddenElements: true })).toHaveLength(1)
         await fireEvent.press(screen.getByRole('button', { name: 'Tải lại thông báo' }))
         expect(mockRefetch).toHaveBeenCalledTimes(2)
       } else {
@@ -518,14 +518,15 @@ describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture',
     const screen = await renderScreen(<NotificationsScreen />)
     for (const [label, kinds] of [
       ['Thành viên', ['invite']], ['Kế hoạch', ['preference_reminder', 'plan_ready', 'plan_changed']],
-      ['Lịch hẹn', ['date_reminder']], ['Hệ thống/khác', ['campaign', 'moderation_update', 'privacy_export_ready', 'unknown']],
+      ['Lịch hẹn', ['date_reminder']], ['Khác', ['campaign', 'moderation_update', 'privacy_export_ready', 'unknown']],
+      ['Hệ thống', []],
       ['Tất cả', fullCase.notifications.map(row => row.kind)],
     ] as const) {
       await fireEvent.press(screen.getByRole('button', { name: label }))
       expect(screen.getByRole('button', { name: label }).props.accessibilityState).toMatchObject({ selected: true, disabled: false })
       const text = screen.getByText(label)
       expect(StyleSheet.flatten(text.props.style).fontFamily).toBe(fontFamily.semiBold)
-      for (const other of ['Tất cả', 'Thành viên', 'Kế hoạch', 'Lịch hẹn', 'Hệ thống/khác'].filter(value => value !== label)) {
+      for (const other of ['Tất cả', 'Thành viên', 'Kế hoạch', 'Lịch hẹn', 'Khác', 'Hệ thống'].filter(value => value !== label)) {
         expect(screen.getByRole('button', { name: other }).props.accessibilityState.selected).toBe(false)
         expect(StyleSheet.flatten(screen.getByText(other).props.style).fontFamily).toBe(fontFamily.medium)
       }
@@ -594,13 +595,13 @@ describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture',
   it.each([null, 'not a date'])('omits invalid system publishedAt (%s) without hiding content', async publishedAt => {
     mockSystemInbox = { status: 'supported', data: { pages: [{ items: [{ id: 'system-time', kind: 'maintenance', title: 'System time regression', body: 'Public body', publishedAt }] }] } }
     const screen = await renderScreen(<NotificationsScreen />)
-    const section = screen.getByTestId('system-notifications-section')
+    const section = screen.getByTestId('system-notification-system-time')
     expect(screen.getByText('System time regression')).toBeTruthy()
     expect(screen.getByText('Public body')).toBeTruthy()
     expect(within(section).queryAllByText(/trước|Hôm qua|Vừa xong/)).toHaveLength(0)
     expect(screen.queryByText(/Invalid Date|NaN/)).toBeNull()
   })
-  it.each(['user', 'guest'])('shows public rows above personal content for %s with independent read state', async status => {
+  it.each(['user', 'guest'])('shows public rows for %s with independent read state', async status => {
     mockSession = status
     mockSystemInbox = { status: 'supported', data: { pages: [{ items: [{ id: 'system-1', kind: 'maintenance', title: 'Bảo trì GoGo', body: 'Bảo trì lúc 23:00.', deepLink: 'gogo://saved', publishedAt: '2026-11-09T01:00:00Z', expiresAt: null }] }] } }
     const screen = await renderScreen(<NotificationsScreen />)
@@ -612,6 +613,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture',
     expect(mockRead).not.toHaveBeenCalled()
   })
   it('shows public empty, loading, offline and error states independently of personal rows', async () => {
+    mockSession = 'guest'
     mockSystemInbox = { status: 'supported', data: { pages: [{ items: [] }] } }
     const screen = await renderScreen(<NotificationsScreen />)
     expect(screen.getByText('Chưa có thông báo hệ thống')).toBeTruthy()
@@ -628,6 +630,129 @@ describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture',
   })
 })
 
+
+const systemRow = (id: string, publishedAt: string) => ({ id, kind: 'maintenance', title: `Public ${id}`, body: 'Public body', deepLink: 'gogo://saved', publishedAt, expiresAt: null })
+const mockSystemRefetch = jest.fn()
+describe.each(['orange', 'orangeDark'] as const)('%s unified inbox', mode => {
+  beforeEach(() => {
+    currentTheme = themes[mode]
+    mockSystemInbox = { status: 'supported', data: { pages: [
+      { items: [systemRow('new', '2026-11-09T12:00:00Z'), systemRow('middle', '2026-11-09T09:00:00Z')] },
+      { items: [systemRow('old', '2026-11-08T08:00:00Z')] },
+    ] }, refetch: mockSystemRefetch }
+    mockInbox = { ...loadedInbox([
+      { ...item, id: 'personal-new', createdAt: '2026-11-09T10:00:00Z' },
+      { ...item, id: 'personal-old', kind: 'campaign', createdAt: '2026-11-09T08:00:00Z', payload: { title: 'Private campaign' } },
+    ]), hasNextPage: true }
+  })
+  const rows = (screen: Awaited<ReturnType<typeof renderScreen>>) => screen.getAllByTestId(/^(system-notification-|notification-heading-)/).map(row => row.props.testID)
+
+  it('interleaves publishedAt/createdAt and releases older system rows with the personal page boundary', async () => {
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.queryByTestId('system-notifications-section')).toBeNull()
+    expect(screen.queryByRole('header', { name: 'Thông báo hệ thống' })).toBeNull()
+    expect(rows(screen)).toEqual(['system-notification-new', 'notification-heading-personal-new', 'system-notification-middle', 'notification-heading-personal-old'])
+    mockInbox = { ...loadedInbox([
+      ...((mockInbox.data as { pages: { notifications: unknown[] }[] }).pages[0]!.notifications),
+      { ...item, id: 'personal-page2', createdAt: '2026-11-08T07:00:00Z' },
+    ]), hasNextPage: true }
+    await screen.rerender(<NotificationsScreen />)
+    expect(rows(screen)).toEqual(['system-notification-new', 'notification-heading-personal-new', 'system-notification-middle', 'notification-heading-personal-old', 'system-notification-old', 'notification-heading-personal-page2'])
+  })
+  it('releases the system tail when the personal cursor is exhausted, including an empty inbox', async () => {
+    mockInbox = { ...mockInbox, hasNextPage: false }
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(rows(screen).at(-1)).toBe('system-notification-old')
+    mockInbox = loadedInbox([])
+    await screen.rerender(<NotificationsScreen />)
+    expect(rows(screen)).toEqual(['system-notification-new', 'system-notification-middle', 'system-notification-old'])
+    expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+  })
+  it('waits for the initial personal boundary before merging, while the system chip works independently', async () => {
+    mockInbox = { isPending: true }
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.queryAllByTestId(/^system-notification-/)).toHaveLength(0)
+    expect(screen.getByTestId('notifications-loading')).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Hệ thống' }))
+    expect(rows(screen)).toEqual(['system-notification-new', 'system-notification-middle', 'system-notification-old'])
+    expect(screen.queryByTestId('notifications-loading')).toBeNull()
+  })
+  it.each(['loading', 'offline', 'empty'] as const)('keeps personal rows usable when public data is %s', async state => {
+    mockSystemInbox = state === 'empty' ? { status: 'supported', data: { pages: [{ items: [] }] } }
+      : { isPending: true, isPaused: state === 'offline' }
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByTestId('notification-heading-personal-new')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Đọc tất cả' })).toBeEnabled()
+    await fireEvent.press(screen.getByRole('button', { name: 'Hệ thống' }))
+    expect(screen.queryAllByTestId(/^notification-heading-/)).toHaveLength(0)
+    if (state === 'loading') expect(screen.getByTestId('system-notifications-loading')).toBeTruthy()
+    if (state === 'offline') expect(screen.getByText(viMessages['common.offlineTitle'])).toBeTruthy()
+    if (state === 'empty') expect(screen.getByText(viMessages['g10.systemEmpty'])).toBeTruthy()
+  })
+  it('loads more personal rows at the end of All but not on the public chip', async () => {
+    const fetchNextPage = jest.fn().mockResolvedValue(undefined)
+    mockInbox = { ...mockInbox, fetchNextPage }
+    const screen = await renderScreen(<NotificationsScreen />)
+    const list = () => screen.getByTestId('notifications-feed')
+    await fireEvent(list(), 'endReached')
+    expect(fetchNextPage).toHaveBeenCalledWith({ cancelRefetch: false })
+    await fireEvent.press(screen.getByRole('button', { name: 'Hệ thống' }))
+    await fireEvent(list(), 'endReached')
+    expect(fetchNextPage).toHaveBeenCalledTimes(1)
+  })
+  it('keeps all personal chips private and shows the full public list only on Hệ thống', async () => {
+    mockInbox = { ...mockInbox, hasNextPage: false }
+    const screen = await renderScreen(<NotificationsScreen />)
+    for (const label of ['Thành viên', 'Kế hoạch', 'Lịch hẹn', 'Khác']) {
+      await fireEvent.press(screen.getByRole('button', { name: label }))
+      expect(screen.queryAllByTestId(/^system-notification-/)).toHaveLength(0)
+    }
+    await fireEvent.press(screen.getByRole('button', { name: 'Hệ thống' }))
+    expect(rows(screen)).toEqual(['system-notification-new', 'system-notification-middle', 'system-notification-old'])
+    expect(screen.queryAllByTestId(/^notification-heading-/)).toHaveLength(0)
+    expect(mockInboxQuery).toHaveBeenLastCalledWith({ enabled: true, category: 'all' })
+    expect(screen.queryByRole('button', { name: 'Đọc tất cả' })).toBeNull()
+  })
+  it('never marks public rows unread or sends them to read actions', async () => {
+    const screen = await renderScreen(<NotificationsScreen />)
+    for (const row of screen.getAllByTestId(/^system-notification-/)) {
+      expect(within(row).queryByTestId(/^notification-unread-/)).toBeNull()
+      expect(StyleSheet.flatten(row.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+    }
+    expect(screen.getByText('32 mới')).toBeTruthy()
+    await fireEvent.press(within(screen.getByTestId('system-notification-new')).getByRole('button', { name: 'Xem chi tiết' }))
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/saved')
+    expect(mockRead).not.toHaveBeenCalled()
+    await fireEvent.press(screen.getByRole('button', { name: 'Đọc tất cả' }))
+    expect(mockReadAll).toHaveBeenCalledWith('opaque-summary-cutoff')
+  })
+  it.each([false, true])('isolates system failure (cached: %s) with a small public retry', async cached => {
+    mockSystemInbox = { ...mockSystemInbox, data: cached ? mockSystemInbox.data : undefined, isError: true, error: new Error('503') }
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByTestId('notification-heading-personal-new')).toBeTruthy()
+    expect(screen.queryByTestId('notifications-error')).toBeNull()
+    expect(screen.queryByText(viMessages['common.errorTitle'])).toBeNull()
+    expect(screen.getByText('32 mới')).toBeTruthy()
+    const retry = screen.getByTestId('system-notifications-retry')
+    await fireEvent.press(within(retry).getByRole('button', { name: 'Thử lại' }))
+    expect(mockSystemRefetch).toHaveBeenCalledTimes(1)
+    expect(mockRefetch).not.toHaveBeenCalled()
+    await fireEvent.press(screen.getByRole('button', { name: 'Hệ thống' }))
+    expect(screen.queryByText('Không có thông báo loại này')).toBeNull()
+    expect(screen.getByTestId('system-notifications-retry')).toBeTruthy()
+  })
+  it.each(['anonymous', 'guest'])('preserves the public section and sign-in prompt for %s', async status => {
+    mockSession = status
+    const screen = await renderScreen(<NotificationsScreen />)
+    expect(screen.getByTestId('system-notifications-section')).toBeTruthy()
+    expect(screen.getByRole('header', { name: 'Thông báo hệ thống' })).toBeTruthy()
+    expect(screen.getByText(viMessages['g10.personalSignInBody'])).toBeTruthy()
+    expect(rows(screen)).toEqual(['system-notification-new', 'system-notification-middle', 'system-notification-old'])
+    expect(chipSpy).not.toHaveBeenCalled()
+    expect(screen.queryByText('32 mới')).toBeNull()
+  })
+})
 
 describe.each(['orange', 'orangeDark'] as const)('%s inbox error regression', mode => {
   beforeEach(() => { currentTheme = themes[mode] })

@@ -1,6 +1,8 @@
 // Vietnamese is the source locale: message keys are derived from this object.
 export const viMessages = {
-  "g10.filter.system": "Hệ thống/khác",
+  "g10.filter.system": "Khác",
+  "g10.filter.publicSystem": "Hệ thống",
+  "g10.systemFetchFailed": "Chưa tải được thông báo hệ thống.",
   "g10.filterEmpty": "Không có thông báo loại này",
   "g10.systemEmpty": "Chưa có thông báo hệ thống",
   "g10.viewDetails": "Xem chi tiết",
