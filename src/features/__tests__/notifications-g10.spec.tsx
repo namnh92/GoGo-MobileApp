@@ -67,7 +67,7 @@ const PermissionsScreen = jest.requireActual<typeof import('@/features/settings/
 
 const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:00:00Z', payload: { roomName: 'Phòng thật', inviterName: 'Lan', roomId: '11111111-1111-4111-8111-111111111111' } }
 const settingsData = { pushEnabled: true, source: 'explicit', updatedAt: null }
-const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications, clientFilter: true }] }, isPending: false, isError: false, refetch: mockRefetch })
+const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications, clientFilter: false }] }, isPending: false, isError: false, refetch: mockRefetch })
 
 beforeEach(() => {
   currentTheme = themes.orange

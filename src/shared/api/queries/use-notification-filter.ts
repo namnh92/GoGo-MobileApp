@@ -21,13 +21,13 @@ export const inboxKinds: Record<InboxCategory, readonly NotificationKind[] | und
 }
 
 export function useNotificationFilter(inbox: ReturnType<typeof useNotifications>, category: InboxCategory, enabled: boolean) {
-  const clientFilter = inbox.data?.pages[0]?.clientFilter === true
   const items = useMemo(() => {
     const loaded: Notification[] = (inbox.data?.pages ?? []).flatMap(page => page.notifications ?? [])
-    return category === 'all' || !clientFilter ? loaded : loaded.filter(item => notificationCategory(item.kind) === category)
-  }, [inbox.data, category, clientFilter])
+    // Older servers may accept kinds but still return the unfiltered feed.
+    return category === 'all' ? loaded : loaded.filter(item => notificationCategory(item.kind) === category)
+  }, [inbox.data, category])
   const { hasNextPage, isFetching, isError, isPaused, fetchNextPage } = inbox
-  const filling = enabled && clientFilter && category !== 'all' && items.length < 10 && !!hasNextPage && !isError && !isPaused
+  const filling = enabled && category !== 'all' && items.length < 10 && !!hasNextPage && !isError && !isPaused
   useEffect(() => {
     if (filling && !isFetching) void fetchNextPage({ cancelRefetch: false }).catch(() => undefined)
   }, [filling, isFetching, fetchNextPage, inbox.data])
