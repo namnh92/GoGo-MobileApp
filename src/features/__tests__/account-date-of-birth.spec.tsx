@@ -225,9 +225,11 @@ it('prevents duplicate saves and editing/back during the request', async () => {
   await act(async () => { onPress(); onPress() })
   expect(mockUpdateProfile).toHaveBeenCalledTimes(1)
   expect(view.getByRole('button', { name: 'Lưu' }).props.accessibilityState.busy).toBe(true)
+  expect(view.getByTestId('blocking-loading-overlay').props.accessibilityState.busy).toBe(true)
   expect(view.getByLabelText(INPUT).props.editable).toBe(false)
   expect(view.getByRole('button', { name: 'Quay lại' }).props.accessibilityState.disabled).toBe(true)
   await act(async () => { answer(profile({ dateOfBirth: '2000-01-01' })) })
+  expect(view.queryByTestId('blocking-loading-overlay')).toBeNull()
   expect(await view.findByText('✓ Đã lưu')).toBeTruthy()
 })
 it('asks before discarding changes on back, and cancel keeps the draft', async () => {

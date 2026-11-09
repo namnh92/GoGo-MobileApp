@@ -1,4 +1,6 @@
 import { AppHeader } from '@/shared/ui/app-header.view'
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
@@ -149,7 +151,7 @@ export default function PlansScreen() {
         onRetry={() => void rooms.refetch()}
       />
 
-      <ScrollView
+      <PullToRefresh key={tab} enabled={canRead} onRefresh={() => rooms.refetch()}><ScrollView
         testID="plans-list"
         onScroll={fab.onScroll}
         scrollEventThrottle={fab.scrollEventThrottle}
@@ -215,16 +217,15 @@ export default function PlansScreen() {
               <ErrorState error={rooms.error} onRetry={() => void rooms.fetchNextPage()} />
             ) : null}
 
-            {rooms.hasNextPage ? (
+            {rooms.isFetchingNextPage ? <LoadingIndicator /> : rooms.hasNextPage ? (
               <GhostBtn
-                label={rooms.isFetchingNextPage ? t('common.loading') : t('plans.loadMore')}
+                label={t('plans.loadMore')}
                 onPress={() => void rooms.fetchNextPage()}
-                disabled={rooms.isFetchingNextPage}
               />
             ) : null}
           </>
         )}
-      </ScrollView>
+      </ScrollView></PullToRefresh>
     </Atmosphere>
   )
 }

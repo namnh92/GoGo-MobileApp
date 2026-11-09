@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { onlineManager } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
@@ -512,6 +513,7 @@ export default function GoGoRoomScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={startMatching.isPending || createInvite.isPending || revokeInvite.isPending} />
       <View>
         <AppHeader title={t('gogoRoom.screenTitle')} onBack={() => goBackOrHome(router)} />
       </View>

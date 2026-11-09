@@ -1,4 +1,5 @@
 import { Chip } from '@/shared/ui/chip.view'
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MutableRefObject } from 'react'
@@ -263,6 +264,8 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
     })
   }
 
+  const [submitOverlayClosed, setSubmitOverlayClosed] = useState(true)
+  if (state.phase === 'submitting' && submitOverlayClosed) setSubmitOverlayClosed(false)
   const wizardProps = {
     googlePlaceId: contributionPlaceId ?? '', registered: actorStatus === 'user', online,
     submitting: state.phase === 'submitting', blocked: notOpenYet || accepted,
@@ -520,8 +523,9 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
         </KeyboardAvoidingView>
       </FocusedFieldGroup.Provider>
       {exit.sheet}
+      <BlockingLoadingOverlay visible={state.phase === 'submitting' || resolve.isPending} onClosed={() => setSubmitOverlayClosed(true)} />
       <ResultSheet
-        visible={resultVisible}
+        visible={resultVisible && submitOverlayClosed}
         variant={outcome === 'success' ? 'success' : 'error'}
         title={t(outcome === 'success' ? 'placeResult.successTitle' : 'placeResult.errorTitle')}
         body={state.phase === 'retiring' ? t('placeWizard.lifecycle.submittedCleanupPending') : outcome === 'success'

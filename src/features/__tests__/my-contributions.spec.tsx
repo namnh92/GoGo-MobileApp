@@ -103,7 +103,7 @@ it('keeps cursor loading available under an empty filter, deduplicates pages and
   expect(screen.getByText('Chưa có kết quả trong các đóng góp đã tải. Xem thêm để tìm tiếp.')).toBeTruthy()
   await fireEvent.press(screen.getByText('Xem thêm đóng góp'))
   expect(mockFetch).toHaveBeenCalledTimes(1)
-  await screen.getByTestId('my-contributions-list').props.refreshControl.props.onRefresh()
+  await act(async () => { screen.getByTestId('my-contributions-list').props.refreshControl.props.onRefresh() })
   expect(mockRefresh).toHaveBeenCalledTimes(1)
 })
 it('renders loading, offline, error/retry, independent empty states and the sign-in gate', async () => {

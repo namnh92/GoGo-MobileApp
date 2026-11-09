@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
@@ -315,6 +316,7 @@ export default function ReviewScreen() {
       </ScrollView>
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing[4] }]}>
         {rating === 0 ? <Text variant="bodySmall" color="text.secondary" style={styles.hint}>{t('review.chooseStars')}</Text> : null}
+        <BlockingLoadingOverlay visible={createReview.isPending} />
         <PrimaryBtn
           label={createReview.isPending ? t('review.submitting') : t('review.submit')}
           onPress={submit}

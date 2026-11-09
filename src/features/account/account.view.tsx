@@ -1,3 +1,5 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
@@ -5,7 +7,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, Linking, Pressable, ScrollView, Share, View } from 'react-native'
+import { AccessibilityInfo, Linking, Pressable, ScrollView, Share, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
@@ -36,7 +38,7 @@ import { MaterialIcon } from '@/shared/ui/material-icon'
 import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, AvatarCircle, Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { spacing } from '@/shared/ui/tokens'
+import { loadingIndicator, spacing } from '@/shared/ui/tokens'
 import type { MessageKey } from '@/shared/i18n/types'
 
 import { styles } from './account.style'
@@ -306,7 +308,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
       <AppHeader showNotifications={false} variant="sub-screen" onBack={() => void goBack()} backDisabled={saving} title={t('account.title')}
         rightAction={canManage && me.data ? <AppHeaderAction accessibilityLabel={t('account.save')} onPress={() => void save()}
           disabled={!dirty || !valid || saving} accessibilityState={{ busy: saving }}>
-          {saving ? <ActivityIndicator color={theme.accent.primary} /> : <Text variant="introSmall" color="redesign.primaryText">{t('account.save')}</Text>}
+          {saving ? <LoadingIndicator size={loadingIndicator.compactSize} /> : <Text variant="introSmall" color="redesign.primaryText">{t('account.save')}</Text>}
         </AppHeaderAction> : undefined} />
     </View>
   )
@@ -355,7 +357,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
               </Pressable>
               {avatarStep ? (
                 <View style={styles.avatarOverlay} accessibilityElementsHidden>
-                  <ActivityIndicator color={theme.accent.onAccent} />
+                  <LoadingIndicator size={loadingIndicator.compactSize} />
                 </View>
               ) : null}
               <Pressable accessibilityRole="button" accessibilityLabel={t('account.avatarEdit')}
@@ -439,6 +441,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
           </Text>
         ) : null}
       </ScrollView>
+      <BlockingLoadingOverlay visible={saving || avatarStep === 'removing' || busy !== null} />
       <ResultSheet visible={deleteConfirm} variant="warning" title={t('account.deleteTitle')}
         body={t('account.deleteConfirmBody')}
         primaryAction={{ label: t('account.deleteAction'), destructive: true, onPress: onDelete }}

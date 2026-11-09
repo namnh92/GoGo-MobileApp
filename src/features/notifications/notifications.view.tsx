@@ -1,8 +1,10 @@
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, ScrollView, View } from 'react-native'
+import { AccessibilityInfo, FlatList, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useMarkNotificationRead, useNotifications, useNotificationSummary, useReadAllNotifications, useSystemNotificationsQuery, type Notification } from '@/shared/api'
@@ -207,7 +209,13 @@ export default function NotificationsScreen() {
   return (
     <Atmosphere redesign>
       {header}
-      <FlatList
+      <PullToRefresh
+        refreshing={canRead && (publicOnly ? !!systemInbox.isRefetching : !!inbox.isRefetching && !inbox.isFetchingNextPage)}
+        onRefresh={() => Promise.all([
+          ...(canRead && !publicOnly ? [inbox.refetch(), summary.refetch()] : []),
+          ...(filter === 'all' || publicOnly || !canRead ? [systemInbox.refetch()] : []),
+        ])}
+      ><FlatList
         testID="notifications-feed"
         data={listItems}
         keyExtractor={row => `${row.source}:${row.item.id ?? (row.source === 'personal' ? row.item.createdAt : row.item.publishedAt)}`}
@@ -243,17 +251,17 @@ export default function NotificationsScreen() {
             <Text variant="bodySmall" color="redesign.secondary">{t('g10.systemFetchFailed')}</Text>
             <GhostBtn label={t('common.retry')} loading={systemInbox.isFetching} onPress={() => void systemInbox.refetch()} />
           </View> : null}
-          {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) ? <ActivityIndicator testID="system-notifications-loading" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : null}
+          {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) ? <LoadingIndicator testID="system-notifications-loading" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : null}
         </View> : null}</View>}
         ListEmptyComponent={listState}
         ListFooterComponent={
-          canRead && !publicOnly && (inbox.isFetchingNextPage || filling) ? <ActivityIndicator testID="notifications-loading-more" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} />
+          canRead && !publicOnly && (inbox.isFetchingNextPage || filling) ? <LoadingIndicator testID="notifications-loading-more" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} />
             : canRead && !publicOnly && inbox.isFetchNextPageError && !!inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.fetchNextPage({ cancelRefetch: false })} /> : null
         }
         renderItem={({ item: row, index }) => row.source === 'system' ? <SystemNotificationRow item={row.item} /> : <NotificationCard item={row.item} index={index}
           busy={openingId !== null && openingId === row.item.id} reading={!!row.item.id && readingIds.has(row.item.id)}
           onOpen={() => void open(row.item)} onLater={() => mark(row.item)} /> }
-      />
+      /></PullToRefresh>
       <ResultSheet visible={!!readProblem} variant="error" title={t('g10.readFailed')} body={t(readProblem === 'all' ? 'g10.readAllFailedBody' : 'g10.readFailedBody')}
         secondaryAction={readProblem === 'all' ? { label: t('g10.reload'), onPress: () => { setReadProblem(null); void inbox.refetch(); void summary.refetch() } } : undefined}
         primaryAction={{ label: t('common.close'), onPress: () => setReadProblem(null) }} onClose={() => setReadProblem(null)} />

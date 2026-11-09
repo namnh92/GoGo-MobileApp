@@ -1,5 +1,8 @@
 jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: () => ({ data: { pages: [{ items: [], nextCursor: null }] } }) }))
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { AccessibilityInfo, Keyboard } from 'react-native'
+import { StyleSheet } from 'react-native-unistyles'
+import { themes } from '@/shared/ui/theme'
 
 import '@/shared/i18n'
 import { ApiError, NetworkError, TimeoutError } from '@/shared/api/errors'
@@ -66,7 +69,36 @@ async function tapSignOut() {
     await fireEvent.press(screen.getByText(viMessages['g11.logout'] as string))
   })
   await fireEvent.press(screen.getByText('Xác nhận'))
+  await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
 }
+
+describe.each(['orange', 'orangeDark'] as const)('%s blocking sign-out', name => {
+  afterEach(() => { jest.restoreAllMocks(); StyleSheet.configure({ themes }) })
+  it.each(['success', 'failure'] as const)('keeps the overlay until %s and releases it before showing an error', async outcome => {
+    StyleSheet.configure({ themes: { [name]: themes[name] } as unknown as typeof themes })
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
+    const dismiss = jest.spyOn(Keyboard, 'dismiss')
+    let finish!: () => void
+    let fail!: (error: Error) => void
+    mockSignOut.mockImplementation(() => new Promise<void>((resolve, reject) => { finish = resolve; fail = reject }))
+    await render(<ProfileScreen />)
+    await tapSignOut()
+    expect(screen.getByTestId('blocking-loading-overlay').props.accessibilityState.busy).toBe(true)
+    expect(screen.queryByTestId('profile-logout-confirm')).toBeNull()
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(dismiss).toHaveBeenCalled()
+    await fireEvent(screen.getByTestId('blocking-loading-modal'), 'requestClose')
+    expect(screen.getByTestId('blocking-loading-overlay')).toBeTruthy()
+    await act(async () => { if (outcome === 'success') finish(); else fail(new NetworkError()) })
+    expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull()
+    if (outcome === 'success') expect(mockReplace).toHaveBeenCalledWith('/(tabs)')
+    else {
+      expect(screen.getByTestId('result-sheet')).toBeTruthy()
+      expect(screen.getByText(viMessages['profile.logoutFailedOffline'] as string)).toBeTruthy()
+      expect(mockReplace).not.toHaveBeenCalled()
+    }
+  })
+})
 
 it.each([
   ['push_unconfirmed', pushUnavailable, 'profile.logoutFailedPush'],

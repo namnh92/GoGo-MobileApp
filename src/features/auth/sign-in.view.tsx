@@ -1,4 +1,5 @@
 import { AppHeader } from '@/shared/ui/app-header.view'
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
@@ -79,6 +80,8 @@ export default function SignInScreen() {
   // only the visible form let a pending sign-in be hidden behind the sign-up
   // tab, whose failure then landed under the wrong form.
   const pending = signInForm.formState.isSubmitting || signUpForm.formState.isSubmitting
+  const [overlayClosed, setOverlayClosed] = useState(true)
+  if (pending && overlayClosed) setOverlayClosed(false)
 
   /**
    * #310 F-04: the first field a server rejected, focused once the submit has
@@ -88,14 +91,14 @@ export default function SignInScreen() {
   const [focusRequest, setFocusRequest] = useState<{ id: number; form: Mode; field: keyof SignUpValues } | null>(null)
   const focusHandled = useRef(0)
   useEffect(() => {
-    if (pending || !focusRequest || focusHandled.current === focusRequest.id) return
+    if (pending || !overlayClosed || !focusRequest || focusHandled.current === focusRequest.id) return
     focusHandled.current = focusRequest.id
     if (focusRequest.form === 'signIn') {
       if (focusRequest.field !== 'displayName') signInForm.setFocus(focusRequest.field)
     } else {
       signUpForm.setFocus(focusRequest.field)
     }
-  }, [pending, focusRequest, signInForm, signUpForm])
+  }, [pending, overlayClosed, focusRequest, signInForm, signUpForm])
 
   /**
    * Where to land after authenticating, decided by an explicit `next` rather
@@ -186,6 +189,7 @@ export default function SignInScreen() {
 
   return (
     <Atmosphere redesign>
+      <BlockingLoadingOverlay visible={pending} onClosed={() => setOverlayClosed(true)} />
       <View>
         <AppHeader title={t(mode === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')} onBack={() => goBackOrHome(router)}
           rightAction={<AvatarCircle label="" size={32} icon="user" />} />

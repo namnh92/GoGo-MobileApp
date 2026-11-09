@@ -1,3 +1,6 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
+import { loadingIndicator } from '@/shared/ui/tokens'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Chip } from '@/shared/ui/chip.view'
@@ -5,7 +8,7 @@ import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, View, ScrollView } from 'react-native'
+import { Pressable, View, ScrollView } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
@@ -126,6 +129,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
 
   return (
     <Sheet visible={visible} onClose={skip} scroll={false}>
+      <BlockingLoadingOverlay visible={Boolean(pending)} />
       <ScrollView style={styles.scroll} bounces={false} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <Icon name="mapPin" size={28} color="accent.primary" />
@@ -196,7 +200,7 @@ export function CheckinSheet({ visible, stop, placeName, pending, error, onSave,
               <Image source={{ uri: photo.uri }} style={styles.photoThumb} contentFit="cover" />
               {photo.key === null && !photo.failed ? (
                 <View style={styles.photoOverlay}>
-                  <ActivityIndicator color={theme.text.inverse} />
+                  <LoadingIndicator size={loadingIndicator.compactSize} />
                 </View>
               ) : null}
               {photo.failed ? (

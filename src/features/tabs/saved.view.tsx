@@ -1,4 +1,5 @@
 import { AppHeader } from '@/shared/ui/app-header.view'
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useRouter } from 'expo-router'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -137,15 +138,15 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
           ))}
         </View>
       ) : saved.isError ? (
-        <ErrorState error={saved.error} onRetry={() => void saved.refetch()} />
+        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView><ErrorState error={saved.error} onRetry={() => void saved.refetch()} /></ScrollView></PullToRefresh>
       ) : visibleGroups.length === 0 ? (
-        <EmptyState
+        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView><EmptyState
           title={t(city ? 'saved.cityEmptyTitle' : 'saved.emptyTitle')}
           body={city ? t('saved.cityEmptyBody', { city: cityTitle }) : t('saved.emptyBody')}
           action={<GhostBtn label={t('saved.browse')} onPress={() => router.push('/places/search')} />}
-        />
+        /></ScrollView></PullToRefresh>
       ) : (
-        <ScrollView
+        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView
           testID="saved-list"
           onScroll={city ? undefined : fab.onScroll}
           scrollEventThrottle={fab.scrollEventThrottle}
@@ -179,7 +180,7 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
               )}
             </View>
           ))}
-        </ScrollView>
+        </ScrollView></PullToRefresh>
       )}
       {renderBottomBar?.()}
       <ResultSheet visible={resultError} variant="error" title={t('saved.actionFailed')} body={t('saved.retryBody')}

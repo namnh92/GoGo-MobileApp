@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay, useSubmitOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useCallback, useRef, useState } from 'react'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -59,7 +60,9 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
     } catch { if (isCurrent()) setFailed(true) }
     finally { if (isCurrent()) { busy.current = false; setPending(false) } }
   }
+  const overlay = useSubmitOverlay(pending)
   return <View style={styles.linkCard}>
+    <BlockingLoadingOverlay visible={pending} onClosed={overlay.onClosed} />
     <View style={styles.linkRow}>
       <MaterialIcon name="link" size={18} color="text.secondary" />
       <TextInput testID="saved-link-input" value={url} onChangeText={value => { setUrl(value); setInvalid(false) }} editable={!pending}
@@ -67,7 +70,7 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
       <PrimaryBtn label={t('saved.saveLink')} size="small" onPress={() => void save()} loading={pending} disabled={pending || !url.trim()} />
     </View>
     {invalid ? <Text variant="caption" color="status.dangerText">{t('saved.googleOnly')}</Text> : null}
-    <ResultSheet visible={failed} variant="error" title={t('saved.linkFailed')} body={t('saved.retryBody')}
+    <ResultSheet visible={failed && overlay.closed} variant="error" title={t('saved.linkFailed')} body={t('saved.retryBody')}
       primaryAction={{ label: t('common.retry'), onPress: () => { setFailed(false); void save() } }} onClose={() => setFailed(false)} />
   </View>
 }

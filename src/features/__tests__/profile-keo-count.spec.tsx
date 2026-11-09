@@ -1,7 +1,7 @@
 let mockSubmissions = { data: { pages: [{ items: [] as { id: string }[], nextCursor: null as string | null }] }, isPending: false, isError: false }
 const mockSubmissionEnabled = jest.fn()
 jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmissions: (enabled: boolean) => { mockSubmissionEnabled(enabled); return mockSubmissions } }))
-import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native'
 import i18n from '@/shared/i18n'
 import { StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
@@ -261,6 +261,6 @@ it.each([
   expect(mockSignOut).not.toHaveBeenCalled()
   await fireEvent.press(screen.getByRole('button', { name: open }))
   await fireEvent.press(screen.getByRole('button', { name: confirm }))
-  expect(mockSignOut).toHaveBeenCalledTimes(1)
+  await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
   await act(async () => { await i18n.changeLanguage('vi') })
 })

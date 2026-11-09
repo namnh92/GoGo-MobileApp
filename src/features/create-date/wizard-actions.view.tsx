@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -54,6 +55,7 @@ export function WizardActions({ step }: { step: DraftStep }) {
   }
 
   return <View style={styles.actions}>
+    <BlockingLoadingOverlay visible={leaving} />
     <SaveDraftButton step={step} />
     <GhostBtn label={t('draft.close')} onPress={() => void close()} disabled={creating || leaving} />
     {dialog}

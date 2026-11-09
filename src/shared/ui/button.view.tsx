@@ -1,12 +1,12 @@
+import { loadingIndicator } from '@/shared/ui/tokens'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { Pressable, type StyleProp, type ViewStyle } from 'react-native'
 
 import { haptic, useReducedMotion } from '@/shared/ui/feedback'
 import { MaterialIcon, type MaterialIconName } from './material-icon'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text, type TextColor } from '@/shared/ui/text'
-import type { AppTheme } from '@/shared/ui/theme'
 import { buttonSizes, hitSlop, type ButtonSize } from '@/shared/ui/tokens'
 
 import { styles } from './button.style'
@@ -46,24 +46,23 @@ type Kind = 'primary' | 'secondary' | 'ghost' | 'danger'
 interface Look {
   label: TextColor
   disabledLabel: TextColor
-  spinner: (theme: AppTheme) => string
 }
 
 const LOOK: Record<Kind, Look> = {
-  primary: { label: 'accent.onAccent', disabledLabel: 'text.secondary', spinner: theme => theme.accent.onAccent },
-  secondary: { label: 'accent.primary', disabledLabel: 'text.secondary', spinner: theme => theme.accent.primary },
-  ghost: { label: 'accent.primary', disabledLabel: 'text.secondary', spinner: theme => theme.accent.primary },
-  danger: { label: 'status.dangerText', disabledLabel: 'text.secondary', spinner: theme => theme.status.dangerText },
+  primary: { label: 'accent.onAccent', disabledLabel: 'text.secondary' },
+  secondary: { label: 'accent.primary', disabledLabel: 'text.secondary' },
+  ghost: { label: 'accent.primary', disabledLabel: 'text.secondary' },
+  danger: { label: 'status.dangerText', disabledLabel: 'text.secondary' },
 }
 
 const NEUTRAL_LOOK: Look = {
-  label: 'text.primary', disabledLabel: 'text.secondary', spinner: theme => theme.text.primary,
+  label: 'text.primary', disabledLabel: 'text.secondary',
 }
 
 /** On an accent-coloured ground the two filled roles swap. */
 const ON_ACCENT_LOOK: Partial<Record<Kind, Look>> = {
-  primary: { label: 'accent.primary', disabledLabel: 'accent.primary', spinner: theme => theme.accent.primary },
-  secondary: { label: 'accent.onAccent', disabledLabel: 'accent.onAccent', spinner: theme => theme.accent.onAccent },
+  primary: { label: 'accent.primary', disabledLabel: 'accent.primary' },
+  secondary: { label: 'accent.onAccent', disabledLabel: 'accent.onAccent' },
 }
 
 const HAPTIC: Record<Kind, Parameters<typeof haptic>[0]> = {
@@ -85,7 +84,6 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
   kind: Kind
   onAccent?: boolean
 }) {
-  const { theme } = useUnistyles()
   const reduced = useReducedMotion()
   const neutral = variant === 'neutral' || variant === 'neutralPill'
   const stitch = variant !== 'default' && !neutral
@@ -126,7 +124,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
         style,
       ]}
     >
-      {loading ? <ActivityIndicator testID="button-spinner" size="small" color={look.spinner(theme)} /> : null}
+      {loading ? <LoadingIndicator decorative testID="button-spinner" size={loadingIndicator.compactSize} /> : null}
       {icon && !loading && !stitch ? <Icon name={icon} size={buttonSizes[size].iconSize} color={iconColor} /> : null}
       {leadingIcon && !loading ? <MaterialIcon name={leadingIcon} size={buttonSizes[size].iconSize} color={iconColor} /> : null}
       <Text

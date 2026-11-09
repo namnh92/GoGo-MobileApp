@@ -1,3 +1,4 @@
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useUnreadInbox } from '@/features/notifications/unread-count'
@@ -9,7 +10,7 @@ import { QuickJoin } from './quick-join.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
 
 import {
   isSaved,
@@ -157,9 +158,8 @@ export default function HomeScreen() {
       <AppHeader variant="tab-root" title={t('discovery.home')} testID="home-header" bellTestID="home-bell" unreadDotTestID="home-unread-dot"
         rightAction={<AppHeaderAction onPress={() => router.push('/places/search')} accessibilityLabel={t('search.title')}><MaterialIcon name="search" size={22} /></AppHeaderAction>} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
+      <PullToRefresh refreshing={refreshing} onRefresh={refreshHome}><ScrollView
         testID="home-list"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshHome()} tintColor={theme.redesign.primaryText} colors={[theme.redesign.primaryText]} />}
         keyboardShouldPersistTaps="handled"
         onTouchStart={() => Keyboard.dismiss()}
         onScroll={fab.onScroll}
@@ -312,7 +312,7 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
+      </ScrollView></PullToRefresh>
       </KeyboardAvoidingView>
       <DiscoveryLocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} onApplied={() => {}} />
     </Atmosphere>

@@ -103,7 +103,7 @@ describe.each(Object.entries(themes))('%s accent foreground', (_name, theme) => 
 
     await view.rerender(<PrimaryBtn variant="pill" label="Apply theme" loading onPress={jest.fn()} />)
     expect(StyleSheet.flatten(screen.getByText('Apply theme').props.style).color).toBe(foreground)
-    expect(screen.getByTestId('button-spinner').props.color).toBe(foreground)
+    expect(screen.getByTestId('button-spinner-beam')).toBeTruthy()
   })
 
   it('uses onAccent on the actual primary/save buttons, avatar, FAB, selected chip and Theme controls', async () => {

@@ -1,8 +1,7 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, RefreshControl } from 'react-native'
 import { motion } from '@/shared/ui/tokens'
-import { themes } from '@/shared/ui/theme'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
 
@@ -357,15 +356,18 @@ describe('Home pull to refresh', () => {
     const view = await renderScreen(<HomeScreen />)
     const control = () => view.getByTestId('home-list').props.refreshControl
     expect(control().props.refreshing).toBe(false)
-    expect(control().props.tintColor).toBe(themes.orange.redesign.primaryText)
-    expect(control().props.colors).toEqual([control().props.tintColor])
+    const native = (RefreshControl as unknown as { latestRef: { props: import('react-native').RefreshControlProps } }).latestRef
+    expect(native.props.tintColor).toBe('transparent')
+    expect(native.props.colors).toEqual(['transparent'])
     await act(async () => { control().props.onRefresh(); control().props.onRefresh() })
     expect(refetch).toHaveBeenCalledTimes(1)
     expect(mockRoomRefetch).toHaveBeenCalledTimes(1)
     expect(mockInboxRefetch).toHaveBeenCalledTimes(1)
     expect(control().props.refreshing).toBe(true)
+    expect(view.getByTestId('refresh-loading-indicator')).toBeTruthy()
     await act(async () => { finish!() })
     await waitFor(() => expect(control().props.refreshing).toBe(false))
+    expect(view.queryByTestId('refresh-loading-indicator')).toBeNull()
     expect(view.getByTestId('home-suggestions')).toBeTruthy()
   })
   it('refreshes guest data without asking for notifications', async () => {

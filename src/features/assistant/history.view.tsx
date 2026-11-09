@@ -1,7 +1,10 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, SectionList, View } from 'react-native'
+import { Pressable, ScrollView, SectionList, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
@@ -169,7 +172,7 @@ export function History({
     )
   } else {
     body = (
-      <SectionList
+      <PullToRefresh onRefresh={() => list.refetch()}><SectionList
         testID="assistant-history-list"
         sections={sections}
         keyExtractor={item => item.id}
@@ -195,12 +198,17 @@ export function History({
           </View>
         )}
         ListFooterComponent={
+          <>
+          {list.isFetchingNextPage ? <LoadingIndicator /> : null}
+          {list.isFetchNextPageError ? <StateNotice kind="error" title={t('assistant.history.error.title')}
+            body={t('assistant.history.error.body')} actions={[{ label: t('assistant.retry'), onPress: () => void list.fetchNextPage() }]} /> : null}
           <View style={styles.retention}>
             <View style={styles.retentionIcon}>
               <Icon name="lock" size={18} color="text.secondary" />
             </View>
             <Text variant="bodySmall" color="text.secondary" style={styles.retentionText}>{t('assistant.history.empty.body')}</Text>
           </View>
+          </>
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item, section }) => (
@@ -216,7 +224,7 @@ export function History({
             onMenu={() => setMenuFor(item)}
           />
         )}
-      />
+      /></PullToRefresh>
     )
   }
 
@@ -232,7 +240,7 @@ export function History({
           onChangeText={setText}
         />
       </View>
-      {body}
+      {items.length === 0 && !list.isPending ? <PullToRefresh onRefresh={() => list.refetch()}><ScrollView>{body}</ScrollView></PullToRefresh> : body}
 
       <Sheet
         visible={menuFor !== null}
@@ -325,6 +333,7 @@ function RenameForm({
   const { theme } = useUnistyles()
   return (
     <View style={styles.menu}>
+      <BlockingLoadingOverlay visible={saving} />
       <Text variant="title2" accessibilityRole="header">{t('assistant.history.renameTitle')}</Text>
       <View style={styles.field}>
         <Text variant="caption" color="text.secondary">{t('assistant.history.renameField')}</Text>

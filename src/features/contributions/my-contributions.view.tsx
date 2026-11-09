@@ -1,10 +1,12 @@
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { AppTabDock } from '@/shared/ui/app-tab-dock.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlatList, RefreshControl, ScrollView, View } from 'react-native'
+import { FlatList, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { detailToPlaceCard, useMyReviews, usePlaceDetail } from '@/shared/api'
 import { useMyPlaceSubmission, useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
@@ -120,9 +122,9 @@ export default function MyContributionsScreen() {
       <View style={styles.empty}><View style={styles.emptyIcon}><MaterialIcon name={tab === 'places' ? 'location' : 'star'} size={20} color="text.secondary" /></View><Text variant="savedMeta" color="text.secondary" style={styles.emptyTitle}>{emptyTitle}</Text>{emptyAction}</View>
   const footer = <>
     {active.isError ? <ErrorState error={active.error} onRetry={() => { if (tab === 'places' && query.isFetchNextPageError) loadMore(); else void active.refetch() }} /> : null}
-    {tab === 'places' && query.isFetchingNextPage ? <LoadingState /> : tab === 'places' && query.hasNextPage && !query.isError ? <GhostBtn label={t('myContributions.loadMore')} onPress={loadMore} disabled={!online} /> : null}
+    {tab === 'places' && query.isFetchingNextPage ? <LoadingIndicator /> : tab === 'places' && query.hasNextPage && !query.isError ? <GhostBtn label={t('myContributions.loadMore')} onPress={loadMore} disabled={!online} /> : null}
   </>
-  const refresh = <RefreshControl refreshing={!!active.isRefetching && !(tab === 'places' && query.isFetchingNextPage)} onRefresh={() => { void active.refetch() }} />
+  const refreshing = !!active.isRefetching && !(tab === 'places' && query.isFetchingNextPage)
   return <Atmosphere>
     <View><AppHeader showNotifications={false} title={t('myContributions.title')} onBack={() => router.back()}
       bellTestID="contributions-bell" unreadDotTestID="contributions-unread" /></View>
@@ -137,11 +139,11 @@ export default function MyContributionsScreen() {
         return <Chip key={value} label={fullLabel} variant={filter === value ? 'selected' : 'default'} onPress={() => setFilter(value)} />
       })}</ScrollView></View>
       {!online && !active.isPending ? <OfflineState /> : null}
-      {tab === 'places' ? <FlatList testID="my-contributions-list" data={items.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} refreshControl={refresh} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
+      <PullToRefresh key={tab} refreshing={refreshing} onRefresh={() => active.refetch()}>{tab === 'places' ? <FlatList testID="my-contributions-list" data={items.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
         ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionPlace item={item} />} /> :
         <FlatList testID="my-contributions-reviews" data={reviewItems.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} refreshControl={refresh} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}</PullToRefresh>
     </>}
     {registered && tab === 'places' ? <View style={styles.addAction}>
       <PrimaryBtn label={t('myContributions.add')} leadingIcon="plus" onPress={() => router.push('/places/import')} />

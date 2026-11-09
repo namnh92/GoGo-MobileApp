@@ -1,6 +1,7 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, View, type StyleProp, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { isForbidden, isOffline } from '@/shared/api'
 import { currentOfflineSpell, useOnlineStatus } from '@/shared/api/queries/use-online-status'
@@ -19,7 +20,7 @@ export function LoadingState({ label }: { label?: string }) {
   const { t } = useTranslation()
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={label ?? t('common.loading')} style={styles.container}>
-      <ActivityIndicator />
+      <LoadingIndicator decorative />
       <Text variant="bodySmall" color="text.secondary" style={styles.body}>{label ?? t('common.loading')}</Text>
     </View>
   )

@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -213,6 +214,7 @@ export default function MatchResultScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={finalize.isPending || regenerate.isPending} />
       {noticeSlot(true)}
       <ScrollView contentContainerStyle={{ paddingTop: spacing[3], paddingBottom: spacing[5] }}>
         {/* The verdict first, as the draft opens: title, then who agreed. */}

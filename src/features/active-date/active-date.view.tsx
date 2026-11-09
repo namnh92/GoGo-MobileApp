@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay, useSubmitOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -228,10 +229,11 @@ export default function ActiveDateScreen() {
   // Keyed by stop, so each stop starts from a fresh draft, and the same sheet
   // and draft survive a plan or room update that swaps the layout around it
   // (the last stop done, here or on another phone).
+  const overlay = useSubmitOverlay(completeStop.isPending)
   const sheet = target ? (
     <CheckinSheet
       key={target.stop.id}
-      visible={checkinOpen}
+      visible={checkinOpen && overlay.closed}
       stop={target.stop}
       placeName={places.byPlaceId.get(target.stop.placeId)?.name ?? ''}
       pending={checkinStop.isPending}
@@ -244,6 +246,7 @@ export default function ActiveDateScreen() {
   // The way back to wherever this was opened from (the inbox, a plan, a link).
   const header = (
     <View>
+      <BlockingLoadingOverlay visible={completeStop.isPending} onClosed={overlay.onClosed} />
       <AppHeader title={t('activeDate.screenTitle')} onBack={() => goBackOrHome(router)} />
     </View>
   )

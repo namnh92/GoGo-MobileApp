@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Switch, View } from 'react-native'
@@ -36,6 +37,7 @@ function NotificationCategorySection() {
   }
 
   return <>
+      <BlockingLoadingOverlay visible={save.isPending} />
     <View style={styles.sectionHeading}>
       <Text variant="introHeading" color="redesign.ink" style={styles.flex}>{t('g10.categories')}</Text>
       <GhostBtn size="small" label={t('g10.enableAll')} disabled={!!disabled} loading={save.isPending} onPress={enableAll} />

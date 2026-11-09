@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -310,6 +311,7 @@ export default function DatePlanScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={startDate.isPending || regenerate.isPending} />
       <View>
         <AppHeader
           onBack={() => goBackOrHome(router)}

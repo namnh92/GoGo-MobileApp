@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay, useSubmitOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
@@ -124,7 +125,8 @@ function Wizard(props: WizardProps) {
   const successFeedback = ['saved', 'resumed', 'deleted'].includes(state.message)
   const feedbackKey = contributionFeedbackKey(state)
   const [dismissedFeedback, dismissFeedback] = useState<string | null>(null)
-  const feedbackVisible = state.message !== 'newDraft' && !busy && !state.resultVisible
+  const overlay = useSubmitOverlay(state.phase === 'saving')
+  const feedbackVisible = overlay.closed && state.message !== 'newDraft' && !busy && !state.resultVisible
     && !feedbackSuppressed && dismissedFeedback !== feedbackKey
 
   function sectionTitle(title: string, icon: Parameters<typeof MaterialIcon>[0]['name'], tag?: string, action?: ReactNode) {
@@ -226,6 +228,7 @@ function Wizard(props: WizardProps) {
 
   return (
     <View testID="contribution-wizard" style={styles.root}>
+      <BlockingLoadingOverlay visible={state.phase === 'saving'} onClosed={overlay.onClosed} />
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.heading}>

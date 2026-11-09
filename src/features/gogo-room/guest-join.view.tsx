@@ -1,3 +1,4 @@
+import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
@@ -175,6 +176,7 @@ export default function GuestJoinScreen() {
 
   return (
     <Atmosphere>
+      <BlockingLoadingOverlay visible={pending} />
       {header}
       <ScrollView
         contentContainerStyle={{
