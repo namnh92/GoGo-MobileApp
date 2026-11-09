@@ -11,8 +11,8 @@ export function SegmentedControl<Value extends string>({ options, value, onChang
     accessibilityState={{ selected: option.value === value, disabled }}
     style={[styles.tab, compact && styles.compactTab, disabled && styles.disabled]}>
     <View style={[styles.surface, compact && styles.compact, option.value === value && styles.selected]}>
-    {option.icon ? <MaterialIcon name={option.icon} size={compact ? 14 : 16} color={option.value === value ? 'redesign.ink' : 'redesign.secondary'} /> : null}
-    <Text numberOfLines={1} variant={compact ? 'introCaptionMedium' : option.value === value ? 'introLabel' : 'introSmall'} color={option.value === value ? 'redesign.ink' : 'redesign.secondary'}>{option.label}</Text>
+    {option.icon ? <MaterialIcon name={option.icon} size={compact ? 14 : 16} color={option.value === value ? 'text.primary' : 'text.secondary'} /> : null}
+    <Text numberOfLines={1} variant={compact ? 'introCaptionMedium' : option.value === value ? 'introLabel' : 'introSmall'} color={option.value === value ? 'text.primary' : 'text.secondary'}>{option.label}</Text>
     </View>
   </Pressable>)}</View>
 }

@@ -107,7 +107,7 @@ export function LocationPermissionSection({ showSettingsButton = true }: { showS
         </View>
       </View>
 
-      <Text variant="introCaption" color="redesign.secondary">{t('locationSettings.body')}</Text>
+      <Text variant="introCaption" color="text.secondary">{t('locationSettings.body')}</Text>
 
       {!showSettingsButton ? <Text variant="bodySmall" color="text.secondary">{t('permissionsSettings.deviceSettingsHint')}</Text> : null}
 

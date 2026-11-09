@@ -59,7 +59,7 @@ describe('one shared PlaceCard', () => {
     expect(screen.getByText('Mở đến 20:00')).toBeTruthy()
     expect(screen.getByText('Cà phê')).toBeTruthy()
     expect(screen.getByText('Siphon')).toBeTruthy()
-    expect(flat('place-card-surface')).toMatchObject({ backgroundColor: themes.orange.redesign.card, borderRadius: 20, overflow: 'hidden' })
+    expect(flat('place-card-surface')).toMatchObject({ backgroundColor: themes.orange.surface.card, borderRadius: 20, overflow: 'hidden' })
   })
   it.each(['list', 'hero', 'compact'] as const)('%s preserves separate sources, sample sizes and address', async () => {
     await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 4 })} />)
@@ -121,7 +121,7 @@ describe('shared address and rating behavior', () => {
     expect(line).toHaveTextContent(expected, { exact: true })
     expect(line.props.numberOfLines).toBe(2)
     expect(line.props.accessibilityLabel).toBe(expected)
-    expect(flat('place-card-meta')).toMatchObject({ ...type.introSmall, color: themes.orange.redesign.secondary })
+    expect(flat('place-card-meta')).toMatchObject({ ...type.introSmall, color: themes.orange.text.secondary })
   })
 
   it('omits the address line without either fact instead of using the chip or area key', async () => {
@@ -263,8 +263,8 @@ describe('g04 Saved reference card', () => {
     const create = jest.spyOn(UnistylesStyleSheet, 'create')
     jest.isolateModules(() => { jest.requireActual('../place-card.style') })
     const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
-    expect(factory(themes[themeName]).discoveryCard).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderRadius: 20 })
-    expect(factory(themes[themeName]).photoBadge.backgroundColor).toBe(themes[themeName].redesign.card)
+    expect(factory(themes[themeName]).discoveryCard).toMatchObject({ backgroundColor: themes[themeName].surface.card, borderRadius: 20 })
+    expect(factory(themes[themeName]).photoBadge.backgroundColor).toBe(themes[themeName].surface.card)
     create.mockRestore()
     await render(<PlaceCard place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
     expect(screen.getByTestId('place-card-large')).toBeTruthy()

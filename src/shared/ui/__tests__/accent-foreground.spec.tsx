@@ -108,7 +108,7 @@ describe.each(Object.entries(themes))('%s accent foreground', (_name, theme) => 
 
   it('uses onAccent on the actual primary/save buttons, avatar, FAB, selected chip and Theme controls', async () => {
     // A distinct probe proves the semantic role is used: text.inverse and
-    // redesign.white otherwise happen to have the same value in every theme.
+    // text.inverse otherwise happen to have the same value in every theme.
     const foreground = '#FEFEFE'
     currentTheme = { ...theme, accent: { ...theme.accent, onAccent: foreground as typeof theme.accent.onAccent } }
     const view = await render(<>

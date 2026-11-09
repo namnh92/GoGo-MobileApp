@@ -34,7 +34,7 @@ exports[`preserves Kế hoạch layout and typography in orange 1`] = `
     },
   ],
   "track": {
-    "backgroundColor": "#ECE8E1",
+    "backgroundColor": "#F3EDE8",
     "borderRadius": 999,
     "flexDirection": "row",
     "gap": 4,

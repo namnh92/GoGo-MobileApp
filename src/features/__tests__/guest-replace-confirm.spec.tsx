@@ -174,7 +174,7 @@ describe('guest replacement notice contrast', () => {
     return (hi! + 0.05) / (lo! + 0.05)
   }
   const { styles } = jest.requireActual('@/features/gogo-room/guest-replace-notice.style')
-  const { accents, colors } = jest.requireActual('@/shared/ui/tokens')
+  const { accents, text } = jest.requireActual('@/shared/ui/tokens')
   const surface = (styles.container as { backgroundColor: string }).backgroundColor
 
   it.each(Object.keys(accents))('the Ghost label reads at AA on the notice under the %s theme', accent => {
@@ -182,6 +182,6 @@ describe('guest replacement notice contrast', () => {
   })
 
   it('the body copy reads at AA on the notice', () => {
-    expect(contrast(colors.neutral[900], surface)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(text.primary, surface)).toBeGreaterThanOrEqual(4.5)
   })
 })

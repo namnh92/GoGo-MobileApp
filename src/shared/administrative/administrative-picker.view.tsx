@@ -66,15 +66,15 @@ export function AdministrativePicker({ value, onChange, embedded = false, onChoo
       {/* A form, not a saved copy: the picker never claims its choices are the device's cached data (GoGo-MobileApp#253). */}
       <StaleNotice error={version.error} hasData={false} onRetry={() => void version.refetch()} />
       {changed ? <Text accessibilityLiveRegion="polite" variant="bodySmall" color="text.secondary">{t('administrative.changed')}</Text> : null}
-      <Text variant={embedded ? 'introSmall' : 'label'} color={embedded ? 'redesign.secondary' : 'text.primary'}>{t('administrative.province')}</Text>
+      <Text variant={embedded ? 'introSmall' : 'label'} color={embedded ? 'text.secondary' : 'text.primary'}>{t('administrative.province')}</Text>
       {embedded ? <Pressable style={styles.field} accessibilityRole="button" onPress={() => open('province')}>
-        <Text variant="introBody" color="redesign.secondary" style={styles.fieldLabel}>{value?.provinceName ?? t('areaPicker.selectProvince')}</Text><MaterialIcon name="expandMore" color="redesign.secondary" size={20} />
+        <Text variant="introBody" color="text.secondary" style={styles.fieldLabel}>{value?.provinceName ?? t('areaPicker.selectProvince')}</Text><MaterialIcon name="expandMore" color="text.secondary" size={20} />
       </Pressable> : <SecondaryBtn label={value?.provinceName ?? t('administrative.selectProvince')} onPress={() => open('province')} />}
-      <Text variant={embedded ? 'introSmall' : 'label'} color={embedded ? 'redesign.secondary' : 'text.primary'} style={embedded ? styles.communeLabel : undefined}>{t('administrative.commune')}</Text>
+      <Text variant={embedded ? 'introSmall' : 'label'} color={embedded ? 'text.secondary' : 'text.primary'} style={embedded ? styles.communeLabel : undefined}>{t('administrative.commune')}</Text>
       {embedded ? <Pressable style={[styles.field, (!value || changed) && styles.fieldDisabled]} accessibilityRole="button" accessibilityState={{ disabled: !value || changed }} disabled={!value || changed} onPress={() => open('commune')}>
-        <Text variant="introBody" color="redesign.secondary" style={styles.fieldLabel}>{value?.communeName ?? t('areaPicker.selectCommune')}</Text><MaterialIcon name="expandMore" color="redesign.secondary" size={20} />
+        <Text variant="introBody" color="text.secondary" style={styles.fieldLabel}>{value?.communeName ?? t('areaPicker.selectCommune')}</Text><MaterialIcon name="expandMore" color="text.secondary" size={20} />
       </Pressable> : <SecondaryBtn label={value?.communeName ?? t('administrative.wholeProvince')} disabled={!value || changed} onPress={() => open('commune')} />}
-      {embedded && !value ? <View style={styles.hint}><MaterialIcon name="bolt" size={14} color="redesign.primaryText" /><Text variant="introCaption" color="redesign.primaryText" style={styles.fieldLabel}>{t('areaPicker.provinceFirst')}</Text></View> : null}
+      {embedded && !value ? <View style={styles.hint}><MaterialIcon name="bolt" size={14} color="accent.text" /><Text variant="introCaption" color="accent.text" style={styles.fieldLabel}>{t('areaPicker.provinceFirst')}</Text></View> : null}
       {!embedded && value ? <GhostBtn label={t('administrative.clear')} onPress={() => onChange(null)} /> : null}
       {!embedded ? <Sheet visible={level !== null} onClose={() => setLevel(null)} size="full" scroll={false}>{list}</Sheet> : null}
     </View>

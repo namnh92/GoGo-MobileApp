@@ -91,9 +91,9 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
   // Callers often pass `loading={pending} disabled={pending || …}`: while a
   // request is in flight the button reads as loading, not as greyed out.
   const greyed = disabled && !loading
-  const look = variant === 'neutralPill' ? { ...NEUTRAL_LOOK, label: 'redesign.secondary' as const }
+  const look = variant === 'neutralPill' ? { ...NEUTRAL_LOOK, label: 'text.secondary' as const }
     : neutral ? NEUTRAL_LOOK : (onAccent ? ON_ACCENT_LOOK[kind] : undefined) ?? LOOK[kind]
-  const iconColor: TextColor = variant === 'area' && kind === 'secondary' && !greyed ? 'redesign.primaryText' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'redesign.ink' : look.label
+  const iconColor: TextColor = variant === 'area' && kind === 'secondary' && !greyed ? 'accent.text' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'text.primary' : look.label
   return (
     <Pressable
       onPress={() => {
@@ -129,7 +129,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       {leadingIcon && !loading ? <MaterialIcon name={leadingIcon} size={buttonSizes[size].iconSize} color={iconColor} /> : null}
       <Text
         variant={buttonSizes[size].label}
-        color={greyed ? look.disabledLabel : variant === 'area' && kind === 'secondary' ? 'redesign.secondary' : variant === 'discoveryJoin' ? 'redesign.ink' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'redesign.ink' : 'redesign.secondary' : look.label}
+        color={greyed ? look.disabledLabel : variant === 'area' && kind === 'secondary' ? 'text.secondary' : variant === 'discoveryJoin' ? 'text.primary' : stitch && kind === 'ghost' ? variant === 'stitchGuest' ? 'text.primary' : 'text.secondary' : look.label}
         numberOfLines={wrapLabel === false ? 1 : stitch || wrapLabel ? undefined : 1}
         ellipsizeMode="tail"
         style={styles.label}

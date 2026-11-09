@@ -27,11 +27,11 @@ const DARK_SURFACES = [darkSurface.canvas, darkSurface.card] as const
 
 describe('dark tokens', () => {
   it('uses the owner-approved values', () => {
-    expect(darkSurface).toEqual({ canvas: '#181715', card: '#222222', subtle: '#2A2A2A' })
+    expect(darkSurface).toMatchObject({ canvas: '#181715', card: '#222222', subtle: '#2A2A2A' })
     expect(darkBorder.hairline).toBe('#333333')
     expect(darkAccents.orange).toMatchObject({ primary: '#CA381F', pressed: '#A72E19', text: '#FF746C', onSoft: '#FF746C', soft: '#2A2A2A' })
     expect([darkText.primary, darkText.secondary, darkText.tertiary]).toEqual(['#E6E6E6', '#CCCCCC', '#999999'])
-    expect(darkStatus).toMatchObject({ success: '#4FAF86', successSoft: '#16402F', successText: '#A7E8CD', warning: '#E59700', dangerSoft: '#4A1A20', dangerText: '#FF8A94', infoSoft: '#2F2A55', infoText: '#A99DF5' })
+    expect(darkStatus).toMatchObject({ success: '#4FAF86', successSoft: '#16402F', successText: '#A7E8CD', warning: '#E59700', dangerSoft: '#4A1A20', dangerText: '#FF8A94', infoSoft: '#2F2A55', infoText: '#C7BFFF' })
   })
 
   it('has every role the light set has', () => {

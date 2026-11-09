@@ -24,7 +24,7 @@ export function HeaderNotificationButton({ testID, unreadDotTestID }: { testID: 
       }
       style={styles.button}
     >
-      <Icon name="bell" size={22} color="redesign.primaryText" />
+      <Icon name="bell" size={22} color="accent.text" />
       {unread.count > 0 ? <View testID={unreadDotTestID} style={styles.unreadDot} /> : null}
     </Pressable>
   )

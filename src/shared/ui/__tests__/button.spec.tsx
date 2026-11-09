@@ -1,8 +1,9 @@
+import { themes } from '@/shared/ui/theme'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import { type ButtonProps, DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/button.view'
-import { accents, buttonSizes, redesignLight, shadows, status, surface, text, type } from '@/shared/ui/tokens'
+import { accents, buttonSizes, shadows, status, surface, text, type } from '@/shared/ui/tokens'
 import * as feedback from '@/shared/ui/feedback'
 
 /**
@@ -35,8 +36,8 @@ describe.each([false, true])('area buttons with wrapLabel=%s', wrapLabel => {
       expect(screen.getByText(label).props.numberOfLines).toBe(wrapLabel ? undefined : 1)
       expect(flat(screen.getByText(label))).toMatchObject(type.buttonLabel)
     }
-    expect(flat(button('Confirm area')).backgroundColor).toBe(redesignLight.primaryFill)
-    expect(labelColor('Clear area')).toBe(redesignLight.secondary)
+    expect(flat(button('Confirm area')).backgroundColor).toBe(themes.orange.accent.primary)
+    expect(labelColor('Clear area')).toBe(themes.orange.text.secondary)
     await view.rerender(<PrimaryBtn variant="area" label="Confirm area" wrapLabel={wrapLabel} disabled onPress={onPress} />)
     expect(flat(button('Confirm area')).backgroundColor).toBe(surface.subtle)
     expect(labelColor('Confirm area')).toBe(text.secondary)
@@ -121,13 +122,13 @@ describe.each([PrimaryBtn, SecondaryBtn, GhostBtn, DangerBtn])('pressed palette 
 it('keeps a header text action transparent while pressed', async () => {
   await render(<GhostBtn size="small" label="Edit" onPress={jest.fn()} />)
   expect((await pressedStyle('Edit')).backgroundColor).toBeUndefined()
-  expect(labelColor('Edit')).toBe(orange.primary)
+  expect(labelColor('Edit')).toBe(orange.text)
 })
 
 describe.each([
   ['PrimaryBtn', PrimaryBtn, { bg: orange.primary, label: orange.onAccent, spinner: orange.onAccent }],
-  ['SecondaryBtn', SecondaryBtn, { bg: surface.card, label: orange.primary, spinner: orange.primary }],
-  ['GhostBtn', GhostBtn, { bg: undefined, label: orange.primary, spinner: orange.primary }],
+  ['SecondaryBtn', SecondaryBtn, { bg: surface.card, label: orange.text, spinner: orange.primary }],
+  ['GhostBtn', GhostBtn, { bg: undefined, label: orange.text, spinner: orange.primary }],
   ['DangerBtn', DangerBtn, { bg: status.dangerSoft, label: status.dangerText, spinner: status.dangerText }],
 ] as const)('%s', (_name, Btn, look) => {
   it('default: height, fill and label colour from the theme, label in the `label` style on one line', async () => {
@@ -209,7 +210,7 @@ describe('onAccent — on an accent-coloured hero', () => {
     const style = flat(button('Bắt đầu'))
     expect(style.backgroundColor).toBe(orange.onAccent)
     expect(style.shadowOpacity).toBe(0)
-    expect(labelColor('Bắt đầu')).toBe(orange.primary)
+    expect(labelColor('Bắt đầu')).toBe(orange.text)
     expect((await pressedStyle('Bắt đầu')).backgroundColor).toBe(orange.onAccent)
   })
 
@@ -225,7 +226,7 @@ describe('onAccent — on an accent-coloured hero', () => {
   it('disabled and loading fade rather than turn grey — no neutral fill reads on a coloured ground', async () => {
     await render(<PrimaryBtn label="Bắt đầu" onPress={jest.fn()} onAccent disabled />)
     expect(flat(button('Bắt đầu')).opacity).toBe(0.6)
-    expect(labelColor('Bắt đầu')).toBe(orange.primary)
+    expect(labelColor('Bắt đầu')).toBe(orange.text)
   })
 })
 

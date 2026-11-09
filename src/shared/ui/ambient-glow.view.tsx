@@ -22,9 +22,9 @@ function Orb({ variant, cool = false, green = false }: { variant: Variant; cool?
   const animated = useAnimatedStyle(() => ({
     transform: [{ translateX: drift.get() * 10 }, { translateY: drift.get() * -12 }, { scale: 1 + drift.get() * 0.05 }],
   }))
-  const color = green ? theme.redesign.glowGreen : variant === 'debate'
-    ? cool ? theme.redesign.violetText : theme.redesign.primary
-    : cool ? (variant === 'plan' || variant === 'swipe' ? theme.redesign.violetSoft : theme.redesign.glowCool) : theme.redesign.glowWarm
+  const color = green ? theme.status.success : variant === 'debate'
+    ? cool ? theme.status.infoText : theme.accent.primaryDeep
+    : cool ? (variant === 'plan' || variant === 'swipe' ? theme.status.infoSoft : theme.status.info) : theme.accent.glow
   const opacity = green ? 0.1 : variant === 'debate' ? 0.05 : variant === 'swipe' ? cool ? 0.4 : 0.3 : variant === 'plan' ? cool ? 0.4 : 0.5 : cool ? 0.15 : 0.5
   const position = green ? styles.green : variant === 'splash' ? cool ? styles.cool : styles.warm
     : variant === 'swipe' ? cool ? styles.swipeCool : styles.swipeWarm

@@ -37,6 +37,6 @@ export function ProfileUpcoming({ enabled }: { enabled: boolean }) {
   return <Pressable testID="profile-upcoming" accessibilityRole="button" onPress={() => router.push(room.planId && ['ready', 'active'].includes(room.status) ? `/plans/${room.planId}` : `/room/${room.id}`)} style={({ pressed }) => [styles.banner, pressed && styles.settingRowPressed]}>
     <View style={styles.bannerIcon}><Icon name="sparkle" size={18} color="accent.onAccent" /></View>
     <View style={styles.identityText}><Text variant="label">{t('g11.upcoming')}</Text>{room.title ? <Text variant="introCaption" numberOfLines={2}>{room.title}</Text> : null}<Text variant="caption" color="text.secondary">{date}</Text></View>
-    <Icon name="chevronRight" color="redesign.violetText" />
+    <Icon name="chevronRight" color="status.infoText" />
   </Pressable>
 }

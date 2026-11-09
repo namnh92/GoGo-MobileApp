@@ -64,7 +64,7 @@ export function NotificationSwitchSection({ showSettingsButton = true }: { showS
             <View style={styles.rowTitle}>
               <Text variant="introHeading">{t('notificationSettings.switchLabel')}</Text>
             </View>
-            <Text variant="introCaption" color="redesign.secondary">{t('notificationSettings.switchHint')}</Text>
+            <Text variant="introCaption" color="text.secondary">{t('notificationSettings.switchHint')}</Text>
           </View>
           <Switch
             style={styles.switch}

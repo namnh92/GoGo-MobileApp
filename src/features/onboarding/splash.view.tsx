@@ -89,7 +89,7 @@ function SplashComposition({ reduced, width, height }: { reduced: boolean; width
     }}>
       <GoGoLogo animated={!reduced} variant="wordmark" size={SPLASH_LOGO_SIZE} height={SPLASH_LOGO_SIZE} testID="splash-logo" />
       <Reveal testID="splash-reveal-line" reduced={reduced} {...LINE_REVEAL}>
-        <Text variant="introTagline" color="redesign.ink" style={styles.tagline}>{t('splash.tagline')}</Text>
+        <Text variant="introTagline" color="text.primary" style={styles.tagline}>{t('splash.tagline')}</Text>
       </Reveal>
     </View>
   </View>

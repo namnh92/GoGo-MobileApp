@@ -39,25 +39,25 @@ function NotificationCategorySection() {
   return <>
       <BlockingLoadingOverlay visible={save.isPending} />
     <View style={styles.sectionHeading}>
-      <Text variant="introHeading" color="redesign.ink" style={styles.flex}>{t('g10.categories')}</Text>
+      <Text variant="introHeading" color="text.primary" style={styles.flex}>{t('g10.categories')}</Text>
       <GhostBtn size="small" label={t('g10.enableAll')} disabled={!!disabled} loading={save.isPending} onPress={enableAll} />
     </View>
-    {capabilities.categories ? <Text variant="introCaption" color="redesign.secondary">{t('g10.categoryCount', { count })}</Text>
-      : <Text variant="introCaption" color="redesign.secondary" style={styles.unavailable}>{t('g10.categoriesUnavailable')}</Text>}
-    {capabilities.categories && !settings.data?.pushEnabled ? <Text variant="introSmall" color="redesign.secondary">{t('g10.masterPaused')}</Text> : null}
+    {capabilities.categories ? <Text variant="introCaption" color="text.secondary">{t('g10.categoryCount', { count })}</Text>
+      : <Text variant="introCaption" color="text.secondary" style={styles.unavailable}>{t('g10.categoriesUnavailable')}</Text>}
+    {capabilities.categories && !settings.data?.pushEnabled ? <Text variant="introSmall" color="text.secondary">{t('g10.masterPaused')}</Text> : null}
     <Card appearance="stitch" padded={false}>
       {notificationCategories.map((category, index) => <View key={category} style={[styles.category, index > 0 && styles.divider]}>
         <View style={[styles.categoryIcon, category === 'plan_ready' ? styles.successIcon : category === 'invite' || category === 'plan_changed' ? styles.infoIcon : styles.accentIcon]}>
-          <Icon name={kindPresentation(category).icon} size={22} color={category === 'plan_ready' ? 'redesign.greenText' : category === 'invite' || category === 'plan_changed' ? 'redesign.violetText' : 'accent.onSoft'} />
+          <Icon name={kindPresentation(category).icon} size={22} color={category === 'plan_ready' ? 'status.successText' : category === 'invite' || category === 'plan_changed' ? 'status.infoText' : 'accent.onSoft'} />
         </View>
         <View style={styles.flex}>
-          <Text variant="introHeading" color="redesign.ink">{t(`g10.category.${category}`)}</Text>
-          <Text variant="introSmall" color="redesign.secondary">{t(`g10.categoryHint.${category}`)}</Text>
+          <Text variant="introHeading" color="text.primary">{t(`g10.category.${category}`)}</Text>
+          <Text variant="introSmall" color="text.secondary">{t(`g10.categoryHint.${category}`)}</Text>
         </View>
         <Switch testID={`notification-category-${category}`} value={categories?.[category] ?? false} disabled={!!disabled}
           onValueChange={enabled => changeCategory(category, enabled)}
           accessibilityLabel={t(`g10.category.${category}`)} accessibilityHint={!capabilities.categories ? t('g10.categoriesUnavailable') : undefined}
-          accessibilityState={{ disabled: !!disabled, busy: save.isPending }} trackColor={{ true: theme.accent.primary, false: theme.redesign.highest }} />
+          accessibilityState={{ disabled: !!disabled, busy: save.isPending }} trackColor={{ true: theme.accent.primary, false: theme.surface.highest }} />
       </View>)}
     </Card>
     {save.isError && save.variables?.categories ? <View accessibilityLiveRegion="polite">
@@ -74,7 +74,7 @@ export default function NotificationSettingsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const capabilities = notificationCapabilities()
-  const trackColor = { true: theme.accent.primary, false: theme.redesign.highest }
+  const trackColor = { true: theme.accent.primary, false: theme.surface.highest }
 
   return <Atmosphere redesign>
     <AppHeader showNotifications={false} title={t('g10.settingsTitle')} onBack={() => goBackOrHome(router)} />
@@ -85,13 +85,13 @@ export default function NotificationSettingsScreen() {
         <NotificationCategorySection />
         <View style={styles.quiet}>
           <View style={styles.row}>
-            <Icon name="moon" size={20} color="redesign.violetText" />
-            <Text variant="introHeading" color="redesign.ink" style={styles.flex}>{t('g10.quietHours')}</Text>
+            <Icon name="moon" size={20} color="status.infoText" />
+            <Text variant="introHeading" color="text.primary" style={styles.flex}>{t('g10.quietHours')}</Text>
             <Switch testID="notification-quiet-hours" value={false} disabled={!capabilities.quietHours} accessibilityLabel={t('g10.quietHours')}
               accessibilityHint={t('g10.quietUnavailable')} accessibilityState={{ disabled: true }} trackColor={trackColor} />
           </View>
-          <Text variant="introSmall" color="redesign.secondary">{t('g10.quietHint')}</Text>
-          <Text variant="introCaption" color="redesign.secondary">{t('g10.quietUnavailable')}</Text>
+          <Text variant="introSmall" color="text.secondary">{t('g10.quietHint')}</Text>
+          <Text variant="introCaption" color="text.secondary">{t('g10.quietUnavailable')}</Text>
         </View>
       </ScrollView>}
   </Atmosphere>

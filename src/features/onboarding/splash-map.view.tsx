@@ -114,10 +114,10 @@ function Marker({ index, reduced, width, tap }: { index: number; reduced: boolea
       <Animated.View testID={`splash-pin-${marker.id}`} style={[styles.pin, pinStyle]}>
         <Svg width={width} height={height} viewBox={`0 0 ${VIETNAM_MAP_VIEWBOX.width} ${VIETNAM_MAP_VIEWBOX.height}`}>
           <G transform={`translate(${marker.x} ${marker.y})`}>
-            <Ellipse cx={0} cy={0} rx={3.5} ry={1.4} fill={theme.redesign.ink} fillOpacity={0.12} />
+            <Ellipse cx={0} cy={0} rx={3.5} ry={1.4} fill={theme.text.primary} fillOpacity={0.12} />
             <Path d={PIN_PATH} fill={theme.accent.primary} />
-            <Circle cx={0} cy={-10.5} r={2} fill={theme.redesign.white} />
-            <SvgText x={9} y={-7.5} fontFamily={fontFamily.medium} fontSize={labelFontUnits(width)} fill={theme.redesign.secondary}>
+            <Circle cx={0} cy={-10.5} r={2} fill={theme.text.inverse} />
+            <SvgText x={9} y={-7.5} fontFamily={fontFamily.medium} fontSize={labelFontUnits(width)} fill={theme.text.secondary}>
               {label}
             </SvgText>
           </G>
@@ -163,9 +163,9 @@ export function SplashMap({ reduced, width }: { reduced: boolean; width: number 
         <Svg width={width} height={height} viewBox={`0 0 ${VIETNAM_MAP_VIEWBOX.width} ${VIETNAM_MAP_VIEWBOX.height}`}>
           <Path
             d={VIETNAM_MAP_PATH}
-            fill={theme.redesign.primarySoft}
+            fill={theme.accent.container}
             fillOpacity={0.55}
-            stroke={theme.redesign.line}
+            stroke={theme.border.hairline}
             strokeWidth={0.5}
             strokeLinejoin="round"
             fillRule="evenodd"

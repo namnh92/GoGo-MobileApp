@@ -38,7 +38,7 @@ export function AppHeader({ variant = 'sub-screen', showNotifications = true, ti
   const { t } = useTranslation()
   const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" size={24} /></AppHeaderAction> : null
   const actions = <>{rightAction}{variant !== 'sheet' && showNotifications ? <HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /> : null}</>
-  return <View testID={testID} style={[styles.root, variant === 'tab-root' && styles.tabRoot, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
+  return <View testID={testID} style={[styles.root, variant === 'tab-root' && styles.tabRoot, variant === 'sheet' && styles.sheetRoot, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <View style={[styles.row, variant !== 'tab-root' && styles.subScreenRow]}>
       {back}{leading}
       <View style={styles.identity}>

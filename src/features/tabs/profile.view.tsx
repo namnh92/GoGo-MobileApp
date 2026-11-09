@@ -124,12 +124,12 @@ export default function ProfileScreen() {
           <View style={styles.identity}>
             <AvatarCircle label={(profile?.displayName ?? t('profile.guestName')).trim().charAt(0).toUpperCase()} size={64} imageUri={profile?.avatarUrl} />
             <View style={styles.identityText}>
-              <Text variant="introHeading" color="redesign.ink">{canRead ? profile?.displayName : t('profile.title')}</Text>
+              <Text variant="introHeading" color="text.primary">{canRead ? profile?.displayName : t('profile.title')}</Text>
               {!canRead ? <Text variant="bodySmall" color="text.secondary">{t('profile.guestSubtitle')}</Text> : null}
-              {profile?.email ? <Text variant="introSmall" color="redesign.secondary" numberOfLines={1}>{profile.email}</Text> : null}
-              {profile?.homeAdministrativeArea?.provinceName ? <Text variant="introCaption" color="redesign.secondary" numberOfLines={1}>{profile.homeAdministrativeArea.provinceName}</Text> : null}
+              {profile?.email ? <Text variant="introSmall" color="text.secondary" numberOfLines={1}>{profile.email}</Text> : null}
+              {profile?.homeAdministrativeArea?.provinceName ? <Text variant="introCaption" color="text.secondary" numberOfLines={1}>{profile.homeAdministrativeArea.provinceName}</Text> : null}
             </View>
-            {canRead ? <IconBtn style={styles.edit} accessibilityLabel={t('g11.editProfile')} onPress={() => router.push('/settings/account')}><MaterialIcon name="edit" size={20} color="redesign.secondary" /></IconBtn> : null}
+            {canRead ? <IconBtn style={styles.edit} accessibilityLabel={t('g11.editProfile')} onPress={() => router.push('/settings/account')}><MaterialIcon name="edit" size={20} color="text.secondary" /></IconBtn> : null}
           </View>
           {interests.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.interests}>{interests.map(label => <Chip key={label} label={label} />)}</ScrollView> : null}
         </Card>
@@ -148,10 +148,10 @@ export default function ProfileScreen() {
           onPress={() => isLocked ? setLocked(true) : router.push(shortcut.key === 'plans' ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } } : shortcut.route)}
           style={({ pressed }) => [styles.shortcutPress, pressed && styles.settingRowPressed]}>
           <Card appearance="stitch" padded={false} style={styles.shortcut}>
-            <View style={[styles.shortcutIcon, shortcut.key === 'plans' && styles.plansIcon, shortcut.key === 'reviews' && styles.reviewsIcon]}><MaterialIcon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color={shortcut.key === 'plans' ? 'redesign.violetText' : 'redesign.primaryText'} /></View>
-            {(shortcut.key === 'plans' && keoLoading) || (shortcut.key === 'contributions' && contributionLoading) ? <View testID={shortcut.key === 'plans' ? 'profile-keo-loading' : 'profile-contributions-loading'}><Skeleton width={40} height={24} /></View> : shortcut.count !== undefined ? <Text variant="introHeading" color="redesign.ink">{shortcut.count}</Text> : null}
-            <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
-            {isLocked ? <Text variant="introCaption" color="redesign.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
+            <View style={[styles.shortcutIcon, shortcut.key === 'plans' && styles.plansIcon, shortcut.key === 'reviews' && styles.reviewsIcon]}><MaterialIcon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color={shortcut.key === 'plans' ? 'status.infoText' : 'accent.text'} /></View>
+            {(shortcut.key === 'plans' && keoLoading) || (shortcut.key === 'contributions' && contributionLoading) ? <View testID={shortcut.key === 'plans' ? 'profile-keo-loading' : 'profile-contributions-loading'}><Skeleton width={40} height={24} /></View> : shortcut.count !== undefined ? <Text variant="introHeading" color="text.primary">{shortcut.count}</Text> : null}
+            <Text variant="introCaption" color="text.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
+            {isLocked ? <Text variant="introCaption" color="text.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
           </Card>
         </Pressable>
       })}</View>
@@ -161,13 +161,13 @@ export default function ProfileScreen() {
         const rows = SETTINGS_ROWS.filter(row => row.group === group && (canRead || !row.userOnly))
         if (!rows.length) return null
         return <View key={group}>
-          <Text variant="introLabel" color="redesign.secondary" style={styles.groupTitle}>{t(group === 'settings' ? 'g11.settings' : 'g11.experienceHeading')}</Text>
+          <Text variant="introLabel" color="text.secondary" style={styles.groupTitle}>{t(group === 'settings' ? 'g11.settings' : 'g11.experienceHeading')}</Text>
           <Card appearance="stitch" padded={false} style={styles.settingsCard}>{rows.map((row, index) => <Pressable key={row.key} onPress={() => router.push(row.route)} accessibilityRole="button"
             testID={`profile-setting-${t(`profile.settings.${row.key}`)}`} style={({ pressed }) => [styles.settingRow, index === rows.length - 1 && styles.settingRowLast, pressed && styles.settingRowPressed]}>
-            <View style={styles.settingLead}><View style={styles.settingIconTile}><MaterialIcon name={row.icon} size={20} /></View><Text variant="introBody" color="redesign.ink" style={styles.settingLabel}>{t(row.key === 'inbox' ? 'g11.inbox' : row.key === 'account' ? 'g11.account' : `profile.settings.${row.key}`)}</Text></View>
-            {row.key === 'theme' ? <View style={styles.rowTail}><View style={styles.accentDot} /><Text variant="introCaption" color="redesign.secondary">{t(`theme.${accentOf(rt.themeName) ?? DEFAULT_ACCENT}`)}</Text></View> : null}
+            <View style={styles.settingLead}><View style={styles.settingIconTile}><MaterialIcon name={row.icon} size={20} /></View><Text variant="introBody" color="text.primary" style={styles.settingLabel}>{t(row.key === 'inbox' ? 'g11.inbox' : row.key === 'account' ? 'g11.account' : `profile.settings.${row.key}`)}</Text></View>
+            {row.key === 'theme' ? <View style={styles.rowTail}><View style={styles.accentDot} /><Text variant="introCaption" color="text.secondary">{t(`theme.${accentOf(rt.themeName) ?? DEFAULT_ACCENT}`)}</Text></View> : null}
             {row.key === 'defaults' && profile?.homeAdministrativeArea?.provinceName ? <Text variant="caption" numberOfLines={1} style={styles.rowValue} color="text.secondary">{profile.homeAdministrativeArea.provinceName}</Text> : null}
-            {row.key === 'reviews' && reviews.data ? <Text variant="introCaption" color="redesign.secondary">{t('g11.reviewCount', { count: reviews.data.length })}</Text> : null}
+            {row.key === 'reviews' && reviews.data ? <Text variant="introCaption" color="text.secondary">{t('g11.reviewCount', { count: reviews.data.length })}</Text> : null}
             <IconChevronRight />
           </Pressable>)}</Card>
         </View>

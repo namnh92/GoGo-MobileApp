@@ -91,7 +91,7 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { createQueryClient } from '@/shared/api/query-client'
 import { NetworkError } from '@/shared/api/errors'
-import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
+import { accents, surface, type } from '@/shared/ui/tokens'
 
 function emptyPage() {
   return {
@@ -311,7 +311,7 @@ describe('#515 Stitch search row and empty recovery', () => {
     const row = StyleSheet.flatten(view.getByTestId('search-summary-row').props.style)
     expect(row.flexDirection).toBe('row')
     expect(row.flexWrap).toBeUndefined()
-    expect(StyleSheet.flatten(view.getByText('0').props.style).color).toBe(redesignLight.primary)
+    expect(StyleSheet.flatten(view.getByText('0').props.style).color).toBe(themes.orange.accent.primaryDeep)
     expect(view.getByText('Tìm thấy 0 địa điểm')).toBeTruthy()
     expect(view.getByTestId('search-filter-off-badge')).toBeTruthy()
     expect(view.getByText(i18n.t('discovery.contributeTitle'))).toBeTruthy()

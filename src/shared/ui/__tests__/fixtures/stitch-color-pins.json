@@ -1,0 +1,1092 @@
+{
+  "base": "f28f617",
+  "roles": {
+    "surface.inset": [
+      "#FAF7F2",
+      "#181715"
+    ],
+    "surface.disabled": [
+      "#E5E5E5",
+      "#333333"
+    ],
+    "accent.textMuted": [
+      "#B82F15",
+      "#FF746C"
+    ],
+    "border.neutral": [
+      "#E5E5E5",
+      "#333333"
+    ],
+    "surface.muted": [
+      "#F3EEE7",
+      "#2A2A2A"
+    ],
+    "accent.primaryMuted": [
+      "#C2351D",
+      "#CA381F"
+    ],
+    "status.successContainer": [
+      "#9EF5C0",
+      "#16402F"
+    ],
+    "status.onSuccessContainer": [
+      "#002111",
+      "#A7E8CD"
+    ],
+    "status.successStrongFill": [
+      "#247D52",
+      "#247D52"
+    ],
+    "accent.primary": [
+      "#CA381F",
+      "#CA381F"
+    ],
+    "accent.text": [
+      "#A71E07",
+      "#FF746C"
+    ],
+    "accent.gradientStart": [
+      "#FFE8E2",
+      "#2A2A2A"
+    ],
+    "accent.gradientMiddle": [
+      "#FFF3EE",
+      "#222222"
+    ],
+    "status.infoGradient": [
+      "#EAE6FE",
+      "#2F2A55"
+    ],
+    "surface.canvas": [
+      "#FFF8F3",
+      "#181715"
+    ],
+    "surface.card": [
+      "#FFFFFF",
+      "#222222"
+    ],
+    "surface.low": [
+      "#F9F2ED",
+      "#2A2A2A"
+    ],
+    "surface.container": [
+      "#F3EDE8",
+      "#2A2A2A"
+    ],
+    "surface.high": [
+      "#EDE7E2",
+      "#333333"
+    ],
+    "surface.highest": [
+      "#E7E1DC",
+      "#333333"
+    ],
+    "surface.dim": [
+      "#DFD9D4",
+      "#333333"
+    ],
+    "text.primary": [
+      "#1D1B18",
+      "#E6E6E6"
+    ],
+    "text.secondary": [
+      "#5A413B",
+      "#CCCCCC"
+    ],
+    "border.outline": [
+      "#8E706A",
+      "#999999"
+    ],
+    "border.hairline": [
+      "#E3BEB7",
+      "#333333"
+    ],
+    "text.supporting": [
+      "#8A6C66",
+      "#999999"
+    ],
+    "status.successFill": [
+      "#237C51",
+      "#3B8365"
+    ],
+    "text.neutralPrimary": [
+      "#211F1C",
+      "#E6E6E6"
+    ],
+    "text.neutralSecondary": [
+      "#746E68",
+      "#CCCCCC"
+    ],
+    "accent.primaryDeep": [
+      "#A71E07",
+      "#A72E19"
+    ],
+    "accent.container": [
+      "#FFDAD3",
+      "#2A2A2A"
+    ],
+    "accent.selected": [
+      "#FFE3DA",
+      "#472C25"
+    ],
+    "status.info": [
+      "#7161E2",
+      "#7161E2"
+    ],
+    "status.infoText": [
+      "#5747C8",
+      "#C7BFFF"
+    ],
+    "status.infoSoft": [
+      "#E4DFFF",
+      "#2F2A55"
+    ],
+    "status.infoInk": [
+      "#170065",
+      "#C7BFFF"
+    ],
+    "status.successText": [
+      "#00623C",
+      "#A7E8CD"
+    ],
+    "status.successSoft": [
+      "#ECFFF3",
+      "#16402F"
+    ],
+    "text.inverse": [
+      "#FFFFFF",
+      "#FFFFFF"
+    ],
+    "glass.opaque": [
+      "rgba(255,255,255,0.95)",
+      "rgba(34,34,34,0.95)"
+    ],
+    "glass.translucent": [
+      "rgba(255,255,255,0.90)",
+      "rgba(34,34,34,0.90)"
+    ],
+    "glass.header": [
+      "rgba(255,248,243,0.85)",
+      "rgba(24,23,21,0.85)"
+    ],
+    "overlay.gradientStrong": [
+      "rgba(50,48,45,0.80)",
+      "rgba(50,48,45,0.80)"
+    ],
+    "overlay.gradientLight": [
+      "rgba(50,48,45,0.20)",
+      "rgba(50,48,45,0.20)"
+    ],
+    "overlay.clear": [
+      "rgba(50,48,45,0)",
+      "rgba(50,48,45,0)"
+    ],
+    "accent.glow": [
+      "#FFDAD3",
+      "#FF746C"
+    ],
+    "status.success": [
+      "#237C51",
+      "#4FAF86"
+    ]
+  },
+  "bindings": {
+    "src/shared/administrative/administrative-picker.view.tsx": [
+      "text.secondary",
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "accent.text",
+      "accent.text"
+    ],
+    "src/shared/administrative/administrative-picker.style.tsx": [
+      "border.hairline",
+      "surface.low",
+      "accent.soft",
+      "border.hairline"
+    ],
+    "src/shared/ui/chip.style.tsx": [
+      "surface.card",
+      "accent.primary",
+      "surface.low",
+      "accent.selected",
+      "accent.soft",
+      "surface.card",
+      "accent.selected",
+      "surface.low",
+      "accent.selected",
+      "accent.container",
+      "surface.card",
+      "border.hairline",
+      "accent.primary",
+      "accent.primary",
+      "surface.subtle",
+      "surface.subtle",
+      "status.infoSoft",
+      "status.infoSoft",
+      "status.successSoft",
+      "status.successSoft",
+      "status.warningSoft",
+      "status.warningSoft"
+    ],
+    "src/shared/ui/header-notification-button.view.tsx": [
+      "accent.text"
+    ],
+    "src/shared/ui/unavailable-action.view.tsx": [
+      "border.outline",
+      "border.outline"
+    ],
+    "src/shared/ui/search-field.view.tsx": [
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/shared/ui/header-notification-button.style.tsx": [
+      "accent.primary"
+    ],
+    "src/shared/ui/rating-chips.view.tsx": [
+      "status.infoText",
+      "text.primary",
+      "status.warningText"
+    ],
+    "src/shared/ui/badge.style.tsx": [
+      "accent.primary",
+      "surface.subtle",
+      "text.secondary",
+      "status.infoSoft",
+      "status.infoText",
+      "status.successSoft",
+      "status.successText",
+      "status.warningSoft",
+      "status.warningText",
+      "status.dangerSoft",
+      "status.dangerText",
+      "surface.low",
+      "status.infoSoft",
+      "status.successFill",
+      "glass.opaque",
+      "accent.soft",
+      "surface.subtle",
+      "status.infoSoft",
+      "status.successSoft",
+      "status.warningSoft",
+      "status.dangerSoft"
+    ],
+    "src/shared/ui/card.style.tsx": [
+      "surface.card",
+      "surface.low",
+      "surface.card"
+    ],
+    "src/shared/location/current-area-sheet.style.tsx": [
+      "surface.high"
+    ],
+    "src/app/(tabs)/_layout.tsx": [
+      "accent.text",
+      "text.secondary"
+    ],
+    "src/shared/ui/info-banner.style.tsx": [
+      "surface.card",
+      "status.successText"
+    ],
+    "src/shared/ui/password-requirements.view.tsx": [
+      "status.successText",
+      "text.supporting",
+      "status.successText",
+      "text.supporting"
+    ],
+    "src/shared/ui/button.style.tsx": [
+      "surface.high",
+      "accent.primary",
+      "surface.high",
+      "accent.primary",
+      "surface.low",
+      "accent.primary",
+      "surface.subtle",
+      "accent.onAccent",
+      "surface.card",
+      "accent.primary",
+      "surface.subtle",
+      "accent.onAccent",
+      "surface.subtle",
+      "surface.high",
+      "status.dangerSoft",
+      "surface.subtle",
+      "surface.card",
+      "border.hairline",
+      "accent.soft",
+      "accent.primary",
+      "surface.subtle"
+    ],
+    "src/shared/ui/labelled-input.view.tsx": [
+      "status.dangerText",
+      "text.primary",
+      "border.outline",
+      "border.outline"
+    ],
+    "src/shared/ui/ambient-glow.view.tsx": [
+      "status.success",
+      "status.infoText",
+      "accent.primaryDeep",
+      "status.infoSoft",
+      "status.info",
+      "accent.glow"
+    ],
+    "src/shared/ui/chip.view.tsx": [
+      "text.primary",
+      "accent.onAccent",
+      "text.secondary",
+      "status.infoText",
+      "status.successText",
+      "status.warningText",
+      "accent.onAccent",
+      "text.secondary",
+      "accent.onSoft",
+      "text.secondary",
+      "accent.onSoft",
+      "text.secondary",
+      "accent.onSoft",
+      "accent.text"
+    ],
+    "src/shared/ui/rating-chips.style.tsx": [
+      "surface.container",
+      "status.infoSoft",
+      "surface.card",
+      "surface.highest"
+    ],
+    "src/shared/ui/segmented-control.view.tsx": [
+      "text.primary",
+      "text.secondary",
+      "text.primary",
+      "text.secondary"
+    ],
+    "src/shared/ui/button.view.tsx": [
+      "accent.onAccent",
+      "text.secondary",
+      "accent.primary",
+      "text.secondary",
+      "accent.primary",
+      "text.secondary",
+      "status.dangerText",
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "accent.primary",
+      "accent.primary",
+      "accent.onAccent",
+      "accent.onAccent",
+      "text.secondary",
+      "accent.text",
+      "text.primary",
+      "text.secondary",
+      "text.primary",
+      "text.primary",
+      "text.secondary"
+    ],
+    "src/shared/ui/frosted-material.style.tsx": [
+      "glass.opaque",
+      "glass.translucent",
+      "glass.header",
+      "surface.card",
+      "surface.canvas"
+    ],
+    "src/shared/ui/search-field.style.tsx": [
+      "surface.high",
+      "text.primary",
+      "surface.card",
+      "border.hairline",
+      "text.primary"
+    ],
+    "src/shared/ui/material-icon.tsx": [
+      "text.primary"
+    ],
+    "src/shared/ui/place-card.style.tsx": [
+      "status.successStrongFill",
+      "surface.container",
+      "surface.card",
+      "status.successStrongFill",
+      "surface.card",
+      "surface.card",
+      "status.successText",
+      "status.dangerText",
+      "onDark.success",
+      "onDark.danger",
+      "surface.card"
+    ],
+    "src/shared/ui/info-banner.view.tsx": [
+      "accent.primary",
+      "status.infoText",
+      "text.primary",
+      "text.secondary",
+      "border.outline",
+      "border.outline"
+    ],
+    "src/shared/ui/badge.view.tsx": [
+      "accent.onSoft",
+      "text.primary",
+      "status.infoText",
+      "status.successText",
+      "status.warningText",
+      "status.dangerText",
+      "accent.onAccent",
+      "text.inverse",
+      "status.infoInk",
+      "text.inverse",
+      "status.successText",
+      "status.infoInk",
+      "text.inverse",
+      "text.secondary"
+    ],
+    "src/shared/ui/segmented-control.style.tsx": [
+      "surface.container",
+      "surface.card"
+    ],
+    "src/shared/ui/labelled-input.style.tsx": [
+      "surface.card",
+      "surface.card",
+      "surface.low",
+      "text.primary",
+      "status.danger",
+      "accent.primary"
+    ],
+    "src/shared/ui/sheet.style.tsx": [
+      "surface.card",
+      "surface.canvas",
+      "surface.card",
+      "surface.highest",
+      "border.hairline"
+    ],
+    "src/shared/ui/primitives.tsx": [
+      "surface.card",
+      "border.hairline",
+      "surface.card",
+      "border.hairline",
+      "accent.primaryDeep",
+      "surface.subtle",
+      "accent.primary",
+      "accent.onAccent",
+      "surface.low",
+      "surface.subtle",
+      "surface.canvas",
+      "surface.highest",
+      "border.hairline",
+      "surface.dim",
+      "accent.primary",
+      "surface.canvas",
+      "surface.subtle",
+      "accent.primary"
+    ],
+    "src/features/tabs/saved-city.style.tsx": [
+      "surface.inset",
+      "surface.disabled",
+      "accent.primary"
+    ],
+    "src/features/tabs/profile.style.tsx": [
+      "status.infoSoft",
+      "accent.container",
+      "border.hairline",
+      "surface.subtle",
+      "surface.container",
+      "status.infoSoft",
+      "surface.container",
+      "status.info",
+      "accent.primary",
+      "surface.canvas",
+      "accent.primary",
+      "accent.soft",
+      "accent.primary"
+    ],
+    "src/features/tabs/profile.view.tsx": [
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.infoText",
+      "accent.text",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/tabs/saved-city.view.tsx": [
+      "text.secondary",
+      "accent.textMuted",
+      "accent.text",
+      "text.secondary"
+    ],
+    "src/features/tabs/profile-upcoming.view.tsx": [
+      "text.secondary",
+      "text.secondary",
+      "accent.onAccent",
+      "text.secondary",
+      "status.infoText"
+    ],
+    "src/features/tabs/saved.view.tsx": [
+      "status.warningText",
+      "text.secondary",
+      "status.successText",
+      "status.successText",
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/tabs/saved.style.tsx": [
+      "surface.container",
+      "text.primary",
+      "surface.subtle"
+    ],
+    "src/features/onboarding/splash-map.view.tsx": [
+      "text.primary",
+      "accent.primary",
+      "text.inverse",
+      "text.secondary",
+      "accent.container",
+      "border.hairline"
+    ],
+    "src/features/onboarding/onboarding.view.tsx": [
+      "text.neutralPrimary",
+      "text.primary",
+      "text.neutralSecondary",
+      "text.secondary"
+    ],
+    "src/features/onboarding/onboarding-visual.view.tsx": [
+      "status.infoInk",
+      "border.outline",
+      "text.inverse",
+      "overlay.clear",
+      "overlay.gradientLight",
+      "overlay.gradientStrong",
+      "text.secondary",
+      "accent.onAccent",
+      "text.primary",
+      "accent.primary",
+      "status.successText",
+      "border.outline",
+      "text.supporting",
+      "text.primary",
+      "border.outline",
+      "status.successText",
+      "status.successText",
+      "text.primary",
+      "status.infoInk",
+      "text.supporting",
+      "accent.primary",
+      "status.successText",
+      "text.primary",
+      "text.primary",
+      "text.supporting",
+      "accent.primary",
+      "accent.primary",
+      "text.primary",
+      "text.supporting",
+      "text.inverse",
+      "text.primary",
+      "status.successText",
+      "status.infoText",
+      "status.successText",
+      "text.secondary",
+      "text.secondary",
+      "text.inverse",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "accent.primary",
+      "accent.primary",
+      "text.primary"
+    ],
+    "src/features/onboarding/onboarding-visual.style.tsx": [
+      "surface.low",
+      "accent.primary",
+      "surface.low",
+      "status.successSoft",
+      "status.infoSoft",
+      "accent.container",
+      "surface.container",
+      "glass.translucent",
+      "surface.container",
+      "accent.primaryDeep",
+      "status.infoSoft",
+      "surface.high",
+      "status.info",
+      "accent.primaryDeep",
+      "status.infoText",
+      "accent.primary",
+      "surface.high"
+    ],
+    "src/features/onboarding/splash.style.tsx": [
+      "surface.canvas",
+      "accent.primary",
+      "accent.soft",
+      "surface.canvas"
+    ],
+    "src/features/onboarding/splash.view.tsx": [
+      "text.primary"
+    ],
+    "src/features/notifications/notification-switch.style.tsx": [
+      "surface.container"
+    ],
+    "src/features/notifications/notification-switch.view.tsx": [
+      "accent.onSoft",
+      "text.secondary",
+      "accent.primary",
+      "surface.subtle",
+      "text.secondary",
+      "status.dangerText",
+      "text.secondary",
+      "status.warningText",
+      "status.dangerText",
+      "status.successText",
+      "status.warningText",
+      "text.primary",
+      "status.warningText",
+      "text.secondary",
+      "status.dangerText",
+      "text.secondary"
+    ],
+    "src/features/place-import/import-photos.view.tsx": [
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText"
+    ],
+    "src/features/place-import/contribution-wizard.style.tsx": [
+      "border.hairline",
+      "surface.card",
+      "surface.subtle",
+      "border.hairline",
+      "accent.soft",
+      "border.hairline",
+      "surface.subtle",
+      "accent.primary",
+      "status.success",
+      "border.hairline",
+      "surface.subtle",
+      "accent.text",
+      "surface.subtle",
+      "border.hairline",
+      "text.primary",
+      "surface.subtle",
+      "surface.subtle",
+      "surface.subtle",
+      "accent.text",
+      "accent.soft",
+      "accent.soft",
+      "surface.subtle",
+      "accent.text",
+      "surface.subtle"
+    ],
+    "src/features/place-import/import-guide.view.tsx": [
+      "text.primary",
+      "accent.text",
+      "accent.text",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "status.successText",
+      "status.infoText",
+      "accent.text",
+      "text.primary",
+      "text.secondary"
+    ],
+    "src/features/place-import/import.style.tsx": [
+      "surface.high",
+      "surface.high",
+      "surface.inset",
+      "accent.primaryMuted",
+      "status.successSoft",
+      "surface.card",
+      "status.infoSoft",
+      "border.hairline",
+      "surface.card",
+      "status.successContainer",
+      "surface.low",
+      "surface.container",
+      "surface.highest",
+      "status.successSoft",
+      "status.warningSoft",
+      "surface.container",
+      "status.warningSoft",
+      "border.neutral",
+      "surface.card",
+      "surface.container",
+      "surface.container",
+      "border.neutral",
+      "surface.muted",
+      "accent.container",
+      "status.successSoft",
+      "accent.text",
+      "surface.low",
+      "surface.card",
+      "surface.card",
+      "border.neutral",
+      "accent.text",
+      "surface.low",
+      "border.neutral",
+      "text.primary",
+      "status.danger",
+      "status.successSoft",
+      "status.successText",
+      "surface.subtle",
+      "status.dangerSoft",
+      "accent.primary",
+      "accent.soft"
+    ],
+    "src/features/place-import/existing-place-result.view.tsx": [
+      "status.successText",
+      "text.primary",
+      "status.dangerText"
+    ],
+    "src/features/place-import/contribution-choices.view.tsx": [
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.primary",
+      "accent.primary"
+    ],
+    "src/features/place-import/contribution-wizard.view.tsx": [
+      "accent.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.warningText",
+      "text.secondary",
+      "accent.primary",
+      "accent.primary",
+      "text.secondary",
+      "accent.primary",
+      "status.warningText",
+      "status.warningText",
+      "status.warningText",
+      "text.secondary",
+      "accent.primary",
+      "status.dangerText",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.warningText",
+      "status.warningText",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/place-import/import.view.tsx": [
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "status.onSuccessContainer",
+      "text.primary",
+      "text.secondary",
+      "accent.text",
+      "text.primary",
+      "accent.text",
+      "accent.text",
+      "status.successText",
+      "border.outline",
+      "status.successText",
+      "status.warningText",
+      "status.successText",
+      "status.warningText",
+      "border.outline",
+      "text.secondary",
+      "status.dangerText",
+      "status.warningText",
+      "status.dangerText",
+      "text.secondary",
+      "text.primary",
+      "accent.text",
+      "status.warningText",
+      "status.warningText",
+      "status.dangerText",
+      "status.dangerText",
+      "status.dangerText"
+    ],
+    "src/features/account/theme-accent.view.tsx": [
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "accent.onSoft",
+      "text.secondary",
+      "accent.primary",
+      "accent.onAccent",
+      "accent.onAccent",
+      "accent.onSoft",
+      "accent.onSoft",
+      "text.secondary",
+      "accent.primary",
+      "text.secondary",
+      "accent.primary",
+      "text.secondary"
+    ],
+    "src/features/account/profile-defaults.style.tsx": [
+      "surface.low",
+      "surface.card",
+      "accent.container",
+      "surface.low",
+      "accent.soft",
+      "border.outline",
+      "accent.onSoft",
+      "surface.container",
+      "status.infoSoft"
+    ],
+    "src/features/account/date-of-birth.style.tsx": [
+      "border.outline",
+      "accent.primary",
+      "accent.soft",
+      "text.primary",
+      "surface.subtle"
+    ],
+    "src/features/account/account.view.tsx": [
+      "accent.text",
+      "accent.onAccent",
+      "status.warningText",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText",
+      "status.dangerText",
+      "text.secondary"
+    ],
+    "src/features/account/theme-accent.style.tsx": [
+      "accent.primary",
+      "surface.subtle",
+      "surface.low",
+      "accent.soft",
+      "accent.soft",
+      "accent.primary",
+      "accent.primary",
+      "accent.soft",
+      "surface.container",
+      "surface.card",
+      "accent.soft"
+    ],
+    "src/features/account/profile-defaults.view.tsx": [
+      "accent.onSoft",
+      "text.primary",
+      "text.secondary",
+      "accent.primary",
+      "text.secondary",
+      "accent.text",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "accent.primary",
+      "text.secondary",
+      "accent.onSoft",
+      "text.secondary",
+      "accent.onSoft",
+      "text.primary",
+      "accent.onSoft",
+      "accent.primary",
+      "accent.onSoft",
+      "text.secondary",
+      "status.warningText",
+      "text.secondary",
+      "status.infoText",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/account/account.style.tsx": [
+      "accent.primary",
+      "text.secondary",
+      "status.danger",
+      "border.outline",
+      "surface.subtle",
+      "border.outline",
+      "text.primary",
+      "surface.subtle",
+      "accent.pressed",
+      "surface.card",
+      "accent.primary",
+      "surface.canvas",
+      "surface.subtle",
+      "status.danger",
+      "surface.card"
+    ],
+    "src/features/search/search-empty.view.tsx": [
+      "accent.text",
+      "status.infoText",
+      "text.primary",
+      "text.secondary",
+      "accent.text",
+      "text.primary",
+      "accent.text",
+      "text.primary",
+      "status.successText",
+      "accent.text",
+      "text.primary",
+      "text.primary",
+      "accent.text"
+    ],
+    "src/features/search/search-map-panel.style.tsx": [
+      "surface.canvas",
+      "surface.card"
+    ],
+    "src/features/search/search.style.tsx": [
+      "surface.high",
+      "surface.card",
+      "border.hairline",
+      "accent.primary",
+      "surface.low",
+      "accent.container",
+      "surface.card",
+      "surface.card",
+      "surface.card",
+      "surface.container",
+      "surface.low",
+      "status.infoSoft",
+      "surface.card",
+      "surface.card",
+      "surface.container",
+      "surface.container",
+      "surface.low",
+      "surface.container",
+      "accent.container",
+      "surface.card",
+      "surface.container",
+      "surface.canvas",
+      "surface.card",
+      "surface.low",
+      "surface.low",
+      "text.primary",
+      "status.infoSoft"
+    ],
+    "src/features/search/search.view.tsx": [
+      "accent.text",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "accent.text",
+      "text.secondary",
+      "text.secondary",
+      "accent.text",
+      "text.secondary",
+      "text.secondary",
+      "accent.text",
+      "accent.text",
+      "text.secondary",
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.primary",
+      "status.dangerText",
+      "status.infoText",
+      "text.secondary"
+    ],
+    "src/features/auth/sign-in.view.tsx": [
+      "text.primary",
+      "text.secondary",
+      "border.outline",
+      "status.dangerText"
+    ],
+    "src/features/home/quick-join.view.tsx": [
+      "status.infoText",
+      "text.secondary",
+      "status.dangerText",
+      "text.secondary"
+    ],
+    "src/features/home/home.style.tsx": [
+      "surface.card",
+      "status.infoText",
+      "status.info",
+      "status.infoSoft",
+      "surface.card",
+      "text.primary",
+      "surface.container",
+      "surface.high",
+      "surface.card",
+      "border.hairline",
+      "accent.primaryDeep",
+      "accent.pressed",
+      "surface.subtle",
+      "accent.soft",
+      "surface.subtle"
+    ],
+    "src/features/home/home.view.tsx": [
+      "accent.text",
+      "text.secondary",
+      "text.secondary",
+      "accent.gradientStart",
+      "accent.gradientMiddle",
+      "status.infoGradient",
+      "accent.text",
+      "text.secondary",
+      "accent.onAccent",
+      "accent.onAccent",
+      "status.infoText",
+      "status.infoText",
+      "text.secondary",
+      "text.inverse",
+      "accent.text",
+      "accent.text",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/settings/location-permission.style.tsx": [
+      "surface.low",
+      "surface.container"
+    ],
+    "src/features/settings/location-permission.view.tsx": [
+      "accent.onSoft",
+      "text.primary",
+      "status.warningText",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/settings/permissions.view.tsx": [
+      "status.infoText",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText"
+    ],
+    "src/features/settings/permissions.style.tsx": [
+      "status.infoSoft"
+    ]
+  },
+  "workspace": {
+    "canvas": "#121212",
+    "surface": "#181818",
+    "void": "#000000",
+    "border": "#333333",
+    "raised": "#262626",
+    "emphasis": "#444444",
+    "scrim": "#000000BF",
+    "foreground": "#FFFFFF"
+  }
+}
