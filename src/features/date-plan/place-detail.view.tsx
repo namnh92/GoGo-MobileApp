@@ -495,7 +495,7 @@ export default function PlaceDetailScreen() {
                 </Text>
               </View>
             )}
-            <RatingChips place={card} />
+            <RatingChips place={card} detail />
           </View>
 
           {/* Questions about this place (#379): the contextual way into GoGo

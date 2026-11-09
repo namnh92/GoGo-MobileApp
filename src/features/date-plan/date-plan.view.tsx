@@ -29,7 +29,7 @@ import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn, Toast } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
@@ -426,9 +426,8 @@ export default function DatePlanScreen() {
                   padded={false}
                   style={[styles.stopCard, stop.status === 'completed' && styles.stopCardCompleted]}
                 >
-                  <View>
-                    <PlaceCard place={place ?? detailToPlaceCard({ id: stop.placeId, name })} />
-                    <View style={styles.stopHeroTop}>
+                  <PlaceCardLarge place={place ?? detailToPlaceCard({ id: stop.placeId, name })}
+                    photoOverlay={<View style={styles.stopHeroTop}>
                       <View style={styles.stopOrderBadge}>
                         <Text variant="label" color="text.inverse">{t('datePlan.stopOrder', { n: index + 1 })}</Text>
                       </View>
@@ -457,8 +456,7 @@ export default function DatePlanScreen() {
                           </Pressable>
                         )}
                       </View>
-                    </View>
-                  </View>
+                    </View>} />
                   <View style={styles.stopInfo}>
                     <View style={styles.stopTime}>
                       <Icon name="clock" size={16} color="text.secondary" />

@@ -17,7 +17,7 @@ import {
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Icon } from '@/shared/ui/icons'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
@@ -156,16 +156,16 @@ export default function PlanEditScreen() {
           return (
             <Card padded={false} key={`${stop.placeId}-${index}`} style={styles.row}>
               <View style={styles.rowMain}>
-                <PlaceCard variant="compact" place={place ?? detailToPlaceCard({ id: stop.placeId, name: '' })} />
-                <View style={styles.rowText}>
-                  <Text variant="caption" color="accent.primary">{t('datePlan.stopOrder', { n: index + 1 })}</Text>
+                <PlaceCardSmall place={place ?? detailToPlaceCard({ id: stop.placeId, name: '' })}
+                  bodyLeading={<Text variant="caption" color="accent.primary">{t('datePlan.stopOrder', { n: index + 1 })}</Text>}
+                  bodyTrailing={
                   <View style={styles.meta}>
                     <Text variant="caption" color="text.secondary">
                       {t('datePlan.minutes', { n: stop.durationMinutes })}
                     </Text>
                     {stop.isLocked ? <Chip label={t('planEdit.locked')} icon="lock" /> : null}
                   </View>
-                </View>
+                  } />
               </View>
               <View style={styles.actions}>
                 <Pressable

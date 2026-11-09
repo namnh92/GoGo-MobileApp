@@ -1,6 +1,7 @@
 import { completeWizard } from './contribution-fixtures'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
 import { Keyboard, Linking, ScrollView, StyleSheet, View } from 'react-native'
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 import { onlineManager } from '@tanstack/react-query'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { renderScreen } from './harness'
@@ -39,7 +40,6 @@ jest.mock('@/shared/api', () => ({
   useToggleSaved: () => ({ mutate: mockToggleSaved }),
 }))
 import { themes, type AppTheme } from '@/shared/ui/theme'
-import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 import PlaceImportScreen from '@/features/place-import/import.view'
 const mockNow = { value: new Date('2026-11-07T05:00:00Z') }
 jest.mock('@/shared/ui/use-place-clock', () => ({ usePlaceClock: () => mockNow.value }))
@@ -298,8 +298,8 @@ it('uses the directly downloaded Stitch photo/body hierarchy with real hours and
     openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 450, closeMinute: 1350, isOvernight: false })),
     photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
-  expect(StyleSheet.flatten(screen.getByTestId('import-preview-photo-frame').props.style)).toMatchObject({ aspectRatio: 1.6 })
-  expect(StyleSheet.flatten(screen.getByTestId('import-preview-card').props.style)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+  expect(StyleSheet.flatten(screen.getByTestId('place-card-photo').props.style)).toMatchObject({ aspectRatio: 1.6 })
+  expect(StyleSheet.flatten(screen.getByTestId('place-card-surface').props.style)).toMatchObject({ borderRadius: 20, overflow: 'hidden' })
   expect(screen.getByText('Dữ liệu đã trích xuất')).toBeTruthy()
   expect(screen.queryByText('✓ Dữ liệu Google Maps xác thực')).toBeNull()
   expect(screen.queryByText('✓ Đã đồng bộ từ Google Maps')).toBeNull()
@@ -502,12 +502,10 @@ it.each(['https://www.google.com/maps/contrib/123', '//maps.google.com/maps/cont
   mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan', uri }, { displayName: 'Minh' }] }] })
   await preview({ ...candidate, attributions: ['Google Maps', 'Other credit'], photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await waitFor(() => expect(screen.getByTestId('import-photo-credit')).toBeTruthy())
-  const frame = within(screen.getByTestId('import-preview-photo-frame'))
+  const frame = within(screen.getByTestId('import-preview-card'))
   expect(frame.getByText('Ảnh: Lan, Minh · Google Maps')).toBeTruthy()
   expect(screen.getAllByTestId('import-photo-credit')).toHaveLength(1)
-  expect(StyleSheet.flatten(frame.getByTestId('import-photo-credit').props.style)).toMatchObject({
-    borderRadius: 999, maxWidth: '100%', flexShrink: 1, color: themes.orange.redesign.white, backgroundColor: themes.orange.redesign.scrimStart,
-  })
+  expect(frame.getByTestId('import-photo-credit')).toHaveTextContent('Ảnh: Lan, Minh · Google Maps')
   expect(screen.queryByText('Google Maps')).toBeNull()
   expect(screen.getByText('Other credit')).toBeTruthy()
   await fireEvent.press(screen.getByRole('link', { name: 'Lan' }))
@@ -559,40 +557,21 @@ it('keeps canonical saving available for an existing GoGo place', async () => {
   expect(mockToggleSaved).toHaveBeenCalledWith({ type: 'place', id: 'canonical', saved: false })
 })
 
-// Structural proof; native truncation still needs simulator confirmation.
-it.each(['orange', 'orangeDark'] as const)('bounds a single-line top-left credit away from Maps and removes photo hours (%s)', async themeName => {
-  const create = jest.spyOn(UnistylesStyleSheet, 'create')
-  jest.isolateModules(() => { jest.requireActual('@/shared/ui/place-card.style') })
-  const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
-  const styles = factory(themes[themeName])
-  create.mockRestore()
-  expect(styles.importPhotoOverlays).toMatchObject({ position: 'absolute', top: 12, left: 12, right: 60, alignItems: 'flex-start' })
-  expect(styles.importPhotoOverlays.bottom).toBeUndefined()
-  expect(styles.importHeaderAction).toMatchObject({ top: 8, right: 8 })
-  // Right edge is 60pt from frame edge; Maps occupies 8 + 44pt, leaving 8pt.
-  expect(styles.importPhotoOverlays.right - (styles.importHeaderAction.right + 44)).toBeGreaterThanOrEqual(8)
-  expect(styles.importPhotoCredit).toMatchObject({ maxWidth: '100%', borderRadius: 999, backgroundColor: themes[themeName].redesign.scrimStart })
-  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'A very long photographer name '.repeat(20) }] }] })
-  await preview({ ...candidate, googleMapsUri: LINK, openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 0, closeMinute: 1440 })), photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
+// Owner 2026-11-08: provider identity uses the common LARGE layout too.
+it.each(['orange', 'orangeDark'] as const)('keeps provider credits linked below the common photo (%s)', async () => {
+  mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Long photographer name' }] }] })
+  await preview({ ...candidate, googleMapsUri: LINK, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
   await waitFor(() => expect(screen.getByTestId('import-photo-credit')).toBeTruthy())
-  const row = within(screen.getByTestId('import-photo-overlays'))
-  expect(row.getByTestId('import-photo-credit').props).toMatchObject({
-    numberOfLines: 1, ellipsizeMode: 'tail',
-    accessibilityLabel: `Ảnh: ${'A very long photographer name '.repeat(20).trim()} · Google Maps`,
-  })
-  expect(row.queryByTestId('import-photo-hours')).toBeNull()
-  expect(screen.getAllByTestId('import-body-hours')).toHaveLength(1)
-  expect(screen.getByRole('button', { name: 'Mở trên Google Maps' })).toBeTruthy()
-  await fireEvent(screen.getByTestId('import-candidate-photo'), 'error', { nativeEvent: { error: 'decode failed' } })
-  expect(screen.queryByTestId('import-photo-credit')).toBeNull()
+  expect(screen.getAllByTestId('import-photo-credit')).toHaveLength(1)
+  expect(within(screen.getByTestId('place-card-photo')).queryByTestId('import-photo-credit')).toBeNull()
+  expect(within(screen.getByTestId('import-preview-card')).getByTestId('import-photo-credit')).toHaveTextContent('Ảnh: Long photographer name · Google Maps')
 })
-
 
 it.each([
   ['2026-11-07T05:00:00Z', 'Đang mở · 08:00–23:00 hàng ngày', true],
   ['2026-11-07T00:00:00Z', 'Đã đóng · Mở 08:00', false],
   ['2026-11-07T16:30:00Z', 'Đã đóng · Mở 08:00 ngày mai', false],
-] as const)('renders API hours once in the body across extracted and supplement stages (%s)', async (now, label, isOpen) => {
+] as const)('renders API hours once in the common photo footer across extracted and supplement stages (%s)', async (now, label, isOpen) => {
   mockNow.value = new Date(now)
   mockGet.mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'aGk=', authorAttributions: [{ displayName: 'Lan' }] }] })
   await preview({ ...candidate,
@@ -602,11 +581,11 @@ it.each([
   await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
   const checkHours = () => {
     expect(screen.getAllByText(label)).toHaveLength(1)
-    expect(screen.getAllByTestId('import-body-hours')).toHaveLength(1)
-    expect(within(screen.getByTestId('import-preview-photo-frame')).queryByText(/08:00|23:00|Đang mở|Đã đóng/)).toBeNull()
+    expect(screen.getAllByTestId('place-card-hours-badge')).toHaveLength(1)
+    expect(within(screen.getByTestId('place-card-photo-footer')).getByText(label)).toBeTruthy()
     expect(screen.queryByTestId('import-photo-hours')).toBeNull()
-    expect(StyleSheet.flatten(within(screen.getByTestId('import-body-hours')).getByText('●').props.style).color)
-      .toBe(isOpen ? themes.orange.status.successText : themes.orange.status.dangerText)
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-status-dot', { includeHiddenElements: true }).props.style).backgroundColor)
+      .toBe(isOpen ? themes.orange.onDark.success : themes.orange.onDark.danger)
   }
   checkHours()
   await completeWizard()
@@ -615,7 +594,7 @@ it.each([
 
 it('omits unknown opening facts rather than inventing a state or schedule', async () => {
   await preview()
-  expect(screen.queryByTestId('import-body-hours')).toBeNull()
+  expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
   expect(screen.queryByTestId('import-photo-hours')).toBeNull()
 })
 
@@ -650,7 +629,7 @@ it('shows a success result for the place and replaces the submitted form with co
   await fireEvent.press(screen.getByText('Gửi'))
   const row = within(screen.getByTestId('place-preview-compact'))
   expect(row.getByText('Preview')).toBeTruthy()
-  expect(row.getByText('12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh').props.numberOfLines).toBe(2)
+  expect(row.getByText('12 Nguyễn Huệ, Bến Nghé, Hồ Chí Minh').props.numberOfLines).toBe(1)
   expect(row.queryByTestId('place-preview-thumbnail')).toBeNull()
   expect(screen.getByText('Đã gửi cho GoGo duyệt')).toBeTruthy()
   expect(screen.getByText('Preview đã được gửi cho GoGo duyệt. Bạn sẽ nhận thông báo khi có kết quả')).toBeTruthy()

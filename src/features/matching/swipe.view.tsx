@@ -31,7 +31,7 @@ import { track } from '@/shared/analytics'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { haptic, useReducedMotion } from '@/shared/ui/feedback'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
 import { Atmosphere, GhostBtn, glassStyles } from '@/shared/ui/primitives'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
@@ -419,8 +419,8 @@ export default function SwipeScreen() {
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.card, glassStyles.card, cardStyle]}>
             <ScrollView bounces={false}>
-            <PlaceCard variant="hero" place={place ?? detailToPlaceCard({ id: card.placeId, name: card.name })}
-              photoCategoryLabel={categoryLabel ?? undefined}
+            <PlaceCardLarge place={place ?? detailToPlaceCard({ id: card.placeId, name: card.name })}
+              categoryLabel={categoryLabel ?? undefined}
               tags={card.reasonCodes.slice(0, 2).map(code => t(`suggestion.reason.${code}`, { defaultValue: code }))} />
             </ScrollView>
               <Animated.View

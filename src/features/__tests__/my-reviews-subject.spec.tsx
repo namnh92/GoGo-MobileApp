@@ -1,4 +1,4 @@
-import { fireEvent } from '@testing-library/react-native'
+import { fireEvent, within } from '@testing-library/react-native'
 
 import { failed, loaded, pending, renderScreen, type QueryLike } from './harness'
 
@@ -64,7 +64,7 @@ describe('my reviews: card subject', () => {
     const view = await renderScreen(<MyReviewsScreen />)
     const address = '79 P. Lý Nam Đế, Hoàn Kiếm, Hà Nội'
     expect(view.getByText(address)).toBeTruthy()
-    expect(view.getByTestId('my-review-subject').props.accessibilityLabel).toBe(`Quán thử, ${address}`)
+    expect(within(view.getByTestId('my-review-subject')).getByTestId('place-card-open-target').props.accessibilityLabel).toBe(`Quán thử, ${address}`)
     expect(view.getByLabelText(address)).toBeTruthy()
   })
 
@@ -78,7 +78,7 @@ describe('my reviews: card subject', () => {
     expect(view.getByText('Đã hiển thị')).toBeTruthy()
     expect(view.getByText('Bạn chấm 4/5')).toBeTruthy()
 
-    await fireEvent.press(view.getByTestId('my-review-subject'))
+    await fireEvent.press(within(view.getByTestId('my-review-subject')).getByTestId('place-card-open-target'))
     expect(mockPush).toHaveBeenCalledWith('/places/place-1')
 
     await editWorks(view)
@@ -104,10 +104,12 @@ describe('my reviews: card subject', () => {
     const view = await renderScreen(<MyReviewsScreen />)
 
     expect(view.getAllByText('Không tải được tên và địa chỉ địa điểm').length).toBeGreaterThan(0)
+    const card = within(view.getAllByTestId('my-review-subject')[0]).getByTestId('place-card-small')
+    expect(within(card).queryByText('Không tải được tên và địa chỉ địa điểm')).toBeNull()
     expect(view.getByText('Nội dung r2')).toBeTruthy()
 
     // The place is still known by id, so the subject still opens it.
-    await fireEvent.press(view.getAllByTestId('my-review-subject')[0])
+    await fireEvent.press(within(view.getAllByTestId('my-review-subject')[0]).getByTestId('place-card-open-target'))
     expect(mockPush).toHaveBeenCalledWith('/places/place-1')
 
     await fireEvent.press(view.getAllByText('Sửa đánh giá')[0])

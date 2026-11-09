@@ -1,8 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  heroBadgePosition: { position: 'absolute', top: spacing[3], left: spacing[3] },
   intro: { paddingHorizontal: spacing[5], gap: spacing[1], marginBottom: spacing[4] },
   summary: {
     marginHorizontal: spacing[5],
@@ -29,14 +28,6 @@ export const styles = StyleSheet.create(theme => ({
   bar: { gap: spacing[2] },
   runnersUp: { paddingHorizontal: spacing[5], marginTop: spacing[5], gap: spacing[2] },
   runnersUpTitle: { marginBottom: spacing[1] },
-  runnerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing[3],
-    gap: spacing[3],
-  },
-  runnerName: { flex: 1 },
   waitingHost: { textAlign: 'center', paddingVertical: spacing[3] },
   error: { textAlign: 'center' },
 
@@ -62,9 +53,5 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: 4,
     borderRadius: radius.pill,
     backgroundColor: theme.accent.soft,
-  },
-  runnerAction: {
-    minHeight: touchTarget.min,
-    justifyContent: 'center',
   },
 }))

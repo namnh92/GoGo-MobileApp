@@ -31,7 +31,8 @@ import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { haptic } from '@/shared/ui/feedback'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { MapCanvas, type MapPin } from '@/shared/ui/map-canvas.view'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlanSkeleton } from '@/shared/ui/skeleton.view'
 import { IconArrowRight, IconNavigation } from '@/shared/ui/icons'
@@ -397,10 +398,9 @@ export default function ActiveDateScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[6] }}>
         <Card padded={false} style={styles.card}>
-          <PlaceCard place={stopPlace ?? detailToPlaceCard({ id: stop.placeId, name: placeName })} />
-          <View style={styles.cardBody}>
-            <View style={styles.titleRow}>
-              <Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" />
+          <PlaceCardLarge place={stopPlace ?? detailToPlaceCard({ id: stop.placeId, name: placeName })}
+            photoOverlay={<View style={styles.photoBadge}><Chip label={t('activeDate.ongoing')} icon="mapPin" variant="positive" /></View>}
+            headingAction={
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('common.directions')}
@@ -411,9 +411,8 @@ export default function ActiveDateScreen() {
                 style={({ pressed }) => [styles.dirBtn, pressed && styles.dirBtnPressed]}
               >
                 <IconNavigation />
-              </Pressable>
-            </View>
-
+              </Pressable>} />
+          <View style={styles.cardBody}>
             <View style={styles.factRow}>
               {stop.arriveLabel ? <Chip label={stop.arriveLabel} icon="clock" variant="default" /> : null}
               {stopCost ? <Chip label={stopCost} icon="dollar" variant="default" /> : null}
@@ -442,10 +441,10 @@ export default function ActiveDateScreen() {
             </View>
             <Card padded={false} style={styles.nextCard}>
               <View style={{ flex: 1 }}>
-                <PlaceCard variant="compact" place={nextPlace ?? detailToPlaceCard({ id: nextStop.placeId, name: '' })} />
-                <Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
-                  {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)].filter(Boolean).join(' · ')}
-                </Text>
+                <PlaceCardSmall place={nextPlace ?? detailToPlaceCard({ id: nextStop.placeId, name: '' })}
+                  bodyTrailing={<Text variant="bodySmall" color="text.secondary" style={styles.nextMeta}>
+                    {[nextStop.arriveLabel, stopCostLabel(nextStop, summary.currency, t)].filter(Boolean).join(' · ')}
+                  </Text>} />
               </View>
               <IconArrowRight />
             </Card>

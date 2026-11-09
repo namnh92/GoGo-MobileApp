@@ -6,7 +6,7 @@ import { detailToPlaceCard, isSaved, openStateFromHours, usePlaceDetail, useSave
 import { useSession } from '@/shared/providers/session-provider'
 import { ErrorState } from '@/shared/ui/async-state.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { PlaceCard } from '@/shared/ui/place-card.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
@@ -36,8 +36,7 @@ export function ExistingPlaceResult({ placeId, onReset }: { placeId: string; onR
       ) : !detail.data ? (
         <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
       ) : (
-        <PlaceCard
-          appearance="discovery"
+        <PlaceCardSmall
           place={{ ...detailToPlaceCard(detail.data), ...openStateFromHours(detail.data.hours, now) }}
           onPress={() => router.replace(`/places/${placeId}`)}
         />

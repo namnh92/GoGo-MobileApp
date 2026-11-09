@@ -52,11 +52,11 @@ jest.mock('@/shared/administrative/queries', () => ({
   ...jest.requireActual('@/shared/administrative/queries'),
   useLocatedArea: () => mockLocated.value,
 }))
-jest.mock('@/shared/ui/place-card.view', () => {
+jest.mock('@/shared/ui/place-card-large.view', () => {
   const React = jest.requireActual<typeof import('react')>('react')
   const { Text, View, Pressable } = jest.requireActual<typeof import('react-native')>('react-native')
   return {
-    PlaceCard: ({ place, headerAction, footer, onPress, saved, onToggleSave }: { place: { name: string }; headerAction: import('react').ReactNode; footer: import('react').ReactNode; onPress: () => void; saved: boolean; onToggleSave: () => void }) => React.createElement(View, null,
+    PlaceCardLarge: ({ place, headerAction, footer, onPress, saved, onToggleSave }: { place: { name: string }; headerAction: import('react').ReactNode; footer: import('react').ReactNode; onPress: () => void; saved: boolean; onToggleSave: () => void }) => React.createElement(View, null,
       React.createElement(Pressable, { onPress }, React.createElement(Text, null, place.name)), headerAction, footer, React.createElement(Pressable, { accessibilityRole: 'togglebutton', accessibilityLabel: 'Bỏ lưu', accessibilityState: { checked: saved }, onPress: onToggleSave })),
   }
 })

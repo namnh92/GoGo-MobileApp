@@ -367,7 +367,7 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(view.getAllByTestId('search-nearby-place')).toHaveLength(2)
     expect(view.queryByText('Third cafe')).toBeNull()
     expect(view.getByText('Hoặc khám phá các quán gần bạn')).toBeTruthy()
-    expect(view.getByText('800 m')).toBeTruthy()
+    expect(view.queryByText('800 m')).toBeNull()
     expect(view.queryByText(/thịnh hành|Hot tuần này|\/người|Google|GoGo$/)).toBeNull()
     await fireEvent.press(view.getByRole('button', { name: 'Nearby cafe' }))
     expect(mockPush).toHaveBeenLastCalledWith('/places/near')
@@ -383,18 +383,20 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(view.queryByTestId('search-nearby')).toBeNull()
   })
 
-  it('uses verification, rating provenance and price only when the nearby response supplies them', async () => {
+  it('shows verified on the nearby thumbnail and separate ratings while omitting small-card prices', async () => {
     mockNearby.value = { ...emptyPage(), data: { pages: [{ results: [
       { id: 'verified', name: 'Verified cafe', isLodging: false, verification: { status: 'verified' }, rating: 4.6, ratingCount: 980, gogoRating: 4.8, gogoRatingCount: 20, pricePerPerson: { min: 65000, max: 65000, currency: 'VND', confidence: 1 } },
       { id: 'unknown', name: 'Unknown facts', isLodging: false },
     ] }] } }
     const view = await renderScreen(<SearchScreen />)
     const [known, unknown] = view.getAllByTestId('search-nearby-place').map(row => within(row))
-    expect(known.getByText('Xác minh')).toBeTruthy()
+    expect(within(known.getByTestId('place-card-photo')).getByText('Xác minh')).toBeTruthy()
+    expect(within(known.getByTestId('place-card-body')).queryByText('Xác minh')).toBeNull()
     expect(known.getByText(/4,6 \(980\) Google/)).toBeTruthy()
     expect(known.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
-    expect(known.getByText(/65k/)).toBeTruthy()
-    expect(unknown.queryByText(/Xác minh|Google|GoGo|65k|người/)).toBeNull()
+    expect(known.queryByText(/65k/)).toBeNull()
+    expect(unknown.getByText('GoGo · Chưa đủ đánh giá')).toBeTruthy()
+    expect(unknown.queryByText(/Xác minh|Google|65k|người/)).toBeNull()
   })
 })
 
@@ -662,7 +664,7 @@ describe('owner verification round 2 — O-4 full-content map', () => {
       expect(view.queryByText('The map marks the first place in the list.')).toBeNull()
       await fireEvent.press(view.getByLabelText('Second place'))
       expect(view.getAllByText('Second place').length).toBeGreaterThan(0)
-      await fireEvent.press(view.getByText(i18n.t('discovery.openPlace')))
+      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.openPlace') }))
       expect(mockPush).toHaveBeenLastCalledWith('/places/second')
       await fireEvent.press(view.getByText(i18n.t('discovery.list')))
       expect(view.getAllByTestId('place-card-open-target')).toHaveLength(2)
@@ -679,7 +681,7 @@ describe('owner verification round 2 — O-4 full-content map', () => {
     await view.rerender(<SearchScreen />)
     expect(view.queryByLabelText('Top place')).toBeNull()
     expect(view.getByLabelText('Second place')).toBeTruthy()
-    expect(view.queryByText(i18n.t('discovery.openPlace'))).toBeNull()
+    expect(view.queryByRole('button', { name: i18n.t('discovery.openPlace') })).toBeNull()
     expect(view.getByTestId('discovery-native-map').props.cameraRegion).toMatchObject({ latitude: 21, longitude: 105 })
     expect(view.getByTestId('discovery-native-map').props.showsUserLocation).toBe(false)
   })
@@ -879,7 +881,7 @@ describe('#515 refreshed Stitch Home', () => {
       open: { openNow: true, closesAtMinute: 1200 },
     }, { id: 'sparse', name: 'Chỉ có tên', isLodging: false }], meta: {} }] } }
     const view = await renderScreen(<HomeScreen />)
-    const [full, sparse] = view.getAllByTestId('place-card-discovery').map(card => within(card))
+    const [full, sparse] = view.getAllByTestId('place-card-large').map(card => within(card))
     expect(full.getByText('Xác minh')).toBeTruthy()
     expect(full.queryByTestId('place-card-area-badge')).toBeNull()
     expect(full.getByText('Mở đến 20:00')).toBeTruthy()
@@ -1019,7 +1021,7 @@ describe('#515 Astra F-12..F-14', () => {
       await fireEvent(view.getByTestId('discovery-native-map'), 'onOpen', 'second')
     } else {
       await fireEvent.press(view.getByLabelText(mapPlaces[1].name))
-      await fireEvent.press(view.getByText(i18n.t('discovery.openPlace')))
+      await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.openPlace') }))
     }
     expect(mockPush).not.toHaveBeenCalled()
     if (existingRoom) {
@@ -1251,12 +1253,12 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   for (const key of ['datasetVersion', 'provinceCode', 'communeCode']) expect(mockQueries.at(-1)).not.toHaveProperty(key)
   expect(view.getByTestId('search-loading-more')).toBeTruthy()
   expect(view.getByText('Hà Nội')).toBeTruthy()
-  expect(view.getByText(i18n.t('discovery.openPlace'))).toBeTruthy()
+  expect(view.getByRole('button', { name: i18n.t('discovery.openPlace') })).toBeTruthy()
   const newPlace = { ...mapPlaces[0], id: 'new', name: 'Visible place', lat: 10, lng: 106 }
   mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [newPlace, mapPlaces[0]], meta: { location: { source: 'position' } } }] } }
   await view.rerender(<SearchScreen />)
   for (const title of ['Top place', 'Second place', 'Visible place']) expect(view.getAllByLabelText(title)).toHaveLength(1)
-  expect(view.getByText(i18n.t('discovery.openPlace'))).toBeTruthy()
+  expect(view.getByRole('button', { name: i18n.t('discovery.openPlace') })).toBeTruthy()
   expect(view.getByText('Hà Nội')).toBeTruthy()
   expect(useDiscoveryAreaStore.getState().area).toEqual(mockScope.status === 'ready' && 'area' in mockScope ? mockScope.area : null)
   await fireEvent(view.getByTestId('discovery-native-map'), 'regionChangeComplete', { ...region, latitudeDelta: 90, longitudeDelta: 180 })
@@ -1265,7 +1267,7 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   mockRegionSearch = { ...emptyPage(), data: { pages: [{ results: [], meta: {} }] } }
   await view.rerender(<SearchScreen />)
   expect(view.getByLabelText('Visible place')).toBeTruthy()
-  await fireEvent.press(view.getByText(i18n.t('discovery.openPlace')))
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('discovery.openPlace') }))
   expect(mockPush).toHaveBeenLastCalledWith('/places/top')
   await fireEvent.changeText(view.getByLabelText(i18n.t('search.title')), 'coffee')
   await act(async () => { await jest.advanceTimersByTimeAsync(300) })
@@ -1273,7 +1275,7 @@ it('debounces visible-region search, keeps filters/keyword and header area, merg
   expect(mockQueries.at(-1)).toMatchObject({ q: 'coffee', provinceCode: '01' })
   expect(mockQueries.at(-1)).not.toHaveProperty('radiusM')
   expect(view.queryByLabelText('Visible place')).toBeNull()
-  expect(view.queryByText(i18n.t('discovery.openPlace'))).toBeNull()
+  expect(view.queryByRole('button', { name: i18n.t('discovery.openPlace') })).toBeNull()
 })
 
 
