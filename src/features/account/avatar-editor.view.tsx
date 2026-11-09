@@ -1,7 +1,9 @@
+import { loadingIndicator } from '@/shared/ui/tokens'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigation } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, BackHandler, Image, Pressable, View, useWindowDimensions } from 'react-native'
+import { BackHandler, Image, Pressable, View, useWindowDimensions } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Svg, { Circle, Defs, G, Line, Mask, Rect } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -112,7 +114,7 @@ export function AvatarEditor({ asset, busy, error, onClose, onChooseAnother, onC
           <View style={styles.tools}>
             <Pressable accessibilityRole="button" disabled={busy} onPress={onChooseAnother} style={({ pressed }) => [styles.another, pressed && styles.pressed]}><MaterialIcon name="photoLibrary" color="onDark.medium" /><Text variant="avatarSecondary" color="onDark.strong" style={styles.actionText}>{t('account.avatarAnother')}</Text></Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={t(busy ? 'account.avatarUploading' : 'account.avatarUse')} disabled={busy} accessibilityState={{ busy, disabled: busy }} onPress={() => onConfirm(value, viewport)} style={({ pressed }) => [styles.confirm, pressed && styles.confirmPressed]}>
-              {busy ? <ActivityIndicator color="white" /> : <MaterialIcon name="check" color="onDark.strong" />}<Text variant="avatarPrimary" color="onDark.strong" style={styles.actionText}>{t(busy ? 'account.avatarUploading' : 'account.avatarUse')}</Text>
+              {busy ? <LoadingIndicator size={loadingIndicator.compactSize} /> : <MaterialIcon name="check" color="onDark.strong" />}<Text variant="avatarPrimary" color="onDark.strong" style={styles.actionText}>{t(busy ? 'account.avatarUploading' : 'account.avatarUse')}</Text>
             </Pressable>
           </View>
         </View>

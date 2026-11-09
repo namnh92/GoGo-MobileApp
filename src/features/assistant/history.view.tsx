@@ -1,3 +1,4 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -195,12 +196,15 @@ export function History({
           </View>
         )}
         ListFooterComponent={
+          <>
+          {list.isFetchingNextPage ? <LoadingIndicator /> : null}
           <View style={styles.retention}>
             <View style={styles.retentionIcon}>
               <Icon name="lock" size={18} color="text.secondary" />
             </View>
             <Text variant="bodySmall" color="text.secondary" style={styles.retentionText}>{t('assistant.history.empty.body')}</Text>
           </View>
+          </>
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item, section }) => (

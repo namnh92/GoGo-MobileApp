@@ -1,6 +1,7 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, View } from 'react-native'
+import { AccessibilityInfo, FlatList, Platform, View } from 'react-native'
 
 import {
   useAssistantMessages,
@@ -146,7 +147,7 @@ export function Conversation({
       contentContainerStyle={styles.thread}
       ListEmptyComponent={<StateNotice kind="empty" icon="assistant" title={t('assistant.conversation.empty.title')} body={t('assistant.conversation.empty.body')} />}
       ListHeaderComponent={footer ? <View style={styles.footer}>{footer}</View> : null}
-      ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.older} /> : null}
+      ListFooterComponent={query.isFetchingNextPage ? <LoadingIndicator style={styles.older} /> : null}
       onEndReached={() => {
         if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage()
       }}

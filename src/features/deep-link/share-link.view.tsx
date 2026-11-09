@@ -1,8 +1,8 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { View } from 'react-native'
 
 import { isApiError } from '@/shared/api'
 import { resolveShareLink } from '@/shared/api/endpoints/share-links'
@@ -38,7 +38,6 @@ type Phase =
   | { kind: 'unsupported' }
 
 export default function ShareLinkScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   // The navigator is read through a ref so it stays out of `resolve`'s deps: a
@@ -132,7 +131,7 @@ export default function ShareLinkScreen() {
     return (
       <Atmosphere>
         <View style={styles.centre}>
-          <ActivityIndicator color={theme.accent.primary} accessibilityLabel={t('shareLink.resolving')} />
+          <LoadingIndicator accessibilityLabel={t('shareLink.resolving')} />
           <Text variant="bodySmall" color="text.secondary" style={styles.hint}>{t('shareLink.resolving')}</Text>
         </View>
       </Atmosphere>

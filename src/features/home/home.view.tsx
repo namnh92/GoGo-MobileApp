@@ -1,3 +1,4 @@
+import { ThemedRefreshControl, RefreshIndicatorHeader } from '@/shared/ui/refresh-control.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useUnreadInbox } from '@/features/notifications/unread-count'
@@ -9,7 +10,7 @@ import { QuickJoin } from './quick-join.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
 
 import {
   isSaved,
@@ -159,13 +160,14 @@ export default function HomeScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         testID="home-list"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshHome()} tintColor={theme.redesign.primaryText} colors={[theme.redesign.primaryText]} />}
+        refreshControl={<ThemedRefreshControl refreshing={refreshing} onRefresh={() => void refreshHome()} />}
         keyboardShouldPersistTaps="handled"
         onTouchStart={() => Keyboard.dismiss()}
         onScroll={fab.onScroll}
         scrollEventThrottle={fab.scrollEventThrottle}
         contentContainerStyle={{ paddingTop: spacing[1], paddingBottom: fab.bottomInset }}
       >
+        <RefreshIndicatorHeader refreshing={refreshing} />
         <View style={styles.intro}>
           <View style={{ flex: 1 }}>
             <Pressable testID="home-location" accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={chooseArea} style={styles.locationRow}>

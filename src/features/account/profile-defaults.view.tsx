@@ -1,9 +1,9 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { OfflineState } from '@/shared/ui/async-state.view'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { Pressable, View } from 'react-native'
 import { CurrentAreaSheet } from '@/shared/location/current-area-sheet.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import type { AdministrativeSelection } from '@/shared/administrative/snapshot'
@@ -45,7 +45,6 @@ export const areaDisplayName = serviceAreaLabel
  * Nothing here writes to a room.
  */
 export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; page?: boolean }) {
-  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const update = useUpdateProfile()
   const saving = useRef(false)
@@ -171,7 +170,7 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
       <Card appearance="stitch" padded={false} style={styles.field}>
         <Text variant="caption" color="text.secondary">{t('account.interestsHint', { max: MAX_INTERESTS })}</Text>
         {taxonomies.isPending ? (
-          waiting ? <OfflineState /> : <ActivityIndicator color={theme.accent.primary} />
+          waiting ? <OfflineState /> : <LoadingIndicator />
         ) : taxonomies.isError ? (
           <View style={styles.valueRow}>
             <Text variant="bodySmall" color="status.warningText">{t('account.interestsFailed')}</Text>

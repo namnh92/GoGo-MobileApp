@@ -1,8 +1,8 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, AppState, Linking, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { AppState, Linking, View } from 'react-native'
 
 import { Card, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
@@ -47,7 +47,6 @@ async function readPermission(): Promise<LocationPermissionState> {
  * permission, and is edited in Defaults (ADR-0022, ADM-203).
  */
 export function LocationPermissionSection({ showSettingsButton = true }: { showSettingsButton?: boolean } = {}) {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const [state, setState] = useState<LocationPermissionState>('checking')
@@ -99,7 +98,7 @@ export function LocationPermissionSection({ showSettingsButton = true }: { showS
             <Text variant="introHeading">{t('locationSettings.statusTitle')}</Text>
           </View>
           {state === 'checking' ? (
-            <ActivityIndicator color={theme.accent.primary} style={{ alignSelf: 'flex-start' }} />
+            <LoadingIndicator style={{ alignSelf: 'flex-start' }} />
           ) : (
             <Text variant={!(blocked) ? 'bodySmall' : blocked ? 'bodySmall' : undefined} color={!(blocked) ? 'text.primary' : blocked ? 'status.warningText' : undefined} accessibilityLiveRegion="polite">
               {t(`locationSettings.status.${state}`)}

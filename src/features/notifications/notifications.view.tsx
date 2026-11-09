@@ -1,8 +1,9 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Platform, ScrollView, View } from 'react-native'
+import { AccessibilityInfo, FlatList, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useMarkNotificationRead, useNotifications, useNotificationSummary, useReadAllNotifications, useSystemNotificationsQuery, type Notification } from '@/shared/api'
@@ -243,11 +244,11 @@ export default function NotificationsScreen() {
             <Text variant="bodySmall" color="redesign.secondary">{t('g10.systemFetchFailed')}</Text>
             <GhostBtn label={t('common.retry')} loading={systemInbox.isFetching} onPress={() => void systemInbox.refetch()} />
           </View> : null}
-          {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) ? <ActivityIndicator testID="system-notifications-loading" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : null}
+          {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) ? <LoadingIndicator testID="system-notifications-loading" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : null}
         </View> : null}</View>}
         ListEmptyComponent={listState}
         ListFooterComponent={
-          canRead && !publicOnly && (inbox.isFetchingNextPage || filling) ? <ActivityIndicator testID="notifications-loading-more" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} />
+          canRead && !publicOnly && (inbox.isFetchingNextPage || filling) ? <LoadingIndicator testID="notifications-loading-more" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} />
             : canRead && !publicOnly && inbox.isFetchNextPageError && !!inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.fetchNextPage({ cancelRefetch: false })} /> : null
         }
         renderItem={({ item: row, index }) => row.source === 'system' ? <SystemNotificationRow item={row.item} /> : <NotificationCard item={row.item} index={index}

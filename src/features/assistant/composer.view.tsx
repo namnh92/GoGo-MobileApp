@@ -1,5 +1,6 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Image, Pressable, View } from 'react-native'
+import { Image, Pressable, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
@@ -8,7 +9,7 @@ import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Icon } from '@/shared/ui/icons'
 import { useKeyboardVisible } from '@/shared/ui/keyboard'
 import { Text } from '@/shared/ui/text'
-import { hitSlop, spacing } from '@/shared/ui/tokens'
+import { hitSlop, loadingIndicator, spacing } from '@/shared/ui/tokens'
 
 import { ContextChip } from './context-chip.view'
 import { styles } from './composer.style'
@@ -84,7 +85,7 @@ export function Composer({
               <Image source={{ uri: image.uri }} style={styles.imageFill} accessibilityIgnoresInvertColors />
               {image.uploadKey === null ? (
                 <View style={styles.imageBusy} accessibilityLabel={t('assistant.composer.uploading')} accessible>
-                  <ActivityIndicator size="small" color={theme.accent.onAccent} />
+                  <LoadingIndicator size={loadingIndicator.compactSize} />
                 </View>
               ) : null}
               <Pressable

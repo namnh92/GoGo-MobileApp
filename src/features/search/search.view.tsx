@@ -1,10 +1,12 @@
+import { loadingIndicator } from '@/shared/ui/tokens'
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { AppTabDock } from '@/shared/ui/app-tab-dock.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Keyboard, Pressable, View } from 'react-native'
+import { FlatList, Keyboard, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -217,7 +219,7 @@ export default function SearchScreen() {
     if (search.hasNextPage && !search.isFetching && !search.isPaused && !search.isFetchingNextPage && !search.isFetchNextPageError) void search.fetchNextPage({ cancelRefetch: false })
   }
   function renderPagination() {
-    if (search.isFetchingNextPage) return <ActivityIndicator testID="search-loading-more" />
+    if (search.isFetchingNextPage) return <LoadingIndicator testID="search-loading-more" />
     if (search.isFetchNextPageError) return <ErrorState error={search.error} onRetry={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />
     return null
   }
@@ -262,7 +264,7 @@ export default function SearchScreen() {
         {search.isPaused ? <OfflineState /> : <ErrorState error={search.error} onRetry={search.isFetching ? undefined : () => { if (!search.isFetching && !search.isPaused) void search.refetch() }} />}
       </View> : null}
       {search.isFetching || search.isFetchNextPageError ? <View testID="search-map-pagination" style={[styles.mapPagination, selectedPlace ? styles.mapPaginationAboveCard : { bottom: insets.bottom + 8 }]}>
-        {search.isFetching ? <ActivityIndicator testID="search-loading-more" size="small" color={theme.redesign.primaryText} /> : <GhostBtn label={t('common.retry')} disabled={search.isFetching || search.isPaused} onPress={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />}
+        {search.isFetching ? <LoadingIndicator testID="search-loading-more" size={loadingIndicator.compactSize} /> : <GhostBtn label={t('common.retry')} disabled={search.isFetching || search.isPaused} onPress={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />}
       </View> : null}
     </View></SearchMapPanel>{!isPicker && !mapExpanded ? <AppTabDock active="home" /> : null}</View>
   }

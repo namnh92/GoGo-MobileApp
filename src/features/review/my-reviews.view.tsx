@@ -1,3 +1,4 @@
+import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -9,7 +10,7 @@ import { useUnistyles } from 'react-native-unistyles'
 
 import { detailToPlaceCard, parseApiDate, useMyReviews, usePlaceDetail, usePlan, useUpdateReview, type Review } from '@/shared/api'
 import { useSession } from '@/shared/providers/session-provider'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { Atmosphere, Card, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Badge, type BadgeTone } from '@/shared/ui/badge.view'
 import { Icon } from '@/shared/ui/icons'
@@ -139,7 +140,7 @@ export default function MyReviewsScreen() {
     return (
       <Atmosphere>
         {header}
-        <LoadingState />
+        <View testID="my-reviews-first-load-skeleton" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}><RoomMemberSkeleton /></View>
       </Atmosphere>
     )
   }

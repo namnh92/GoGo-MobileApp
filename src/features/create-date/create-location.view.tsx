@@ -1,7 +1,8 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 
 import { CurrentAreaSheet } from '@/shared/location/current-area-sheet.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
@@ -141,7 +142,7 @@ export default function CreateLocationScreen() {
               <Text variant="title2">{t('createLocation.current')}</Text>
               <Text variant="bodySmall" color="text.secondary">{currentSubtitle}</Text>
             </View>
-            {location.state.status === 'asking' ? <ActivityIndicator /> : usingCurrent && <IconCheck />}
+            {location.state.status === 'asking' ? <LoadingIndicator /> : usingCurrent && <IconCheck />}
           </Card>
         </Pressable>
 

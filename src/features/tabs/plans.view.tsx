@@ -220,6 +220,7 @@ export default function PlansScreen() {
                 label={rooms.isFetchingNextPage ? t('common.loading') : t('plans.loadMore')}
                 onPress={() => void rooms.fetchNextPage()}
                 disabled={rooms.isFetchingNextPage}
+                loading={rooms.isFetchingNextPage}
               />
             ) : null}
           </>
