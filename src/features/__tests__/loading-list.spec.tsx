@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react-native'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, StyleSheet as NativeStyles } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 import '@/shared/i18n'
 import { themes } from '@/shared/ui/theme'
@@ -46,7 +46,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s list loading', name => {
     mockNextPage = true
     await view.rerender(<NotificationsScreen />)
     expect(screen.queryByTestId('notifications-loading')).toBeNull()
-    expect(screen.getByTestId('notifications-loading-more')).toBeTruthy()
+    expect(NativeStyles.flatten(screen.getByTestId('notifications-loading-more').props.style)).toMatchObject({ width: 48, height: 48 })
     mockNextPage = false
     await view.rerender(<NotificationsScreen />)
     expect(screen.queryByTestId('notifications-loading-more')).toBeNull()

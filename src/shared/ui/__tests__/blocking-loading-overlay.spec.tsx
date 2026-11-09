@@ -39,8 +39,10 @@ describe.each(Object.keys(themes) as (keyof typeof themes)[])('%s blocking loadi
     const overlay = screen.getByTestId('blocking-loading-overlay')
     expect(overlay.props.accessibilityViewIsModal).toBe(true)
     expect(overlay.props.accessibilityState).toEqual({ busy: true })
-    expect(jest.mocked(LoadingIndicator).mock.calls.at(-1)?.[0]).toMatchObject({ variant: 'dark', decorative: true })
-    expect(NativeStyles.flatten(screen.getByTestId('loading-indicator').props.style).transform).toEqual([{ translateY: 0 }])
+    expect(jest.mocked(LoadingIndicator).mock.calls.at(-1)?.[0]).toMatchObject({ variant: 'dark', decorative: true, size: 80 })
+    expect(NativeStyles.flatten(screen.getByTestId('loading-indicator').props.style)).toMatchObject({ width: 80, height: 80, transform: [{ translateY: 0 }] })
+    const svg = screen.root!.queryAll(node => node.type === (os === 'android' ? 'RNSVGSvgViewAndroid' : 'RNSVGSvgView'))[0]
+    expect(svg.props).toMatchObject({ width: 80, height: 80, vbWidth: 400, vbHeight: 320 })
     expect(withRepeat).not.toHaveBeenCalled()
     await fireEvent(modal, 'requestClose')
     await fireEvent(overlay, 'accessibilityEscape')

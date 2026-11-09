@@ -626,6 +626,7 @@ export const motion = {
 /** Loading geometry and shadow remain independent of the shared logo artwork. */
 export const loadingIndicator = {
   size: 48,
+  overlaySize: 80,
   compactSize: 24,
   ...brandLogo,
   shadow: { shadowColor: '#363254', shadowOffset: { width: 0, height: 1.8 }, shadowOpacity: 0.28, shadowRadius: 1.8 },
