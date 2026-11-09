@@ -217,7 +217,7 @@ export default function NotificationsScreen() {
         }}
         ListHeaderComponent={<View>
           {!canRead ? <SystemNotificationsSection inbox={systemInbox} illustration={emptyIllustration} /> : null}
-          {canRead ? <View style={styles.personalSection}>
+          {canRead ? <View testID="notifications-personal-section">
           <StaleNotice hasData={!!inbox.data || !!summary.data} error={(inbox.data ? inbox.error : null) ?? (summary.data ? summary.error : null)} onRetry={retryInbox} />
           <View style={styles.toolbar}>
             <View style={styles.toolbarTitle}>

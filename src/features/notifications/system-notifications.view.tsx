@@ -6,11 +6,12 @@ import type { useSystemNotificationsQuery } from '@/shared/api/queries/use-syste
 import { parseApiDate } from '@/shared/api'
 import type { SystemNotification } from '@/shared/api/system-notifications'
 import { parseDeepLink, routeForAction } from '@/shared/navigation/deep-link'
-import { Card, SecondaryBtn } from '@/shared/ui/primitives'
+import { SecondaryBtn } from '@/shared/ui/primitives'
 import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/async-state.view'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { Skeleton } from '@/shared/ui/skeleton.view'
+import { NotificationRow } from './notification-row.view'
 import { formatNotificationTime } from './notification-time'
 import { styles } from './system-notifications.style'
 
@@ -39,13 +40,10 @@ export function SystemNotificationRow({ item }: { item: SystemNotification }) {
   const action = parseDeepLink(item.deepLink)
   const canOpen = action.kind !== 'unknown'
   const published = parseApiDate(item.publishedAt)
-  return <Card testID={`system-notification-${item.id}`} appearance="stitch" padded={false} style={styles.row}>
-    <View style={styles.iconTile}><Icon name={item.kind === 'maintenance' ? 'settings' : item.kind === 'update' ? 'sparkle' : 'info'} size={24} color="redesign.secondary" /></View>
-    <View style={styles.content}>
-      <Text variant="introLabel" color="redesign.ink">{item.title}</Text>
-      <Text variant="introBody" color="redesign.ink" style={styles.body}>{item.body}</Text>
-      {published ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{formatNotificationTime(published, t)}</Text> : null}
-      {canOpen ? <SecondaryBtn size="small" variant="neutralPill" label={t('g10.viewDetails')} onPress={() => router.push(routeForAction(action))} /> : null}
-    </View>
-  </Card>
+  return <NotificationRow id={item.id} testID={`system-notification-${item.id}`} headingTestID={`notification-public-heading-${item.id}`}
+    title={item.title} relativeTime={published ? formatNotificationTime(published, t) : null}
+    icon={<Icon name={item.kind === 'maintenance' ? 'settings' : item.kind === 'update' ? 'sparkle' : 'info'} size={24} color="redesign.secondary" />}
+    actions={canOpen ? <SecondaryBtn size="small" variant="neutralPill" label={t('g10.viewDetails')} onPress={() => router.push(routeForAction(action))} /> : null}>
+    <Text variant="introBody" color="redesign.ink" style={styles.body}>{item.body}</Text>
+  </NotificationRow>
 }

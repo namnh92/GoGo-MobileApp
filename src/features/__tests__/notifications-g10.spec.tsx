@@ -58,6 +58,8 @@ jest.spyOn(unistyles.StyleSheet, 'create').mockImplementation(factory => new Pro
 }))
 const chipModule = jest.requireActual<typeof import('@/shared/ui/chip.view')>('@/shared/ui/chip.view')
 const chipSpy = jest.spyOn(chipModule, 'Chip')
+const notificationRowModule = jest.requireActual<typeof import('@/features/notifications/notification-row.view')>('@/features/notifications/notification-row.view')
+const notificationRowSpy = jest.spyOn(notificationRowModule, 'NotificationRow')
 const NotificationsScreen = jest.requireActual<typeof import('@/features/notifications/notifications.view')>('@/features/notifications/notifications.view').default
 const SettingsScreen = jest.requireActual<typeof import('@/features/notifications/notification-settings.view')>('@/features/notifications/notification-settings.view').default
 
@@ -646,6 +648,42 @@ describe.each(['orange', 'orangeDark'] as const)('%s unified inbox', mode => {
     ]), hasNextPage: true }
   })
   const rows = (screen: Awaited<ReturnType<typeof renderScreen>>) => screen.getAllByTestId(/^(system-notification-|notification-heading-)/).map(row => row.props.testID)
+
+  it.each(['user', 'guest'])('aligns public title/time and icon with personal rows for %s', async status => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-11-09T14:00:00Z').getTime())
+    try {
+      mockSession = status
+      const screen = await renderScreen(<NotificationsScreen />)
+      const sharedRows = notificationRowSpy.mock.calls.map(([props]) => props)
+      expect(sharedRows.some(row => row.id === 'new')).toBe(true)
+      if (status === 'user') expect(sharedRows.some(row => row.id === 'personal-new')).toBe(true)
+      const row = screen.getByTestId('system-notification-new')
+      const heading = within(row).getByTestId('notification-public-heading-new')
+      expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'flex-start' })
+      const title = within(heading).getByText('Public new')
+      expect(title.props.numberOfLines).toBe(2)
+      expect(title.props.ellipsizeMode).toBe('tail')
+      expect(StyleSheet.flatten(title.props.style)).toMatchObject({ flex: 1, minWidth: 0, fontFamily: fontFamily.semiBold })
+      expect(within(heading).getByText('2 giờ trước')).toBeTruthy()
+      expect(within(heading).queryByText('Public body')).toBeNull()
+      expect(within(row).getByText('Public body')).toBeTruthy()
+      expect(StyleSheet.flatten(screen.getByTestId('notification-icon-new').props.style)).toMatchObject({ width: 48, height: 48 })
+      expect(within(row).queryByTestId(/^notification-unread-/)).toBeNull()
+      if (status === 'user') {
+        const personalHeading = screen.getByTestId('notification-heading-personal-new')
+        expect(StyleSheet.flatten(personalHeading.props.style)).toEqual(StyleSheet.flatten(heading.props.style))
+        expect(within(personalHeading).getByText('4 giờ trước')).toBeTruthy()
+      }
+    } finally { now.mockRestore() }
+  })
+
+  it('places the signed-in toolbar under the header without removed-section spacing', async () => {
+    const screen = await renderScreen(<NotificationsScreen />)
+    const section = screen.getByTestId('notifications-personal-section')
+    expect(StyleSheet.flatten(section.props.style)?.marginTop ?? 0).toBe(0)
+    expect(within(section).getByRole('header', { name: 'Tất cả thông báo' })).toBeTruthy()
+    expect(screen.queryByTestId('system-notifications-section')).toBeNull()
+  })
 
   it('interleaves publishedAt/createdAt and releases older system rows with the personal page boundary', async () => {
     const screen = await renderScreen(<NotificationsScreen />)

@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, View } from 'react-native'
+import { ActivityIndicator, View } from 'react-native'
 import { parseApiDate, useRoom, type Notification } from '@/shared/api'
 import { isUuid } from '@/shared/navigation/deep-link'
 import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text, type TextColor } from '@/shared/ui/text'
+import { NotificationRow } from './notification-row.view'
 import { kindPresentation } from './notification-kind'
 import { formatNotificationTime } from './notification-time'
 import { styles } from './notification-card.style'
@@ -43,53 +44,45 @@ export function NotificationCard({ item, index, busy, reading, onOpen, onLater }
   const expiry = item.kind === 'privacy_export_ready' && typeof payload?.expiresAt === 'string' ? parseApiDate(payload.expiresAt) : null
   const relativeTime = created ? formatNotificationTime(created, t) : null
 
-  return <Card appearance="stitch" padded={false} style={[styles.row, unread && styles.rowUnread]}>
-    <View testID={`notification-icon-${item.id}`} style={[styles.iconTile, item.kind === 'invite' || item.kind === 'preference_reminder' ? styles.infoTile : item.kind === 'plan_ready' ? styles.successTile : undefined]}>
+  return <NotificationRow id={item.id} title={kindLabel} titleColor={tone} relativeTime={relativeTime} unread={unread}
+    iconStyle={item.kind === 'invite' || item.kind === 'preference_reminder' ? styles.infoTile : item.kind === 'plan_ready' ? styles.successTile : undefined}
+    icon={<>
       {item.kind === 'preference_reminder' ? <MaterialIcon name="dining" size={24} color="redesign.violetInk" />
         : item.kind === 'plan_ready' ? <MaterialIcon name="sparkle" size={24} color={tone} /> : <Icon name={icon} size={24} color={tone} />}
       <View testID={`notification-type-badge-${item.id}`} style={[styles.typeBadge, item.kind === 'plan_ready' ? styles.successBadge : item.kind === 'invite' ? styles.infoBadge : item.kind === 'plan_changed' ? styles.neutralBadge : styles.accentBadge]}>
         {item.kind === 'plan_changed' ? <MaterialIcon name="calendar" size={12} color="accent.onAccent" />
           : <Icon name={item.kind === 'plan_ready' ? 'map' : icon} size={12} color="accent.onAccent" />}
       </View>
-    </View>
-    <View style={styles.content}>
-      <Pressable onPress={onOpen} disabled={busy} accessibilityRole="button"
-        accessibilityLabel={[kindLabel, bodyText, created ? created.toLocaleString(i18n.language) : null, payload?.roomName, payload?.inviterName].filter(Boolean).join(', ')}
-        accessibilityHint={t(unread ? 'g10.unread' : 'g10.read')}
-        accessibilityState={{ busy, disabled: busy }} style={styles.openTarget}>
-        <View testID={`notification-heading-${item.id}`} style={styles.cardHeading}>
-          <Text variant="introLabel" color={tone} style={styles.kind}>{kindLabel}</Text>
-          <View style={styles.timeRow}>
-            {created ? <Text variant="introCaption" color="redesign.secondary">{relativeTime}</Text> : null}
-            {unread ? <View testID={`notification-unread-${item.id}`} style={styles.unreadDot} /> : null}
-          </View>
-        </View>
-        {bodyText || payload?.roomName || hasStopCount ? <Text variant="introBody" color="redesign.ink" style={styles.body}>
-          {bodyText ? <Text variant="introBody" color="redesign.ink">{bodyText}</Text> : null}
-          {payload?.roomName ? <>{bodyText ? ' ' : null}<Text variant="buttonLabel" color={item.kind === 'invite' ? 'accent.primary' : 'redesign.ink'}>{t('notifications.room', { name: payload.roomName })}</Text></> : null}
-          {hasStopCount ? <> <Text variant="introBody" color="redesign.ink">{t('g10.stopCount', { count: stopCount })}</Text></> : null}
-        </Text> : null}
-        {roomId ? <RoomLine roomId={roomId} /> : null}
-        {item.kind === 'invite' && payload?.inviterName ? <Text variant="introSmall" color="redesign.secondary" style={styles.body}>{t('g10.inviter', { name: payload.inviterName })}</Text> : null}
-        {item.kind === 'preference_reminder' && validProgress ? <View style={styles.progress}>
-          <Icon name="checkCircle" size={14} color="redesign.greenText" />
-          <Text variant="introCaption" color="redesign.ink">{t('g10.progress', { completed: progress.completedCount, total: progress.memberCount })}</Text>
-        </View> : null}
-        {item.kind === 'plan_changed' && change ? <View style={styles.facts}>
-          <Text variant="introCaption" color="redesign.secondary">{t(change.action === 'regenerate' ? 'g10.regenerated' : 'g10.edited')}</Text>
-          {(['addedStopCount', 'removedStopCount', 'movedStopCount', 'durationChangedStopCount', 'lockChangedStopCount', 'optionalChangedStopCount'] as const).map(key =>
-            Number.isInteger(change[key]) && change[key]! > 0 ? <Text key={key} variant="introCaption" color="redesign.secondary">{t(`g10.change.${key}`, { count: change[key] })}</Text> : null)}
-        </View> : null}
-        {expiry ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{t('g10.exportExpires', { date: expiry.toLocaleString(i18n.language) })}</Text> : null}
-        {busy ? <ActivityIndicator /> : null}
-      </Pressable>
-      {item.kind === 'invite' ? <View style={styles.actions}>
+    </>}
+    openTarget={{ onPress: onOpen, disabled: busy, accessibilityRole: 'button',
+      accessibilityLabel: [kindLabel, bodyText, created ? created.toLocaleString(i18n.language) : null, payload?.roomName, payload?.inviterName].filter(Boolean).join(', '),
+      accessibilityHint: t(unread ? 'g10.unread' : 'g10.read'), accessibilityState: { busy, disabled: busy } }}
+    actions={
+      item.kind === 'invite' ? <View style={styles.actions}>
         {canOpenRoom ? <OpenButton size="small" variant="pill" trailingIcon="arrowRight" label={t('g10.viewRoom')} loading={busy} onPress={onOpen} /> : null}
         <SecondaryBtn size="small" variant="neutralPill" label={t('g10.later')} loading={reading} disabled={!item.id || !unread || reading}
           accessibilityHint={t('g10.laterHint')} onPress={onLater} />
       </View> : canOpenRoom || canOpenPlan ? <View style={styles.actions}>
         <SecondaryBtn size="small" variant="neutralPill" trailingIcon="arrowRight" label={t(canOpenRoom ? 'g10.viewRoom' : 'g10.viewPlan')} loading={busy} onPress={onOpen} />
-      </View> : null}
-    </View>
-  </Card>
+      </View> : null
+    }>
+    {bodyText || payload?.roomName || hasStopCount ? <Text variant="introBody" color="redesign.ink" style={styles.body}>
+      {bodyText ? <Text variant="introBody" color="redesign.ink">{bodyText}</Text> : null}
+      {payload?.roomName ? <>{bodyText ? ' ' : null}<Text variant="buttonLabel" color={item.kind === 'invite' ? 'accent.primary' : 'redesign.ink'}>{t('notifications.room', { name: payload.roomName })}</Text></> : null}
+      {hasStopCount ? <> <Text variant="introBody" color="redesign.ink">{t('g10.stopCount', { count: stopCount })}</Text></> : null}
+    </Text> : null}
+    {roomId ? <RoomLine roomId={roomId} /> : null}
+    {item.kind === 'invite' && payload?.inviterName ? <Text variant="introSmall" color="redesign.secondary" style={styles.body}>{t('g10.inviter', { name: payload.inviterName })}</Text> : null}
+    {item.kind === 'preference_reminder' && validProgress ? <View style={styles.progress}>
+      <Icon name="checkCircle" size={14} color="redesign.greenText" />
+      <Text variant="introCaption" color="redesign.ink">{t('g10.progress', { completed: progress.completedCount, total: progress.memberCount })}</Text>
+    </View> : null}
+    {item.kind === 'plan_changed' && change ? <View style={styles.facts}>
+      <Text variant="introCaption" color="redesign.secondary">{t(change.action === 'regenerate' ? 'g10.regenerated' : 'g10.edited')}</Text>
+      {(['addedStopCount', 'removedStopCount', 'movedStopCount', 'durationChangedStopCount', 'lockChangedStopCount', 'optionalChangedStopCount'] as const).map(key =>
+        Number.isInteger(change[key]) && change[key]! > 0 ? <Text key={key} variant="introCaption" color="redesign.secondary">{t(`g10.change.${key}`, { count: change[key] })}</Text> : null)}
+    </View> : null}
+    {expiry ? <Text variant="introCaption" color="redesign.secondary" style={styles.body}>{t('g10.exportExpires', { date: expiry.toLocaleString(i18n.language) })}</Text> : null}
+    {busy ? <ActivityIndicator /> : null}
+  </NotificationRow>
 }
