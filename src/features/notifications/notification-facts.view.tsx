@@ -35,8 +35,8 @@ function PlanThumbnail({ stop, standalone = false }: { stop: Stop; standalone?: 
   return standalone ? <View style={styles.preview}>{image}</View> : image
 }
 
-function ReminderTime({ start, trigger }: { start: Date; trigger?: NonNullable<Payload['reminder']>['trigger'] }) {
-  const { t } = useTranslation()
+function ReminderTime({ start }: { start: Date }) {
+  const { t, i18n } = useTranslation()
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const update = () => setNow(Date.now())
@@ -45,7 +45,16 @@ function ReminderTime({ start, trigger }: { start: Date; trigger?: NonNullable<P
     return () => { clearInterval(timer); resume.remove() }
   }, [])
   const countdown = notificationCountdown(start, now)
-  return <Text variant="introBody" color="accent.primary">{trigger === 'room_started' ? t('g10.appointmentStarted') : t(countdown.key, { count: countdown.count })}</Text>
+  const today = new Date(now)
+  const sameDay = start.getFullYear() === today.getFullYear() && start.getMonth() === today.getMonth() && start.getDate() === today.getDate()
+  const time = start.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })
+  const date = `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')}`
+  return <>
+    {countdown ? <Text variant="introBody" color="accent.primary">{t(countdown.key, { count: countdown.count })}</Text> : null}
+    <Text variant="introCaption" color="redesign.secondary" accessibilityLabel={t('g10.startsAt', { time: start.toLocaleString(i18n.language) })}>
+      {sameDay ? t('g10.startsAt', { time }) : t('g10.startsAtDate', { time, date })}
+    </Text>
+  </>
 }
 
 export function NotificationFacts({ kind, payload }: { kind: Notification['kind']; payload: Payload }) {
@@ -73,10 +82,8 @@ export function NotificationFacts({ kind, payload }: { kind: Notification['kind'
       </View>
     </View> : null}
     {planKind && !showPreview && thumbnail ? <PlanThumbnail stop={thumbnail} standalone /> : null}
-    {kind === 'date_reminder' && (start || payload.reminder?.trigger === 'room_started' || venue || address) ? <View testID="notification-appointment" style={styles.appointment}>
-      {start ? <ReminderTime start={start} trigger={payload.reminder?.trigger} />
-        : payload.reminder?.trigger === 'room_started' ? <Text variant="introBody" color="accent.primary">{t('g10.appointmentStarted')}</Text> : null}
-      {time ? <Text variant="introCaption" color="redesign.secondary" accessibilityLabel={t('g10.startsAt', { time: start!.toLocaleString(i18n.language) })}>{t('g10.startsAt', { time })}</Text> : null}
+    {kind === 'date_reminder' && (start || venue || address) ? <View testID="notification-appointment" style={styles.appointment}>
+      {start ? <ReminderTime start={start} /> : null}
       {venue ? <Text variant="introBody" color="redesign.ink">{venue}</Text> : null}
       {address ? <View style={styles.venue}><Icon name="mapPin" size={14} color="redesign.secondary" />
         <Text variant="introCaption" color="redesign.secondary" style={styles.venueText}>{address}</Text></View> : null}

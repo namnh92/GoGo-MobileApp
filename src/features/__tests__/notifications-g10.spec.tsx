@@ -973,12 +973,12 @@ describe.each(['orange', 'orangeDark'] as const)('event-time facts and category 
     mockInbox = loadedInbox([{ id: 'date', kind: 'date_reminder', payload: { reminder: { trigger, startsAt } } }])
     try {
       const screen = await renderScreen(<NotificationsScreen />)
-      expect(screen.getByText('Đã đến giờ hẹn')).toBeTruthy()
+      expect(screen.queryByText('Đã đến giờ hẹn')).toBeNull()
       expect(screen.queryByText(/Còn .*giờ/)).toBeNull()
     } finally { now.mockRestore() }
   })
 
-  it('recomputes the countdown on app resume and treats room_started as an event rather than an advance reminder', async () => {
+  it('recomputes the countdown on app resume and uses the start instant for room_started', async () => {
     const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse(startsAt) - 30 * 60000)
     mockInbox = loadedInbox([{ id: 'scheduled', kind: 'date_reminder', payload: { reminder: { trigger: 'scheduled', startsAt } } }])
     try {
@@ -992,8 +992,40 @@ describe.each(['orange', 'orangeDark'] as const)('event-time facts and category 
       now.mockReturnValue(Date.parse(startsAt) - 2 * 3600000)
       mockInbox = loadedInbox([{ id: 'started', kind: 'date_reminder', payload: { reminder: { trigger: 'room_started', startsAt } } }])
       const started = await renderScreen(<NotificationsScreen />)
-      expect(started.getByText('Đã đến giờ hẹn')).toBeTruthy()
-      expect(started.queryByText(/Còn .*giờ/)).toBeNull()
+      expect(started.queryByText('Đã đến giờ hẹn')).toBeNull()
+      expect(started.getByText('Còn 2 giờ nữa là đến giờ hẹn')).toBeTruthy()
+    } finally { now.mockRestore() }
+  })
+
+  it.each(['scheduled', 'room_started'] as const)('uses full ISO dates and the device calendar for %s', async trigger => {
+    const start = '2026-11-10T17:28:00+07:00'
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-09T17:06:00+07:00'))
+    mockInbox = loadedInbox([{ id: 'tomorrow', kind: 'date_reminder', payload: { reminder: { trigger, startsAt: start } } }])
+    try {
+      const screen = await renderScreen(<NotificationsScreen />)
+      const local = new Date(start)
+      const time = local.toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })
+      const date = `${String(local.getDate()).padStart(2, '0')}/${String(local.getMonth() + 1).padStart(2, '0')}`
+      expect(screen.getByText('Còn 25 giờ nữa là đến giờ hẹn')).toBeTruthy()
+      expect(screen.getByText(`Bắt đầu ${time} · ${date}`)).toBeTruthy()
+      expect(screen.queryByText('Đã đến giờ hẹn')).toBeNull()
+    } finally { now.mockRestore() }
+  })
+
+  it.each([
+    [-120 * 60000, 'Còn 2 giờ nữa là đến giờ hẹn'],
+    [-30 * 60000, 'Còn 30 phút nữa là đến giờ hẹn'],
+    [0, 'Đã đến giờ hẹn'],
+    [60000, null],
+  ])('renders the reminder at start offset %s', async (offset, copy) => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse(startsAt) + offset)
+    mockInbox = loadedInbox([{ id: 'date', kind: 'date_reminder', payload: { reminder: { trigger: 'room_started', startsAt } } }])
+    try {
+      const screen = await renderScreen(<NotificationsScreen />)
+      if (copy) expect(screen.getByText(copy)).toBeTruthy()
+      else expect(screen.queryByText(/Còn .*|Đã đến giờ hẹn/)).toBeNull()
+      const time = new Date(startsAt).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })
+      expect(screen.getByText(`Bắt đầu lúc ${time}`)).toBeTruthy()
     } finally { now.mockRestore() }
   })
 

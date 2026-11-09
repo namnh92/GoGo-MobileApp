@@ -1,6 +1,7 @@
 // Vietnamese is the source locale: message keys are derived from this object.
 export const viMessages = {
   "g10.categoryCount": "{{count}}/5 loại đang bật",
+  "g10.startsAtDate": "Bắt đầu {{time}} · {{date}}",
   "g10.startsAt": "Bắt đầu lúc {{time}}",
   "g10.remainingHours": "Còn {{count}} giờ nữa là đến giờ hẹn",
   "g10.remainingMinutes": "Còn {{count}} phút nữa là đến giờ hẹn",

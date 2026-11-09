@@ -11,7 +11,9 @@ export function notificationText(fact: SourcedText): string | null {
 
 export function notificationCountdown(startsAt: Date, now = Date.now()) {
   const remaining = startsAt.getTime() - now
-  if (remaining <= 0) return { key: 'g10.appointmentStarted', count: 0 } as const
+  // The event-time payload has no end instant: do not claim an old outing is ongoing.
+  if (remaining < 0) return null
+  if (remaining === 0) return { key: 'g10.appointmentStarted', count: 0 } as const
   if (remaining < 3600000) return { key: 'g10.remainingMinutes', count: Math.ceil(remaining / 60000) } as const
   return { key: 'g10.remainingHours', count: Math.ceil(remaining / 3600000) } as const
 }

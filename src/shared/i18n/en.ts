@@ -10,6 +10,7 @@ type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
 
 export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "g10.categoryCount": "{{count}}/5 categories enabled",
+  "g10.startsAtDate": "Starts {{time}} · {{date}}",
   "g10.startsAt": "Starts at {{time}}",
   "g10.remainingHours": "{{count}} hours until your outing",
   "g10.remainingHours_one": "{{count}} hour until your outing",
