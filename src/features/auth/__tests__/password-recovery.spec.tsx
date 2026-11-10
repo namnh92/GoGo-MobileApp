@@ -6,6 +6,7 @@ import i18n from '@/shared/i18n'
 import { themes } from '@/shared/ui/theme'
 import * as Crypto from 'expo-crypto'
 import { getSession } from '@/shared/api/session'
+import type { RecoveryAccountNotFoundResponse } from '@/shared/api/endpoints/password-recovery'
 import ForgotPassword from '../forgot-password.view'
 import ResetPassword from '../reset-password.view'
 import SignIn from '../sign-in.view'
@@ -34,6 +35,10 @@ function response(status: number, body?: unknown, retryAfter?: string) {
 const button = (label: string) => screen.getByRole('button', { name: label })
 const digit = (n: number) => screen.getByLabelText(`Chữ số ${n} trong 6 chữ số`)
 const errorBody = (code: string) => ({ code, message: 'NEVER DISPLAY server/account details', field_errors: [], retryable: false })
+const accountNotFoundBody = {
+  code: 'RECOVERY_ACCOUNT_NOT_FOUND', message: 'Tài khoản không tồn tại',
+  field_errors: [], request_id: 'recovery-request', retryable: false,
+} satisfies RecoveryAccountNotFoundResponse
 async function fillReset() {
   await fireEvent.changeText(screen.getByLabelText('Mật khẩu mới'), 'GoGo2026!')
 }
@@ -96,13 +101,14 @@ it.each([
   ['en', 'Enter your registered email. GoGo will send a 6-digit password reset code.', 'Account does not exist.', 'Send code'],
 ])('shows the exact recovery subtitle and inline missing-account error in %s', async (locale, subtitle, error, send) => {
   await i18n.changeLanguage(locale)
-  fetchMock.mockResolvedValueOnce(response(404, errorBody('RECOVERY_ACCOUNT_NOT_FOUND')))
+  fetchMock.mockResolvedValueOnce(response(404, accountNotFoundBody))
   await render(<ForgotPassword />)
   expect(screen.getByText(subtitle)).toBeTruthy()
   await fireEvent.changeText(screen.getByLabelText('Email'), 'absent@example.com')
   await fireEvent.press(button(send))
   expect(await within(screen.getByTestId('recovery-email-field')).findByText(error)).toBeTruthy()
   expect(screen.getAllByText(error)).toHaveLength(1)
+  expect(screen.queryByText(accountNotFoundBody.message, { exact: true })).toBeNull()
   expect(mockRouter.push).not.toHaveBeenCalled()
   expect(useRecoveryFlow.getState().flow).toBeNull()
   expect(screen.queryByText(/NEVER DISPLAY/)).toBeNull()

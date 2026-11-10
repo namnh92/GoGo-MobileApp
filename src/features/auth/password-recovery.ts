@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import { create } from 'zustand'
-import { requestPasswordRecovery } from '@/shared/api/endpoints/password-recovery'
+import { requestPasswordRecovery, type RecoveryAccountNotFoundResponse } from '@/shared/api/endpoints/password-recovery'
 import { ApiError, isOffline } from '@/shared/api/errors'
 import { newIdempotencyKey } from '@/shared/api/idempotency'
 import type { OpResponse } from '@/shared/api/types'
@@ -64,10 +64,12 @@ export function maskRecoveryEmail(email: string) {
   return `${local.slice(0, 1)}***@${domain}`
 }
 
+const accountNotFoundCode: RecoveryAccountNotFoundResponse['code'] = 'RECOVERY_ACCOUNT_NOT_FOUND'
+
 export function recoveryErrorKey(error: unknown): MessageKey {
   if (isOffline(error)) return 'auth.networkError'
   if (error instanceof ApiError) {
-    if (error.status === 404 && error.code === 'RECOVERY_ACCOUNT_NOT_FOUND') return 'auth.recovery.accountNotFound'
+    if (error.status === 404 && error.code === accountNotFoundCode) return 'auth.recovery.accountNotFound'
     if (error.status === 429) return 'auth.recovery.rateLimited'
     if (error.code === 'RECOVERY_MAIL_NOT_CONFIGURED') return 'auth.recovery.mailNotConfigured'
     if (error.status === 503) return 'auth.recovery.unavailable'

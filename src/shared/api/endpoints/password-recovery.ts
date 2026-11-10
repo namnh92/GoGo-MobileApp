@@ -1,5 +1,7 @@
 import { api } from '../client'
-import type { OpBody, OpResponse } from '../types'
+import type { operations, OpBody, OpResponse } from '../types'
+
+export type RecoveryAccountNotFoundResponse = operations['requestPasswordRecovery']['responses'][404]['content']['application/json']
 
 export function requestPasswordRecovery(body: OpBody<'requestPasswordRecovery'>, idempotencyKey: string) {
   return api.post<OpResponse<'requestPasswordRecovery'>>('/auth/password-recovery/request', body, { anonymous: true, idempotencyKey, expectedStatus: 202 })

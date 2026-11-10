@@ -28,8 +28,9 @@
 - Owner 2026-11-10 / BE#835: bỏ copy anti-enumeration vi/en. Chỉ request
   202 mới chuyển sang trạng thái OTP trên cùng màn; 404 + RECOVERY_ACCOUNT_NOT_FOUND hiện
   “Tài khoản không tồn tại.” dưới email, giữ màn hiện tại và xóa lỗi khi sửa email.
-  Dùng status/code của ApiError từ shared error envelope; không chép tay types
-  khi generated contract chưa có 404. RECOVERY_INVALID, offline, 429, 503 mail
+  Contract `9.2.0-alpha.1` (BE#836) được sao chép nguyên byte; client được generate
+  lại bằng `pnpm api:types`. Dùng status của ApiError và code được ràng buộc bằng
+  response 404 generated; fixture 404 cũng kiểm tra theo type này. RECOVERY_INVALID, offline, 429, 503 mail
   chưa cấu hình/unavailable giữ copy vi/en; không vẽ server message.
 - Sáu ô mã có nhãn, tự chuyển focus, dán/autofill 6 số, backspace quay về ô trước.
   PasswordRequirements hiện có kiểm tra năm điều kiện; mật khẩu có hiện/ẩn.
